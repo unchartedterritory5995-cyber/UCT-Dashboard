@@ -786,12 +786,12 @@
    "term": "Long straddle",
    "q": "What is a long straddle?",
    "choices": [
-    "Buy call and put, same strike and expiry",
+    "Buy call and put, one strike and date",
     "Buy call and put, two different strikes",
     "Buy a call, sell a put, same strike",
     "Sell a near call, buy a far call"
    ],
-   "answer": "Buy call and put, same strike and expiry",
+   "answer": "Buy call and put, one strike and date",
    "why": "Buy a call and a put at one strike and one expiry. You own both, so a big enough move either way can pay.",
    "lesson_line": "Straddle: one strike, one expiry, a call and a put. You're betting on size, not direction.",
    "facts": [
@@ -830,12 +830,12 @@
    "term": "Calendar spread",
    "q": "What is a calendar spread?",
    "choices": [
-    "Same strike, two different expiries",
+    "One strike, two different expiries",
     "Same expiry, two different strikes",
     "Two strikes and two expiries",
     "A call and a put, same strike"
    ],
-   "answer": "Same strike, two different expiries",
+   "answer": "One strike, two different expiries",
    "why": "Same strike, two different expiries. You sell the nearer option and buy the later one, both calls or both puts.",
    "lesson_line": "Calendar: one strike, two expiries. You'll also see it called a time spread or a horizontal spread.",
    "facts": [
@@ -937,8 +937,8 @@
    "q": "You sell a straddle. What is your maximum loss?",
    "choices": [
     "Unlimited, the short call has no cap",
-    "The premium you collected",
-    "The strike price, at most"
+    "The premium you collected up front",
+    "The strike price, at most, per share"
    ],
    "answer": "Unlimited, the short call has no cap",
    "why": "Unlimited. The short call keeps losing as the stock rises, and the premium you took in only softens it.",
@@ -949,8 +949,8 @@
     "f65"
    ],
    "wrong": {
-    "The premium you collected": "That's the most you can make, not the most you can lose.",
-    "The strike price, at most": "That's the put side, if the stock goes to zero. The call side has no limit."
+    "The premium you collected up front": "That's the most you can make, not the most you can lose.",
+    "The strike price, at most, per share": "That's the put side, if the stock goes to zero. The call side has no limit."
    },
    "skill": "options.vol_spreads"
   },
@@ -1457,7 +1457,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "f1/f61 (Tier 1) support the key; combo (f48), strangle (f12), calendar wrongs correct. Term is LONG straddle, so the answer now says you buy both legs (it also fit a short straddle); choices reworded in parallel, D's note now 'calendar or diagonal' since the choice gives no strikes.",
+   "notes": "f1/f61 (Tier 1) support the key; combo (f48), strangle (f12), calendar wrongs correct. Term is LONG straddle, so the answer now says you buy both legs (it also fit a short straddle); choices reworded in parallel, D's note now 'calendar or diagonal' since the choice gives no strikes. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1469,7 +1469,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "OIC glossary f37 (same type, same strike, near written / far bought) and f38 (time / horizontal spread). Wrongs: vertical (f42), diagonal (f36). D's note reworded: the choice gives no expiry, so it no longer flatly calls it a straddle.",
+   "notes": "OIC glossary f37 (same type, same strike, near written / far bought) and f38 (time / horizontal spread). Wrongs: vertical (f42), diagonal (f36). D's note reworded: the choice gives no expiry, so it no longer flatly calls it a straddle. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1499,7 +1499,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "OIC f18/f19 and the options disclosure document f65: short straddle risk unlimited, gain capped at premium; downside loss is the strike less premium (OIC page). Key and wrongs correct.",
+   "notes": "OIC f18/f19 and the options disclosure document f65: short straddle risk unlimited, gain capped at premium; downside loss is the strike less premium (OIC page). Key and wrongs correct. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

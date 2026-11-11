@@ -759,13 +759,13 @@
    "format": "mcq",
    "q": "Before the 9:30 a.m. ET open, what do S&P 500 futures show you?",
    "choices": [
-    "How the market is taking overnight news",
+    "How the market takes overnight news",
     "The exact price stocks will open at",
     "Which stocks will lead today",
     "Nothing that matters for stocks"
    ],
-   "answer": "How the market is taking overnight news",
-   "why": "How the market is taking overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them.",
+   "answer": "How the market takes overnight news",
+   "why": "How the market takes overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them.",
    "lesson_line": "Futures are the market's overnight vote. A hint about the open, not a promise.",
    "facts": [
     "fc1",
@@ -1066,7 +1066,7 @@
    "choices": [
     "Positions, stops and news due later",
     "A fresh scan for new names to buy",
-    "Lower stops to give trades room"
+    "Lower stops to give trades more room"
    ],
    "answer": "Positions, stops and news due later",
    "why": "Positions, stops and news due later. Protection comes before new buys. Know what's scheduled too: the Fed's Oct. 28, 2026 statement landed at 2:00 p.m. ET.",
@@ -1080,7 +1080,7 @@
    ],
    "wrong": {
     "A fresh scan for new names to buy": "New buys can wait. Veteran trader Gatis Roze checks what he owns first: protection takes precedence over fresh purchases.",
-    "Lower stops to give trades room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it."
+    "Lower stops to give trades more room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it."
    }
   },
   {
@@ -1092,8 +1092,8 @@
    "q": "Which premarket step would have warned you?",
    "choices": [
     "Checking the day's economic calendar",
-    "Reading the overnight futures",
-    "Marking levels on your names",
+    "Reading the overnight index futures",
+    "Marking levels on each of your names",
     "Scanning your names' news"
    ],
    "answer": "Checking the day's economic calendar",
@@ -1107,8 +1107,8 @@
     "t1"
    ],
    "wrong": {
-    "Reading the overnight futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
-    "Marking levels on your names": "Levels tell you where to act, not when the market is about to jolt.",
+    "Reading the overnight index futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
+    "Marking levels on each of your names": "Levels tell you where to act, not when the market is about to jolt.",
     "Scanning your names' news": "Company news matters, but a Fed statement is market-wide and scheduled. It sits on the economic calendar."
    }
   },
@@ -1121,8 +1121,8 @@
    "q": "What does the recap do with that stop?",
    "choices": [
     "Consider raising it under the new low",
-    "Lower it to give the trade room",
-    "Cancel it, the trade is working"
+    "Lower it to give the trade more room",
+    "Cancel it, since the trade is working"
    ],
    "answer": "Consider raising it under the new low",
    "why": "Consider raising it under the new low. Schwab's daily routine: monitor open positions for new support levels and chances to adjust your stops. Support is usually a previous low.",
@@ -1132,8 +1132,8 @@
     "m2"
    ],
    "wrong": {
-    "Lower it to give the trade room": "Widening a stop on a winner adds risk for no reason.",
-    "Cancel it, the trade is working": "Working trades can turn. Without a stop, a winner can become a loser."
+    "Lower it to give the trade more room": "Widening a stop on a winner adds risk for no reason.",
+    "Cancel it, since the trade is working": "Working trades can turn. Without a stop, a winner can become a loser."
    }
   },
   {
@@ -1340,7 +1340,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key rests on CME's own page (Tier 1): fc1/fc2 nearly 24-hour access when off-hour news hits; fr1 (FINRA: open set by supply and demand at the open) and fs2 (SEC) make 'exact price' really wrong. Changed why 'react while stocks are shut' to 'while the regular session is closed' (stocks do trade premarket, and the next sentence cites SPY's premarket quotes). Added fc5 (CME: one ES future tracks the 500 stocks) and fn1 (9:30 open). ip1/ip2/ip3/ip5: Investopedia now refuses every client (402/403, WebFetch too); confirmed word for word on the Wayback capture of 2025-08-21 (page updated 2025-08-15). See conflicts.",
+   "notes": "Key rests on CME's own page (Tier 1): fc1/fc2 nearly 24-hour access when off-hour news hits; fr1 (FINRA: open set by supply and demand at the open) and fs2 (SEC) make 'exact price' really wrong. Changed why 'react while stocks are shut' to 'while the regular session is closed' (stocks do trade premarket, and the next sentence cites SPY's premarket quotes). Added fc5 (CME: one ES future tracks the 500 stocks) and fn1 (9:30 open). ip1/ip2/ip3/ip5: Investopedia now refuses every client (402/403, WebFetch too); confirmed word for word on the Wayback capture of 2025-08-21 (page updated 2025-08-15). See conflicts. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1412,19 +1412,19 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "ss2 (Schwab daily: monitor open positions, adjust stops), ff1 (Fed 2:00 p.m. EDT), r3b (Roze: 'protection takes precedence over searching out fresh new purchases. That comes later.') confirmed live. Roze still hunts for buys later in the day, so a midday scan is not wrong in itself; changed the question to 'What comes first in your midday check?' and the scan's wrong note to 'New buys can wait', which is what the source says.",
+   "notes": "ss2 (Schwab daily: monitor open positions, adjust stops), ff1 (Fed 2:00 p.m. EDT), r3b (Roze: 'protection takes precedence over searching out fresh new purchases. That comes later.') confirmed live. Roze still hunts for buys later in the day, so a midday scan is not wrong in itself; changed the question to 'What comes first in your midday check?' and the scan's wrong note to 'New buys can wait', which is what the source says. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q14": {
    "status": "pass",
-   "notes": "ff1 (Fed: Oct 28 2026 statement at 2:00 p.m. EDT), ie1, sb3 (Schwab: a Fed rate announcement can upset intraday tendencies), t1 confirmed live. The why generalised one release into 'Fed statements come out mid-session'; now states only the dated example and adds ie2 (Investopedia, confirmed live: the calendar covers 'interest rate announcements'), which is what makes the calendar the right step.",
+   "notes": "ff1 (Fed: Oct 28 2026 statement at 2:00 p.m. EDT), ie1, sb3 (Schwab: a Fed rate announcement can upset intraday tendencies), t1 confirmed live. The why generalised one release into 'Fed statements come out mid-session'; now states only the dated example and adds ie2 (Investopedia, confirmed live: the calendar covers 'interest rate announcements'), which is what makes the calendar the right step. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q15": {
    "status": "pass",
-   "notes": "ss2 (Schwab: look for new support levels and opportunities to adjust your stops) and m2 (Murphy: support is usually a previous reaction low) confirmed live; two publishers. 'Consider' keeps it a judgment, and it does not clash with the owner's own management rule (trail rising moving averages, sizing_rule.md section 6). Lowering or cancelling a stop on a winner are real mistakes.",
+   "notes": "ss2 (Schwab: look for new support levels and opportunities to adjust your stops) and m2 (Murphy: support is usually a previous reaction low) confirmed live; two publishers. 'Consider' keeps it a judgment, and it does not clash with the owner's own management rule (trail rising moving averages, sizing_rule.md section 6). Lowering or cancelling a stop on a winner are real mistakes. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

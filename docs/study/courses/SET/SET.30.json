@@ -1148,12 +1148,12 @@
    "criterion": "pl.burst",
    "q": "In one line, what is a parabolic long?",
    "choices": [
-    "The turn after a 3 to 5 day panic drop",
-    "Riding a stock up its vertical run",
-    "A breakout from a tight base",
-    "A bottom built over months"
+    "The turn after a 3 to 5 day drop",
+    "Riding a stock up its run",
+    "A breakout from a quiet base",
+    "A bottom built slowly over months"
    ],
-   "answer": "The turn after a 3 to 5 day panic drop",
+   "answer": "The turn after a 3 to 5 day drop",
    "why": "The turn after a 3 to 5 day panic drop. Bracco's burst turned upside down: a stock falls straight down for days, then snaps back.",
    "lesson_line": "A parabolic long buys the snap back, not the fall.",
    "facts": [
@@ -1164,9 +1164,9 @@
    ],
    "house": true,
    "wrong": {
-    "Riding a stock up its vertical run": "That is buying the run up, the opposite trade. Ours is the mirror of a burst down.",
-    "A breakout from a tight base": "A base is a rest. This setup has no rest; it is a panic and a turn.",
-    "A bottom built over months": "Months of basing is a different trade. This bounce lives for days."
+    "Riding a stock up its run": "That is buying the run up, the opposite trade. Ours is the mirror of a burst down.",
+    "A breakout from a quiet base": "A base is a rest. This setup has no rest; it is a panic and a turn.",
+    "A bottom built slowly over months": "Months of basing is a different trade. This bounce lives for days."
    }
   },
   {
@@ -1195,12 +1195,12 @@
    "criterion": "pl.target",
    "q": "What is the target of a parabolic long, and whose rule is it?",
    "choices": [
-    "The daily 9 EMA, Bracco's target",
-    "The 50-day average",
-    "The high before the fall",
-    "A fixed 20% bounce"
+    "The daily 9 EMA, Bracco's rule",
+    "The 50-day average, from below",
+    "The high before the fall began",
+    "A fixed 20% bounce off the low"
    ],
-   "answer": "The daily 9 EMA, Bracco's target",
+   "answer": "The daily 9 EMA, Bracco's rule",
    "why": "The daily 9 EMA from below. Bracco's parabolic short targets the 9 EMA; the rulebook keeps it and the long mirrors it.",
    "lesson_line": "The 9 EMA is the finish line. The trade is done when price gets there.",
    "facts": [
@@ -1210,9 +1210,9 @@
    ],
    "house": true,
    "wrong": {
-    "The 50-day average": "After a crash the 50-day is far above. The 9 EMA is the first average price can reach.",
-    "The high before the fall": "A snap back is not a round trip. The old high is not the plan.",
-    "A fixed 20% bounce": "Bracco targets an average, not a percent. The 9 EMA moves with the stock."
+    "The 50-day average, from below": "After a crash the 50-day is far above. The 9 EMA is the first average price can reach.",
+    "The high before the fall began": "A snap back is not a round trip. The old high is not the plan.",
+    "A fixed 20% bounce off the low": "Bracco targets an average, not a percent. The 9 EMA moves with the stock."
    }
   },
   {
@@ -1272,7 +1272,7 @@
    "rung": 1,
    "format": "tf",
    "criterion": "pl.rs_exempt",
-   "q": "A parabolic long needs an RS rating of 80 or more, like every other long we buy.",
+   "q": "A parabolic long needs an RS rating of 80 or more, like the other longs we buy.",
    "answer": "False",
    "why": "False. The leader rule exempts parabolic and mean-reversion trades. The burst is the test here, not the rating.",
    "lesson_line": "RS does not apply here. The burst is the whole story.",
@@ -1318,12 +1318,12 @@
    "criterion": "pl.trigger_vwap",
    "q": "On the climax day, when exactly is the buy?",
    "choices": [
-    "5-minute close over VWAP after the low",
-    "The open, before the turn",
+    "First 5-minute close over VWAP",
+    "The open, before any turn shows",
     "The close, whatever the day did",
-    "A buy stop over the prior day's high"
+    "A buy stop over the prior high"
    ],
-   "answer": "5-minute close over VWAP after the low",
+   "answer": "First 5-minute close over VWAP",
    "why": "The first 5-minute close back above VWAP, after the low is in. Never before the turn. Bracco's short waits for the break under VWAP; the long waits for the reclaim.",
    "lesson_line": "The right side of the V. VWAP reclaimed, after the low, is the buy.",
    "facts": [
@@ -1333,9 +1333,9 @@
    ],
    "house": true,
    "wrong": {
-    "The open, before the turn": "That is buying the knife. The turn has not happened at the open.",
+    "The open, before any turn shows": "That is buying the knife. The turn has not happened at the open.",
     "The close, whatever the day did": "The close is a scanner's stand-in. The real buy is the intraday reclaim, usually lower.",
-    "A buy stop over the prior day's high": "Too far away. The prior day's high is a whole gap above."
+    "A buy stop over the prior high": "Too far away. The prior day's high is a whole gap above."
    }
   },
   {
@@ -1534,12 +1534,12 @@
    "q": "What now?",
    "story": "You bought the VWAP reclaim at 41.20 with the stop a few cents under the day's low. At 1:30 it loses VWAP and prints a new low of the day.",
    "choices": [
-    "Out; the stop under the day's low is hit",
-    "Hold; give it to the close",
-    "Add; it is cheaper now",
+    "Out; the stop under the low is hit",
+    "Hold; give it room until the close",
+    "Add; it is cheaper than the fill",
     "Move the stop under the week's low"
    ],
-   "answer": "Out; the stop under the day's low is hit",
+   "answer": "Out; the stop under the low is hit",
    "why": "Out. The entry bar failed back under VWAP and the day's low broke. The stop under the day's low is the exit, and a new low means the selling was not done.",
    "lesson_line": "Lose VWAP and the low, and the thesis is wrong. The stop says so first.",
    "facts": [
@@ -1549,8 +1549,8 @@
    ],
    "house": true,
    "wrong": {
-    "Hold; give it to the close": "The stop does not wait for the close. A new low of the day is the exit.",
-    "Add; it is cheaper now": "Never add when down. Full size at one price.",
+    "Hold; give it room until the close": "The stop does not wait for the close. A new low of the day is the exit.",
+    "Add; it is cheaper than the fill": "Never add when down. Full size at one price.",
     "Move the stop under the week's low": "The stop only moves up, never wider."
    }
   },
@@ -1562,12 +1562,12 @@
    "criterion": "pl.no_chase",
    "q": "The trigger prints at 20.00. Three minutes later it trades 21.00. Buy?",
    "choices": [
-    "No; 5% over the trigger, past our 4%",
-    "Yes; momentum confirms the turn",
-    "Yes, half size",
+    "No; 5% over, past our 4% line",
+    "Yes; momentum confirms it",
+    "Yes, at half size, lower risk",
     "Yes, with the stop raised"
    ],
-   "answer": "No; 5% over the trigger, past our 4%",
+   "answer": "No; 5% over, past our 4% line",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1584,8 +1584,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; momentum confirms the turn": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Yes, half size": "Half of a chased entry is still chased.",
+    "Yes; momentum confirms it": "Confirmed and too far away are both true. The chase line is 4%.",
+    "Yes, at half size, lower risk": "Half of a chased entry is still chased.",
     "Yes, with the stop raised": "The stop is the day's low. Raising it to fit a late entry is the mistake."
    }
   },
@@ -1623,7 +1623,7 @@
    "rung": 3,
    "format": "tf",
    "criterion": "pl.stop",
-   "q": "The stop on a parabolic long can wait in your head, since the trade only lasts days.",
+   "q": "The stop on a parabolic long can wait in your head, since the trade lasts just days.",
    "answer": "False",
    "why": "False. Every position has a real stop order with the broker. After a crash, gaps are common; a stop in your head cannot catch one.",
    "lesson_line": "A stop in your head is a debate. Put it with the broker.",
@@ -1721,7 +1721,7 @@
    "rung": 3,
    "format": "tf",
    "criterion": "pl.retries",
-   "q": "On one name you may try a parabolic long at most 3 times in a week and 6 in a month.",
+   "q": "On one name you may never try a parabolic long more than 3 times in a week and 6 in a month.",
    "answer": "True",
    "why": "True. At most 3 tries in a week and 6 in a month, each on a new trigger. After three tries the name is telling you something.",
    "lesson_line": "Three tries a week. After that the name is telling you something.",
@@ -1821,12 +1821,12 @@
    "q": "Add here?",
    "story": "Your parabolic long is down 1.5% from the fill, still above the stop. A friend says buy more here; the average improves.",
    "choices": [
-    "No; one price, one stop, never add down",
-    "Yes; a lower average is a better trade",
-    "Yes, a small add only",
+    "No; one price, one stop, no adds",
+    "Yes; the lower average is a plus",
+    "Yes, a small add is fine here",
     "Yes, and move the stop lower"
    ],
-   "answer": "No; one price, one stop, never add down",
+   "answer": "No; one price, one stop, no adds",
    "why": "No. The full size at one price with one stop; no adding. Bracco: I never add when I am down. The stop is the only plan for a loser.",
    "lesson_line": "A lower average on a loser is a bigger loser. Never add down.",
    "facts": [
@@ -1836,8 +1836,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; a lower average is a better trade": "A better average on a losing thesis is more risk, not a better trade.",
-    "Yes, a small add only": "Small is still adding. The rule is one price.",
+    "Yes; the lower average is a plus": "A better average on a losing thesis is more risk, not a better trade.",
+    "Yes, a small add is fine here": "Small is still adding. The rule is one price.",
     "Yes, and move the stop lower": "The stop never moves wider. Two mistakes in one."
    }
   },
@@ -1923,12 +1923,12 @@
    "criterion": "pl.opening_volume",
    "q": "On the climax day, how do the opening minutes compare with the other burst days?",
    "choices": [
-    "The heaviest opening volume of the run",
+    "The heaviest opening of the run",
     "The lightest; sellers are tired",
-    "About the same as any day",
+    "About the same as the other days",
     "Heavy only if the gap filled"
    ],
-   "answer": "The heaviest opening volume of the run",
+   "answer": "The heaviest opening of the run",
    "why": "The heaviest of the run. Bracco: the climax day almost invariably shows the highest opening volume of the entire run. The long reads it mirrored.",
    "lesson_line": "The climax opens with the loudest crowd of the whole move.",
    "facts": [
@@ -1938,7 +1938,7 @@
    "house": true,
    "wrong": {
     "The lightest; sellers are tired": "Tired sellers come later. The climax is the panic, the heaviest selling.",
-    "About the same as any day": "A climax that looks like any day is not a climax.",
+    "About the same as the other days": "A climax that looks like any day is not a climax.",
     "Heavy only if the gap filled": "The opening volume comes with the gap, filled or not."
    }
   },
@@ -1975,12 +1975,12 @@
    "q": "Was the stop the mistake?",
    "story": "Every box ticked: a 3.9% gap down, 3.6x volume, a close 1.8% off the open, 6.2 ATR under the 50-day. You bought at 28.50, stop 27.67. Monday's low of 27.44 took it; the stock traded 17.95 three weeks later.",
    "choices": [
-    "No; a planned loss, the stop did its job",
+    "No; a planned loss, as designed",
     "Yes; the stop needed more room",
-    "Yes; the boxes were wrong",
-    "No; you should have sold the close"
+    "Yes; the wrong boxes were ticked",
+    "No; sell at the close instead"
    ],
-   "answer": "No; a planned loss, the stop did its job",
+   "answer": "No; a planned loss, as designed",
    "why": "No. The stop is the exit and it kept the cost to one R. It was the first week of a crash from an all-time high; the bars cannot show that, the market reading has to.",
    "lesson_line": "The stop keeps a week-early call at one R. That is what it is for.",
    "facts": [
@@ -1992,8 +1992,8 @@
    "house": true,
    "wrong": {
     "Yes; the stop needed more room": "Room would have been a 37% hole. The stop saved most of it.",
-    "Yes; the boxes were wrong": "Every box was ticked. The problem was where in the crash the day sat.",
-    "No; you should have sold the close": "A stop with the broker, not a close you had to watch. The stop did the job."
+    "Yes; the wrong boxes were ticked": "Every box was ticked. The problem was where in the crash the day sat.",
+    "No; sell at the close instead": "A stop with the broker, not a close you had to watch. The stop did the job."
    }
   },
   {
@@ -2055,7 +2055,7 @@
    "rung": 5,
    "format": "tf",
    "criterion": "pl.trim_gap_open",
-   "q": "If the stock opens above a trim level, the trim is taken at the open.",
+   "q": "If the stock opens above a trim level, the trim must be taken at the open.",
    "answer": "True",
    "why": "True. A trim level the day opens past is taken at the open. Do not wait for a better price.",
    "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
@@ -2101,12 +2101,12 @@
    "criterion": "pl.size_pref",
    "q": "Which vehicles does our card prefer for this setup?",
    "choices": [
-    "Mid and large caps; broad or sector ETFs",
-    "Small caps under $10",
-    "Stocks with no options",
-    "Only the index itself"
+    "Mid and large caps, plus ETFs",
+    "Small caps trading under $10",
+    "Stocks with no listed options",
+    "Only the broad index ETF itself"
    ],
-   "answer": "Mid and large caps; broad or sector ETFs",
+   "answer": "Mid and large caps, plus ETFs",
    "why": "Mid and large caps and broad or sector ETFs. Bracco prefers mid to large caps, and ETFs are fine with no extra rules.",
    "lesson_line": "Trade the panic in something you can get out of.",
    "facts": [
@@ -2116,9 +2116,9 @@
    ],
    "house": true,
    "wrong": {
-    "Small caps under $10": "Under $10 fails the liquidity rule. Bracco prefers the bigger names.",
-    "Stocks with no options": "Options are not the point. Size and volume are.",
-    "Only the index itself": "The index version is one of two contexts. Stocks and sector ETFs qualify too."
+    "Small caps trading under $10": "Under $10 fails the liquidity rule. Bracco prefers the bigger names.",
+    "Stocks with no listed options": "Options are not the point. Size and volume are.",
+    "Only the broad index ETF itself": "The index version is one of two contexts. Stocks and sector ETFs qualify too."
    }
   },
   {
@@ -2130,12 +2130,12 @@
    "q": "What is the read?",
    "story": "On one day six China names print the same climax: gap downs, heavy volume, all five boxes. Each reclaims VWAP before noon.",
    "choices": [
-    "The best setting; a group unwinding",
-    "Pass; too many names means a crash",
+    "The best setting; a group unwind",
+    "Pass; too many names is a crash",
     "Take one; the others are copies",
-    "Wait a week for the retest"
+    "Wait a week for a retest to form"
    ],
-   "answer": "The best setting; a group unwinding",
+   "answer": "The best setting; a group unwind",
    "why": "The best setting. A crowded group unwinding all at once is where this setup works best. HTHT fired with six names that day and reached 3R the next session.",
    "lesson_line": "When a whole crowd gets out at once, the turn is a group event.",
    "facts": [
@@ -2145,9 +2145,9 @@
    ],
    "house": true,
    "wrong": {
-    "Pass; too many names means a crash": "A group liquidation is forced selling, the kind that snaps back. A crash is the index, from a top.",
+    "Pass; too many names is a crash": "A group liquidation is forced selling, the kind that snaps back. A crash is the index, from a top.",
     "Take one; the others are copies": "Each name is its own trade with its own stop. Position count is a separate rule.",
-    "Wait a week for the retest": "The buy is the reclaim, on the climax day. A week later the bounce is done."
+    "Wait a week for a retest to form": "The buy is the reclaim, on the climax day. A week later the bounce is done."
    }
   },
   {
@@ -2230,12 +2230,12 @@
    "q": "What is the lesson?",
    "story": "You bought a Friday turn at 25.58, stop 24.94. Monday closed 24.49, through the stop. The low came Thursday at 23.85, and by Friday the stock sat at the 9 EMA.",
    "choices": [
-    "A new low said the selling was not done",
-    "Hold through; it reached the 9 EMA",
+    "A new low: selling was not done",
+    "Hold on; it reached the 9 EMA",
     "Widen the stop to the Monday low",
-    "Buy more at the Monday close"
+    "Buy more at Monday's close"
    ],
-   "answer": "A new low said the selling was not done",
+   "answer": "A new low: selling was not done",
    "why": "A new low under the climax low means the selling was not done, and the stop is the exit. The next turn, not the Friday turn, was the trade.",
    "lesson_line": "The first turn is often a day early. The stop costs one R; the next turn is a new trade.",
    "facts": [
@@ -2246,9 +2246,9 @@
    ],
    "house": true,
    "wrong": {
-    "Hold through; it reached the 9 EMA": "It got there from a lower low. Holding through the stop is how one R becomes five.",
+    "Hold on; it reached the 9 EMA": "It got there from a lower low. Holding through the stop is how one R becomes five.",
     "Widen the stop to the Monday low": "The stop only moves up. Never wider.",
-    "Buy more at the Monday close": "Never add when down. A re-entry needs a new trigger, as a new trade."
+    "Buy more at Monday's close": "Never add when down. A re-entry needs a new trigger, as a new trade."
    }
   },
   {
@@ -2276,9 +2276,9 @@
    "q": "The ETF trades 500,000 shares a day on average. Our ceiling on the position?",
    "choices": [
     "5,000 shares, 1% of daily volume",
-    "50,000 shares",
-    "No ceiling on an ETF",
-    "500 shares"
+    "50,000 shares, a tenth of volume",
+    "No ceiling on an ETF this size",
+    "500 shares, a tenth of the cap"
    ],
    "answer": "5,000 shares, 1% of daily volume",
    "calc": {
@@ -2296,9 +2296,9 @@
    ],
    "house": true,
    "wrong": {
-    "50,000 shares": "A tenth of the day's volume. You could not get out of a panic in that size.",
-    "No ceiling on an ETF": "An ETF with thin volume is as thin as any stock. The 1% rule stands.",
-    "500 shares": "A tenth of the ceiling. The rule is 1%."
+    "50,000 shares, a tenth of volume": "A tenth of the day's volume. You could not get out of a panic in that size.",
+    "No ceiling on an ETF this size": "An ETF with thin volume is as thin as any stock. The 1% rule stands.",
+    "500 shares, a tenth of the cap": "A tenth of the ceiling. The rule is 1%."
    }
   },
   {
@@ -2310,13 +2310,13 @@
    "q": "What do you do?",
    "story": "You bought at 52.00 with the stop at 50.90. Next morning it opens 49.50. The first 30-minute bar's low is 48.70.",
    "choices": [
-    "Out; the 30-minute low is past 2R",
-    "48.70 is the new stop",
-    "Hold for the close",
-    "Sell half at the open"
+    "Out; that low is past the 2R cap",
+    "48.70 is the new stop; hold on",
+    "Hold and wait for the close",
+    "Sell half at the open, hold half"
    ],
-   "answer": "Out; the 30-minute low is past 2R",
-   "why": "Out. The first 30 minutes decide, with a ceiling: 48.70 is a 3R loss, past 2R, so you get out. Overnight holds after a crash see more gaps.",
+   "answer": "Out; that low is past the 2R cap",
+   "why": "Out. The first 30 minutes decide, with a ceiling: 48.70 is a 3R loss, past 2R, so you get out.",
    "lesson_line": "The gap rule has a ceiling. Past 2R in the first 30 minutes, you are done.",
    "facts": [
     "h06",
@@ -2326,9 +2326,9 @@
    ],
    "house": true,
    "wrong": {
-    "48.70 is the new stop": "The 30-minute low is the new stop only inside 2R. A 3R loss is past the ceiling.",
-    "Hold for the close": "The decision is the first 30 minutes, not the close.",
-    "Sell half at the open": "The rule is all or nothing after the first 30 minutes. Half is a guess."
+    "48.70 is the new stop; hold on": "The 30-minute low is the new stop only inside 2R. A 3R loss is past the ceiling.",
+    "Hold and wait for the close": "The decision is the first 30 minutes, not the close.",
+    "Sell half at the open, hold half": "The rule is all or nothing after the first 30 minutes. Half is a guess."
    }
   },
   {
@@ -2339,12 +2339,12 @@
    "criterion": "pl.prior_run",
    "q": "For the blow-off unwind, what came before the fall?",
    "choices": [
-    "A run of 50% or more in days or weeks",
-    "A long, quiet base",
+    "A 50%+ run in days or weeks",
+    "A quiet base near highs",
     "A slow downtrend of months",
-    "An earnings gap up"
+    "An earnings gap, then a fade"
    ],
-   "answer": "A run of 50% or more in days or weeks",
+   "answer": "A 50%+ run in days or weeks",
    "why": "A parabolic run of 50% or more in days or weeks: the stock was a parabolic-short candidate. Kullamagi's premise is a successful parabolic short that then crashed.",
    "lesson_line": "The unwind needs a blow-off before it. No run, no rubber band.",
    "facts": [
@@ -2354,9 +2354,9 @@
    ],
    "house": true,
    "wrong": {
-    "A long, quiet base": "A base before a fall is a breakdown. The unwind needs a vertical run first.",
+    "A quiet base near highs": "A base before a fall is a breakdown. The unwind needs a vertical run first.",
     "A slow downtrend of months": "That is the other context, the capitulation in a decline, measured in ATRs.",
-    "An earnings gap up": "A gap is one day. The run is the whole parabolic move."
+    "An earnings gap, then a fade": "A gap is one day. The run is the whole parabolic move."
    }
   },
   {
@@ -2556,12 +2556,12 @@
    "q": "What does the rulebook say?",
    "story": "Ten trading days after the climax your parabolic long sits at 0.6R. The stop was never touched and the 9 EMA is still above.",
    "choices": [
-    "Sold; under 1R after 10 trading days",
+    "Sold; under 1R after 10 sessions",
     "Hold; the stop was never hit",
-    "Add; it has proved the low",
+    "Add; it has proved the low is in",
     "Move the stop up and wait a month"
    ],
-   "answer": "Sold; under 1R after 10 trading days",
+   "answer": "Sold; under 1R after 10 sessions",
    "why": "Sold. A trade still under 1R after 10 trading days is sold, freeing the money. A snap back that has not snapped in ten days is not snapping.",
    "lesson_line": "This bounce lives for days. Ten days under 1R and the money has a better home.",
    "facts": [
@@ -2572,7 +2572,7 @@
    "house": true,
    "wrong": {
     "Hold; the stop was never hit": "The stop is one exit. Time is the other. Bracco holds these one to three days.",
-    "Add; it has proved the low": "Never add. A proved low with no bounce is a range, a different trade.",
+    "Add; it has proved the low is in": "Never add. A proved low with no bounce is a range, a different trade.",
     "Move the stop up and wait a month": "A month is a swing trade. This was a snap back and it did not snap."
    }
   },
@@ -2582,7 +2582,7 @@
    "rung": 7,
    "format": "tf",
    "criterion": "pl.target",
-   "q": "Every parabolic long reaches the 9 EMA, as Bracco's magnet claim says for the short.",
+   "q": "Most parabolic longs reach the 9 EMA, as Bracco's magnet claim says for the short.",
    "answer": "False",
    "why": "False. The mirror is not true for longs. In our test only about 4 in 10 reached the 9 EMA before the day's low broke. Take the target when it is offered.",
    "lesson_line": "The 9 EMA is the target, not a promise. Four in ten get there.",
@@ -2601,12 +2601,12 @@
    "criterion": "pl.room_to_target",
    "q": "After a three-day crash from 847 to 202 the 9 EMA sits above 260. What does our card warn?",
    "choices": [
-    "The 9 EMA can be out of reach for weeks",
+    "The 9 EMA can stay out of reach",
     "The 9 EMA is reached within days",
-    "A bigger crash means a bigger bounce",
+    "A bigger crash, a bigger bounce",
     "Skip; the 9 EMA is too close"
    ],
-   "answer": "The 9 EMA can be out of reach for weeks",
+   "answer": "The 9 EMA can stay out of reach",
    "why": "The 9 EMA can be out of reach. After a crash from far above, CAR's 9 EMA was not reached for weeks. Expecting it every time is a named mistake.",
    "lesson_line": "Room to the target is good. A target in another zip code is a warning.",
    "facts": [
@@ -2617,7 +2617,7 @@
    "house": true,
    "wrong": {
     "The 9 EMA is reached within days": "After a crash from far above, it can take weeks. CAR is the case.",
-    "A bigger crash means a bigger bounce": "A bigger crash means a farther 9 EMA. Bounce size is not the rule.",
+    "A bigger crash, a bigger bounce": "A bigger crash means a farther 9 EMA. Bounce size is not the rule.",
     "Skip; the 9 EMA is too close": "The problem is the opposite. The 9 EMA is far, not close."
    }
   },
@@ -2630,12 +2630,12 @@
    "q": "What decides?",
    "story": "On one Friday 83 names print the climax: every box ticked, every context met, heavy volume. It is the first week of a slide from an all-time high.",
    "choices": [
-    "The market reading; bars cannot see it",
+    "The market reading, not the bars",
     "The box count; five beats four",
-    "The volume; the heaviest wins",
-    "Nothing; take all 83"
+    "The volume; the heaviest day wins",
+    "Nothing; take all 83 of them"
    ],
-   "answer": "The market reading; bars cannot see it",
+   "answer": "The market reading, not the bars",
    "why": "The market reading. All 83 were stopped and none reached 5R; the real low came 16 sessions later. The rule reads the climax; the reading has to say whether the selling is done.",
    "lesson_line": "Perfect bars in the first week of a crash are still the first week of a crash.",
    "facts": [
@@ -2647,8 +2647,8 @@
    "house": true,
    "wrong": {
     "The box count; five beats four": "Every one of the 83 had every box. The count could not separate them.",
-    "The volume; the heaviest wins": "Volume was heavy across the board. The date decided, not the volume.",
-    "Nothing; take all 83": "Taking all of them lost all of them. Context is a gate."
+    "The volume; the heaviest day wins": "Volume was heavy across the board. The date decided, not the volume.",
+    "Nothing; take all 83 of them": "Taking all of them lost all of them. Context is a gate."
    }
   },
   {
@@ -2660,12 +2660,12 @@
    "q": "What is the lesson?",
    "story": "A 44% fall to 8.2 ATR under the 50-day, four boxes, 4.4x volume, a green close. Bought at 23.10, stop 21.70; stopped out the next day. Six sessions later, in the same panic, a different stock turned and ran.",
    "choices": [
-    "The first turn after a shock is early",
-    "Never buy a bank",
-    "Widen the stop next time",
+    "The first turn is often early",
+    "Never buy a bank in a panic",
+    "Widen the stop on the next buy",
     "Heavy volume was the warning"
    ],
-   "answer": "The first turn after a shock is early",
+   "answer": "The first turn is often early",
    "why": "The first turn after a shock often comes too early. The panic had one more leg; the stop kept the cost to one R and the next trigger was a new trade.",
    "lesson_line": "Being early is a recipe for disaster. The stop is the cure.",
    "facts": [
@@ -2676,8 +2676,8 @@
    ],
    "house": true,
    "wrong": {
-    "Never buy a bank": "The sector was not the problem. The timing inside the panic was.",
-    "Widen the stop next time": "A wider stop would have paid more for the same wrong day. The stop only moves up.",
+    "Never buy a bank in a panic": "The sector was not the problem. The timing inside the panic was.",
+    "Widen the stop on the next buy": "A wider stop would have paid more for the same wrong day. The stop only moves up.",
     "Heavy volume was the warning": "Heavy volume is part of the setup, not a warning. The shock had one more leg, that is all."
    }
   },
@@ -2925,7 +2925,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "c01/c02/k04/p01 verbatim. Key is the owner's B26 mirror (h10b). Wrong note named the app's 'Model Book' card as overruled; that is the owner's call (D-014) and the Model Book still teaches it, so the note now says only that riding the run up is the opposite trade.",
+   "notes": "c01/c02/k04/p01 verbatim. Key is the owner's B26 mirror (h10b). Wrong note named the app's 'Model Book' card as overruled; that is the owner's call (D-014) and the Model Book still teaches it, so the note now says only that riding the run up is the opposite trade. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2937,7 +2937,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "pl.target is settled (D47 mirrored, h16 verbatim) and Bracco's p12 is verbatim in dossier 3.1. Wrong notes true.",
+   "notes": "pl.target is settled (D47 mirrored, h16 verbatim) and Bracco's p12 is verbatim in dossier 3.1. Wrong notes true. Right choice lengthened so it is no longer the shortest (ties the others). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2955,7 +2955,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "C31 verbatim (h14). Why said a crashed stock 'has no RS rating worth reading', which is not a rule or a fact; replaced with 'the burst is the test, not the rating'.",
+   "notes": "C31 verbatim (h14). Why said a crashed stock 'has no RS rating worth reading', which is not a rule or a fact; replaced with 'the burst is the test, not the rating'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2967,7 +2967,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "c12 verbatim; Bracco's p10 verbatim. pl.trigger_vwap is pending D-003 but keyed on the coordinator's instruction (conflicts); the key is the card's default and no number is graded. Owner should confirm D-003.",
+   "notes": "c12 verbatim; Bracco's p10 verbatim. pl.trigger_vwap is pending D-003 but keyed on the coordinator's instruction (conflicts); the key is the card's default and no number is graded. Owner should confirm D-003. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3021,13 +3021,13 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "c26 and c25 verbatim, A4 (h02). Out at the stop under the day's low is the rule; Add and a wider stop break A5 and A4.",
+   "notes": "c26 and c25 verbatim, A4 (h02). Out at the stop under the day's low is the rule; Add and a wider stop break A5 and A4. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q18": {
    "status": "pass",
-   "notes": "calc pct_change 20 to 21 = 5.0%; C28 (h11) is a 4% line. Wrong notes true.",
+   "notes": "calc pct_change 20 to 21 = 5.0%; C28 (h11) is a 4% line. Wrong notes true. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3039,7 +3039,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "D41 verbatim (h18); k03 verbatim. False is right.",
+   "notes": "D41 verbatim (h18); k03 verbatim. False is right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3063,7 +3063,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "E56 verbatim (h29). The Bracco '3 failed attempts over 2 sessions' sentence was not in a cited fact (it is in dossier 6.2 only) and is removed.",
+   "notes": "E56 verbatim (h29). The Bracco '3 failed attempts over 2 sessions' sentence was not in a cited fact (it is in dossier 6.2 only) and is removed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3087,7 +3087,7 @@
   },
   "q28": {
    "status": "pass",
-   "notes": "A5 (h03b) and Bracco's s09 verbatim. Application of the one-entry rule to averaging down; kept beside q07.",
+   "notes": "A5 (h03b) and Bracco's s09 verbatim. Application of the one-entry rule to averaging down; kept beside q07. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3111,7 +3111,7 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "c07 (proposed, 'not coded in the daily scan') and Bracco's p09 verbatim. The claim is Bracco's for the short, mirrored; no test of it on the long side exists. Kept as a mirror claim, labelled as Bracco's in the why.",
+   "notes": "c07 (proposed, 'not coded in the daily scan') and Bracco's p09 verbatim. The claim is Bracco's for the short, mirrored; no test of it on the long side exists. Kept as a mirror claim, labelled as Bracco's in the why. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3123,7 +3123,7 @@
   },
   "q34": {
    "status": "pass",
-   "notes": "d11/d12 and the dossier failures table verbatim: BAC 2020-02-28 buy 28.50, stop 27.67, 3.9% gap, 3.6x, 6.2 ATR, close 1.8% off the open, Monday low 27.44, 17.95 on 03-23 (37% under the buy: (28.5-17.95)/28.5 = 37.0%). A loss at the planned stop is not framed as a mistake. Key right.",
+   "notes": "d11/d12 and the dossier failures table verbatim: BAC 2020-02-28 buy 28.50, stop 27.67, 3.9% gap, 3.6x, 6.2 ATR, close 1.8% off the open, Monday low 27.44, 17.95 on 03-23 (37% under the buy: (28.5-17.95)/28.5 = 37.0%). A loss at the planned stop is not framed as a mistake. Key right. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3141,7 +3141,7 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "F63 verbatim (h25). The why's 'after a climax, gaps up are common' is unsourced and removed.",
+   "notes": "F63 verbatim (h25). The why's 'after a climax, gaps up are common' is unsourced and removed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3153,13 +3153,13 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "c28 and p14 verbatim. The why said 'most of our own parabolic longs were in index ETFs'; the card says 3x ETFs (TQQQ, SOXL, KORU, AGQ, ETHU), not index ETFs, so the why now says ETFs are fine with no extra rules (h21).",
+   "notes": "c28 and p14 verbatim. The why said 'most of our own parabolic longs were in index ETFs'; the card says 3x ETFs (TQQQ, SOXL, KORU, AGQ, ETHU), not index ETFs, so the why now says ETFs are fine with no extra rules (h21). Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q40": {
    "status": "pass",
-   "notes": "c23, d05, d06 verbatim (six names fired 2021-07-27; HTHT 3R the next session). The why called it 'the A+ context', a grade line E50 does not teach; now 'the best setting'.",
+   "notes": "c23, d05, d06 verbatim (six names fired 2021-07-27; HTHT 3R the next session). The why called it 'the A+ context', a grade line E50 does not teach; now 'the best setting'. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3183,7 +3183,7 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "d14/d15 verbatim: WDC 2022-09-23 (Friday) buy 25.58, stop 24.94, Monday close 24.49, low 09-29 at 23.85 (a Thursday), 9 EMA on 09-30 (a Friday). The why said 'the Monday low ... was the trade', which contradicts the story (the low came Thursday); now 'the next turn'. Key right.",
+   "notes": "d14/d15 verbatim: WDC 2022-09-23 (Friday) buy 25.58, stop 24.94, Monday close 24.49, low 09-29 at 23.85 (a Thursday), 9 EMA on 09-30 (a Friday). The why said 'the Monday low ... was the trade', which contradicts the story (the low came Thursday); now 'the next turn'. Key right. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3195,19 +3195,19 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "D42 verbatim (h19); calc 500,000 x 1% = 5,000 checked. The KORU liquidity sentence was in no cited fact and is removed.",
+   "notes": "D42 verbatim (h19); calc 500,000 x 1% = 5,000 checked. The KORU liquidity sentence was in no cited fact and is removed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q47": {
    "status": "pass",
-   "notes": "Re-derived: 1R = 1.10; the 48.70 low is a 3.30 loss = 3.0R, past B20's 2R ceiling (h06, h07 verbatim). Key right.",
+   "notes": "Re-derived: 1R = 1.10; the 48.70 low is a 3.30 loss = 3.0R, past B20's 2R ceiling (h06, h07 verbatim). Key right. Dropped the unsourced sentence 'Overnight holds after a crash see more gaps' from the why. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q48": {
    "status": "pass",
-   "notes": "c29 verbatim (proposed); k01 and s02 verbatim. Wrong notes true.",
+   "notes": "c29 verbatim (proposed); k01 and s02 verbatim. Wrong notes true. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3255,31 +3255,31 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "C33 verbatim (h15). The key (sold after 10 trading days under 1R) holds under both D-019 options, so the pending 3-session rule is not leaned on.",
+   "notes": "C33 verbatim (h15). The key (sold after 10 trading days under 1R) holds under both D-019 options, so the pending 3-session rule is not leaned on. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q57": {
    "status": "pass",
-   "notes": "c19 verbatim: about 4 in 10 reached the 9 EMA before the stop in the dossier's own daily test (not a published statistic; the question says 'our test'). Bracco's p12 verbatim. False is right.",
+   "notes": "c19 verbatim: about 4 in 10 reached the 9 EMA before the stop in the dossier's own daily test (not a published statistic; the question says 'our test'). Bracco's p12 verbatim. False is right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q58": {
    "status": "pass",
-   "notes": "d24 verbatim (CAR 847.70 to 202.31, 9 EMA above 260, not reached until 05-21); c33 verbatim. The why's 'AGQ's never was' rests on a different AGQ (2026-02) and is in no cited fact; removed.",
+   "notes": "d24 verbatim (CAR 847.70 to 202.31, 9 EMA above 260, not reached until 05-21); c33 verbatim. The why's 'AGQ's never was' rests on a different AGQ (2026-02) and is in no cited fact; removed. Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q59": {
    "status": "pass",
-   "notes": "d13/d13b/d27 verbatim (83 names on 2020-02-28, a Friday, all stopped, none to 5R, the low 16 sessions later). The market reading is what the card says decides (c24).",
+   "notes": "d13/d13b/d27 verbatim (83 names on 2020-02-28, a Friday, all stopped, none to 5R, the low 16 sessions later). The market reading is what the card says decides (c24). Wrong choices reworded so the lengths are even. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q60": {
    "status": "pass",
-   "notes": "d16/d17 verbatim (BKU 2023-03-16 buy 23.10, stop 21.70, 44%, 8.2 ATR, 4.4x). The story said 'stopped at 0R', which reads as a zero-R exit (a stop is -1R; the dossier's 0R means it never made progress), and 'another name in the group' (SLG is an office REIT, not a bank); reworded. A wrong note called heavy volume 'the A+ row'; fixed.",
+   "notes": "d16/d17 verbatim (BKU 2023-03-16 buy 23.10, stop 21.70, 44%, 8.2 ATR, 4.4x). The story said 'stopped at 0R', which reads as a zero-R exit (a stop is -1R; the dossier's 0R means it never made progress), and 'another name in the group' (SLG is an office REIT, not a bank); reworded. A wrong note called heavy volume 'the A+ row'; fixed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

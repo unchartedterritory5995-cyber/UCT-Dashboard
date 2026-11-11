@@ -800,9 +800,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "gs.above_200",
-   "q": "The test day must close above the 200-day for Gap Support.",
-   "answer": "True",
-   "why": "True. The test day closes above the 200-day SMA. No longs below the 200-day simple moving average.",
+   "q": "A Gap Support test day may close under the 200-day if the 50-day is rising.",
+   "answer": "False",
+   "why": "False. The test day closes above the 200-day SMA. No longs below the 200-day simple moving average, unless it is a parabolic long.",
    "lesson_line": "Under the 200-day, there is no Gap Support to buy.",
    "facts": [
     "g03",
@@ -867,9 +867,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "gs.order",
-   "q": "Gap Support buys are market orders.",
-   "answer": "True",
-   "why": "True. Entries are market orders, as on every setup.",
+   "q": "Gap Support buys are limit orders set just under the line.",
+   "answer": "False",
+   "why": "False. Entries are market orders, as on every setup.",
    "lesson_line": "Market orders, regular hours.",
    "facts": [
     "g23",
@@ -885,12 +885,12 @@
    "criterion": "gs.true_gap",
    "q": "What makes an up gap a true gap?",
    "choices": [
-    "The whole day trades above prior high",
+    "Its low is above the prior high",
     "The open is above the prior close",
     "Volume doubles the average",
-    "The close is above the open"
+    "The close is above the day's open"
    ],
-   "answer": "The whole day trades above prior high",
+   "answer": "Its low is above the prior high",
    "why": "The whole day trades above the prior high. A true gap has the gap day's low above the prior day's high.",
    "lesson_line": "A true gap leaves a hole above yesterday's high.",
    "facts": [
@@ -899,7 +899,7 @@
    "wrong": {
     "The open is above the prior close": "That can happen with the low back inside the prior day's range; a true gap needs more.",
     "Volume doubles the average": "Volume is a different test.",
-    "The close is above the open": "A close above the open says nothing about a hole."
+    "The close is above the day's open": "A close above the open says nothing about a hole."
    },
    "house": true
   },
@@ -911,12 +911,12 @@
    "criterion": "gs.gap_still_open",
    "q": "When is the gap still open?",
    "choices": [
-    "No close at or under the prior high",
+    "No close at or under prior high",
     "No trade under the gap-up low",
     "Green closes every day since",
-    "Volume above average since"
+    "Volume stays above average since"
    ],
-   "answer": "No close at or under the prior high",
+   "answer": "No close at or under prior high",
    "why": "No close at or under the prior day's high since the gap day. That prior high is the gap-fill spot.",
    "lesson_line": "Open means no close back at the gap-fill spot.",
    "facts": [
@@ -926,7 +926,7 @@
    "wrong": {
     "No trade under the gap-up low": "A slight trade under the gap-up low is allowed; the gap-fill spot is the test.",
     "Green closes every day since": "Red days are fine while the gap stays open.",
-    "Volume above average since": "Volume does not decide whether a gap is open."
+    "Volume stays above average since": "Volume does not decide whether a gap is open."
    },
    "house": true
   },
@@ -970,12 +970,12 @@
    "criterion": "gs.stop_not_fill_spot",
    "q": "Why not put the stop under the gap-fill spot?",
    "choices": [
-    "It is far away, about 6% at the median",
-    "It is too close to the entry",
-    "It sits above the gap-up low",
-    "It moves with volume"
+    "It is about 6% away at the median",
+    "It is too close to the entry price",
+    "It sits above the gap-up day's low",
+    "It moves with the day's volume"
    ],
-   "answer": "It is far away, about 6% at the median",
+   "answer": "It is about 6% away at the median",
    "why": "It is far away. A stop under the gap-fill spot is a median 6% away, only 12% within 3%, and it wins less often per R.",
    "lesson_line": "Stop under the test day's low, not the fill spot.",
    "facts": [
@@ -983,9 +983,9 @@
     "g12"
    ],
    "wrong": {
-    "It is too close to the entry": "It is the opposite: the fill spot is usually far from the entry.",
-    "It sits above the gap-up low": "The fill spot is below the gap-up low on a true gap, not above it.",
-    "It moves with volume": "A level does not move with volume."
+    "It is too close to the entry price": "It is the opposite: the fill spot is usually far from the entry.",
+    "It sits above the gap-up day's low": "The fill spot is below the gap-up low on a true gap, not above it.",
+    "It moves with the day's volume": "A level does not move with volume."
    },
    "house": true
   },
@@ -1151,12 +1151,12 @@
    "criterion": "gs.stop",
    "q": "Where does the stop go on a Gap Support buy?",
    "choices": [
-    "A few cents under the test day's low",
-    "Under the gap-fill spot",
-    "Exactly on the gap-up low",
+    "Just under the test day's low",
+    "Under the gap-fill spot for room",
+    "Exactly on the gap-up day's low",
     "A fixed 2% under the gap-up low"
    ],
-   "answer": "A few cents under the test day's low",
+   "answer": "Just under the test day's low",
    "why": "A few cents under the test day's low. Not under the gap-fill spot, and not a fixed cushion under the gap-up low.",
    "lesson_line": "Stop a few cents under the test day's low.",
    "facts": [
@@ -1165,8 +1165,8 @@
     "g14"
    ],
    "wrong": {
-    "Under the gap-fill spot": "That stop is a median 6% away.",
-    "Exactly on the gap-up low": "The stop sits a few cents under a real low, not on a line.",
+    "Under the gap-fill spot for room": "That stop is a median 6% away.",
+    "Exactly on the gap-up day's low": "The stop sits a few cents under a real low, not on a line.",
     "A fixed 2% under the gap-up low": "A fixed 1% to 3% cushion is not our stop."
    },
    "house": true
@@ -1201,9 +1201,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "gs.trail",
-   "q": "The last third trails a close under the 10-day for a fast mover or the 21-day for a steadier one.",
-   "answer": "True",
-   "why": "True. Sell the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
+   "q": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one.",
+   "answer": "False",
+   "why": "False. It is the other way round. Sell the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
    "lesson_line": "Trail the last third under the 10- or 21-day.",
    "facts": [
     "g21",
@@ -1365,12 +1365,12 @@
    "q": "Buy or pass?",
    "story": "You planned to buy the test day's close at 50.00 but were away from your desk. The next morning the stock opens at 52.30.",
    "choices": [
-    "Pass, more than 4% over the buy point",
+    "Pass; over 4% past the buy point",
     "Buy, the hold is confirmed",
-    "Buy half size",
-    "Buy with a wider stop"
+    "Buy half size to limit the risk",
+    "Buy with a wider stop to fit it"
    ],
-   "answer": "Pass, more than 4% over the buy point",
+   "answer": "Pass; over 4% past the buy point",
    "why": "Pass. 52.30 is more than 4% over the 50.00 buy point. Chasing costs size, not risk: the stop stays put and the shares shrink.",
    "lesson_line": "Miss it rather than chase it. Four percent and done.",
    "facts": [
@@ -1380,8 +1380,8 @@
    ],
    "wrong": {
     "Buy, the hold is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Buy half size": "Half of a bad entry is still a bad entry.",
-    "Buy with a wider stop": "A wider stop to fit a late entry is the mistake, not the fix."
+    "Buy half size to limit the risk": "Half of a bad entry is still a bad entry.",
+    "Buy with a wider stop to fit it": "A wider stop to fit a late entry is the mistake, not the fix."
    },
    "house": true
   },
@@ -1395,8 +1395,8 @@
    "story": "A clean test day closes back over the line on Wednesday. The company reports Thursday after the close.",
    "choices": [
     "No; a report is within 3 sessions",
-    "Yes; the test is clean",
-    "Yes, at half size",
+    "Yes; the test day is clean",
+    "Yes, but at half size only",
     "Yes, and hold through the report"
    ],
    "answer": "No; a report is within 3 sessions",
@@ -1407,8 +1407,8 @@
     "h08"
    ],
    "wrong": {
-    "Yes; the test is clean": "A clean chart does not remove the report risk.",
-    "Yes, at half size": "Half size is still a new buy in the report window.",
+    "Yes; the test day is clean": "A clean chart does not remove the report risk.",
+    "Yes, but at half size only": "Half size is still a new buy in the report window.",
     "Yes, and hold through the report": "Holding through a report needs 5R, not a new position."
    },
    "house": true
@@ -1453,7 +1453,7 @@
    "choices": [
     "Sell; under 1R after 10 trading days",
     "Hold; the stop has not been hit",
-    "Add; it is holding the line",
+    "Add; it is holding the gap-up line",
     "Move the stop to breakeven and wait"
    ],
    "answer": "Sell; under 1R after 10 trading days",
@@ -1465,7 +1465,7 @@
    ],
    "wrong": {
     "Hold; the stop has not been hit": "The time stop exists for exactly this trade.",
-    "Add; it is holding the line": "Adding breaks one buy, one price, one stop.",
+    "Add; it is holding the gap-up line": "Adding breaks one buy, one price, one stop.",
     "Move the stop to breakeven and wait": "Breakeven comes at the first trim, not as a way to wait."
    },
    "house": true
@@ -1592,12 +1592,12 @@
    "q": "Gap Support or Undercut and Rally?",
    "story": "Price undercuts the lowest low of a base from five weeks ago and closes back over it two days later. No gap is involved.",
    "choices": [
-    "Undercut and Rally; no gap involved",
+    "Undercut and Rally; no gap day",
     "Gap Support; it undercut a low",
-    "A PEG; it reclaimed a low",
+    "A PEG; it reclaimed a swing low",
     "A bear gap; it undercut a low"
    ],
-   "answer": "Undercut and Rally; no gap involved",
+   "answer": "Undercut and Rally; no gap day",
    "why": "An Undercut and Rally. It reclaims a prominent prior swing low within 3 sessions. Gap Support's undercut is of a gap-up day's low.",
    "lesson_line": "Name the low that was undercut. A swing low is a U&R.",
    "facts": [
@@ -1606,7 +1606,7 @@
    ],
    "wrong": {
     "Gap Support; it undercut a low": "Gap Support needs the undercut to be of a gap-up day's low.",
-    "A PEG; it reclaimed a low": "A PEG is a report's reaction day, not a swing-low reclaim.",
+    "A PEG; it reclaimed a swing low": "A PEG is a report's reaction day, not a swing-low reclaim.",
     "A bear gap; it undercut a low": "A bear gap is a gap down; this had no gap."
    },
    "house": true
@@ -1620,12 +1620,12 @@
    "q": "Grade each test.",
    "story": "Two tests of two gaps. One holds the gap-up low to the tick and closes on a hammer. The other trades down to the prior day's high and reclaims the line by the close.",
    "choices": [
-    "First stronger; the fill is a B- at best",
+    "First stronger; the fill is B- at best",
     "Both the same; both closed back over",
     "Second stronger; deeper means more fear",
     "Both B-; any test is a B-"
    ],
-   "answer": "First stronger; the fill is a B- at best",
+   "answer": "First stronger; the fill is B- at best",
    "why": "First stronger; the fill is a B- at best. A fill to the gap-fill spot that reclaims the gap-up low is allowed but graded B- at best. The ranking is held, then a slight breach, then a fill that reclaims.",
    "lesson_line": "Held beats a slight breach. A fill that reclaims is a B-.",
    "facts": [
@@ -1676,12 +1676,12 @@
    "q": "Grade each close.",
    "story": "Two test days hold the gap-up low. One closes near its high on a hammer with a long lower wick. The other closes at 60% of its range.",
    "choices": [
-    "First an A+ cue; second a plain test",
+    "First an A+ cue; second is plain",
     "Both the same; both held the line",
     "First a B-; a hammer is a warning",
-    "Both A+; any hold is fine"
+    "Both A+; any hold is good enough"
    ],
-   "answer": "First an A+ cue; second a plain test",
+   "answer": "First an A+ cue; second is plain",
    "why": "First an A+ cue, second a plain test. The A+ test closes back above the line near its high with a lower wick or hammer. A close in the upper half holds the line but earns no extra.",
    "lesson_line": "A hammer close near the high is A+. Upper half just holds.",
    "facts": [
@@ -1691,7 +1691,7 @@
    "wrong": {
     "Both the same; both held the line": "Both held, but the close is half the story.",
     "First a B-; a hammer is a warning": "A hammer with a lower wick is the best look.",
-    "Both A+; any hold is fine": "Only a close near the high is the A+ cue; 60% is not."
+    "Both A+; any hold is good enough": "Only a close near the high is the A+ cue; 60% is not."
    },
    "house": true
   },
@@ -1760,12 +1760,12 @@
    "q": "Where does the stop go?",
    "story": "Midday on the test day, price undercuts the gap-up low and reclaims it on the 30-minute chart. You want to buy the reclaim.",
    "choices": [
-    "A few cents under the day's low so far",
-    "At the gap-fill spot",
-    "At the gap-up low, exactly",
-    "No stop until the close"
+    "Just under the day's low so far",
+    "At the gap-fill spot, far below",
+    "Right on the gap-up low, exactly",
+    "No stop until the day's close"
    ],
-   "answer": "A few cents under the day's low so far",
+   "answer": "Just under the day's low so far",
    "why": "A few cents under the test day's low so far. The intraday version is an undercut and reclaim, a red to green or an hourly higher low. It uses the same stop.",
    "lesson_line": "Same stop on the intraday version.",
    "facts": [
@@ -1774,9 +1774,9 @@
     "u02"
    ],
    "wrong": {
-    "At the gap-fill spot": "The gap-fill spot is usually far from the entry.",
-    "At the gap-up low, exactly": "The stop sits a few cents under a low, not on the line.",
-    "No stop until the close": "Every position has a real stop from the buy."
+    "At the gap-fill spot, far below": "The gap-fill spot is usually far from the entry.",
+    "Right on the gap-up low, exactly": "The stop sits a few cents under a low, not on the line.",
+    "No stop until the day's close": "Every position has a real stop from the buy."
    },
    "house": true
   },
@@ -1803,9 +1803,9 @@
    "rung": 6,
    "format": "tf",
    "criterion": "gs.gap_day_close",
-   "q": "The gap day must close above the prior day's high.",
-   "answer": "True",
-   "why": "True. The gap day closes above the prior day's high. A gap that closes back inside the prior range has already given way.",
+   "q": "The gap day can close back inside the prior day's range and still count.",
+   "answer": "False",
+   "why": "False. The gap day closes above the prior day's high. A gap that closes back inside the prior range has already given way.",
    "lesson_line": "The gap day itself must close strong.",
    "facts": [
     "g06",
@@ -2048,12 +2048,12 @@
    "q": "Take it or pass?",
    "story": "DOCU, 2025. A 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
    "choices": [
-    "Pass; the gap came in a downtrend",
-    "Take it; the test is clean",
+    "Pass; the gap is in a downtrend",
+    "Take it; the test day looks clean",
     "Take it; 5.4x volume is huge",
-    "Take it; the gap is open"
+    "Take it; the gap is still open"
    ],
-   "answer": "Pass; the gap came in a downtrend",
+   "answer": "Pass; the gap is in a downtrend",
    "why": "Pass. The gap day closed under a falling 50-day. The test looked fine, but it was a bounce in a downtrend. No downtrend gaps.",
    "lesson_line": "A clean test in a downtrend is still a bounce.",
    "facts": [
@@ -2062,9 +2062,9 @@
     "g04"
    ],
    "wrong": {
-    "Take it; the test is clean": "A clean test does not cancel the downtrend.",
+    "Take it; the test day looks clean": "A clean test does not cancel the downtrend.",
     "Take it; 5.4x volume is huge": "Heavy volume does not turn a downtrend gap into a leader.",
-    "Take it; the gap is open": "An open gap is not enough under a falling 50-day."
+    "Take it; the gap is still open": "An open gap is not enough under a falling 50-day."
    },
    "house": true
   },
@@ -2077,12 +2077,12 @@
    "q": "Take it or pass?",
    "story": "EVR, 2019. An 11.3% gap on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
    "choices": [
-    "Pass; the test closed under the 200-day",
-    "Take it; the 50-day is rising",
-    "Take it; the gap is huge",
-    "Take it at half size"
+    "Pass; it closed under the 200-day",
+    "Take it; the 50-day is still rising",
+    "Take it; the gap is huge on volume",
+    "Take it, but at half size"
    ],
-   "answer": "Pass; the test closed under the 200-day",
+   "answer": "Pass; it closed under the 200-day",
    "why": "Pass. The test closed 6.9% under the 200-day. The gap, the rising 50-day and the test all passed, but no longs below the 200-day.",
    "lesson_line": "Everything can pass but the 200-day. Pass.",
    "facts": [
@@ -2091,9 +2091,9 @@
     "h10"
    ],
    "wrong": {
-    "Take it; the 50-day is rising": "The 50-day does not lift a close over the 200-day.",
-    "Take it; the gap is huge": "Gap size does not change the 200-day rule.",
-    "Take it at half size": "Half size does not fix a 200-day failure."
+    "Take it; the 50-day is still rising": "The 50-day does not lift a close over the 200-day.",
+    "Take it; the gap is huge on volume": "Gap size does not change the 200-day rule.",
+    "Take it, but at half size": "Half size does not fix a 200-day failure."
    },
    "house": true
   },
@@ -2175,8 +2175,8 @@
    "choices": [
     "No; three tries this week are used",
     "Yes; a new trigger is a new trade",
-    "Yes, at double size",
-    "Yes, with a wider stop"
+    "Yes, at double size to make it back",
+    "Yes, with a wider stop this time"
    ],
    "answer": "No; three tries this week are used",
    "why": "No. At most 3 tries a week and 6 a month on the same line. After a stop-out, buy again only on a new trigger.",
@@ -2188,8 +2188,8 @@
    ],
    "wrong": {
     "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped.",
-    "Yes, at double size": "Doubling size to win it back breaks the sizing rule.",
-    "Yes, with a wider stop": "A wider stop breaks the stop rule."
+    "Yes, at double size to make it back": "Doubling size to win it back breaks the sizing rule.",
+    "Yes, with a wider stop this time": "A wider stop breaks the stop rule."
    },
    "house": true
   },
@@ -2244,12 +2244,12 @@
    "q": "Which test is the weaker one?",
    "story": "Test A comes after six weeks of chop sitting on the line. Test B comes seven weeks after the gap, a clean 15% slide straight back to the line.",
    "choices": [
-    "A; weeks of chop on the line is a B- cue",
-    "B; seven weeks is too late",
+    "A; weeks of chop on the line is B-",
+    "B; seven weeks is too late to buy",
     "Both the same; time does not matter",
-    "B; a 15% slide is a failure"
+    "B; a 15% slide back is a failure"
    ],
-   "answer": "A; weeks of chop on the line is a B- cue",
+   "answer": "A; weeks of chop on the line is B-",
    "why": "A. Weeks of chop sitting on the line before the test is a B- cue. A long drift back to the line is not a minus by itself.",
    "lesson_line": "Chop on the line is a B- cue. A long drift is not.",
    "facts": [
@@ -2259,9 +2259,9 @@
     "e09"
    ],
    "wrong": {
-    "B; seven weeks is too late": "A long drift back to the line is not a minus by itself.",
+    "B; seven weeks is too late to buy": "A long drift back to the line is not a minus by itself.",
     "Both the same; time does not matter": "AXON's test came 35 sessions after the gap and worked.",
-    "B; a 15% slide is a failure": "A slide that stops on the line is the pullback."
+    "B; a 15% slide back is a failure": "A slide that stops on the line is the pullback."
    },
    "house": true
   },
@@ -2301,11 +2301,11 @@
    "criterion": "gs.test_close_position",
    "q": "Hidden ticker, the test day is the last bar. Did it hold the gap-up low and close back strong? Buy the close or pass.",
    "choices": [
-    "Take it; it held and closed back up",
-    "Pass; the gap has filled",
+    "Take it; it held and closed high",
+    "Pass; the gap has already filled",
     "Pass; it closed in the lower half"
    ],
-   "answer": "Take it; it held and closed back up",
+   "answer": "Take it; it held and closed high",
    "why": "Take it. A quiet stock gapped on 11.5x volume. Five sessions later the low dipped 0.3% under the line. The day closed at 62% of its range, with the gap still open.",
    "lesson_line": "A hold at the line with a strong close is the setup.",
    "facts": [
@@ -2315,7 +2315,7 @@
     "g10"
    ],
    "wrong": {
-    "Pass; the gap has filled": "No close sat at or under the gap-fill spot.",
+    "Pass; the gap has already filled": "No close sat at or under the gap-fill spot.",
     "Pass; it closed in the lower half": "The close was in the upper half of its range."
    },
    "house": true,
@@ -2335,7 +2335,7 @@
    "q": "Hidden ticker, the test day is the last bar. Did it hold the line and close back strong? Buy the close or pass.",
    "choices": [
     "Pass; it closed at its low",
-    "Take it; it held the line",
+    "Take it; it held the line today",
     "Take it; the gap is open"
    ],
    "answer": "Pass; it closed at its low",
@@ -2347,7 +2347,7 @@
     "g28"
    ],
    "wrong": {
-    "Take it; it held the line": "It closed under the line, not on it.",
+    "Take it; it held the line today": "It closed under the line, not on it.",
     "Take it; the gap is open": "An open gap is not enough; the day has to hold."
    },
    "house": true,
@@ -2426,12 +2426,12 @@
    "q": "What do you do?",
    "story": "DKS, 2021. You bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has run far higher.",
    "choices": [
-    "Nothing; a re-entry needs a new trigger",
+    "Nothing; wait for a new trigger",
     "Chase it; you were right all along",
-    "Rebuy at double size",
-    "Widen your stops from now on"
+    "Rebuy at double size next time",
+    "Widen your stops on the next buy"
    ],
-   "answer": "Nothing; a re-entry needs a new trigger",
+   "answer": "Nothing; wait for a new trigger",
    "why": "Nothing now. The stop is the exit, and a re-entry needs a new trigger. The stop traded on a 2.4% undercut that closed back on the line, and the stock then ran. That is hindsight, not a mistake.",
    "lesson_line": "A stop that was right by the rules stays right.",
    "facts": [
@@ -2441,8 +2441,8 @@
    ],
    "wrong": {
     "Chase it; you were right all along": "Chasing is how a planned small loss becomes a bigger one.",
-    "Rebuy at double size": "Doubling size to win it back breaks the sizing rule.",
-    "Widen your stops from now on": "Wider stops break the stop rule."
+    "Rebuy at double size next time": "Doubling size to win it back breaks the sizing rule.",
+    "Widen your stops on the next buy": "Wider stops break the stop rule."
    },
    "house": true
   }
@@ -2593,7 +2593,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "g03, h10 verbatim; settled gs.above_200 and B26.",
+   "notes": "g03, h10 verbatim; settled gs.above_200 and B26. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2605,26 +2605,26 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "g23, h22 verbatim (settled gs.order, E57).",
+   "notes": "g23, h22 verbatim (settled gs.order, E57). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q07": {
    "status": "pass",
-   "notes": "g05 verbatim (proposed gs.true_gap); each wrong note is true.",
+   "notes": "g05 verbatim (proposed gs.true_gap); each wrong note is true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q08": {
    "status": "pass",
-   "notes": "g08, g01 verbatim (proposed gs.gap_still_open). The card also says closes inside the gap are allowed (conflicts); the key uses only 'no close at or under the prior day's high'.",
-   "fixed": false,
+   "notes": "g08, g01 verbatim (proposed gs.gap_still_open). The card also says closes inside the gap are allowed (conflicts); the key uses only 'no close at or under the prior day's high'. | variety rewrite checked 2026-11-10: lengthened a wrong choice so the right one is not the longest",
+   "fixed": true,
    "by": "checker"
   },
   "q11": {
    "status": "pass",
-   "notes": "g13, g12 verbatim (proposed). On a true gap the fill spot sits under the gap-up low, so the wrong note 'it sits above the gap-up low' is true.",
-   "fixed": false,
+   "notes": "g13, g12 verbatim (proposed). On a true gap the fill spot sits under the gap-up low, so the wrong note 'it sits above the gap-up low' is true. | variety rewrite checked 2026-11-10: lengthened two wrong choices so the right one is not the longest",
+   "fixed": true,
    "by": "checker"
   },
   "q12": {
@@ -2659,7 +2659,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "g12, g13, g14 verbatim; settled gs.stop.",
+   "notes": "g12, g13, g14 verbatim; settled gs.stop. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2671,7 +2671,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "g21, h21 verbatim (E52).",
+   "notes": "g21, h21 verbatim (E52). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2689,13 +2689,13 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "Re-derived 52.30 / 50.00 = +4.6%, over the 4% chase line (C28, settled gs.no_chase). g24, h11, h12 verbatim.",
+   "notes": "Re-derived 52.30 / 50.00 = +4.6%, over the 4% chase line (C28, settled gs.no_chase). g24, h11, h12 verbatim. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q28": {
    "status": "pass",
-   "notes": "g25, h08 verbatim: a Thursday after-close report is inside 3 sessions of a Wednesday buy (B22).",
+   "notes": "g25, h08 verbatim: a Thursday after-close report is inside 3 sessions of a Wednesday buy (B22). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2707,7 +2707,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "g22, h15 verbatim (C33).",
+   "notes": "g22, h15 verbatim (C33). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2719,7 +2719,7 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "g02, g38, g39 verbatim. Settled gs.not_gap_day; the PEG unit (SET.19) teaches the same line from the other side.",
+   "notes": "g02, g38, g39 verbatim. Settled gs.not_gap_day; the PEG unit (SET.19) teaches the same line from the other side. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2737,13 +2737,13 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "g42, g01 verbatim: a U&R reclaims a prominent swing low within 3 sessions, here two days later; no gap involved.",
+   "notes": "g42, g01 verbatim: a U&R reclaims a prominent swing low within 3 sessions, here two days later; no gap involved. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q36": {
    "status": "pass",
-   "notes": "g11, g46 verbatim (settled gs.fill_reclaim_lesser): held, then a slight breach, then a fill that reclaims.",
+   "notes": "g11, g46 verbatim (settled gs.fill_reclaim_lesser): held, then a slight breach, then a fill that reclaims. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2755,7 +2755,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "FIXED. The card gates the test day on 'closes in the upper half' (gs.test_close_position, proposed) and lists 'a close in the lower part of the range' as a B- cue in the same grading block, the same clash as the News Gapper card. The second stock now closes at 60% (upper half, no A+ cue), so the key rests on g43 and g10 only.",
+   "notes": "FIXED. The card gates the test day on 'closes in the upper half' (gs.test_close_position, proposed) and lists 'a close in the lower part of the range' as a B- cue in the same grading block, the same clash as the News Gapper card. The second stock now closes at 60% (upper half, no A+ cue), so the key rests on g43 and g10 only. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2767,7 +2767,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "g30, g12, u02 (Sunday Scans page found) verbatim; proposed gs.intraday_version. Why had a 24-word sentence, split.",
+   "notes": "g30, g12, u02 (Sunday Scans page found) verbatim; proposed gs.intraday_version. Why had a 24-word sentence, split. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2779,7 +2779,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "g06, g05 verbatim (proposed gs.gap_day_close).",
+   "notes": "g06, g05 verbatim (proposed gs.gap_day_close). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2815,13 +2815,13 @@
   },
   "q52": {
    "status": "pass",
-   "notes": "e23, e24, g04 verbatim (DOCU 2025-03-14, close 2.6% under a falling 50-day).",
+   "notes": "e23, e24, g04 verbatim (DOCU 2025-03-14, close 2.6% under a falling 50-day). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q53": {
    "status": "pass",
-   "notes": "e25, g03, h10 verbatim (EVR 2019-01-30, test closed 6.9% under the 200-day). Kept over the generic q47.",
+   "notes": "e25, g03, h10 verbatim (EVR 2019-01-30, test closed 6.9% under the 200-day). Kept over the generic q47. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2833,7 +2833,7 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "g36, h29, h28 verbatim (E56, B21). The wrong note on doubling size said 'the revenge trade the rules forbid'; no rule is named that, so it now says it breaks the sizing rule.",
+   "notes": "g36, h29, h28 verbatim (E56, B21). The wrong note on doubling size said 'the revenge trade the rules forbid'; no rule is named that, so it now says it breaks the sizing rule. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2845,19 +2845,19 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "g47, g51, e07, e09 verbatim. Rests on the card's grading lines (chop on the line is a B- cue; a long drift back is not a minus, his DOCS at 37 sessions), not on the pending 2-to-60-session window: seven weeks is 35 sessions, inside it and inside the owner's 37-session DOCS rating.",
+   "notes": "g47, g51, e07, e09 verbatim. Rests on the card's grading lines (chop on the line is a B- cue; a long drift back is not a minus, his DOCS at 37 sessions), not on the pending 2-to-60-session window: seven weeks is 35 sessions, inside it and inside the owner's 37-session DOCS rating. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q61": {
    "status": "pass",
-   "notes": "Chart GPN asof 2013-10-09: 3,203 daily bars on or before it (120 needed), as-of bar present. Bars db: gap 2013-10-02 +7.0% on 11.5x, true gap, no close under the prior high since, test low 0.28% under the 27.00 line, close 0.62 of the range, 0.56% over the line. e01-e03, g10 verbatim. Why split (24-word sentence). The 'buy the close' wording rests on the pending entry option D-003 (a); the key is whether the test qualifies.",
+   "notes": "Chart GPN asof 2013-10-09: 3,203 daily bars on or before it (120 needed), as-of bar present. Bars db: gap 2013-10-02 +7.0% on 11.5x, true gap, no close under the prior high since, test low 0.28% under the 27.00 line, close 0.62 of the range, 0.56% over the line. e01-e03, g10 verbatim. Why split (24-word sentence). The 'buy the close' wording rests on the pending entry option D-003 (a); the key is whether the test qualifies. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q62": {
    "status": "pass",
-   "notes": "Chart DE asof 2026-02-25: 523 daily bars on or before it, as-of bar present. Bars db: gap 2026-02-19 +6.8% on 4.4x, true gap, test low 0.83% under the 628.72 line, close 0.01 of the range, 0.81% under. e21, e22, g28 verbatim; the near-miss gate is the upper-half close.",
+   "notes": "Chart DE asof 2026-02-25: 523 daily bars on or before it, as-of bar present. Bars db: gap 2026-02-19 +6.8% on 4.4x, true gap, test low 0.83% under the 628.72 line, close 0.01 of the range, 0.81% under. e21, e22, g28 verbatim; the near-miss gate is the upper-half close. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2869,7 +2869,7 @@
   },
   "q65": {
    "status": "pass",
-   "notes": "e17, e18, h28 verbatim (DKS 2021-06-16 test, stopped next session, ran to 147.39 by 09-07). The wrong note on doubling size no longer says 'the revenge trade'.",
+   "notes": "e17, e18, h28 verbatim (DKS 2021-06-16 test, stopped next session, ran to 147.39 by 09-07). The wrong note on doubling size no longer says 'the revenge trade'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   }

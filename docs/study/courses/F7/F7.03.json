@@ -951,11 +951,11 @@
    "format": "mcq",
    "q": "Which stocks took some of the most dramatic plunges of 2000?",
    "choices": [
-    "Tech, telecom and internet stocks",
-    "Banks and other financial firms",
-    "Energy companies"
+    "Technology, telecom and internet stocks",
+    "Banks and other big financial firms",
+    "Energy and other oil companies"
    ],
-   "answer": "Tech, telecom and internet stocks",
+   "answer": "Technology, telecom and internet stocks",
    "why": "Tech, telecom and internet stocks. The Fed's report says those plunges came partly from rethinking the elevated valuations in those sectors.",
    "lesson_line": "When rich valuations get rethought, the richly priced groups can fall hard.",
    "facts": [
@@ -968,8 +968,8 @@
     "f51"
    ],
    "wrong": {
-    "Banks and other financial firms": "That was the 2007 to 2009 bear. Financial stocks fell about 20% in 2007 alone.",
-    "Energy companies": "Energy fell hard in the autumn of 2008, a different bear."
+    "Banks and other big financial firms": "That was the 2007 to 2009 bear. Financial stocks fell about 20% in 2007 alone.",
+    "Energy and other oil companies": "Energy fell hard in the autumn of 2008, a different bear."
    }
   },
   {
@@ -1143,12 +1143,12 @@
    "story": "It's January 3, 2001. The Fed cuts its rate target by half a point. The Nasdaq jumps from 2,291.86 to 2,616.69 in one day.",
    "q": "What would confirm the downtrend has turned up?",
    "choices": [
-    "A higher low, then a higher high",
+    "A higher low, then a new higher high",
     "One huge up day like this one",
-    "More rate cuts from the Fed",
-    "A 20% gain off the low"
+    "More rate cuts from the Fed soon",
+    "A 20% gain off the Nasdaq low"
    ],
-   "answer": "A higher low, then a higher high",
+   "answer": "A higher low, then a new higher high",
    "why": "A higher low, then a higher high. One day proves nothing. Stocks rose in January, then fell in February and March, and the Nasdaq closed at 1,638.80 on April 4.",
    "lesson_line": "Don't buy the headline. Let the market confirm it with a higher low and a higher high.",
    "facts": [
@@ -1167,8 +1167,8 @@
    ],
    "wrong": {
     "One huge up day like this one": "A single day can't change a trend. Stocks rose through January, then fell, and the Nasdaq was at new lows by April.",
-    "More rate cuts from the Fed": "The Fed cut another 1 percentage point over March and April 2001. Stocks rallied, then made new lows into 2002.",
-    "A 20% gain off the low": "Size isn't proof. From April to the end of May 2001 the Nasdaq rose almost 40%, then made new lows."
+    "More rate cuts from the Fed soon": "The Fed cut another 1 percentage point over March and April 2001. Stocks rallied, then made new lows into 2002.",
+    "A 20% gain off the Nasdaq low": "Size isn't proof. From April to the end of May 2001 the Nasdaq rose almost 40%, then made new lows."
    }
   },
   {
@@ -1279,12 +1279,12 @@
    "story": "Nov. 20, 2008: the Nasdaq closes at a new low, 1,316.12. Jan. 6, 2009: the rally off that low tops at 1,652.38. Jan. 20: a pullback holds at 1,440.86. Feb. 6: it has bounced back to 1,591.71.",
    "q": "Is the turn up confirmed yet?",
    "choices": [
-    "No: it's still under the last rally top",
+    "No: still under the last rally top",
     "Yes: it rallied hard off the low",
-    "Yes: it made a higher low",
+    "Yes: it made a clear higher low",
     "Yes: the Fed has cut rates to zero"
    ],
-   "answer": "No: it's still under the last rally top",
+   "answer": "No: still under the last rally top",
    "why": "No. It held a higher low, but the bounce stalled below 1,652.38. On March 9 it closed at 1,268.64, a new low.",
    "lesson_line": "Half the proof isn't proof. You need the higher low AND a break above the last rally top.",
    "facts": [
@@ -1304,7 +1304,7 @@
    ],
    "wrong": {
     "Yes: it rallied hard off the low": "Size doesn't prove a bottom. In 2001 the Nasdaq rose almost 40% in a rally and still made new lows.",
-    "Yes: it made a higher low": "That's only step one. A downtrend holds until the rally off the higher low clears the last rally top.",
+    "Yes: it made a clear higher low": "That's only step one. A downtrend holds until the rally off the higher low clears the last rally top.",
     "Yes: the Fed has cut rates to zero": "The Fed set 0 to 0.25% on December 16, 2008. Stocks still made a new low in March 2009."
    }
   },
@@ -1486,7 +1486,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "f31 says 'Some of the most dramatic plunges'. The question said 'the most dramatic' and the lesson said 'the biggest'. Both now say 'some of', and the lesson drops the superlative. f32, f42 and f44 read in context. Banks and energy are not where 2000's plunges were. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed.",
+   "notes": "f31 says 'Some of the most dramatic plunges'. The question said 'the most dramatic' and the lesson said 'the biggest'. Both now say 'some of', and the lesson drops the superlative. f32, f42 and f44 read in context. Banks and energy are not where 2000's plunges were. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1504,7 +1504,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "The story called July 2000 and January 2001 the 'next' rally tops. FRED also shows tops on May 1, 2000 (3,958.08, below July's) and Sept 1, 2000 (4,234.33). Now 'later rally tops included'. The 'why' said every rally topped below the one before; it now says each of those tops. The four listed tops are each lower than the one before (checked). f67 and its wrong note said bulls call a 'new' bull; in context the bulls say the bull is 'alive and well'. Fixed. f77 is swapped for f88, and f02 is added.",
+   "notes": "The story called July 2000 and January 2001 the 'next' rally tops. FRED also shows tops on May 1, 2000 (3,958.08, below July's) and Sept 1, 2000 (4,234.33). Now 'later rally tops included'. The 'why' said every rally topped below the one before; it now says each of those tops. The four listed tops are each lower than the one before (checked). f67 and its wrong note said bulls call a 'new' bull; in context the bulls say the bull is 'alive and well'. Fixed. f77 is swapped for f88, and f02 is added. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1528,7 +1528,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "It asked what would confirm 'the bear market is over'. Under the popular '20% off the low' bull convention, a wrong choice was arguable. It now asks what would confirm the downtrend has turned up (the f68 and f69 framing). 2,291.86 to 2,616.69 is +14.2% (rows checked). f34 and f38 read in context. The note 'this jump faded' skipped the rally to Jan 24; it now follows f34. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed. Quote check 2026-11-09: the Investopedia facts cited here (f75) were refused live (plain client 403, WebFetch refused); the auditor found each quote word for word on web.archive.org snapshots (Dow theory page 2026-01-11, updated August 10, 2025; dead cat bounce page 2026-03-28, updated April 11, 2025), as the checker had.",
+   "notes": "It asked what would confirm 'the bear market is over'. Under the popular '20% off the low' bull convention, a wrong choice was arguable. It now asks what would confirm the downtrend has turned up (the f68 and f69 framing). 2,291.86 to 2,616.69 is +14.2% (rows checked). f34 and f38 read in context. The note 'this jump faded' skipped the rally to Jan 24; it now follows f34. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed. Quote check 2026-11-09: the Investopedia facts cited here (f75) were refused live (plain client 403, WebFetch refused); the auditor found each quote word for word on web.archive.org snapshots (Dow theory page 2026-01-11, updated August 10, 2025; dead cat bounce page 2026-03-28, updated April 11, 2025), as the checker had. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1564,7 +1564,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "The old key was wrong by the unit's own rule. It took the Nov 4 top (before the Nov 20 low) as the last rally top but used the Dec 1 dip as the higher low. The rally top before that dip was Nov 28 (1,535.57), and the Jan 6 close (1,652.38) had already cleared it. Rewrote the story on the larger swings: Nov 20 low, Jan 6 top, Jan 20 higher low (1,440.86, new f86) and Feb 6 bounce (1,591.71, new f87; no close above 1,652.38 before March 9). Every row is checked. Dropped the computed '25%' choice. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed. f50 is now cited for the 0.25. Quote check 2026-11-09: the Investopedia facts cited here (f75) were refused live (plain client 403, WebFetch refused); the auditor found each quote word for word on web.archive.org snapshots (Dow theory page 2026-01-11, updated August 10, 2025; dead cat bounce page 2026-03-28, updated April 11, 2025), as the checker had.",
+   "notes": "The old key was wrong by the unit's own rule. It took the Nov 4 top (before the Nov 20 low) as the last rally top but used the Dec 1 dip as the higher low. The rally top before that dip was Nov 28 (1,535.57), and the Jan 6 close (1,652.38) had already cleared it. Rewrote the story on the larger swings: Nov 20 low, Jan 6 top, Jan 20 higher low (1,440.86, new f86) and Feb 6 bounce (1,591.71, new f87; no close above 1,652.38 before March 9). Every row is checked. Dropped the computed '25%' choice. Track audit 2026-11-09: style only, so the track reads as one course: numbers as '%' (every other F7 unit), months with a day as AP abbreviations with a period ('Nov. 20', as F7.04 and F7.07 write them), and the Fed's '0 to 1/4 percent' as '0 to 0.25%', as F7.04 and F7.06 write it (f50, Fed History: '0-0.25 percent'). No number, date or key changed. f50 is now cited for the 0.25. Quote check 2026-11-09: the Investopedia facts cited here (f75) were refused live (plain client 403, WebFetch refused); the auditor found each quote word for word on web.archive.org snapshots (Dow theory page 2026-01-11, updated August 10, 2025; dead cat bounce page 2026-03-28, updated April 11, 2025), as the checker had. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

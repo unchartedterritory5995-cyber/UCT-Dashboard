@@ -784,12 +784,12 @@
    "story": "Four months ago you bought a breakout. It never hit your stop or your target. It has gone sideways the whole time, with your money stuck in it.",
    "q": "Which line was missing from your plan?",
    "choices": [
-    "How long you'd give it to work",
-    "A second, higher target",
-    "A tighter stop",
+    "A time limit to make it work",
+    "A second, higher profit target",
+    "A tighter stop on the trade",
     "A rule for adding more shares"
    ],
-   "answer": "How long you'd give it to work",
+   "answer": "A time limit to make it work",
    "why": "How long you'd give it to work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period.",
    "lesson_line": "Know how long you'll give a trade, not just where its stop and target sit.",
    "facts": [
@@ -798,8 +798,8 @@
     "f41"
    ],
    "wrong": {
-    "A second, higher target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
-    "A tighter stop": "That changes where you're wrong on price. This trade's problem is time.",
+    "A second, higher profit target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
+    "A tighter stop on the trade": "That changes where you're wrong on price. This trade's problem is time.",
     "A rule for adding more shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot."
    },
    "skill": "process.plan"
@@ -837,12 +837,12 @@
    "story": "It's 11 a.m. Your stock dips toward the stop you wrote last night. Suddenly a wider stop feels smarter.",
    "q": "What do you do?",
    "choices": [
-    "Keep it, review the rule after the close",
-    "Widen it now, before it's hit",
-    "Buy more to lower your cost",
-    "Cancel the stop and watch it"
+    "Keep it; review the rule tonight",
+    "Widen it now, before it gets hit",
+    "Buy more to lower your average cost",
+    "Cancel the stop and just watch it"
    ],
-   "answer": "Keep it, review the rule after the close",
+   "answer": "Keep it; review the rule tonight",
    "why": "Keep it, and review the rule after the close. Investopedia says a plan's signals don't change while you're trading, only when the market is closed. Fidelity warns against knee-jerk changes.",
    "lesson_line": "Plan when it's closed. Follow it when it's open.",
    "facts": [
@@ -850,9 +850,9 @@
     "f36"
    ],
    "wrong": {
-    "Widen it now, before it's hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade.",
-    "Buy more to lower your cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
-    "Cancel the stop and watch it": "Then nothing guards the trade, and you're deciding everything in the moment."
+    "Widen it now, before it gets hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade.",
+    "Buy more to lower your average cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
+    "Cancel the stop and just watch it": "Then nothing guards the trade, and you're deciding everything in the moment."
    },
    "skill": "process.plan"
   },
@@ -896,7 +896,7 @@
    "q": "What does the plan need before you buy?",
    "choices": [
     "A line on what you'll do at the report",
-    "Nothing. The stop covers a bad report",
+    "Nothing; the stop covers a report",
     "A tighter stop for report day",
     "A bigger size to catch the pop"
    ],
@@ -909,7 +909,7 @@
     "f42"
    ],
    "wrong": {
-    "Nothing. The stop covers a bad report": "A stop can't protect you from a gap. After a bad report the open can land far below it.",
+    "Nothing; the stop covers a report": "A stop can't protect you from a gap. After a bad report the open can land far below it.",
     "A tighter stop for report day": "A tighter stop does nothing against a gap. The open can land below it.",
     "A bigger size to catch the pop": "That's a bet on which way the report goes, with more at risk if it gaps the wrong way."
    },
@@ -925,7 +925,7 @@
     "No trades until a new plan is written",
     "Trade on feel until a new idea comes",
     "Keep using the old rules for now",
-    "Trade smaller with no set rules"
+    "Trade a smaller size with no rules"
    ],
    "answer": "No trades until a new plan is written",
    "why": "No trades until a new plan is written. Investopedia says scrap a plan that doesn't work and place no trades until a new one is made. Fidelity agrees: a change needs a replacement plan.",
@@ -937,7 +937,7 @@
    "wrong": {
     "Trade on feel until a new idea comes": "That's trading with no plan at all, the very thing a plan is there to stop.",
     "Keep using the old rules for now": "You've just decided they don't work. Trading them anyway means knowingly using a broken plan.",
-    "Trade smaller with no set rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
+    "Trade a smaller size with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
    },
    "skill": "process.plan"
   },
@@ -951,7 +951,7 @@
     "Get out: your reason to own it is gone",
     "Hold: the stop hasn't been hit",
     "Hold: one report doesn't change much",
-    "Lower the stop to give it room"
+    "Lower the stop to give it more room"
    ],
    "answer": "Get out: your reason to own it is gone",
    "why": "Get out. Your plan named slowing growth as an exit, and this report shows it. Schwab's plan lists the business or chart changes that would make you close the position.",
@@ -965,7 +965,7 @@
    "wrong": {
     "Hold: the stop hasn't been hit": "The stop is one of your exits. The other one you wrote just triggered.",
     "Hold: one report doesn't change much": "That's how people fall in love with an idea and hold on too long. Your plan named this exact change.",
-    "Lower the stop to give it room": "That gives more room to a trade whose written exit has already triggered."
+    "Lower the stop to give it more room": "That gives more room to a trade whose written exit has already triggered."
    },
    "skill": "process.plan"
   },
@@ -1109,7 +1109,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "Schwab f07 'How long do I expect this trade to last?' and Fidelity f40/f41 time exit. Fixed: Fidelity says a time exit 'can work' sideways, not 'is made for'; lesson line no longer orders a deadline on every trade.",
+   "notes": "Schwab f07 'How long do I expect this trade to last?' and Fidelity f40/f41 time exit. Fixed: Fidelity says a time exit 'can work' sideways, not 'is made for'; lesson line no longer orders a deadline on every trade. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1121,7 +1121,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Investopedia f30 (signals not changed while trading, re-evaluated when markets are closed) and Fidelity f36 (no knee-jerk changes). Fixed: 'Sell now, ahead of the stop' is not clearly wrong to many good traders, so it became the named mistake 'Buy more to lower your cost'. Track audit 2026-11-09: the note on 'Widen it now' said 'If wider really is better, it'll still be better tonight', which read as permission to lower this trade's stop after the close and contradicted F12.02 q13/q15 ('Stops move one way') and F12.07 q12/q21 (moving the stop down is the mistake). Now 'If the rule needs work, change it tonight, for your next trade': f30 (re-evaluate when the market is closed) still supports it.",
+   "notes": "Investopedia f30 (signals not changed while trading, re-evaluated when markets are closed) and Fidelity f36 (no knee-jerk changes). Fixed: 'Sell now, ahead of the stop' is not clearly wrong to many good traders, so it became the named mistake 'Buy more to lower your cost'. Track audit 2026-11-09: the note on 'Widen it now' said 'If wider really is better, it'll still be better tonight', which read as permission to lower this trade's stop after the close and contradicted F12.02 q13/q15 ('Stops move one way') and F12.07 q12/q21 (moving the stop down is the mistake). Now 'If the rule needs work, change it tonight, for your next trade': f30 (re-evaluate when the market is closed) still supports it. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1133,19 +1133,19 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "IBKR f44 (schedule of critical data releases), Schwab f16 (identify earnings announcements for the week ahead), Fidelity f42 (stops do not protect from gaps). Sound: decide hold, cut size or sell before the report.",
+   "notes": "IBKR f44 (schedule of critical data releases), Schwab f16 (identify earnings announcements for the week ahead), Fidelity f42 (stops do not protect from gaps). Sound: decide hold, cut size or sell before the report. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q20": {
    "status": "pass",
-   "notes": "Investopedia f27 (scrap a plan that doesn't work; no trades until a new plan is created) and Fidelity f37 (devise a replacement). Two publishers agree.",
+   "notes": "Investopedia f27 (scrap a plan that doesn't work; no trades until a new plan is created) and Fidelity f37 (devise a replacement). Two publishers agree. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q21": {
    "status": "pass",
-   "notes": "Schwab f13/f14 (fundamental or technical changes that would make you close). Fixed: the key relied on an unstated condition (that the reason to buy was also an exit); the story now lists the plan's two exits. Added Investopedia f30 as a second publisher.",
+   "notes": "Schwab f13/f14 (fundamental or technical changes that would make you close). Fixed: the key relied on an unstated condition (that the reason to buy was also an exit); the story now lists the plan's two exits. Added Investopedia f30 as a second publisher. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

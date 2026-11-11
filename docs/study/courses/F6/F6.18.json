@@ -810,8 +810,8 @@
    "q": "It's midday. When was the open interest on your options chain last updated?",
    "choices": [
     "After the prior session's close",
-    "With the last trade",
-    "At the start of the week",
+    "With the last trade that printed",
+    "At the start of the trading week",
     "At the last expiration"
    ],
    "answer": "After the prior session's close",
@@ -822,8 +822,8 @@
     "f17"
    ],
    "wrong": {
-    "With the last trade": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
-    "At the start of the week": "OCC reports it after each day's trades clear, not weekly.",
+    "With the last trade that printed": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
+    "At the start of the trading week": "OCC reports it after each day's trades clear, not weekly.",
     "At the last expiration": "It changes every day as traders open and close positions, not just at expiry."
    }
   },
@@ -927,7 +927,7 @@
    "q": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest?",
    "choices": [
     "It stays the same",
-    "It rises by 10",
+    "It rises by 10 contracts",
     "It falls by 10",
     "It rises by 20"
    ],
@@ -941,7 +941,7 @@
     "f18"
    ],
    "wrong": {
-    "It rises by 10": "That needs both sides opening. Here one side is closing.",
+    "It rises by 10 contracts": "That needs both sides opening. Here one side is closing.",
     "It falls by 10": "That needs both sides closing. Here the buyer is opening.",
     "It rises by 20": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
    }
@@ -1080,7 +1080,7 @@
    "choices": [
     "A buyer paid the ask to get filled",
     "A new bullish position was opened",
-    "The stock is set to rise"
+    "The stock is set to rise from here"
    ],
    "answer": "A buyer paid the ask to get filled",
    "why": "A buyer paid the ask to get filled. That's what a market buy does when the fill matters more than the price. But a buy can also close a short call, a seller getting out.",
@@ -1093,7 +1093,7 @@
    ],
    "wrong": {
     "A new bullish position was opened": "A buy can also close an existing short call. The print alone can't show which it was.",
-    "The stock is set to rise": "One print can't tell you direction. It can be a hedge, a close or a bet."
+    "The stock is set to rise from here": "One print can't tell you direction. It can be a hedge, a close or a bet."
    }
   },
   {
@@ -1132,8 +1132,8 @@
    "q": "What tells you if you can get a fair fill?",
    "choices": [
     "The bid, ask and size quoted now",
-    "The open interest number",
-    "Today's volume so far"
+    "The open interest at that strike",
+    "Today's volume so far on the strike"
    ],
    "answer": "The bid, ask and size quoted now",
    "why": "The bid, ask and size quoted now. Open interest and volume aren't liquidity. The two-sided market shows how many contracts you can trade, and at what price.",
@@ -1145,8 +1145,8 @@
     "f14"
    ],
    "wrong": {
-    "The open interest number": "That counts contracts still open, not how many someone will trade with you right now.",
-    "Today's volume so far": "Volume is what already traded. The quote is what's on offer right now."
+    "The open interest at that strike": "That counts contracts still open, not how many someone will trade with you right now.",
+    "Today's volume so far on the strike": "Volume is what already traded. The quote is what's on offer right now."
    }
   },
   {
@@ -1205,7 +1205,7 @@
    "q": "How much should that call print change your read?",
    "choices": [
     "Very little, its intent is unknown",
-    "It cancels the breakdown",
+    "It cancels out the breakdown signal",
     "It's a reason to buy the dip"
    ],
    "answer": "Very little, its intent is unknown",
@@ -1219,7 +1219,7 @@
     "f29"
    ],
    "wrong": {
-    "It cancels the breakdown": "You can't see why it was bought. The breakdown is on the chart for everyone to see.",
+    "It cancels out the breakdown signal": "You can't see why it was bought. The breakdown is on the chart for everyone to see.",
     "It's a reason to buy the dip": "That makes an unreadable print your entry signal. An unusual trade calls for more homework, not a trade."
    }
   },
@@ -1403,12 +1403,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q03": {
-   "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f10: OCC reports new open interest only after end-of-day pairing; f17. Fixed: key 'After yesterday's close' -> 'After the prior session's close' (false on a Monday or after a holiday); why and lesson_line to match.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q03": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f10: OCC reports new open interest only after end-of-day pairing; f17. Fixed: key 'After yesterday's close' -> 'After the prior session's close' (false on a Monday or after a holiday); why and lesson_line to match. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q04": {
    "status": "pass",
    "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC glossary pin risk (f4-f5: stock exactly at strike, seller can't know assignment) and FINRA (f48-f49: 'at or very near', next-day open risk) read in context. Bank words are real mix-ups. Track audit 2026-11-09: spelling only: 'breakeven' -> 'break-even', one spelling across F6 (OIC's and F6.03's).",
@@ -1439,12 +1434,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q09": {
-   "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f21 (OIC): one side open, other close = unchanged; f18: both open 10 -> +10, not 20. Source's own Trader A/C example (slip noted in conflicts) gives the same result.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q09": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f21 (OIC): one side open, other close = unchanged; f18: both open 10 -> +10, not 20. Source's own Trader A/C example (slip noted in conflicts) gives the same result. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q10": {
    "status": "pass",
    "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f9 is the OIC FAQ's own 3,000 vs 1,800 example; f10 + OIC table: only both-open trades add, closing sides add nothing or subtract. Wrong notes: OI counts every holder (f1), per series (f1).",
@@ -1475,24 +1465,14 @@
    "fixed": false,
    "by": "checker"
   },
-  "q15": {
-   "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f52, f51 (Investor.gov: market buy fills at or near the ask), f3 (OIC: a purchase can close a short). Fixed the 'new bullish position' note: next-day open interest is a net count for the series and can't label one print.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q15": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f52, f51 (Investor.gov: market buy fills at or near the ask), f3 (OIC: a purchase can close a short). Fixed the 'new bullish position' note: next-day open interest is a net count for the series and can't label one print. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q16": {
    "status": "pass",
    "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f66-f68 (Cboe: outside estimates of flow balance are 'just estimates based on assumptions'; outsiders have little visibility; Cboe sees each side), f29, f8. Fixed why to say exactly what Cboe called estimates.",
    "fixed": true,
    "by": "checker"
   },
-  "q17": {
-   "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC FAQ (f11-f13) answers this very case (an eight-contract order): volume/OI aren't liquidity, ask for a two-sided market with size; f14 (OIC): bid/ask matters more than OI for fills. Matches trading practice.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q17": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC FAQ (f11-f13) answers this very case (an eight-contract order): volume/OI aren't liquidity, ask for a two-sided market with size; f14 (OIC): bid/ask matters more than OI for fills. Matches trading practice. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q25": {
    "status": "pass",
    "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f16, f10, f19, f21 (OIC) support the key; volume 3x OI says nothing certain about the next count or direction. Fixed: 'A big move is coming' note answered direction, not size; OI note now says net of both-open less both-close; f54 cited; 'tomorrow' -> 'next count'.",
@@ -1505,12 +1485,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q19": {
-   "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f57, f54, f58 (Montreal Exchange: unusual activity not bullish or bearish by default, may be a hedge, needs homework), f3 (OIC: a buy can close a short), f29. Price action over one unreadable print is sound practice.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q19": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f57, f54, f58 (Montreal Exchange: unusual activity not bullish or bearish by default, may be a hedge, needs homework), f3 (OIC: a buy can close a short), f29. Price action over one unreadable print is sound practice. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q20": {
    "status": "pass",
    "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f73-f75: Ni, Pearson, Poteshman (JFE 2005) abstract, read in full: closes cluster at strikes, at least 16.5 bp, market maker rebalancing plus manipulation by proprietary traders; f76-f77 (Golez-Jackwerth) and f79 agree it is a tendency. Fixed why to name the proprietary traders as the abstract does.",

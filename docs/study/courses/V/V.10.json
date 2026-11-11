@@ -1601,7 +1601,7 @@
    "q": "People call the Fed's job a dual mandate. Which two goals does that mean?",
    "choices": [
     "Maximum employment and stable prices",
-    "Stable prices and a strong dollar",
+    "Stable prices and a strong US dollar",
     "Low rates and rising stock prices",
     "Price stability, nothing else"
    ],
@@ -1616,7 +1616,7 @@
     "f29"
    ],
    "wrong": {
-    "Stable prices and a strong dollar": "The dollar isn't one of the Fed's legal goals. Rate changes do move it, as a side effect.",
+    "Stable prices and a strong US dollar": "The dollar isn't one of the Fed's legal goals. Rate changes do move it, as a side effect.",
     "Low rates and rising stock prices": "Stock prices aren't a Fed goal. Rates affect stocks, but the mandate is jobs and prices.",
     "Price stability, nothing else": "Prices are only half of it. The Fed's law puts maximum employment right next to stable prices."
    }
@@ -1685,9 +1685,9 @@
    "q": "The jobs report leads with nonfarm payrolls. What does that number count?",
    "choices": [
     "Jobs on business and government payrolls",
-    "People who say they have a job",
-    "New claims for jobless benefits",
-    "Everyone working, farms included"
+    "People who tell a survey they have a job",
+    "New claims filed for jobless benefits",
+    "Everyone who is working, farms included"
    ],
    "answer": "Jobs on business and government payrolls",
    "why": "Jobs on business and government payrolls. BLS surveys employers, and the count leaves out farm workers, the self-employed and household workers.",
@@ -1701,9 +1701,9 @@
     "f96"
    ],
    "wrong": {
-    "People who say they have a job": "That's the household survey, which BLS uses for the unemployment rate. Payrolls come from employers.",
-    "New claims for jobless benefits": "That's initial claims, a weekly count of people applying for unemployment benefits.",
-    "Everyone working, farms included": "Nonfarm means farm workers are left out, along with the self-employed."
+    "People who tell a survey they have a job": "That's the household survey, which BLS uses for the unemployment rate. Payrolls come from employers.",
+    "New claims filed for jobless benefits": "That's initial claims, a weekly count of people applying for unemployment benefits.",
+    "Everyone who is working, farms included": "Nonfarm means farm workers are left out, along with the self-employed."
    }
   },
   {
@@ -1743,9 +1743,9 @@
    "q": "What does the Treasury yield curve show?",
    "choices": [
     "Yields across maturities, short to long",
-    "One bond's yield over the past year",
+    "A single bond's yield over the past year",
     "The Fed's projected rate path",
-    "The gap between stocks and bonds"
+    "The gap between stock and bond yields"
    ],
    "answer": "Yields across maturities, short to long",
    "why": "Yields across maturities, short to long. Treasury's curve relates the yield on a security to its time to maturity, from 1 month out to 30 years.",
@@ -1757,9 +1757,9 @@
     "f39"
    ],
    "wrong": {
-    "One bond's yield over the past year": "That's the history of one yield. The curve compares many maturities on the same day.",
+    "A single bond's yield over the past year": "That's the history of one yield. The curve compares many maturities on the same day.",
     "The Fed's projected rate path": "That's the dot plot, Fed officials' projections for the fed funds rate.",
-    "The gap between stocks and bonds": "That compares two kinds of assets. The Treasury curve compares Treasury yields at different maturities."
+    "The gap between stock and bond yields": "That compares two kinds of assets. The Treasury curve compares Treasury yields at different maturities."
    }
   },
   {
@@ -1943,7 +1943,7 @@
     "Unemployed as a share of the labor force",
     "Unemployed as a share of all adults",
     "People on jobless benefits, as a share",
-    "Jobs lost this month, as a share"
+    "Jobs lost this month, as a share of jobs"
    ],
    "answer": "Unemployed as a share of the labor force",
    "why": "Unemployed as a share of the labor force. The labor force is the employed plus the unemployed. Most jobless people who aren't looking sit outside it.",
@@ -1959,7 +1959,7 @@
    "wrong": {
     "Unemployed as a share of all adults": "That would count retirees and students. The labor force only includes people working or looking.",
     "People on jobless benefits, as a share": "BLS classifies people by survey answers. Getting benefits has nothing to do with it.",
-    "Jobs lost this month, as a share": "That's a monthly change. The rate is the share of the labor force unemployed at the survey."
+    "Jobs lost this month, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey."
    }
   },
   {
@@ -1999,12 +1999,12 @@
    "term": "SOFR",
    "q": "What does SOFR measure?",
    "choices": [
-    "Overnight borrowing backed by Treasuries",
+    "Overnight loans backed by Treasuries",
     "Overnight bank loans with no collateral",
     "The yield on 10-year Treasury notes",
     "The rate the Fed pays on bank reserves"
    ],
-   "answer": "Overnight borrowing backed by Treasuries",
+   "answer": "Overnight loans backed by Treasuries",
    "why": "Overnight borrowing backed by Treasuries. The New York Fed publishes it every business day as a broad measure of that cost.",
    "lesson_line": "SOFR is secured by Treasuries. Fed funds is unsecured. Both are overnight rates.",
    "facts": [
@@ -2125,9 +2125,9 @@
    "rung": 4,
    "format": "tf",
    "term": "CPI",
-   "q": "The CPI includes the prices of stocks and bonds.",
-   "answer": "False",
-   "why": "False. BLS leaves out investment items like stocks, bonds, real estate and life insurance. Those relate to savings, not day-to-day spending.",
+   "q": "The CPI leaves out investment items like stocks and bonds.",
+   "answer": "True",
+   "why": "True. BLS leaves out investment items like stocks, bonds, real estate and life insurance. Those relate to savings, not day-to-day spending.",
    "lesson_line": "CPI tracks day-to-day spending, not asset prices. A stock rally doesn't show up in it.",
    "facts": [
     "f64",
@@ -2481,7 +2481,7 @@
    "rung": 7,
    "format": "tf",
    "term": "FOMC",
-   "q": "All 12 Reserve Bank presidents vote at every FOMC meeting.",
+   "q": "At an FOMC meeting, 12 Reserve Bank presidents cast votes.",
    "answer": "False",
    "why": "False. All 12 presidents attend and join the discussion. Only five vote: the New York Fed president plus four others on a rotation.",
    "lesson_line": "Twelve voters: seven governors and five presidents. The rotating seats change each year, so check who votes.",
@@ -3006,7 +3006,7 @@
    "rung": 8,
    "format": "tf",
    "term": "Dot plot",
-   "q": "Only the FOMC's voting members put a dot on the dot plot.",
+   "q": "Nonvoting Reserve Bank presidents leave their dot off the dot plot.",
    "answer": "False",
    "why": "False. Projections come from every Fed governor and every Reserve Bank president, voters or not. And the dots don't say who is who.",
    "lesson_line": "The dot plot shows all participants, not just this year's voters. Weigh the median, not one dot.",
@@ -3069,7 +3069,7 @@
    "rung": 9,
    "format": "tf",
    "term": "Inverted yield curve",
-   "q": "When the yield curve inverts, a recession follows within about a year, every time.",
+   "q": "An inverted yield curve is a sure sign of a recession within about a year.",
    "answer": "False",
    "why": "False. The rule of thumb says about a year, and inversions came before each of the last eight recessions. But there were false alarms, including late 2022 through late 2024.",
    "lesson_line": "An inversion is a warning light, not a timer. Use it with other evidence.",
@@ -3224,7 +3224,7 @@
   },
   "q02": {
    "status": "pass",
-   "notes": "f12-f14 (Board pages): dual mandate = max employment + stable prices; moderate long-term rates noted. Dollar and stock prices are not legal goals (f13); f6, f29 support the side-effect lines.",
+   "notes": "f12-f14 (Board pages): dual mandate = max employment + stable prices; moderate long-term rates noted. Dollar and stock prices are not legal goals (f13); f6, f29 support the side-effect lines. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3242,7 +3242,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "BLS CES FAQ (f85, f86, f89, f90): payroll jobs from establishments incl. civilian government; excludes farm, self-employed, household workers. Answer is 40 characters.",
+   "notes": "BLS CES FAQ (f85, f86, f89, f90): payroll jobs from establishments incl. civilian government; excludes farm, self-employed, household workers. Answer is 40 characters. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3254,7 +3254,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "Treasury par-curve text f125/f126 (1 month to 30 years) and FDIC f140. Dot plot (f39) and one-yield-over-time distractors correctly wrong.",
+   "notes": "Treasury par-curve text f125/f126 (1 month to 30 years) and FDIC f140. Dot plot (f39) and one-yield-over-time distractors correctly wrong. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3296,7 +3296,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "BLS glossary f76 and CPS page f94/f95 key it. BLS counts temporary-layoff workers as unemployed without a search (f173 added), so the why and lesson now say 'most' / 'usually' instead of an absolute.",
+   "notes": "BLS glossary f76 and CPS page f94/f95 key it. BLS counts temporary-layoff workers as unemployed without a search (f173 added), so the why and lesson now say 'most' / 'usually' instead of an absolute. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3308,7 +3308,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "NY Fed SOFR page f59/f60 (Treasury-collateralized, published each business day); NY Fed EFFR page f61 (fed funds unsecured). Answer is 40 characters.",
+   "notes": "NY Fed SOFR page f59/f60 (Treasury-collateralized, published each business day); NY Fed EFFR page f61 (fed funds unsecured). Answer is 40 characters. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3338,7 +3338,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "BLS CPI FAQ f64 excludes stocks, bonds, real estate, life insurance. Lesson no longer calls CPI 'the cost of living' (BLS distinguishes CPI from a full cost-of-living index); now 'day-to-day spending', BLS's own words.",
+   "notes": "BLS CPI FAQ f64 excludes stocks, bonds, real estate, life insurance. Lesson no longer calls CPI 'the cost of living' (BLS distinguishes CPI from a full cost-of-living index); now 'day-to-day spending', BLS's own words. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3422,7 +3422,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "Board page f15 and FOMC page f2/f3: all 12 presidents attend, five vote. The why's 23-word sentence split to meet the 22-word limit.",
+   "notes": "Board page f15 and FOMC page f2/f3: all 12 presidents attend, five vote. The why's 23-word sentence split to meet the 22-word limit. variety rewrite checked 2026-11-10 (edited: q)",
    "fixed": true,
    "by": "checker"
   },
@@ -3548,7 +3548,7 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "SEP guide f37 (every governor and every Reserve Bank president), KC Fed f158 and Investopedia f156 (dots unattributed).",
+   "notes": "SEP guide f37 (every governor and every Reserve Bank president), KC Fed f158 and Investopedia f156 (dots unattributed). variety rewrite checked 2026-11-10 (edited: q)",
    "fixed": false,
    "by": "checker"
   },
@@ -3566,7 +3566,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "Cleveland Fed f166/f167/f169 (rule of thumb, three false positives incl. late 2022-late 2024) and FDIC f144/f145. Key False; f166 claim now keeps the 'rule of thumb' hedge.",
+   "notes": "Cleveland Fed f166/f167/f169 (rule of thumb, three false positives incl. late 2022-late 2024) and FDIC f144/f145. Key False; f166 claim now keeps the 'rule of thumb' hedge. variety rewrite checked 2026-11-10 (edited: q)",
    "fixed": false,
    "by": "checker"
   },

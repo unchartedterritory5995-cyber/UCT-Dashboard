@@ -780,9 +780,9 @@
    "q": "On a daily chart, what makes a gap up?",
    "choices": [
     "Today's low is above yesterday's high",
-    "Today's close is above yesterday's",
+    "Today's close is above yesterday's close",
     "Today's high is a new 52-week high",
-    "Today's volume is above average"
+    "Today's volume is well above average"
    ],
    "answer": "Today's low is above yesterday's high",
    "why": "Today's low is above yesterday's high. Nothing traded between the two bars, so the chart shows an empty space. That space is the gap.",
@@ -793,9 +793,9 @@
     "f8"
    ],
    "wrong": {
-    "Today's close is above yesterday's": "That's just an up day. The two bars can still overlap.",
+    "Today's close is above yesterday's close": "That's just an up day. The two bars can still overlap.",
     "Today's high is a new 52-week high": "That's a new high. It can happen without any gap.",
-    "Today's volume is above average": "Volume says how many shares traded, not whether price jumped over a range."
+    "Today's volume is well above average": "Volume says how many shares traded, not whether price jumped over a range."
    }
   },
   {
@@ -941,8 +941,8 @@
    "q": "What does a Power Earnings Gap look like on day one?",
    "choices": [
     "Earnings gap, big volume, strong close",
-    "Earnings gap that fills by the close",
-    "Small earnings gap on light volume",
+    "Earnings gap that fills before the close",
+    "Small earnings gap on very light volume",
     "Gap down that recovers by noon"
    ],
    "answer": "Earnings gap, big volume, strong close",
@@ -956,8 +956,8 @@
     "f26"
    ],
    "wrong": {
-    "Earnings gap that fills by the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
-    "Small earnings gap on light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap.",
+    "Earnings gap that fills before the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
+    "Small earnings gap on very light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap.",
     "Gap down that recovers by noon": "Wrong direction. This setup is a gap up on strong earnings."
    }
   },
@@ -1056,8 +1056,8 @@
    "q": "What did the day tell you?",
    "choices": [
     "It faded: buyers didn't hold the gap",
-    "It's a breakaway gap: buy tomorrow",
-    "It still counts as a gap up",
+    "It's a breakaway gap: buy tomorrow open",
+    "It still counts as a gap up today",
     "Buy it: it's cheaper than the open"
    ],
    "answer": "It faded: buyers didn't hold the gap",
@@ -1070,8 +1070,8 @@
     "f73"
    ],
    "wrong": {
-    "It's a breakaway gap: buy tomorrow": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap.",
-    "It still counts as a gap up": "It didn't last to the close. A gap that vanishes intraday is treated as normal volatility.",
+    "It's a breakaway gap: buy tomorrow open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap.",
+    "It still counts as a gap up today": "It didn't last to the close. A gap that vanishes intraday is treated as normal volatility.",
     "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day."
    }
   },
@@ -1108,12 +1108,12 @@
    "format": "mcq",
    "q": "Why might you wait before buying an earnings gap right at the open?",
    "choices": [
-    "The open can fade; let it prove itself",
-    "A filled gap is a safer entry",
+    "The open can fade; wait for proof",
+    "A filled gap is a much safer entry",
     "The open is usually the day's low"
    ],
-   "answer": "The open can fade; let it prove itself",
-   "why": "The open can fade. One gap method gives it an hour to set a range, and Bulkowski waits for a close above the report-day high to confirm.",
+   "answer": "The open can fade; wait for proof",
+   "why": "The open can fade. One gap method gives it an hour to set a range. Bulkowski waits for a close above the report-day high to confirm.",
    "lesson_line": "Let the gap show you it holds before you pay up for it.",
    "facts": [
     "f23",
@@ -1124,7 +1124,7 @@
     "f19"
    ],
    "wrong": {
-    "A filled gap is a safer entry": "Waiting for a fill can mean missing the move. Bulkowski found up gaps held as support only 20% of the time.",
+    "A filled gap is a much safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
     "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price."
    }
   },
@@ -1335,12 +1335,12 @@
    "format": "mcq",
    "q": "What does recent research say about the classic post-earnings drift?",
    "choices": [
-    "It's shrunk; studies split on how much",
+    "It's shrunk; studies split on size",
     "It has grown stronger each decade",
     "It works on every stock that beats",
     "It only shows up in large stocks"
    ],
-   "answer": "It's shrunk; studies split on how much",
+   "answer": "It's shrunk; studies split on size",
    "why": "It's shrunk, and studies split on how much. One finds no drift in large stocks since 2006. Others find it still persists.",
    "lesson_line": "I treat the drift as a maybe, not a plan. The stop and the chart come first.",
    "facts": [
@@ -1437,7 +1437,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f9 (ChartSchool) and f29 (Bulkowski) confirmed live and agree: an up gap is a low above the prior high. Close-to-open gaps (s4) are in conflicts and the question says 'daily chart'. All three wrong choices are really wrong.",
+   "notes": "f9 (ChartSchool) and f29 (Bulkowski) confirmed live and agree: an up gap is a low above the prior high. Close-to-open gaps (s4) are in conflicts and the question says 'daily chart'. All three wrong choices are really wrong. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1479,7 +1479,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f71, f72 (Tramondo, FINMA-authorised manager; its own page credits the name to a trader), f38, f40 (Bulkowski), f26 (Bowley) confirmed live. The key holds only the three features the sources share. Changed the why: Tramondo says 'best is a close near highs', so 'best with', not 'asks for'. Owner may want to confirm the name matches his setup 28.",
+   "notes": "f71, f72 (Tramondo, FINMA-authorised manager; its own page credits the name to a trader), f38, f40 (Bulkowski), f26 (Bowley) confirmed live. The key holds only the three features the sources share. Changed the why: Tramondo says 'best is a close near highs', so 'best with', not 'asks for'. Owner may want to confirm the name matches his setup 28. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1509,7 +1509,7 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "f54 (Investopedia), f22 (StockCharts), f13 (ChartSchool), f73 (Tramondo) confirmed. Changed the why's last line 'A gap that doesn't last the session means little': a failed earnings gap does mean something; now 'the buying wasn't strong enough... no gap is left'.",
+   "notes": "f54 (Investopedia), f22 (StockCharts), f13 (ChartSchool), f73 (Tramondo) confirmed. Changed the why's last line 'A gap that doesn't last the session means little': a failed earnings gap does mean something; now 'the buying wasn't strong enough... no gap is left'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1521,7 +1521,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "f23 (one-hour rule), f41 (Bulkowski confirmation), f22, f35, f19 confirmed live. Changed the wrong note for 'The open is usually the day's low': it said earnings days are 'often 2 or 3 times the normal range', but f39 is Bulkowski's selection rule, not a frequency; now it uses f22. Lesson line no longer claims the first hour 'tells you more than the headline'.",
+   "notes": "f23 (one-hour rule), f41 (Bulkowski confirmation), f22, f35, f19 confirmed live. Changed the wrong note for 'The open is usually the day's low': it said earnings days are 'often 2 or 3 times the normal range', but f39 is Bulkowski's selection rule, not a frequency; now it uses f22. Lesson line no longer claims the first hour 'tells you more than the headline'. Wrong note for the filled-gap choice rewritten: the 20% support figure (f35) did not rebut it; now f19. Why split into two sentences. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1575,7 +1575,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "f62, f63, f64 (Philadelphia Fed) and f70 (Martineau, Critical Finance Review abstract on RePEc) confirmed live. Replaced the silly distractor 'No study has ever found it' with 'It only shows up in large stocks', which f70 shows is the reverse.",
+   "notes": "f62, f63, f64 (Philadelphia Fed) and f70 (Martineau, Critical Finance Review abstract on RePEc) confirmed live. Replaced the silly distractor 'No study has ever found it' with 'It only shows up in large stocks', which f70 shows is the reverse. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

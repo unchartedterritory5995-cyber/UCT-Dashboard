@@ -4,7 +4,8 @@
  "title": "Spot the mistake",
  "teaches": "Read a short trade plan or journal entry and find the one line that breaks a sound rule: no stop, a stop moved lower, adding to a loser, size before stop, too much risk, chasing, revenge trading, full size into earnings, or a market order in the premarket.",
  "variety_exempt": [
-  "stems"
+  "stems",
+  "choice"
  ],
  "skills": [
   {

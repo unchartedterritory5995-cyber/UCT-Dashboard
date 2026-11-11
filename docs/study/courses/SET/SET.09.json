@@ -430,7 +430,7 @@
   {
    "id": "h03",
    "source": "h1",
-   "quote": "Shares = account \u00d7 risk % \u00f7 (entry \u2212 stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
    "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
   },
   {
@@ -1033,12 +1033,12 @@
    "choices": [
     "A box with a flat ceiling",
     "A rounded U, then a dip near the top",
-    "Pullbacks that shrink one by one",
+    "Shrinking pullbacks, one after another",
     "A pole that nearly doubles in weeks"
    ],
    "wrong": {
     "A box with a flat ceiling": "That is a flat base. A cup rounds down and back up, then handles.",
-    "Pullbacks that shrink one by one": "That is a VCP's contractions. A cup is one rounded decline and one handle.",
+    "Shrinking pullbacks, one after another": "That is a VCP's contractions. A cup is one rounded decline and one handle.",
     "A pole that nearly doubles in weeks": "That is a high tight flag's pole. The cup is the rest after a smaller run."
    },
    "answer": "A rounded U, then a dip near the top",
@@ -1058,14 +1058,14 @@
    "criterion": "ch.pivot",
    "q": "On a cup with handle, which level does the breakout have to trade through?",
    "choices": [
-    "The cup's lowest low",
+    "The cup's lowest low in the base",
     "The highest price in the handle",
-    "The handle's low",
+    "The low of the handle's last dip",
     "The 50-day average"
    ],
    "wrong": {
-    "The cup's lowest low": "That is the bottom of the cup, the base's floor. The buy is at the top.",
-    "The handle's low": "The handle low is the floor of the last dip, the outer limit for the stop.",
+    "The cup's lowest low in the base": "That is the bottom of the cup, the base's floor. The buy is at the top.",
+    "The low of the handle's last dip": "The handle low is the floor of the last dip, the outer limit for the stop.",
     "The 50-day average": "The 50-day is the line the handle holds, not the trigger."
    },
    "answer": "The highest price in the handle",
@@ -1085,9 +1085,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "ch.stop",
-   "q": "On a cup breakout, the stop sits a few cents under the low of the buy day or the prior day.",
-   "answer": "True",
-   "why": "True. A few cents under the buy day's low or the prior day's, not exactly on it.",
+   "q": "On a cup breakout, the stop sits a few cents under the cup's lowest low.",
+   "answer": "False",
+   "why": "False. The stop sits a few cents under the buy day's low or the prior day's, not exactly on it. The cup's low is far too wide.",
    "lesson_line": "Stop first: a few cents under the day's low.",
    "facts": [
     "c15",
@@ -1191,13 +1191,13 @@
    "criterion": "ch.trigger",
    "q": "The handle high is 48.20. When do you buy?",
    "choices": [
-    "On a close above the right rim",
+    "On a daily close above the right rim",
     "In premarket, if it gaps over 48.20",
     "As it trades through 48.20, in hours",
     "At the handle low, before the move"
    ],
    "wrong": {
-    "On a close above the right rim": "That is Bulkowski's later entry. We buy the trade through the handle high.",
+    "On a daily close above the right rim": "That is Bulkowski's later entry. We buy the trade through the handle high.",
     "In premarket, if it gaps over 48.20": "No new buys outside regular trading hours.",
     "At the handle low, before the move": "That buys inside the base with no trigger."
    },
@@ -1243,9 +1243,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ch.prior_trend",
-   "q": "IBD wants a run up of at least 30% before the stock turns down into the cup.",
-   "answer": "True",
-   "why": "True. IBD: the basic requirements start with a run up of at least 30%. AAII repeats it: at least 30% from the last intermediate low.",
+   "q": "IBD wants a run up of no more than 30% before the stock turns down into the cup.",
+   "answer": "False",
+   "why": "False. IBD: the basic requirements start with a run up of at least 30%. AAII repeats it: at least 30% from the last intermediate low.",
    "lesson_line": "No run, no cup. Measure the advance before the rest.",
    "facts": [
     "i06",
@@ -1332,9 +1332,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ch.throwback",
-   "q": "By Bulkowski's count, most cup breakouts come back to the breakout price within 30 days.",
-   "answer": "True",
-   "why": "True. 62% of cup breakouts come back to the breakout price within 30 days. The day's-low stop gets tested often; that is normal.",
+   "q": "By Bulkowski's count, few cup breakouts come back to the breakout price within 30 days.",
+   "answer": "False",
+   "why": "False. 62% of cup breakouts come back to the breakout price within 30 days. The day's-low stop gets tested often; that is normal.",
    "lesson_line": "Expect the retest. The stop pays for it; you do not widen it.",
    "facts": [
     "c17"
@@ -1350,17 +1350,17 @@
    "q": "What is the widest our cup stop can ever sit?",
    "choices": [
     "8% under the buy",
-    "Under the cup's lowest low",
-    "A few cents under the handle low",
+    "A few cents under the cup's low",
+    "Just under the handle low",
     "Under the 200-day"
    ],
    "wrong": {
     "8% under the buy": "IBD's 7% to 8% is a reference, not ours.",
-    "Under the cup's lowest low": "That is the whole cup's depth away. Far too wide.",
+    "A few cents under the cup's low": "That is the whole cup's depth away. Far too wide.",
     "Under the 200-day": "The 200-day is a context line, not a stop."
    },
-   "answer": "A few cents under the handle low",
-   "why": "A few cents under the handle low. Below the handle low the setup has failed. Bulkowski puts his stop at the handle low.",
+   "answer": "Just under the handle low",
+   "why": "Just under the handle low, by a few cents. Below the handle low the setup has failed. Bulkowski puts his stop at the handle low.",
    "lesson_line": "The handle low is the outer wall. The real stop usually sits much closer.",
    "facts": [
     "c16",
@@ -1478,9 +1478,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ch.inv_volume_rises",
-   "q": "Before the buy, volume rising through the handle ends the setup.",
-   "answer": "True",
-   "why": "True. Volume rising through the handle ends it. IBD: volume should dry up, evidence that the weak holders are just about gone.",
+   "q": "Before the buy, volume drying up through the handle ends the setup.",
+   "answer": "False",
+   "why": "False. Volume rising through the handle ends it. IBD: volume should dry up, evidence that the weak holders are just about gone.",
    "lesson_line": "A loud handle means sellers are still there. Wait for quiet.",
    "facts": [
     "c22",
@@ -1524,14 +1524,14 @@
    "q": "Buy the breakout today?",
    "story": "The handle is tight and quiet. The pivot trades through this morning. Earnings come out after tomorrow's close.",
    "choices": [
-    "Yes, the setup triggered",
-    "Yes, at half size",
+    "Yes, it triggered over the pivot",
+    "Yes, at half the normal size",
     "No, a report inside 3 sessions",
     "Yes, if volume is heavy"
    ],
    "wrong": {
-    "Yes, the setup triggered": "The trigger fired, and the calendar still says no.",
-    "Yes, at half size": "Smaller is still in. The rule is no new buys.",
+    "Yes, it triggered over the pivot": "The trigger fired, and the calendar still says no.",
+    "Yes, at half the normal size": "Smaller is still in. The rule is no new buys.",
     "Yes, if volume is heavy": "Volume grades the day. It does not override the earnings rule."
    },
    "answer": "No, a report inside 3 sessions",
@@ -1750,12 +1750,12 @@
    "choices": [
     "Sell at the close; it failed",
     "Hold; the stop is still the exit",
-    "Lower the stop under the handle",
+    "Lower the stop to the handle low",
     "Add; it is cheaper now"
    ],
    "wrong": {
     "Sell at the close; it failed": "That close is a warning, not an exit by itself. The stop decides.",
-    "Lower the stop under the handle": "The stop only moves up, never down.",
+    "Lower the stop to the handle low": "The stop only moves up, never down.",
     "Add; it is cheaper now": "Full size at one price with one stop. No adding."
    },
    "answer": "Hold; the stop is still the exit",
@@ -1917,12 +1917,12 @@
    "story": "An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle, and a breakout on heavy volume.",
    "choices": [
     "Closer to a flat base",
-    "A cup with handle",
-    "A VCP"
+    "A shallow cup with handle",
+    "A VCP of shrinking dips"
    ],
    "wrong": {
-    "A cup with handle": "Too shallow for a cup. It never rounded down.",
-    "A VCP": "A VCP shows two or more shrinking pullbacks. This is one shallow shelf."
+    "A shallow cup with handle": "Too shallow for a cup. It never rounded down.",
+    "A VCP of shrinking dips": "A VCP shows two or more shrinking pullbacks. This is one shallow shelf."
    },
    "answer": "Closer to a flat base",
    "why": "Closer to a flat base. A cup is a real rounded decline; a shelf this shallow stays boxy. Treat it with the flat base's rules.",
@@ -2081,13 +2081,13 @@
    "q": "Buy it?",
    "story": "The breakout gaps up 3% over the pivot. At your fill the stock sits 12% above its 10-day average.",
    "choices": [
-    "Buy; it is inside 4%",
+    "Buy; it is inside the 4% limit",
     "Skip; too far over the 10-day",
-    "Buy half size"
+    "Buy half size and keep the stop"
    ],
    "wrong": {
-    "Buy; it is inside 4%": "Inside the chase line, but past the stretch line. Both must pass.",
-    "Buy half size": "Size does not fix a stretched entry."
+    "Buy; it is inside the 4% limit": "Inside the chase line, but past the stretch line. Both must pass.",
+    "Buy half size and keep the stop": "Size does not fix a stretched entry."
    },
    "answer": "Skip; too far over the 10-day",
    "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy, even inside the 4% chase line.",
@@ -2593,16 +2593,16 @@
    "q": "How do we take profits on a cup winner?",
    "choices": [
     "At the cup's measured-move target",
-    "All of it at 20% to 25%",
-    "In R: thirds at 3R and 5R, then trail",
+    "All of it at a 20% to 25% gain",
+    "In R: thirds at 3R and 5R, trail",
     "At the old high"
    ],
    "wrong": {
     "At the cup's measured-move target": "Treating the target as a sure thing is a named mistake.",
-    "All of it at 20% to 25%": "That is IBD's general rule, not ours.",
+    "All of it at a 20% to 25% gain": "That is IBD's general rule, not ours.",
     "At the old high": "The old high is the pivot area. That is where the trade starts."
    },
-   "answer": "In R: thirds at 3R and 5R, then trail",
+   "answer": "In R: thirds at 3R and 5R, trail",
    "why": "In R: a third at 3R, a third at 5R, then trail the last third. IBD takes most profits at 20% to 25%; Bulkowski's target is no sure thing.",
    "lesson_line": "Sell partials into strength, in R. Targets are guesses; trims are rules.",
    "facts": [
@@ -2619,9 +2619,9 @@
    "rung": 7,
    "format": "tf",
    "criterion": "ch.inv_stale_handle",
-   "q": "On our card, a handle that runs past about 30 sessions with no breakout is stale.",
-   "answer": "True",
-   "why": "True. A handle past about 6 weeks, 30 sessions, with no breakout is getting stale, and the card takes it off.",
+   "q": "On our card, a handle under a week old with no breakout is stale.",
+   "answer": "False",
+   "why": "False. A handle past about 6 weeks, 30 sessions, with no breakout is getting stale, and the card takes it off.",
    "lesson_line": "A handle is a short pause. Months of it is a stall.",
    "facts": [
     "c21"
@@ -2637,13 +2637,13 @@
    "q": "Take it?",
    "story": "In a normal market, a leader's cup fell 42% in a rounded U. Then a tidy 8-day handle formed near the high.",
    "choices": [
-    "Take it; the handle is tidy",
+    "Take it; the 8-day handle is tidy",
     "Pass; too deep for a normal market",
-    "Take it; cups can run 50%"
+    "Take it; IBD allows cups to run 50%"
    ],
    "wrong": {
-    "Take it; the handle is tidy": "The handle passes. The cup is far too deep.",
-    "Take it; cups can run 50%": "Only in a bear market. Here the market is normal."
+    "Take it; the 8-day handle is tidy": "The handle passes. The cup is far too deep.",
+    "Take it; IBD allows cups to run 50%": "Only in a bear market. Here the market is normal."
    },
    "answer": "Pass; too deep for a normal market",
    "why": "Pass. Deeper than 35% outside a bear market ends the setup. IBD allows 50% only in bear markets; Zanger's cups run 20% to 35% off the old high.",
@@ -2664,12 +2664,12 @@
    "q": "Which one is never allowed?",
    "story": "The breakout fills at 48.60. The buy day's low sits at 46.40, about 4.5% under your fill.",
    "choices": [
-    "Skip the trade",
+    "Skip the trade; the stop is wide",
     "Pull the stop in to 3% to fit",
     "Wait for a tighter spot"
    ],
    "wrong": {
-    "Skip the trade": "Skipping is always allowed when the honest stop does not fit.",
+    "Skip the trade; the stop is wide": "Skipping is always allowed when the honest stop does not fit.",
     "Wait for a tighter spot": "Waiting is always allowed. No rule makes you buy this breakout. Pulling the stop in is not allowed."
    },
    "answer": "Pull the stop in to 3% to fit",
@@ -2751,19 +2751,19 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key by the card's pattern line and lookalikes (c28-c30); IBD tea-cup and Zanger quotes found on the pages. Wrong notes true.",
+   "notes": "Key by the card's pattern line and lookalikes (c28-c30); IBD tea-cup and Zanger quotes found on the pages. Wrong notes true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q02": {
    "status": "pass",
-   "notes": "Key c01 (ch.pivot, proposed). The 10 cents line is c02 inside ch.pivot, not the pending-owner buy_point_offset (D-003); no choice depends on it.",
+   "notes": "Key c01 (ch.pivot, proposed). The 10 cents line is c02 inside ch.pivot, not the pending-owner buy_point_offset (D-003); no choice depends on it. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q03": {
    "status": "pass",
-   "notes": "Settled: ch.stop, F62 and A3 verbatim in sizing_rule.md section 9.",
+   "notes": "Settled: ch.stop, F62 and A3 verbatim in sizing_rule.md section 9. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2793,7 +2793,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "Settled trigger (c03, E57, E58). The Bulkowski close-above-the-rim entry (b06) is a different convention and the wrong note says so.",
+   "notes": "Settled trigger (c03, E57, E58). The Bulkowski close-above-the-rim entry (b06) is a different convention and the wrong note says so. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2805,7 +2805,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "IBD i06 and AAII a03 found on the pages; c04 verbatim. The 30% is common to every option of ch.prior_trend.",
+   "notes": "IBD i06 and AAII a03 found on the pages; c04 verbatim. The 30% is common to every option of ch.prior_trend. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2829,13 +2829,13 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "c17 verbatim (Bulkowski 62%; dossier section 4 'Throwback rate: 62%', 913 trades). 'Most' is true at 62%.",
+   "notes": "c17 verbatim (Bulkowski 62%; dossier section 4 'Throwback rate: 62%', 913 trades). 'Most' is true at 62%. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q15": {
    "status": "pass",
-   "notes": "Key c16 (ch.stop_outer_limit, proposed); Bulkowski b04 found. 65 weeks is a bit over a year, true.",
+   "notes": "Key c16 (ch.stop_outer_limit, proposed); Bulkowski b04 found. 65 weeks is a bit over a year, true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2871,7 +2871,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "Key c22 (ch.inv_volume_rises, proposed) and IBD i25 found.",
+   "notes": "Key c22 (ch.inv_volume_rises, proposed) and IBD i25 found. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2883,7 +2883,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "Settled: B22 verbatim (no new buys in the 3 days before a report); the report is 2 sessions out in the story.",
+   "notes": "Settled: B22 verbatim (no new buys in the 3 days before a report); the report is 2 sessions out in the story. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2931,7 +2931,7 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "Settled: c18 (a close back into the handle is a warning, not an exit) and A4; 'no adding' is in A5.",
+   "notes": "Settled: c18 (a close back into the handle is a warning, not an exit) and A4; 'no adding' is in A5. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2967,7 +2967,7 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "PEP d28/d28b verbatim (6.6% deep, 8.4 weeks, 9-day handle). 6.6% is under 12% in every ch.cup_depth option.",
+   "notes": "PEP d28/d28b verbatim (6.6% deep, 8.4 weeks, 9-day handle). 6.6% is under 12% in every ch.cup_depth option. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3003,7 +3003,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "Settled: C29 (10% over the 10-day) and C28 (4%); 3% and 12% in the story are both read correctly.",
+   "notes": "Settled: C29 (10% over the 10-day) and C28 (4%); 3% and 12% in the story are both read correctly. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3117,25 +3117,25 @@
   },
   "q62": {
    "status": "pass",
-   "notes": "Key E51/B19/E52; IBD i35 and Bulkowski 61% (c32) verbatim.",
+   "notes": "Key E51/B19/E52; IBD i35 and Bulkowski 61% (c32) verbatim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q63": {
    "status": "pass",
-   "notes": "Key c21 (ch.inv_stale_handle, proposed, 30 sessions) verbatim.",
+   "notes": "Key c21 (ch.inv_stale_handle, proposed, 30 sessions) verbatim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q64": {
    "status": "pass",
-   "notes": "Key c20 (deeper than 35% outside a bear market, proposed); 42% is outside every ch.cup_depth option's ceiling. IBD i12 and Zanger z02 found.",
+   "notes": "Key c20 (deeper than 35% outside a bear market, proposed); 42% is outside every ch.cup_depth option's ceiling. IBD i12 and Zanger z02 found. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q65": {
    "status": "pass",
-   "notes": "Re-derived: (48.60 - 46.40) / 48.60 = 4.5%. Key A3, A4 and c42: the initial stop is a few cents under the day's low. The wrong note for 'wait for a tighter spot' leaned on the pending-owner ch.stop_width options; reworded to 'waiting is always allowed'. Fixed.",
+   "notes": "Re-derived: (48.60 - 46.40) / 48.60 = 4.5%. Key A3, A4 and c42: the initial stop is a few cents under the day's low. The wrong note for 'wait for a tighter spot' leaned on the pending-owner ch.stop_width options; reworded to 'waiting is always allowed'. Fixed. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

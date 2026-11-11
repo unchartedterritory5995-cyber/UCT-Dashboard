@@ -931,9 +931,9 @@
    "q": "On the Kicker day, where is the buy trigger?",
    "choices": [
     "One cent over the red day's high",
-    "The Kicker day's close",
-    "The red day's low",
-    "The red day's open"
+    "The Kicker day's close, at market",
+    "One cent under the red day's low",
+    "A cent over the red day's open"
    ],
    "answer": "One cent over the red day's high",
    "why": "One cent over the red day's high. Buy at market as it trades through, on the Kicker day only.",
@@ -944,9 +944,9 @@
     "m_close"
    ],
    "wrong": {
-    "The Kicker day's close": "Buying the close is a named mistake. The entry is the trade through the red high.",
-    "The red day's low": "The low is where the sellers were trapped, not where we buy.",
-    "The red day's open": "The open of the red day is not a level in this plan. The red high is the trigger."
+    "The Kicker day's close, at market": "Buying the close is a named mistake. The entry is the trade through the red high.",
+    "One cent under the red day's low": "The low is where the sellers were trapped, not where we buy.",
+    "A cent over the red day's open": "The open of the red day is not a level in this plan. The red high is the trigger."
    },
    "house": true
   },
@@ -1021,12 +1021,12 @@
    "criterion": "kk.gap_holds",
    "q": "What does 'the gap holds' mean on the Kicker day?",
    "choices": [
-    "It never trades back to the red close",
-    "It closes above its open",
+    "It stays over the red day's close",
+    "It closes above its open on volume",
     "It opens over the red day's high",
-    "It stays above the 50-day"
+    "It stays above the 50-day all day"
    ],
-   "answer": "It never trades back to the red close",
+   "answer": "It stays over the red day's close",
    "why": "It never trades back to the red close. If it does, the gap has filled and the Kicker is off.",
    "lesson_line": "A gap that fills is not a Kicker. Hold above the red close or walk away.",
    "facts": [
@@ -1035,9 +1035,9 @@
     "k_over"
    ],
    "wrong": {
-    "It closes above its open": "The test is the red close, not the open. A gap can hold on a day that fades.",
+    "It closes above its open on volume": "The test is the red close, not the open. A gap can hold on a day that fades.",
     "It opens over the red day's high": "That is where it opens, not what holds. The gap holds if it never trades back to the red close.",
-    "It stays above the 50-day": "The 50-day is context before the red day. The gap holds against the red close."
+    "It stays above the 50-day all day": "The 50-day is context before the red day. The gap holds against the red close."
    },
    "house": true
   },
@@ -1094,13 +1094,13 @@
    "criterion": "kk.stop_cap",
    "q": "What is the Kicker stop cap?",
    "choices": [
-    "3.5% under the entry",
-    "3% under the entry",
-    "7% under the entry",
+    "3.5% under the entry price",
+    "3% under the entry price",
+    "7% under the entry price",
     "The base low"
    ],
-   "answer": "3.5% under the entry",
-   "why": "3.5% under the entry. The Kicker keeps its own cap, not the usual 3%. Over 3.5% is not a clean Kicker.",
+   "answer": "3.5% under the entry price",
+   "why": "3.5% under the entry price. The Kicker keeps its own cap, not the usual 3%. Over 3.5% is not a clean Kicker.",
    "lesson_line": "The Kicker cap is 3.5%. A wider honest stop means pass.",
    "facts": [
     "k_cap",
@@ -1108,8 +1108,8 @@
     "h04"
    ],
    "wrong": {
-    "3% under the entry": "That is the usual rule of thumb for stops. The Kicker keeps 3.5%.",
-    "7% under the entry": "That is twice the cap. A stop that wide means it is not a clean Kicker.",
+    "3% under the entry price": "That is the usual rule of thumb for stops. The Kicker keeps 3.5%.",
+    "7% under the entry price": "That is twice the cap. A stop that wide means it is not a clean Kicker.",
     "The base low": "The base low can be far away. The stop sits under the Kicker day."
    },
    "house": true
@@ -1162,12 +1162,12 @@
    "criterion": "kk.location",
    "q": "Where should the red day end?",
    "choices": [
-    "At support, like the 21-day or 50-day",
-    "In open air above the highs",
-    "At a fresh 52-week high",
+    "At support, like the 21 or 50-day",
+    "In open air, well above the highs",
+    "At a fresh 52-week high on volume",
     "Anywhere, as long as it is red"
    ],
-   "answer": "At support, like the 21-day or 50-day",
+   "answer": "At support, like the 21 or 50-day",
    "why": "At support, like the 21-day or 50-day. A drop into a level traps the sellers who sold the break.",
    "lesson_line": "The red day falls into a level. That is what makes the gap a trap.",
    "facts": [
@@ -1175,8 +1175,8 @@
     "u01"
    ],
    "wrong": {
-    "In open air above the highs": "There is no level to fail at. The red day closes at support.",
-    "At a fresh 52-week high": "That is no breakdown at support. The red day ends at a level.",
+    "In open air, well above the highs": "There is no level to fail at. The red day closes at support.",
+    "At a fresh 52-week high on volume": "That is no breakdown at support. The red day ends at a level.",
     "Anywhere, as long as it is red": "A red day in the middle of nowhere traps nobody. It must fall into a level."
    },
    "house": true
@@ -1382,13 +1382,13 @@
    "criterion": "kk.entry_a",
    "q": "Where is the buy?",
    "choices": [
-    "27.97, one cent over the red high",
-    "28.50, a round number above",
-    "The Kicker day's close",
-    "27.60, under the red low"
+    "27.97, a cent over the red high",
+    "28.50, a round number above it",
+    "The Kicker day's close at market",
+    "27.60, just under the red low"
    ],
    "story": "The red day's high is 27.96. The next morning the stock gaps up 2.1% but opens under that high, then trades up through it.",
-   "answer": "27.97, one cent over the red high",
+   "answer": "27.97, a cent over the red high",
    "why": "27.97. The buy is one cent over the red day's high, as it trades through. That is how BBY was bought on 2013-07-01.",
    "lesson_line": "Buy one cent over the red high as it trades through.",
    "facts": [
@@ -1396,9 +1396,9 @@
     "dBBY"
    ],
    "wrong": {
-    "28.50, a round number above": "You buy as it trades through the red high, not at a round number above it.",
-    "The Kicker day's close": "Never at the close. The trigger is the trade through the red high.",
-    "27.60, under the red low": "That is a buy below the trigger, before the gap has proved itself."
+    "28.50, a round number above it": "You buy as it trades through the red high, not at a round number above it.",
+    "The Kicker day's close at market": "Never at the close. The trigger is the trade through the red high.",
+    "27.60, just under the red low": "That is a buy below the trigger, before the gap has proved itself."
    },
    "house": true
   },
@@ -1411,8 +1411,8 @@
    "q": "Where does your first stop go?",
    "choices": [
     "40.53, 3.5% under the fill",
-    "41.85, under the red high",
-    "No stop until 10:00",
+    "41.85, just under the red high",
+    "No stop until 10:00, then 3.5%",
     "Under the red day's low"
    ],
    "story": "The red high was 41.90. The Kicker day opens over it, and you are filled at the open at 42.00. The day has no low yet.",
@@ -1432,8 +1432,8 @@
     "k_brk"
    ],
    "wrong": {
-    "41.85, under the red high": "The red high is the trigger. The first stop on an open fill is the 3.5% cap.",
-    "No stop until 10:00": "Every position has a real stop order from the start. At 10:00 it only moves up.",
+    "41.85, just under the red high": "The red high is the trigger. The first stop on an open fill is the 3.5% cap.",
+    "No stop until 10:00, then 3.5%": "Every position has a real stop order from the start. At 10:00 it only moves up.",
     "Under the red day's low": "The stop sits under the Kicker day, not the red day."
    },
    "house": true
@@ -1496,13 +1496,13 @@
    "criterion": "kk.chase_limit",
    "q": "Can you buy the open?",
    "choices": [
-    "No, it is over 4% above the buy point",
-    "Yes, a gap shows strength",
-    "Yes, with a smaller stop",
-    "Yes, but only half size"
+    "No; over 4% above the buy point",
+    "Yes, a gap up shows strength",
+    "Yes, with a smaller stop to fit",
+    "Yes, but only at half size"
    ],
    "story": "The red high is 50.00, so your buy point is 50.01. The Kicker day opens at 52.60.",
-   "answer": "No, it is over 4% above the buy point",
+   "answer": "No; over 4% above the buy point",
    "why": "No. The open is more than 4% above the buy point. We never chase; chasing costs size, because the stop stays put.",
    "lesson_line": "Past 4% over the buy point, the open is not ours.",
    "facts": [
@@ -1510,9 +1510,9 @@
     "h12"
    ],
    "wrong": {
-    "Yes, a gap shows strength": "Strength is not a reason to chase. Never buy more than 4% above the buy point.",
-    "Yes, with a smaller stop": "You do not tighten the stop to fit. The stop stays put and the distance grows.",
-    "Yes, but only half size": "Half size does not change the rule. No buy more than 4% above the buy point."
+    "Yes, a gap up shows strength": "Strength is not a reason to chase. Never buy more than 4% above the buy point.",
+    "Yes, with a smaller stop to fit": "You do not tighten the stop to fit. The stop stays put and the distance grows.",
+    "Yes, but only at half size": "Half size does not change the rule. No buy more than 4% above the buy point."
    },
    "house": true
   },
@@ -1524,11 +1524,11 @@
    "criterion": "kk.inv_gap_fills",
    "q": "Which of these ends the trade before you buy?",
    "choices": [
-    "It trades back to the red day's close",
-    "It gaps up 2.4%",
+    "It trades back to the red close",
+    "It gaps up 2.4% on heavy volume",
     "It trades over the red day's high"
    ],
-   "answer": "It trades back to the red day's close",
+   "answer": "It trades back to the red close",
    "why": "It trades back to the red day's close. The gap has filled before the trigger, so there is no trade.",
    "lesson_line": "A filled gap is a dead Kicker. Walk away.",
    "facts": [
@@ -1537,7 +1537,7 @@
     "k_gap"
    ],
    "wrong": {
-    "It gaps up 2.4%": "A gap of 1.5% or more is what you want. Only a filled gap kills it.",
+    "It gaps up 2.4% on heavy volume": "A gap of 1.5% or more is what you want. A filled gap is what kills it.",
     "It trades over the red day's high": "That is the trigger itself."
    },
    "house": true
@@ -1578,13 +1578,13 @@
    "criterion": "kk.stop_open_fill",
    "q": "What do you do with the stop?",
    "choices": [
-    "Raise it to a few cents under 41.30",
+    "Raise it a few cents under 41.30",
     "Leave it, a stop never changes",
-    "Move it to breakeven",
-    "Lower it to give room"
+    "Move it to breakeven at 10:00",
+    "Lower it to give it more room"
    ],
    "story": "You were filled at the open at 42.00 with the stop at 40.53. It is 10:00 and the first 30-minute low is 41.30.",
-   "answer": "Raise it to a few cents under 41.30",
+   "answer": "Raise it a few cents under 41.30",
    "why": "Raise it. At 10:00 the stop moves to a few cents under the 30-minute low if that is higher. A stop only moves up.",
    "lesson_line": "At 10:00 an open-fill stop moves up to the 30-minute low.",
    "facts": [
@@ -1593,8 +1593,8 @@
    ],
    "wrong": {
     "Leave it, a stop never changes": "A stop only moves up, and this is the one moment it should.",
-    "Move it to breakeven": "Breakeven comes with the first trim, not at 10:00.",
-    "Lower it to give room": "A stop never moves down or wider."
+    "Move it to breakeven at 10:00": "Breakeven comes with the first trim, not at 10:00.",
+    "Lower it to give it more room": "A stop never moves down or wider."
    },
    "house": true
   },
@@ -1636,8 +1636,8 @@
    "choices": [
     "98.20, the first 30-minute low",
     "100.00, where it was",
-    "Out at once, past 2R",
-    "The open, 98.50"
+    "Out at once, the loss is past 2R",
+    "The open, 98.50, the gap price"
    ],
    "story": "You bought at 103.50 with the stop at 100.00. The next morning it gaps open at 98.50. The first 30-minute low is 98.20.",
    "answer": "98.20, the first 30-minute low",
@@ -1650,8 +1650,8 @@
    ],
    "wrong": {
     "100.00, where it was": "The stop is already through. The 30-minute low is the new stop.",
-    "Out at once, past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
-    "The open, 98.50": "The open is not the decision. The 30-minute low is."
+    "Out at once, the loss is past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
+    "The open, 98.50, the gap price": "The open is not the decision. The 30-minute low is."
    },
    "house": true
   },
@@ -1796,8 +1796,8 @@
    "q": "What do you do at 23.40?",
    "choices": [
     "Sell a third, stop to breakeven",
-    "Sell it all",
-    "Sell half, keep the stop",
+    "Sell it all and take the 3R",
+    "Sell half, keep the same stop",
     "Hold all, nudge the stop up"
    ],
    "story": "You bought at 22.17 with the stop at 21.76. The Kicker reaches 23.40, which is 3R.",
@@ -1809,8 +1809,8 @@
     "tp2"
    ],
    "wrong": {
-    "Sell it all": "Trims are thirds, and the last third is trailed.",
-    "Sell half, keep the stop": "The hard rule is a third, and the stop moves up at the first trim.",
+    "Sell it all and take the 3R": "Trims are thirds, and the last third is trailed.",
+    "Sell half, keep the same stop": "The hard rule is a third, and the stop moves up at the first trim.",
     "Hold all, nudge the stop up": "The first third comes off at 3R."
    },
    "house": true
@@ -1851,9 +1851,9 @@
    "q": "What do you do?",
    "choices": [
     "Sell it and free the money",
-    "Hold for 5R",
-    "Add on a breakout",
-    "Widen the stop"
+    "Hold for 5R, the trend is up",
+    "Add on a breakout of the range",
+    "Widen the stop to give it room"
    ],
    "story": "It is day 10. The Kicker has chopped sideways and sits at +0.6R. The stop has not been touched.",
    "answer": "Sell it and free the money",
@@ -1863,9 +1863,9 @@
     "h15"
    ],
    "wrong": {
-    "Hold for 5R": "A trade under 1R after 10 days is sold.",
-    "Add on a breakout": "We buy once, and a slow trade is not a reason to add.",
-    "Widen the stop": "A stop never moves wider."
+    "Hold for 5R, the trend is up": "A trade under 1R after 10 days is sold.",
+    "Add on a breakout of the range": "We buy once, and a slow trade is not a reason to add.",
+    "Widen the stop to give it room": "A stop never moves wider."
    },
    "house": true
   },
@@ -2020,13 +2020,13 @@
    "criterion": "kk.not_earnings",
    "q": "What is it?",
    "choices": [
-    "An earnings gapper, graded as a PEG",
+    "Earnings gapper, graded as a PEG",
     "A Kicker, the red day was weak",
-    "An episodic pivot",
-    "A Launchpad"
+    "An episodic pivot in a neglected name",
+    "A Launchpad over the averages"
    ],
    "story": "A weak red day, then a gap up 6.2% and a close up 18.7%. The company reported after the close the night before.",
-   "answer": "An earnings gapper, graded as a PEG",
+   "answer": "Earnings gapper, graded as a PEG",
    "why": "An earnings gapper, graded as a PEG. The gap day is the earnings reaction day. That was LUV on 2026-01-29.",
    "lesson_line": "The first session after a report is an earnings gapper, whatever the red day looked like.",
    "facts": [
@@ -2038,8 +2038,8 @@
    ],
    "wrong": {
     "A Kicker, the red day was weak": "The first session after a report is mostly an earnings gapper, whatever the red day looked like.",
-    "An episodic pivot": "An EP is a 10% gap in a neglected name. This gap sits on a report, so it is an earnings gapper.",
-    "A Launchpad": "A Launchpad has no gap and a tight bundle of averages."
+    "An episodic pivot in a neglected name": "An EP is a 10% gap in a neglected name. This gap sits on a report, so it is an earnings gapper.",
+    "A Launchpad over the averages": "A Launchpad has no gap and a tight bundle of averages."
    },
    "house": true
   },
@@ -2114,9 +2114,9 @@
    "q": "Which rule fails?",
    "choices": [
     "No base: the 20 closes span too much",
-    "The gap is too small",
+    "The gap is too small for a Kicker",
     "The red day closed too strong",
-    "The stop is over 3.5%"
+    "The stop is over 3.5% of the entry"
    ],
    "story": "The red day falls 5.8% and closes at 1% of its range. The next day gaps 5.7% and closes up 13.8%. The prior 20 closes span 44.1%.",
    "answer": "No base: the 20 closes span too much",
@@ -2130,9 +2130,9 @@
     "k_gap"
    ],
    "wrong": {
-    "The gap is too small": "A gap of 5.7% is well past 1.5%.",
+    "The gap is too small for a Kicker": "A gap of 5.7% is well past 1.5%.",
     "The red day closed too strong": "It closed at 1% of its range, a weak close.",
-    "The stop is over 3.5%": "The failing rule is the base, not the stop."
+    "The stop is over 3.5% of the entry": "The failing rule is the base, not the stop."
    },
    "house": true
   },
@@ -2249,13 +2249,13 @@
    "criterion": "kk.ma50_not_falling",
    "q": "Does the context pass?",
    "choices": [
-    "No, the 50-day must be flat or rising",
-    "Yes, a gap is strength",
+    "No; the 50-day must be flat or up",
+    "Yes, a gap is strength enough",
     "Yes, if the 200-day is rising",
     "Yes, at half size"
    ],
    "story": "A Kicker triggers cleanly, but the 50-day average has been falling for weeks.",
-   "answer": "No, the 50-day must be flat or rising",
+   "answer": "No; the 50-day must be flat or up",
    "why": "No. The context needs a flat or rising 50-day. A gap against a falling 50-day is a gap against the trend.",
    "lesson_line": "Check the 50-day first. A Kicker needs a flat or rising one.",
    "facts": [
@@ -2263,7 +2263,7 @@
     "cx1"
    ],
    "wrong": {
-    "Yes, a gap is strength": "The gap does not fix the trend. The 50-day must be flat or rising.",
+    "Yes, a gap is strength enough": "The gap does not fix the trend. The 50-day must be flat or rising.",
     "Yes, if the 200-day is rising": "The 200-day is one line of context. The 50-day is another.",
     "Yes, at half size": "Half size does not change the context."
    },
@@ -2277,13 +2277,13 @@
    "criterion": "kk.structure",
    "q": "What was wrong with this one?",
    "choices": [
-    "A shock-day red bar is not a pullback",
-    "The gap was too big",
-    "It closed too strong",
-    "The stop was too tight"
+    "A shock-day red bar is no pullback",
+    "The gap was too big to hold up",
+    "It closed too strong to trust",
+    "The stop was too tight for the day"
    ],
    "story": "The red day fell 5.9% in a one-day market shock. The next day it gapped 8.7%, closed up 9.9%, then gave it all back.",
-   "answer": "A shock-day red bar is not a pullback",
+   "answer": "A shock-day red bar is no pullback",
    "why": "A shock-day red bar is not an orderly pullback. That was AVGO on 2025-10-13. It was stopped the next session.",
    "lesson_line": "A one-day shock bar is not an orderly pullback.",
    "facts": [
@@ -2293,9 +2293,9 @@
     "cf2"
    ],
    "wrong": {
-    "The gap was too big": "The gap was big but the shock day under it is the problem.",
-    "It closed too strong": "A strong close is the Kicker. The problem was the red day.",
-    "The stop was too tight": "The stop was the 3.5% cap, the widest we use."
+    "The gap was too big to hold up": "The gap was big but the shock day under it is the problem.",
+    "It closed too strong to trust": "A strong close is the Kicker. The problem was the red day.",
+    "The stop was too tight for the day": "The stop was the 3.5% cap, the widest we use."
    },
    "house": true
   },
@@ -2339,8 +2339,8 @@
    "q": "Why would the rules have skipped it?",
    "choices": [
     "A report was due inside 3 sessions",
-    "The gap was too big",
-    "The stop was too wide",
+    "The gap was too big to be a Kicker",
+    "The stop was too wide for the cap",
     "The red day was too small"
    ],
    "story": "A Kicker triggers and closes strong. The company reports after that same close.",
@@ -2354,8 +2354,8 @@
     "h08"
    ],
    "wrong": {
-    "The gap was too big": "The gap was not the problem.",
-    "The stop was too wide": "The stop was not the problem.",
+    "The gap was too big to be a Kicker": "The gap was not the problem.",
+    "The stop was too wide for the cap": "The stop was not the problem.",
     "The red day was too small": "The red day was not the problem."
    },
    "house": true
@@ -2368,13 +2368,13 @@
    "criterion": "kk.after_entry_stop",
    "q": "What do you do?",
    "choices": [
-    "Take the loss; a new try needs a trigger",
-    "Move the stop under the base low",
-    "Hold, the base is still intact",
+    "Take the loss; wait for a new trigger",
+    "Move the stop down under the base low",
+    "Hold, the base is still intact for now",
     "Buy back at the open"
    ],
    "story": "Textbook: an 8.1% base, a red day on its low, a 1.7% gap. You bought at 181.81 with the stop at 177.50. Next day it falls through the stop.",
-   "answer": "Take the loss; a new try needs a trigger",
+   "answer": "Take the loss; wait for a new trigger",
    "why": "Take the planned loss. The stop is the exit. This was CDNS on 2021-12-02. A textbook picture, stopped the next day.",
    "lesson_line": "A clean chart can still fail. The stop makes the loss small.",
    "facts": [
@@ -2384,8 +2384,8 @@
     "h28"
    ],
    "wrong": {
-    "Move the stop under the base low": "A stop never moves down or wider.",
-    "Hold, the base is still intact": "The stop is the exit. It is not a debate.",
+    "Move the stop down under the base low": "A stop never moves down or wider.",
+    "Hold, the base is still intact for now": "The stop is the exit. It is not a debate.",
     "Buy back at the open": "After a stop-out, buy again only on a new trigger."
    },
    "house": true
@@ -2568,8 +2568,8 @@
    "q": "Hidden ticker, the red day. Tomorrow it gaps up through this high. Take it or pass?",
    "choices": [
     "Pass; the red day is a baby candle",
-    "Take it; the base is tight",
-    "Take it; any gap will do"
+    "Take it; the base is tight and quiet",
+    "Take it; any gap will do the job"
    ],
    "answer": "Pass; the red day is a baby candle",
    "why": "Pass. The red day is a baby red candle, so nobody is trapped. The gap that followed was a plain breakout.",
@@ -2580,8 +2580,8 @@
     "k_red"
    ],
    "wrong": {
-    "Take it; the base is tight": "The base was fine, but the red day is a baby red candle.",
-    "Take it; any gap will do": "The gap needs a real red day under it."
+    "Take it; the base is tight and quiet": "The base was fine, but the red day is a baby red candle.",
+    "Take it; any gap will do the job": "The gap needs a real red day under it."
    },
    "house": true,
    "chart": {
@@ -2706,12 +2706,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q04": {
-   "status": "pass",
-   "notes": "kk.entry_a settled (owner 2026-11-02: over the previous day high, not at the close). Entry B exists but is not among the choices.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q04": {"status": "pass", "notes": "kk.entry_a settled (owner 2026-11-02: over the previous day high, not at the close). Entry B exists but is not among the choices. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q05": {
    "status": "pass",
    "notes": "Bank had 'second' (the Kicker day IS the second day of the pair, so arguably also right) and 'Friday' (silly). Bank is now Kicker / red / follow-through / earnings.",
@@ -2730,12 +2725,7 @@
    "fixed": true,
    "by": "requoter"
   },
-  "q08": {
-   "status": "pass",
-   "notes": "Wrong note said the red high is 'crossed after the open'; COHR opened over the red high and filled at the open, so that was untrue. Rewritten.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q08": {"status": "pass", "notes": "Wrong note said the red high is 'crossed after the open'; COHR opened over the red high and filled at the open, so that was untrue. Rewritten. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q09": {
    "status": "pass",
    "notes": "Wrong note for 'On any earnings gap' said a gap the day after a report 'is graded' a PEG; the owner says earnings gappers are 'mostly' just earnings gappers and kk.not_earnings is pending (D-025), so softened to 'mostly' and 'first session after a report' (the card's wording).",
@@ -2748,12 +2738,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q11": {
-   "status": "pass",
-   "notes": "kk.stop_cap settled: 3.5% is the owner's Kicker ruling (D-144). 7% = 2 x 3.5.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q11": {"status": "pass", "notes": "kk.stop_cap settled: 3.5% is the owner's Kicker ruling (D-144). 7% = 2 x 3.5. variety rewrite checked 2026-11-10: the right choice lacked 'price' while both wrong percent choices ended 'under the entry price' (odd one out, and the wrong choice was the unique longest on nearly every edited question); now it matches.", "fixed": false, "by": "checker"},
   "q12": {
    "status": "pass",
    "notes": "Why overclaimed ('is graded as'); the owner's words are 'rarely earnings' and 'mostly they are just earnings gappers'. Softened to 'mostly'. Still rests on pending kk.not_earnings (D-025) for the PEG half; the key itself is the card's own context line, so it stays.",
@@ -2766,12 +2751,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q14": {
-   "status": "pass",
-   "notes": "Distractor 'Under the 200-day' with the note 'No longs below the 200-day' contradicts the owner's own grading: VOD, a Kicker whose red day was under the 200-day, was graded B- (kk.above_200 is pending, D-020), not a no-trade. Replaced with 'Anywhere, as long as it is red'.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q14": {"status": "pass", "notes": "Distractor 'Under the 200-day' with the note 'No longs below the 200-day' contradicts the owner's own grading: VOD, a Kicker whose red day was under the 200-day, was graded B- (kk.above_200 is pending, D-020), not a no-trade. Replaced with 'Anywhere, as long as it is red'. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q15": {
    "status": "pass",
    "notes": "'The stop is the only exit' contradicted q39 and q41 (the trims at 3R and the 10-day time stop are also exits). The question now asks the card's real point: no early exit on a candle signal.",
@@ -2826,18 +2806,8 @@
    "fixed": false,
    "by": "checker"
   },
-  "q24": {
-   "status": "pass",
-   "notes": "Bars: BBY red high 27.96, open 27.90 (under it), buy 27.97. Gap 2.1% over the 27.33 close.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q25": {
-   "status": "pass",
-   "notes": "Choice '41.95, under the red high' was not checkable: the story gave no red high, and 41.95 is not necessarily under it. Story now gives the red high (41.90) and the choice is 41.85. Live version confirmed: 42.00 x 0.965 = 40.53 (calc), raised at 10:00.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q24": {"status": "pass", "notes": "Bars: BBY red high 27.96, open 27.90 (under it), buy 27.97. Gap 2.1% over the 27.33 close. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q25": {"status": "pass", "notes": "Choice '41.95, under the red high' was not checkable: the story gave no red high, and 41.95 is not necessarily under it. Story now gives the red high (41.90) and the choice is 41.85. Live version confirmed: 42.00 x 0.965 = 40.53 (calc), raised at 10:00. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q26": {
    "status": "pass",
    "notes": "Arithmetic: 27.98 x 0.965 = 27.00 (3.5% under); low-so-far stop would be about 26.85, so 27.00 is the closer one. kk.stop settled, kk.stop_low_so_far proposed.",
@@ -2850,42 +2820,22 @@
    "fixed": true,
    "by": "checker"
   },
-  "q28": {
-   "status": "pass",
-   "notes": "C28 settled: 52.60 / 50.01 = +5.2%, over 4%. The 30-minute-break alternative (kk.chase_limit, pending D-022) is correctly not keyed.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q29": {
-   "status": "pass",
-   "notes": "kk.inv_gap_fills proposed.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q28": {"status": "pass", "notes": "C28 settled: 52.60 / 50.01 = +5.2%, over 4%. The 30-minute-break alternative (kk.chase_limit, pending D-022) is correctly not keyed. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q29": {"status": "pass", "notes": "kk.inv_gap_fills proposed. variety rewrite checked 2026-11-10: wrong note said 'Only a filled gap kills it'; the card also kills a Kicker that never trades over the red high (k_fill), so 'only' was an overclaim.", "fixed": false, "by": "checker"},
   "q30": {
    "status": "pass",
    "notes": "B22 settled; 'two sessions' is inside the 3-day window.",
    "fixed": false,
    "by": "checker"
   },
-  "q31": {
-   "status": "pass",
-   "notes": "Live version, correct: raise to a few cents under the 30-minute low if higher (kk.stop_open_fill settled). Breakeven distractor right (B19 at the first trim).",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q31": {"status": "pass", "notes": "Live version, correct: raise to a few cents under the 30-minute low if higher (kk.stop_open_fill settled). Breakeven distractor right (B19 at the first trim). variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
   "q32": {
    "status": "pass",
    "notes": "kk.close_under_red_high_warning settled; hold is right.",
    "fixed": false,
    "by": "checker"
   },
-  "q33": {
-   "status": "pass",
-   "notes": "B20 settled. R = 3.50; the loss at the 30-minute low 98.20 is 5.30 = 1.5R, inside the 2R ceiling, so 98.20 is the stop.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q33": {"status": "pass", "notes": "B20 settled. R = 3.50; the loss at the 30-minute low 98.20 is 5.30 = 1.5R, inside the 2R ceiling, so 98.20 is the stop. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q34": {
    "status": "pass",
    "notes": "kk.not_close_entry settled; second chance (D-026) is pending and not keyed.",
@@ -2916,24 +2866,14 @@
    "fixed": false,
    "by": "checker"
   },
-  "q39": {
-   "status": "pass",
-   "notes": "B19 / tp2 settled: a third at 3R, stop to breakeven at the first trim. 22.17 + 3 x 0.41 = 23.40.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q39": {"status": "pass", "notes": "B19 / tp2 settled: a third at 3R, stop to breakeven at the first trim. 22.17 + 3 x 0.41 = 23.40. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
   "q40": {
    "status": "pass",
    "notes": "F63 settled.",
    "fixed": false,
    "by": "checker"
   },
-  "q41": {
-   "status": "pass",
-   "notes": "C33 settled.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q41": {"status": "pass", "notes": "C33 settled. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q42": {
    "status": "pass",
    "notes": "A5 / kk.one_entry settled.",
@@ -2970,12 +2910,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q48": {
-   "status": "pass",
-   "notes": "Wrong note stated the PEG grading as a flat rule; softened to 'mostly' (owner: 'mostly they are just earnings gappers'). LUV re-derived from bars: red -1.2%, close 13%, gap 6.2%, +18.7%, close 90% of range. Still rests on pending kk.not_earnings (D-025); LUV (+18.7% on 3.8x on a report) is an earnings gapper under any option, so it stays.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q48": {"status": "pass", "notes": "Wrong note stated the PEG grading as a flat rule; softened to 'mostly' (owner: 'mostly they are just earnings gappers'). LUV re-derived from bars: red -1.2%, close 13%, gap 6.2%, +18.7%, close 90% of range. Still rests on pending kk.not_earnings (D-025); LUV (+18.7% on 3.8x on a report) is an earnings gapper under any option, so it stays. variety rewrite checked 2026-11-10: rests on pending D-025 as the unit's conflicts already say; the LUV report-night story makes it an earnings gapper under any option.", "fixed": true, "by": "checker"},
   "q49": {
    "status": "pass",
    "notes": "kk.gap_open proposed. Bars: CEG 2024-06-10 gap 0.8%, red close at 7% of range, +8.4%.",
@@ -2988,12 +2923,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q51": {
-   "status": "pass",
-   "notes": "kk.structure proposed. Bars: IDCC 2011-08-03 red -5.8%, close 1%, gap 5.7%, +13.8%; prior 20 closes span 44.1% per dossier.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q51": {"status": "pass", "notes": "kk.structure proposed. Bars: IDCC 2011-08-03 red -5.8%, close 1%, gap 5.7%, +13.8%; prior 20 closes span 44.1% per dossier. variety rewrite checked 2026-11-10: lengthened the right choice by one word (inverted-tell fix).", "fixed": false, "by": "checker"},
   "q52": {
    "status": "pass",
    "notes": "Lookalike tell on the card (red to green trades under the prior close first). Right.",
@@ -3018,36 +2948,16 @@
    "fixed": false,
    "by": "checker"
   },
-  "q56": {
-   "status": "pass",
-   "notes": "kk.ma50_not_falling proposed; no grade is keyed.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q57": {
-   "status": "pass",
-   "notes": "Card failure kk.structure (no-trade row): shock-day red bar. Bars: AVGO red 2025-10-10 -5.9%, close 2%; Kicker gap 8.7%, +9.9%.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q56": {"status": "pass", "notes": "kk.ma50_not_falling proposed; no grade is keyed. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
+  "q57": {"status": "pass", "notes": "Card failure kk.structure (no-trade row): shock-day red bar. Bars: AVGO red 2025-10-10 -5.9%, close 2%; Kicker gap 8.7%, +9.9%. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q58": {
    "status": "pass",
    "notes": "F65 / D46 settled. Bars: LLY red -10.0%, close 1%, gap 5.5%, +10.6%; the next day's low 128.25 is under the 131.73 stop. Requoted 2026-11-10: wrong note said 'In Red the answer is none'; now 'mostly cash'. Key holds: the card says a bounce in a Red market looks like a Kicker and is not.",
    "fixed": true,
    "by": "requoter"
   },
-  "q59": {
-   "status": "pass",
-   "notes": "B22 settled. Bars: GOOGL 2020-02-03 report after the close; 02-04 opened 72.72 under the 74.13 close. The wrong notes are generic but true.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q60": {
-   "status": "pass",
-   "notes": "Bars: CDNS 2021-12-02 buy 181.81, next low 175.34 under 177.50 and under a 3.5% stop (175.45) too. A5/B21 settled.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q59": {"status": "pass", "notes": "B22 settled. Bars: GOOGL 2020-02-03 report after the close; 02-04 opened 72.72 under the 74.13 close. The wrong notes are generic but true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q60": {"status": "pass", "notes": "Bars: CDNS 2021-12-02 buy 181.81, next low 175.34 under 177.50 and under a 3.5% stop (175.45) too. A5/B21 settled. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q61": {
    "status": "pass",
    "notes": "Bars: PGR next-day low 135.86 under 137.35 and under a 3.5% stop (136.20) too, so the claim holds with the live stop as well.",
@@ -3084,12 +2994,7 @@
    "fixed": true,
    "by": "checker"
   },
-  "q67": {
-   "status": "pass",
-   "notes": "Chart GWW asof 2024-10-10 is the red day (body -0.04%, drop 0.4%); 7,480 bars before it. kk.red_day_red settled.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q67": {"status": "pass", "notes": "Chart GWW asof 2024-10-10 is the red day (body -0.04%, drop 0.4%); 7,480 bars before it. kk.red_day_red settled. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q68": {
    "status": "pass",
    "notes": "b02 verbatim on Bulkowski's page.",

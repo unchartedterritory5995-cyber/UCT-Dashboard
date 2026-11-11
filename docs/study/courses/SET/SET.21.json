@@ -1044,12 +1044,12 @@
    "criterion": "hve.fresh_catalyst",
    "q": "Which story fits a High Volume Edge?",
    "choices": [
-    "A trial result in a quiet stock",
+    "A trial win in a quiet stock",
     "An ordinary earnings beat",
-    "An options expiry Friday",
-    "The last session of a month"
+    "A monthly options expiry rally",
+    "The last session of a quarter"
    ],
-   "answer": "A trial result in a quiet stock",
+   "answer": "A trial win in a quiet stock",
    "why": "A trial result in a quiet stock. A fresh story arrives all at once. An ordinary beat on big volume is a PEG.",
    "lesson_line": "Ask what changed. A new story makes an HVE; a routine beat does not.",
    "facts": [
@@ -1060,8 +1060,8 @@
    ],
    "wrong": {
     "An ordinary earnings beat": "Earnings on ordinary big volume is a PEG, not an HVE.",
-    "An options expiry Friday": "Expiry volume is not demand. The card rules that day out.",
-    "The last session of a month": "Month-end volume is not demand. The card rules it out."
+    "A monthly options expiry rally": "Expiry volume is not demand. The card rules that day out.",
+    "The last session of a quarter": "Month-end volume is not demand. The card rules it out."
    },
    "house": true
   },
@@ -1340,8 +1340,8 @@
    "story": "The HVC is 20.00. Day 2 dipped to 19.40 and reclaimed it while you were away. It now trades 21.10.",
    "choices": [
     "Pass; it is 5.5% over the HVC",
-    "Buy; it reclaimed the HVC",
-    "Buy half; it is close",
+    "Buy; it reclaimed the HVC level",
+    "Buy half; it is close enough",
     "Buy with the stop at 20.00"
    ],
    "answer": "Pass; it is 5.5% over the HVC",
@@ -1361,9 +1361,9 @@
     "h12"
    ],
    "wrong": {
-    "Buy; it reclaimed the HVC": "The reclaim was the trigger. It is now past 4% over the buy point.",
-    "Buy half; it is close": "Half size does not cure a chase. Past 4% is a pass.",
-    "Buy with the stop at 20.00": "The HVC is never the stop, and the chase is still a pass."
+    "Buy; it reclaimed the HVC level": "The reclaim was the trigger. It is now past 4% over the buy point.",
+    "Buy half; it is close enough": "Half size does not cure a chase. Past 4% is a pass.",
+    "Buy with the stop at 20.00": "A different stop does not cure a chase. Past 4% over the HVC is a pass."
    },
    "house": true
   },
@@ -1375,12 +1375,12 @@
    "criterion": "hve.time_stop",
    "q": "Ten trading days after your day-2 buy the trade sits at 0.6R. Our rule?",
    "choices": [
-    "Sell it; under 1R after 10 days",
+    "Sell; under 1R after 10 days",
     "Hold; the level is still there",
     "Add to it at the HVC",
     "Move the stop to breakeven"
    ],
-   "answer": "Sell it; under 1R after 10 days",
+   "answer": "Sell; under 1R after 10 days",
    "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
    "lesson_line": "Ten days and under 1R: let it go.",
    "facts": [
@@ -2222,8 +2222,8 @@
    "story": "A stock opens flat, then grinds higher all day on fresh news. It closes near the high on the most shares in its history.",
    "choices": [
     "No; the gap is a cue, not a rule",
-    "Yes; an HVE must gap",
-    "Yes; a flat open is an EP"
+    "Yes; an HVE must open with a gap",
+    "Yes; a flat open makes it an EP"
    ],
    "answer": "No; the gap is a cue, not a rule",
    "why": "No. The opening gap is a cue, not a rule. Some good HVEs gapped 3% or even 0.5%. The record volume and the up close carry it.",
@@ -2234,8 +2234,8 @@
     "c35"
    ],
    "wrong": {
-    "Yes; an HVE must gap": "A gap helps the grade. It is not required.",
-    "Yes; a flat open is an EP": "An EP needs the gap. A record up day without one is the HVE's lesson."
+    "Yes; an HVE must open with a gap": "A gap helps the grade. It is not required.",
+    "Yes; a flat open makes it an EP": "An EP needs the gap. A record up day without one is the HVE's lesson."
    },
    "house": true
   },
@@ -2248,12 +2248,12 @@
    "q": "How does it grade?",
    "story": "Up 100% on 62 times its average volume, a lifetime record. But it closes at 0.26 of the day's range.",
    "choices": [
-    "Down; it closed low in its range",
-    "A+; the volume is huge",
-    "A+; up 100% is the story",
+    "Down; it closed low in range",
+    "A+; the volume is huge and rare",
+    "A+; up 100% is the whole story",
     "No trade; it closed down"
    ],
-   "answer": "Down; it closed low in its range",
+   "answer": "Down; it closed low in range",
    "why": "Down. A close in the lower half of a huge range grades B-. MBX closed at 0.26 of its range, a supply day dressed as an HVE.",
    "lesson_line": "A record day should close strong. A low close is supply.",
    "facts": [
@@ -2265,8 +2265,8 @@
     "g02"
    ],
    "wrong": {
-    "A+; the volume is huge": "Volume is not the whole grade. The close tells who won the day.",
-    "A+; up 100% is the story": "The move is big, the close is weak. The close grades it down.",
+    "A+; the volume is huge and rare": "Volume is not the whole grade. The close tells who won the day.",
+    "A+; up 100% is the whole story": "The move is big, the close is weak. The close grades it down.",
     "No trade; it closed down": "It closed up 100% on the day. The weak spot is where in the range."
    },
    "house": true
@@ -2369,8 +2369,8 @@
    "story": "The market reading turns Red. A clean High Volume Edge gives its day-2 reclaim.",
    "choices": [
     "Mostly cash; pass on it",
-    "Buy it at full size",
-    "Buy it at half size"
+    "Buy it, but at full size",
+    "Buy it, but at half size"
    ],
    "answer": "Mostly cash; pass on it",
    "why": "Pass. In a Red market: mostly cash and shorts. A clean HVE is still a long.",
@@ -2381,8 +2381,8 @@
     "h36"
    ],
    "wrong": {
-    "Buy it at full size": "Full risk is a Green market. Red is mostly cash.",
-    "Buy it at half size": "Smaller and fewer is Yellow. Red is mostly cash and shorts."
+    "Buy it, but at full size": "Full risk is a Green market. Red is mostly cash.",
+    "Buy it, but at half size": "Smaller and fewer is Yellow. Red is mostly cash and shorts."
    },
    "house": true
   },
@@ -2535,8 +2535,8 @@
    "q": "Hidden ticker, the last bar is a record-volume day. Plan the day-2 trade or pass?",
    "choices": [
     "Pass; a climax after a long run",
-    "Plan day 2; record volume",
-    "Plan day 2; it doubled"
+    "Plan day 2; it is record volume",
+    "Plan day 2; it doubled in price"
    ],
    "answer": "Pass; a climax after a long run",
    "why": "Pass. The close before the record day was 72.5% over its 60-session low. A climax, not a start: day 2 triggered, was stopped at 0.0R, and it topped within two months.",
@@ -2547,8 +2547,8 @@
     "d25"
    ],
    "wrong": {
-    "Plan day 2; record volume": "Record volume after a 60% run in 60 sessions is a climax, not our start.",
-    "Plan day 2; it doubled": "The size of the day does not fix the run before it."
+    "Plan day 2; it is record volume": "Record volume after a 60% run in 60 sessions is a climax, not our start.",
+    "Plan day 2; it doubled in price": "The size of the day does not fix the run before it."
    },
    "house": true,
    "chart": {
@@ -2673,8 +2673,8 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "c07, c01, c09, g06 verbatim. Two of the three wrong choices are calendar days rather than stories, a little loose but each is rightly excluded.",
-   "fixed": false,
+   "notes": "c07, c01, c09, g06 verbatim. Two of the three wrong choices are calendar days rather than stories, a little loose but each is rightly excluded. variety rewrite checked 2026-11-10; edited: choice now monthly expiry (c09 rules out the monthly expiry, not any Friday).",
+   "fixed": true,
    "by": "checker"
   },
   "q10": {
@@ -2751,13 +2751,13 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "calc re-derived: 21.10/20.00 - 1 = 5.5%. c15, h11, h12 (C28) verbatim; settled.",
-   "fixed": false,
+   "notes": "calc re-derived: 21.10/20.00 - 1 = 5.5%. c15, h11, h12 (C28) verbatim; settled. variety rewrite checked 2026-11-10; edited: wrong note no longer claims the HVC is never the stop (unsourced).",
+   "fixed": true,
    "by": "checker"
   },
   "q23": {
    "status": "pass",
-   "notes": "c48, h15 (C33), c21 verbatim; settled. 0.6R after 10 days is a sell.",
+   "notes": "c48, h15 (C33), c21 verbatim; settled. 0.6R after 10 days is a sell. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2943,13 +2943,13 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "c28, c08, c35 verbatim (a cue, not a rule; ERAS 3%, FUN 0.5%). False for the 'must gap' claim.",
+   "notes": "c28, c08, c35 verbatim (a cue, not a rule; ERAS 3%, FUN 0.5%). False for the 'must gap' claim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q55": {
    "status": "pass",
-   "notes": "c27, c40, d29, d30, d31, g02 verbatim (MBX 62x the 50-day, close 0.26, 7.4% stop). The key is 'graded down' (B-), not 'no trade'; consistent with the card.",
+   "notes": "c27, c40, d29, d30, d31, g02 verbatim (MBX 62x the 50-day, close 0.26, 7.4% stop). The key is 'graded down' (B-), not 'no trade'; consistent with the card. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2979,7 +2979,7 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "c43, h26, h36 verbatim. Red is mostly cash and shorts; the card lists Red as a no-trade row for this long.",
+   "notes": "c43, h26, h36 verbatim. Red is mostly cash and shorts; the card lists Red as a no-trade row for this long. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3015,7 +3015,7 @@
   },
   "q66": {
    "status": "pass",
-   "notes": "chart GPCR asof 2025-12-08 (the record day is the last bar); c10, d24, d25 verbatim (72.5% over the 60-session low, 18.2x, stopped at 0.0R, topped within two months).",
+   "notes": "chart GPCR asof 2025-12-08 (the record day is the last bar); c10, d24, d25 verbatim (72.5% over the 60-session low, 18.2x, stopped at 0.0R, topped within two months). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

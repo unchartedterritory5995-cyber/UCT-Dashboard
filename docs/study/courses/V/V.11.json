@@ -1572,12 +1572,12 @@
    "story": "The Nasdaq Composite is at an all-time high. Its A/D line sits near the lowest readings it has ever had. A friend calls it a screaming sell.",
    "q": "What's the better read?",
    "choices": [
-    "A known quirk of Nasdaq breadth data",
-    "Proof the top is in",
-    "A bullish divergence",
+    "A known quirk of Nasdaq breadth",
+    "Proof that the top is already in",
+    "A bullish divergence in breadth",
     "A sign the index data is wrong"
    ],
-   "answer": "A known quirk of Nasdaq breadth data",
+   "answer": "A known quirk of Nasdaq breadth",
    "why": "A known quirk. Nasdaq listing rules are looser, so its A/D line can fall for long stretches while the index rises.",
    "lesson_line": "Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
    "facts": [
@@ -1586,8 +1586,8 @@
     "f109"
    ],
    "wrong": {
-    "Proof the top is in": "The Nasdaq A/D line can fall for long stretches while the index rises, so this gap proves little on its own.",
-    "A bullish divergence": "A bullish divergence is the index making a lower low while breadth holds up. This is the opposite shape.",
+    "Proof that the top is already in": "The Nasdaq A/D line can fall for long stretches while the index rises, so this gap proves little on its own.",
+    "A bullish divergence in breadth": "A bullish divergence is the index making a lower low while breadth holds up. This is the opposite shape.",
     "A sign the index data is wrong": "Both are right. They measure different things: an index weighted by size versus a stock count."
    }
   },
@@ -1678,12 +1678,12 @@
    "story": "The S&P 500 closes at a record. The A/D line peaked six weeks ago and has made lower highs since. You hold a leader that's still acting well.",
    "q": "How do you treat the divergence?",
    "choices": [
-    "A warning to respect, not a sell signal",
-    "Sell everything at the open",
-    "Ignore it while the index rises",
+    "A warning to heed, not a sell signal",
+    "Sell everything at tomorrow's open",
+    "Ignore it as long as the index rises",
     "A buy signal: breadth will catch up"
    ],
-   "answer": "A warning to respect, not a sell signal",
+   "answer": "A warning to heed, not a sell signal",
    "why": "A warning, not a sell signal. A divergence is a condition, and it need not end the uptrend right away. Let price confirm before you act.",
    "lesson_line": "A divergence is a condition, not a signal. Let price make the call.",
    "facts": [
@@ -1694,8 +1694,8 @@
     "f144"
    ],
    "wrong": {
-    "Sell everything at the open": "Breadth is a poor timing tool. It can warn too early, and price may keep rising for a while.",
-    "Ignore it while the index rises": "Fewer stocks carrying the rally is real information. It's a reason to watch your stocks closely.",
+    "Sell everything at tomorrow's open": "Breadth is a poor timing tool. It can warn too early, and price may keep rising for a while.",
+    "Ignore it as long as the index rises": "Fewer stocks carrying the rally is real information. It's a reason to watch your stocks closely.",
     "A buy signal: breadth will catch up": "Sometimes breadth recovers and the divergence heals. Nothing says it must, and it isn't a reason to add."
    }
   },
@@ -2302,7 +2302,7 @@
    "q": "What is the McClellan Summation Index?",
    "choices": [
     "Running total of McClellan Oscillator",
-    "Running total of net advances",
+    "Running total of net advancing stocks",
     "10-day average of the Oscillator",
     "Oscillator readings above 100"
    ],
@@ -2315,7 +2315,7 @@
     "f103"
    ],
    "wrong": {
-    "Running total of net advances": "That's the A/D line.",
+    "Running total of net advancing stocks": "That's the A/D line.",
     "10-day average of the Oscillator": "An average smooths readings. The Summation Index adds every reading up.",
     "Oscillator readings above 100": "Big jumps matter for breadth thrusts, but the Summation Index is a cumulative total."
    }
@@ -2560,9 +2560,9 @@
    "rung": 4,
    "format": "tf",
    "term": "Arms Index (TRIN)",
-   "q": "TRIN tends to rise on strong up days.",
-   "answer": "False",
-   "why": "False. TRIN tends to move opposite the market. Strong up days usually push it lower, and strong down days push it higher.",
+   "q": "TRIN tends to fall on strong up days.",
+   "answer": "True",
+   "why": "True. TRIN tends to move opposite the market. Strong up days usually push it lower, and strong down days push it higher.",
    "lesson_line": "TRIN runs inverse to the market. Strong up days pull it down.",
    "facts": [
     "f49",
@@ -2685,9 +2685,9 @@
    "rung": 7,
    "format": "tf",
    "term": "Distribution day",
-   "q": "For a distribution day, volume must be above its 50-day average.",
-   "answer": "False",
-   "why": "False. Volume only has to be higher than the prior session. It doesn't need to run above average.",
+   "q": "For a distribution day, volume only has to be higher than the prior session.",
+   "answer": "True",
+   "why": "True. Volume only has to be higher than the prior session. It doesn't need to run above average.",
    "lesson_line": "Compare the volume with yesterday's, not with the average.",
    "facts": [
     "f120",
@@ -2857,7 +2857,7 @@
     "Follow-throughs often come amid bad news",
     "Wait for good news to confirm it",
     "Grim news cancels the signal",
-    "Only count it after a Fed rate cut"
+    "Only count it once the Fed has cut rates"
    ],
    "answer": "Follow-throughs often come amid bad news",
    "why": "That's normal. When a follow-through comes, most investors are scared or bearish, and it has little to do with the week's headlines.",
@@ -2871,7 +2871,7 @@
    "wrong": {
     "Wait for good news to confirm it": "Headlines are a poor guide to the start of an uptrend. By the time news turns good, the move is underway.",
     "Grim news cancels the signal": "IBD says a follow-through doesn't have much to do with the week's headlines.",
-    "Only count it after a Fed rate cut": "IBD's test is price and volume. Policy news isn't part of it."
+    "Only count it once the Fed has cut rates": "IBD's test is price and volume. Policy news isn't part of it."
    }
   },
   {
@@ -3038,7 +3038,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "Key confirmed by ChartSchool f20, Investopedia f72, McClellan f109 (its A-D line has never made an all-time high). Lesson and a wrong note said it 'drifts lower' as a rule; sources say it 'can fall for extended periods'. Softened both.",
+   "notes": "Key confirmed by ChartSchool f20, Investopedia f72, McClellan f109 (its A-D line has never made an all-time high). Lesson and a wrong note said it 'drifts lower' as a rule; sources say it 'can fall for extended periods'. Softened both. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3062,7 +3062,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "McClellan f108/f106 (a condition, a warning that need not halt the uptrend) and Investopedia f62/f63. Distractors are real mistakes; how a good trader would treat it.",
+   "notes": "McClellan f108/f106 (a condition, a warning that need not halt the uptrend) and Investopedia f62/f63. Distractors are real mistakes; how a good trader would treat it. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3212,7 +3212,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "ChartSchool f43, Investopedia f77, McClellan f103 agree.",
+   "notes": "ChartSchool f43, Investopedia f77, McClellan f103 agree. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3272,7 +3272,7 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "The statement 'TRIN below 1.0 usually goes with a strong up day' reversed the sources (a strong up day pushes TRIN down; sub-1.0 also prints on ordinary days). Now 'TRIN tends to rise on strong up days', False, from ChartSchool f49/f55 and Fidelity f91.",
+   "notes": "The statement 'TRIN below 1.0 usually goes with a strong up day' reversed the sources (a strong up day pushes TRIN down; sub-1.0 also prints on ordinary days). Now 'TRIN tends to rise on strong up days', False, from ChartSchool f49/f55 and Fidelity f91. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3302,7 +3302,7 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "IBD f120 verbatim: volume need only beat the prior day. Bulkowski f135 agrees.",
+   "notes": "IBD f120 verbatim: volume need only beat the prior day. Bulkowski f135 agrees. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3344,7 +3344,7 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "IBD f129/f131, StockCharts f57, IBD's current page f157 (updated 2026-03-23) agree.",
+   "notes": "IBD f129/f131, StockCharts f57, IBD's current page f157 (updated 2026-03-23) agree. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

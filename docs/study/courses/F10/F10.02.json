@@ -593,12 +593,12 @@
    "term": "sell stop",
    "q": "What does a sell stop order do?",
    "choices": [
-    "Sells at market when price hits the stop",
-    "Sells only at your stop price or better",
+    "Sells at market when the stop is hit",
+    "Sells only at your stop or better",
     "Sells if the stock rises to your price",
     "Sells right now at the market price"
    ],
-   "answer": "Sells at market when price hits the stop",
+   "answer": "Sells at market when the stop is hit",
    "why": "It sells at market once the price reaches your stop. The stop price is the trigger. The fill is the next available bid.",
    "lesson_line": "A sell stop is a trigger for a market sale. It puts the exit first, not the price.",
    "facts": [
@@ -609,7 +609,7 @@
     "f4"
    ],
    "wrong": {
-    "Sells only at your stop price or better": "That's closer to a stop-limit. A plain stop becomes a market order, and the fill can be below the stop.",
+    "Sells only at your stop or better": "That's closer to a stop-limit. A plain stop becomes a market order, and the fill can be below the stop.",
     "Sells if the stock rises to your price": "That's a sell limit, which sells at your price or higher. A sell stop sits below the price.",
     "Sells right now at the market price": "That's a plain market order. A stop waits until the price falls to your stop."
    }
@@ -871,11 +871,11 @@
    "story": "You buy on Monday and place a sell stop, leaving the time in force on Day. You don't look again. On Thursday the stock trades down through your stop price.",
    "q": "What happens to your shares?",
    "choices": [
-    "Nothing sells; the stop expired Monday",
-    "They sell near your stop price",
+    "Nothing sells; it canceled Monday",
+    "They sell near your stop on Thursday",
     "They sell at exactly your stop price"
    ],
-   "answer": "Nothing sells; the stop expired Monday",
+   "answer": "Nothing sells; it canceled Monday",
    "why": "Nothing sells. A day order that hasn't triggered generally cancels at the end of the day it was entered. For a swing trade, make the stop good-'til-canceled.",
    "lesson_line": "A day stop dies at the close. If you hold for days, make it good-'til-canceled.",
    "facts": [
@@ -885,7 +885,7 @@
     "f22"
    ],
    "wrong": {
-    "They sell near your stop price": "Only a working stop can trigger. Yours canceled at Monday's close.",
+    "They sell near your stop on Thursday": "Only a working stop can trigger. Yours canceled at Monday's close.",
     "They sell at exactly your stop price": "A working stop doesn't promise its price either. And this one canceled on Monday."
    }
   },
@@ -1073,12 +1073,12 @@
    "story": "Your buy stop-limit is in: stop $50, limit $50.50. News hits overnight, and the stock opens at $52.40.",
    "q": "What happens to your order?",
    "choices": [
-    "No fill unless it comes back to $50.50",
-    "You buy at $52.40",
-    "You buy at $50.50",
-    "It cancels at the open"
+    "No fill unless it dips to $50.50",
+    "You buy at the $52.40 open price",
+    "You buy at your $50.50 limit price",
+    "It cancels at the open on the gap"
    ],
-   "answer": "No fill unless it comes back to $50.50",
+   "answer": "No fill unless it dips to $50.50",
    "why": "No fill unless it trades back down to $50.50. The gap triggered the stop, but the limit won't pay $52.40. On an entry, that's the order doing its job.",
    "lesson_line": "A gap past your limit means no fill. Fine on an entry, dangerous on an exit.",
    "facts": [
@@ -1088,9 +1088,9 @@
     "f8"
    ],
    "wrong": {
-    "You buy at $52.40": "That's what a plain buy stop does. The limit says $50.50 at most.",
-    "You buy at $50.50": "Only if someone sells at $50.50 or lower. At the open the stock is at $52.40.",
-    "It cancels at the open": "It's still working as a buy limit at $50.50, for as long as its time in force allows."
+    "You buy at the $52.40 open price": "That's what a plain buy stop does. The limit says $50.50 at most.",
+    "You buy at your $50.50 limit price": "Only if someone sells at $50.50 or lower. At the open the stock is at $52.40.",
+    "It cancels at the open on the gap": "It's still working as a buy limit at $50.50, for as long as its time in force allows."
    }
   },
   {
@@ -1213,7 +1213,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key confirmed by f1, f3 (SEC) and f29, f31 (Schwab), live. Each wrong choice is a real other order (stop-limit, sell limit, market). Changed the lesson line 'It promises the exit' to 'It puts the exit first': Schwab says a triggered stop generally executes 'unless trading is halted or closed', so the exit is not promised. Track audit 2026-11-09: the why and one wrong note said the stop acts when the stock 'trades' at the stop; q19 in this unit teaches that some brokers trigger on quotes. Now 'once the price reaches your stop' / 'until the price falls to your stop', the SEC's wording in f1 (cited, Tier 1, quote found live). Key unchanged.",
+   "notes": "Key confirmed by f1, f3 (SEC) and f29, f31 (Schwab), live. Each wrong choice is a real other order (stop-limit, sell limit, market). Changed the lesson line 'It promises the exit' to 'It puts the exit first': Schwab says a triggered stop generally executes 'unless trading is halted or closed', so the exit is not promised. Track audit 2026-11-09: the why and one wrong note said the stop acts when the stock 'trades' at the stop; q19 in this unit teaches that some brokers trigger on quotes. Now 'once the price reaches your stop' / 'until the price falls to your stop', the SEC's wording in f1 (cited, Tier 1, quote found live). Key unchanged. Shortened the longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1285,7 +1285,7 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "f20, f21 (SEC Understanding Order Types, updated 2026-08-18, live): unexecuted day orders 'generally cancel at the end of regular trading hours' of the day entered; f33 (Schwab) agrees. Key right; GTC advice sound; no GTC length stated. Track audit 2026-11-09: 'time in force' unhyphenated as a noun (as F10.03 and V.07 write it); 'generally' added to the why because the SEC's own line (f21, cited) says day orders 'generally cancel', as F10.03 and F10.04 phrase it. Kept as the track's one day-stop-expiry scenario; F10.03#q13 is cut as its duplicate.",
+   "notes": "f20, f21 (SEC Understanding Order Types, updated 2026-08-18, live): unexecuted day orders 'generally cancel at the end of regular trading hours' of the day entered; f33 (Schwab) agrees. Key right; GTC advice sound; no GTC length stated. Track audit 2026-11-09: 'time in force' unhyphenated as a noun (as F10.03 and V.07 write it); 'generally' added to the why because the SEC's own line (f21, cited) says day orders 'generally cancel', as F10.03 and F10.04 phrase it. Kept as the track's one day-stop-expiry scenario; F10.03#q13 is cut as its duplicate. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1333,7 +1333,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "f42 (Schwab, live): a gap beyond the limit is not filled unless the price falls back. The $52.40 open triggers the $50 stop; the $50.50 buy limit cannot pay $52.40; still working per its time-in-force. Removed f57 (unreachable Investopedia page); support stands on SEC f7, f8. Track audit 2026-11-09: 'time in force' unhyphenated as a noun in the wrong note, as elsewhere in the track.",
+   "notes": "f42 (Schwab, live): a gap beyond the limit is not filled unless the price falls back. The $52.40 open triggers the $50 stop; the $50.50 buy limit cannot pay $52.40; still working per its time-in-force. Removed f57 (unreachable Investopedia page); support stands on SEC f7, f8. Track audit 2026-11-09: 'time in force' unhyphenated as a noun in the wrong note, as elsewhere in the track. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

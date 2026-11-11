@@ -733,8 +733,8 @@
    "q": "On a normal day, when do the most shares trade?",
    "choices": [
     "Near the open and near the close",
-    "About evenly through the day",
-    "Mostly in the middle of the day"
+    "About evenly all through the day",
+    "Mostly in the middle of the session"
    ],
    "answer": "Near the open and near the close",
    "why": "Near the open and near the close. Volume runs heavy early, slows at midday, then builds again into the close.",
@@ -745,8 +745,8 @@
     "f64"
    ],
    "wrong": {
-    "About evenly through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
-    "Mostly in the middle of the day": "Midday is the quiet stretch. The action slows there, then picks up again late."
+    "About evenly all through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
+    "Mostly in the middle of the session": "Midday is the quiet stretch. The action slows there, then picks up again late."
    }
   },
   {
@@ -793,11 +793,11 @@
    "format": "mcq",
    "q": "Why does the open often swing harder than the rest of the day?",
    "choices": [
-    "It prices in news since the last close",
-    "Earnings come out right at 9:30",
+    "It prices in news since the close",
+    "Earnings come out right at 9:30 a.m.",
     "Spreads are tightest at the open"
    ],
-   "answer": "It prices in news since the last close",
+   "answer": "It prices in news since the close",
    "why": "It prices in the news since the last close. Everything that broke overnight hits at once, and buy and sell orders can open badly out of balance.",
    "lesson_line": "The open settles a whole night of news. Expect it to swing.",
    "facts": [
@@ -807,7 +807,7 @@
     "f23"
    ],
    "wrong": {
-    "Earnings come out right at 9:30": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
+    "Earnings come out right at 9:30 a.m.": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
     "Spreads are tightest at the open": "The other way round. Spreads are typically widest at the open and narrow through the day."
    }
   },
@@ -924,11 +924,11 @@
    "format": "mcq",
    "q": "Sunday night, you plan the week ahead. What goes on your checklist?",
    "choices": [
-    "Holidays, earnings, Fed and data days",
-    "Which weekday is up most often",
+    "Holidays, earnings, Fed, data days",
+    "Which weekday is up the most often",
     "Last week's best time to buy"
    ],
-   "answer": "Holidays, earnings, Fed and data days",
+   "answer": "Holidays, earnings, Fed, data days",
    "why": "Holidays, earnings, Fed and data days. They're dated, and they shape the week: early closes, reports before the open or after the close, a 2:00 p.m. Fed statement, 8:30 a.m. data.",
    "lesson_line": "Plan around real dates. Holidays, reports, the Fed and the data calendar shape the week.",
    "facts": [
@@ -941,7 +941,7 @@
     "f50"
    ],
    "wrong": {
-    "Which weekday is up most often": "Weekdays barely differ. In S&P 500 data each one is up on 52% to 54% of days.",
+    "Which weekday is up the most often": "Weekdays barely differ. In S&P 500 data each one is up on 52% to 54% of days.",
     "Last week's best time to buy": "Intraday tendencies are averages, not a schedule. Exceptions happen any day, and big news like a Fed announcement can upset them."
    }
   },
@@ -981,12 +981,12 @@
    "story": "Day one of a Kicker. At 9:42 a.m. it's already well up from the open. You missed the first entry, a cent over the red day's high.",
    "q": "What's our plan's other way in today?",
    "choices": [
-    "A break of the 30-minute opening range",
+    "A break of the opening range high",
     "Buy now, before it runs further",
     "Buy the close, once the day is done",
-    "Wait for a quiet midday dip"
+    "Wait for a quiet dip near midday"
    ],
-   "answer": "A break of the 30-minute opening range",
+   "answer": "A break of the opening range high",
    "why": "A break of the 30-minute opening range. That's the Kicker plan's second day-one entry. Let the first 30 minutes set the range, then act on the break.",
    "lesson_line": "Let the first 30 minutes draw the range. Then trade the break, not the noise inside it.",
    "facts": [
@@ -999,7 +999,7 @@
    "wrong": {
     "Buy now, before it runs further": "That's chasing inside the first half hour, when volatility runs high. The plan waits for the range.",
     "Buy the close, once the day is done": "Some of our setups buy the close, like the Slingshot. Both Kicker entries trigger during the day, not on the close.",
-    "Wait for a quiet midday dip": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
+    "Wait for a quiet dip near midday": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
    }
   },
   {
@@ -1033,11 +1033,11 @@
    "story": "Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m.",
    "q": "What's the problem with that alert?",
    "choices": [
-    "The close comes at 1:00 p.m. that day",
-    "Nothing, it's a normal session",
-    "The market is shut all day"
+    "The close is at 1:00 p.m. that day",
+    "Nothing, it's a normal full session",
+    "The market is shut the whole day"
    ],
-   "answer": "The close comes at 1:00 p.m. that day",
+   "answer": "The close is at 1:00 p.m. that day",
    "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026, so a 3:55 alert fires hours after the close you meant to trade.",
    "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
    "facts": [
@@ -1045,8 +1045,8 @@
     "f4"
    ],
    "wrong": {
-    "Nothing, it's a normal session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
-    "The market is shut all day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m."
+    "Nothing, it's a normal full session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
+    "The market is shut the whole day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m."
    }
   },
   {
@@ -1123,11 +1123,11 @@
    "story": "Friday, June 26, 2026. Your small-cap stock prints its biggest volume bar in a year. Much of it came in the final print at 4:00 p.m. Price barely moved.",
    "q": "What most likely explains that volume?",
    "choices": [
-    "Index funds rebalancing at the close",
+    "Index funds rebalancing at close",
     "Big buyers quietly loading up",
-    "A breakout pulling in new buyers"
+    "A breakout pulling in many new buyers"
    ],
-   "answer": "Index funds rebalancing at the close",
+   "answer": "Index funds rebalancing at close",
    "why": "Index funds rebalancing at the close. The June Russell reconstitution took effect after that close. In the closing moments, $219.9 billion traded on NYSE and $334.0 billion on Nasdaq.",
    "lesson_line": "Before you read a giant volume bar as demand, check the calendar for an index rebalance.",
    "facts": [
@@ -1138,7 +1138,7 @@
    ],
    "wrong": {
     "Big buyers quietly loading up": "Maybe, but much of it came in one closing print on a reconstitution day. That points to index funds trading the close.",
-    "A breakout pulling in new buyers": "Price barely moved, so nothing broke out. The volume came in one print at the close, the way index rebalancing trades."
+    "A breakout pulling in many new buyers": "Price barely moved, so nothing broke out. The volume came in one print at the close, the way index rebalancing trades."
    }
   },
   {
@@ -1255,7 +1255,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key matches Schwab f42 and Investopedia f51 (first and last hours busiest); Hong and Wang f64 lists 'higher trading activity around the close and open' among the empirical findings its model matches. Reworded 'when does the most stock trade' to 'when do the most shares trade'. The 'evenly' note said academic studies 'find' it; Hong and Wang is a theory paper, so it now says academic work 'describes' it, and f64's claim is corrected the same way. Track audit 2026-11-09: with q07 cut (duplicate of F12.02 q02), this is the unit's item on the day's volume shape, midday lull included.",
+   "notes": "Key matches Schwab f42 and Investopedia f51 (first and last hours busiest); Hong and Wang f64 lists 'higher trading activity around the close and open' among the empirical findings its model matches. Reworded 'when does the most stock trade' to 'when do the most shares trade'. The 'evenly' note said academic studies 'find' it; Hong and Wang is a theory paper, so it now says academic work 'describes' it, and f64's claim is corrected the same way. Track audit 2026-11-09: with q07 cut (duplicate of F12.02 q02), this is the unit's item on the day's volume shape, midday lull included. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1273,7 +1273,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "Key from Investopedia f52 (the open processes all news since the prior close) and Schwab f43 (overnight news can unbalance orders). Wrong choices really are wrong: FINRA f35 (reports come before the open or after the close), Cboe f23 (spreads widest at the open). 'Often' matches the sources' hedges.",
+   "notes": "Key from Investopedia f52 (the open processes all news since the prior close) and Schwab f43 (overnight news can unbalance orders). Wrong choices really are wrong: FINRA f35 (reports come before the open or after the close), Cboe f23 (spreads widest at the open). 'Often' matches the sources' hedges. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1309,8 +1309,8 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "Times in the why come from cited quotes: f3 (NYSE early close), f35 (FINRA), f34 (Fed statement 'For release at 2:00 p.m. EDT', confirmed live), f32 (BLS CPI 08:30 AM). Wrong notes: f58 (52% to 54%), f50 and f48 (Schwab: exceptions at any time; a Fed announcement can upset the pattern). Not leading: both wrong picks are real folklore habits.",
-   "fixed": false,
+   "notes": "Times in the why come from cited quotes: f3 (NYSE early close), f35 (FINRA), f34 (Fed statement 'For release at 2:00 p.m. EDT', confirmed live), f32 (BLS CPI 08:30 AM). Wrong notes: f58 (52% to 54%), f50 and f48 (Schwab: exceptions at any time; a Fed announcement can upset the pattern). Not leading: both wrong picks are real folklore habits. | variety rewrite checked 2026-11-10: lengthened a wrong choice so the right one is not the longest",
+   "fixed": true,
    "by": "checker"
   },
   "q11": {
@@ -1321,7 +1321,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "House question: TRADE_PLANS.md's Kicker row (the owner's 2026-11-02 rulings) gives both entries, 'a cent over the red day's high, on the Kicker day' (h2) and 'the day-1 30-minute opening-range break' (h1). Fixed two wrong notes: 'volatility runs highest' to 'runs high' (sources say higher, not highest); 'Both Kicker entries are on day one, during the session' (the close is on day one too) to 'trigger during the day, not on the close'.",
+   "notes": "House question: TRADE_PLANS.md's Kicker row (the owner's 2026-11-02 rulings) gives both entries, 'a cent over the red day's high, on the Kicker day' (h2) and 'the day-1 30-minute opening-range break' (h1). Fixed two wrong notes: 'volatility runs highest' to 'runs high' (sources say higher, not highest); 'Both Kicker entries are on day one, during the session' (the close is on day one too) to 'trigger during the day, not on the close'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1333,13 +1333,13 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "NYSE 2026 calendar (live, also via WebFetch): early close at 1:00 p.m. Thursday, Dec. 24, 2026 (f5); closed for Christmas Friday, Dec. 25 (f4). Weekdays checked. Every wrong choice is really wrong. Time-sensitive: 2026 only.",
+   "notes": "NYSE 2026 calendar (live, also via WebFetch): early close at 1:00 p.m. Thursday, Dec. 24, 2026 (f5); closed for Christmas Friday, Dec. 25 (f4). Weekdays checked. Every wrong choice is really wrong. Time-sensitive: 2026 only. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q15": {
    "status": "pass",
-   "notes": "Was leading: it asked 'How do you get out at today's closing price?' and the key was the only choice saying 'close'. Now 'Which order best gets you out before the report?'. Key facts: Nasdaq f13 (on-close orders request the closing price), f14 (MOC before 3:55 p.m.), NYSE f70 (current Auctions page, 3:50 cutoff) and f6. Lesson line 'gets the official close' changed to 'asks for the closing price' (Nasdaq FAQ: MOC orders are not guaranteed). After-hours note: 'You'd be selling into the news' changed to 'You could be'.",
+   "notes": "Was leading: it asked 'How do you get out at today's closing price?' and the key was the only choice saying 'close'. Now 'Which order best gets you out before the report?'. Key facts: Nasdaq f13 (on-close orders request the closing price), f14 (MOC before 3:55 p.m.), NYSE f70 (current Auctions page, 3:50 cutoff) and f6. Lesson line 'gets the official close' changed to 'asks for the closing price' (Nasdaq FAQ: MOC orders are not guaranteed). After-hours note: 'You'd be selling into the news' changed to 'You could be'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1351,7 +1351,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "FTSE Russell f27/f28 confirmed live: the June 2026 changes took effect after the close on Fri June 26, 2026 (fourth Friday); $219.9 billion on NYSE and $334.0 billion on Nasdaq in the closing moments, numbers copied exactly. 'Most likely' keeps the key a judgment, and each wrong note says why it is weaker. Split a 23-word why sentence.",
+   "notes": "FTSE Russell f27/f28 confirmed live: the June 2026 changes took effect after the close on Fri June 26, 2026 (fourth Friday); $219.9 billion on NYSE and $334.0 billion on Nasdaq in the closing moments, numbers copied exactly. 'Most likely' keeps the key a judgment, and each wrong note says why it is weaker. Split a 23-word why sentence. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

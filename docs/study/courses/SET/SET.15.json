@@ -750,9 +750,9 @@
    "q": "What is the EMA Crossback?",
    "choices": [
     "Any pullback in a long uptrend",
-    "A cross of the 9 under the 20",
+    "A cross of the 9 under the 20 EMA",
     "The first retest after a Wedge Pop",
-    "A gap down through the 200-day"
+    "A gap down through the 200-day line"
    ],
    "answer": "The first retest after a Wedge Pop",
    "why": "The first retest after a Wedge Pop. Kell: it is the first time the stock retests its moving averages after a strong upward move.",
@@ -763,9 +763,9 @@
     "x01"
    ],
    "wrong": {
-    "A cross of the 9 under the 20": "That is the opposite. With the 9 under the 20 there is no reason to be long.",
+    "A cross of the 9 under the 20 EMA": "That is the opposite. With the 9 under the 20 there is no reason to be long.",
     "Any pullback in a long uptrend": "Later pullbacks are other setups. The crossback is the first one after the pop.",
-    "A gap down through the 200-day": "A stock under the 200-day is not a long for us."
+    "A gap down through the 200-day line": "A stock under the 200-day is not a long for us."
    },
    "house": true
   },
@@ -832,9 +832,9 @@
    "criterion": "xbk.stop",
    "q": "Where does the stop go on a crossback?",
    "choices": [
-    "Under the 200-day average",
+    "Under the 200-day moving average",
     "A few cents under the hold day's low",
-    "At the post-pop high",
+    "At the high made after the pop",
     "Exactly on the hold day's low"
    ],
    "answer": "A few cents under the hold day's low",
@@ -846,9 +846,9 @@
     "h24"
    ],
    "wrong": {
-    "Under the 200-day average": "That is far away and ignores the hold day's low.",
+    "Under the 200-day moving average": "That is far away and ignores the hold day's low.",
     "Exactly on the hold day's low": "A stop exactly on the low is hit by the first wiggle.",
-    "At the post-pop high": "That is above the buy. It would stop us out at once."
+    "At the high made after the pop": "That is above the buy. It would stop us out at once."
    },
    "house": true
   },
@@ -1204,10 +1204,10 @@
    "q": "Buy tomorrow's break of the high?",
    "choices": [
     "Yes; the hold day is clean",
-    "Yes, at half size",
-    "No; a report is inside 3 sessions"
+    "Yes, but only at half size",
+    "No; a report is too close"
    ],
-   "answer": "No; a report is inside 3 sessions",
+   "answer": "No; a report is too close",
    "why": "No. No new buy if a report is due within 3 sessions. A clean hold day does not lift the rule.",
    "lesson_line": "Check the report date before every buy.",
    "facts": [
@@ -1216,7 +1216,7 @@
    ],
    "wrong": {
     "Yes; the hold day is clean": "A report is a gap risk the chart cannot see.",
-    "Yes, at half size": "The rule bars the new buy, not a size."
+    "Yes, but only at half size": "The rule bars the new buy, not a size."
    },
    "house": true,
    "story": "The hold day closed today. The company reports in 3 sessions."
@@ -1229,11 +1229,11 @@
    "criterion": "xbk.definition",
    "q": "Which name fits?",
    "choices": [
-    "EMA Crossback; first test after a pop",
-    "20 EMA Pullback",
-    "Wedge Pop"
+    "EMA Crossback; the first retest",
+    "20 EMA Pullback; a tap of the 20",
+    "Wedge Pop; first close back over"
    ],
-   "answer": "EMA Crossback; first test after a pop",
+   "answer": "EMA Crossback; the first retest",
    "why": "EMA Crossback. It is the first test of the averages after the stock closed back over them. A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback.",
    "lesson_line": "First test after the pop is the crossback. Later taps are pullbacks.",
    "facts": [
@@ -1242,8 +1242,8 @@
     "x25"
    ],
    "wrong": {
-    "20 EMA Pullback": "That is a tap of a 20 EMA that has been rising for weeks.",
-    "Wedge Pop": "The pop was eight sessions ago. This is the first pullback after it."
+    "20 EMA Pullback; a tap of the 20": "That is a tap of a 20 EMA that has been rising for weeks.",
+    "Wedge Pop; first close back over": "The pop was eight sessions ago. This is the first pullback after it."
    },
    "house": true,
    "story": "The stock spent weeks under its averages, then closed back over the 9 and 20 EMA eight sessions ago. Now it tests those averages for the first time."
@@ -1256,11 +1256,11 @@
    "criterion": "xbk.wedge_pop_first",
    "q": "Crossback or Wedge Pop?",
    "choices": [
-    "An EMA Crossback",
-    "A Wedge Pop setting up",
-    "A Base n' Break"
+    "An EMA Crossback, after a dip",
+    "A Wedge Pop setting up today",
+    "A Base n' Break, a later rest"
    ],
-   "answer": "A Wedge Pop setting up",
+   "answer": "A Wedge Pop setting up today",
    "why": "A Wedge Pop. One close back over the averages is a pop setting up, not a crossback. The crossback is the pullback after it.",
    "lesson_line": "A first reclaim is the pop. The pullback after it is the crossback.",
    "facts": [
@@ -1268,8 +1268,8 @@
     "e08"
    ],
    "wrong": {
-    "An EMA Crossback": "There has been no pullback yet. This is the reclaim itself.",
-    "A Base n' Break": "That is a later rest in the cycle."
+    "An EMA Crossback, after a dip": "There has been no pullback yet. This is the reclaim itself.",
+    "A Base n' Break, a later rest": "That is a later rest in the cycle."
    },
    "house": true,
    "story": "After weeks under its averages, a stock closes above both out of a tight range on 1.6x volume."
@@ -1282,9 +1282,9 @@
    "criterion": "xbk.inv_late_cycle",
    "q": "Crossback or Base n' Break?",
    "choices": [
-    "EMA Crossback",
+    "EMA Crossback; the first rest",
     "Base n' Break; a later rest",
-    "Wedge Pop"
+    "Wedge Pop; the move before"
    ],
    "answer": "Base n' Break; a later rest",
    "why": "Base n' Break. The crossback is the first rest after the pop. Kell's name for a later rest is the Base n' Break.",
@@ -1295,8 +1295,8 @@
     "x25"
    ],
    "wrong": {
-    "EMA Crossback": "The crossback is the first rest. This is the second.",
-    "Wedge Pop": "The pop was the move before the first rest."
+    "EMA Crossback; the first rest": "The crossback is the first rest. This is the second.",
+    "Wedge Pop; the move before": "The pop was the move before the first rest."
    },
    "house": true,
    "story": "A stock popped, pulled into its averages once, and made a new high. Now it rests at the averages again."
@@ -1379,17 +1379,17 @@
    "q": "What happens to the setup?",
    "choices": [
     "Move the stop lower and wait",
-    "Buy anyway at the old high",
-    "It is off until a new hold day forms"
+    "Buy anyway on the old trigger",
+    "Off until a new hold day forms"
    ],
-   "answer": "It is off until a new hold day forms",
+   "answer": "Off until a new hold day forms",
    "why": "It is off. The hold day's low breaking before the trigger turns the setup off until a new hold day forms.",
    "lesson_line": "Hold day's low breaks, setup off. Wait for a new hold day.",
    "facts": [
     "x07"
    ],
    "wrong": {
-    "Buy anyway at the old high": "The structure broke. The old trigger is gone.",
+    "Buy anyway on the old trigger": "The structure broke. The old trigger is gone.",
     "Move the stop lower and wait": "The stop never moves down or wider."
    },
    "house": true,
@@ -1498,8 +1498,8 @@
    "q": "Buy?",
    "choices": [
     "No; it is under the 200-day",
-    "Yes, at half size",
-    "Yes; the setup is textbook"
+    "Yes, at half size with a stop",
+    "Yes; it is a textbook crossback"
    ],
    "answer": "No; it is under the 200-day",
    "why": "No. The hold day must close above the 200-day, and a crossback gets no exception from the rule.",
@@ -1509,8 +1509,8 @@
     "h10"
    ],
    "wrong": {
-    "Yes; the setup is textbook": "Shape does not lift the 200-day rule.",
-    "Yes, at half size": "Size does not fix a failed gate."
+    "Yes; it is a textbook crossback": "Shape does not lift the 200-day rule.",
+    "Yes, at half size with a stop": "Size does not fix a failed gate."
    },
    "house": true,
    "story": "A textbook first crossback follows a gap-up Wedge Pop. The stock is still 6% under its 200-day."
@@ -1551,9 +1551,9 @@
    "criterion": "xbk.market_reading",
    "q": "Take it?",
    "choices": [
-    "Take it at full size",
+    "Take it at full size anyway",
     "Pass; Orange buys A+ only",
-    "Take it at half size"
+    "Take it at half size instead"
    ],
    "answer": "Pass; Orange buys A+ only",
    "why": "Pass. Orange buys A+ only, and this one grades B.",
@@ -1563,8 +1563,8 @@
     "h26"
    ],
    "wrong": {
-    "Take it at full size": "Orange is not Green.",
-    "Take it at half size": "Orange allows A+ only, at any size."
+    "Take it at full size anyway": "Orange is not Green.",
+    "Take it at half size instead": "Orange allows A+ only, at any size."
    },
    "house": true,
    "story": "The market reading is Orange. A leader makes a clean crossback that you grade B."
@@ -1604,9 +1604,9 @@
    "criterion": "xbk.depth",
    "q": "Which gate fails?",
    "choices": [
-    "The close was too weak",
+    "The close was too weak to hold",
     "The low went too far under the 20 EMA",
-    "The 9 EMA crossed under the 20"
+    "The 9 EMA crossed under the 20 EMA"
    ],
    "answer": "The low went too far under the 20 EMA",
    "why": "The depth. The hold day's low sat 2.1% under the 20 EMA, and the zone runs down to about 1% under it. A deeper undercut is a different shape.",
@@ -1617,8 +1617,8 @@
     "x04"
    ],
    "wrong": {
-    "The close was too weak": "The close was fine. The low went too deep.",
-    "The 9 EMA crossed under the 20": "Nothing in the story says the averages crossed."
+    "The close was too weak to hold": "The close was fine. The low went too deep.",
+    "The 9 EMA crossed under the 20 EMA": "Nothing in the story says the averages crossed."
    },
    "house": true,
    "story": "AMAT's hold day closed back over the 20 EMA, but its low sat 2.1% under the line."
@@ -1629,9 +1629,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "xbk.after_entry_stop",
-   "q": "Most crossbacks in our scan did not reach 3R before the stop.",
-   "answer": "True",
-   "why": "True. 28.9% reached 3R before the stop, and 82.6% hit the stop at some point. It is a probability trade.",
+   "q": "Most crossbacks in our scan reached 3R before the stop.",
+   "answer": "False",
+   "why": "False. 28.9% reached 3R before the stop, and 82.6% hit the stop at some point. It is a probability trade.",
    "lesson_line": "Most crossbacks stop out first. Size from the stop.",
    "facts": [
     "d24"
@@ -1644,13 +1644,13 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "xbk.stop_width",
-   "q": "What do you do about the size?",
+   "q": "How do you handle the size?",
    "choices": [
-    "Pull the stop in to 3%",
-    "Use the 200-day as the stop",
-    "Fewer shares; the stop stays honest"
+    "Pull the stop in to 3% to fit",
+    "Use the 200-day line as the stop",
+    "Fewer shares; stop stays honest"
    ],
-   "answer": "Fewer shares; the stop stays honest",
+   "answer": "Fewer shares; stop stays honest",
    "why": "Fewer shares. The size comes from the stop, so a wider stop means fewer shares. Never tighten the stop to fit.",
    "lesson_line": "A wide stop gets a smaller size, never a tighter stop.",
    "facts": [
@@ -1660,8 +1660,8 @@
     "h03"
    ],
    "wrong": {
-    "Pull the stop in to 3%": "Pulling the stop in to fit the size is a trap.",
-    "Use the 200-day as the stop": "That is far away and ignores the hold day's low."
+    "Pull the stop in to 3% to fit": "Pulling the stop in to fit the size is a trap.",
+    "Use the 200-day line as the stop": "That is far away and ignores the hold day's low."
    },
    "house": true,
    "story": "CLS: fill 50.64, honest stop 48.94, which is 3.4% away. Your risk budget is fixed."
@@ -1672,13 +1672,13 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "xbk.after_entry_stop",
-   "q": "What do you do?",
+   "q": "How do you respond?",
    "choices": [
-    "Take the loss; re-buy on a new trigger",
-    "Buy again at once; it looked clean",
-    "Move the stop lower and wait"
+    "Take the loss; wait for a new trigger",
+    "Buy again at once; it looked so clean",
+    "Move the stop lower and give it room"
    ],
-   "answer": "Take the loss; re-buy on a new trigger",
+   "answer": "Take the loss; wait for a new trigger",
    "why": "Take the loss. After a stop-out, buy again only on a new trigger as a new trade. MU later reached 3R and 5R without us, and the stop was still right.",
    "lesson_line": "A clean setup can lose. Re-buy only on a new hold day and trigger.",
    "facts": [
@@ -1688,8 +1688,8 @@
     "h28"
    ],
    "wrong": {
-    "Buy again at once; it looked clean": "A re-buy needs a new hold day, a new trigger and every rule.",
-    "Move the stop lower and wait": "The stop never moves down or wider."
+    "Buy again at once; it looked so clean": "A re-buy needs a new hold day, a new trigger and every rule.",
+    "Move the stop lower and give it room": "The stop never moves down or wider."
    },
    "house": true,
    "story": "MU looked clean: a pop, a 3-day drift, a hold day. The next session it fell through the stop."
@@ -1793,11 +1793,11 @@
    "criterion": "xbk.stop_gap",
    "q": "What governs the exit?",
    "choices": [
-    "The first 30-minute low; out past 2R",
-    "Hold; wait for it to recover",
-    "Keep the old stop"
+    "First 30-minute low; out past 2R",
+    "Hold; wait for it to recover fully",
+    "Keep the old stop at 120.63"
    ],
-   "answer": "The first 30-minute low; out past 2R",
+   "answer": "First 30-minute low; out past 2R",
    "why": "The first 30-minute low is the new stop, and past 2R we get out. Here the loss is far past 2R.",
    "lesson_line": "A gap through the stop gets the 30-minute rule. Past 2R, get out.",
    "facts": [
@@ -1806,8 +1806,8 @@
     "d09"
    ],
    "wrong": {
-    "Hold; wait for it to recover": "The gap rule does not wait.",
-    "Keep the old stop": "The stock is already through it."
+    "Hold; wait for it to recover fully": "The gap rule does not wait.",
+    "Keep the old stop at 120.63": "The stock is already through it."
    },
    "house": true,
    "story": "You bought at 123.70 with the stop at 120.63, so 1R is 3.07. The stock gaps down and the first 30-minute low is 113.46."
@@ -1818,13 +1818,13 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "xbk.trigger",
-   "q": "What do you do?",
+   "q": "How do you play this one?",
    "choices": [
     "Skip it; two sessions is too short",
-    "Buy at market; stop under the hold low",
-    "Wait for a close over the high"
+    "Buy at market, stop under hold low",
+    "Wait for a close over the hold high"
    ],
-   "answer": "Buy at market; stop under the hold low",
+   "answer": "Buy at market, stop under hold low",
    "why": "Buy at market, 40.82, with the stop a few cents under the hold day's low, 40.17. It reached 3R in 5 days.",
    "lesson_line": "Hold day, then the trade over its high, then the stop under its low.",
    "facts": [
@@ -1834,7 +1834,7 @@
     "x14"
    ],
    "wrong": {
-    "Wait for a close over the high": "We buy the trade through, at market.",
+    "Wait for a close over the hold high": "We buy the trade through, at market.",
     "Skip it; two sessions is too short": "A quiet two-session pullback was the clean case."
    },
    "house": true,
@@ -2216,9 +2216,9 @@
    "rung": 8,
    "format": "tf",
    "criterion": "xbk.ma200_rising",
-   "q": "The 200-day should be rising for the best crossbacks.",
-   "answer": "True",
-   "why": "True. We prefer the 200-day rising, as a grade cue. The best case is a fresh turn above a rising 200-day.",
+   "q": "The best crossbacks come with the 200-day falling.",
+   "answer": "False",
+   "why": "False. We prefer the 200-day rising, as a grade cue. The best case is a fresh turn above a rising 200-day.",
    "lesson_line": "A rising 200-day is a grade cue.",
    "facts": [
     "x33"
@@ -2458,7 +2458,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Kell (e01, e04): the first retest of the averages after a Wedge Pop. The whole unit rests on D-002 (Kell's definition against the house text), which is pending; flagged for the owner, not a number.",
+   "notes": "Kell (e01, e04): the first retest of the averages after a Wedge Pop. The whole unit rests on D-002 (Kell's definition against the house text), which is pending; flagged for the owner, not a number. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2482,7 +2482,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "Settled card stop (F62). Right; wrong notes true.",
+   "notes": "Settled card stop (F62). Right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2578,25 +2578,25 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "B22: a report 3 sessions away puts tomorrow's buy inside the window. Right.",
+   "notes": "B22: a report 3 sessions away puts tomorrow's buy inside the window. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q22": {
    "status": "pass",
-   "notes": "Same tell as the 20 EMA Pullback unit (SET.14 q48): the first test after the stock closed back over the 9 and 20 is the crossback; a tap of a 20 EMA rising for weeks is the pullback. Eight sessions after the pop is inside the card's 3 to 20 under any D-076 option. Consistent with SET.14.",
+   "notes": "Same tell as the 20 EMA Pullback unit (SET.14 q48): the first test after the stock closed back over the 9 and 20 is the crossback; a tap of a 20 EMA rising for weeks is the pullback. Eight sessions after the pop is inside the card's 3 to 20 under any D-076 option. Consistent with SET.14. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q23": {
    "status": "pass",
-   "notes": "Card x02 and Kell e08. The story: weeks under the averages, then one close back above both out of a tight range on 1.6x volume: a pop, not yet a crossback. Right.",
+   "notes": "Card x02 and Kell e08. The story: weeks under the averages, then one close back above both out of a tight range on 1.6x volume: a pop, not yet a crossback. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q24": {
    "status": "pass",
-   "notes": "Kell e09/x24: a later rest is the Base n' Break. The why said 'graded lower here', which leans on D-026 (a later test is a B grade or another setup, pending): now Kell's name only. SET.14 calls a later orderly test the 20 EMA Pullback; this question offers no pullback choice, so the two do not clash.",
+   "notes": "Kell e09/x24: a later rest is the Base n' Break. The why said 'graded lower here', which leans on D-026 (a later test is a B grade or another setup, pending): now Kell's name only. SET.14 calls a later orderly test the 20 EMA Pullback; this question offers no pullback choice, so the two do not clash. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2620,7 +2620,7 @@
   },
   "q28": {
    "status": "pass",
-   "notes": "Card x07 (proposed). Right.",
+   "notes": "Card x07 (proposed). Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2650,7 +2650,7 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "Settled B26 (the card: no parabolic exception for a crossback). Right.",
+   "notes": "Settled B26 (the card: no parabolic exception for a crossback). Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2662,7 +2662,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "F65 settled: Orange is A+ only. Right.",
+   "notes": "F65 settled: Orange is A+ only. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2674,25 +2674,25 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "AMAT near-miss: the low 2.1% under the 20 EMA against the proposed 'about 1%' line (x04). Right.",
+   "notes": "AMAT near-miss: the low 2.1% under the 20 EMA against the proposed 'about 1%' line (x04). Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q38": {
    "status": "pass",
-   "notes": "Dossier base rate: 28.9% reached 3R before the stop, so most did not; 82.6% touched the stop at some point in 60 sessions. Right and labelled 'in our scan'.",
+   "notes": "Dossier base rate: 28.9% reached 3R before the stop, so most did not; 82.6% touched the stop at some point in 60 sessions. Right and labelled 'in our scan'. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q39": {
    "status": "pass",
-   "notes": "A3/A5. The why said 'a stop past about 3% means fewer shares', which leans on D-005 (pending): now 'a wider stop means fewer shares'. CLS numbers match.",
+   "notes": "A3/A5. The why said 'a stop past about 3% means fewer shares', which leans on D-005 (pending): now 'a wider stop means fewer shares'. CLS numbers match. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q40": {
    "status": "pass",
-   "notes": "B21 settled. MU matches the dossier. Right.",
+   "notes": "B21 settled. MU matches the dossier. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2722,13 +2722,13 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "B20 settled. 1R = 3.07; a first 30-minute low of 113.46 is 3.3R down, past 2R. Right (the 113.46 is the day's low in the dossier; the story states it as the first 30-minute low as a hypothetical).",
+   "notes": "B20 settled. 1R = 3.07; a first 30-minute low of 113.46 is 3.3R down, past 2R. Right (the 113.46 is the day's low in the dossier; the story states it as the first 30-minute low as a hypothetical). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q46": {
    "status": "pass",
-   "notes": "Settled trigger and stop. The story named UAA, the same trade as the hidden-ticker chart q62: now anonymous in the story and the why. Numbers match the dossier and the bars.",
+   "notes": "Settled trigger and stop. The story named UAA, the same trade as the hidden-ticker chart q62: now anonymous in the story and the why. Numbers match the dossier and the bars. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2818,7 +2818,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "Card x33 (proposed grade cue). Right.",
+   "notes": "Card x33 (proposed grade cue). Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

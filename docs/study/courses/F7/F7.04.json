@@ -865,8 +865,8 @@
    "q": "By the usual rule of thumb, what makes a bear market?",
    "choices": [
     "A drop of 20% or more from a high",
-    "A drop of 10% from a high",
-    "Three losing weeks in a row",
+    "A drop of 10% from a recent high",
+    "Three lower weekly closes in a row",
     "The Fed raising interest rates"
    ],
    "answer": "A drop of 20% or more from a high",
@@ -878,8 +878,8 @@
     "f04"
    ],
    "wrong": {
-    "A drop of 10% from a high": "That's the usual line for a correction. A bear is the bigger drop, 20% or more.",
-    "Three losing weeks in a row": "Losing streaks happen in bull markets too. The label is about how far prices fell from the high.",
+    "A drop of 10% from a recent high": "That's the usual line for a correction. A bear is the bigger drop, 20% or more.",
+    "Three lower weekly closes in a row": "Losing streaks happen in bull markets too. The label is about how far prices fell from the high.",
     "The Fed raising interest rates": "Rate changes can help bring on a bear. The label itself is about how far prices fall."
    }
   },
@@ -894,7 +894,7 @@
     "Panic selling that speeds up the fall",
     "Big buyers stepping in at the low",
     "A slow drift lower on light volume",
-    "The first big up day off the low"
+    "The first big up day off the market low"
    ],
    "answer": "Panic selling that speeds up the fall",
    "why": "Panic selling that speeds up the fall. Holders give up together and the drop accelerates. It's often part of the washout that starts a bottoming process.",
@@ -909,7 +909,7 @@
    "wrong": {
     "Big buyers stepping in at the low": "That's the other side of the trade. In a selling climax big buyers absorb the panic, but the panic itself is the capitulation.",
     "A slow drift lower on light volume": "That's the opposite. Capitulation is sharp drops on unusually high volume.",
-    "The first big up day off the low": "That's the bounce that can come after. Capitulation is the selling before it."
+    "The first big up day off the market low": "That's the bounce that can come after. Capitulation is the selling before it."
    }
   },
   {
@@ -1391,8 +1391,8 @@
    "q": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you?",
    "choices": [
     "Peak fear can come before the low",
-    "The VIX called the exact low",
-    "VIX over 30 is a buy signal",
+    "The VIX called the exact bottom day",
+    "VIX over 30 is a clear buy signal",
     "The VIX doesn't track fear"
    ],
    "answer": "Peak fear can come before the low",
@@ -1408,8 +1408,8 @@
     "f48"
    ],
    "wrong": {
-    "The VIX called the exact low": "It didn't. It was lower at the October low than in March.",
-    "VIX over 30 is a buy signal": "It was over 30 in March, and the S&P 500 didn't make its low close until Oct. 12. Spikes show extremes. They don't predict.",
+    "The VIX called the exact bottom day": "It didn't. It was lower at the October low than in March.",
+    "VIX over 30 is a clear buy signal": "It was over 30 in March, and the S&P 500 didn't make its low close until Oct. 12. Spikes show extremes. They don't predict.",
     "The VIX doesn't track fear": "It does. It measures expected volatility from option prices, and it usually rises when stocks fall."
    }
   },
@@ -1561,13 +1561,13 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f01 (Investor.gov, Tier 1) confirmed; f03 read in context (Investopedia: 'One definition... 20% is an arbitrary number'). The 10% correction, a losing streak and a Fed hike are real beginner confusions. Term answer is 33 characters. No change.",
+   "notes": "f01 (Investor.gov, Tier 1) confirmed; f03 read in context (Investopedia: 'One definition... 20% is an arbitrary number'). The 10% correction, a losing streak and a Fed hike are real beginner confusions. Term answer is 33 characters. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q02": {
    "status": "pass",
-   "notes": "f42, f43 (Investopedia) and f75, f77 (CMT) confirmed: two publishers. The why said capitulation 'is the washout that starts the bottoming process', but Investopedia (f45) warns of repeat plunges and premature calls, so it now says 'often part of the washout that starts a bottoming process'.",
+   "notes": "f42, f43 (Investopedia) and f75, f77 (CMT) confirmed: two publishers. The why said capitulation 'is the washout that starts the bottoming process', but Investopedia (f45) warns of repeat plunges and premature calls, so it now says 'often part of the washout that starts a bottoming process'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1687,7 +1687,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "FRED VIX re-parsed: March 7, 2022's 36.45 is the highest 2022 close; Oct. 12 was 33.57. ChartSchool f49 (2008 peak before the March 2009 low) and f51 ('not really predictive') confirmed. Wrong choices each contradicted by a fact. No change.",
+   "notes": "FRED VIX re-parsed: March 7, 2022's 36.45 is the highest 2022 close; Oct. 12 was 33.57. ChartSchool f49 (2008 peak before the March 2009 low) and f51 ('not really predictive') confirmed. Wrong choices each contradicted by a fact. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

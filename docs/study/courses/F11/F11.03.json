@@ -646,12 +646,12 @@
    "format": "mcq",
    "q": "You move from swing trades to day trades. Which part of your trade plan can you drop?",
    "choices": [
-    "None of it: same parts, shorter clock",
+    "None of it: same parts, less time",
     "The stop, since you'll be watching",
     "The size, it's only for a few hours",
     "The exit, you're out by the close"
    ],
-   "answer": "None of it: same parts, shorter clock",
+   "answer": "None of it: same parts, less time",
    "why": "None of it. Schwab's day-trading page lists the same plan parts: when to enter and exit, how much to risk, what to trade. Only the clock is shorter.",
    "lesson_line": "A shorter hold is no reason for a thinner plan.",
    "facts": [
@@ -1212,7 +1212,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f11 confirmed in context on Schwab's day-trading page (Joe Mazzola, 2026-10-29); f02, f13 confirmed. Changed the key 'same plan, shorter clock' to 'same parts, shorter clock': this unit teaches that the stop and size change with the clock (q08, q16), so 'same plan' contradicted it. Why now says 'Schwab's day-trading page lists', not 'Schwab's plan'. Added f01 (FINRA, fast-market fills) behind the 'watching isn't a stop' note. Wrong choices are real shortcuts.",
+   "notes": "f11 confirmed in context on Schwab's day-trading page (Joe Mazzola, 2026-10-29); f02, f13 confirmed. Changed the key 'same plan, shorter clock' to 'same parts, shorter clock': this unit teaches that the stop and size change with the clock (q08, q16), so 'same plan' contradicted it. Why now says 'Schwab's day-trading page lists', not 'Schwab's plan'. Added f01 (FINRA, fast-market fills) behind the 'watching isn't a stop' note. Wrong choices are real shortcuts. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

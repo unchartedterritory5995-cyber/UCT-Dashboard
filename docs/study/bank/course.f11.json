@@ -1677,7 +1677,7 @@
  },
  {
   "answer_json": {
-   "answer": "A 5- or 15-minute chart"
+   "answer": "A 5- or 15-minute intraday chart"
   },
   "difficulty": 1,
   "id": "si_a74f9738520c",
@@ -1686,9 +1686,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The daily chart",
-    "A 5- or 15-minute chart",
-    "The weekly chart"
+    "The daily chart, one bar a day",
+    "A 5- or 15-minute intraday chart",
+    "The weekly chart, one bar a week"
    ],
    "kind": "mcq",
    "q": "You'll be in and out the same day, every trade. Which chart do you trade off?",
@@ -1736,14 +1736,14 @@
     "summary": "A day trader trades off charts like the 15-minute and times with the 5-minute. Day traders work off intraday charts, and it takes a lot of focus. A day trader owns a stock for seconds to minutes, inside one session. A day trade opens and closes in the same session. On a daily chart, each bar is one day."
    },
    "facts": {
-    "given": "You'll be in and out the same day, every trade. Which chart do you trade off? A 5- or 15-minute chart The daily chart The weekly chart"
+    "given": "You'll be in and out the same day, every trade. Which chart do you trade off? A 5- or 15-minute intraday chart The daily chart, one bar a day The weekly chart, one bar a week"
    },
    "lesson_line": "Your holding time picks the chart. Trades that last minutes need minute bars.",
    "unit": "F11.02",
    "why": "A 5- or 15-minute chart. A day trader works off charts like the 15-minute, with a 5-minute for timing. A trade that lasts minutes to hours needs bars that short.",
    "wrong": {
-    "The daily chart": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
-    "The weekly chart": "That's for trends that run weeks or months. Your trade is over long before one bar closes."
+    "The daily chart, one bar a day": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
+    "The weekly chart, one bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes."
    }
   },
   "review_status": "draft",
@@ -2461,8 +2461,8 @@
   "prompt_json": {
    "choices": [
     "Stock B, it has range and volume",
-    "Stock A, it's calmer",
-    "Either, only the setup matters"
+    "Stock A, it's calmer to hold",
+    "Either one, only the setup matters"
    ],
    "kind": "mcq",
    "q": "Which one fits your style?",
@@ -2497,14 +2497,14 @@
     "summary": "A day trader needs a stock that moves enough in a day. Small daily range or thin volume rules a stock out for a day trader. Intraday traders go after small moves, usually in volatile stocks."
    },
    "facts": {
-    "given": "Which one fits your style? You day trade. Stock A moves about 0.5% a day on thin volume. Stock B moves about 4% a day on heavy volume. Stock B, it has range and volume Stock A, it's calmer Either, only the setup matters"
+    "given": "Which one fits your style? You day trade. Stock A moves about 0.5% a day on thin volume. Stock B moves about 4% a day on heavy volume. Stock B, it has range and volume Stock A, it's calmer to hold Either one, only the setup matters"
    },
    "lesson_line": "Day trades need movement and liquidity. A quiet stock gives a day trader nothing to work with.",
    "unit": "F11.02",
    "why": "Stock B. A day trader needs enough daily range to make a profit in hours, and the volume to get in and out fast. Intraday traders usually work volatile stocks.",
    "wrong": {
-    "Either, only the setup matters": "The stock has to fit the style too. A small daily range or light volume rules a stock out for a day trader.",
-    "Stock A, it's calmer": "Calm is fine for a longer hold. A day trader needs movement inside one session, and a small daily range leaves little to take."
+    "Either one, only the setup matters": "The stock has to fit the style too. A small daily range or light volume rules a stock out for a day trader.",
+    "Stock A, it's calmer to hold": "Calm is fine for a longer hold. A day trader needs movement inside one session, and a small daily range leaves little to take."
    }
   },
   "review_status": "draft",
@@ -2807,7 +2807,7 @@
  },
  {
   "answer_json": {
-   "answer": "Hold it and trail on the daily chart"
+   "answer": "Hold it; trail on the daily chart"
   },
   "difficulty": 3,
   "id": "si_6d3b7e92a915",
@@ -2816,9 +2816,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Hold it and trail on the daily chart",
-    "Sell, it was an intraday entry",
-    "Sell half before the close"
+    "Hold it; trail on the daily chart",
+    "Sell it, it was an intraday entry",
+    "Sell half of it before the close"
    ],
    "kind": "mcq",
    "q": "What does the plan say to do?",
@@ -2874,14 +2874,14 @@
     "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
    },
    "facts": {
-    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop. Hold it and trail on the daily chart Sell, it was an intraday entry Sell half before the close"
+    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop. Hold it; trail on the daily chart Sell it, it was an intraday entry Sell half of it before the close"
    },
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "unit": "F11.02",
    "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and sells a third at 3R and another at 5R.",
    "wrong": {
-    "Sell half before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close.",
-    "Sell, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart."
+    "Sell half of it before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close.",
+    "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart."
    }
   },
   "review_status": "draft",
@@ -3529,7 +3529,7 @@
  },
  {
   "answer_json": {
-   "answer": "None of it: same parts, shorter clock"
+   "answer": "None of it: same parts, less time"
   },
   "difficulty": 1,
   "id": "si_d7b02fdc176a",
@@ -3538,7 +3538,7 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "None of it: same parts, shorter clock",
+    "None of it: same parts, less time",
     "The size, it's only for a few hours",
     "The stop, since you'll be watching",
     "The exit, you're out by the close"
@@ -3603,7 +3603,7 @@
     "summary": "A day trader's plan still sets when to enter and exit, how much to risk and what to trade. Every trade is the same set of decisions: what, how much, when in, when out. Intraday trading needs strict money management, like any style. Every trader needs a written plan. A quick drop can trigger a stop, and the stock can then bounce right back. With borrowed money, a small move against you can wipe out a big part of the account. In a fast market, a triggered sell stop can fill well below the stop price."
    },
    "facts": {
-    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None of it: same parts, shorter clock The stop, since you'll be watching The size, it's only for a few hours The exit, you're out by the close"
+    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None of it: same parts, less time The stop, since you'll be watching The size, it's only for a few hours The exit, you're out by the close"
    },
    "lesson_line": "A shorter hold is no reason for a thinner plan.",
    "unit": "F11.03",
@@ -5615,7 +5615,7 @@
  },
  {
   "answer_json": {
-   "answer": "It doesn't fit, so they don't follow it"
+   "answer": "It doesn't fit, so it isn't followed"
   },
   "difficulty": 1,
   "id": "si_ca644678d2f9",
@@ -5624,9 +5624,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "They traded it too small",
-    "It doesn't fit, so they don't follow it",
-    "The seller hid the real rules",
+    "They traded it far too small",
+    "It doesn't fit, so it isn't followed",
+    "The seller hid some of the real rules",
     "Markets change too fast for systems"
    ],
    "kind": "mcq",
@@ -5675,15 +5675,15 @@
     "summary": "Tharp: many systems work, but the typical buyer doesn't trade one as intended. Tharp: buyers don't follow working systems because the systems don't fit them. Traders often fall short because their markets and methods don't use their strengths. Systems need checking and revising as markets change. Start a new strategy very small so learning it costs little."
    },
    "facts": {
-    "given": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one? It doesn't fit, so they don't follow it The seller hid the real rules Markets change too fast for systems They traded it too small"
+    "given": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one? It doesn't fit, so it isn't followed The seller hid some of the real rules Markets change too fast for systems They traded it far too small"
    },
    "lesson_line": "A system you won't follow is worth nothing to you. Fit comes first.",
    "unit": "F11.04",
    "why": "It doesn't fit, so they don't follow it. Tharp: the typical buyer won't trade a working system as intended because it doesn't fit them and their style. Steenbarger sees the same: methods that don't use your strengths hold you back.",
    "wrong": {
     "Markets change too fast for systems": "Systems do need revising as markets change. But Tharp's reason here is the misfit: buyers don't follow what they bought.",
-    "The seller hid the real rules": "Tharp's point is the reverse: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
-    "They traded it too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
+    "The seller hid some of the real rules": "Tharp doesn't blame the seller: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
+    "They traded it far too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
    }
   },
   "review_status": "draft",
@@ -6148,7 +6148,7 @@
  },
  {
   "answer_json": {
-   "answer": "After months of proven, logged results"
+   "answer": "After months of your logged results"
   },
   "difficulty": 2,
   "id": "si_d724f2ea01cc",
@@ -6157,10 +6157,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "After two big wins in a row",
-    "When you feel sure about it",
-    "After months of proven, logged results",
-    "When a mentor swears by it"
+    "After two or three big wins in a row",
+    "When you feel really sure about it",
+    "After months of your logged results",
+    "When a mentor you trust swears by it"
    ],
    "kind": "mcq",
    "q": "When has a setup earned a bigger size from you?",
@@ -6208,15 +6208,15 @@
     "summary": "Size up only after months, not days, of consistent, profitable trading of that strategy. Bellafiore: size up on the setups that measure well in live trading. An SMB trader earned more buying power on his favourite setup by showing his stats for it. Small samples give jumpy, unreliable results. Learn from others, then build your own trading identity on your skills and risk tolerance."
    },
    "facts": {
-    "given": "When has a setup earned a bigger size from you? After months of proven, logged results After two big wins in a row When you feel sure about it When a mentor swears by it"
+    "given": "When has a setup earned a bigger size from you? After months of your logged results After two or three big wins in a row When you feel really sure about it When a mentor you trust swears by it"
    },
    "lesson_line": "Size follows proof. Your own logged numbers, over months, earn the bigger size.",
    "unit": "F11.04",
    "why": "After months of proven, logged results. Tharp: ramp up size only once you've traded it consistently and profitably for months, not days. Bellafiore sizes up on setups that measure well.",
    "wrong": {
-    "After two big wins in a row": "Two trades is a tiny sample, and small samples give unreliable results.",
-    "When a mentor swears by it": "His record isn't yours. Learn from others, then build your own record.",
-    "When you feel sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence."
+    "After two or three big wins in a row": "Two or three trades is a tiny sample, and small samples give unreliable results.",
+    "When a mentor you trust swears by it": "His record isn't yours. Learn from others, then build your own record.",
+    "When you feel really sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence."
    }
   },
   "review_status": "draft",
@@ -6921,8 +6921,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "About evenly through the day",
-    "Mostly in the middle of the day",
+    "About evenly all through the day",
+    "Mostly in the middle of the session",
     "Near the open and near the close"
    ],
    "kind": "mcq",
@@ -6957,14 +6957,14 @@
     "summary": "Volume is usually heavy early, slows at midday, and grows again near the close. The first and last hours are the busiest; the middle of the day tends to be the calmest. A Journal of Finance model matches the known empirical findings: busier trading around the open and the close, and U-shaped volatility through the day."
    },
    "facts": {
-    "given": "On a normal day, when do the most shares trade? Near the open and near the close About evenly through the day Mostly in the middle of the day"
+    "given": "On a normal day, when do the most shares trade? Near the open and near the close About evenly all through the day Mostly in the middle of the session"
    },
    "lesson_line": "Busy early, quiet midday, busy late. The trading day has a shape.",
    "unit": "F11.05",
    "why": "Near the open and near the close. Volume runs heavy early, slows at midday, then builds again into the close.",
    "wrong": {
-    "About evenly through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
-    "Mostly in the middle of the day": "Midday is the quiet stretch. The action slows there, then picks up again late."
+    "About evenly all through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
+    "Mostly in the middle of the session": "Midday is the quiet stretch. The action slows there, then picks up again late."
    }
   },
   "review_status": "draft",
@@ -7097,7 +7097,7 @@
  },
  {
   "answer_json": {
-   "answer": "It prices in news since the last close"
+   "answer": "It prices in news since the close"
   },
   "difficulty": 1,
   "id": "si_23a59e5016be",
@@ -7106,8 +7106,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "It prices in news since the last close",
-    "Earnings come out right at 9:30",
+    "It prices in news since the close",
+    "Earnings come out right at 9:30 a.m.",
     "Spreads are tightest at the open"
    ],
    "kind": "mcq",
@@ -7149,13 +7149,13 @@
     "summary": "The open and the close are the most volatile, active hours, and the 9:30 a.m. open absorbs all the news since the prior close. News that breaks outside trading hours can unbalance orders and make a stock open far from the prior close. Companies usually report earnings before the open or after the close. Across S&P 500 stocks, bid-ask spreads are typically widest at the open and narrow toward the close."
    },
    "facts": {
-    "given": "Why does the open often swing harder than the rest of the day? It prices in news since the last close Earnings come out right at 9:30 Spreads are tightest at the open"
+    "given": "Why does the open often swing harder than the rest of the day? It prices in news since the close Earnings come out right at 9:30 a.m. Spreads are tightest at the open"
    },
    "lesson_line": "The open settles a whole night of news. Expect it to swing.",
    "unit": "F11.05",
    "why": "It prices in the news since the last close. Everything that broke overnight hits at once, and buy and sell orders can open badly out of balance.",
    "wrong": {
-    "Earnings come out right at 9:30": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
+    "Earnings come out right at 9:30 a.m.": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
     "Spreads are tightest at the open": "The other way round. Spreads are typically widest at the open and narrow through the day."
    }
   },
@@ -7493,7 +7493,7 @@
  },
  {
   "answer_json": {
-   "answer": "Holidays, earnings, Fed and data days"
+   "answer": "Holidays, earnings, Fed, data days"
   },
   "difficulty": 2,
   "id": "si_83ab7a0147a0",
@@ -7502,8 +7502,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Holidays, earnings, Fed and data days",
-    "Which weekday is up most often",
+    "Holidays, earnings, Fed, data days",
+    "Which weekday is up the most often",
     "Last week's best time to buy"
    ],
    "kind": "mcq",
@@ -7566,14 +7566,14 @@
     "summary": "NYSE closes early, at 1:00 p.m., on Friday, Nov. 27, 2026, the day after Thanksgiving. Companies usually report earnings before the open or after the close. The Fed released its Oct. 28, 2026 statement at 2:00 p.m. Eastern, during the trading session. The November 2026 CPI comes out Thursday, Dec. 10, 2026, at 8:30 a.m. Big midday news, like a Fed rate announcement, can upset the usual intraday pattern. Every weekday is up on about 52% to 54% of days for the S&P 500. The intraday volume shape is a tendency, and exceptions can happen any day."
    },
    "facts": {
-    "given": "Sunday night, you plan the week ahead. What goes on your checklist? Holidays, earnings, Fed and data days Which weekday is up most often Last week's best time to buy"
+    "given": "Sunday night, you plan the week ahead. What goes on your checklist? Holidays, earnings, Fed, data days Which weekday is up the most often Last week's best time to buy"
    },
    "lesson_line": "Plan around real dates. Holidays, reports, the Fed and the data calendar shape the week.",
    "unit": "F11.05",
    "why": "Holidays, earnings, Fed and data days. They're dated, and they shape the week: early closes, reports before the open or after the close, a 2:00 p.m. Fed statement, 8:30 a.m. data.",
    "wrong": {
     "Last week's best time to buy": "Intraday tendencies are averages, not a schedule. Exceptions happen any day, and big news like a Fed announcement can upset them.",
-    "Which weekday is up most often": "Weekdays barely differ. In S&P 500 data each one is up on 52% to 54% of days."
+    "Which weekday is up the most often": "Weekdays barely differ. In S&P 500 data each one is up on 52% to 54% of days."
    }
   },
   "review_status": "draft",
@@ -7659,7 +7659,7 @@
  },
  {
   "answer_json": {
-   "answer": "A break of the 30-minute opening range"
+   "answer": "A break of the opening range high"
   },
   "difficulty": 2,
   "id": "si_9b1c634f8770",
@@ -7668,8 +7668,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A break of the 30-minute opening range",
-    "Wait for a quiet midday dip",
+    "A break of the opening range high",
+    "Wait for a quiet dip near midday",
     "Buy the close, once the day is done",
     "Buy now, before it runs further"
    ],
@@ -7720,7 +7720,7 @@
     "summary": "Our Kicker plan has a second day-one entry: the break of the 30-minute opening range. Our Kicker plan's first entry is a cent over the red day's high, on the Kicker day. In NYSE data from 1988, actively traded stocks had higher volume and volatility in the first half hour of the day. The first hour after the open typically brings the biggest price moves in the shortest time. Our Slingshot plan enters on the close back over the 4-day average of the highs."
    },
    "facts": {
-    "given": "What's our plan's other way in today? Day one of a Kicker. At 9:42 a.m. it's already well up from the open. You missed the first entry, a cent over the red day's high. A break of the 30-minute opening range Buy now, before it runs further Buy the close, once the day is done Wait for a quiet midday dip"
+    "given": "What's our plan's other way in today? Day one of a Kicker. At 9:42 a.m. it's already well up from the open. You missed the first entry, a cent over the red day's high. A break of the opening range high Buy now, before it runs further Buy the close, once the day is done Wait for a quiet dip near midday"
    },
    "lesson_line": "Let the first 30 minutes draw the range. Then trade the break, not the noise inside it.",
    "unit": "F11.05",
@@ -7728,7 +7728,7 @@
    "wrong": {
     "Buy now, before it runs further": "That's chasing inside the first half hour, when volatility runs high. The plan waits for the range.",
     "Buy the close, once the day is done": "Some of our setups buy the close, like the Slingshot. Both Kicker entries trigger during the day, not on the close.",
-    "Wait for a quiet midday dip": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
+    "Wait for a quiet dip near midday": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
    }
   },
   "review_status": "draft",
@@ -7804,7 +7804,7 @@
  },
  {
   "answer_json": {
-   "answer": "The close comes at 1:00 p.m. that day"
+   "answer": "The close is at 1:00 p.m. that day"
   },
   "difficulty": 2,
   "id": "si_17f50c6c0e2a",
@@ -7813,9 +7813,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Nothing, it's a normal session",
-    "The close comes at 1:00 p.m. that day",
-    "The market is shut all day"
+    "Nothing, it's a normal full session",
+    "The close is at 1:00 p.m. that day",
+    "The market is shut the whole day"
    ],
    "kind": "mcq",
    "q": "What's the problem with that alert?",
@@ -7843,14 +7843,14 @@
     "summary": "NYSE closes early, at 1:00 p.m., on Thursday, Dec. 24, 2026. NYSE is closed for Christmas on Friday, Dec. 25, 2026."
    },
    "facts": {
-    "given": "What's the problem with that alert? Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m. The close comes at 1:00 p.m. that day Nothing, it's a normal session The market is shut all day"
+    "given": "What's the problem with that alert? Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m. The close is at 1:00 p.m. that day Nothing, it's a normal full session The market is shut the whole day"
    },
    "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
    "unit": "F11.05",
    "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026, so a 3:55 alert fires hours after the close you meant to trade.",
    "wrong": {
-    "Nothing, it's a normal session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
-    "The market is shut all day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m."
+    "Nothing, it's a normal full session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
+    "The market is shut the whole day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m."
    }
   },
   "review_status": "draft",
@@ -8092,7 +8092,7 @@
  },
  {
   "answer_json": {
-   "answer": "Index funds rebalancing at the close"
+   "answer": "Index funds rebalancing at close"
   },
   "difficulty": 3,
   "id": "si_3a6626945d18",
@@ -8101,9 +8101,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A breakout pulling in new buyers",
+    "A breakout pulling in many new buyers",
     "Big buyers quietly loading up",
-    "Index funds rebalancing at the close"
+    "Index funds rebalancing at close"
    ],
    "kind": "mcq",
    "q": "What most likely explains that volume?",
@@ -8145,13 +8145,13 @@
     "summary": "The June 2026 Russell changes took effect after the close on Friday, June 26, 2026. On the June 2026 reconstitution Friday, $219.9 billion traded in the closing moments on NYSE and $334.0 billion on Nasdaq. Index-fund managers generally trade near the close to match their benchmark. NYSE calls its closing auction the largest single liquidity event in US stock trading, setting volume records quarter after quarter."
    },
    "facts": {
-    "given": "What most likely explains that volume? Friday, June 26, 2026. Your small-cap stock prints its biggest volume bar in a year. Much of it came in the final print at 4:00 p.m. Price barely moved. Index funds rebalancing at the close Big buyers quietly loading up A breakout pulling in new buyers"
+    "given": "What most likely explains that volume? Friday, June 26, 2026. Your small-cap stock prints its biggest volume bar in a year. Much of it came in the final print at 4:00 p.m. Price barely moved. Index funds rebalancing at close Big buyers quietly loading up A breakout pulling in many new buyers"
    },
    "lesson_line": "Before you read a giant volume bar as demand, check the calendar for an index rebalance.",
    "unit": "F11.05",
    "why": "Index funds rebalancing at the close. The June Russell reconstitution took effect after that close. In the closing moments, $219.9 billion traded on NYSE and $334.0 billion on Nasdaq.",
    "wrong": {
-    "A breakout pulling in new buyers": "Price barely moved, so nothing broke out. The volume came in one print at the close, the way index rebalancing trades.",
+    "A breakout pulling in many new buyers": "Price barely moved, so nothing broke out. The volume came in one print at the close, the way index rebalancing trades.",
     "Big buyers quietly loading up": "Maybe, but much of it came in one closing print on a reconstitution day. That points to index funds trading the close."
    }
   },

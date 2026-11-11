@@ -913,12 +913,12 @@
    "term": "Federal funds rate",
    "q": "What is the federal funds rate?",
    "choices": [
-    "The rate banks pay to borrow overnight",
-    "The 10-year Treasury yield",
-    "The 30-year mortgage rate",
-    "The Fed's inflation goal"
+    "The overnight bank borrowing rate",
+    "The yield on the 10-year Treasury",
+    "The average 30-year mortgage rate",
+    "The Fed's yearly inflation goal"
    ],
-   "answer": "The rate banks pay to borrow overnight",
+   "answer": "The overnight bank borrowing rate",
    "why": "The rate banks pay to borrow overnight. Banks lend each other the reserve balances they keep at the Fed.",
    "lesson_line": "Fed funds is the overnight rate between banks. It's the rate the Fed targets.",
    "facts": [
@@ -929,9 +929,9 @@
     "f12"
    ],
    "wrong": {
-    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
-    "The 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
-    "The Fed's inflation goal": "That's 2% a year on PCE prices. It's what policy aims at, not the rate itself."
+    "The yield on the 10-year Treasury": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
+    "The average 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
+    "The Fed's yearly inflation goal": "That's 2% a year on PCE prices. It's what policy aims at, not the rate itself."
    }
   },
   {
@@ -1177,11 +1177,11 @@
    "format": "mcq",
    "q": "Rates jumped in 2022, and fast-growing, barely profitable stocks got hit hard. What made them so exposed?",
    "choices": [
-    "Most of their profits sit years ahead",
-    "They pay the biggest dividends",
+    "Most of their profit is years away",
+    "They pay the largest cash dividends",
     "Their sales drop the day rates rise"
    ],
-   "answer": "Most of their profits sit years ahead",
+   "answer": "Most of their profit is years away",
    "why": "Most of their profits sit years ahead. A higher rate shrinks what future cash flows are worth today. That hit is often bigger for growth stocks valued on future earnings.",
    "lesson_line": "Distant profits get discounted harder when rates rise. That's a big part of why 2022 hit unprofitable growth so hard.",
    "facts": [
@@ -1196,7 +1196,7 @@
     "f80"
    ],
    "wrong": {
-    "They pay the biggest dividends": "Barely profitable companies have little to pay out. The hit comes from discounting profits still years away.",
+    "They pay the largest cash dividends": "Barely profitable companies have little to pay out. The hit comes from discounting profits still years away.",
     "Their sales drop the day rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations."
    }
   },
@@ -1253,12 +1253,12 @@
    "story": "Treasury's yield curve for July 6, 2022: 3-month 1.90%, 2-year 2.97%, 10-year 2.93%.",
    "q": "What is the curve doing?",
    "choices": [
-    "2s10s inverted, 10y-3m still positive",
-    "Both spreads inverted",
+    "2s10s inverted; 10y-3m positive",
+    "Both spreads are inverted today",
     "Normal: long yields beat short",
-    "Only the 10y-3m is inverted"
+    "Only the 10y-3m spread is inverted"
    ],
-   "answer": "2s10s inverted, 10y-3m still positive",
+   "answer": "2s10s inverted; 10y-3m positive",
    "why": "The 2s10s is inverted, the 10y-3m isn't. The 10-year at 2.93% sits just under the 2-year at 2.97%, but far above the 3-month at 1.90%.",
    "lesson_line": "When you hear the curve inverted, ask which spread. The 2s10s often flips first.",
    "facts": [
@@ -1269,9 +1269,9 @@
     "f37"
    ],
    "wrong": {
-    "Both spreads inverted": "The 10-year at 2.93% still yields more than the 3-month at 1.90%. That spread is positive.",
+    "Both spreads are inverted today": "The 10-year at 2.93% still yields more than the 3-month at 1.90%. That spread is positive.",
     "Normal: long yields beat short": "Not against the 2-year. The 10-year at 2.93% is below the 2-year at 2.97%.",
-    "Only the 10y-3m is inverted": "It's the other way round. The 10-year beats the 3-month but trails the 2-year."
+    "Only the 10y-3m spread is inverted": "It's the other way round. The 10-year beats the 3-month but trails the 2-year."
    }
   },
   {
@@ -1494,7 +1494,7 @@
   },
   "q02": {
    "status": "pass",
-   "notes": "f9 and f1 (Fed Board) confirmed live. Distractors are real beginner confusions (10-year, mortgage rate, the inflation goal) and the notes match f12 and f6. Term answer 38 characters.",
+   "notes": "f9 and f1 (Fed Board) confirmed live. Distractors are real beginner confusions (10-year, mortgage rate, the inflation goal) and the notes match f12 and f6. Term answer 38 characters. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1566,7 +1566,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "The key had one Tier 2 publisher for the mechanism (Schwab f64/f63, live via plain client; WebFetch refused). Added f89 (Investopedia, live via plain client; WebFetch refused): rate impact 'often more pronounced for growth stocks that derive more of their value from expected future earnings'. Changed: stem 'got hit hardest' to 'hit hard' (no quote ranks them); why's unsourced 'long-dated profits take the biggest hit' now 'often bigger' per f89; lesson now 'a big part of why' (2022 also had inflation and the war, f28); dividend note now gives a real reason. Schwab's 'high-growth stocks have tended to be less sensitive' is logged in conflicts.",
+   "notes": "The key had one Tier 2 publisher for the mechanism (Schwab f64/f63, live via plain client; WebFetch refused). Added f89 (Investopedia, live via plain client; WebFetch refused): rate impact 'often more pronounced for growth stocks that derive more of their value from expected future earnings'. Changed: stem 'got hit hardest' to 'hit hard' (no quote ranks them); why's unsourced 'long-dated profits take the biggest hit' now 'often bigger' per f89; lesson now 'a big part of why' (2022 also had inflation and the war, f28); dividend note now gives a real reason. Schwab's 'high-growth stocks have tended to be less sensitive' is logged in conflicts. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1584,7 +1584,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "f40 Treasury row 07/06/2022 checked against the header: 3 Mo 1.90, 2 Yr 2.97, 10 Yr 2.93. 2.93 - 2.97 = -0.04 (inverted); 2.93 - 1.90 = +1.03 (positive). f54 (NY Fed research: the 10-2 spread 'tends to turn negative earlier') supports the lesson's 'often'.",
+   "notes": "f40 Treasury row 07/06/2022 checked against the header: 3 Mo 1.90, 2 Yr 2.97, 10 Yr 2.93. 2.93 - 2.97 = -0.04 (inverted); 2.93 - 1.90 = +1.03 (positive). f54 (NY Fed research: the 10-2 spread 'tends to turn negative earlier') supports the lesson's 'often'. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

@@ -962,10 +962,10 @@
    "choices": [
     "One entry, then add on each dip",
     "Two halves at two prices",
-    "One entry at one price, one stop",
+    "One entry, one price, one stop",
     "Three scale-ins under the line"
    ],
-   "answer": "One entry at one price, one stop",
+   "answer": "One entry, one price, one stop",
    "why": "One entry at one price, one stop. No adds and no second buy lower.",
    "lesson_line": "One price, one stop, full size. No adding to a pullback buy.",
    "facts": [
@@ -1032,9 +1032,9 @@
    "q": "How deep must the dip be to count as a pullback?",
    "choices": [
     "Close 1 ATR under the 11-day high",
-    "Close 1% under the 11-day high",
+    "A close 1% under the 11-day high",
     "Down 25% from the 52-week high",
-    "Any red day at all counts"
+    "Any red day at all counts as a dip"
    ],
    "answer": "Close 1 ATR under the 11-day high",
    "why": "A close at least 1 ATR under the highest high of the last 11 sessions.",
@@ -1045,9 +1045,9 @@
     "c03"
    ],
    "wrong": {
-    "Close 1% under the 11-day high": "A percent can be tiny on a quiet stock. The card measures in ATR.",
+    "A close 1% under the 11-day high": "A percent can be tiny on a quiet stock. The card measures in ATR.",
     "Down 25% from the 52-week high": "That is far too deep. Within 25% of the high is the limit of the trend filter.",
-    "Any red day at all counts": "One red day is not a pullback. The card wants a 1 ATR dip."
+    "Any red day at all counts as a dip": "One red day is not a pullback. The card wants a 1 ATR dip."
    },
    "house": true
   },
@@ -1292,11 +1292,11 @@
    "q": "What usually comes before a pullback worth buying?",
    "choices": [
     "A long, flat sleep under the 200-day",
-    "A breakout, earnings gap or new up-cycle",
+    "A breakout, earnings gap, up-cycle",
     "A month of falling on heavy volume",
-    "Nothing; any dip works"
+    "Nothing; any dip at all will work"
    ],
-   "answer": "A breakout, earnings gap or new up-cycle",
+   "answer": "A breakout, earnings gap, up-cycle",
    "why": "A breakout, an earnings gap or a new up-cycle within the last 3 months.",
    "lesson_line": "A pullback needs something to pull back from: a breakout, a gap, a new up-cycle.",
    "facts": [
@@ -1306,7 +1306,7 @@
    "wrong": {
     "A long, flat sleep under the 200-day": "A stock asleep under the 200-day is not a leader in an uptrend.",
     "A month of falling on heavy volume": "Heavy selling is distribution, not a leader's rest.",
-    "Nothing; any dip works": "A dip needs a run to dip from. Bonde: buy the first pullback after a major breakout."
+    "Nothing; any dip at all will work": "A dip needs a run to dip from. Bonde: buy the first pullback after a major breakout."
    },
    "house": true
   },
@@ -1318,10 +1318,10 @@
    "criterion": "map.trim_1",
    "q": "The trade reaches 3R. What does the plan do?",
    "choices": [
-    "Sell everything",
-    "Add to the position",
+    "Sell everything and lock the gain",
+    "Add to the position on strength",
     "Sell a third, stop to breakeven",
-    "Do nothing until 5R"
+    "Do nothing until it reaches 5R"
    ],
    "answer": "Sell a third, stop to breakeven",
    "why": "Sell a third and move the stop to breakeven. The hard rule is a third at 3R, with breakeven between 2R and 5R.",
@@ -1332,9 +1332,9 @@
     "c24"
    ],
    "wrong": {
-    "Sell everything": "The plan sells a third at 3R and lets the rest work.",
-    "Add to the position": "No adds. The plan trims here.",
-    "Do nothing until 5R": "The hard rule is a third at 3R."
+    "Sell everything and lock the gain": "The plan sells a third at 3R and lets the rest work.",
+    "Add to the position on strength": "No adds. The plan trims here.",
+    "Do nothing until it reaches 5R": "The hard rule is a third at 3R."
    },
    "house": true
   },
@@ -1363,11 +1363,11 @@
    "criterion": "map.earnings_window",
    "q": "Do we buy the break?",
    "choices": [
-    "Yes, the setup is perfect",
-    "Yes, with half size",
-    "No, skip it; a report is within 3 days"
+    "Yes, the chart looks very clean",
+    "Yes, but with half the size",
+    "No; a report is within 3 days"
    ],
-   "answer": "No, skip it; a report is within 3 days",
+   "answer": "No; a report is within 3 days",
    "why": "No. No new buys in the 3 days before an earnings report. Hold through one only if the trade is already up 5R.",
    "lesson_line": "Three days before a report, no new buy. Check the date first.",
    "facts": [
@@ -1375,8 +1375,8 @@
     "c19"
    ],
    "wrong": {
-    "Yes, the setup is perfect": "A good chart does not move the rule. No new buys in the 3 days before a report.",
-    "Yes, with half size": "Half size does not fix it. The rule is no new buy inside the window."
+    "Yes, the chart looks very clean": "A good chart does not move the rule. No new buys in the 3 days before a report.",
+    "Yes, but with half the size": "Half size does not fix it. The rule is no new buy inside the window."
    },
    "house": true,
    "story": "The hold day just printed. The stock reports earnings in 2 sessions. Tomorrow it may trade over today's high."
@@ -1513,10 +1513,10 @@
    "choices": [
     "A few cents under the pullback low",
     "A stop order placed with the broker",
-    "The line minus a cushion, at full size",
-    "Size cut to fit a wider stop"
+    "Line minus a cushion, at full size",
+    "Size cut down to fit a wider stop"
    ],
-   "answer": "The line minus a cushion, at full size",
+   "answer": "Line minus a cushion, at full size",
    "why": "The line minus a cushion, at full size. The stop gets far wider than 3% and the size stays the same.",
    "lesson_line": "Stop under the pullback low. Not under the line minus a cushion.",
    "facts": [
@@ -1527,7 +1527,7 @@
    "wrong": {
     "A few cents under the pullback low": "That is the plan. The stop sits a few cents under the low.",
     "A stop order placed with the broker": "A real stop order with the broker is required.",
-    "Size cut to fit a wider stop": "Cutting size to keep the same account risk is the plan."
+    "Size cut down to fit a wider stop": "Cutting size to keep the same account risk is the plan."
    },
    "house": true
   },
@@ -1727,11 +1727,11 @@
    "criterion": "map.undercut",
    "q": "Pullback or Undercut and Rally?",
    "choices": [
-    "Pullback; the line held in the end",
-    "Neither; the line broke so skip",
-    "Undercut and Rally; buy the move back"
+    "Pullback; the line held by the end",
+    "Neither; the line broke, so skip it",
+    "Undercut and Rally; buy the reclaim"
    ],
-   "answer": "Undercut and Rally; buy the move back",
+   "answer": "Undercut and Rally; buy the reclaim",
    "why": "Undercut and Rally. A buy taken as price trades back above a broken line is the Undercut and Rally, not a pullback.",
    "lesson_line": "The buy names the setup. Over the hold day's high is a pullback.",
    "facts": [
@@ -1739,8 +1739,8 @@
     "c14"
    ],
    "wrong": {
-    "Pullback; the line held in the end": "A pullback buys over the hold day's high. This buy is the move back above a broken line.",
-    "Neither; the line broke so skip": "The break and reclaim is a named setup of its own, the Undercut and Rally."
+    "Pullback; the line held by the end": "A pullback buys over the hold day's high. This buy is the move back above a broken line.",
+    "Neither; the line broke, so skip it": "The break and reclaim is a named setup of its own, the Undercut and Rally."
    },
    "house": true,
    "story": "At 10 am a leader's low breaks 1% under its 50-day. By noon price is back above the line, and you buy the move back through."
@@ -2005,11 +2005,11 @@
    "criterion": "map.stop_width",
    "q": "What do we do about the 3.6% stop?",
    "choices": [
-    "Cut the size so the risk stays the same",
-    "Move the stop up to 3%",
-    "Skip it; the setup is bad"
+    "Cut the size, keep the same risk",
+    "Move the stop up to 3% to fit",
+    "Skip it; the setup looks bad to me"
    ],
-   "answer": "Cut the size so the risk stays the same",
+   "answer": "Cut the size, keep the same risk",
    "why": "Cut the size so the account risk stays the same. The stop is above our 3%, so size comes down.",
    "lesson_line": "Wide stop on a fast leader: smaller size, same risk.",
    "facts": [
@@ -2019,8 +2019,8 @@
     "hA13"
    ],
    "wrong": {
-    "Move the stop up to 3%": "Never move the stop up to make it fit.",
-    "Skip it; the setup is bad": "The setup is fine. Only the size changes."
+    "Move the stop up to 3% to fit": "Never move the stop up to make it fit.",
+    "Skip it; the setup looks bad to me": "The setup is fine. Only the size changes."
    },
    "house": true,
    "story": "YELP, 2013. A fast leader that rode its 10 EMA since February drifts four quiet days. You buy at 31.80 with the stop at 30.67."
@@ -2200,10 +2200,10 @@
    "q": "Is this a pullback to buy?",
    "choices": [
     "Yes, it is just testing the 50-day",
-    "No, that is a heavy close under the line",
-    "Yes, if it reclaims tomorrow"
+    "No, a heavy close under the line",
+    "Yes, if it reclaims it tomorrow"
    ],
-   "answer": "No, that is a heavy close under the line",
+   "answer": "No, a heavy close under the line",
    "why": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This was 4.5 times.",
    "lesson_line": "A heavy close under the line is selling. Skip it.",
    "facts": [
@@ -2212,7 +2212,7 @@
    ],
    "wrong": {
     "Yes, it is just testing the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
-    "Yes, if it reclaims tomorrow": "The card drops it before entry. Heavy selling is not a pullback."
+    "Yes, if it reclaims it tomorrow": "The card drops it before entry. Heavy selling is not a pullback."
    },
    "house": true,
    "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume."
@@ -2225,11 +2225,11 @@
    "criterion": "map.after_entry_stop",
    "q": "What do you do?",
    "choices": [
-    "Move the stop down and wait",
+    "Move the stop down and wait it out",
     "Buy again at once at the same price",
-    "Take the loss; re-enter on a new trigger"
+    "Take it; re-enter on a new trigger"
    ],
-   "answer": "Take the loss; re-enter on a new trigger",
+   "answer": "Take it; re-enter on a new trigger",
    "why": "Take the loss and buy again only on a new trigger. The rule cannot see the market: the index was topping the same week.",
    "lesson_line": "A planned loss is the system working. Re-enter only on a new trigger.",
    "facts": [
@@ -2239,7 +2239,7 @@
     "hB21"
    ],
    "wrong": {
-    "Move the stop down and wait": "The stop only moves up, never down or wider.",
+    "Move the stop down and wait it out": "The stop only moves up, never down or wider.",
     "Buy again at once at the same price": "After a stop-out, buy again only if the setup triggers again, as a new trade."
    },
    "house": true,
@@ -2309,11 +2309,11 @@
    "criterion": "map.stop_gap",
    "q": "What do you do?",
    "choices": [
-    "Wait for the bounce to the stop",
-    "Move the stop to the day's low",
-    "Get out; past 2R the plan says exit"
+    "Wait for a bounce back to the stop",
+    "Move the stop to the gap day's low",
+    "Get out; past 2R the plan exits it"
    ],
-   "answer": "Get out; past 2R the plan says exit",
+   "answer": "Get out; past 2R the plan exits it",
    "why": "Get out. After a gap against the stop, the first 30-minute low is the new stop. If the first 30 minutes take the loss past 2R, get out.",
    "lesson_line": "Gap through the stop: first 30 minutes decide, past 2R you are out.",
    "facts": [
@@ -2321,8 +2321,8 @@
     "hB20b"
    ],
    "wrong": {
-    "Wait for the bounce to the stop": "The first 30 minutes decide, and past 2R we are out.",
-    "Move the stop to the day's low": "The new stop is the first 30-minute low, and past 2R we exit."
+    "Wait for a bounce back to the stop": "The first 30 minutes decide, and past 2R we are out.",
+    "Move the stop to the gap day's low": "The new stop is the first 30-minute low, and past 2R we exit."
    },
    "house": true,
    "story": "You hold a pullback buy. It gaps down through your stop. The first 30 minutes take the loss past 2R."
@@ -2415,11 +2415,11 @@
    "criterion": "map.hold_day",
    "q": "Hidden ticker, the day before the buy trades. Is this a leader's pullback to a rising line? Take it or pass.",
    "choices": [
-    "Take it; a quiet dip held its line",
-    "Pass; the line is falling",
-    "Pass; the dip is too shallow"
+    "Take it; a calm dip held its line",
+    "Pass; the line is clearly falling",
+    "Pass; the dip is far too shallow"
    ],
-   "answer": "Take it; a quiet dip held its line",
+   "answer": "Take it; a calm dip held its line",
    "why": "Take it. A leader that had ridden its 10 EMA since February drifted four quiet days onto the line. 3R came the next day.",
    "lesson_line": "Rising line, quiet dip, a hold. That is the picture.",
    "facts": [
@@ -2429,8 +2429,8 @@
     "c09"
    ],
    "wrong": {
-    "Pass; the line is falling": "Look again: the line is rising and price has ridden it.",
-    "Pass; the dip is too shallow": "The dip was 1.42 ATR, past the 1 ATR minimum."
+    "Pass; the line is clearly falling": "Look again: the line is rising and price has ridden it.",
+    "Pass; the dip is far too shallow": "The dip was 1.42 ATR, past the 1 ATR minimum."
    },
    "house": true,
    "chart": {
@@ -2591,7 +2591,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "c20/A5 (map.one_price, settled, D-135) verbatim. Key is one entry, one price, one stop. Wrong notes true. Recall twin of the scenario q25 (kept: one recalls the rule, one applies it).",
+   "notes": "c20/A5 (map.one_price, settled, D-135) verbatim. Key is one entry, one price, one stop. Wrong notes true. Recall twin of the scenario q25 (kept: one recalls the rule, one applies it). Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2609,7 +2609,7 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "c09 (map.depth, proposed) verbatim: close at least 1 ATR under the 11-session high. Wrong notes true. 'Close 1 ATR under' reads as the minimum because the why says 'at least'.",
+   "notes": "c09 (map.depth, proposed) verbatim: close at least 1 ATR under the 11-session high. Wrong notes true. 'Close 1 ATR under' reads as the minimum because the why says 'at least'. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2675,13 +2675,13 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "c04 (map.recent_catalyst, proposed) and Bonde (found by the quote checker) agree: a breakout, gap or new up-cycle comes first. Wrong notes true.",
+   "notes": "c04 (map.recent_catalyst, proposed) and Bonde (found by the quote checker) agree: a breakout, gap or new up-cycle comes first. Wrong notes true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q21": {
    "status": "pass",
-   "notes": "c23/c24/B19 verbatim: a third at 3R, breakeven at the first trim by default (2R to 5R allowed). The owner mostly waits for 5R in practice, but the hard rule he set is a third at 3R, which is what the plan teaches.",
+   "notes": "c23/c24/B19 verbatim: a third at 3R, breakeven at the first trim by default (2R to 5R allowed). The owner mostly waits for 5R in practice, but the hard rule he set is a third at 3R, which is what the plan teaches. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2693,7 +2693,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "B22/c19 (map.earnings_window, settled) verbatim: no new buy in the 3 days before a report; a report in 2 sessions is inside. Wrong notes true.",
+   "notes": "B22/c19 (map.earnings_window, settled) verbatim: no new buy in the 3 days before a report; a report in 2 sessions is inside. Wrong notes true. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2729,7 +2729,7 @@
   },
   "q29": {
    "status": "pass",
-   "notes": "c34 (card mistake) verbatim. The mistake is the wide stop at full size, which A13 and A5 (settled) rule out whichever low D-008 picks. Choices that are fine (stop with the broker, size cut to fit) are real parts of the plan.",
+   "notes": "c34 (card mistake) verbatim. The mistake is the wide stop at full size, which A13 and A5 (settled) rule out whichever low D-008 picks. Choices that are fine (stop with the broker, size cut to fit) are real parts of the plan. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2783,7 +2783,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "l3/c14 verbatim: a buy taken as price trades back above a broken line is the Undercut and Rally costume. Rests on the card's tell; map.undercut (D-002, default: a named variant of U&R) is pending-owner. A buy at noon, before any close, is not the pullback trigger under either option. For the owner.",
+   "notes": "l3/c14 verbatim: a buy taken as price trades back above a broken line is the Undercut and Rally costume. Rests on the card's tell; map.undercut (D-002, default: a named variant of U&R) is pending-owner. A buy at noon, before any close, is not the pullback trigger under either option. For the owner. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2849,7 +2849,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "A13/c22/YELP row: buy 31.80, stop 30.67, 3.6%, widest of the ten. Story said 'the scan buys'; now 'you buy'. 'The house 3%' is now 'our 3%'.",
+   "notes": "A13/c22/YELP row: buy 31.80, stop 30.67, 3.6%, widest of the ten. Story said 'the scan buys'; now 'you buy'. 'The house 3%' is now 'our 3%'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2891,13 +2891,13 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "TSM 2025-02-05: close under the 50-day on 4.5x the 50-day volume, from the dossier's 'also found but not charted' list. c28 (proposed, 1.5x) verbatim; 4.5x is well over. Keep the TSM name for the owner to confirm.",
+   "notes": "TSM 2025-02-05: close under the 50-day on 4.5x the 50-day volume, from the dossier's 'also found but not charted' list. c28 (proposed, 1.5x) verbatim; 4.5x is well over. Keep the TSM name for the owner to confirm. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q57": {
    "status": "pass",
-   "notes": "NVDA 2024-04-03: buy 90.10, stop 87.57 (2.8%), stopped 04-04, day 1. B21/A4 verbatim. Loss framed as the plan working. Prices are split-adjusted (10-for-1, June 2024); the story now says so.",
+   "notes": "NVDA 2024-04-03: buy 90.10, stop 87.57 (2.8%), stopped 04-04, day 1. B21/A4 verbatim. Loss framed as the plan working. Prices are split-adjusted (10-for-1, June 2024); the story now says so. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2915,7 +2915,7 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "B20 and the 2R ceiling (hB20b) verbatim. Key is out past 2R. A 27-word why sentence split.",
+   "notes": "B20 and the 2R ceiling (hB20b) verbatim. Key is out past 2R. A 27-word why sentence split. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2939,7 +2939,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "Chart YELP asof 2013-06-25 (the hold day, the session before the 2013-06-26 trigger); ticker not in the question. YELP row: 4 days, 1.42 ATR, 0.60x. Earnings 08-01, after 5R. The 'dip too shallow' wrong note uses 1.42 ATR from the dossier.",
+   "notes": "Chart YELP asof 2013-06-25 (the hold day, the session before the 2013-06-26 trigger); ticker not in the question. YELP row: 4 days, 1.42 ATR, 0.60x. Earnings 08-01, after 5R. The 'dip too shallow' wrong note uses 1.42 ATR from the dossier. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

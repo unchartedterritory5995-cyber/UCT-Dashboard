@@ -2451,7 +2451,7 @@
  },
  {
   "answer_json": {
-   "answer": "Wait for a pullback and a higher low"
+   "answer": "Wait for a pullback, higher low"
   },
   "difficulty": 2,
   "id": "si_41fc40743c8f",
@@ -2460,9 +2460,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy now with the stop at $37",
+    "Buy now with the old stop at $37",
     "Buy now with a stop at $43",
-    "Wait for a pullback and a higher low",
+    "Wait for a pullback, higher low",
     "Buy double size to catch up"
    ],
    "kind": "mcq",
@@ -2512,7 +2512,7 @@
     "summary": "Rhodes' rule: if you miss a trade, wait for a pullback before putting it on. The fear of missing makes you chase instead of buying pullbacks. After missing a fast move, regret pulls traders into it late. That late entry breaks discipline and often buys near a peak. The further past the buy point you buy, the greater the risk of getting shaken out."
    },
    "facts": {
-    "given": "What do you do? You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it. Wait for a pullback and a higher low Buy now with the stop at $37 Buy now with a stop at $43 Buy double size to catch up"
+    "given": "What do you do? You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it. Wait for a pullback, higher low Buy now with the old stop at $37 Buy now with a stop at $43 Buy double size to catch up"
    },
    "lesson_line": "Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
    "unit": "F8.02",
@@ -2520,7 +2520,7 @@
    "wrong": {
     "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger.",
     "Buy now with a stop at $43": "That stop is picked to make the chase fit, not set where the idea is wrong. Chasers get whipsawed and stopped out a lot.",
-    "Buy now with the stop at $37": "That's the old stop with a much higher entry. Your risk per share more than doubles."
+    "Buy now with the old stop at $37": "That's the old stop with a much higher entry. Your risk per share more than doubles."
    }
   },
   "review_status": "draft",
@@ -2605,7 +2605,7 @@
  },
  {
   "answer_json": {
-   "answer": "Wait for the opening range to form"
+   "answer": "Wait for the opening range to set"
   },
   "difficulty": 3,
   "id": "si_647bdce27309",
@@ -2614,9 +2614,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Short it, the gap is too big",
-    "Buy at market before it runs",
-    "Wait for the opening range to form",
+    "Short it, the gap is far too big",
+    "Buy at market before it runs away",
+    "Wait for the opening range to set",
     "Buy now, set a stop later"
    ],
    "kind": "mcq",
@@ -2659,15 +2659,15 @@
     "summary": "ChartSchool's gap rule: give the open an hour to set its range before trading the gap. Traders let the open run anywhere from minutes to an hour before acting on its range. On an opening-range break, the stop can go under the opening range low. Never let pressure rush you into buying."
    },
    "facts": {
-    "given": "What's the disciplined move? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Wait for the opening range to form Buy at market before it runs Buy now, set a stop later Short it, the gap is too big"
+    "given": "What's the disciplined move? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Wait for the opening range to set Buy at market before it runs away Buy now, set a stop later Short it, the gap is far too big"
    },
    "lesson_line": "No plan, no trade. Let the range form, then buy the break with a stop under it.",
    "unit": "F8.02",
    "why": "Wait for the opening range to form. ChartSchool's gap rule gives the open an hour to set its range, and some traders watch only a few minutes. Then you have a level to buy over and a low for the stop.",
    "wrong": {
-    "Buy at market before it runs": "That's buying on urgency with no stop. The SEC's line: never feel pressured to invest right away.",
+    "Buy at market before it runs away": "That's buying on urgency with no stop. The SEC's line: never feel pressured to invest right away.",
     "Buy now, set a stop later": "Without a stop you don't know your risk, so you can't size the trade.",
-    "Short it, the gap is too big": "A big gap is no reason to fight it. With no plan, the answer is to wait, not to flip sides."
+    "Short it, the gap is far too big": "A big gap is no reason to fight it. With no plan, the answer is to wait, not to flip sides."
    }
   },
   "review_status": "draft",
@@ -3127,7 +3127,7 @@
  },
  {
   "answer_json": {
-   "answer": "Step back; no trade until you're calm"
+   "answer": "Step back; no trade until calm"
   },
   "difficulty": 3,
   "id": "si_bc4a959ff0a9",
@@ -3136,10 +3136,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Take it, but with double size",
-    "Step back; no trade until you're calm",
-    "Take it, this one will make it back",
-    "Take it with a very tight stop"
+    "Go in with double the size",
+    "Step back; no trade until calm",
+    "Buy, this one will make it back",
+    "Enter, but with a very tight stop"
    ],
    "kind": "mcq",
    "q": "What do you do right now?",
@@ -3181,15 +3181,15 @@
     "summary": "When emotions run high, step back before acting. When emotions are driving, slow down or take a break. Rhodes' rule: don't give in to the urge to win back losses. Steenbarger: traders who chase a trend out of FOMO often get whipsawed and stopped out."
    },
    "facts": {
-    "given": "What do you do right now? You've chased three moves this week and been stopped out of all three. Another stock is ripping, and you feel the pull again. Step back; no trade until you're calm Take it, this one will make it back Take it, but with double size Take it with a very tight stop"
+    "given": "What do you do right now? You've chased three moves this week and been stopped out of all three. Another stock is ripping, and you feel the pull again. Step back; no trade until calm Buy, this one will make it back Go in with double the size Enter, but with a very tight stop"
    },
    "lesson_line": "When you feel the pull this hard, step away from the screen.",
    "unit": "F8.02",
    "why": "Step back. ChartSchool's advice: when emotions run high, take a breather and step back. Schwab: if you can't separate emotions from decisions, slow down or take a break.",
    "wrong": {
-    "Take it with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often.",
-    "Take it, but with double size": "Doubling size on a FOMO trade doubles the damage if it's another chase.",
-    "Take it, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge."
+    "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
+    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often.",
+    "Go in with double the size": "Doubling size on a FOMO trade doubles the damage if it's another chase."
    }
   },
   "review_status": "draft",
@@ -3459,9 +3459,9 @@
   "prompt_json": {
    "choices": [
     "Cutting losses fast with a stop",
-    "Avoiding risk of any kind",
+    "Avoiding every risk you see",
     "Losses weigh more than equal gains",
-    "Fear of missing a big move"
+    "Fear of missing out on a big move"
    ],
    "kind": "mcq",
    "q": "What does loss aversion mean?",
@@ -3509,15 +3509,15 @@
     "summary": "Most people dislike a loss more than they like a gain of the same size. Investors put more weight on avoiding losses than on achieving gains. Loss aversion is a bias where the fear of losing outweighs the satisfaction of an equal gain. Risk aversion can be rational; loss aversion is the lopsided part, where losses loom larger than equal gains. Loss aversion makes people reluctant to take a loss; a loss's jolt is about twice a gain's joy."
    },
    "facts": {
-    "given": "What does loss aversion mean? Losses weigh more than equal gains Avoiding risk of any kind Fear of missing a big move Cutting losses fast with a stop"
+    "given": "What does loss aversion mean? Losses weigh more than equal gains Avoiding every risk you see Fear of missing out on a big move Cutting losses fast with a stop"
    },
    "lesson_line": "Your gut weighs losses heavier than gains. Let the plan do the weighing.",
    "unit": "F8.03",
    "why": "Losses weigh more than equal gains. Kahneman's prize-winning research found most people mind a loss more than they like a gain of the same size.",
    "wrong": {
-    "Avoiding risk of any kind": "That's closer to risk aversion, which can be rational. Loss aversion is the lopsided part: losses loom larger than equal gains.",
+    "Avoiding every risk you see": "That's closer to risk aversion, which can be rational. Loss aversion is the lopsided part: losses loom larger than equal gains.",
     "Cutting losses fast with a stop": "That's a discipline, not a bias. Loss aversion pulls the other way. It makes you reluctant to take the loss at all.",
-    "Fear of missing a big move": "That's FOMO, the fear of missing out. Loss aversion is about the pain of losing."
+    "Fear of missing out on a big move": "That's FOMO, the fear of missing out. Loss aversion is about the pain of losing."
    }
   },
   "review_status": "draft",
@@ -3593,7 +3593,7 @@
     "Trading more after a winning streak",
     "Selling winners early, holding losers",
     "Buying a stock after a big run",
-    "Holding winners, cutting losers fast"
+    "Holding winners, cutting losers quickly"
    ],
    "kind": "mcq",
    "q": "What is the disposition effect?",
@@ -3641,14 +3641,14 @@
     "summary": "Selling winners and holding losers, the disposition effect, is one of the habits that damage investors' portfolios. The disposition effect is holding losers too long and selling winners too soon; Odean tested it on 10,000 brokerage accounts. Loss aversion is used to help explain the disposition effect: holding losers and selling winners. Shefrin and Statman named the disposition effect in 1985. Cutting losses fast and letting winners ride goes against instinct, and may be a big factor in returns."
    },
    "facts": {
-    "given": "What is the disposition effect? Selling winners early, holding losers Holding winners, cutting losers fast Buying a stock after a big run Trading more after a winning streak"
+    "given": "What is the disposition effect? Selling winners early, holding losers Holding winners, cutting losers quickly Buying a stock after a big run Trading more after a winning streak"
    },
    "lesson_line": "Winners sold too soon, losers held too long. That's the disposition effect.",
    "unit": "F8.03",
    "why": "Selling winners early and holding losers. A research review done for the SEC lists it among the habits that damage investors' portfolios.",
    "wrong": {
     "Buying a stock after a big run": "That's chasing, driven by fear of missing out. The disposition effect is about when you sell.",
-    "Holding winners, cutting losers fast": "That's the opposite, and it's what you want. It runs against instinct, which is why it takes work.",
+    "Holding winners, cutting losers quickly": "That's the opposite, and it's what you want. It runs against instinct, which is why it takes work.",
     "Trading more after a winning streak": "That's overconfidence. The disposition effect is selling winners and keeping losers."
    }
   },
@@ -3729,9 +3729,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Size up after a big win",
-    "Add as the stock climbs",
-    "Buy more than you planned",
+    "Size up after a big winning day",
+    "Add more as the stock climbs",
+    "Buy more than you planned to",
     "Skip a trade your plan allows"
    ],
    "kind": "mcq",
@@ -3773,15 +3773,15 @@
     "summary": "Fear pushes your risk tolerance below your own normal level. Loss aversion can make you skip a risk that makes sense, giving up the gain. Fear of loss leads investors to hold losers too long and sell winners too quickly. Anger pushes risk tolerance up."
    },
    "facts": {
-    "given": "Your setup triggers and you're scared of losing money. Which way does that fear push you? Skip a trade your plan allows Buy more than you planned Add as the stock climbs Size up after a big win"
+    "given": "Your setup triggers and you're scared of losing money. Which way does that fear push you? Skip a trade your plan allows Buy more than you planned to Add more as the stock climbs Size up after a big winning day"
    },
    "lesson_line": "Fear pulls you toward less risk than your plan calls for.",
    "unit": "F8.03",
    "why": "Skip a trade your plan allows. Fear pushes your risk tolerance below your own baseline, so you pass on risk that makes sense.",
    "wrong": {
-    "Add as the stock climbs": "Adding is taking on more risk. Fear pulls the other way.",
-    "Buy more than you planned": "That's more risk, not less. Anger raises risk tolerance. Fear lowers it.",
-    "Size up after a big win": "That's overconfidence after a win. Fear pushes toward less risk, not more."
+    "Add more as the stock climbs": "Adding is taking on more risk. Fear pulls the other way.",
+    "Buy more than you planned to": "That's more risk, not less. Anger raises risk tolerance. Fear lowers it.",
+    "Size up after a big winning day": "That's overconfidence after a win. Fear pushes toward less risk, not more."
    }
   },
   "review_status": "draft",
@@ -3983,10 +3983,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A real reason to wait",
-    "Cutting a winner early",
+    "A real reason to wait for proof",
+    "Cutting a winner too soon",
     "Hesitating, then buying late",
-    "Sticking to the plan"
+    "Sticking to the plan as written"
    ],
    "kind": "mcq",
    "q": "What happened there?",
@@ -4021,15 +4021,15 @@
     "summary": "People lean toward the sure thing because they dislike uncertainty. Fear of regret can stop you acting, or push you to act. Fear pushes your risk tolerance below your own normal level."
    },
    "facts": {
-    "given": "What happened there? Your plan says buy at $50, stop at $49. It trades $50.05 and you wait to see if it holds. You finally buy at $51.50. Hesitating, then buying late Cutting a winner early A real reason to wait Sticking to the plan"
+    "given": "What happened there? Your plan says buy at $50, stop at $49. It trades $50.05 and you wait to see if it holds. You finally buy at $51.50. Hesitating, then buying late Cutting a winner too soon A real reason to wait for proof Sticking to the plan as written"
    },
    "lesson_line": "Waiting for it to feel safe turns a $50 plan into a $51.50 entry.",
    "unit": "F8.03",
    "why": "Hesitating, then buying late. You wanted proof before acting. Your stop is still $49, so each share now risks more than you planned.",
    "wrong": {
-    "A real reason to wait": "Waiting for it to hold wasn't a rule. It was wanting a sure thing.",
-    "Cutting a winner early": "You weren't in yet. This happened at the entry.",
-    "Sticking to the plan": "The plan said $50. You paid $51.50 with the same $49 stop."
+    "A real reason to wait for proof": "Waiting for it to hold wasn't a rule. It was wanting a sure thing.",
+    "Cutting a winner too soon": "You weren't in yet. This happened at the entry.",
+    "Sticking to the plan as written": "The plan said $50. You paid $51.50 with the same $49 stop."
    }
   },
   "review_status": "draft",
@@ -4839,19 +4839,19 @@
  },
  {
   "answer_json": {
-   "answer": "Take it, at a size you can sit through"
+   "answer": "Take it, at a size you can sit with"
   },
   "difficulty": 3,
   "id": "si_aaad80e13bf4",
   "lesson_origin": "session",
-  "lesson_text": "Take it, at a size you can sit through. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules. After a losing streak, shrink the size, not the discipline.",
+  "lesson_text": "Take it, at a size you can sit with. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules. After a losing streak, shrink the size, not the discipline.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "Skip it, you can't take another loss",
     "Skip it, the setup must be broken",
-    "Double up to win it back",
-    "Take it, at a size you can sit through"
+    "Double up to win back the losses",
+    "Take it, at a size you can sit with"
    ],
    "kind": "mcq",
    "q": "What's the best move?",
@@ -4907,13 +4907,13 @@
     "summary": "Losing streaks are inevitable; a trader with a sound plan keeps following it through them. Starting with smaller stakes lowers the fear of losing and helps counteract loss aversion. An oversized position makes fear intense, so every pullback feels like a disaster. Good and bad stretches in trading results are normal. Outcome bias is judging a decision by its result instead of its reasoning. Anger pushes risk tolerance up."
    },
    "facts": {
-    "given": "What's the best move? You've had four losers in a row, each taken by your rules. Today a setup triggers that passes every rule, market check included. Your stomach drops. Take it, at a size you can sit through Skip it, you can't take another loss Skip it, the setup must be broken Double up to win it back"
+    "given": "What's the best move? You've had four losers in a row, each taken by your rules. Today a setup triggers that passes every rule, market check included. Your stomach drops. Take it, at a size you can sit with Skip it, you can't take another loss Skip it, the setup must be broken Double up to win back the losses"
    },
    "lesson_line": "After a losing streak, shrink the size, not the discipline.",
    "unit": "F8.03",
-   "why": "Take it, at a size you can sit through. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules.",
+   "why": "Take it, at a size you can sit with. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules.",
    "wrong": {
-    "Double up to win it back": "That's revenge. Anger pushes risk up just when you need it steady.",
+    "Double up to win back the losses": "That's revenge. Anger pushes risk up just when you need it steady.",
     "Skip it, the setup must be broken": "Four losses alone don't prove a setup is broken. Judging it by recent results is outcome bias.",
     "Skip it, you can't take another loss": "That's the freeze talking. The rules say go, and the fear comes from the last four trades, not this one."
    }
@@ -5191,7 +5191,7 @@
  },
  {
   "answer_json": {
-   "answer": "Emotion is making your trade calls"
+   "answer": "You're letting emotion make calls"
   },
   "difficulty": 1,
   "id": "si_1db798d957a1",
@@ -5201,9 +5201,9 @@
   "prompt_json": {
    "choices": [
     "You're trading bigger than usual",
-    "You're in a losing streak",
+    "You're in a long losing streak",
     "You've hit your daily loss limit",
-    "Emotion is making your trade calls"
+    "You're letting emotion make calls"
    ],
    "kind": "mcq",
    "q": "What does it mean to be on tilt?",
@@ -5244,13 +5244,13 @@
     "summary": "Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler: tilt is a problem with anger while you perform. Strong emotions such as anger are a key reason people make irrational choices. In fast trading it is hard to keep emotions out of decisions, and that can lead to costly mistakes."
    },
    "facts": {
-    "given": "What does it mean to be on tilt? Emotion is making your trade calls You're in a losing streak You've hit your daily loss limit You're trading bigger than usual"
+    "given": "What does it mean to be on tilt? You're letting emotion make calls You're in a long losing streak You've hit your daily loss limit You're trading bigger than usual"
    },
    "lesson_line": "Tilt isn't the loss. It's what the loss does to your next decision.",
    "unit": "F8.04",
    "why": "Emotion is making your trade calls. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger in performance.",
    "wrong": {
-    "You're in a losing streak": "A streak can set tilt off, but streaks happen to good traders too. Tilt is the emotion taking over afterward.",
+    "You're in a long losing streak": "A streak can set tilt off, but streaks happen to good traders too. Tilt is the emotion taking over afterward.",
     "You're trading bigger than usual": "That's a symptom tilt can cause. Tilt is the emotion behind it.",
     "You've hit your daily loss limit": "That's the rule that stops tilt from costing more. It isn't tilt itself."
    }
@@ -5341,7 +5341,7 @@
    "choices": [
     "Scaling in",
     "Revenge trading",
-    "Averaging down",
+    "Averaging down a loser",
     "Hedging"
    ],
    "kind": "mcq",
@@ -5383,13 +5383,13 @@
     "summary": "Revenge trading usually means raising both the size and the number of trades to win losses back. The revenge mindset: refuse to accept the loss and try to make it all back. Revenge trading is acting for a quick gain instead of reflecting on the loss. Tendler's poker book named seven kinds of tilt, including injustice tilt and revenge tilt."
    },
    "facts": {
-    "given": "You take a loss, then jump right back in with bigger size to make it back today. What's that called? Revenge trading Averaging down Scaling in Hedging"
+    "given": "You take a loss, then jump right back in with bigger size to make it back today. What's that called? Revenge trading Averaging down a loser Scaling in Hedging"
    },
    "lesson_line": "The trade right after a loss gets the same rules as every other trade.",
    "unit": "F8.04",
    "why": "Revenge trading. After losses, traders often try to make it back by raising the size and frequency of their trades. Tendler lists revenge as one of his kinds of tilt.",
    "wrong": {
-    "Averaging down": "That's adding to the same losing position. Revenge is a fresh trade, sized up, to win the loss back.",
+    "Averaging down a loser": "That's adding to the same losing position. Revenge is a fresh trade, sized up, to win the loss back.",
     "Hedging": "A hedge offsets risk you already hold. Revenge adds risk.",
     "Scaling in": "That's building a position in planned pieces. Nothing about it is a reaction to a loss."
    }
@@ -5677,8 +5677,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Spotting a hot stock early",
-    "A normal momentum entry",
+    "Spotting a hot stock early on",
+    "A normal momentum entry today",
     "A revenge pick outside your lane",
     "Smart rotation into strength"
    ],
@@ -5729,15 +5729,15 @@
     "summary": "Revenge trading is acting for a quick gain instead of reflecting on the loss. Revenge picks are often stocks you haven't studied, and the second loss can be bigger than the first. The revenge mindset: refuse to accept the loss and try to make it all back. Break-even effect: after losses, a chance to get back to even looks especially attractive. Feeling you must buy right now is a warning sign, not a reason."
    },
    "facts": {
-    "given": "What's really going on? Two losses this morning. You trade liquid growth leaders. A $3 stock you've never traded is up 30%, and one good pop would get you even. A revenge pick outside your lane Smart rotation into strength A normal momentum entry Spotting a hot stock early"
+    "given": "What's really going on? Two losses this morning. You trade liquid growth leaders. A $3 stock you've never traded is up 30%, and one good pop would get you even. A revenge pick outside your lane Smart rotation into strength A normal momentum entry today Spotting a hot stock early on"
    },
    "lesson_line": "If it wasn't on your list before the open, it isn't a trade after two losses.",
    "unit": "F8.04",
    "why": "A revenge pick. It's outside what you know, picked for a quick win after losses. CIBC warns this can easily backfire, and the second loss can be bigger than the first.",
    "wrong": {
-    "A normal momentum entry": "A momentum entry comes from your setup and your list. The only reason here is getting even.",
+    "A normal momentum entry today": "A momentum entry comes from your setup and your list. The only reason here is getting even.",
     "Smart rotation into strength": "Rotation is a planned shift. This is a stock you'd never touch, picked because you're down.",
-    "Spotting a hot stock early": "It may well be hot, but you've never traded it, and the reason you're looking is the loss."
+    "Spotting a hot stock early on": "It may well be hot, but you've never traded it, and the reason you're looking is the loss."
    }
   },
   "review_status": "draft",
@@ -5892,7 +5892,7 @@
  },
  {
   "answer_json": {
-   "answer": "Not by itself; watch your next move"
+   "answer": "Not alone; watch your next move"
   },
   "difficulty": 2,
   "id": "si_f8eeffb499e4",
@@ -5903,7 +5903,7 @@
    "choices": [
     "Yes, three losses in a row is tilt",
     "Yes, so stop trading for the week",
-    "Not by itself; watch your next move",
+    "Not alone; watch your next move",
     "No, only a big loss causes tilt"
    ],
    "kind": "mcq",
@@ -5939,7 +5939,7 @@
     "summary": "Losing streaks happen to good traders; sometimes a streak also points to a flaw worth checking. The damage comes from your reaction to losing, more than from the loss itself. Researchers define tilt as out-of-control decisions driven by negative emotions."
    },
    "facts": {
-    "given": "Does that mean you're on tilt? Three trades today, three stops. Each one followed your plan. Not by itself; watch your next move Yes, three losses in a row is tilt No, only a big loss causes tilt Yes, so stop trading for the week"
+    "given": "Does that mean you're on tilt? Three trades today, three stops. Each one followed your plan. Not alone; watch your next move Yes, three losses in a row is tilt No, only a big loss causes tilt Yes, so stop trading for the week"
    },
    "lesson_line": "Losses aren't tilt. What you do after them can be.",
    "unit": "F8.04",
@@ -6018,7 +6018,7 @@
  },
  {
   "answer_json": {
-   "answer": "Overtrading to win back the loss"
+   "answer": "Overtrading to win it all back"
   },
   "difficulty": 2,
   "id": "si_1382a74679ba",
@@ -6027,10 +6027,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Overtrading to win back the loss",
+    "Overtrading to win it all back",
     "Normal action on a busy day",
     "Scalping, a valid fast style",
-    "Testing new setups live"
+    "Testing new setups live today"
    ],
    "kind": "mcq",
    "q": "What's going on?",
@@ -6072,7 +6072,7 @@
     "summary": "Overtrading usually follows a big loss or a run of smaller ones. Revenge trading usually means raising both the size and the number of trades to win losses back. A burst of positions with no plan behind any of them is a telltale sign of overtrading. Tendler: anger makes overly aggressive moves, like jumping back in after a second stop-out, feel justified."
    },
    "facts": {
-    "given": "What's going on? You get stopped out at 10 a.m. By 10:40 you've made six more trades. None of them were on your watchlist. Overtrading to win back the loss Scalping, a valid fast style Normal action on a busy day Testing new setups live"
+    "given": "What's going on? You get stopped out at 10 a.m. By 10:40 you've made six more trades. None of them were on your watchlist. Overtrading to win it all back Scalping, a valid fast style Normal action on a busy day Testing new setups live today"
    },
    "lesson_line": "Count your trades after a loss. A sudden burst is the tell.",
    "unit": "F8.04",
@@ -6080,7 +6080,7 @@
    "wrong": {
     "Normal action on a busy day": "A busy market doesn't put stocks on your list. These trades came from the loss.",
     "Scalping, a valid fast style": "Scalping is planned in advance. Six unplanned trades right after a stop-out is a reaction.",
-    "Testing new setups live": "A real test is planned, small and on purpose. This burst came straight out of a loss."
+    "Testing new setups live today": "A real test is planned, small and on purpose. This burst came straight out of a loss."
    }
   },
   "review_status": "draft",
@@ -6356,7 +6356,7 @@
  },
  {
   "answer_json": {
-   "answer": "Pause anyway, the urge is the warning"
+   "answer": "Pause anyway; the urge warns you"
   },
   "difficulty": 3,
   "id": "si_ceccb6da113c",
@@ -6365,10 +6365,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Pause anyway, the urge is the warning",
-    "Double size on the next setup",
-    "Buy it back to get even",
-    "Keep going, the limit decides"
+    "Pause anyway; the urge warns you",
+    "Double size on the next good setup",
+    "Buy it back now to get even",
+    "Keep going, since the limit decides"
    ],
    "kind": "mcq",
    "q": "Your loss limit hasn't tripped. What now?",
@@ -6410,15 +6410,15 @@
     "summary": "Example rules: done for the day at a set loss, and a 15-minute break when you feel the urge to break a rule. Then came a sense of unfairness, and players chased their losses to even the score. Catch the emotion early, while you can still control it. When emotions are steering your trades, slow down or take a break."
    },
    "facts": {
-    "given": "Your loss limit hasn't tripped. What now? You followed your plan, but a surprise downgrade gapped your stock through the stop. You're well inside your daily loss limit. You want to buy something, now. Pause anyway, the urge is the warning Keep going, the limit decides Buy it back to get even Double size on the next setup"
+    "given": "Your loss limit hasn't tripped. What now? You followed your plan, but a surprise downgrade gapped your stock through the stop. You're well inside your daily loss limit. You want to buy something, now. Pause anyway; the urge warns you Keep going, since the limit decides Buy it back now to get even Double size on the next good setup"
    },
    "lesson_line": "Under the limit doesn't mean in control. The urge is your cue to pause.",
    "unit": "F8.04",
    "why": "Pause anyway. Schwab's example rule: take 15 minutes when you feel an urge to break a trading rule. In a study of poker players, that 'not fair' feeling after a loss was followed by chasing.",
    "wrong": {
-    "Buy it back to get even": "That's buying to get even, not buying a setup.",
-    "Double size on the next setup": "That's revenge sizing. If it fails, the loss is twice the size.",
-    "Keep going, the limit decides": "The limit stops a bad day from getting worse. The urge is the earlier warning, and Tendler says to catch emotion early."
+    "Buy it back now to get even": "That's buying to get even, not buying a setup.",
+    "Double size on the next good setup": "That's revenge sizing. If it fails, the loss is twice the size.",
+    "Keep going, since the limit decides": "The limit stops a bad day from getting worse. The urge is the earlier warning, and Tendler says to catch emotion early."
    }
   },
   "review_status": "draft",
@@ -6588,7 +6588,7 @@
  },
  {
   "answer_json": {
-   "answer": "As your execution keeps holding up"
+   "answer": "While your execution holds up"
   },
   "difficulty": 3,
   "id": "si_e4ebcc9949bd",
@@ -6598,7 +6598,7 @@
   "prompt_json": {
    "choices": [
     "After your next big winner",
-    "As your execution keeps holding up",
+    "While your execution holds up",
     "Never, staying small is safer",
     "Right away, to win back the 4%"
    ],
@@ -6642,7 +6642,7 @@
     "summary": "Come back smaller, and add size back as you show you are executing your system again. After a string of losses, trade smaller while you review, and size back up once results recover. Raise size only while execution holds, and settle in before the next step up. Short-term P&L is not a reliable measure of how well you are trading."
    },
    "facts": {
-    "given": "When does your size go back to normal? A tilt day cost you 4% last week. Since then you've cut your size and taken eight trades, all by your plan. As your execution keeps holding up Right away, to win back the 4% After your next big winner Never, staying small is safer"
+    "given": "When does your size go back to normal? A tilt day cost you 4% last week. Since then you've cut your size and taken eight trades, all by your plan. While your execution holds up Right away, to win back the 4% After your next big winner Never, staying small is safer"
    },
    "lesson_line": "Earn your size back with execution, one step at a time.",
    "unit": "F8.04",

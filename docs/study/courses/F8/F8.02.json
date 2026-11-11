@@ -982,12 +982,12 @@
    "story": "You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it.",
    "q": "What do you do?",
    "choices": [
-    "Wait for a pullback and a higher low",
-    "Buy now with the stop at $37",
+    "Wait for a pullback, higher low",
+    "Buy now with the old stop at $37",
     "Buy now with a stop at $43",
     "Buy double size to catch up"
    ],
-   "answer": "Wait for a pullback and a higher low",
+   "answer": "Wait for a pullback, higher low",
    "why": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. Buying now out of regret is how late entries get caught near a peak.",
    "lesson_line": "Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
    "facts": [
@@ -998,7 +998,7 @@
     "f48"
    ],
    "wrong": {
-    "Buy now with the stop at $37": "That's the old stop with a much higher entry. Your risk per share more than doubles.",
+    "Buy now with the old stop at $37": "That's the old stop with a much higher entry. Your risk per share more than doubles.",
     "Buy now with a stop at $43": "That stop is picked to make the chase fit, not set where the idea is wrong. Chasers get whipsawed and stopped out a lot.",
     "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger."
    },
@@ -1038,12 +1038,12 @@
    "story": "A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned.",
    "q": "What's the disciplined move?",
    "choices": [
-    "Wait for the opening range to form",
-    "Buy at market before it runs",
+    "Wait for the opening range to set",
+    "Buy at market before it runs away",
     "Buy now, set a stop later",
-    "Short it, the gap is too big"
+    "Short it, the gap is far too big"
    ],
-   "answer": "Wait for the opening range to form",
+   "answer": "Wait for the opening range to set",
    "why": "Wait for the opening range to form. ChartSchool's gap rule gives the open an hour to set its range, and some traders watch only a few minutes. Then you have a level to buy over and a low for the stop.",
    "lesson_line": "No plan, no trade. Let the range form, then buy the break with a stop under it.",
    "facts": [
@@ -1053,9 +1053,9 @@
     "f06"
    ],
    "wrong": {
-    "Buy at market before it runs": "That's buying on urgency with no stop. The SEC's line: never feel pressured to invest right away.",
+    "Buy at market before it runs away": "That's buying on urgency with no stop. The SEC's line: never feel pressured to invest right away.",
     "Buy now, set a stop later": "Without a stop you don't know your risk, so you can't size the trade.",
-    "Short it, the gap is too big": "A big gap is no reason to fight it. With no plan, the answer is to wait, not to flip sides."
+    "Short it, the gap is far too big": "A big gap is no reason to fight it. With no plan, the answer is to wait, not to flip sides."
    },
    "skill": "psych.fomo"
   },
@@ -1218,12 +1218,12 @@
    "story": "You've chased three moves this week and been stopped out of all three. Another stock is ripping, and you feel the pull again.",
    "q": "What do you do right now?",
    "choices": [
-    "Step back; no trade until you're calm",
-    "Take it, this one will make it back",
-    "Take it, but with double size",
-    "Take it with a very tight stop"
+    "Step back; no trade until calm",
+    "Buy, this one will make it back",
+    "Go in with double the size",
+    "Enter, but with a very tight stop"
    ],
-   "answer": "Step back; no trade until you're calm",
+   "answer": "Step back; no trade until calm",
    "why": "Step back. ChartSchool's advice: when emotions run high, take a breather and step back. Schwab: if you can't separate emotions from decisions, slow down or take a break.",
    "lesson_line": "When you feel the pull this hard, step away from the screen.",
    "facts": [
@@ -1233,9 +1233,9 @@
     "f59"
    ],
    "wrong": {
-    "Take it, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
-    "Take it, but with double size": "Doubling size on a FOMO trade doubles the damage if it's another chase.",
-    "Take it with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often."
+    "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
+    "Go in with double the size": "Doubling size on a FOMO trade doubles the damage if it's another chase.",
+    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often."
    },
    "skill": "psych.fomo"
   },
@@ -1373,7 +1373,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "f37 (Rhodes: if a trade is missed, wait for a correction), f57 (Steenbarger), f48 (IBD) confirmed live; f19/f20 (Investopedia, archive 2025-12-09). Recomputed the wrong note: plan risk $3, chase risk $7, so it more than doubles. Every wrong choice is a named mistake. Track audit 2026-11-09: kept over F8.03 q16 (froze, then the stock ran; same Rhodes line), which is cut as its duplicate. f19/f20 re-read on the CURRENT Investopedia page (updated 2026-07-19) with the quote checker's own client: found.",
+   "notes": "f37 (Rhodes: if a trade is missed, wait for a correction), f57 (Steenbarger), f48 (IBD) confirmed live; f19/f20 (Investopedia, archive 2025-12-09). Recomputed the wrong note: plan risk $3, chase risk $7, so it more than doubles. Every wrong choice is a named mistake. Track audit 2026-11-09: kept over F8.03 q16 (froze, then the stock ran; same Rhodes line), which is cut as its duplicate. f19/f20 re-read on the CURRENT Investopedia page (updated 2026-07-19) with the quote checker's own client: found. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1385,7 +1385,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "f43 (ChartSchool gap rule: allow one hour), f26 and f25 (Investopedia opening range, live) and f06 (SEC) confirmed. Key 'wait for the opening range' needs no fixed length. Changed: the why no longer names 'our Kicker' (untaught house name); it now says some traders watch only a few minutes (f26).",
+   "notes": "f43 (ChartSchool gap rule: allow one hour), f26 and f25 (Investopedia opening range, live) and f06 (SEC) confirmed. Key 'wait for the opening range' needs no fixed length. Changed: the why no longer names 'our Kicker' (untaught house name); it now says some traders watch only a few minutes (f26). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1427,7 +1427,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "f45 confirmed live, but in context it is ChartSchool's own 'Translation' under Farrell's rules, not Farrell's words: the why now credits ChartSchool. f32 (Schwab), f39 (Rhodes), f59 (Steenbarger) confirmed. Changed the tight-stop note from 'mostly gets whipsawed' to 'often', matching Steenbarger's 'frequently'.",
+   "notes": "f45 confirmed live, but in context it is ChartSchool's own 'Translation' under Farrell's rules, not Farrell's words: the why now credits ChartSchool. f32 (Schwab), f39 (Rhodes), f59 (Steenbarger) confirmed. Changed the tight-stop note from 'mostly gets whipsawed' to 'often', matching Steenbarger's 'frequently'. Three wrong choices all opened with Take it and the right one did not; varied the openers. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

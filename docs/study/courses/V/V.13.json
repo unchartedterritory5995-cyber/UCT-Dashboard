@@ -1139,7 +1139,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Trading plan",
-   "q": "What is a trading plan?",
+   "q": "A trading plan is best described as which of these?",
    "choices": [
     "Your rules for when to buy and sell",
     "A list of stocks you might trade",
@@ -1282,14 +1282,14 @@
    "rung": 1,
    "format": "mcq",
    "term": "Watchlist",
-   "q": "What is a watchlist?",
+   "q": "Which description fits a watchlist?",
    "choices": [
-    "Stocks you're tracking to maybe trade",
-    "Stocks you already own",
-    "Today's biggest gainers",
+    "Stocks you're tracking to trade",
+    "Stocks you already own right now",
+    "Today's biggest gainers by percent",
     "Your rules for buying a stock"
    ],
-   "answer": "Stocks you're tracking to maybe trade",
+   "answer": "Stocks you're tracking to trade",
    "why": "Stocks you're tracking to maybe trade. Schwab: a list of securities you're interested in trading because they meet certain criteria.",
    "lesson_line": "Your list comes from your criteria, not from whatever is moving today.",
    "facts": [
@@ -1297,8 +1297,8 @@
     "f28"
    ],
    "wrong": {
-    "Stocks you already own": "Those are your positions. A watchlist is names you're waiting on.",
-    "Today's biggest gainers": "That's a movers list. A watchlist is built from your own criteria.",
+    "Stocks you already own right now": "Those are your positions. A watchlist is names you're waiting on.",
+    "Today's biggest gainers by percent": "That's a movers list. A watchlist is built from your own criteria.",
     "Your rules for buying a stock": "Those are entry rules. They say when to buy a name on the list."
    }
   },
@@ -1433,12 +1433,12 @@
    "rung": 1,
    "format": "mcq",
    "term": "Trading journal",
-   "q": "What is a trading journal?",
+   "q": "How would you describe a trading journal?",
    "choices": [
     "Your own record and notes on each trade",
-    "Your broker's monthly statement",
+    "Your broker's monthly account statement",
     "A list of stocks you plan to buy",
-    "Your written rules for entries"
+    "Your written rules for trade entries"
    ],
    "answer": "Your own record and notes on each trade",
    "why": "Your own record and notes on each trade. Schwab says disciplined traders plan every trade and keep notes in a spreadsheet or trading journal, then review it.",
@@ -1449,9 +1449,9 @@
     "f63"
    ],
    "wrong": {
-    "Your broker's monthly statement": "A statement shows fills and balances. It doesn't hold your reasons, your plan or how you felt.",
+    "Your broker's monthly account statement": "A statement shows fills and balances. It doesn't hold your reasons, your plan or how you felt.",
     "A list of stocks you plan to buy": "That's a watchlist.",
-    "Your written rules for entries": "Those belong in your trading plan. The journal records what you actually did."
+    "Your written rules for trade entries": "Those belong in your trading plan. The journal records what you actually did."
    }
   },
   {
@@ -1585,14 +1585,14 @@
    "rung": 2,
    "format": "mcq",
    "term": "Post-trade review",
-   "q": "What is a post-trade review?",
+   "q": "Which one describes a post-trade review?",
    "choices": [
-    "Grading a closed trade against the plan",
+    "Grading a closed trade vs. the plan",
     "Checking the news before you buy",
-    "Your broker confirming the fill",
+    "Your broker confirming the fill price",
     "Choosing your stop before entry"
    ],
-   "answer": "Grading a closed trade against the plan",
+   "answer": "Grading a closed trade vs. the plan",
    "why": "Grading a closed trade against the plan. Schwab: closing out the trade isn't the final step. Ask how it performed relative to your trade plan.",
    "lesson_line": "The trade isn't over when you sell. It's over when you've reviewed it.",
    "facts": [
@@ -1602,7 +1602,7 @@
    ],
    "wrong": {
     "Checking the news before you buy": "That's prep, and it comes before the trade.",
-    "Your broker confirming the fill": "A fill confirmation is the broker's record. The review is yours.",
+    "Your broker confirming the fill price": "A fill confirmation is the broker's record. The review is yours.",
     "Choosing your stop before entry": "That's part of the plan, set before the trade."
    }
   },
@@ -1975,7 +1975,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Premortem",
-   "q": "What is a premortem?",
+   "q": "Which of these describes a premortem?",
    "choices": [
     "Picturing the trade failed, then why",
     "Reviewing a trade after it closes",
@@ -2701,7 +2701,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Fidelity f01 to f03 and Schwab f20 read in context; key fits the 40-character tile; wrong choices are the watchlist, journal and forecast confusions.",
+   "notes": "Fidelity f01 to f03 and Schwab f20 read in context; key fits the 40-character tile; wrong choices are the watchlist, journal and forecast confusions. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2737,7 +2737,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "Schwab f09 and Fidelity f28 define a watchlist; distractors (positions, movers, entry rules) are real confusions.",
+   "notes": "Schwab f09 and Fidelity f28 define a watchlist; distractors (positions, movers, entry rules) are real confusions. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2773,8 +2773,8 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "Schwab f19/f14 and Steenbarger f63 read in context; statement and watchlist distractors are real confusions.",
-   "fixed": false,
+   "notes": "Schwab f19/f14 and Steenbarger f63 read in context; statement and watchlist distractors are real confusions. | variety rewrite checked 2026-11-10: lengthened two wrong choices so the right one is not the longest by 8",
+   "fixed": true,
    "by": "checker"
   },
   "q14": {
@@ -2815,8 +2815,8 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "Schwab f13/f17 in context (evaluate against your plan) and Steenbarger f60; distractors real.",
-   "fixed": false,
+   "notes": "Schwab f13/f17 in context (evaluate against your plan) and Steenbarger f60; distractors real. | variety rewrite checked 2026-11-10: right choice shortened and a wrong one lengthened so the right one is not the longest by 7",
+   "fixed": true,
    "by": "checker"
   },
   "q21": {
@@ -2911,7 +2911,7 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "Klein's HBR summary f92 and Duke f89 (Inquirer) agree; meaning fits the tile; distractors are the review, routine and backtest.",
+   "notes": "Klein's HBR summary f92 and Duke f89 (Inquirer) agree; meaning fits the tile; distractors are the review, routine and backtest. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

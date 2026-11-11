@@ -1054,9 +1054,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.low_in_first_bar",
-   "q": "In a true opening drive, the day's low is the open or inside the first 5-minute bar.",
-   "answer": "True",
-   "why": "True. The drive is over in minutes: the day's low is the open or inside the first 5-minute bar. SMB Capital, the desk that named the play, calls it a momentum trade right on the open.",
+   "q": "In a true opening drive, the day's low comes late, well after the first 30 minutes.",
+   "answer": "False",
+   "why": "False. The drive is over in minutes: the day's low is the open or inside the first 5-minute bar. SMB Capital, the desk that named the play, calls it a momentum trade right on the open.",
    "lesson_line": "A real drive makes its low in the first bar and never looks back.",
    "facts": [
     "c05",
@@ -1076,7 +1076,7 @@
     "Under the 50-day average",
     "A few cents under the day's low",
     "Exactly on the first bar's low",
-    "At the prior day's close"
+    "Just under the prior close"
    ],
    "answer": "A few cents under the day's low",
    "why": "A few cents under the day's low, which in a true drive is the first bar's low or the open. Kullamagi's stop is at the lows of the day too.",
@@ -1087,9 +1087,9 @@
     "k02"
    ],
    "wrong": {
+    "Under the 50-day average": "That is far below. The drive's stop is the day's low.",
     "Exactly on the first bar's low": "The stop sits a few cents under the low, not exactly on it.",
-    "At the prior day's close": "That sits below the whole gap, a far wider stop than the day's low.",
-    "Under the 50-day average": "That is far below. The drive's stop is the day's low."
+    "Just under the prior close": "That sits below the whole gap, a far wider stop than the day's low."
    },
    "house": true
   },
@@ -1124,9 +1124,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.order",
-   "q": "We buy the drive at market the moment price trades through the first bar's high. We do not wait for the bar to close.",
-   "answer": "True",
-   "why": "True. A market order the moment it trades through, no waiting for the bar to close. Breitstein does not wait for bar closes either.",
+   "q": "We wait for a 5-minute bar to close above the first bar's high, then buy.",
+   "answer": "False",
+   "why": "False. We buy at market the moment price trades through the first bar's high, with no waiting for the bar to close. Breitstein does not wait for bar closes either.",
    "lesson_line": "The trade through is the trigger. A close is a report, not a signal.",
    "facts": [
     "c02",
@@ -1303,9 +1303,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "od.stop_only_up",
-   "q": "After you are filled on a drive, the stop only moves up, never down or wider.",
-   "answer": "True",
-   "why": "True. The stop is a real order with the broker and only rises after entry. The one exception is the gap rule.",
+   "q": "After you are filled on a drive, you can widen the stop if the stock dips.",
+   "answer": "False",
+   "why": "False. The stop is a real order with the broker and only rises after entry. The one exception is the gap rule.",
    "lesson_line": "The stop only moves up. A stop you widen is a stop you stopped believing.",
    "facts": [
     "c12",
@@ -1399,9 +1399,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "od.inv_vwap",
-   "q": "If the stock loses VWAP and holds under it before your entry, there is no trade.",
-   "answer": "True",
-   "why": "True. Losing VWAP and holding under it means the drive has failed. Before the entry, that is no trade; after it, a warning.",
+   "q": "If the stock loses VWAP and holds under it before your entry, you still buy at half size.",
+   "answer": "False",
+   "why": "False. Losing VWAP and holding under it means the drive has failed. Before the entry, that is no trade; after it, a warning.",
    "lesson_line": "VWAP lost before you buy is a pass. VWAP lost after you buy is a warning.",
    "facts": [
     "c10",
@@ -1545,9 +1545,9 @@
    "story": "You looked away. At 9:41 the stock is 5% above the first bar's high and still climbing.",
    "choices": [
     "Pass; wait for the first pullback",
-    "Buy now; momentum is proof",
-    "Buy half size to be in",
-    "Short the spike"
+    "Buy now; momentum is the proof",
+    "Buy half size to stay involved",
+    "Short it; 5% up is overextended"
    ],
    "answer": "Pass; wait for the first pullback",
    "why": "Pass and wait for the first pullback. Past 4% the buy point has passed. The second entry is a pullback on lighter volume that holds VWAP.",
@@ -1558,9 +1558,9 @@
     "m12"
    ],
    "wrong": {
-    "Buy now; momentum is proof": "Past 4% above the first bar's high is a chase. Our rule says never.",
-    "Buy half size to be in": "Half of a chase is still a chase. Size does not fix the distance to the stop.",
-    "Short the spike": "Fading a strong leader is fighting the trend we came to buy."
+    "Buy now; momentum is the proof": "Past 4% above the first bar's high is a chase. Our rule says never.",
+    "Buy half size to stay involved": "Half of a chase is still a chase. Size does not fix the distance to the stop.",
+    "Short it; 5% up is overextended": "Fading a strong leader is fighting the trend we came to buy."
    },
    "house": true
   },
@@ -1573,12 +1573,12 @@
    "q": "Is the drive still on?",
    "story": "You have not bought yet. The first bar closed green on heavy volume. At 9:42 price trades 10 cents under the open.",
    "choices": [
-    "Yes; ten cents is noise",
+    "Yes; ten cents is just noise",
     "Yes; buy the dip",
-    "Yes; use a wider stop",
-    "No; it is an open-test, not a drive"
+    "Yes; take it with a wider stop",
+    "No; it failed the open-test"
    ],
-   "answer": "No; it is an open-test, not a drive",
+   "answer": "No; it failed the open-test",
    "why": "No. Once price trades back below the open before the entry, it is an open-test or a rejection, not a drive. No trade.",
    "lesson_line": "A drive does not look back. Under the open before you buy, you pass.",
    "facts": [
@@ -1586,9 +1586,9 @@
     "m06"
    ],
    "wrong": {
-    "Yes; ten cents is noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed.",
+    "Yes; ten cents is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed.",
     "Yes; buy the dip": "A dip under the open before the entry is the failure, not a discount.",
-    "Yes; use a wider stop": "A wider stop only buys more risk on a drive that failed its test."
+    "Yes; take it with a wider stop": "A wider stop only buys more risk on a drive that failed its test."
    },
    "house": true
   },
@@ -1598,16 +1598,16 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "od.stop_gap",
-   "q": "What is the stop now?",
+   "q": "What do you do?",
    "story": "You hold a drive. Two sessions later the stock gaps open below your stop.",
    "choices": [
     "Hold; the stop was already passed",
     "Buy more at the lower price",
-    "The first 30-minute low of the day",
-    "Sell at the open, no questions"
+    "Make the first 30-minute low the stop",
+    "Sell at the open and take the loss"
    ],
-   "answer": "The first 30-minute low of the day",
-   "why": "The first 30-minute low. A gap through the stop hands it to the first 30 minutes of the gap-down day. If they take the loss past 2R, get out.",
+   "answer": "Make the first 30-minute low the stop",
+   "why": "Make the first 30-minute low the stop. A gap through the stop hands it to the first 30 minutes of the gap-down day. If they take the loss past 2R, get out.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide, under a 2R ceiling.",
    "facts": [
     "h06",
@@ -1615,9 +1615,9 @@
     "h02"
    ],
    "wrong": {
-    "Sell at the open, no questions": "The gap rule gives it the first 30 minutes. The open alone is not the decision.",
     "Hold; the stop was already passed": "There is always a stop. The new one is the 30-minute low, and 2R is the ceiling.",
-    "Buy more at the lower price": "Full size at one price with one stop, no adding."
+    "Buy more at the lower price": "Full size at one price with one stop, no adding.",
+    "Sell at the open and take the loss": "The gap rule gives it the first 30 minutes. The open alone is not the decision."
    },
    "house": true
   },
@@ -1627,9 +1627,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "od.stop_pullback_entry",
-   "q": "On the second entry, the stop goes a few cents under the pullback's low.",
-   "answer": "True",
-   "why": "True. For the pullback entry the stop sits a few cents under the pullback's low. SMB uses the retracement low as the stop.",
+   "q": "On the second entry, the stop stays under the first bar's low, not the pullback's low.",
+   "answer": "False",
+   "why": "False. For the pullback entry the stop sits a few cents under the pullback's low. SMB uses the retracement low as the stop.",
    "lesson_line": "A pullback entry gets its own stop, a few cents under the pullback's low.",
    "facts": [
     "c15",
@@ -1769,9 +1769,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "od.not_parabolic",
-   "q": "A euphoric drive on day 3 to 5 of a parabolic burst is the short setup, not a long.",
-   "answer": "True",
-   "why": "True. A euphoric drive on day 3 to 5 of a burst is the short setup. Breitstein's own best-known short ends with a euphoric opening drive.",
+   "q": "A euphoric drive on day 3 to 5 of a parabolic burst is a strong long, because momentum peaks then.",
+   "answer": "False",
+   "why": "False. A euphoric drive on day 3 to 5 of a burst is the short setup. Breitstein's own best-known short ends with a euphoric opening drive.",
    "lesson_line": "Count the up days. Day 3 to 5 with a euphoric open is a climax, not a buy.",
    "facts": [
     "c16",
@@ -1787,12 +1787,12 @@
    "criterion": "od.second_entry",
    "q": "You missed the 9:35 trigger. What is the next entry?",
    "choices": [
-    "The close, at market",
-    "Tomorrow's open",
-    "A light-volume pullback holding VWAP",
-    "The next green candle"
+    "Market-on-close if it holds the high",
+    "Tomorrow's open, if it gaps up",
+    "A light pullback that holds VWAP",
+    "The next green candle over the open"
    ],
-   "answer": "A light-volume pullback holding VWAP",
+   "answer": "A light pullback that holds VWAP",
    "why": "The first light-volume pullback that holds VWAP, bought on the break back over the pullback's high. SMB wants a pull in on light volume and a hold above VWAP.",
    "lesson_line": "Missed the drive, wait for the pullback. Light volume, holds VWAP, buy the break back up.",
    "facts": [
@@ -1801,9 +1801,9 @@
     "u01"
    ],
    "wrong": {
-    "The next green candle": "A green candle is not a level. The second entry needs a pullback that holds.",
-    "The close, at market": "The card has no close entry. The second entry is the pullback break.",
-    "Tomorrow's open": "The drive is a morning entry. The second entry is the pullback that holds, not a later open."
+    "Market-on-close if it holds the high": "The card has no close entry. The second entry is the pullback break.",
+    "Tomorrow's open, if it gaps up": "The drive is a morning entry. The second entry is the pullback that holds, not a later open.",
+    "The next green candle over the open": "A green candle is not a level. The second entry needs a pullback that holds."
    },
    "house": true
   },
@@ -1831,11 +1831,11 @@
    "criterion": "od.volume_a_plus",
    "q": "Two drives on the same daily setup. Which grades higher?",
    "choices": [
-    "One trading a full day's volume by 9:45",
+    "One at a full day's volume by 9:45",
     "One on average first-bar volume",
-    "They grade the same"
+    "Same; the daily setup is identical"
    ],
-   "answer": "One trading a full day's volume by 9:45",
+   "answer": "One at a full day's volume by 9:45",
    "why": "The one that trades its average daily volume in the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes.",
    "lesson_line": "A stock that trades a full day's average volume before 9:45 is in play.",
    "facts": [
@@ -1845,7 +1845,7 @@
    ],
    "wrong": {
     "One on average first-bar volume": "Average volume in the first bar is only the floor. The A+ mark is far heavier.",
-    "They grade the same": "Volume grades the drive. Our card marks the heavy one A+."
+    "Same; the daily setup is identical": "Volume grades the drive. Our card marks the heavy one A+."
    },
    "house": true
   },
@@ -1945,9 +1945,9 @@
    "story": "You bought a drive at 9:35. It closes at 24% of its range, still above your stop.",
    "choices": [
     "A warning; the stop is the only exit",
-    "Sell at the close",
-    "Sell before tomorrow's open",
-    "Hold and add on the dip"
+    "Sell at the close to be safe",
+    "Sell at tomorrow's open",
+    "Hold and add on the next dip"
    ],
    "answer": "A warning; the stop is the only exit",
    "why": "A warning; the stop is the only exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks.",
@@ -1958,9 +1958,9 @@
     "d21"
    ],
    "wrong": {
-    "Sell at the close": "That adds an exit we do not have. The stop is the only exit.",
-    "Sell before tomorrow's open": "Same mistake, a day later. The stop is the only exit.",
-    "Hold and add on the dip": "Full size at one price with one stop, no adding."
+    "Sell at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
+    "Sell at tomorrow's open": "Same mistake, a day later. The stop is the only exit.",
+    "Hold and add on the next dip": "Full size at one price with one stop, no adding."
    },
    "house": true
   },
@@ -1996,9 +1996,9 @@
    "rung": 6,
    "format": "tf",
    "criterion": "od.trim_2",
-   "q": "After the first third at 3R, another third comes off at 5R and the last third rides the trail.",
-   "answer": "True",
-   "why": "True. After the first third at 3R, another third at 5R, then trail the last third.",
+   "q": "After the first third at 3R, the last two thirds ride the trail with no second trim.",
+   "answer": "False",
+   "why": "False. After the first third at 3R, another third comes off at 5R, then the last third rides the trail.",
    "lesson_line": "Thirds at 3R and 5R, then the trail. The plan decides before the stock does.",
    "facts": [
     "h20",
@@ -2016,10 +2016,10 @@
    "story": "The Nasdaq is trending above a rising 10 and 20-day average, and breadth is strong at the open on a broad gap-up.",
    "choices": [
     "It makes the drive rules optional",
-    "It means skip drives today",
-    "It is a cue that grades drives higher"
+    "It means skip drives for the day",
+    "It is a cue that grades drives up"
    ],
-   "answer": "It is a cue that grades drives higher",
+   "answer": "It is a cue that grades drives up",
    "why": "It is a cue that grades drives higher. The simple market test is the Nasdaq trending above a rising 10 and 20-day average.",
    "lesson_line": "A good market lifts the grade. It never loosens a rule.",
    "facts": [
@@ -2028,7 +2028,7 @@
    ],
    "wrong": {
     "It makes the drive rules optional": "A cue grades; it does not loosen a rule. Every rule still applies.",
-    "It means skip drives today": "That is the best backdrop for a drive, not a reason to skip."
+    "It means skip drives for the day": "That is the best backdrop for a drive, not a reason to skip."
    },
    "house": true
   },
@@ -2180,8 +2180,8 @@
    "q": "Add?",
    "story": "Your drive is up 1R at 9:50. The stock looks like it is trending, and you want to add size.",
    "choices": [
-    "Yes; add on the first dip",
-    "Yes; add at 2R",
+    "Yes; add half on the first dip",
+    "Yes; add a third at 2R",
     "No; full size at one price"
    ],
    "answer": "No; full size at one price",
@@ -2195,8 +2195,8 @@
     "c30"
    ],
    "wrong": {
-    "Yes; add on the first dip": "Adding to a drive in the first 30 minutes mistakes a drive for a trend.",
-    "Yes; add at 2R": "No adding at all. One price, one stop."
+    "Yes; add half on the first dip": "Adding to a drive in the first 30 minutes mistakes a drive for a trend.",
+    "Yes; add a third at 2R": "No adding at all. One price, one stop."
    },
    "house": true
   },
@@ -2297,11 +2297,11 @@
    "story": "PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides and takes the stop at 10:35, then bounces for the rest of the day.",
    "choices": [
     "Yes; the stop-out was a fluke",
-    "Yes, with a wider stop",
-    "No; never trade it again",
-    "Only on a new trigger, as a new trade"
+    "Yes, with a wider stop this time",
+    "No; never trade it this month",
+    "Only on a new trigger and new stop"
    ],
-   "answer": "Only on a new trigger, as a new trade",
+   "answer": "Only on a new trigger and new stop",
    "why": "Only on a new trigger. After a stop-out we buy again only on a new trigger, as a new trade with its own stop and every rule.",
    "lesson_line": "A stop-out is not a re-entry. A new trigger is a new trade with its own stop.",
    "facts": [
@@ -2312,8 +2312,8 @@
    ],
    "wrong": {
     "Yes; the stop-out was a fluke": "A bounce is not a trigger. A new trade needs its own trigger.",
-    "Yes, with a wider stop": "The stop only moves up, never wider, and a new trade needs a new trigger first.",
-    "No; never trade it again": "A new trigger is allowed. It counts against 3 tries a week and 6 a month."
+    "Yes, with a wider stop this time": "The stop only moves up, never wider, and a new trade needs a new trigger first.",
+    "No; never trade it this month": "A new trigger is allowed. It counts against 3 tries a week and 6 a month."
    },
    "house": true
   },
@@ -2382,11 +2382,11 @@
    "q": "What is the entry?",
    "story": "You missed the 9:35 break. At 10:45 the stock pulls back on lighter volume, holds VWAP and stays above the first bar's high.",
    "choices": [
-    "Skip; the drive is over",
-    "A break back over the pullback's high",
-    "Market now, stop under the day's low"
+    "Skip; a missed 9:35 break is gone",
+    "A break over the pullback's high",
+    "Market now, stop under the low"
    ],
-   "answer": "A break back over the pullback's high",
+   "answer": "A break over the pullback's high",
    "why": "The break back over the pullback's high, with the stop a few cents under the pullback's low. That is the second entry.",
    "lesson_line": "Wait for the pullback to prove itself, then buy its break. The stop is under the pullback low.",
    "facts": [
@@ -2395,8 +2395,8 @@
     "u01"
    ],
    "wrong": {
-    "Market now, stop under the day's low": "The second entry buys the break back over the pullback's high, not a market order mid-pullback.",
-    "Skip; the drive is over": "A first pullback that holds VWAP is the second entry. The setup is still on."
+    "Skip; a missed 9:35 break is gone": "A first pullback that holds VWAP is the second entry. The setup is still on.",
+    "Market now, stop under the low": "The second entry buys the break back over the pullback's high, not a market order mid-pullback."
    },
    "house": true
   },
@@ -2714,12 +2714,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q25": {
-   "status": "pass",
-   "notes": "c07/m06 verbatim (proposed). Story: green first bar, then ten cents under the open before any entry: no trade.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q25": {"status": "pass", "notes": "c07/m06 verbatim (proposed). Story: green first bar, then ten cents under the open before any entry: no trade. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q30": {
    "status": "pass",
    "notes": "d12/d13/d14 verbatim (CROX RS 77, 5.8R). The 'RS' is the dossier's proxy rank, not the app's rating. The why ended 'A trade that works is not a rule broken', which reads backwards; now 'does not change the rule'.",
@@ -2738,24 +2733,9 @@
    "fixed": false,
    "by": "checker"
   },
-  "q33": {
-   "status": "pass",
-   "notes": "c16 (proposed) and b05 verbatim. Kept as the one 'day 3 to 5 is not a long' item.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q34": {
-   "status": "pass",
-   "notes": "c14 (proposed), m12, u01 verbatim. A wrong note said the pullback 'comes the same morning'; no source says so; now says the drive is a morning entry and the second entry is the pullback that holds.",
-   "fixed": true,
-   "by": "checker"
-  },
-  "q36": {
-   "status": "pass",
-   "notes": "c13 (proposed), k03, u03 verbatim. The right choice read 'average volume by 9:45', which a member can read as normal volume; the mark is a full day's average daily volume in the first 15 to 30 minutes. Choice reworded to 'a full day's volume by 9:45' (39 characters); wrong notes re-keyed.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q33": {"status": "pass", "notes": "c16 (proposed) and b05 verbatim. Kept as the one 'day 3 to 5 is not a long' item. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q34": {"status": "pass", "notes": "c14 (proposed), m12, u01 verbatim. A wrong note said the pullback 'comes the same morning'; no source says so; now says the drive is a morning entry and the second entry is the pullback that holds. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q36": {"status": "pass", "notes": "c13 (proposed), k03, u03 verbatim. The right choice read 'average volume by 9:45', which a member can read as normal volume; the mark is a full day's average daily volume in the first 15 to 30 minutes. Choice reworded to 'a full day's volume by 9:45' (39 characters); wrong notes re-keyed. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q37": {
    "status": "pass",
    "notes": "h03 (A5): size is the SMALLER of the risk size and the 40% cap (A7). 1% of 100,000 on a 2.34 stop is 427 shares = 88,816, 89% of the account, so 427 was wrong (the cap gives 192). Risk now 0.4%: 400 / 2.34 = 170.9, rounded down 170; 170 x 208.00 = 35,360 = 35%, under the cap. SANM numbers match d05.",
@@ -2828,12 +2808,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q53": {
-   "status": "pass",
-   "notes": "h28/h29/d22/d23 verbatim (PAYC 229.02 at 9:35, stop 224.09 at 10:35). The story said 'at 10:40 it is back above your fill', which contradicts 'the fill was the high of the day' (dossier: it slid, then recovered to close at 78% of its range); now 'bounces for the rest of the day'.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q53": {"status": "pass", "notes": "h28/h29/d22/d23 verbatim (PAYC 229.02 at 9:35, stop 224.09 at 10:35). The story said 'at 10:40 it is back above your fill', which contradicts 'the fill was the high of the day' (dossier: it slid, then recovered to close at 78% of its range); now 'bounces for the rest of the day'. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit).", "fixed": true, "by": "checker"},
   "q54": {
    "status": "pass",
    "notes": "c20, d24, d25, d26 verbatim; F65 Red is none on the card (the rulebook says mostly cash). The why does not call 2026-10-06 a Red day. Requoted 2026-11-10: the card no longer says 'Red: none'; choice, why and a wrong note reworded to 'mostly cash'. Key (no long drives) holds; 2026-10-06 facts unchanged.",
@@ -2888,30 +2863,15 @@
    "fixed": false,
    "by": "checker"
   },
-  "q02": {
-   "status": "pass",
-   "notes": "c05, m03, m01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q03": {
-   "status": "pass",
-   "notes": "c04, h24, k02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q02": {"status": "pass", "notes": "c05, m03, m01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q03": {"status": "pass", "notes": "c04, h24, k02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit).", "fixed": false, "by": "checker"},
   "q04": {
    "status": "pass",
    "notes": "c03, h11, h12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
    "fixed": false,
    "by": "checker"
   },
-  "q05": {
-   "status": "pass",
-   "notes": "c02, h22, b06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q05": {"status": "pass", "notes": "c02, h22, b06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: the old wording ('the first bar to close above its high') is not a coherent test, since a bar cannot close above its own high; now a bar closing over the first bar's high, which the unit says we do not wait for.", "fixed": false, "by": "checker"},
   "q06": {
    "status": "pass",
    "notes": "h10, c23 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
@@ -2936,12 +2896,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q13": {
-   "status": "pass",
-   "notes": "c12, h02, h18 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q13": {"status": "pass", "notes": "c12, h02, h18 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q14": {
    "status": "pass",
    "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. Requoted 2026-11-10: card Red row is now mostly cash, plus shorts below the 200-day; why, lesson line and the Red wrong note reworded from 'none / no drives'. Key holds.",
@@ -2954,12 +2909,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q17": {
-   "status": "pass",
-   "notes": "c10, b07 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q17": {"status": "pass", "notes": "c10, b07 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q18": {
    "status": "pass",
    "notes": "h05, h20 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
@@ -2984,24 +2934,9 @@
    "fixed": false,
    "by": "checker"
   },
-  "q24": {
-   "status": "pass",
-   "notes": "c03, c14, m12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q26": {
-   "status": "pass",
-   "notes": "h06, h07, h02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q27": {
-   "status": "pass",
-   "notes": "c15, m14 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q24": {"status": "pass", "notes": "c03, c14, m12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit).", "fixed": false, "by": "checker"},
+  "q26": {"status": "pass", "notes": "h06, h07, h02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: the stem asked 'What is the stop now?' but three of four choices were actions (hold, buy more, sell), so the stop-level choice was the only one that answered it; the stem now asks what to do and the right choice is an action too.", "fixed": false, "by": "checker"},
+  "q27": {"status": "pass", "notes": "c15, m14 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q28": {
    "status": "pass",
    "notes": "h21, h20 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
@@ -3020,36 +2955,11 @@
    "fixed": false,
    "by": "checker"
   },
-  "q40": {
-   "status": "pass",
-   "notes": "c11, h02, d21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q42": {
-   "status": "pass",
-   "notes": "h20, h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q43": {
-   "status": "pass",
-   "notes": "c21, u04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q49": {
-   "status": "pass",
-   "notes": "h03b, m08, m10, m13, c30 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
-  "q56": {
-   "status": "pass",
-   "notes": "c14, c15, u01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
-  },
+  "q40": {"status": "pass", "notes": "c11, h02, d21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit).", "fixed": false, "by": "checker"},
+  "q42": {"status": "pass", "notes": "h20, h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q43": {"status": "pass", "notes": "c21, u04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: the right choice began 'A cue' while both wrong choices began 'It'; it now begins 'It is'.", "fixed": false, "by": "checker"},
+  "q49": {"status": "pass", "notes": "h03b, m08, m10, m13, c30 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q56": {"status": "pass", "notes": "c14, c15, u01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q57": {
    "status": "pass",
    "notes": "c18, h10 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",

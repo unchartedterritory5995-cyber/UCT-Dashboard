@@ -1108,9 +1108,9 @@
    "q": "What does a market order tell your broker?",
    "choices": [
     "Trade now at the best price available",
-    "Trade only at my price or better",
-    "Trade once price hits a trigger",
-    "Trade at today's closing price"
+    "Trade only at my limit price or better",
+    "Trade once the price hits my trigger",
+    "Trade at the day's closing price"
    ],
    "answer": "Trade now at the best price available",
    "why": "Trade now at the best price available. It generally fills right away, but the price you get isn't guaranteed.",
@@ -1124,9 +1124,9 @@
     "f31"
    ],
    "wrong": {
-    "Trade only at my price or better": "That's a limit order. It protects your price and may never fill.",
-    "Trade once price hits a trigger": "That's a stop order. It waits for the stop price, then becomes a market order.",
-    "Trade at today's closing price": "That's an on-close order, a separate instruction you have to choose."
+    "Trade only at my limit price or better": "That's a limit order. It protects your price and may never fill.",
+    "Trade once the price hits my trigger": "That's a stop order. It waits for the stop price, then becomes a market order.",
+    "Trade at the day's closing price": "That's an on-close order, a separate instruction you have to choose."
    }
   },
   {
@@ -1246,12 +1246,12 @@
    "term": "Stop order",
    "q": "What does a stop order do?",
    "choices": [
-    "Becomes a market order at a set price",
+    "Becomes a market order at a trigger",
     "Fills only at your price or better",
-    "Cancels unless filled right away",
-    "Sells exactly at the stop price"
+    "Cancels unless it is filled right away",
+    "Sells at exactly the stop price shown"
    ],
-   "answer": "Becomes a market order at a set price",
+   "answer": "Becomes a market order at a trigger",
    "why": "Becomes a market order at a set price. When the stop price is reached, the stop turns into a market order.",
    "lesson_line": "A stop is a trigger. Once it fires, you get the market.",
    "facts": [
@@ -1263,8 +1263,8 @@
    ],
    "wrong": {
     "Fills only at your price or better": "That's a limit order.",
-    "Cancels unless filled right away": "That's immediate-or-cancel, a timing instruction.",
-    "Sells exactly at the stop price": "The stop price is a trigger, not a promised fill. The fill can come in worse."
+    "Cancels unless it is filled right away": "That's immediate-or-cancel, a timing instruction.",
+    "Sells at exactly the stop price shown": "The stop price is a trigger, not a promised fill. The fill can come in worse."
    }
   },
   {
@@ -1431,8 +1431,8 @@
    "choices": [
     "A stop that becomes a limit order",
     "A limit order with no time limit",
-    "A stop that follows price up",
-    "A stop that fills all or none"
+    "A stop that follows the price up",
+    "A stop that fills all or none of it"
    ],
    "answer": "A stop that becomes a limit order",
    "why": "A stop that becomes a limit order. Once the stop price is reached, it can only fill at your limit price or better.",
@@ -1446,8 +1446,8 @@
    ],
    "wrong": {
     "A limit order with no time limit": "That's a limit order marked good 'til canceled (GTC).",
-    "A stop that follows price up": "That's a trailing stop.",
-    "A stop that fills all or none": "All-or-none is a size condition, not a stop-limit."
+    "A stop that follows the price up": "That's a trailing stop.",
+    "A stop that fills all or none of it": "All-or-none is a size condition, not a stop-limit."
    }
   },
   {
@@ -1460,9 +1460,9 @@
    "story": "You own 300 shares, trading at $42. You want out if it falls to $40, but you won't sell below $39.50, even if that means no sale.",
    "choices": [
     "Sell stop-limit: stop $40, limit $39.50",
-    "Sell stop at $40",
-    "Sell limit at $39.50",
-    "Sell trailing stop, $0.50 trail"
+    "Sell a plain stop at $40, no limit",
+    "Sell limit at $39.50, as a day order",
+    "Sell trailing stop with a $0.50 trail"
    ],
    "answer": "Sell stop-limit: stop $40, limit $39.50",
    "why": "Sell stop-limit, stop $40, limit $39.50. At $40 it becomes a limit order, and it can only sell at $39.50 or better.",
@@ -1477,9 +1477,9 @@
     "f17"
    ],
    "wrong": {
-    "Sell stop at $40": "A plain stop becomes a market order at $40 and can sell below $39.50 in a fast drop.",
-    "Sell limit at $39.50": "That's below the price, so it can sell right away. It doesn't wait for $40.",
-    "Sell trailing stop, $0.50 trail": "That stop follows price up and sits only $0.50 under it. It isn't the $40 trigger you asked for."
+    "Sell a plain stop at $40, no limit": "A plain stop becomes a market order at $40 and can sell below $39.50 in a fast drop.",
+    "Sell limit at $39.50, as a day order": "That's below the price, so it can sell right away. It doesn't wait for $40.",
+    "Sell trailing stop with a $0.50 trail": "That stop follows price up and sits only $0.50 under it. It isn't the $40 trigger you asked for."
    }
   },
   {
@@ -1507,12 +1507,12 @@
    "term": "Trailing stop",
    "q": "What is a trailing stop?",
    "choices": [
-    "A stop that follows price by a set gap",
+    "A stop that follows price by a gap",
     "A stop parked at your entry price",
     "A stop that only counts at the close",
     "A stop that turns into a limit order"
    ],
-   "answer": "A stop that follows price by a set gap",
+   "answer": "A stop that follows price by a gap",
    "why": "A stop that follows price by a set gap. The gap is a percent or a dollar amount. It moves when price moves your way and holds still when it doesn't.",
    "lesson_line": "A trailing stop moves one way only: in your favor.",
    "facts": [
@@ -1640,12 +1640,12 @@
    "term": "Bracket order",
    "q": "What is a bracket order?",
    "choices": [
-    "An entry with a stop and target attached",
+    "An entry with linked stop and target",
     "Two orders where one cancels the other",
     "A stop that follows the price up",
     "An order to buy within a price range"
    ],
-   "answer": "An entry with a stop and target attached",
+   "answer": "An entry with linked stop and target",
    "why": "An entry with a stop and target attached. When the entry fills, a take-profit and a stop go in, linked so one filling cancels the other.",
    "lesson_line": "A bracket puts the whole plan on the ticket: entry, stop, target.",
    "facts": [
@@ -1758,12 +1758,12 @@
    "q": "How do you set up the two entries?",
    "story": "A stock trades at $21. You'll buy a pullback at $20 or a breakout over $22.50, whichever comes first. You want only one position.",
    "choices": [
-    "OCO: buy limit $20, buy stop $22.50",
+    "OCO of buy limit $20, stop $22.50",
     "Buy limit $20 and buy stop $22.50",
-    "A bracket order on the $20 buy",
+    "A bracket order on the $20 buy limit",
     "One buy stop-limit, $20 to $22.50"
    ],
-   "answer": "OCO: buy limit $20, buy stop $22.50",
+   "answer": "OCO of buy limit $20, stop $22.50",
    "why": "An OCO with a buy limit at $20 and a buy stop at $22.50. Whichever fills first cancels the other, so you can't end up with both.",
    "lesson_line": "Two ways in, one position: link the entries as an OCO.",
    "facts": [
@@ -1777,7 +1777,7 @@
    ],
    "wrong": {
     "Buy limit $20 and buy stop $22.50": "Separate orders can both fill. A pop to $22.50 and then a drop to $20 doubles your position.",
-    "A bracket order on the $20 buy": "A bracket attaches exits to one entry. It doesn't cancel your breakout entry.",
+    "A bracket order on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel your breakout entry.",
     "One buy stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
    }
   },
@@ -1859,12 +1859,12 @@
    "term": "GTC",
    "q": "What does good 'til canceled (GTC) mean on an order?",
    "choices": [
-    "Live until it fills or you cancel",
+    "Live until filled or you cancel",
     "Live only for today's session",
     "Fill now or cancel at once",
     "Live for this week only"
    ],
-   "answer": "Live until it fills or you cancel",
+   "answer": "Live until filled or you cancel",
    "why": "Live until it fills or you cancel. A GTC order carries past today, within your broker's time limit.",
    "lesson_line": "GTC outlives the day. Keep track of what you've left working.",
    "facts": [
@@ -2147,9 +2147,9 @@
    "q": "What is slippage on a trade?",
    "choices": [
     "Your fill vs. the price you expected",
-    "The gap between bid and ask",
-    "The day's high minus low",
-    "A price gap between two days"
+    "The gap between the bid and the ask",
+    "The day's high minus the day's low",
+    "A price gap between two trading days"
    ],
    "answer": "Your fill vs. the price you expected",
    "why": "Your fill vs. the price you expected. It's the difference between the price you planned on and the price you got.",
@@ -2160,9 +2160,9 @@
     "f88"
    ],
    "wrong": {
-    "The gap between bid and ask": "That's the spread. Slippage is the gap between your expected price and your fill.",
-    "The day's high minus low": "That's the day's range. It isn't about your order at all.",
-    "A price gap between two days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage."
+    "The gap between the bid and the ask": "That's the spread. Slippage is the gap between your expected price and your fill.",
+    "The day's high minus the day's low": "That's the day's range. It isn't about your order at all.",
+    "A price gap between two trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage."
    }
   },
   {
@@ -2246,7 +2246,7 @@
    "q": "What is a short sale?",
    "choices": [
     "Selling borrowed shares, rebuy later",
-    "Selling shares the day you buy them",
+    "Selling shares on the day you buy them",
     "Selling at a loss to cut risk",
     "Selling part of a winning position"
    ],
@@ -2261,7 +2261,7 @@
     "f103"
    ],
    "wrong": {
-    "Selling shares the day you buy them": "That's a day trade. You owned the shares first.",
+    "Selling shares on the day you buy them": "That's a day trade. You owned the shares first.",
     "Selling at a loss to cut risk": "That's taking a loss on shares you own.",
     "Selling part of a winning position": "That's selling partials, trimming shares you own."
    }
@@ -2348,9 +2348,9 @@
    "q": "Your platform flags a stock as hard to borrow. What does that tell you?",
    "choices": [
     "Few shares to lend; fees can be high",
-    "Shorting it is banned by law",
-    "It can't trade until the open",
-    "It's too expensive to buy"
+    "Shorting it is banned by federal law",
+    "It can't trade until the next open",
+    "It's too expensive to buy outright"
    ],
    "answer": "Few shares to lend; fees can be high",
    "why": "Few shares to lend, and fees can be high. Hard-to-borrow stocks are scarce for short sales, and a short order may even be refused.",
@@ -2362,9 +2362,9 @@
     "f126"
    ],
    "wrong": {
-    "Shorting it is banned by law": "It's about the broker's supply of shares, not a law. You may still short it, at a cost.",
-    "It can't trade until the open": "Borrow has nothing to do with trading hours.",
-    "It's too expensive to buy": "Buying doesn't need a borrow. The flag is about shorting."
+    "Shorting it is banned by federal law": "It's about the broker's supply of shares, not a law. You may still short it, at a cost.",
+    "It can't trade until the next open": "Borrow has nothing to do with trading hours.",
+    "It's too expensive to buy outright": "Buying doesn't need a borrow. The flag is about shorting."
    }
   },
   {
@@ -2498,12 +2498,12 @@
    "term": "Short squeeze",
    "q": "What is a short squeeze?",
    "choices": [
-    "Shorts rushing to cover lift the price",
+    "Short covering lifts the price fast",
     "Sellers dumping shares sink the price",
-    "A stock stuck in a tight range",
-    "A broker forcing longs to sell"
+    "A stock stuck in a tight price range",
+    "A broker forcing longs to sell shares"
    ],
-   "answer": "Shorts rushing to cover lift the price",
+   "answer": "Short covering lifts the price fast",
    "why": "Shorts rushing to cover lift the price. A sharp rise pressures short sellers to buy back, and their buying pushes the price up even more.",
    "lesson_line": "In a squeeze, the shorts become the buyers.",
    "facts": [
@@ -2515,8 +2515,8 @@
    ],
    "wrong": {
     "Sellers dumping shares sink the price": "That's a selloff, the opposite direction.",
-    "A stock stuck in a tight range": "That's a tight range. Nobody is being forced to buy.",
-    "A broker forcing longs to sell": "That's closer to a margin call. A squeeze is about shorts buying back."
+    "A stock stuck in a tight price range": "That's a tight range. Nobody is being forced to buy.",
+    "A broker forcing longs to sell shares": "That's closer to a margin call. A squeeze is about shorts buying back."
    }
   },
   {
@@ -2576,9 +2576,9 @@
    "q": "What does short interest measure?",
    "choices": [
     "Total open short positions in a stock",
-    "Shares sold short today",
-    "The fee to borrow a stock",
-    "Shares the company bought back"
+    "Shares sold short in a single day",
+    "The yearly fee to borrow a stock",
+    "Shares the company itself bought back"
    ],
    "answer": "Total open short positions in a stock",
    "why": "Total open short positions in a stock. It's a snapshot on a set date, not today's short selling.",
@@ -2590,9 +2590,9 @@
     "f105"
    ],
    "wrong": {
-    "Shares sold short today": "That's short sale volume. FINRA says it is not the same as short interest.",
-    "The fee to borrow a stock": "That's the borrow fee.",
-    "Shares the company bought back": "That's a buyback. It has nothing to do with shorts."
+    "Shares sold short in a single day": "That's short sale volume. FINRA says it is not the same as short interest.",
+    "The yearly fee to borrow a stock": "That's the borrow fee, usually quoted as a yearly rate.",
+    "Shares the company itself bought back": "That's a buyback. It has nothing to do with shorts."
    }
   },
   {
@@ -2604,12 +2604,12 @@
    "q": "Next week XYZ trades down to $47.50. What happens?",
    "story": "Your order screen shows: Sell 200 XYZ, type Stop, stop price $47.50, time in force GTC. XYZ closes today at $49.",
    "choices": [
-    "It turns into a market order to sell",
-    "Nothing, it expired today",
-    "It sells exactly at $47.50",
-    "It becomes a limit at $47.50"
+    "It turns into a market sell order",
+    "Nothing, it expired at today's close",
+    "It sells exactly at $47.50 a share",
+    "It becomes a limit order at $47.50"
    ],
-   "answer": "It turns into a market order to sell",
+   "answer": "It turns into a market sell order",
    "why": "It turns into a market order to sell. GTC kept it live past today, and at the stop price a stop becomes a market order. The fill can come in below $47.50.",
    "lesson_line": "Read the order type and the time in force together. They decide what happens, and when.",
    "facts": [
@@ -2621,9 +2621,9 @@
     "f13"
    ],
    "wrong": {
-    "Nothing, it expired today": "That's what a day order would do. This one is GTC.",
-    "It sells exactly at $47.50": "The stop price is a trigger, not a promised price.",
-    "It becomes a limit at $47.50": "That's a stop-limit. The type here is a plain stop."
+    "Nothing, it expired at today's close": "That's what a day order would do. This one is GTC.",
+    "It sells exactly at $47.50 a share": "The stop price is a trigger, not a promised price.",
+    "It becomes a limit order at $47.50": "That's a stop-limit. The type here is a plain stop."
    }
   },
   {
@@ -2690,8 +2690,8 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key = SEC market order definition (f1, f2). Each wrong choice is the SEC's own definition of limit, stop, on-close.",
-   "fixed": false,
+   "notes": "Key = SEC market order definition (f1, f2). Each wrong choice is the SEC's own definition of limit, stop, on-close. | variety rewrite checked 2026-11-10: lengthened two wrong choices so the right one is not the longest",
+   "fixed": true,
    "by": "checker"
   },
   "q02": {
@@ -2726,7 +2726,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "SEC f7/f8: a stop becomes a market order at the stop price. Wrong choices = limit, IOC, and the stop-price myth (f11).",
+   "notes": "SEC f7/f8: a stop becomes a market order at the stop price. Wrong choices = limit, IOC, and the stop-price myth (f11). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2768,14 +2768,14 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "SEC f13, FINRA f63. Distractors are GTC, trailing stop and AON definitions.",
+   "notes": "SEC f13, FINRA f63. Distractors are GTC, trailing stop and AON definitions. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q15": {
    "status": "pass",
-   "notes": "Mirrors the SEC example (stop $3.00, limit $2.50). A sell limit at $39.50 under a $42 price is marketable and sells at once; notes correct.",
-   "fixed": false,
+   "notes": "Mirrors the SEC example (stop $3.00, limit $2.50). A sell limit at $39.50 under a $42 price is marketable and sells at once; notes correct. | variety rewrite checked 2026-11-10: restored the Sell prefix on the right choice, which was the only one without it",
+   "fixed": true,
    "by": "checker"
   },
   "q16": {
@@ -2786,7 +2786,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Key = SEC f16-f19. SEC allows a trailing stop-limit, so the 'turns into a limit order' note now says a PLAIN trailing stop becomes a market order (thinkorswim f81 added).",
+   "notes": "Key = SEC f16-f19. SEC allows a trailing stop-limit, so the 'turns into a limit order' note now says a PLAIN trailing stop becomes a market order (thinkorswim f81 added). | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2816,7 +2816,7 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "Schwab f72/f73 and IBKR f112/f113 agree: an entry plus linked opposite-side exits. The OCO distractor is another term's definition.",
+   "notes": "Schwab f72/f73 and IBKR f112/f113 agree: an entry plus linked opposite-side exits. The OCO distractor is another term's definition. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2840,13 +2840,13 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "Key follows from the OCO definition (f122, f96); Investopedia shows OCO entries for retracements and breakouts. Fixed f123's claim, which said more than its quote.",
+   "notes": "Key follows from the OCO definition (f122, f96); Investopedia shows OCO entries for retracements and breakouts. Fixed f123's claim, which said more than its quote. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q27": {
    "status": "pass",
-   "notes": "Schwab f74, Fidelity f109, IBKR f116. Settlement distractor makes no dated claim.",
+   "notes": "Schwab f74, Fidelity f109, IBKR f116. Settlement distractor makes no dated claim. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2864,7 +2864,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "SEC f24, FINRA f57, IBKR f115; broker time limit per SEC f25.",
+   "notes": "SEC f24, FINRA f57, IBKR f115; broker time limit per SEC f25. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2930,7 +2930,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "Investopedia f117 (price sense) and Nasdaq f69 (Tier 1, 'price difference'). Split recorded in conflicts; no other broker page found. Fixed f69's claim ('mostly from price') to match its quote.",
+   "notes": "Investopedia f117 (price sense) and Nasdaq f69 (Tier 1, 'price difference'). Split recorded in conflicts; no other broker page found. Fixed f69's claim ('mostly from price') to match its quote. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2954,7 +2954,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "SEC f36/f37, Schwab f82. Added f103 (cover above the short price is a loss) to back the why.",
+   "notes": "SEC f36/f37, Schwab f82. Added f103 (cover above the short price is a loss) to back the why. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2978,8 +2978,8 @@
   },
   "q49": {
    "status": "pass",
-   "notes": "Investopedia f124-f126, Schwab f83. The 'banned by law' note hedges with 'may'.",
-   "fixed": false,
+   "notes": "Investopedia f124-f126, Schwab f83. The 'banned by law' note hedges with 'may'. | variety rewrite checked 2026-11-10: restored 'can be high' to match the sources (higher fees, not always high)",
+   "fixed": true,
    "by": "checker"
   },
   "q50": {
@@ -3014,7 +3014,7 @@
   },
   "q55": {
    "status": "pass",
-   "notes": "SEC Reg SHO FAQ 7 (f43/f44), Investopedia f130. Tight-range note catches the other 'squeeze'.",
+   "notes": "SEC Reg SHO FAQ 7 (f43/f44), Investopedia f130. Tight-range note catches the other 'squeeze'. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3032,19 +3032,19 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "SEC f45, FINRA f66/f67 (short volume is not short interest).",
-   "fixed": false,
+   "notes": "SEC f45, FINRA f66/f67 (short volume is not short interest). | variety rewrite checked 2026-11-10: 'per day' contradicted the sources' yearly rates",
+   "fixed": true,
    "by": "checker"
   },
   "q59": {
    "status": "pass",
-   "notes": "SEC f8, f24: GTC keeps it live past today; at the stop price it goes to market.",
+   "notes": "SEC f8, f24: GTC keeps it live past today; at the stop price it goes to market. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q60": {
    "status": "pass",
-   "notes": "Old key 'Capping the loss' held only if the short was entered below $31; SEC f9 says buy stops also protect a short's profit, so the 'taking profit' distractor could be right. Rekeyed to 'Protecting a short from a rise'; replaced that distractor with 'Covering the short right now'; f9's claim now keeps 'or protect a profit'.",
+   "notes": "Old key 'Capping the loss' held only if the short was entered below $31; SEC f9 says buy stops also protect a short's profit, so the 'taking profit' distractor could be right. Rekeyed to 'Protecting a short from a rise'; replaced that distractor with 'Covering the short right now'; f9's claim now keeps 'or protect a profit'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   }

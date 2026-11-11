@@ -937,7 +937,7 @@
    "choices": [
     "About 0.90, deep in the money",
     "About 0.50, at the money",
-    "About 0.15, out of the money"
+    "About 0.15, far out of the money"
    ],
    "answer": "About 0.90, deep in the money",
    "why": "About 0.90, deep in the money. With delta close to 1.00, an option moves very close to 1:1 with the stock.",
@@ -950,7 +950,7 @@
    ],
    "wrong": {
     "About 0.50, at the money": "That moves about half as much as the stock. It won't track it dollar for dollar.",
-    "About 0.15, out of the money": "That barely follows the stock. It's a long shot that needs a big move."
+    "About 0.15, far out of the money": "That barely follows the stock. It's a long shot that needs a big move."
    }
   },
   {
@@ -1256,7 +1256,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "f23 (OIC FAQ): delta near 1.00 moves close to 1:1 with the stock; f46: higher-delta options cost more (also follows from intrinsic value). Distractors really wrong. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "notes": "f23 (OIC FAQ): delta near 1.00 moves close to 1:1 with the stock; f46: higher-delta options cost more (also follows from intrinsic value). Distractors really wrong. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

@@ -602,8 +602,8 @@
    "q": "What does loss aversion mean?",
    "choices": [
     "Losses weigh more than equal gains",
-    "Avoiding risk of any kind",
-    "Fear of missing a big move",
+    "Avoiding every risk you see",
+    "Fear of missing out on a big move",
     "Cutting losses fast with a stop"
    ],
    "answer": "Losses weigh more than equal gains",
@@ -617,8 +617,8 @@
     "f17"
    ],
    "wrong": {
-    "Avoiding risk of any kind": "That's closer to risk aversion, which can be rational. Loss aversion is the lopsided part: losses loom larger than equal gains.",
-    "Fear of missing a big move": "That's FOMO, the fear of missing out. Loss aversion is about the pain of losing.",
+    "Avoiding every risk you see": "That's closer to risk aversion, which can be rational. Loss aversion is the lopsided part: losses loom larger than equal gains.",
+    "Fear of missing out on a big move": "That's FOMO, the fear of missing out. Loss aversion is about the pain of losing.",
     "Cutting losses fast with a stop": "That's a discipline, not a bias. Loss aversion pulls the other way. It makes you reluctant to take the loss at all."
    }
   },
@@ -645,7 +645,7 @@
    "q": "What is the disposition effect?",
    "choices": [
     "Selling winners early, holding losers",
-    "Holding winners, cutting losers fast",
+    "Holding winners, cutting losers quickly",
     "Buying a stock after a big run",
     "Trading more after a winning streak"
    ],
@@ -660,7 +660,7 @@
     "f27"
    ],
    "wrong": {
-    "Holding winners, cutting losers fast": "That's the opposite, and it's what you want. It runs against instinct, which is why it takes work.",
+    "Holding winners, cutting losers quickly": "That's the opposite, and it's what you want. It runs against instinct, which is why it takes work.",
     "Buying a stock after a big run": "That's chasing, driven by fear of missing out. The disposition effect is about when you sell.",
     "Trading more after a winning streak": "That's overconfidence. The disposition effect is selling winners and keeping losers."
    }
@@ -688,9 +688,9 @@
    "q": "Your setup triggers and you're scared of losing money. Which way does that fear push you?",
    "choices": [
     "Skip a trade your plan allows",
-    "Buy more than you planned",
-    "Add as the stock climbs",
-    "Size up after a big win"
+    "Buy more than you planned to",
+    "Add more as the stock climbs",
+    "Size up after a big winning day"
    ],
    "answer": "Skip a trade your plan allows",
    "why": "Skip a trade your plan allows. Fear pushes your risk tolerance below your own baseline, so you pass on risk that makes sense.",
@@ -702,9 +702,9 @@
     "f23"
    ],
    "wrong": {
-    "Buy more than you planned": "That's more risk, not less. Anger raises risk tolerance. Fear lowers it.",
-    "Add as the stock climbs": "Adding is taking on more risk. Fear pulls the other way.",
-    "Size up after a big win": "That's overconfidence after a win. Fear pushes toward less risk, not more."
+    "Buy more than you planned to": "That's more risk, not less. Anger raises risk tolerance. Fear lowers it.",
+    "Add more as the stock climbs": "Adding is taking on more risk. Fear pulls the other way.",
+    "Size up after a big winning day": "That's overconfidence after a win. Fear pushes toward less risk, not more."
    }
   },
   {
@@ -779,9 +779,9 @@
    "q": "What happened there?",
    "choices": [
     "Hesitating, then buying late",
-    "Cutting a winner early",
-    "A real reason to wait",
-    "Sticking to the plan"
+    "Cutting a winner too soon",
+    "A real reason to wait for proof",
+    "Sticking to the plan as written"
    ],
    "answer": "Hesitating, then buying late",
    "why": "Hesitating, then buying late. You wanted proof before acting. Your stop is still $49, so each share now risks more than you planned.",
@@ -792,9 +792,9 @@
     "f22"
    ],
    "wrong": {
-    "Cutting a winner early": "You weren't in yet. This happened at the entry.",
-    "A real reason to wait": "Waiting for it to hold wasn't a rule. It was wanting a sure thing.",
-    "Sticking to the plan": "The plan said $50. You paid $51.50 with the same $49 stop."
+    "Cutting a winner too soon": "You weren't in yet. This happened at the entry.",
+    "A real reason to wait for proof": "Waiting for it to hold wasn't a rule. It was wanting a sure thing.",
+    "Sticking to the plan as written": "The plan said $50. You paid $51.50 with the same $49 stop."
    }
   },
   {
@@ -1115,13 +1115,13 @@
    "story": "You've had four losers in a row, each taken by your rules. Today a setup triggers that passes every rule, market check included. Your stomach drops.",
    "q": "What's the best move?",
    "choices": [
-    "Take it, at a size you can sit through",
+    "Take it, at a size you can sit with",
     "Skip it, you can't take another loss",
     "Skip it, the setup must be broken",
-    "Double up to win it back"
+    "Double up to win back the losses"
    ],
-   "answer": "Take it, at a size you can sit through",
-   "why": "Take it, at a size you can sit through. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules.",
+   "answer": "Take it, at a size you can sit with",
+   "why": "Take it, at a size you can sit with. Losing streaks come with any plan. A smaller size takes the edge off the fear so you can follow your rules.",
    "lesson_line": "After a losing streak, shrink the size, not the discipline.",
    "facts": [
     "f34",
@@ -1134,7 +1134,7 @@
    "wrong": {
     "Skip it, you can't take another loss": "That's the freeze talking. The rules say go, and the fear comes from the last four trades, not this one.",
     "Skip it, the setup must be broken": "Four losses alone don't prove a setup is broken. Judging it by recent results is outcome bias.",
-    "Double up to win it back": "That's revenge. Anger pushes risk up just when you need it steady."
+    "Double up to win back the losses": "That's revenge. Anger pushes risk up just when you need it steady."
    }
   },
   {
@@ -1201,36 +1201,21 @@
    "fixed": true,
    "by": "checker"
   },
-  "q01": {
-   "status": "pass",
-   "notes": "f09 NobelPrize.org, f10 and f13 Investopedia, f17 Schwab, f01 SEC report all confirmed in context; three Tier 2 publishers agree on the definition. Term answer 34 characters. Wrong choices are real confusions (risk aversion, FOMO, a stop). f01's claim dropped 'an equal', which the quote does not say.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q01": {"status": "pass", "notes": "f09 NobelPrize.org, f10 and f13 Investopedia, f17 Schwab, f01 SEC report all confirmed in context; three Tier 2 publishers agree on the definition. Term answer 34 characters. Wrong choices are real confusions (risk aversion, FOMO, a stop). f01's claim dropped 'an equal', which the quote does not say. variety rewrite checked 2026-11-10: shortened one wrong choice: the wrong choice was the unique longest on all six edited questions (inverted tell).", "fixed": true, "by": "checker"},
   "q02": {
    "status": "pass",
    "notes": "f17 Schwab ('about twice as powerful') and f12 Investopedia ('some studies suggest ... about twice', and some question it) confirmed live. The statement says 'studies suggest', so True is right and not overstated; the why keeps the hedge.",
    "fixed": false,
    "by": "checker"
   },
-  "q03": {
-   "status": "pass",
-   "notes": "f04 Odean, f02 SEC report and f19 Fidelity confirmed and agree on the definition; f08 (Shefrin and Statman, 1985) and f27 confirmed. Distractors are other named mistakes (the opposite habit, chasing, overconfidence), not rewordings. Track audit 2026-11-09: the why said 'A report published by the SEC', which reads as the SEC's own finding; the cover says the findings do not necessarily reflect the SEC's views. Now 'A research review done for the SEC', the wording F8.01 and F8.05 use. f02 re-read in the cached sec.gov PDF the quote check fetched that day (found).",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q03": {"status": "pass", "notes": "f04 Odean, f02 SEC report and f19 Fidelity confirmed and agree on the definition; f08 (Shefrin and Statman, 1985) and f27 confirmed. Distractors are other named mistakes (the opposite habit, chasing, overconfidence), not rewordings. Track audit 2026-11-09: the why said 'A report published by the SEC', which reads as the SEC's own finding; the cover says the findings do not necessarily reflect the SEC's views. Now 'A research review done for the SEC', the wording F8.01 and F8.05 use. f02 re-read in the cached sec.gov PDF the quote check fetched that day (found). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q04": {
    "status": "pass",
    "notes": "f06 confirmed: sold winners' average excess return over the following year is 3.4 percent more than held losers' (excess over the CRSP value-weighted index); 'percentage points' is the right reading. f03 SEC summary agrees. Changed 'Selling the winner felt safe' to 'can feel safe'. Track audit 2026-11-09: with s01 refiled as Tier 2 the key rests on Odean's paper (f04, f06) and the SEC-hosted report (f03), two Tier 2 publishers that agree; validator clean.",
    "fixed": true,
    "by": "checker"
   },
-  "q05": {
-   "status": "pass",
-   "notes": "The question was ambiguous: 'fear kicks in' also fits fear of missing out, which pushes you to buy more (F8.02). Now 'scared of losing money'. f22 (Fidelity: fear lowers risk tolerance below your baseline), f45 and f11 (Investopedia), f23 (anger raises it) confirmed live; f14 (unreadable page) removed.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q05": {"status": "pass", "notes": "The question was ambiguous: 'fear kicks in' also fits fear of missing out, which pushes you to buy more (F8.02). Now 'scared of losing money'. f22 (Fidelity: fear lowers risk tolerance below your baseline), f45 and f11 (Investopedia), f23 (anger raises it) confirmed live; f14 (unreadable page) removed. variety rewrite checked 2026-11-10: three of four choices raise risk and the right one lowers it, inherent to the which-way ask.", "fixed": true, "by": "checker"},
   "q06": {
    "status": "pass",
    "notes": "f20 Fidelity and f18 Schwab confirmed live; both tie frequent checking to taking less risk, so False is right. The sources speak of portfolios; the same finding carries to open trades and the question does not overstate it.",
@@ -1243,18 +1228,8 @@
    "fixed": false,
    "by": "checker"
   },
-  "q08": {
-   "status": "pass",
-   "notes": "The story says every rule passes, so the freeze is the only fit and 'A real reason to pass' is fairly wrong. f14 (unreadable page) removed; f22, f45, f34 confirmed live. Lesson line hedged to 'usually fear', since a rule set can miss new information.",
-   "fixed": true,
-   "by": "checker"
-  },
-  "q09": {
-   "status": "pass",
-   "notes": "The question asked 'Which kind of fear was that?', which ruled out 'A real reason to wait' and 'Sticking to the plan' before the member thought; now 'What happened there?'. f38 (its wording is on no reachable or archived copy) replaced by f40 (Investopedia regret theory) and f22; f21 Fidelity confirmed. Recomputed: risk per share $51.50 - $49 = $2.50 against the $1 planned.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q08": {"status": "pass", "notes": "The story says every rule passes, so the freeze is the only fit and 'A real reason to pass' is fairly wrong. f14 (unreadable page) removed; f22, f45, f34 confirmed live. Lesson line hedged to 'usually fear', since a rule set can miss new information. variety rewrite checked 2026-11-10: shortened one wrong choice (inverted-tell fix).", "fixed": true, "by": "checker"},
+  "q09": {"status": "pass", "notes": "The question asked 'Which kind of fear was that?', which ruled out 'A real reason to wait' and 'Sticking to the plan' before the member thought; now 'What happened there?'. f38 (its wording is on no reachable or archived copy) replaced by f40 (Investopedia regret theory) and f22; f21 Fidelity confirmed. Recomputed: risk per share $51.50 - $49 = $2.50 against the $1 planned. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q10": {
    "status": "pass",
    "by": "checker",
@@ -1327,12 +1302,7 @@
    "fixed": true,
    "by": "checker"
   },
-  "q22": {
-   "status": "pass",
-   "notes": "Replaced the choice 'Skip it until you feel ready': good sources (Schwab) say taking a break when emotions run high is never a bad idea, so it was not plainly wrong. Now 'Skip it, you can't take another loss', the fear itself. 'Four losses don't break a setup' softened to 'alone don't prove'. f34, f46, f43, f30, f51, f23 confirmed live.",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q22": {"status": "pass", "notes": "Replaced the choice 'Skip it until you feel ready': good sources (Schwab) say taking a break when emotions run high is never a bad idea, so it was not plainly wrong. Now 'Skip it, you can't take another loss', the fear itself. 'Four losses don't break a setup' softened to 'alone don't prove'. f34, f46, f43, f30, f51, f23 confirmed live. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q23": {
    "status": "pass",
    "notes": "f47 and f48 (Investopedia win/loss), f02 (SEC report), f11 (Investopedia) and f07 (Odean) confirmed. The note 'He's right 70% of the time' called selling at the first small gain being right; now 'He wins 70% of the time'.",

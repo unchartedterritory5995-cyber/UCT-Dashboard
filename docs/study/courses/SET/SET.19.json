@@ -1140,8 +1140,8 @@
    "choices": [
     "Wednesday, the next session",
     "Tuesday, the report day",
-    "Thursday, once it settles",
-    "Friday, after the pause"
+    "Thursday, after it settles",
+    "Friday, as the pause forms"
    ],
    "answer": "Wednesday, the next session",
    "why": "Wednesday. A report after the close belongs to the next regular session. The report day is the PEG day only for a report before the open.",
@@ -1153,8 +1153,8 @@
    ],
    "wrong": {
     "Tuesday, the report day": "Tuesday's regular session was over before the report.",
-    "Thursday, once it settles": "Waiting a day misses the reaction; the first session is the PEG day.",
-    "Friday, after the pause": "The pause comes after the PEG day, not before."
+    "Thursday, after it settles": "Waiting a day misses the reaction; the first session is the PEG day.",
+    "Friday, as the pause forms": "The pause comes after the PEG day, not before."
    },
    "house": true
   },
@@ -1323,12 +1323,12 @@
    "criterion": "peg.trail",
    "q": "How do we trail the last third of a PEG?",
    "choices": [
-    "Sell on a close under the 10- or 21-day",
-    "Sell the first touch of the 50-day",
+    "A close under the 10- or 21-day",
+    "Sell on a touch of the 50-day",
     "Hold to the next earnings report",
-    "Sell at 10R, whatever happens"
+    "Sell at 10R, whatever the chart"
    ],
-   "answer": "Sell on a close under the 10- or 21-day",
+   "answer": "A close under the 10- or 21-day",
    "why": "Sell on a close under the 10-day for a fast mover or the 21-day for a steadier one. That is the default trail.",
    "lesson_line": "Trail the last third under the 10- or 21-day.",
    "facts": [
@@ -1336,9 +1336,9 @@
     "h20"
    ],
    "wrong": {
-    "Sell the first touch of the 50-day": "The 50-day is far below a fast trend. The default trail is the 10- or 21-day.",
+    "Sell on a touch of the 50-day": "The 50-day is far below a fast trend. The default trail is the 10- or 21-day.",
     "Hold to the next earnings report": "Holding into the next report needs 5R and is not the trail.",
-    "Sell at 10R, whatever happens": "A fixed R target is not the trail; the average decides."
+    "Sell at 10R, whatever the chart": "A fixed R target is not the trail; the average decides."
    },
    "house": true
   },
@@ -1455,12 +1455,12 @@
    "q": "Buy or pass?",
    "story": "The pause high is 60.00. You were in a meeting, and at 10:15 the stock trades 62.80.",
    "choices": [
-    "Pass, more than 4% over the trigger",
+    "Pass, over 4% past the trigger",
     "Buy, the breakout is confirmed",
-    "Buy half size",
-    "Buy with a wider stop"
+    "Buy half size to limit the risk",
+    "Buy it with a wider stop to fit"
    ],
-   "answer": "Pass, more than 4% over the trigger",
+   "answer": "Pass, over 4% past the trigger",
    "why": "Pass. 62.80 is more than 4% over the 60.00 trigger. Chasing costs size, not risk: the stop stays put and the shares shrink.",
    "lesson_line": "Miss it rather than chase it. Four percent and done.",
    "facts": [
@@ -1470,8 +1470,8 @@
    ],
    "wrong": {
     "Buy, the breakout is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Buy half size": "Half of a bad entry is still a bad entry.",
-    "Buy with a wider stop": "A wider stop to fit a late entry is the mistake, not the fix."
+    "Buy half size to limit the risk": "Half of a bad entry is still a bad entry.",
+    "Buy it with a wider stop to fit": "A wider stop to fit a late entry is the mistake, not the fix."
    },
    "house": true
   },
@@ -1566,9 +1566,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "peg.breakeven",
-   "q": "On a PEG the stop moves to breakeven at the first trim by default.",
-   "answer": "True",
-   "why": "True. The stop moves to breakeven between 2R and 5R, and by default at the first trim.",
+   "q": "On a PEG the stop moves to breakeven as soon as the buy fills.",
+   "answer": "False",
+   "why": "False. The stop moves to breakeven between 2R and 5R, and by default at the first trim.",
    "lesson_line": "First trim, then the stop to breakeven.",
    "facts": [
     "c24",
@@ -1642,12 +1642,12 @@
    "q": "PEG or High Volume Edge?",
    "story": "A well-known company reports and gaps up strongly. It trades its biggest volume in a year, 7.6x its average, and closes strong.",
    "choices": [
-    "A PEG; earnings on an established name",
-    "A High Volume Edge; it is a record",
+    "A PEG; earnings on a known name",
+    "A High Volume Edge; a record",
     "Both; the gap and volume stack",
-    "Neither; 7.6x is too heavy"
+    "Neither; 7.6x is far too heavy"
    ],
-   "answer": "A PEG; earnings on an established name",
+   "answer": "A PEG; earnings on a known name",
    "why": "A PEG. An earnings spike on an established name stays a PEG even at a one-year volume record. ASML at 7.6x was still just a PEG.",
    "lesson_line": "Earnings on a known name stays a PEG, even on record volume.",
    "facts": [
@@ -1655,9 +1655,9 @@
     "c34"
    ],
    "wrong": {
-    "A High Volume Edge; it is a record": "An HVE dwarfs every prior day, usually on a lesser-known name.",
+    "A High Volume Edge; a record": "An HVE dwarfs every prior day, usually on a lesser-known name.",
     "Both; the gap and volume stack": "It is one setup. The catalyst and the name decide which.",
-    "Neither; 7.6x is too heavy": "Heavy volume is a cue here, not a disqualifier."
+    "Neither; 7.6x is far too heavy": "Heavy volume is a cue here, not a disqualifier."
    },
    "house": true
   },
@@ -1781,9 +1781,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "peg.time_stop",
-   "q": "A PEG still under 1R after 10 trading days gets sold, even if the stop has not been hit.",
-   "answer": "True",
-   "why": "True. Time stop: still under 1R after 10 trading days, sell. It frees the money for a better trade.",
+   "q": "A PEG still under 1R after 10 trading days is held while the stop has not been hit.",
+   "answer": "False",
+   "why": "False. Time stop: still under 1R after 10 trading days, sell, even if the stop has not been hit. It frees the money for a better trade.",
    "lesson_line": "Ten days under 1R and we sell.",
    "facts": [
     "c27",
@@ -1856,12 +1856,12 @@
    "q": "What do you do?",
    "story": "The pause high is 61.00 and the pause low is 57.90. The honest stop is 5.2% from the fill. A friend says to put the stop at 59.50 so the size looks normal.",
    "choices": [
-    "Size down by the formula, or skip",
-    "Put the stop at 59.50",
-    "Buy full size anyway",
+    "Size down by formula, or skip",
+    "Put the stop at 59.50 to fit",
+    "Buy full size anyway, same stop",
     "Put the stop at the prior close"
    ],
-   "answer": "Size down by the formula, or skip",
+   "answer": "Size down by formula, or skip",
    "why": "Size down by the formula, or skip. The honest stop stays where the chart puts it. Pulling it in is never the fix.",
    "lesson_line": "If the honest stop does not fit, size down or skip.",
    "facts": [
@@ -1870,8 +1870,8 @@
     "c17"
    ],
    "wrong": {
-    "Put the stop at 59.50": "Pulling the stop in to fit the size is the mistake, not the plan.",
-    "Buy full size anyway": "Full size on a stop that wide breaks the risk rule.",
+    "Put the stop at 59.50 to fit": "Pulling the stop in to fit the size is the mistake, not the plan.",
+    "Buy full size anyway, same stop": "Full size on a stop that wide breaks the risk rule.",
     "Put the stop at the prior close": "The prior close is an even wider stop and ignores the chart."
    },
    "house": true
@@ -1914,12 +1914,12 @@
    "q": "What do you do?",
    "story": "You bought a PEG pause break. Ten trading days later it sits at 0.4R, never near 3R and never near the stop.",
    "choices": [
-    "Sell; under 1R after 10 trading days",
-    "Hold; the stop has not been hit",
-    "Add; it is coiling",
+    "Sell; under 1R after 10 sessions",
+    "Hold; the stop has not been hit yet",
+    "Add; it is coiling for a move",
     "Move the stop to breakeven and wait"
    ],
-   "answer": "Sell; under 1R after 10 trading days",
+   "answer": "Sell; under 1R after 10 sessions",
    "why": "Sell. Under 1R after 10 trading days is the time stop. The stop is not hit, but the trade has not earned its place.",
    "lesson_line": "A slow PEG under 1R gets sold on day ten.",
    "facts": [
@@ -1927,8 +1927,8 @@
     "h15"
    ],
    "wrong": {
-    "Hold; the stop has not been hit": "The time stop exists for exactly this trade.",
-    "Add; it is coiling": "Adding breaks one buy, one price, one stop.",
+    "Hold; the stop has not been hit yet": "The time stop exists for exactly this trade.",
+    "Add; it is coiling for a move": "Adding breaks one buy, one price, one stop.",
     "Move the stop to breakeven and wait": "Breakeven comes at the first trim, not as a way to wait."
    },
    "house": true
@@ -2271,8 +2271,8 @@
    "story": "On day four of the pause, the stock trades back to the prior close at 11:00. It then rallies and closes above the PEG-day low.",
    "choices": [
     "The gap filled; the setup is off",
-    "Still on; only a close ends it",
-    "Still on, at half size",
+    "Still on; only a close ends it now",
+    "Still on, just at half size",
     "A Gap Support; buy the close"
    ],
    "answer": "The gap filled; the setup is off",
@@ -2284,8 +2284,8 @@
     "sc1"
    ],
    "wrong": {
-    "Still on; only a close ends it": "The fill test is a trade at or under the prior close, not a close.",
-    "Still on, at half size": "Half size on a dead setup is still a dead setup.",
+    "Still on; only a close ends it now": "The fill test is a trade at or under the prior close, not a close.",
+    "Still on, just at half size": "Half size on a dead setup is still a dead setup.",
     "A Gap Support; buy the close": "Gap Support is a later test of the gap-up low, not a fill."
    },
    "house": true
@@ -2299,12 +2299,12 @@
    "q": "What do you do?",
    "story": "You bought the pause break with the stop a few cents under the pause low. The next day it dips toward the stop. A friend says to move the stop down to the gap-day low to give it room.",
    "choices": [
-    "Leave the stop; it only moves up",
-    "Move it to the gap-day low",
-    "Cancel it and watch by hand",
-    "Move it half way down"
+    "Leave it; stops only move up",
+    "Drop it to the gap-day low",
+    "Cancel it and watch it by hand",
+    "Move it half way down for room"
    ],
-   "answer": "Leave the stop; it only moves up",
+   "answer": "Leave it; stops only move up",
    "why": "Leave the stop. It only moves up. Widening it to the gap-day low after buying the pause breaks the stop rule.",
    "lesson_line": "The stop never moves down or wider.",
    "facts": [
@@ -2312,9 +2312,9 @@
     "h02"
    ],
    "wrong": {
-    "Move it to the gap-day low": "Giving it room is how a planned small loss becomes a big one.",
-    "Cancel it and watch by hand": "A real stop order sits with the broker, not in your head.",
-    "Move it half way down": "Half way down is still wider."
+    "Drop it to the gap-day low": "Giving it room is how a planned small loss becomes a big one.",
+    "Cancel it and watch it by hand": "A real stop order sits with the broker, not in your head.",
+    "Move it half way down for room": "Half way down is still wider."
    },
    "house": true
   },
@@ -2357,12 +2357,12 @@
    "q": "How do you treat it?",
    "story": "A stock that has run 120% in a year gaps 9% on earnings and closes at the high on huge volume.",
    "choices": [
-    "With care; a late gap can be exhaustion",
-    "As an A+; strength begets strength",
-    "Buy day one at the open",
+    "With care; it looks exhausted",
+    "An A+; strength begets strength",
+    "Buy day one at the open price",
     "Short it; the gap is exhausted"
    ],
-   "answer": "With care; a late gap can be exhaustion",
+   "answer": "With care; it looks exhausted",
    "why": "With care. An exhaustion gap after a huge run is not a PEG. Bonde: when everyone is excited about it, it is an exhaustion gap.",
    "lesson_line": "A late gap after a huge run is a warning.",
    "facts": [
@@ -2370,8 +2370,8 @@
     "bo3"
    ],
    "wrong": {
-    "As an A+; strength begets strength": "A huge run into the report is a late-gap warning, not a plus.",
-    "Buy day one at the open": "We do not buy the open or after hours, and this one is late.",
+    "An A+; strength begets strength": "A huge run into the report is a late-gap warning, not a plus.",
+    "Buy day one at the open price": "We do not buy the open or after hours, and this one is late.",
     "Short it; the gap is exhausted": "A warning is not a short signal; we do not short a PEG."
    },
    "house": true
@@ -2470,12 +2470,12 @@
    "q": "Which one gets the bigger size?",
    "story": "Yellow market. Gap A: 12%, 5x volume, a high close, out of a six-month base, tight pause. Gap B: up 35% in three months, mid-range close, loose pause that undercuts the low.",
    "choices": [
-    "A; B is a B- and gets smaller size",
-    "B; late gaps run the most",
-    "Both full size; both are PEGs",
-    "Neither; Yellow is all cash"
+    "A; B is a B- and gets less size",
+    "B; late gaps run the furthest",
+    "Both get full size; both PEGs",
+    "Neither; Yellow means all cash"
    ],
-   "answer": "A; B is a B- and gets smaller size",
+   "answer": "A; B is a B- and gets less size",
    "why": "A gets the bigger size. B is a B-: a late gap, a mid-range close, a loose pause. B- or lower is sized down.",
    "lesson_line": "Match size to the grade. B- gets smaller size.",
    "facts": [
@@ -2486,9 +2486,9 @@
     "c44"
    ],
    "wrong": {
-    "B; late gaps run the most": "A late gap after a big run is a B- cue, not a plus.",
-    "Both full size; both are PEGs": "The grade sets the size: A and B normal, B- or lower sized down.",
-    "Neither; Yellow is all cash": "Yellow means smaller and fewer, not all cash."
+    "B; late gaps run the furthest": "A late gap after a big run is a B- cue, not a plus.",
+    "Both get full size; both PEGs": "The grade sets the size: A and B normal, B- or lower sized down.",
+    "Neither; Yellow means all cash": "Yellow means smaller and fewer, not all cash."
    },
    "house": true
   },
@@ -2767,7 +2767,7 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "c01, d10, d11 verbatim; BURL 2016-05-26 shows the pre-open case. Wednesday is right for an after-close Tuesday report. Same fact as the cut q02, kept here.",
+   "notes": "c01, d10, d11 verbatim; BURL 2016-05-26 shows the pre-open case. Wednesday is right for an after-close Tuesday report. Same fact as the cut q02, kept here. Wrong choices shortened so the right one is not the odd length. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2809,7 +2809,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "h21, h20 verbatim (E52, settled). The owner's own 20 EMA habit (D-024, pending) is not keyed; the choices avoid it.",
+   "notes": "h21, h20 verbatim (E52, settled). The owner's own 20 EMA habit (D-024, pending) is not keyed; the choices avoid it. Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2833,7 +2833,7 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "Re-derived 62.80 / 60.00 = +4.67%, over the 4% chase line (C28, settled). c18, h11, h12 verbatim.",
+   "notes": "Re-derived 62.80 / 60.00 = +4.67%, over the 4% chase line (C28, settled). c18, h11, h12 verbatim. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2851,7 +2851,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "c24, h05 verbatim: breakeven at the first trim by default (B19, settled).",
+   "notes": "c24, h05 verbatim: breakeven at the first trim by default (B19, settled). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2863,7 +2863,7 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "c13, c34 verbatim (settled peg.not_hve; ASML 7.6x). The story gives no ticker.",
+   "notes": "c13, c34 verbatim (settled peg.not_hve; ASML 7.6x). The story gives no ticker. Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2893,7 +2893,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "c27, h15 verbatim: under 1R after 10 trading days, sell (C33, settled).",
+   "notes": "c27, h15 verbatim: under 1R after 10 trading days, sell (C33, settled). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2911,7 +2911,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "h01, h02, c17 verbatim. Rests on A3/A4 (settled), not on the pending 3% cap choice: size down or skip, never pull the stop in. 5.2% matches a pause of 61.00 to 57.90 and a stop a few cents under.",
+   "notes": "h01, h02, c17 verbatim. Rests on A3/A4 (settled), not on the pending 3% cap choice: size down or skip, never pull the stop in. 5.2% matches a pause of 61.00 to 57.90 and a stop a few cents under. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2923,7 +2923,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "c27, h15 verbatim. Same fact as q38; the scenario is kept.",
+   "notes": "c27, h15 verbatim. Same fact as q38; the scenario is kept. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2983,13 +2983,13 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "c20, mp1, sc1 verbatim. Same fact as q11, kept because it adds the 'recovers to a close' wrinkle; the fill is the trade at the prior close, far below the PEG-day low, so the card's slight-undercut line does not apply.",
+   "notes": "c20, mp1, sc1 verbatim. Same fact as q11, kept because it adds the 'recovers to a close' wrinkle; the fill is the trade at the prior close, far below the PEG-day low, so the card's slight-undercut line does not apply. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q57": {
    "status": "pass",
-   "notes": "c17, h02 verbatim: the stop only moves up (A4, settled).",
+   "notes": "c17, h02 verbatim: the stop only moves up (A4, settled). Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3001,7 +3001,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "c38, bo3 verbatim. A late gap after a huge run is a warning, not a short signal (no PEG short, D-001).",
+   "notes": "c38, bo3 verbatim. A late gap after a huge run is a warning, not a short signal (no PEG short, D-001). Right choice reworded to drop the hedge 'may'; a wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3019,7 +3019,7 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "h30 (D38), c40, c41, c42, c44 verbatim. Yellow is 'smaller and fewer' (F65), so 'full size' for A was wrong; the question now asks which gets the bigger size. Requoted 2026-11-10: c44 now says Yellow is smaller and fewer. The key and why do not lean on the old 'Yellow or Orange' cue (both gaps sit in the same Yellow market; the grade comes from the gap), so no text change.",
+   "notes": "h30 (D38), c40, c41, c42, c44 verbatim. Yellow is 'smaller and fewer' (F65), so 'full size' for A was wrong; the question now asks which gets the bigger size. Requoted 2026-11-10: c44 now says Yellow is smaller and fewer. The key and why do not lean on the old 'Yellow or Orange' cue (both gaps sit in the same Yellow market; the grade comes from the gap), so no text change. Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "requoter"
   },

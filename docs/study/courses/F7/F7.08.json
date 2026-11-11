@@ -622,8 +622,8 @@
    "choices": [
     "The 2007-09 financial crisis",
     "The 2000-02 dot-com bust",
-    "The 2020 COVID crash",
-    "The 2022 inflation bear"
+    "The 2020 COVID shutdown crash",
+    "The 2022 inflation bear market"
    ],
    "answer": "The 2007-09 financial crisis",
    "why": "The 2007-09 financial crisis. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough, the deepest of the four.",
@@ -639,8 +639,8 @@
    ],
    "wrong": {
     "The 2000-02 dot-com bust": "Close, but not the deepest. The S&P 500 fell 49.1% from March 2000 to October 2002.",
-    "The 2020 COVID crash": "It was the fastest, not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
-    "The 2022 inflation bear": "A smaller fall. The S&P 500 went from 4,796.56 in January 2022 to 3,577.03 in October."
+    "The 2020 COVID shutdown crash": "It was the fastest, not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
+    "The 2022 inflation bear market": "A smaller fall. The S&P 500 went from 4,796.56 in January 2022 to 3,577.03 in October."
    }
   },
   {
@@ -743,7 +743,7 @@
    "choices": [
     "Hot inflation and Fed rate hikes",
     "A collapse in home prices",
-    "The dot-com bubble bursting",
+    "The dot-com bubble finally bursting",
     "A US credit rating downgrade"
    ],
    "answer": "Hot inflation and Fed rate hikes",
@@ -760,7 +760,7 @@
    ],
    "wrong": {
     "A collapse in home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
-    "The dot-com bubble bursting": "That was the 2000-2002 bear market.",
+    "The dot-com bubble finally bursting": "That was the 2000-2002 bear market.",
     "A US credit rating downgrade": "That was 2011, when Standard & Poor's cut the US credit rating from AAA to AA+."
    }
   },
@@ -973,8 +973,8 @@
    "choices": [
     "About five weeks",
     "About nine months",
-    "About 17 months",
-    "About 30 months"
+    "About seventeen months",
+    "About thirty months"
    ],
    "answer": "About nine months",
    "why": "About nine months. The S&P 500 closed at its 4,796.56 peak on January 3, 2022, and at 3,577.03 on October 12.",
@@ -991,8 +991,8 @@
    ],
    "wrong": {
     "About five weeks": "That was the 2020 pace: 33 days from February 19 to March 23.",
-    "About 17 months": "That was 2007-09, from October 2007 to March 2009.",
-    "About 30 months": "That was 2000-02, which ran 30.5 months."
+    "About seventeen months": "That was 2007-09, from October 2007 to March 2009.",
+    "About thirty months": "That was 2000-02, which ran 30.5 months."
    },
    "chart": {
     "sym": "SPY",
@@ -1046,11 +1046,11 @@
    "q": "What did the index do next?",
    "choices": [
     "Fell to a new low within two months",
-    "Went on to a new record that year",
+    "Went on to make a new record that year",
     "Held its gains and went sideways"
    ],
    "answer": "Fell to a new low within two months",
-   "why": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16, then closed at 3,577.03 on October 12, below the June low.",
+   "why": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16. Then it closed at 3,577.03 on October 12, below the June low.",
    "lesson_line": "A big bounce inside a bear is not proof of a bottom. That only shows up in hindsight.",
    "facts": [
     "f36",
@@ -1063,7 +1063,7 @@
     "f43"
    ],
    "wrong": {
-    "Went on to a new record that year": "No. The S&P 500's 4,796.56 record from January 2022 wasn't topped until January 2024.",
+    "Went on to make a new record that year": "No. The S&P 500's 4,796.56 record from January 2022 wasn't topped until January 2024.",
     "Held its gains and went sideways": "The S&P 500 gave the whole rally back and more, closing at 3,577.03 on October 12."
    },
    "chart": {
@@ -1150,12 +1150,12 @@
    "story": "The economy has been growing for most of a year. Accounting scandals and profit warnings keep hitting stocks. The index sits at a new low.",
    "q": "What does this low teach you?",
    "choices": [
-    "Stocks can fall after a recession ends",
+    "Stocks can fall once a recession ends",
     "Stocks bottom before the economy does",
     "A growing economy stops a stock slide"
    ],
-   "answer": "Stocks can fall after a recession ends",
-   "why": "Stocks can fall after a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997.",
+   "answer": "Stocks can fall once a recession ends",
+   "why": "Stocks can fall once a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997.",
    "lesson_line": "The economy and the market keep different clocks. Trade the chart, not the GDP headlines.",
    "facts": [
     "f07",
@@ -1212,7 +1212,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key right: 57% (f02, Tier 1) and 56.8% (f45) beat 49.1% (f44, f56 agree), 33.9% (f46) and 25.4% (FRED 4,796.56 to 3,577.03). Wrong notes right. The why and lesson called it 'the deepest fall since 2000', a claim no cited fact reaches past 2022; now 'the deepest of the four' and 'the worst of these falls'. (Checked FRED SP500 to 2026-11-05: no deeper fall since.)",
+   "notes": "Key right: 57% (f02, Tier 1) and 56.8% (f45) beat 49.1% (f44, f56 agree), 33.9% (f46) and 25.4% (FRED 4,796.56 to 3,577.03). Wrong notes right. The why and lesson called it 'the deepest fall since 2000', a claim no cited fact reaches past 2022; now 'the deepest of the four' and 'the worst of these falls'. (Checked FRED SP500 to 2026-11-05: no deeper fall since.) variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1242,7 +1242,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "f58 (Fed MPR June 2022: 'sustained inflation pressures and expectations of monetary policy tightening' plus Russia's invasion) is Tier 1; f51 CNBC agrees. Distractors are other eras' causes; no US downgrade happened in 2022. No change.",
+   "notes": "f58 (Fed MPR June 2022: 'sustained inflation pressures and expectations of monetary policy tightening' plus Russia's invasion) is Tier 1; f51 CNBC agrees. Distractors are other eras' causes; no US downgrade happened in 2022. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1296,7 +1296,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "FRED: 4,796.56 on 2022-01-03 is the series high and 3,577.03 on 2022-10-12 the low: 9 months 9 days. Distractors match 2020 (33 days), 2007-09 (17 months), 2000-02 (30.5 months). Window 250 bars before 2022-10-12 includes the January peak. No change.",
+   "notes": "FRED: 4,796.56 on 2022-01-03 is the series high and 3,577.03 on 2022-10-12 the low: 9 months 9 days. Distractors match 2020 (33 days), 2007-09 (17 months), 2000-02 (30.5 months). Window 250 bars before 2022-10-12 includes the January peak. No change. Edited: the \"or so\" hedges on two wrong choices removed (they marked the decoys); numbers spelled out so lengths vary naturally. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1308,7 +1308,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "FRED: 3,666.77 (6/16) to 4,305.20 (8/16), then 3,577.03 on 10/12, 57 days later, below the June low: 'within two months' holds. Record not topped until 2024-01-19 (f39, f52). Forward bars are served only after the answer. Lesson hedged with f48. No change.",
+   "notes": "FRED: 3,666.77 (6/16) to 4,305.20 (8/16), then 3,577.03 on 10/12, 57 days later, below the June low: 'within two months' holds. Record not topped until 2024-01-19 (f39, f52). Forward bars are served only after the answer. Lesson hedged with f48. No change. Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1332,7 +1332,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "f07 (recession ended Nov 2001), f15 (economy grew in 2002), f16 (scandals, profit warnings), f17 (lowest since spring 1997 by early October) read in context. The wrong choice 'Stocks always bottom before the economy' gave the key away through 'always'; now 'Stocks bottom before the economy does', the real textbook belief, with the note reworded to match.",
+   "notes": "f07 (recession ended Nov 2001), f15 (economy grew in 2002), f16 (scandals, profit warnings), f17 (lowest since spring 1997 by early October) read in context. The wrong choice 'Stocks always bottom before the economy' gave the key away through 'always'; now 'Stocks bottom before the economy does', the real textbook belief, with the note reworded to match. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   }

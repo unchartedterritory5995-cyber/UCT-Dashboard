@@ -1004,7 +1004,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "c01, o03, o04 verbatim. The pivot candle is a proposed line; the role of the name itself is D-002 (pending, but the owner's published trades use it this way). Wrong notes true.",
+   "notes": "c01, o03, o04 verbatim. The pivot candle is a proposed line; the role of the name itself is D-002 (pending, but the owner's published trades use it this way). Wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1016,7 +1016,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "c02 and c19 verbatim; r01 verbatim (Raschke). A cent over the pivot high holds under both D-127 options. Wrong notes true.",
+   "notes": "c02 and c19 verbatim; r01 verbatim (Raschke). A cent over the pivot high holds under both D-127 options. Wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1058,7 +1058,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "c11 verbatim (pvt.stack_50, proposed). True.",
+   "notes": "c11 verbatim (pvt.stack_50, proposed). True. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1100,13 +1100,13 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "c04 verbatim (the 3% skip and the ADR test); k01 verbatim (Kullamagi, checked on the page).",
+   "notes": "c04 verbatim (the 3% skip and the ADR test); k01 verbatim (Kullamagi, checked on the page). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q18": {
    "status": "pass",
-   "notes": "c13 and o03 verbatim; the 3-or-more cue is a proposed line. The minimum of 2 (D-126, pending) is not keyed.",
+   "notes": "c13 and o03 verbatim; the 3-or-more cue is a proposed line. The minimum of 2 (D-126, pending) is not keyed. variety rewrite checked 2026-11-10 (edited: facts)",
    "fixed": false,
    "by": "checker"
   },
@@ -1172,7 +1172,7 @@
   },
   "q29": {
    "status": "pass",
-   "notes": "E52 (h21) and c48 verbatim. True.",
+   "notes": "E52 (h21) and c48 verbatim. True. variety rewrite checked 2026-11-10 (edited: why)",
    "fixed": false,
    "by": "checker"
   },
@@ -1202,7 +1202,7 @@
   },
   "q34": {
    "status": "pass",
-   "notes": "F65 verbatim (h26): Yellow smaller and fewer. The key said 'Fewer, A and B grades'; 'A and B grades' is the card's addition (c34) and not in F65, and grades are E50's discretion, so the correct choice now says 'Fewer, and smaller than full size'. Requoted 2026-11-10: Yellow row unchanged on the card; key (fewer, smaller) holds. No text change.",
+   "notes": "F65 verbatim (h26): Yellow smaller and fewer. The key said 'Fewer, A and B grades'; 'A and B grades' is the card's addition (c34) and not in F65, and grades are E50's discretion, so the correct choice now says 'Fewer, and smaller than full size'. Requoted 2026-11-10: Yellow row unchanged on the card; key (fewer, smaller) holds. No text change. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "requoter"
   },
@@ -1214,7 +1214,7 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "c14 verbatim (a proposed cue). The dossier's own scan found a pivot that was the day's low did no better (26.7% against 27.4%), so this stays a cue 'on our card'. The wrong note called the doji 'the B- row' (E50); reworded. The correct choice now matches the card's 'upper half'.",
+   "notes": "c14 verbatim (a proposed cue). The dossier's own scan found a pivot that was the day's low did no better (26.7% against 27.4%), so this stays a cue 'on our card'. The wrong note called the doji 'the B- row' (E50); reworded. The correct choice now matches the card's 'upper half'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1226,13 +1226,13 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "d14/d15/d16 verbatim (AXON 2026-08-24: 6 reds into the 21-day EMA 589.90, pivot 13:00 low 595.11, buy 601.49, stop 595.08 = 1.07%, 0.35R). The why's 'a pivot low breaks about as often as it holds' is the dossier's loose phrase and the scan's 27.1% to 3R does not show it; reworded to 'can break even on the best shape'.",
+   "notes": "d14/d15/d16 verbatim (AXON 2026-08-24: 6 reds into the 21-day EMA 589.90, pivot 13:00 low 595.11, buy 601.49, stop 595.08 = 1.07%, 0.35R). The why's 'a pivot low breaks about as often as it holds' is the dossier's loose phrase and the scan's 27.1% to 3R does not show it; reworded to 'can break even on the best shape'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q39": {
    "status": "pass",
-   "notes": "d23/d24 verbatim (IQV 2026-10-14: 20-day EMA 262.69 against 264.36 five sessions earlier, stopped at 13:00). c12 proposed line. Right.",
+   "notes": "d23/d24 verbatim (IQV 2026-10-14: 20-day EMA 262.69 against 264.36 five sessions earlier, stopped at 13:00). c12 proposed line. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1244,7 +1244,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "d10/d11 verbatim (MSFT 2026-09-01: buy 501.07, stop 498.97 = 0.42%, 0.48R, stopped next morning); c25, c31 verbatim. Keyed only as a lower-grade cue, never a skip (the unit's conflicts line); 'B- row' reworded.",
+   "notes": "d10/d11 verbatim (MSFT 2026-09-01: buy 501.07, stop 498.97 = 0.42%, 0.48R, stopped next morning); c25, c31 verbatim. Keyed only as a lower-grade cue, never a skip (the unit's conflicts line); 'B- row' reworded. variety rewrite checked 2026-11-10 (edited: facts)",
    "fixed": true,
    "by": "checker"
   },
@@ -1274,7 +1274,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "c18 and c19 verbatim. A 14:00 turn under yesterday's close is a pivot, not a Go Signal. Right.",
+   "notes": "c18 and c19 verbatim. A 14:00 turn under yesterday's close is a pivot, not a Go Signal. Right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1304,7 +1304,7 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "c22 verbatim. The story put the pivot high at 49.85 but 49.85 is the buy, a cent over the high; the choice now reads 49.84.",
+   "notes": "c22 verbatim. The story put the pivot high at 49.85 but 49.85 is the buy, a cent over the high; the choice now reads 49.84. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1316,25 +1316,25 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "D46 and F65 verbatim; the card says Red takes no pivots and the rulebook says mostly cash and shorts; both point to no long. Right. Requoted 2026-11-10: the card no longer says 'Red: none' (now mostly cash, plus shorts below the 200-day); choice, why and a wrong note reworded to 'mostly cash'. Key (no long) holds.",
+   "notes": "D46 and F65 verbatim; the card says Red takes no pivots and the rulebook says mostly cash and shorts; both point to no long. Right. Requoted 2026-11-10: the card no longer says 'Red: none' (now mostly cash, plus shorts below the 200-day); choice, why and a wrong note reworded to 'mostly cash'. Key (no long) holds. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "requoter"
   },
   "q54": {
    "status": "pass",
-   "notes": "B20 verbatim (h06, h07). Re-derived: 1R = 1.28; 2R below the buy = 68.08 - 2.56 = 65.52; the gap open 66.10 is a 1.55R loss and the first 30-minute low 65.30 a 2.17R loss, past the ceiling. Key right.",
+   "notes": "B20 verbatim (h06, h07). Re-derived: 1R = 1.28; 2R below the buy = 68.08 - 2.56 = 65.52; the gap open 66.10 is a 1.55R loss and the first 30-minute low 65.30 a 2.17R loss, past the ceiling. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q55": {
    "status": "pass",
-   "notes": "c24 and C35 (h16) verbatim; B19/E51. A wrong note said the stop would sit 'at 2R'; breakeven is the entry, not +2R; reworded.",
+   "notes": "c24 and C35 (h16) verbatim; B19/E51. A wrong note said the stop would sit 'at 2R'; breakeven is the entry, not +2R; reworded. variety rewrite checked 2026-11-10 (edited: why)",
    "fixed": true,
    "by": "checker"
   },
   "q56": {
    "status": "pass",
-   "notes": "c41 and c42 verbatim (the fourth or later pullback to the same average is a lower cue; D38 sizes B- down). 'B- row' and 'A+ row' reworded as cues (E50).",
+   "notes": "c41 and c42 verbatim (the fourth or later pullback to the same average is a lower cue; D38 sizes B- down). 'B- row' and 'A+ row' reworded as cues (E50). variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1346,13 +1346,13 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "d03/d04 verbatim; A3/F62 verbatim. The correct choice named 'Buy 238.91', a price the story does not give (the pivot high is not stated); the choices now say 'Buy over pivot high; stop under 237.12' and the why gives PSX's 238.91 and 237.09.",
+   "notes": "d03/d04 verbatim; A3/F62 verbatim. The correct choice named 'Buy 238.91', a price the story does not give (the pivot high is not stated); the choices now say 'Buy over pivot high; stop under 237.12' and the why gives PSX's 238.91 and 237.09. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q59": {
    "status": "pass",
-   "notes": "c10, c12, d12, d13 verbatim (INTC: three stabs in six sessions, 09-29, 10-06, 10-07, on a name whose trend had turned). Right.",
+   "notes": "c10, c12, d12, d13 verbatim (INTC: three stabs in six sessions, 09-29, 10-06, 10-07, on a name whose trend had turned). Right. variety rewrite checked 2026-11-10 (edited: why)",
    "fixed": false,
    "by": "checker"
   },
@@ -1414,12 +1414,12 @@
    "criterion": "pvt.pivot_candle",
    "q": "On a 30-minute pivot, which candle is the pivot candle?",
    "choices": [
-    "The first green candle after the reds",
-    "The first candle of the day",
-    "The biggest red candle",
+    "First green candle after the reds",
+    "The first candle of the trading day",
+    "The biggest red candle in the string",
     "Any green candle at an average"
    ],
-   "answer": "The first green candle after the reds",
+   "answer": "First green candle after the reds",
    "why": "The first green 30-minute candle after the red string, at the level. The originator waits for the point where the 30-minute chart shifts back up.",
    "lesson_line": "Reds into the level, then the first green candle. That candle is the pivot.",
    "facts": [
@@ -1428,8 +1428,8 @@
     "o03"
    ],
    "wrong": {
-    "The first candle of the day": "That is the opening range, a different timer. The pivot comes after a red string.",
-    "The biggest red candle": "A red candle is still selling. The pivot is the first green one after the string.",
+    "The first candle of the trading day": "That is the opening range, a different timer. The pivot comes after a red string.",
+    "The biggest red candle in the string": "A red candle is still selling. The pivot is the first green one after the string.",
     "Any green candle at an average": "Only the first green one after a red string counts. A later green candle is not the turn."
    },
    "house": true
@@ -1461,8 +1461,8 @@
    "choices": [
     "A cent over the pivot candle's high",
     "A cent over the 9:30 to 10:00 high",
-    "At the pivot candle's close",
-    "At the 20-day EMA itself"
+    "At the close of the pivot candle itself",
+    "At the 20-day EMA, on a limit order"
    ],
    "answer": "A cent over the pivot candle's high",
    "why": "A cent over the pivot candle's high, on a later 30-minute candle. Raschke's older version is the same idea: a buy stop above the high of the previous bar.",
@@ -1474,8 +1474,8 @@
    ],
    "wrong": {
     "A cent over the 9:30 to 10:00 high": "That is the ORB's line. The pivot's line is the turn candle's high, often well below it.",
-    "At the pivot candle's close": "The close shows the turn. The buy waits for a later candle to take the high.",
-    "At the 20-day EMA itself": "The average is where the pivot forms. Buying the line itself is buying before the turn."
+    "At the close of the pivot candle itself": "The close shows the turn. The buy waits for a later candle to take the high.",
+    "At the 20-day EMA, on a limit order": "The average is where the pivot forms. Buying the line itself is buying before the turn."
    },
    "house": true
   },
@@ -1611,9 +1611,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "pvt.stack_50",
-   "q": "Our card wants the prior close above the 50-day and the 50-day above the 200-day.",
-   "answer": "True",
-   "why": "True. The prior close is above the 50-day SMA and the 50-day is above the 200-day. The originator's word for it: a strong uptrend.",
+   "q": "Our card wants the prior close above the 50-day and the 200-day above the 50-day.",
+   "answer": "False",
+   "why": "False. The prior close is above the 50-day SMA and the 50-day is above the 200-day, not the other way round. The originator's word for it: a strong uptrend.",
    "lesson_line": "The pivot is a dip in an uptrend. No uptrend, no dip to buy.",
    "facts": [
     "c11",
@@ -1765,9 +1765,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "pvt.stop_width",
-   "q": "On our card, a pivot stop wider than the stock's average daily range is a skip, even if it is under 3%.",
-   "answer": "True",
-   "why": "True. Skip if the stop is more than 3% away or wider than the stock's average daily range. Kullamagi's version: the stop should not be wider than the ATR or ADR.",
+   "q": "On our card, a pivot stop wider than 3% is fine as long as it is inside the stock's average daily range.",
+   "answer": "False",
+   "why": "False. Skip if the stop is more than 3% away or wider than the stock's average daily range. Both checks have to pass. Kullamagi's version: no wider than the ATR or ADR.",
    "lesson_line": "Two checks on the stop: under 3%, and inside a normal day's range.",
    "facts": [
     "c04",
@@ -1783,21 +1783,22 @@
    "criterion": "pvt.red_string_three",
    "q": "Which red string grades highest on our card?",
    "choices": [
-    "A clean string of 3 or more reds",
-    "A single red candle",
-    "Reds mixed with greens",
+    "A clean string of 3 or more",
+    "A single deep red candle",
+    "Reds mixed with a few greens",
     "Reds that are still falling"
    ],
-   "answer": "A clean string of 3 or more reds",
+   "answer": "A clean string of 3 or more",
    "why": "A clean red string of 3 or more candles is the A+ version. The originator's signal is a string of red 30-minute candles in an uptrend.",
    "lesson_line": "More clean reds into the level, more sellers used up.",
    "facts": [
     "c13",
-    "o03"
+    "o03",
+    "d20"
    ],
    "wrong": {
-    "A single red candle": "One candle is a dip, not a string. CRWD's one-candle dip was stopped the same day.",
-    "Reds mixed with greens": "A mixed run is not a clean string. The pivot is the first green after the reds.",
+    "A single deep red candle": "One candle is a dip, not a string. CRWD's one-candle dip was stopped the same day.",
+    "Reds mixed with a few greens": "A mixed run is not a clean string. The pivot is the first green after the reds.",
     "Reds that are still falling": "A string still falling has no pivot yet. Wait for the green candle to close."
    },
    "house": true
@@ -2037,9 +2038,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "pvt.trail",
-   "q": "The last third of a pivot winner is sold on a daily close below its trailing average, not on an intraday touch.",
-   "answer": "True",
-   "why": "True. Trail the last third under the 10-day for a fast mover, the 21-day for a steadier one, and sell on a close below it.",
+   "q": "The last third of a pivot winner is sold the moment price touches its trailing average during the day.",
+   "answer": "False",
+   "why": "False. Trail the last third under the 10-day for a fast mover or the 21-day for a steadier one. Sell on a close below it.",
    "lesson_line": "The pivot gets you in. A daily close takes the last third out.",
    "facts": [
     "c48",
@@ -2155,12 +2156,12 @@
    "criterion": "pvt.market_reading",
    "q": "The market reading is Yellow. Which pivots does our card take?",
    "choices": [
-    "Fewer, and smaller than full size",
-    "All of them, full size",
-    "A+ only",
-    "None at all"
+    "Fewer, and smaller size",
+    "All of them, at full size",
+    "Only the A+ pivots",
+    "None; sit in cash today"
    ],
-   "answer": "Fewer, and smaller than full size",
+   "answer": "Fewer, and smaller size",
    "why": "Fewer, and smaller. Green is full risk, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts.",
    "lesson_line": "Read the market before the candles.",
    "facts": [
@@ -2168,9 +2169,9 @@
     "h26"
    ],
    "wrong": {
-    "All of them, full size": "That is Green. Yellow means smaller and fewer.",
-    "A+ only": "That is Orange. Yellow is fewer and smaller, not A+ only.",
-    "None at all": "That is Red. Yellow is fewer, not none."
+    "All of them, at full size": "That is Green. Yellow means smaller and fewer.",
+    "Only the A+ pivots": "That is Orange. Yellow is fewer and smaller, not A+ only.",
+    "None; sit in cash today": "That is Red. Yellow is fewer, not none."
    },
    "house": true
   },
@@ -2210,19 +2211,19 @@
    "criterion": "pvt.pivot_quality",
    "q": "Two pivot candles at the 10-day EMA. Which grades higher on our card?",
    "choices": [
-    "Low of the pullback, closes upper half",
-    "Closes in its lower half",
+    "Pullback low, closes in upper half",
+    "Closes in the lower half of its range",
     "Low above the string's low",
     "A tiny doji mid-range"
    ],
-   "answer": "Low of the pullback, closes upper half",
+   "answer": "Pullback low, closes in upper half",
    "why": "The one whose low is the low of the pullback and that closes in the upper half of its range. That candle shows the sellers were absorbed.",
    "lesson_line": "Where the candle closes tells you who won the half hour.",
    "facts": [
     "c14"
    ],
    "wrong": {
-    "Closes in its lower half": "A weak close means the sellers still had the last word.",
+    "Closes in the lower half of its range": "A weak close means the sellers still had the last word.",
     "Low above the string's low": "Allowed, but the best pivot candle makes the pullback low itself.",
     "A tiny doji mid-range": "A tiny candle after small reds is noise, with a stop of a few tenths of a percent."
    },
@@ -2256,7 +2257,7 @@
    "q": "What went wrong?",
    "choices": [
     "Nothing; the stop was the exit",
-    "The stop was too tight",
+    "The stop was far too tight here",
     "It needed a bigger red string",
     "You should have sold at 0.35R"
    ],
@@ -2271,7 +2272,7 @@
     "d18"
    ],
    "wrong": {
-    "The stop was too tight": "1.07% sits inside our normal range. Widening it would only make the loss bigger.",
+    "The stop was far too tight here": "1.07% sits inside our normal range. Widening it would only make the loss bigger.",
     "It needed a bigger red string": "Six reds is already the A+ shape. The candle count was not the problem.",
     "You should have sold at 0.35R": "There is no exit at 0.35R. The plan is the stop or the trims."
    },
@@ -2288,7 +2289,7 @@
    "choices": [
     "Pass; the 20-day EMA is falling",
     "Take it; the candles are right",
-    "Take it at half size",
+    "Take it at half size, tight stop",
     "Take it if the 10-day holds"
    ],
    "answer": "Pass; the 20-day EMA is falling",
@@ -2301,7 +2302,7 @@
    ],
    "wrong": {
     "Take it; the candles are right": "The candle shape passes; the daily trend fails. IQV was stopped the same afternoon.",
-    "Take it at half size": "A pivot in a stock turning down is the wrong trade at any size.",
+    "Take it at half size, tight stop": "A pivot in a stock turning down is the wrong trade at any size.",
     "Take it if the 10-day holds": "The 10-day holding does not make the 20-day rise."
    },
    "house": true
@@ -2347,12 +2348,12 @@
    "story": "A slow mega-cap: 4 reds into the 10-day EMA, then a pivot. Bought 501.07 with the stop at 498.97, 0.42% away. It reaches 0.48R, then the next morning's first candle takes the stop.",
    "q": "What does our card say about that stop?",
    "choices": [
-    "Too tight for that stock; graded down",
+    "Too tight for it; graded down",
     "Perfect; tighter is always better",
     "Too wide; move it closer",
-    "It breaks the 3% rule"
+    "It breaks the 3% stop-distance rule"
    ],
-   "answer": "Too tight for that stock; graded down",
+   "answer": "Too tight for it; graded down",
    "why": "Too tight for that stock. A stop of a few tenths of a percent sits inside a slow mega-cap's noise, a lower-grade cue. The loss was still 1R, as planned.",
    "lesson_line": "A tight stop is only good if the stock's normal wiggle fits above it.",
    "facts": [
@@ -2360,12 +2361,13 @@
     "c25",
     "d10",
     "d11",
-    "h35"
+    "h35",
+    "d18"
    ],
    "wrong": {
     "Perfect; tighter is always better": "Tighter is better only above the stock's noise. A few tenths on a slow name is a coin flip.",
     "Too wide; move it closer": "0.42% is already very tight. Closer would sit deeper in the noise.",
-    "It breaks the 3% rule": "3% is the ceiling. This stop is far under it; the problem is the other end."
+    "It breaks the 3% stop-distance rule": "3% is the ceiling. This stop is far under it; the problem is the other end."
    },
    "house": true
   },
@@ -2477,8 +2479,8 @@
    "q": "Pivot or Go Signal?",
    "choices": [
     "A 30-minute pivot",
-    "A Go Signal",
-    "A red to green"
+    "An hourly Go Signal",
+    "A red to green buy"
    ],
    "answer": "A 30-minute pivot",
    "why": "A 30-minute pivot. A pivot can form at any 30-minute candle and its line is the pivot candle's high. A Go Signal is an hourly close back over the prior day's close by the second hourly candle.",
@@ -2488,8 +2490,8 @@
     "c18"
    ],
    "wrong": {
-    "A Go Signal": "A Go Signal needs an hourly close back over yesterday's close early in the day. This turn is at 14:00 and reclaims nothing.",
-    "A red to green": "It is still under yesterday's close. No red to green has happened."
+    "An hourly Go Signal": "A Go Signal needs an hourly close back over yesterday's close early in the day. This turn is at 14:00 and reclaims nothing.",
+    "A red to green buy": "It is still under yesterday's close. No red to green has happened."
    },
    "house": true
   },
@@ -2614,8 +2616,8 @@
    "q": "What line would a red to green buy instead?",
    "choices": [
     "Yesterday's close, 50.40",
-    "The pivot high, 49.84",
-    "The 10-day EMA"
+    "The pivot candle's high, 49.84",
+    "The 10-day EMA itself"
    ],
    "answer": "Yesterday's close, 50.40",
    "why": "Yesterday's close, 50.40. A red to green buys the first trade through yesterday's close. A pivot buys the pivot candle's high, which can sit under it.",
@@ -2624,8 +2626,8 @@
     "c22"
    ],
    "wrong": {
-    "The pivot high, 49.84": "That is the pivot's line, the one you bought. A red to green waits for yesterday's close.",
-    "The 10-day EMA": "The average is where the pivot formed. Neither trade buys the average itself."
+    "The pivot candle's high, 49.84": "That is the pivot's line, the one you bought. A red to green waits for yesterday's close.",
+    "The 10-day EMA itself": "The average is where the pivot formed. Neither trade buys the average itself."
    },
    "house": true
   },
@@ -2668,7 +2670,7 @@
    "choices": [
     "No long; Red is mostly cash",
     "Buy it; it is A+",
-    "Buy half size",
+    "Buy at half size, tight stop",
     "Buy and sell at the close"
    ],
    "answer": "No long; Red is mostly cash",
@@ -2681,7 +2683,7 @@
    ],
    "wrong": {
     "Buy it; it is A+": "Orange allows A+. Red is mostly cash.",
-    "Buy half size": "Half size in a Red market is half a mistake.",
+    "Buy at half size, tight stop": "Half size in a Red market is half a mistake.",
     "Buy and sell at the close": "A day trade is still a long in a Red market."
    },
    "house": true
@@ -2698,7 +2700,7 @@
     "Get out; the loss is past 2R",
     "65.30 is the new stop; hold",
     "Hold; wait for a new pivot",
-    "Sell half and hold half"
+    "Sell half and hold the other half"
    ],
    "answer": "Get out; the loss is past 2R",
    "why": "Get out. The first 30 minutes of the gap-down day set the new stop, with a ceiling: past 2R, you leave. 65.30 is under 65.52.",
@@ -2710,7 +2712,7 @@
    "wrong": {
     "65.30 is the new stop; hold": "The first 30-minute low is the stop only inside the 2R ceiling. This one is past it.",
     "Hold; wait for a new pivot": "A new pivot is a new entry. This is the exit on the old trade.",
-    "Sell half and hold half": "The ceiling is a full exit. One stop, one exit."
+    "Sell half and hold the other half": "The ceiling is a full exit. One stop, one exit."
    },
    "house": true
   },
@@ -2723,13 +2725,13 @@
    "story": "Your pivot long reaches 2R by 15:00 on the first day. A friend says bank it all; it is a day trade.",
    "q": "What is our plan?",
    "choices": [
-    "Hold; a third at 3R, one at 5R",
-    "Sell it all at 2R",
-    "Sell half now",
+    "Hold; thirds at 3R and 5R",
+    "Sell it all at 2R as a day trade",
+    "Sell half now, trail the rest",
     "Tighten the stop to 2R"
    ],
-   "answer": "Hold; a third at 3R, one at 5R",
-   "why": "Hold to the ladder. Selling it all at 1R to 2R as a day trade is a named mistake; we swing trade, days to a few weeks. A third at 3R, another at 5R.",
+   "answer": "Hold; thirds at 3R and 5R",
+   "why": "Hold to the ladder. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. A third at 3R, another at 5R.",
    "lesson_line": "The pivot is a swing entry with a tight stop. Let it become a swing.",
    "facts": [
     "c24",
@@ -2739,8 +2741,8 @@
     "c52"
    ],
    "wrong": {
-    "Sell it all at 2R": "That is the named day-trade mistake. The winners run well past 2R.",
-    "Sell half now": "2R is not a trim level. The first trim is a third at 3R.",
+    "Sell it all at 2R as a day trade": "That is the named day-trade mistake. The winners run well past 2R.",
+    "Sell half now, trail the rest": "2R is not a trim level. The first trim is a third at 3R.",
     "Tighten the stop to 2R": "The stop moves to breakeven, not up to 2R, and breakeven comes at the first trim by default."
    },
    "house": true
@@ -2756,7 +2758,7 @@
    "choices": [
     "Lower: a fourth pullback",
     "A+; the pivot is clean",
-    "No trade at all"
+    "No trade; a fourth is banned"
    ],
    "answer": "Lower: a fourth pullback",
    "why": "Lower. The fourth or later pullback to the same average is a weaker cue, sized down. The first or second pullback after a breakout is the strongest.",
@@ -2768,7 +2770,7 @@
    ],
    "wrong": {
     "A+; the pivot is clean": "The candle is clean; the count is late. A+ is the first or second pullback.",
-    "No trade at all": "A fourth pullback is graded down and sized down, not banned."
+    "No trade; a fourth is banned": "A fourth pullback is graded down and sized down, not banned."
    },
    "house": true
   },
@@ -2807,11 +2809,11 @@
    "story": "PSX, 2026-08-27: 5 reds into the rising 10-day EMA. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
    "q": "Which plan fits our rules?",
    "choices": [
-    "Buy over pivot high; stop under 237.12",
-    "Buy at the 10-day EMA; stop 230.00",
-    "Buy at the close; no stop"
+    "Buy over the high; stop under 237.12",
+    "Buy at the 10-day EMA; stop at 230.00",
+    "Buy at the close; mental stop only"
    ],
-   "answer": "Buy over pivot high; stop under 237.12",
+   "answer": "Buy over the high; stop under 237.12",
    "why": "Buy over the pivot high at market, stop just under 237.12. The stop sits a few cents under the pivot candle's low, which here is also the day's low. PSX bought 238.91 with the stop at 237.09.",
    "lesson_line": "Entry, stop, size, trims. Written before the bell, run without a debate.",
    "facts": [
@@ -2821,8 +2823,8 @@
     "h24"
    ],
    "wrong": {
-    "Buy at the 10-day EMA; stop 230.00": "That buys the average itself before any turn, with a stop nowhere near a low.",
-    "Buy at the close; no stop": "The trigger is the trade through the pivot high, and every position has a real stop."
+    "Buy at the 10-day EMA; stop at 230.00": "That buys the average itself before any turn, with a stop nowhere near a low.",
+    "Buy at the close; mental stop only": "The trigger is the trade through the pivot high, and every position has a real stop."
    },
    "house": true
   },
@@ -2837,11 +2839,11 @@
    "choices": [
     "No; the daily context has broken",
     "Yes; a new pivot is a new trade",
-    "Yes, with a tighter stop",
+    "Yes, with a tighter stop this time",
     "Yes, if the reds are clean"
    ],
    "answer": "No; the daily context has broken",
-   "why": "No. A daily close under the level the pivot was meant to hold breaks the setup, and a falling 20-day fails the trend check. INTC took three stabs in six sessions like this.",
+   "why": "No. A daily close under the level the pivot was meant to hold breaks the setup. A falling 20-day also fails the trend check. INTC took three stabs in six sessions like this.",
    "lesson_line": "When the daily picture breaks, the 30-minute chart has nothing left to time.",
    "facts": [
     "c10",
@@ -2851,7 +2853,7 @@
    ],
    "wrong": {
     "Yes; a new pivot is a new trade": "A re-entry needs the setup intact. Under the level, with the 20-day falling, it is not.",
-    "Yes, with a tighter stop": "A tighter stop on a broken trend is a smaller version of the same mistake.",
+    "Yes, with a tighter stop this time": "A tighter stop on a broken trend is a smaller version of the same mistake.",
     "Yes, if the reds are clean": "INTC's candles were clean too. The daily picture was the difference."
    },
    "house": true

@@ -2020,8 +2020,8 @@
    "choices": [
     "Your risk per trade to 2% of capital",
     "Each position to 2% of the account",
-    "Your stop to 2% under your entry",
-    "Your losses in a month to 2%"
+    "Your stop to 2% under your entry price",
+    "Your losses in any one month to 2%"
    ],
    "answer": "Your risk per trade to 2% of capital",
    "why": "Your risk per trade to 2% of capital. It caps what you lose if the stop is hit, not how much you buy. Schwab keeps the two apart: risk up to 1% to 2%, positions up to 5% to 10%.",
@@ -2034,8 +2034,8 @@
    ],
    "wrong": {
     "Each position to 2% of the account": "That mixes up risk and size. A 2% risk can sit on a much bigger position.",
-    "Your stop to 2% under your entry": "The rule caps the dollars you lose. The chart sets where the stop goes.",
-    "Your losses in a month to 2%": "A monthly cap is a separate rule. Elder's monthly limit is 6%."
+    "Your stop to 2% under your entry price": "The rule caps the dollars you lose. The chart sets where the stop goes.",
+    "Your losses in any one month to 2%": "A monthly cap is a separate rule. Elder's monthly limit is 6%."
    }
   },
   {
@@ -2562,22 +2562,22 @@
    "term": "Concentration risk",
    "q": "What is concentration risk?",
    "choices": [
-    "Bigger losses from too much in one area",
-    "Risk from owning too many stocks",
-    "Risk that your stop fills late",
-    "Risk of a gap past your stop"
+    "Bigger losses from one crowded area",
+    "Risk from owning too many positions",
+    "Risk that your stop fills too late",
+    "Risk of a gap right past your stop"
    ],
-   "answer": "Bigger losses from too much in one area",
-   "why": "Bigger losses from too much in one area. FINRA: amplified losses from holding a large share of your money in one investment, asset class or market segment.",
+   "answer": "Bigger losses from one crowded area",
+   "why": "Bigger losses from one crowded area. FINRA: amplified losses from holding a large share of your money in one investment, asset class or market segment.",
    "lesson_line": "Count your exposure by theme, not by ticker.",
    "facts": [
     "f11",
     "f12"
    ],
    "wrong": {
-    "Risk from owning too many stocks": "That's the opposite problem: spreading too thin.",
-    "Risk that your stop fills late": "That's slippage on a stop.",
-    "Risk of a gap past your stop": "That's gap risk on one position."
+    "Risk from owning too many positions": "That's the opposite problem: spreading too thin.",
+    "Risk that your stop fills too late": "That's slippage on a stop.",
+    "Risk of a gap right past your stop": "That's gap risk on one position."
    }
   },
   {
@@ -2631,13 +2631,13 @@
    "term": "Open risk",
    "q": "In Tharp's terms, what is open risk?",
    "choices": [
-    "Current price to stop, all positions",
+    "Price now to stop, all positions",
     "Entry to stop on your newest trade",
     "Money spent on your open positions",
     "Profit you have not yet sold"
    ],
-   "answer": "Current price to stop, all positions",
-   "why": "Current price to stop, across all positions. Tharp measures it from where price is now, not from your entry. Elder's rule, as Incredible Charts explains it, works the same way.",
+   "answer": "Price now to stop, all positions",
+   "why": "Price now to stop, across all positions. Tharp measures it from where price is now, not from your entry. Elder's rule, as Incredible Charts explains it, works the same way.",
    "lesson_line": "As a winner runs, open risk grows unless your stop follows it.",
    "facts": [
     "f47",
@@ -2685,8 +2685,8 @@
    "q": "What is a breakeven stop?",
    "choices": [
     "A stop moved up to your entry price",
-    "A stop that trails the day's high",
-    "A stop at the day's low",
+    "A stop that trails the session's high",
+    "A stop just under the day's low",
     "A target set at 1R of profit"
    ],
    "answer": "A stop moved up to your entry price",
@@ -2698,8 +2698,8 @@
     "f139"
    ],
    "wrong": {
-    "A stop that trails the day's high": "That's a trailing stop. A breakeven stop sits at one price.",
-    "A stop at the day's low": "That's a chart level. A breakeven stop uses your own entry price.",
+    "A stop that trails the session's high": "That's a trailing stop. A breakeven stop sits at one price.",
+    "A stop just under the day's low": "That's a chart level. A breakeven stop uses your own entry price.",
     "A target set at 1R of profit": "That's a profit level. Some traders move to breakeven once a set profit is reached."
    }
   },
@@ -2730,8 +2730,8 @@
    "q": "What cost did the breakeven stop carry?",
    "choices": [
     "Normal pullbacks can shake you out",
-    "None, it was free protection",
-    "It capped your upside at entry",
+    "None, it was free, safe protection",
+    "It capped your upside at your entry",
     "It made the stop a limit order"
    ],
    "answer": "Normal pullbacks can shake you out",
@@ -2745,8 +2745,8 @@
     "f136"
    ],
    "wrong": {
-    "None, it was free protection": "The protection has a cost: a stop near the price gets hit by ordinary swings.",
-    "It capped your upside at entry": "A stop limits the downside. Your upside was open until you were sold out.",
+    "None, it was free, safe protection": "The protection has a cost: a stop near the price gets hit by ordinary swings.",
+    "It capped your upside at your entry": "A stop limits the downside. Your upside was open until you were sold out.",
     "It made the stop a limit order": "A breakeven stop is still a stop market order."
    }
   },
@@ -2886,8 +2886,8 @@
    "q": "What does ATR measure?",
    "choices": [
     "How much a stock typically moves",
-    "Which way the trend is heading",
-    "Average volume over 14 days",
+    "Which way the trend is heading next",
+    "Average daily volume over 14 days",
     "Your average loss per trade"
    ],
    "answer": "How much a stock typically moves",
@@ -2900,8 +2900,8 @@
     "f103"
    ],
    "wrong": {
-    "Which way the trend is heading": "ATR has no direction. It only measures how big the moves are.",
-    "Average volume over 14 days": "That's a volume average. ATR uses price ranges.",
+    "Which way the trend is heading next": "ATR has no direction. It only measures how big the moves are.",
+    "Average daily volume over 14 days": "That's a volume average. ATR uses price ranges.",
     "Your average loss per trade": "That comes from your trade log, not the chart."
    }
   },
@@ -2964,8 +2964,8 @@
    "q": "Where does our Launchpad stop sit?",
    "choices": [
     "A quarter ATR under the lower average",
-    "Exactly on the 50-day average",
-    "Three ATRs under the 22-day high",
+    "Exactly on the 50-day moving average",
+    "Three ATRs under the 22-day high price",
     "A flat 10% under your entry"
    ],
    "answer": "A quarter ATR under the lower average",
@@ -2976,8 +2976,8 @@
     "f111"
    ],
    "wrong": {
-    "Exactly on the 50-day average": "It sits below both averages, with a quarter-ATR cushion under the lower one.",
-    "Three ATRs under the 22-day high": "That's the Chandelier Exit, a trailing stop.",
+    "Exactly on the 50-day moving average": "It sits below both averages, with a quarter-ATR cushion under the lower one.",
+    "Three ATRs under the 22-day high price": "That's the Chandelier Exit, a trailing stop.",
     "A flat 10% under your entry": "Our Launchpad stop comes from the averages and ATR, not a flat percent."
    },
    "house": true
@@ -3304,7 +3304,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "Investopedia 2% rule f99 and Schwab f115 (both in context) and Elder f134 agree it caps risk per trade. Fixed the key from 'loss' to 'risk' per trade: a gap can push the real loss past 2% (f100, taught in q26).",
+   "notes": "Investopedia 2% rule f99 and Schwab f115 (both in context) and Elder f134 agree it caps risk per trade. Fixed the key from 'loss' to 'risk' per trade: a gap can push the real loss past 2% (f100, taught in q26). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3430,7 +3430,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "FINRA f11-f12 (Tier 1, read in context). Wrong choices: over-diversifying, stop slippage, gap risk: all different risks.",
+   "notes": "FINRA f11-f12 (Tier 1, read in context). Wrong choices: over-diversifying, stop slippage, gap risk: all different risks. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3448,7 +3448,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "VTI open risk glossary f47 (in context): current price to stop, all positions. Elder's rule f131-f132 (Incredible Charts, in context) measures from the month-end close. Wrong choices really wrong.",
+   "notes": "VTI open risk glossary f47 (in context): current price to stop, all positions. Elder's rule f131-f132 (Incredible Charts, in context) measures from the month-end close. Wrong choices really wrong. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3460,7 +3460,7 @@
   },
   "q50": {
    "status": "pass",
-   "notes": "TradeStation f135 (in context: stop at the average entry price once the profit floor is exceeded) and O'Neil AAII f139. Definition only; never says when to use it.",
+   "notes": "TradeStation f135 (in context: stop at the average entry price once the profit floor is exceeded) and O'Neil AAII f139. Definition only; never says when to use it. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3472,7 +3472,7 @@
   },
   "q52": {
    "status": "pass",
-   "notes": "FINRA f10 (Tier 1, in context: quick drops trigger stops, then rebound), Schwab f120 and Dave Mabe f140 ('Do I move my stop to breakeven? Never.', in context). Balanced: the lesson says choose it on purpose.",
+   "notes": "FINRA f10 (Tier 1, in context: quick drops trigger stops, then rebound), Schwab f120 and Dave Mabe f140 ('Do I move my stop to breakeven? Never.', in context). Balanced: the lesson says choose it on purpose. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3508,7 +3508,7 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "Investopedia ATR f81/f83/f87 and StockCharts f103 (both in context) agree: volatility, usually 14 days, average daily range. Wrong choices: direction, volume, trade log: all wrong.",
+   "notes": "Investopedia ATR f81/f83/f87 and StockCharts f103 (both in context) agree: volatility, usually 14 days, average daily range. Wrong choices: direction, volume, trade log: all wrong. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3526,7 +3526,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "House: TRADE_PLANS.md Launchpad row, verbatim 'under the 21-day and 50-day averages, a quarter of an ATR below the lower one'. Chandelier wrong choice matches StockCharts f111.",
+   "notes": "House: TRADE_PLANS.md Launchpad row, verbatim 'under the 21-day and 50-day averages, a quarter of an ATR below the lower one'. Chandelier wrong choice matches StockCharts f111. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

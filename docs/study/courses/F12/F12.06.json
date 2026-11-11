@@ -677,11 +677,11 @@
    "format": "mcq",
    "q": "Bellafiore wants the play written up the same day. What does the writing do for you?",
    "choices": [
-    "Helps you act on it without hesitating",
+    "Helps you act on it without pause",
     "Proves the setup will win next time",
     "Tells you what to buy tomorrow"
    ],
-   "answer": "Helps you act on it without hesitating",
+   "answer": "Helps you act on it without pause",
    "why": "It helps you act without hesitating. The write-up helps you internalize the setup so you trade it instinctively. Before that, Bellafiore says, each trade is a struggle of indecision.",
    "lesson_line": "Write it down so next time you act instead of debate.",
    "facts": [
@@ -704,7 +704,7 @@
    "choices": [
     "What is moving the whole market",
     "Why this one stock is moving",
-    "Where your stop goes"
+    "Where your stop goes on the trade"
    ],
    "answer": "What is moving the whole market",
    "why": "What is moving the whole market. His book puts it plainly: first know what is moving the market. Plays suit some situations more than others, and Steenbarger says much of the skill is knowing which play to call when.",
@@ -717,7 +717,7 @@
    ],
    "wrong": {
     "Why this one stock is moving": "That's the next section, intraday fundamentals: the news behind the stock.",
-    "Where your stop goes": "That's trade management, further down the page."
+    "Where your stop goes on the trade": "That's trade management, further down the page."
    }
   },
   {
@@ -871,12 +871,12 @@
    "story": "Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower.",
    "q": "Which one goes in your playbook tonight?",
    "choices": [
-    "B, your setup traded as written",
+    "B, the setup traded as written",
     "A, the biggest winner",
-    "C, so you learn from it",
+    "C, so you can learn from it",
     "All three, every trade counts"
    ],
-   "answer": "B, your setup traded as written",
+   "answer": "B, the setup traded as written",
    "why": "B. The playbook keeps the setup that made the most sense, a play you want to trade more of. The size of the win isn't the test.",
    "lesson_line": "Archive the play you'd gladly run again, not the trade that paid the most.",
    "facts": [
@@ -887,7 +887,7 @@
    ],
    "wrong": {
     "A, the biggest winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
-    "C, so you learn from it": "Learn from it in your journal. A trade where you broke your plan isn't a play you want more of.",
+    "C, so you can learn from it": "Learn from it in your journal. A trade where you broke your plan isn't a play you want more of.",
     "All three, every trade counts": "That's a trade log. The playbook holds the setups that made the most sense."
    }
   },
@@ -971,12 +971,12 @@
    "format": "mcq",
    "q": "Bellafiore met very experienced traders who were underperforming. What did they have in common?",
    "choices": [
-    "No method to archive their best plays",
+    "No method to save their best plays",
     "Too little time watching screens",
-    "Too few stocks to trade",
-    "Not enough chart indicators"
+    "Too few stocks to choose from",
+    "Not enough chart indicators to use"
    ],
-   "answer": "No method to archive their best plays",
+   "answer": "No method to save their best plays",
    "why": "No method to archive their best plays. They couldn't clearly and instantly say what their best plays were. Steenbarger hears the same: traders describe their strengths in vague terms that don't map onto a process.",
    "lesson_line": "If you can't name your best play in one line, write it down.",
    "facts": [
@@ -987,8 +987,8 @@
    ],
    "wrong": {
     "Too little time watching screens": "They were very experienced. Time wasn't the gap; the missing method was.",
-    "Too few stocks to trade": "If anything, his book has a section titled You Are Trading Too Many Stocks.",
-    "Not enough chart indicators": "His common thread was no record of their best plays, not a missing tool."
+    "Too few stocks to choose from": "If anything, his book has a section titled You Are Trading Too Many Stocks.",
+    "Not enough chart indicators to use": "His common thread was no record of their best plays, not a missing tool."
    }
   },
   {
@@ -1112,19 +1112,19 @@
    "status": "pass",
    "fixed": true,
    "by": "checker",
-   "notes": "Key from f03 ('helps them internalize their best trading setups so that they trade them instinctively') and f13 ('before, each trade is a struggle of indecision') in the book, plus f49 (Steenbarger: 'We develop expertise by internalizing what we learn'): two publishers. Replaced two weak distractors ('Makes the setup stop losing', 'Lets you skip reviewing it') with real misreadings: a guarantee ('Proves the setup will win next time', refuted by f41's chance losing streaks) and a tip sheet ('Tells you what to buy tomorrow')."
+   "notes": "Key from f03 ('helps them internalize their best trading setups so that they trade them instinctively') and f13 ('before, each trade is a struggle of indecision') in the book, plus f49 (Steenbarger: 'We develop expertise by internalizing what we learn'): two publishers. Replaced two weak distractors ('Makes the setup stop losing', 'Lets you skip reviewing it') with real misreadings: a guarantee ('Proves the setup will win next time', refuted by f41's chance losing streaks) and a tip sheet ('Tells you what to buy tomorrow'). | variety rewrite checked 2026-11-10"
   },
   "q07": {
    "status": "pass",
    "fixed": false,
    "by": "checker",
-   "notes": "f16 is the book's own heading 'The Big Picture: First Know What Is Moving the Market' (contents, ch. 1, p. 19) and f04 puts it first in the breakdown; the stock's news is the next section, intraday fundamentals (f17), and stops are trade management. f33/f34 (Steenbarger: knowing which plays to call when) confirmed live. Asked as the book's (the 2011 blog form has no Big Picture; see conflicts)."
+   "notes": "f16 is the book's own heading 'The Big Picture: First Know What Is Moving the Market' (contents, ch. 1, p. 19) and f04 puts it first in the breakdown; the stock's news is the next section, intraday fundamentals (f17), and stops are trade management. f33/f34 (Steenbarger: knowing which plays to call when) confirmed live. Asked as the book's (the 2011 blog form has no Big Picture; see conflicts). | variety rewrite checked 2026-11-10"
   },
   "q08": {
    "status": "pass",
    "fixed": true,
    "by": "checker",
-   "notes": "Live SYY entry: 'Intraday Fundamentals: Sysco beats by $0.03, beats on revs'; its Technical Analysis line holds 30.50, 31.50 and 32, its Reading the Tape line 'a clear buyer at 30.63', so every wrong note's numbers are in f25/f26. Changed 'Bellafiore's SYY page' to 'The SYY page Bellafiore shared' (an SMB trader wrote it; he posted it with notes) and 'Bellafiore's term' to 'SMB's term' (s4: 'SMB coined the term')."
+   "notes": "Live SYY entry: 'Intraday Fundamentals: Sysco beats by $0.03, beats on revs'; its Technical Analysis line holds 30.50, 31.50 and 32, its Reading the Tape line 'a clear buyer at 30.63', so every wrong note's numbers are in f25/f26. Changed 'Bellafiore's SYY page' to 'The SYY page Bellafiore shared' (an SMB trader wrote it; he posted it with notes) and 'Bellafiore's term' to 'SMB's term' (s4: 'SMB coined the term'). | variety rewrite checked 2026-11-10: restored the book's section names; the padded wrong choices made the right one the only clean heading"
   },
   "q09": {
    "status": "pass",
@@ -1160,7 +1160,7 @@
    "status": "pass",
    "fixed": false,
    "by": "checker",
-   "notes": "f01 (the setup that made the most sense), f21 (plays you want to trade more of) and f39 (a playbook trade starts with a pattern of market behavior) confirmed; Keller's best-trade question (f52, StockCharts, 2021-12-31) confirmed live. A trader would agree: a tip is not a repeatable play, and a trade where you moved your stop is a journal lesson, not a play. Not leading: the big winner is the tempting pick."
+   "notes": "f01 (the setup that made the most sense), f21 (plays you want to trade more of) and f39 (a playbook trade starts with a pattern of market behavior) confirmed; Keller's best-trade question (f52, StockCharts, 2021-12-31) confirmed live. A trader would agree: a tip is not a repeatable play, and a trade where you moved your stop is a journal lesson, not a play. Not leading: the big winner is the tempting pick. | variety rewrite checked 2026-11-10"
   },
   "q15": {
    "status": "cut",
@@ -1184,7 +1184,7 @@
    "status": "pass",
    "fixed": false,
    "by": "checker",
-   "notes": "f08/f09 confirmed in context in the book's Introduction p. 14 ('very experienced but underperforming traders ... none of them had a methodology to archive their favorite setups'). f50 (Steenbarger 2015: strengths described in generalized terms that don't map onto best processes) confirmed live. f20 is a real contents heading (p. 243), fair for the 'too few stocks' note."
+   "notes": "f08/f09 confirmed in context in the book's Introduction p. 14 ('very experienced but underperforming traders ... none of them had a methodology to archive their favorite setups'). f50 (Steenbarger 2015: strengths described in generalized terms that don't map onto best processes) confirmed live. f20 is a real contents heading (p. 243), fair for the 'too few stocks' note. | variety rewrite checked 2026-11-10"
   },
   "q19": {
    "status": "pass",

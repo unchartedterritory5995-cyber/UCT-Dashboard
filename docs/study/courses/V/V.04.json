@@ -1751,11 +1751,11 @@
    "term": "continuation pattern",
    "q": "What does continuation pattern mean?",
    "choices": [
-    "A pause, then the old trend resumes",
+    "A pause, then the trend resumes",
     "A sign the trend is about to flip",
     "Any pattern that breaks out upward"
    ],
-   "answer": "A pause, then the old trend resumes",
+   "answer": "A pause, then the trend resumes",
    "why": "A pause, then the old trend resumes. Price goes into the pattern one way and comes out the same way.",
    "lesson_line": "Continuation: in one direction, out the same direction.",
    "facts": [
@@ -1834,9 +1834,9 @@
    "q": "On a cup with handle, what is the handle?",
    "choices": [
     "The short pullback after the cup",
-    "The deepest low of the cup",
+    "The deepest low of the whole cup",
     "The run-up before the cup began",
-    "The day price breaks out"
+    "The day price breaks out of it"
    ],
    "answer": "The short pullback after the cup",
    "why": "The short pullback after the cup. Once the cup's right side makes its high, price eases back for a while. That dip is the handle.",
@@ -1848,9 +1848,9 @@
     "f22"
    ],
    "wrong": {
-    "The deepest low of the cup": "That's the bottom of the cup.",
+    "The deepest low of the whole cup": "That's the bottom of the cup.",
     "The run-up before the cup began": "That's the prior advance. The pattern needs one, but it isn't the handle.",
-    "The day price breaks out": "The breakout comes out of the handle. It isn't the handle."
+    "The day price breaks out of it": "The breakout comes out of the handle. It isn't the handle."
    }
   },
   {
@@ -1879,9 +1879,9 @@
    "q": "What does flag mean on a chart?",
    "choices": [
     "Brief pause tilting against the move",
-    "A long base shaped like a bowl",
+    "A long base shaped like a round bowl",
     "Lines that meet at a point",
-    "The sharp run before the pause"
+    "The sharp run that comes before it"
    ],
    "answer": "Brief pause tilting against the move",
    "why": "A brief pause tilting against the move. It's a small rectangle hanging off a sharp run, usually sloping the other way.",
@@ -1896,9 +1896,9 @@
     "f50"
    ],
    "wrong": {
-    "A long base shaped like a bowl": "That's a rounding bottom, or the cup of a cup with handle.",
+    "A long base shaped like a round bowl": "That's a rounding bottom, or the cup of a cup with handle.",
     "Lines that meet at a point": "Converging lines make a pennant or a triangle. A flag's lines run parallel.",
-    "The sharp run before the pause": "That's the flagpole. The flag is the pause that hangs off it."
+    "The sharp run that comes before it": "That's the flagpole. The flag is the pause that hangs off it."
    }
   },
   {
@@ -1936,9 +1936,9 @@
    "q": "What does pennant mean?",
    "choices": [
     "A tiny triangle after a sharp move",
-    "A long, flat-topped base",
-    "A flag with parallel lines",
-    "A deep U-shaped base"
+    "A long, flat-topped base of weeks",
+    "A flag-like pause with parallel lines",
+    "A deep U-shaped base with a handle"
    ],
    "answer": "A tiny triangle after a sharp move",
    "why": "A tiny triangle after a sharp move. It's a short pause between two lines that come together.",
@@ -1952,9 +1952,9 @@
     "f18"
    ],
    "wrong": {
-    "A long, flat-topped base": "That sounds like an ascending triangle or a flat base. A pennant is short and its lines converge.",
-    "A flag with parallel lines": "Parallel lines make a flag. A pennant's lines come together.",
-    "A deep U-shaped base": "That's a cup."
+    "A long, flat-topped base of weeks": "That sounds like an ascending triangle or a flat base. A pennant is short and its lines converge.",
+    "A flag-like pause with parallel lines": "Parallel lines make a flag. A pennant's lines come together.",
+    "A deep U-shaped base with a handle": "That's a cup."
    }
   },
   {
@@ -1983,12 +1983,12 @@
    "term": "wedge",
    "q": "What does wedge mean on a chart?",
    "choices": [
-    "Narrowing lines that slope the same way",
+    "Narrowing lines sloping the same way",
     "One flat line and one rising line",
     "Parallel lines tilting against a run",
     "A rounded low with a short dip"
    ],
-   "answer": "Narrowing lines that slope the same way",
+   "answer": "Narrowing lines sloping the same way",
    "why": "Narrowing lines that slope the same way. Both lines rise in a rising wedge; both fall in a falling wedge.",
    "lesson_line": "Wedge: both lines point the same way and squeeze together.",
    "facts": [
@@ -2289,12 +2289,12 @@
    "term": "rectangle",
    "q": "What does rectangle mean on a chart?",
    "choices": [
-    "Sideways between a flat top and bottom",
-    "A narrowing range that slopes up",
-    "A U-shaped dip and recovery",
+    "Sideways between flat top and bottom",
+    "A narrowing range that slopes upward",
+    "A U-shaped dip and slow recovery",
     "Three peaks, the middle highest"
    ],
-   "answer": "Sideways between a flat top and bottom",
+   "answer": "Sideways between flat top and bottom",
    "why": "Sideways between a flat top and a flat bottom. It's also called a trading range or a congestion area.",
    "lesson_line": "Rectangle: flat ceiling, flat floor, price bouncing between.",
    "facts": [
@@ -2307,8 +2307,8 @@
     "f125"
    ],
    "wrong": {
-    "A narrowing range that slopes up": "That's a rising wedge.",
-    "A U-shaped dip and recovery": "That's a cup.",
+    "A narrowing range that slopes upward": "That's a rising wedge.",
+    "A U-shaped dip and slow recovery": "That's a cup.",
     "Three peaks, the middle highest": "That's a head and shoulders."
    }
   },
@@ -2360,7 +2360,7 @@
    "rung": 4,
    "format": "tf",
    "term": "reversal pattern",
-   "q": "A pattern that forms after a big advance is always a reversal pattern.",
+   "q": "A pattern that forms after a big advance is automatically a reversal pattern.",
    "answer": "False",
    "why": "False. Many patterns after a big run are only pauses. A rectangle or a wedge can be either kind.",
    "lesson_line": "Where a pattern forms doesn't decide its type. How price leaves it does.",
@@ -2409,12 +2409,12 @@
    "story": "A stock builds a cup from $50 down to $35 and back up to $49. Then it pulls back to $38 over two weeks.",
    "q": "Does that pullback count as a proper handle?",
    "choices": [
-    "No, it sank into the cup's lower half",
+    "No, it sank into the lower half",
     "Yes, any dip after a cup counts",
     "Yes, a deep handle shakes out more",
     "No, a handle can only go sideways"
    ],
-   "answer": "No, it sank into the cup's lower half",
+   "answer": "No, it sank into the lower half",
    "why": "No. The cup runs from $35 to $49, so $38 is deep in its lower half. A handle should stay in the upper half.",
    "lesson_line": "A handle that sinks into the bottom of the cup isn't a handle.",
    "facts": [
@@ -2631,9 +2631,9 @@
    "rung": 7,
    "format": "tf",
    "term": "rising wedge",
-   "q": "A rising wedge always breaks down.",
-   "answer": "False",
-   "why": "False. Textbooks lean bearish, but Bulkowski counts downward breakouts 60% of the time, not every time.",
+   "q": "A rising wedge does not always break down; Bulkowski counts downward breakouts 60% of the time.",
+   "answer": "True",
+   "why": "True. Textbooks lean bearish, but Bulkowski counts downward breakouts 60% of the time, not every time.",
    "lesson_line": "A bias is not a forecast. Wait for a close outside one of the lines.",
    "facts": [
     "f67",
@@ -2933,12 +2933,12 @@
    "term": "shakeout",
    "q": "What does shakeout mean?",
    "choices": [
-    "A sharp drop that scares holders out",
-    "A slow climb on rising volume",
-    "A gap up on good earnings",
-    "A week of tiny daily ranges"
+    "A sharp dip that scares holders out",
+    "A slow climb on steadily rising volume",
+    "A gap up on strong earnings news",
+    "A week of very tiny daily ranges"
    ],
-   "answer": "A sharp drop that scares holders out",
+   "answer": "A sharp dip that scares holders out",
    "why": "A sharp drop that scares holders out. Many investors sell at once, often at a loss, on fear or bad news.",
    "lesson_line": "A shakeout runs scared holders out, and it's usually fast.",
    "facts": [
@@ -2948,9 +2948,9 @@
     "f170"
    ],
    "wrong": {
-    "A slow climb on rising volume": "That's buyers in control. Nobody is being scared out.",
-    "A gap up on good earnings": "Holders are rewarded by that, not scared out.",
-    "A week of tiny daily ranges": "That's a quiet, tight market. A shakeout is sharp."
+    "A slow climb on steadily rising volume": "That's buyers in control. Nobody is being scared out.",
+    "A gap up on strong earnings news": "Holders are rewarded by that, not scared out.",
+    "A week of very tiny daily ranges": "That's a quiet, tight market. A shakeout is sharp."
    }
   },
   {
@@ -2961,12 +2961,12 @@
    "term": "cause",
    "q": "In Wyckoff's method, what is the cause?",
    "choices": [
-    "The range's build-up that fuels a move",
-    "The news that started the selloff",
+    "The range's build-up behind a move",
+    "The news that started the big selloff",
     "The breakout day's volume spike",
     "The trend before the range began"
    ],
-   "answer": "The range's build-up that fuels a move",
+   "answer": "The range's build-up behind a move",
    "why": "The build-up inside the trading range. In Wyckoff's law of cause and effect, the range builds the cause and the move out of it is the effect.",
    "lesson_line": "Wyckoff: the range builds the cause; the trend that follows is the effect.",
    "facts": [
@@ -2977,7 +2977,7 @@
     "f198"
    ],
    "wrong": {
-    "The news that started the selloff": "News can start a move, but Wyckoff's cause is built inside the trading range.",
+    "The news that started the big selloff": "News can start a move, but Wyckoff's cause is built inside the trading range.",
     "The breakout day's volume spike": "That's the move leaving the range, the start of the effect.",
     "The trend before the range began": "That trend comes before the range. The cause is built inside it."
    }
@@ -2988,7 +2988,7 @@
    "rung": 7,
    "format": "tf",
    "term": "spring",
-   "q": "In Wyckoff's method, every accumulation range has a spring.",
+   "q": "In Wyckoff's method, an accumulation range needs a spring.",
    "answer": "False",
    "why": "False. Springs and terminal shakeouts are not required. One Wyckoff accumulation schematic shows a spring and the other doesn't.",
    "lesson_line": "No spring doesn't mean no base. It's optional.",
@@ -3006,12 +3006,12 @@
    "term": "flat base",
    "q": "What does flat base mean?",
    "choices": [
-    "Sideways for several weeks or months",
-    "A steep run on heavy volume",
+    "Sideways for several weeks or more",
+    "A steep, sudden run on heavy volume",
     "A V-shaped drop and fast recovery",
-    "A gap that never fills"
+    "A gap that does not fill for weeks"
    ],
-   "answer": "Sideways for several weeks or months",
+   "answer": "Sideways for several weeks or more",
    "why": "Sideways for several weeks or months. Bulkowski compares it to a rectangle: price keeps touching the same levels.",
    "lesson_line": "Flat base: the stock moves sideways, neither up nor down, for weeks.",
    "facts": [
@@ -3022,9 +3022,9 @@
     "f18"
    ],
    "wrong": {
-    "A steep run on heavy volume": "That's a flagpole, the opposite of a base.",
+    "A steep, sudden run on heavy volume": "That's a flagpole, the opposite of a base.",
     "A V-shaped drop and fast recovery": "A V is a sharp reversal. A base goes sideways.",
-    "A gap that never fills": "A gap is a jump between two bars, not a base."
+    "A gap that does not fill for weeks": "A gap is a jump between two bars, not a base."
    }
   },
   {
@@ -3035,12 +3035,12 @@
    "term": "Darvas box",
    "q": "What does Darvas box mean?",
    "choices": [
-    "A range framed by recent highs and lows",
-    "A rounded base with a handle",
-    "A flat top with rising lows",
-    "Three peaks, the middle highest"
+    "A box built from recent highs, lows",
+    "A rounded base with a short handle",
+    "A flat top with steadily rising lows",
+    "Three peaks, with the middle highest"
    ],
-   "answer": "A range framed by recent highs and lows",
+   "answer": "A box built from recent highs, lows",
    "why": "A range framed by recent highs and lows. The buy signal is a break above the top of the box.",
    "lesson_line": "Darvas box: a top, a bottom, and a trade on the break.",
    "facts": [
@@ -3052,9 +3052,9 @@
     "f125"
    ],
    "wrong": {
-    "A rounded base with a handle": "That's a cup with handle.",
-    "A flat top with rising lows": "That's an ascending triangle.",
-    "Three peaks, the middle highest": "That's a head and shoulders."
+    "A rounded base with a short handle": "That's a cup with handle.",
+    "A flat top with steadily rising lows": "That's an ascending triangle.",
+    "Three peaks, with the middle highest": "That's a head and shoulders."
    }
   },
   {
@@ -3197,9 +3197,9 @@
    "rung": 8,
    "format": "tf",
    "term": "shakeout",
-   "q": "A shakeout means the uptrend is over.",
-   "answer": "False",
-   "why": "False. Investopedia notes the prior trend often reasserts after a shakeout. In Wyckoff's method, shakeouts can come once an advance has started.",
+   "q": "A shakeout does not always mean the uptrend is over; the prior trend often reasserts.",
+   "answer": "True",
+   "why": "True. Investopedia notes the prior trend often reasserts after a shakeout. In Wyckoff's method, shakeouts can come once an advance has started.",
    "lesson_line": "A shakeout is a scare, not a verdict. Often the prior trend reasserts.",
    "facts": [
     "f175",
@@ -3331,12 +3331,12 @@
    "term": "symmetrical triangle",
    "q": "What separates a symmetrical triangle from a pennant?",
    "choices": [
-    "Pennants are short and need a sharp move",
-    "Pennants have parallel lines",
-    "Triangles only form in downtrends",
-    "Pennants never have a flagpole"
+    "A pennant is short, after a sharp run",
+    "Pennants have two parallel lines",
+    "Triangles need a long downtrend first",
+    "Pennants come with no flagpole"
    ],
-   "answer": "Pennants are short and need a sharp move",
+   "answer": "A pennant is short, after a sharp run",
    "why": "Pennants are short and follow a sharp move. A symmetrical triangle can form without one and runs longer. StockCharts calls one under three weeks a pennant.",
    "lesson_line": "Same shape, different setting: a pennant hangs off a pole.",
    "facts": [
@@ -3348,9 +3348,9 @@
     "f41"
    ],
    "wrong": {
-    "Pennants have parallel lines": "Parallel lines make a flag. A pennant's lines converge, like a triangle's.",
-    "Triangles only form in downtrends": "The trend into a symmetrical triangle can be either direction.",
-    "Pennants never have a flagpole": "It's the reverse. A pennant needs a sharp move, its pole, before it."
+    "Pennants have two parallel lines": "Parallel lines make a flag. A pennant's lines converge, like a triangle's.",
+    "Triangles need a long downtrend first": "The trend into a symmetrical triangle can be either direction.",
+    "Pennants come with no flagpole": "It's the reverse. A pennant needs a sharp move, its pole, before it."
    }
   },
   {
@@ -3448,7 +3448,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key matches f1 (StockCharts glossary) and f2 (Bulkowski glossary), read in context. Both wrong choices are real confusions. No change.",
+   "notes": "Key matches f1 (StockCharts glossary) and f2 (Bulkowski glossary), read in context. Both wrong choices are real confusions. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3466,7 +3466,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "f19 (StockCharts), f22 (Bulkowski), f34 (Investopedia): the handle is the pullback on the cup's right. No change.",
+   "notes": "f19 (StockCharts), f22 (Bulkowski), f34 (Investopedia): the handle is the pullback on the cup's right. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3478,7 +3478,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "f40, f48 (StockCharts), f49 (Bulkowski), f56 (Investopedia) support the key; the wrongs map to cup, pennant or triangle, and flagpole. No change.",
+   "notes": "f40, f48 (StockCharts), f49 (Bulkowski), f56 (Investopedia) support the key; the wrongs map to cup, pennant or triangle, and flagpole. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3490,7 +3490,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f42 (StockCharts), f53 (Bulkowski), f61 (Investopedia): a small symmetrical triangle; f44 for the sharp move before it. No change.",
+   "notes": "f42 (StockCharts), f53 (Bulkowski), f61 (Investopedia): a small symmetrical triangle; f44 for the sharp move before it. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3502,7 +3502,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "f63 (Fidelity) and f65, f70 (Bulkowski): both lines slope the same way and converge. Wrongs are ascending triangle, flag, cup with handle. No change.",
+   "notes": "f63 (Fidelity) and f65, f70 (Bulkowski): both lines slope the same way and converge. Wrongs are ascending triangle, flag, cup with handle. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3568,7 +3568,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "f152, f153 (StockCharts), f154 (Bulkowski), f155 (Fidelity). No change.",
+   "notes": "f152, f153 (StockCharts), f154 (Bulkowski), f155 (Fidelity). No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3586,8 +3586,8 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "f5, f6 (StockCharts): a pattern after a big move is not automatically a reversal; f10 (Investopedia): a wedge can be either. 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site.",
-   "fixed": false,
+   "notes": "f5, f6 (StockCharts): a pattern after a big move is not automatically a reversal; f10 (Investopedia): a wedge can be either. 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site. variety rewrite checked 2026-11-10; edited: statement now says automatically (f5) so it is unambiguously false without always.",
+   "fixed": true,
    "by": "checker"
   },
   "q25": {
@@ -3598,7 +3598,7 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "Cup $35 to $49: midpoint $42, so $38 is in the lower half (it gives back 11 of the 14 points). Upper-half rule in f24 (Bulkowski) and f35 (Investopedia). Handles can drift down (f34), so 'only sideways' is really wrong. No change.",
+   "notes": "Cup $35 to $49: midpoint $42, so $38 is in the lower half (it gives back 11 of the 14 points). Upper-half rule in f24 (Bulkowski) and f35 (Investopedia). Handles can drift down (f34), so 'only sideways' is really wrong. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3652,7 +3652,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "f67 (Bulkowski: down 60% of the time) and f77 (Investopedia: 'usually'). 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site.",
+   "notes": "f67 (Bulkowski: down 60% of the time) and f77 (Investopedia: 'usually'). 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3718,31 +3718,31 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "f171 (StockCharts glossary), f172, f173 (Investopedia): many holders exit at once, usually sharply. No change.",
+   "notes": "f171 (StockCharts glossary), f172, f173 (Investopedia): many holders exit at once, usually sharply. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q47": {
    "status": "pass",
-   "notes": "The key rested on one shared text (StockCharts republishes Wyckoff Analytics). Added f198 from independently written slides by Hank Pruden hosted by the CMT Association (s57): the cause is built in the range, its projection is the effect. Key unchanged.",
+   "notes": "The key rested on one shared text (StockCharts republishes Wyckoff Analytics). Added f198 from independently written slides by Hank Pruden hosted by the CMT Association (s57): the cause is built in the range, its projection is the effect. Key unchanged. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q48": {
    "status": "pass",
-   "notes": "f167 (StockCharts tutorial) and f168 (Wyckoff Analytics, the method's own school) say springs are not required; f169: Schematic 2 has none. Two Tier 2 publishers but one shared text; no independent reliable source found (only vendor blogs). Standard Wyckoff teaching. No change.",
+   "notes": "f167 (StockCharts tutorial) and f168 (Wyckoff Analytics, the method's own school) say springs are not required; f169: Schematic 2 has none. Two Tier 2 publishers but one shared text; no independent reliable source found (only vendor blogs). Standard Wyckoff teaching. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q49": {
    "status": "pass",
-   "notes": "f156, f157 (Bulkowski) and f158 (IBD's opening, confirmed with plain curl; WebFetch refuses investors.com). No change.",
+   "notes": "f156, f157 (Bulkowski) and f158 (IBD's opening, confirmed with plain curl; WebFetch refuses investors.com). No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q50": {
    "status": "pass",
-   "notes": "f159 (Investopedia) and f160, f161 (Bulkowski): a box from recent highs and lows, traded on the break. No change.",
+   "notes": "f159 (Investopedia) and f160, f161 (Bulkowski): a box from recent highs and lows, traded on the break. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3784,7 +3784,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "Was 'a shakeout usually interrupts a longer uptrend' (True): only Investopedia says that. The Wyckoff tutorial says shakeouts 'may also' come in an advance, and StockCharts' example is the dot-com bust. Rewritten to what both allow: 'means the uptrend is over' is False (f175, f170).",
+   "notes": "Was 'a shakeout usually interrupts a longer uptrend' (True): only Investopedia says that. The Wyckoff tutorial says shakeouts 'may also' come in an advance, and StockCharts' example is the dot-com bust. Rewritten to what both allow: 'means the uptrend is over' is False (f175, f170). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3820,8 +3820,8 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "f104 (Investopedia: pennants need a sudden prior move), f105 (StockCharts: under three weeks is a pennant), f55 (Bulkowski). The wrongs are really wrong (f41, f103). No change.",
-   "fixed": false,
+   "notes": "f104 (Investopedia: pennants need a sudden prior move), f105 (StockCharts: under three weeks is a pennant), f55 (Bulkowski). The wrongs are really wrong (f41, f103). No change. variety rewrite checked 2026-11-10; edited: two wrong choices lost only/never (absolute-word tell).",
+   "fixed": true,
    "by": "checker"
   },
   "q64": {

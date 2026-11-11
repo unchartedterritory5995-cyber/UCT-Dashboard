@@ -354,7 +354,7 @@
  },
  {
   "answer_json": {
-   "answer": "Good grounds the shares can be borrowed"
+   "answer": "Grounds the shares can be borrowed"
   },
   "difficulty": 1,
   "id": "si_0a05b179a9e8",
@@ -364,7 +364,7 @@
   "prompt_json": {
    "choices": [
     "A cash loan to buy the shares",
-    "Good grounds the shares can be borrowed",
+    "Grounds the shares can be borrowed",
     "A buyer lined up for your shares",
     "Proof you already own the shares"
    ],
@@ -421,7 +421,7 @@
     "summary": "Before any short sale, the broker must have reasonable grounds to believe the shares can be borrowed and delivered on time. That is the locate. The locate is made and documented before the short sale goes through. Your broker locates the shares before it executes your short sale. Your broker has to locate the shares before you can short. A sale can be marked long when the seller owns the shares being sold (and they will be with the broker by settlement). A margin loan for buying is a loan of cash, not of shares."
    },
    "facts": {
-    "given": "Before a short sale, your broker must have a locate. What is it? Good grounds the shares can be borrowed Proof you already own the shares A buyer lined up for your shares A cash loan to buy the shares"
+    "given": "Before a short sale, your broker must have a locate. What is it? Grounds the shares can be borrowed Proof you already own the shares A buyer lined up for your shares A cash loan to buy the shares"
    },
    "lesson_line": "No locate, no short. It's the first thing your broker checks.",
    "unit": "F10b.01",
@@ -890,7 +890,7 @@
   "prompt_json": {
    "choices": [
     "It must be priced above the best bid",
-    "Nothing changes for short sellers",
+    "Nothing changes for any short sellers",
     "Short sales are banned for the day"
    ],
    "kind": "mcq",
@@ -940,13 +940,13 @@
     "summary": "The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. After the trigger, a short sale is allowed only at a price above the current national best bid. Once Rule 201 trips, a short sale cannot be executed or shown at or below the current national best bid. Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day. After the trigger, holders who are selling go to the front of the line ahead of short sellers."
    },
    "facts": {
-    "given": "What rule now applies to your short sale order? A stock closed at $50.00 yesterday. This morning, in regular trading, it trades at $44.50. You want to short it. It must be priced above the best bid Short sales are banned for the day Nothing changes for short sellers"
+    "given": "What rule now applies to your short sale order? A stock closed at $50.00 yesterday. This morning, in regular trading, it trades at $44.50. You want to short it. It must be priced above the best bid Short sales are banned for the day Nothing changes for any short sellers"
    },
    "lesson_line": "A 10% drop from yesterday's close turns on the short-sale price test. Hitting the bid is off the table.",
    "unit": "F10b.01",
    "why": "Above the best bid. $44.50 is more than 10% under the $50.00 close, which trips the circuit breaker. Shorts must then be priced above the national best bid.",
    "wrong": {
-    "Nothing changes for short sellers": "A drop of 10% or more from the prior close trips the circuit breaker. Shorts can't hit the bid now.",
+    "Nothing changes for any short sellers": "A drop of 10% or more from the prior close trips the circuit breaker. Shorts can't hit the bid now.",
     "Short sales are banned for the day": "The rule limits the price, not the act. A short priced above the national best bid is still allowed."
    }
   },
@@ -1520,7 +1520,7 @@
  },
  {
   "answer_json": {
-   "answer": "No, it can only trip in regular hours"
+   "answer": "No, it trips in regular hours only"
   },
   "difficulty": 3,
   "id": "si_44444a0f8a38",
@@ -1529,9 +1529,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Yes, any 10% drop trips it",
-    "No, it covers only small caps",
-    "No, it can only trip in regular hours"
+    "Yes, any 10% drop trips it at once",
+    "No, it covers just the small caps",
+    "No, it trips in regular hours only"
    ],
    "kind": "mcq",
    "q": "You want to short it premarket. Is the short-sale price test on yet?",
@@ -1580,14 +1580,14 @@
     "summary": "Only regular trading hours count for tripping the Rule 201 circuit breaker. Regular trading hours run from 9:30 a.m. to 4:00 p.m. Eastern. The 10% drop is measured on trades reported during regular trading hours. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. Rule 201 generally covers every exchange-listed stock."
    },
    "facts": {
-    "given": "You want to short it premarket. Is the short-sale price test on yet? A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday. No, it can only trip in regular hours Yes, any 10% drop trips it No, it covers only small caps"
+    "given": "You want to short it premarket. Is the short-sale price test on yet? A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday. No, it trips in regular hours only Yes, any 10% drop trips it at once No, it covers just the small caps"
    },
    "lesson_line": "A premarket gap doesn't trip the price test. The first regular-hours trades can.",
    "unit": "F10b.01",
    "why": "No. The 10% test is measured on regular-hours trades only. If regular trading prints 10% or more below the $40.00 close, it trips then.",
    "wrong": {
-    "No, it covers only small caps": "It generally covers every exchange-listed stock, large or small.",
-    "Yes, any 10% drop trips it": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern."
+    "No, it covers just the small caps": "It generally covers every exchange-listed stock, large or small.",
+    "Yes, any 10% drop trips it at once": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern."
    }
   },
   "review_status": "draft",

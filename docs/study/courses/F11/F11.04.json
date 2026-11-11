@@ -789,12 +789,12 @@
    "format": "mcq",
    "q": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one?",
    "choices": [
-    "It doesn't fit, so they don't follow it",
-    "The seller hid the real rules",
+    "It doesn't fit, so it isn't followed",
+    "The seller hid some of the real rules",
     "Markets change too fast for systems",
-    "They traded it too small"
+    "They traded it far too small"
    ],
-   "answer": "It doesn't fit, so they don't follow it",
+   "answer": "It doesn't fit, so it isn't followed",
    "why": "It doesn't fit, so they don't follow it. Tharp: the typical buyer won't trade a working system as intended because it doesn't fit them and their style. Steenbarger sees the same: methods that don't use your strengths hold you back.",
    "lesson_line": "A system you won't follow is worth nothing to you. Fit comes first.",
    "facts": [
@@ -805,9 +805,9 @@
     "f48"
    ],
    "wrong": {
-    "The seller hid the real rules": "Tharp's point is the reverse: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
+    "The seller hid some of the real rules": "Tharp doesn't blame the seller: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
     "Markets change too fast for systems": "Systems do need revising as markets change. But Tharp's reason here is the misfit: buyers don't follow what they bought.",
-    "They traded it too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
+    "They traded it far too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
    }
   },
   {
@@ -1020,12 +1020,12 @@
    "format": "mcq",
    "q": "When has a setup earned a bigger size from you?",
    "choices": [
-    "After months of proven, logged results",
-    "After two big wins in a row",
-    "When you feel sure about it",
-    "When a mentor swears by it"
+    "After months of your logged results",
+    "After two or three big wins in a row",
+    "When you feel really sure about it",
+    "When a mentor you trust swears by it"
    ],
-   "answer": "After months of proven, logged results",
+   "answer": "After months of your logged results",
    "why": "After months of proven, logged results. Tharp: ramp up size only once you've traded it consistently and profitably for months, not days. Bellafiore sizes up on setups that measure well.",
    "lesson_line": "Size follows proof. Your own logged numbers, over months, earn the bigger size.",
    "facts": [
@@ -1036,9 +1036,9 @@
     "f59"
    ],
    "wrong": {
-    "After two big wins in a row": "Two trades is a tiny sample, and small samples give unreliable results.",
-    "When you feel sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
-    "When a mentor swears by it": "His record isn't yours. Learn from others, then build your own record."
+    "After two or three big wins in a row": "Two or three trades is a tiny sample, and small samples give unreliable results.",
+    "When you feel really sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
+    "When a mentor you trust swears by it": "His record isn't yours. Learn from others, then build your own record."
    }
   },
   {
@@ -1246,8 +1246,8 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "f43, f44 re-read live with WebFetch on the Tharp page: the typical buyer does not follow a working system 'Because the system didn't fit them and their style'. Steenbarger f20 agrees. 'Markets change' is fairly handled in its wrong note (f50 confirmed in context: systems need revising).",
-   "fixed": false,
+   "notes": "f43, f44 re-read live with WebFetch on the Tharp page: the typical buyer does not follow a working system 'Because the system didn't fit them and their style'. Steenbarger f20 agrees. 'Markets change' is fairly handled in its wrong note (f50 confirmed in context: systems need revising). variety rewrite checked 2026-11-10; edited: wrong note: Tharp does not blame the seller, hundreds of systems work (f43).",
+   "fixed": true,
    "by": "checker"
   },
   "q08": {
@@ -1294,8 +1294,8 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "f49 (Tharp: 'months, not days', re-read live) and f33 (Bellafiore: increase risk on setups that measure well) agree; f36 (Frequent Flyer's stats won the capital bump) confirmed in context. Each distractor is a real sizing mistake and its note is sourced.",
-   "fixed": false,
+   "notes": "f49 (Tharp: 'months, not days', re-read live) and f33 (Bellafiore: increase risk on setups that measure well) agree; f36 (Frequent Flyer's stats won the capital bump) confirmed in context. Each distractor is a real sizing mistake and its note is sourced. variety rewrite checked 2026-11-10; edited: right choice lengthened to mid-length (was the shortest); wrong note matches two-or-three wins.",
+   "fixed": true,
    "by": "checker"
   },
   "q16": {

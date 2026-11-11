@@ -712,11 +712,11 @@
    "format": "mcq",
    "q": "You'll be in and out the same day, every trade. Which chart do you trade off?",
    "choices": [
-    "A 5- or 15-minute chart",
-    "The daily chart",
-    "The weekly chart"
+    "A 5- or 15-minute intraday chart",
+    "The daily chart, one bar a day",
+    "The weekly chart, one bar a week"
    ],
-   "answer": "A 5- or 15-minute chart",
+   "answer": "A 5- or 15-minute intraday chart",
    "why": "A 5- or 15-minute chart. A day trader works off charts like the 15-minute, with a 5-minute for timing. A trade that lasts minutes to hours needs bars that short.",
    "lesson_line": "Your holding time picks the chart. Trades that last minutes need minute bars.",
    "facts": [
@@ -727,8 +727,8 @@
     "f30"
    ],
    "wrong": {
-    "The daily chart": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
-    "The weekly chart": "That's for trends that run weeks or months. Your trade is over long before one bar closes."
+    "The daily chart, one bar a day": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
+    "The weekly chart, one bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes."
    }
   },
   {
@@ -963,8 +963,8 @@
    "q": "Which one fits your style?",
    "choices": [
     "Stock B, it has range and volume",
-    "Stock A, it's calmer",
-    "Either, only the setup matters"
+    "Stock A, it's calmer to hold",
+    "Either one, only the setup matters"
    ],
    "answer": "Stock B, it has range and volume",
    "why": "Stock B. A day trader needs enough daily range to make a profit in hours, and the volume to get in and out fast. Intraday traders usually work volatile stocks.",
@@ -975,8 +975,8 @@
     "f06"
    ],
    "wrong": {
-    "Stock A, it's calmer": "Calm is fine for a longer hold. A day trader needs movement inside one session, and a small daily range leaves little to take.",
-    "Either, only the setup matters": "The stock has to fit the style too. A small daily range or light volume rules a stock out for a day trader."
+    "Stock A, it's calmer to hold": "Calm is fine for a longer hold. A day trader needs movement inside one session, and a small daily range leaves little to take.",
+    "Either one, only the setup matters": "The stock has to fit the style too. A small daily range or light volume rules a stock out for a day trader."
    }
   },
   {
@@ -1090,11 +1090,11 @@
    "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop.",
    "q": "What does the plan say to do?",
    "choices": [
-    "Hold it and trail on the daily chart",
-    "Sell, it was an intraday entry",
-    "Sell half before the close"
+    "Hold it; trail on the daily chart",
+    "Sell it, it was an intraday entry",
+    "Sell half of it before the close"
    ],
-   "answer": "Hold it and trail on the daily chart",
+   "answer": "Hold it; trail on the daily chart",
    "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and sells a third at 3R and another at 5R.",
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "facts": [
@@ -1106,8 +1106,8 @@
     "f36"
    ],
    "wrong": {
-    "Sell, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
-    "Sell half before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close."
+    "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
+    "Sell half of it before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close."
    }
   },
   {
@@ -1268,7 +1268,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f55 (Investopedia 15/5-minute) and f09 (ChartSchool intraday charts) agree. Dropped 'The monthly chart' (silly for a same-day trade) and its fact f28; three choices remain.",
+   "notes": "f55 (Investopedia 15/5-minute) and f09 (ChartSchool intraday charts) agree. Dropped 'The monthly chart' (silly for a same-day trade) and its fact f28; three choices remain. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1334,7 +1334,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f60/f61 Investopedia (range and volume critical) and f06 FINRA Tier 1 (volatile stocks). No numbers in the why. Wrong choices real misunderstandings.",
+   "notes": "f60/f61 Investopedia (range and volume critical) and f06 FINRA Tier 1 (volatile stocks). No numbers in the why. Wrong choices real misunderstandings. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1366,7 +1366,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h5 (B19) and h8 (E51) verbatim in section 9; h2/h3/h6 (TRADE_PLANS, the Kicker row) still on the page. Key 'Hold it and trail on the daily chart' follows: the story is short of 3R and above the stop, so nothing in the plan sells. Notes hold. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. 'takes some off at 2R and 3R' now the thirds at 3R and 5R; the story names 3R as the first trim. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
+   "notes": "Checker 2026-11-09: h5 (B19) and h8 (E51) verbatim in section 9; h2/h3/h6 (TRADE_PLANS, the Kicker row) still on the page. Key 'Hold it and trail on the daily chart' follows: the story is short of 3R and above the stop, so nothing in the plan sells. Notes hold. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. 'takes some off at 2R and 3R' now the thirds at 3R and 5R; the story names 3R as the first trim. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook variety rewrite checked 2026-11-10"
   },
   "q18": {
    "status": "pass",

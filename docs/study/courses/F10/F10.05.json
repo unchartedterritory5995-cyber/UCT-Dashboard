@@ -907,7 +907,7 @@
    "rung": 4,
    "format": "scenario",
    "story": "You bought at $50 with a stop at $47. It's now $47.50 and still sliding. A friend says buy more here to lower your average.",
-   "q": "What do you do?",
+   "q": "How do you respond?",
    "choices": [
     "Stick to the stop, add nothing",
     "Buy more, it's cheaper now",
@@ -1259,7 +1259,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "Your swing trade is well under your entry and close to your stop. You already bought more once on the way down. You still like the company and want to buy more.",
-   "q": "What do you do?",
+   "q": "Which move fits our plan?",
    "choices": [
     "Take the loss and move on",
     "Average down one more time",
@@ -1706,12 +1706,7 @@
    "fixed": false,
    "notes": "cut 2026-11-09: taught building a position in pieces or adding to one, which is not our method. Account rulebook A5 (sizing_rule.md section 9): 'The full size at one price with one stop; no adding.' Owner, sizing_rule.md section 5 (2026-11-09): 'I do not scale into trade i buy full at one spot with one stop.' Earlier checker note, kept for the record: f44 (StockCharts: an add 'isn't free upside. It's a whole new setup') and f24 (Investopedia: increased losses if you buy just before a sharp fall) agree; False is right. Changed the lesson line, which repeated q23's and w1's 'own stop and own size', to 'A profit on your first shares doesn't protect the new ones.'"
   },
-  "q12": {
-   "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "O'Neil (f08/f09), Hirsch (f12/f13) and Investopedia (f27) agree: don't average down here; Bulkowski's one allowed average down needs a rising market and industry, which a stock sliding into its stop is not. Three of four choices began 'Buy more', which pointed at the key; replaced 'Buy more and lower the stop' with 'Hold, but lower the stop to $45' (a real named mistake, widening the stop) and rewrote its wrong note."
-  },
+  "q12": {"status": "pass", "fixed": true, "by": "checker", "notes": "O'Neil (f08/f09), Hirsch (f12/f13) and Investopedia (f27) agree: don't average down here; Bulkowski's one allowed average down needs a rising market and industry, which a stock sliding into its stop is not. Three of four choices began 'Buy more', which pointed at the key; replaced 'Buy more and lower the stop' with 'Hold, but lower the stop to $45' (a real named mistake, widening the stop) and rewrote its wrong note. variety rewrite checked 2026-11-10"},
   "q13": {
    "status": "pass",
    "fixed": false,
@@ -1778,12 +1773,7 @@
    "fixed": false,
    "notes": "cut 2026-11-09: taught building a position in pieces or adding to one, which is not our method. Account rulebook A5 (sizing_rule.md section 9): 'The full size at one price with one stop; no adding.' Owner, sizing_rule.md section 5 (2026-11-09): 'I do not scale into trade i buy full at one spot with one stop.' Earlier checker note, kept for the record: Recomputed: $300 / ($50 - $47) = 100 shares (calc); 200 shares would risk $600, 300 shares $900, as the wrong notes say. StockCharts (f45, f47) and IBD (f02: a new buy point can add to a position) confirmed. 100 is also fewer than the first buy, matching IBD's add rule."
   },
-  "q24": {
-   "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "Bulkowski's swing-trader line read in full: 'If you want to average down a second time, sell the loser instead... take the loss, and move on.' The story did not say you wanted to buy again, so the key rested on a wish the story never stated; added 'and want to buy more' and the question now reads 'What do you do?'. O'Neil and Hirsch agree; the first add made the position bigger (f28)."
-  },
+  "q24": {"status": "pass", "fixed": true, "by": "checker", "notes": "Bulkowski's swing-trader line read in full: 'If you want to average down a second time, sell the loser instead... take the loss, and move on.' The story did not say you wanted to buy again, so the key rested on a wish the story never stated; added 'and want to buy more' and the question now reads 'What do you do?'. O'Neil and Hirsch agree; the first add made the position bigger (f28). variety rewrite checked 2026-11-10"},
   "q25": {
    "status": "pass",
    "fixed": true,

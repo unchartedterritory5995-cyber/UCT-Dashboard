@@ -744,9 +744,9 @@
    "format": "mcq",
    "q": "Where does a company usually put out its quarterly numbers first?",
    "choices": [
-    "The 10-Q quarterly report",
+    "The 10-Q quarterly report filing",
     "A press release filed on an 8-K",
-    "The earnings call"
+    "The earnings call with analysts"
    ],
    "answer": "A press release filed on an 8-K",
    "why": "A press release filed on an 8-K. The release summarizes the results. The full statements come later in the 10-Q.",
@@ -759,8 +759,8 @@
     "f13"
    ],
    "wrong": {
-    "The 10-Q quarterly report": "The 10-Q comes later, with the full financial statements the release summarizes.",
-    "The earnings call": "The call usually comes shortly after the release, to discuss numbers already out."
+    "The 10-Q quarterly report filing": "The 10-Q comes later, with the full financial statements the release summarizes.",
+    "The earnings call with analysts": "The call usually comes shortly after the release, to discuss numbers already out."
    }
   },
   {
@@ -821,7 +821,7 @@
    "term": "year over year",
    "q": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with?",
    "choices": [
-    "The quarter just before it",
+    "The quarter just before this one",
     "The start of the year to now",
     "The same period a year earlier"
    ],
@@ -835,7 +835,7 @@
     "f62"
    ],
    "wrong": {
-    "The quarter just before it": "That's quarter over quarter, the change from the previous quarter.",
+    "The quarter just before this one": "That's quarter over quarter, the change from the previous quarter.",
     "The start of the year to now": "That's year to date, measured from the start of the year. Year over year matches the same period a year apart."
    }
   },
@@ -1012,7 +1012,7 @@
    "q": "What do you tell your friend?",
    "choices": [
     "He's right. Sales are falling",
-    "It's a miss on revenue",
+    "It's a miss on revenue estimates",
     "The drop is seasonal. YoY is up"
    ],
    "answer": "The drop is seasonal. YoY is up",
@@ -1028,8 +1028,8 @@
     "f19"
    ],
    "wrong": {
-    "It's a miss on revenue": "A miss is measured against the consensus, not the last quarter. Revenue came in above the LSEG estimate.",
-    "He's right. Sales are falling": "That's the seasonal trap. Coming off the fourth quarter, sales can look like they collapsed when they didn't."
+    "He's right. Sales are falling": "That's the seasonal trap. Coming off the fourth quarter, sales can look like they collapsed when they didn't.",
+    "It's a miss on revenue estimates": "A miss is measured against the consensus, not the last quarter. Revenue came in above the LSEG estimate."
    }
   },
   {
@@ -1092,7 +1092,7 @@
    "story": "Target reports Q1 2025 GAAP EPS of $2.27. Adjusted EPS, which strips out one-time lawsuit gains, is $1.30. Analysts expected $1.61 adjusted.",
    "q": "Did Target beat or miss on EPS?",
    "choices": [
-    "Beat. $2.27 is above $1.61",
+    "Beat. $2.27 is well above $1.61",
     "Can't say without the 10-Q",
     "Missed. $1.30 is below $1.61"
    ],
@@ -1107,7 +1107,7 @@
     "f54"
    ],
    "wrong": {
-    "Beat. $2.27 is above $1.61": "That sets GAAP EPS, lawsuit gains and all, against an estimate made on the adjusted basis.",
+    "Beat. $2.27 is well above $1.61": "That sets GAAP EPS, lawsuit gains and all, against an estimate made on the adjusted basis.",
     "Can't say without the 10-Q": "The release already gives both EPS numbers and reconciles them. You have what you need now."
    }
   },
@@ -1249,8 +1249,8 @@
    "q": "What's the right yardstick for Target's 28.2%?",
    "choices": [
     "Its own past and other retailers",
-    "NVIDIA's 73.4%",
-    "A 50% rule of thumb"
+    "NVIDIA's 73.4%, a bigger company",
+    "A 50% rule of thumb for every firm"
    ],
    "answer": "Its own past and other retailers",
    "why": "Its own past and other retailers. Margins vary widely by industry, so NVIDIA's says little about a retailer's. Against its own year-ago 28.8%, Target's margin slipped.",
@@ -1266,8 +1266,8 @@
     "f33"
    ],
    "wrong": {
-    "NVIDIA's 73.4%": "Different industry, different costs. Gross margins differ widely by industry, so this comparison tells you little.",
-    "A 50% rule of thumb": "There's no universal bar. The SEC notes that desirable ratios vary by industry."
+    "NVIDIA's 73.4%, a bigger company": "Different industry, different costs. Gross margins differ widely by industry, so this comparison tells you little.",
+    "A 50% rule of thumb for every firm": "There's no universal bar. The SEC notes that desirable ratios vary by industry."
    }
   }
  ],
@@ -1314,12 +1314,7 @@
    "fixed": true,
    "by": "checker"
   },
-  "q03": {
-   "status": "pass",
-   "notes": "f76, f24 (FINRA), f12, f14, f13 (Investor.gov 8-K bulletin, Item 2.02) read in context: release with the 8-K first, call shortly after, 10-Q later. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change).",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q03": {"status": "pass", "notes": "f76, f24 (FINRA), f12, f14, f13 (Investor.gov 8-K bulletin, Item 2.02) read in context: release with the 8-K first, call shortly after, 10-Q later. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q04": {
    "status": "pass",
    "notes": "f04, f05 (SEC Beginners' Guide). Only EPS fits; revenue, margin, P/E and dividend are real mix-ups. No change.",
@@ -1332,12 +1327,7 @@
    "fixed": false,
    "by": "track auditor"
   },
-  "q06": {
-   "status": "pass",
-   "notes": "f41 (Amazon: up 9% vs first quarter 2024), f58, f62 (Investopedia YoY and YTD), f63 (Investopedia QoQ) confirmed. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change).",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q06": {"status": "pass", "notes": "f41 (Amazon: up 9% vs first quarter 2024), f58, f62 (Investopedia YoY and YTD), f63 (Investopedia QoQ) confirmed. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q07": {
    "status": "pass",
    "notes": "f55 (CNBC, LSEG: $1.59 vs $1.36) and f42 (Amazon 8-K: $1.59 diluted) confirmed. Amazon's EPS includes a non-operating gain; the key follows CNBC's comparison and the makeup is recorded in conflicts. The key stays first, in the natural beat / miss / in line order. No change.",
@@ -1380,12 +1370,7 @@
    "fixed": true,
    "by": "checker"
   },
-  "q14": {
-   "status": "pass",
-   "notes": "Key backed by f45 (Amazon 10-K), f60 (Investopedia), f41 (+9% YoY). The story's '17%' was a computed number with no calc; it now gives the two quoted sales figures, and the wrong choice says 'Sales are falling'. f55 confirms revenue beat, so the miss note is right. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change).",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q14": {"status": "pass", "notes": "Key backed by f45 (Amazon 10-K), f60 (Investopedia), f41 (+9% YoY). The story's '17%' was a computed number with no calc; it now gives the two quoted sales figures, and the wrong choice says 'Sales are falling'. f55 confirms revenue beat, so the miss note is right. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q15": {
    "status": "pass",
    "notes": "Recomputed 1,624 / 28,095 = 5.78%, rounds to 5.8, matching Tesla's table (f52). Only the GAAP summary table of the Update is used (see conflicts). No change.",
@@ -1398,12 +1383,7 @@
    "fixed": true,
    "by": "checker"
   },
-  "q17": {
-   "status": "pass",
-   "notes": "f28 (Target 8-K), f53, f54 (CNBC, LSEG $1.30 adjusted vs $1.61; shares fell more than 5%) confirmed. 'Lawsuit gains the adjusted estimate leaves out' now reads 'that adjusted EPS leaves out'. w3 no longer gives this answer. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change).",
-   "fixed": true,
-   "by": "checker"
-  },
+  "q17": {"status": "pass", "notes": "f28 (Target 8-K), f53, f54 (CNBC, LSEG $1.30 adjusted vs $1.61; shares fell more than 5%) confirmed. 'Lawsuit gains the adjusted estimate leaves out' now reads 'that adjusted EPS leaves out'. w3 no longer gives this answer. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
   "q18": {
    "status": "pass",
    "notes": "f37 (Target: 'Other companies may calculate Adjusted EPS differently'), f26 (Reg G) confirmed. Reg G also covers adjustments that add amounts, so 'Read what each one leaves out' is now 'Read what each one changed'.",
@@ -1440,11 +1420,6 @@
    "fixed": false,
    "by": "checker"
   },
-  "q24": {
-   "status": "pass",
-   "notes": "f07 (SEC: desirable ratios vary by industry), f71, f75 (Fidelity), f67, f68 (Investopedia), f49, f33 confirmed. Tier 1 plus two Tier 2 publishers agree. The key stays first (keys now spread 4/4/4/1 across slots). No change.",
-   "fixed": false,
-   "by": "checker"
-  }
+  "q24": {"status": "pass", "notes": "f07 (SEC: desirable ratios vary by industry), f71, f75 (Fidelity), f67, f68 (Investopedia), f49, f33 confirmed. Tier 1 plus two Tier 2 publishers agree. The key stays first (keys now spread 4/4/4/1 across slots). No change. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"}
  }
 }

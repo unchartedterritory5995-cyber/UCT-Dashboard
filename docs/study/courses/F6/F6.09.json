@@ -1195,6 +1195,32 @@
     "f8",
     "f25"
    ]
+  },
+  {
+   "key": "q27",
+   "skill": "options.strike",
+   "rung": 5,
+   "format": "tf",
+   "q": "A long put breaks even at expiry when the stock is at the strike minus the premium paid.",
+   "answer": "True",
+   "why": "True. At expiration a long put breaks even when the stock price equals the strike price minus the cost of the option.",
+   "lesson_line": "A put's break-even is the strike minus what you paid for it.",
+   "facts": [
+    "f16"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "options.strike",
+   "rung": 3,
+   "format": "tf",
+   "q": "As expiry nears, time value erodes most noticeably in at-the-money options.",
+   "answer": "True",
+   "why": "True. Time value decreases as expiration approaches, for puts and calls, and the effect is most noticeable with at-the-money options.",
+   "lesson_line": "Time value fades toward expiry, and at-the-money options feel it most.",
+   "facts": [
+    "f20"
+   ]
   }
  ],
  "conflicts": [
@@ -1412,6 +1438,16 @@
    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 110 + 1.00 - 110 = 1, calc checked; at exactly 110 the call is worthless (f8, f25). Question lacked 'Held to expiry' (break-even before expiry differs); added. Lesson now says 'below it' instead of the unclear 'inside it'.",
    "fixed": true,
    "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "New variety question. Key and why match the quote (f16 for q27, f20 for q28), both verbatim; no near-duplicate in the unit. variety rewrite checked 2026-11-10",
+   "by": "writer"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "New variety question. Key and why match the quote (f16 for q27, f20 for q28), both verbatim; no near-duplicate in the unit. variety rewrite checked 2026-11-10",
+   "by": "writer"
   }
  }
 }

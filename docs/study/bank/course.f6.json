@@ -4018,7 +4018,7 @@
     "In the money"
    ],
    "kind": "mcq",
-   "q": "The stock trades exactly at the option's strike price. What do you call that option?",
+   "q": "Price sits exactly at the option's strike price. What do you call that option?",
    "subject": "At the money"
   },
   "reveal_json": {
@@ -4042,7 +4042,7 @@
     "summary": "At the money means the stock price equals the strike. Stock exactly at the strike is at the money, with no intrinsic value."
    },
    "facts": {
-    "given": "The stock trades exactly at the option's strike price. What do you call that option? At the money In the money Out of the money"
+    "given": "Price sits exactly at the option's strike price. What do you call that option? At the money In the money Out of the money"
    },
    "lesson_line": "Stock equals strike: at the money, and no intrinsic value.",
    "unit": "F6.03",
@@ -4134,7 +4134,7 @@
     "The 60 put"
    ],
    "kind": "mcq",
-   "q": "The stock trades at 64. Which put is in the money?",
+   "q": "With the stock at 64, which put is in the money?",
    "subject": "F6.03#q07"
   },
   "reveal_json": {
@@ -4158,7 +4158,7 @@
     "summary": "A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value. At the money means the stock price equals the strike."
    },
    "facts": {
-    "given": "The stock trades at 64. Which put is in the money? The 70 put The 60 put The 64 put"
+    "given": "With the stock at 64, which put is in the money? The 70 put The 60 put The 64 put"
    },
    "lesson_line": "Puts are in the money when the stock sits below the strike.",
    "unit": "F6.03",
@@ -4461,7 +4461,7 @@
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "The stock trades at 61. What is the 70 put's intrinsic value, per share?",
+   "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
    "subject": "F6.03#q12"
   },
   "reveal_json": {
@@ -4494,7 +4494,7 @@
      "fn": "intrinsic",
      "result": 9.0
     },
-    "given": "The stock trades at 61. What is the 70 put's intrinsic value, per share?"
+    "given": "With the stock at 61, what is the 70 put's intrinsic value, per share?"
    },
    "lesson_line": "Put intrinsic: strike minus stock, never below zero.",
    "unit": "F6.03",
@@ -4979,7 +4979,7 @@
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "The stock trades at 150. The 100 call is 50.40. How much time value is in it, per share?",
+   "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
    "subject": "F6.03#q20"
   },
   "reveal_json": {
@@ -5013,7 +5013,7 @@
      "fn": "extrinsic",
      "result": 0.4
     },
-    "given": "The stock trades at 150. The 100 call is 50.40. How much time value is in it, per share?"
+    "given": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?"
    },
    "lesson_line": "Deep in the money, the premium is almost all intrinsic value.",
    "unit": "F6.03",
@@ -6976,7 +6976,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 0.15, out of the money",
+    "About 0.15, far out of the money",
     "About 0.50, at the money",
     "About 0.90, deep in the money"
    ],
@@ -7019,13 +7019,13 @@
     "summary": "Deep in the money, delta is near 1.00 (or -1.00) and the option moves close to 1:1 with the stock. The closer delta is to 1.00 or -1.00, the more the option moves like the stock itself. High-delta options track the stock best but tend to cost more. A .50 delta means about $0.50 for each one-point stock move, all else equal."
    },
    "facts": {
-    "given": "You want an option that tracks the stock almost dollar for dollar. Which delta fits best? About 0.90, deep in the money About 0.50, at the money About 0.15, out of the money"
+    "given": "You want an option that tracks the stock almost dollar for dollar. Which delta fits best? About 0.90, deep in the money About 0.50, at the money About 0.15, far out of the money"
    },
    "lesson_line": "For stock-like moves, pick a delta near 1.00. Expect to pay more premium for it.",
    "unit": "F6.04",
    "why": "About 0.90, deep in the money. With delta close to 1.00, an option moves very close to 1:1 with the stock.",
    "wrong": {
-    "About 0.15, out of the money": "That barely follows the stock. It's a long shot that needs a big move.",
+    "About 0.15, far out of the money": "That barely follows the stock. It's a long shot that needs a big move.",
     "About 0.50, at the money": "That moves about half as much as the stock. It won't track it dollar for dollar."
    }
   },
@@ -14183,7 +14183,7 @@
  },
  {
   "answer_json": {
-   "answer": "It's the first expiry after the report"
+   "answer": "It's the first expiry after earnings"
   },
   "difficulty": 3,
   "id": "si_873533367606",
@@ -14192,7 +14192,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It's the first expiry after the report",
+    "It's the first expiry after earnings",
     "Weekly options always carry higher IV",
     "The monthly options are mispriced",
     "Traders expect the stock to drop"
@@ -14251,7 +14251,7 @@
     "summary": "Around earnings, the first expiry after the report tends to carry the highest IV. Right before earnings or other news, the nearest expiry's IV can be the higher one. Normally the nearest expiry carries lower IV than later ones. Comparing the near expiry's IV with a later expiry's IV is how the move priced for the report day is pulled out. IV gives the size of the swing, not its direction. The market, through option prices, decides what IV is."
    },
    "facts": {
-    "given": "What most likely explains the gap? A stock reports earnings Wednesday night. Its options expiring that Friday show an implied volatility near 79%. The next monthly options show about 31%. It's the first expiry after the report Weekly options always carry higher IV Traders expect the stock to drop The monthly options are mispriced"
+    "given": "What most likely explains the gap? A stock reports earnings Wednesday night. Its options expiring that Friday show an implied volatility near 79%. The next monthly options show about 31%. It's the first expiry after earnings Weekly options always carry higher IV Traders expect the stock to drop The monthly options are mispriced"
    },
    "lesson_line": "Before a report, compare the expiries. The first one after it shows the event's premium most.",
    "unit": "F6.08",
@@ -16474,6 +16474,96 @@
   "skill_id": "options.strike",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.09.json#q26",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_f025dadba1ed",
+  "lesson_origin": "session",
+  "lesson_text": "True. At expiration a long put breaks even when the stock price equals the strike price minus the cost of the option. A put's break-even is the strike minus what you paid for it.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A long put breaks even at expiry when the stock is at the strike minus the premium paid.",
+   "subject": "F6.09#q27"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Long Put",
+      "quote": "At expiration, the strategy breaks even if the stock price equals the strike price minus the cost of the option.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/strategies/all-strategies/long-put"
+     }
+    ],
+    "summary": "A long put breaks even at expiry at the strike minus the premium paid."
+   },
+   "facts": {
+    "given": "A long put breaks even at expiry when the stock is at the strike minus the premium paid."
+   },
+   "lesson_line": "A put's break-even is the strike minus what you paid for it.",
+   "unit": "F6.09",
+   "why": "True. At expiration a long put breaks even when the stock price equals the strike price minus the cost of the option."
+  },
+  "review_status": "draft",
+  "skill_id": "options.strike",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.09.json#q27",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_627594742390",
+  "lesson_origin": "session",
+  "lesson_text": "True. Time value decreases as expiration approaches, for puts and calls, and the effect is most noticeable with at-the-money options. Time value fades toward expiry, and at-the-money options feel it most.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "As expiry nears, time value erodes most noticeably in at-the-money options.",
+   "subject": "F6.09#q28"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Generally, as expiration approaches, the levels of an option's time value decrease or erode for both puts and calls. This effect is most noticeable with at-the-money options.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "Time value erodes toward expiry, and at-the-money options feel it most."
+   },
+   "facts": {
+    "given": "As expiry nears, time value erodes most noticeably in at-the-money options."
+   },
+   "lesson_line": "Time value fades toward expiry, and at-the-money options feel it most.",
+   "unit": "F6.09",
+   "why": "True. Time value decreases as expiration approaches, for puts and calls, and the effect is most noticeable with at-the-money options."
+  },
+  "review_status": "draft",
+  "skill_id": "options.strike",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.09.json#q28",
   "type": "recall",
   "version": 1
  },
@@ -24328,7 +24418,7 @@
  },
  {
   "answer_json": {
-   "answer": "Buy call and put, same strike and expiry"
+   "answer": "Buy call and put, one strike and date"
   },
   "difficulty": 1,
   "id": "si_bb5e9346286a",
@@ -24337,7 +24427,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Buy call and put, same strike and expiry",
+    "Buy call and put, one strike and date",
     "Buy a call, sell a put, same strike",
     "Buy call and put, two different strikes",
     "Sell a near call, buy a far call"
@@ -24388,7 +24478,7 @@
     "summary": "A long straddle buys a call and a put with the same strike and the same expiry. A straddle is buying or writing a put and a call on the same stock with the same strike and expiry. A long straddle needs a big enough move to clear a break-even, not a call on direction. Straddles and strangles buy both legs or sell both legs; they never buy one and sell the other. Buying a call and selling a put at one strike is a combo, a synthetic stock position, not a straddle."
    },
    "facts": {
-    "given": "What is a long straddle? Buy call and put, same strike and expiry Buy call and put, two different strikes Buy a call, sell a put, same strike Sell a near call, buy a far call"
+    "given": "What is a long straddle? Buy call and put, one strike and date Buy call and put, two different strikes Buy a call, sell a put, same strike Sell a near call, buy a far call"
    },
    "lesson_line": "Straddle: one strike, one expiry, a call and a put. You're betting on size, not direction.",
    "unit": "F6.14",
@@ -24467,7 +24557,7 @@
  },
  {
   "answer_json": {
-   "answer": "Same strike, two different expiries"
+   "answer": "One strike, two different expiries"
   },
   "difficulty": 1,
   "id": "si_746a4b10a757",
@@ -24477,7 +24567,7 @@
   "prompt_json": {
    "choices": [
     "Two strikes and two expiries",
-    "Same strike, two different expiries",
+    "One strike, two different expiries",
     "A call and a put, same strike",
     "Same expiry, two different strikes"
    ],
@@ -24513,7 +24603,7 @@
     "summary": "A calendar spread buys a longer-dated option and sells an equal number of nearer-dated options of the same type and strike. A long call calendar sells one call and buys another call with a later expiry. A time spread is the same thing as a calendar spread or a horizontal spread."
    },
    "facts": {
-    "given": "What is a calendar spread? Same strike, two different expiries Same expiry, two different strikes Two strikes and two expiries A call and a put, same strike"
+    "given": "What is a calendar spread? One strike, two different expiries Same expiry, two different strikes Two strikes and two expiries A call and a put, same strike"
    },
    "lesson_line": "Calendar: one strike, two expiries. You'll also see it called a time spread or a horizontal spread.",
    "unit": "F6.14",
@@ -24802,9 +24892,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The strike price, at most",
+    "The strike price, at most, per share",
     "Unlimited, the short call has no cap",
-    "The premium you collected"
+    "The premium you collected up front"
    ],
    "kind": "mcq",
    "q": "You sell a straddle. What is your maximum loss?",
@@ -24838,14 +24928,14 @@
     "summary": "A short straddle's risk is unlimited on the upside; the next-worst case is the stock going to zero. The most a short straddle can make is the premium collected. Writing a straddle carries unlimited potential risk."
    },
    "facts": {
-    "given": "You sell a straddle. What is your maximum loss? Unlimited, the short call has no cap The premium you collected The strike price, at most"
+    "given": "You sell a straddle. What is your maximum loss? Unlimited, the short call has no cap The premium you collected up front The strike price, at most, per share"
    },
    "lesson_line": "A short straddle caps the win at the premium and leaves the loss open.",
    "unit": "F6.14",
    "why": "Unlimited. The short call keeps losing as the stock rises, and the premium you took in only softens it.",
    "wrong": {
-    "The premium you collected": "That's the most you can make, not the most you can lose.",
-    "The strike price, at most": "That's the put side, if the stock goes to zero. The call side has no limit."
+    "The premium you collected up front": "That's the most you can make, not the most you can lose.",
+    "The strike price, at most, per share": "That's the put side, if the stock goes to zero. The call side has no limit."
    }
   },
   "review_status": "draft",
@@ -32567,9 +32657,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "With the last trade",
+    "With the last trade that printed",
     "At the last expiration",
-    "At the start of the week",
+    "At the start of the trading week",
     "After the prior session's close"
    ],
    "kind": "mcq",
@@ -32597,15 +32687,15 @@
     "summary": "Open interest depends on whether each side opened or closed, and OCC reports the new figure only after the day ends. OCC calculates open interest from the exchanges' reports of each day's opening and closing trades."
    },
    "facts": {
-    "given": "It's midday. When was the open interest on your options chain last updated? After the prior session's close With the last trade At the start of the week At the last expiration"
+    "given": "It's midday. When was the open interest on your options chain last updated? After the prior session's close With the last trade that printed At the start of the trading week At the last expiration"
    },
    "lesson_line": "During the session, open interest is the prior day's count. Today's trades show up in it next session.",
    "unit": "F6.18",
    "why": "After the prior session's close. OCC can only report new open interest after it pairs the day's opening and closing trades at the end of the day.",
    "wrong": {
     "At the last expiration": "It changes every day as traders open and close positions, not just at expiry.",
-    "At the start of the week": "OCC reports it after each day's trades clear, not weekly.",
-    "With the last trade": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade."
+    "At the start of the trading week": "OCC reports it after each day's trades clear, not weekly.",
+    "With the last trade that printed": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade."
    }
   },
   "review_status": "draft",
@@ -32936,7 +33026,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It rises by 10",
+    "It rises by 10 contracts",
     "It stays the same",
     "It falls by 10",
     "It rises by 20"
@@ -32980,14 +33070,14 @@
     "summary": "One side opening and the other closing leaves open interest unchanged: the position changes hands. Both sides opening raises open interest. Both sides closing lowers open interest. When both sides open 10 contracts, open interest rises by 10, not 20."
    },
    "facts": {
-    "given": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest? It stays the same It rises by 10 It falls by 10 It rises by 20"
+    "given": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest? It stays the same It rises by 10 contracts It falls by 10 It rises by 20"
    },
    "lesson_line": "Open interest moves only when both sides open, or both sides close.",
    "unit": "F6.18",
    "why": "It stays the same. One side opens and the other closes, so the contracts just change hands.",
    "wrong": {
     "It falls by 10": "That needs both sides closing. Here the buyer is opening.",
-    "It rises by 10": "That needs both sides opening. Here one side is closing.",
+    "It rises by 10 contracts": "That needs both sides opening. Here one side is closing.",
     "It rises by 20": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
    }
   },
@@ -33392,7 +33482,7 @@
   "prompt_json": {
    "choices": [
     "A new bullish position was opened",
-    "The stock is set to rise",
+    "The stock is set to rise from here",
     "A buyer paid the ask to get filled"
    ],
    "kind": "mcq",
@@ -33435,14 +33525,14 @@
     "summary": "A market buy fills at or near the ask; a market sell at or near the bid. A market order trades price for certainty: it fills, at whatever price is there. A buy can close a short option position, and a closing trade lowers open interest. Open interest depends on whether each side opened or closed, and OCC reports the new figure only after the day ends."
    },
    "facts": {
-    "given": "What does the trade price alone tell you? A 2,000-contract call trade prints at the ask. Your flow scanner tags it bullish. A buyer paid the ask to get filled A new bullish position was opened The stock is set to rise"
+    "given": "What does the trade price alone tell you? A 2,000-contract call trade prints at the ask. Your flow scanner tags it bullish. A buyer paid the ask to get filled A new bullish position was opened The stock is set to rise from here"
    },
    "lesson_line": "At the ask means someone paid up to buy. It doesn't mean someone opened a bullish bet.",
    "unit": "F6.18",
    "why": "A buyer paid the ask to get filled. That's what a market buy does when the fill matters more than the price. But a buy can also close a short call, a seller getting out.",
    "wrong": {
     "A new bullish position was opened": "A buy can also close an existing short call. The print alone can't show which it was.",
-    "The stock is set to rise": "One print can't tell you direction. It can be a hedge, a close or a bet."
+    "The stock is set to rise from here": "One print can't tell you direction. It can be a hedge, a close or a bet."
    }
   },
   "review_status": "draft",
@@ -33549,8 +33639,8 @@
   "prompt_json": {
    "choices": [
     "The bid, ask and size quoted now",
-    "Today's volume so far",
-    "The open interest number"
+    "Today's volume so far on the strike",
+    "The open interest at that strike"
    ],
    "kind": "mcq",
    "q": "What tells you if you can get a fair fill?",
@@ -33592,14 +33682,14 @@
     "summary": "Volume and open interest are not the same thing as liquidity. The live bid and offer, with their size, show how many contracts you can trade right now. Low or high open interest and volume can mislead you about whether a contract is liquid. Your fill depends more on the bid and ask than on open interest."
    },
    "facts": {
-    "given": "What tells you if you can get a fair fill? You want to buy 8 calls. The strike has low open interest and little volume so far today. The bid, ask and size quoted now The open interest number Today's volume so far"
+    "given": "What tells you if you can get a fair fill? You want to buy 8 calls. The strike has low open interest and little volume so far today. The bid, ask and size quoted now The open interest at that strike Today's volume so far on the strike"
    },
    "lesson_line": "Low open interest isn't a deal breaker. The live quote and its size are what fill you.",
    "unit": "F6.18",
    "why": "The bid, ask and size quoted now. Open interest and volume aren't liquidity. The two-sided market shows how many contracts you can trade, and at what price.",
    "wrong": {
-    "The open interest number": "That counts contracts still open, not how many someone will trade with you right now.",
-    "Today's volume so far": "Volume is what already traded. The quote is what's on offer right now."
+    "The open interest at that strike": "That counts contracts still open, not how many someone will trade with you right now.",
+    "Today's volume so far on the strike": "Volume is what already traded. The quote is what's on offer right now."
    }
   },
   "review_status": "draft",
@@ -33695,7 +33785,7 @@
    "choices": [
     "Very little, its intent is unknown",
     "It's a reason to buy the dip",
-    "It cancels the breakdown"
+    "It cancels out the breakdown signal"
    ],
    "kind": "mcq",
    "q": "How much should that call print change your read?",
@@ -33744,13 +33834,13 @@
     "summary": "Unusual options activity is neither bullish nor bearish by default. Unusual volume isn't bullish by default; it can just be a large investor hedging. An unusual trade calls for more homework: is it a hedge or a speculative bet. A buy can close a short option position, and a closing trade lowers open interest. Public options data shows the product, size, strike and expiration of a trade, not who made it."
    },
    "facts": {
-    "given": "How much should that call print change your read? Your stock breaks below its base on heavy volume. An hour later, a large call buy prints at the ask. Very little, its intent is unknown It cancels the breakdown It's a reason to buy the dip"
+    "given": "How much should that call print change your read? Your stock breaks below its base on heavy volume. An hour later, a large call buy prints at the ask. Very little, its intent is unknown It cancels out the breakdown signal It's a reason to buy the dip"
    },
    "lesson_line": "Flow is a second opinion on your chart. It never overrides one.",
    "unit": "F6.18",
    "why": "Very little. One print can be a hedge, a call seller buying back or a fresh bet, and nothing on the screen says which. I want flow to agree with the chart, never to overrule it.",
    "wrong": {
-    "It cancels the breakdown": "You can't see why it was bought. The breakdown is on the chart for everyone to see.",
+    "It cancels out the breakdown signal": "You can't see why it was bought. The breakdown is on the chart for everyone to see.",
     "It's a reason to buy the dip": "That makes an unreadable print your entry signal. An unusual trade calls for more homework, not a trade."
    }
   },

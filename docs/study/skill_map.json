@@ -456,7 +456,7 @@
                 "F6"
               ],
               "supply": "authored",
-              "est_questions": 23,
+              "est_questions": 25,
               "course_file": "docs/study/courses/F6/F6.09.json"
             },
             {
@@ -1302,7 +1302,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 61,
+              "est_questions": 62,
               "course_file": "docs/study/courses/V/V.05.json"
             },
             {
@@ -1358,7 +1358,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 63,
               "course_file": "docs/study/courses/V/V.09.json"
             },
             {
@@ -1886,7 +1886,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 66,
+              "est_questions": 65,
               "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {
@@ -2058,7 +2058,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 63,
+              "est_questions": 65,
               "course_file": "docs/study/courses/SET/SET.18.json"
             },
             {
@@ -2573,7 +2573,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 64,
               "course_file": "docs/study/courses/SET/SET.52.json"
             },
             {

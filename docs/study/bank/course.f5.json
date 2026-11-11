@@ -135,8 +135,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The earnings call",
-    "The 10-Q quarterly report",
+    "The earnings call with analysts",
+    "The 10-Q quarterly report filing",
     "A press release filed on an 8-K"
    ],
    "kind": "mcq",
@@ -185,14 +185,14 @@
     "summary": "Most companies put out their sales and earnings in a press release. Companies usually announce quarterly results in a press release that is filed with an 8-K. The earnings release is a summary; the full statements come later in the 10-Q or 10-K. An earnings press release must be filed with the SEC on Form 8-K. Releases often announce an earnings call, held shortly after the release to discuss the results."
    },
    "facts": {
-    "given": "Where does a company usually put out its quarterly numbers first? The 10-Q quarterly report A press release filed on an 8-K The earnings call"
+    "given": "Where does a company usually put out its quarterly numbers first? The 10-Q quarterly report filing A press release filed on an 8-K The earnings call with analysts"
    },
    "lesson_line": "The release comes first. The 10-Q fills in the detail later.",
    "unit": "F5.01",
    "why": "A press release filed on an 8-K. The release summarizes the results. The full statements come later in the 10-Q.",
    "wrong": {
-    "The 10-Q quarterly report": "The 10-Q comes later, with the full financial statements the release summarizes.",
-    "The earnings call": "The call usually comes shortly after the release, to discuss numbers already out."
+    "The 10-Q quarterly report filing": "The 10-Q comes later, with the full financial statements the release summarizes.",
+    "The earnings call with analysts": "The call usually comes shortly after the release, to discuss numbers already out."
    }
   },
   "review_status": "draft",
@@ -270,7 +270,7 @@
   "prompt_json": {
    "choices": [
     "The same period a year earlier",
-    "The quarter just before it",
+    "The quarter just before this one",
     "The start of the year to now"
    ],
    "kind": "mcq",
@@ -312,13 +312,13 @@
     "summary": "Year over year compares a period with the same period one year earlier. Amazon's Q1 2025 net sales were $155.7 billion, up 9% from $143.3 billion in Q1 2024. Quarter over quarter compares a quarter with the one just before it. Year to date measures from the start of the year, not against the same period a year ago."
    },
    "facts": {
-    "given": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with? The quarter just before it The start of the year to now The same period a year earlier"
+    "given": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with? The quarter just before this one The start of the year to now The same period a year earlier"
    },
    "lesson_line": "Year over year means the same period, one year apart.",
    "unit": "F5.01",
    "why": "The same period a year earlier. Amazon's release sets this year's first quarter against last year's first quarter.",
    "wrong": {
-    "The quarter just before it": "That's quarter over quarter, the change from the previous quarter.",
+    "The quarter just before this one": "That's quarter over quarter, the change from the previous quarter.",
     "The start of the year to now": "That's year to date, measured from the start of the year. Year over year matches the same period a year apart."
    }
   },
@@ -822,7 +822,7 @@
   "prompt_json": {
    "choices": [
     "The drop is seasonal. YoY is up",
-    "It's a miss on revenue",
+    "It's a miss on revenue estimates",
     "He's right. Sales are falling"
    ],
    "kind": "mcq",
@@ -886,14 +886,14 @@
     "summary": "Amazon's sales have historically been higher in its fourth quarter, a seasonal pattern. Amazon's Q1 2025 net sales were $155.7 billion, up 9% from $143.3 billion in Q1 2024. Amazon's Q4 2024 net sales were $187.8 billion. Going from the fourth quarter into the next first quarter can look like a collapse that is really the season. Year over year is often the better comparison because the seasons do not distort it. Per LSEG, Amazon's Q1 2025 EPS was $1.59 vs $1.36 expected, and revenue $155.67 billion vs $155.04 billion expected. Above the consensus is a beat, below it a miss, and equal is in line, for earnings or for revenue."
    },
    "facts": {
-    "given": "What do you tell your friend? Amazon's net sales fall from $187.8 billion in Q4 2024 to $155.7 billion in Q1 2025. Year over year, Q1 sales are up 9%. A friend says the business is shrinking. He's right. Sales are falling It's a miss on revenue The drop is seasonal. YoY is up"
+    "given": "What do you tell your friend? Amazon's net sales fall from $187.8 billion in Q4 2024 to $155.7 billion in Q1 2025. Year over year, Q1 sales are up 9%. A friend says the business is shrinking. He's right. Sales are falling It's a miss on revenue estimates The drop is seasonal. YoY is up"
    },
    "lesson_line": "For a seasonal business, trust year over year. Quarter over quarter can fake a collapse.",
    "unit": "F5.01",
    "why": "The drop is seasonal. Amazon says its fourth quarter has historically had higher sales, so the next quarter looks weak beside it. Against the same quarter last year, sales grew 9%.",
    "wrong": {
     "He's right. Sales are falling": "That's the seasonal trap. Coming off the fourth quarter, sales can look like they collapsed when they didn't.",
-    "It's a miss on revenue": "A miss is measured against the consensus, not the last quarter. Revenue came in above the LSEG estimate."
+    "It's a miss on revenue estimates": "A miss is measured against the consensus, not the last quarter. Revenue came in above the LSEG estimate."
    }
   },
   "review_status": "draft",
@@ -1070,7 +1070,7 @@
   "prompt_json": {
    "choices": [
     "Missed. $1.30 is below $1.61",
-    "Beat. $2.27 is above $1.61",
+    "Beat. $2.27 is well above $1.61",
     "Can't say without the 10-Q"
    ],
    "kind": "mcq",
@@ -1120,13 +1120,13 @@
     "summary": "Target's Q1 2025 GAAP EPS was $2.27 (from $2.03); adjusted EPS, which leaves out the lawsuit settlement gains, was $1.30. Per LSEG's survey, Target's Q1 2025 adjusted EPS was $1.30 vs $1.61 expected, and revenue $23.85 billion vs $24.27 billion expected. Above the consensus is a beat, below it a miss, and equal is in line, for earnings or for revenue. Target's Q1 2025 operating income included $593 million of gains from settling a lawsuit over card fees. Target's stock fell more than 5% on the day of the report."
    },
    "facts": {
-    "given": "Did Target beat or miss on EPS? Target reports Q1 2025 GAAP EPS of $2.27. Adjusted EPS, which strips out one-time lawsuit gains, is $1.30. Analysts expected $1.61 adjusted. Beat. $2.27 is above $1.61 Can't say without the 10-Q Missed. $1.30 is below $1.61"
+    "given": "Did Target beat or miss on EPS? Target reports Q1 2025 GAAP EPS of $2.27. Adjusted EPS, which strips out one-time lawsuit gains, is $1.30. Analysts expected $1.61 adjusted. Beat. $2.27 is well above $1.61 Can't say without the 10-Q Missed. $1.30 is below $1.61"
    },
    "lesson_line": "Compare like with like. Adjusted EPS against the adjusted estimate.",
    "unit": "F5.01",
    "why": "Missed. The $1.61 estimate is for adjusted EPS, so it goes against the adjusted $1.30. The $2.27 includes lawsuit gains that adjusted EPS leaves out. Target's shares fell more than 5% that day.",
    "wrong": {
-    "Beat. $2.27 is above $1.61": "That sets GAAP EPS, lawsuit gains and all, against an estimate made on the adjusted basis.",
+    "Beat. $2.27 is well above $1.61": "That sets GAAP EPS, lawsuit gains and all, against an estimate made on the adjusted basis.",
     "Can't say without the 10-Q": "The release already gives both EPS numbers and reconciles them. You have what you need now."
    }
   },
@@ -1571,8 +1571,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A 50% rule of thumb",
-    "NVIDIA's 73.4%",
+    "A 50% rule of thumb for every firm",
+    "NVIDIA's 73.4%, a bigger company",
     "Its own past and other retailers"
    ],
    "kind": "mcq",
@@ -1643,14 +1643,14 @@
     "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier."
    },
    "facts": {
-    "given": "What's the right yardstick for Target's 28.2%? NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's for Q1 2025 was 28.2%, down from 28.8%. Its own past and other retailers NVIDIA's 73.4% A 50% rule of thumb"
+    "given": "What's the right yardstick for Target's 28.2%? NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's for Q1 2025 was 28.2%, down from 28.8%. Its own past and other retailers NVIDIA's 73.4%, a bigger company A 50% rule of thumb for every firm"
    },
    "lesson_line": "Judge a margin against its own history and its industry, not across industries.",
    "unit": "F5.01",
    "why": "Its own past and other retailers. Margins vary widely by industry, so NVIDIA's says little about a retailer's. Against its own year-ago 28.8%, Target's margin slipped.",
    "wrong": {
-    "A 50% rule of thumb": "There's no universal bar. The SEC notes that desirable ratios vary by industry.",
-    "NVIDIA's 73.4%": "Different industry, different costs. Gross margins differ widely by industry, so this comparison tells you little."
+    "A 50% rule of thumb for every firm": "There's no universal bar. The SEC notes that desirable ratios vary by industry.",
+    "NVIDIA's 73.4%, a bigger company": "Different industry, different costs. Gross margins differ widely by industry, so this comparison tells you little."
    }
   },
   "review_status": "draft",
@@ -10929,8 +10929,8 @@
   "prompt_json": {
    "choices": [
     "Today's low is above yesterday's high",
-    "Today's close is above yesterday's",
-    "Today's volume is above average",
+    "Today's close is above yesterday's close",
+    "Today's volume is well above average",
     "Today's high is a new 52-week high"
    ],
    "kind": "mcq",
@@ -10965,15 +10965,15 @@
     "summary": "An up gap forms when the day's low stays above the previous day's high. A bullish gap is a day whose low is above the prior day's high. A gap is a blank space on the chart: a price range where no shares traded."
    },
    "facts": {
-    "given": "On a daily chart, what makes a gap up? Today's low is above yesterday's high Today's close is above yesterday's Today's high is a new 52-week high Today's volume is above average"
+    "given": "On a daily chart, what makes a gap up? Today's low is above yesterday's high Today's close is above yesterday's close Today's high is a new 52-week high Today's volume is well above average"
    },
    "lesson_line": "A gap is a price range nobody traded through. Look between yesterday's high and today's low.",
    "unit": "F5.07",
    "why": "Today's low is above yesterday's high. Nothing traded between the two bars, so the chart shows an empty space. That space is the gap.",
    "wrong": {
-    "Today's close is above yesterday's": "That's just an up day. The two bars can still overlap.",
+    "Today's close is above yesterday's close": "That's just an up day. The two bars can still overlap.",
     "Today's high is a new 52-week high": "That's a new high. It can happen without any gap.",
-    "Today's volume is above average": "Volume says how many shares traded, not whether price jumped over a range."
+    "Today's volume is well above average": "Volume says how many shares traded, not whether price jumped over a range."
    }
   },
   "review_status": "draft",
@@ -11326,9 +11326,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Earnings gap that fills by the close",
+    "Earnings gap that fills before the close",
     "Gap down that recovers by noon",
-    "Small earnings gap on light volume",
+    "Small earnings gap on very light volume",
     "Earnings gap, big volume, strong close"
    ],
    "kind": "mcq",
@@ -11377,15 +11377,15 @@
     "summary": "A Power Earnings Gap is a gap up on strong earnings that closes strong, best near the high. This manager wants gap-day volume at least 3-5x the daily average. The big move comes on report day, or the next session if the report came while the market was closed. Bulkowski wants report-day volume above the 30-day average. Closing near the high shows demand did not just flare at the open and fade."
    },
    "facts": {
-    "given": "What does a Power Earnings Gap look like on day one? Earnings gap, big volume, strong close Earnings gap that fills by the close Small earnings gap on light volume Gap down that recovers by noon"
+    "given": "What does a Power Earnings Gap look like on day one? Earnings gap, big volume, strong close Earnings gap that fills before the close Small earnings gap on very light volume Gap down that recovers by noon"
    },
    "lesson_line": "Three marks on day one: the earnings gap, the volume behind it, and where it closes.",
    "unit": "F5.07",
    "why": "Earnings gap, big volume, strong close. One manager who trades it asks for volume at least 3-5x the daily average, best with a close near the highs. Bulkowski also wants heavy report-day volume.",
    "wrong": {
-    "Earnings gap that fills by the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
+    "Earnings gap that fills before the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
     "Gap down that recovers by noon": "Wrong direction. This setup is a gap up on strong earnings.",
-    "Small earnings gap on light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap."
+    "Small earnings gap on very light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap."
    }
   },
   "review_status": "draft",
@@ -11616,8 +11616,8 @@
    "choices": [
     "Buy it: it's cheaper than the open",
     "It faded: buyers didn't hold the gap",
-    "It still counts as a gap up",
-    "It's a breakaway gap: buy tomorrow"
+    "It still counts as a gap up today",
+    "It's a breakaway gap: buy tomorrow open"
    ],
    "kind": "mcq",
    "q": "What did the day tell you?",
@@ -11659,15 +11659,15 @@
     "summary": "A gap that fills on the same day it happens is called fading. Without enough buying, a gap up stalls or falls below its opening price. A gap that does not last to the close means no more than normal volatility. An earnings gap that reverses and closes weak or red is not the setup."
    },
    "facts": {
-    "given": "What did the day tell you? A stock gaps up 10% on earnings. Sellers hit it all day. By the close it's back below yesterday's close. It faded: buyers didn't hold the gap It's a breakaway gap: buy tomorrow It still counts as a gap up Buy it: it's cheaper than the open"
+    "given": "What did the day tell you? A stock gaps up 10% on earnings. Sellers hit it all day. By the close it's back below yesterday's close. It faded: buyers didn't hold the gap It's a breakaway gap: buy tomorrow open It still counts as a gap up today Buy it: it's cheaper than the open"
    },
    "lesson_line": "A gap that fills the same day is a fade. I don't buy what the buyers couldn't hold.",
    "unit": "F5.07",
    "why": "It faded. The gap filled the same day, so the buying wasn't strong enough to hold it. On the chart, no gap is left.",
    "wrong": {
     "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day.",
-    "It still counts as a gap up": "It didn't last to the close. A gap that vanishes intraday is treated as normal volatility.",
-    "It's a breakaway gap: buy tomorrow": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap."
+    "It still counts as a gap up today": "It didn't last to the close. A gap that vanishes intraday is treated as normal volatility.",
+    "It's a breakaway gap: buy tomorrow open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap."
    }
   },
   "review_status": "draft",
@@ -11751,18 +11751,18 @@
  },
  {
   "answer_json": {
-   "answer": "The open can fade; let it prove itself"
+   "answer": "The open can fade; wait for proof"
   },
   "difficulty": 2,
   "id": "si_41a4ffc6b107",
   "lesson_origin": "session",
-  "lesson_text": "The open can fade. One gap method gives it an hour to set a range, and Bulkowski waits for a close above the report-day high to confirm. Let the gap show you it holds before you pay up for it.",
+  "lesson_text": "The open can fade. One gap method gives it an hour to set a range. Bulkowski waits for a close above the report-day high to confirm. Let the gap show you it holds before you pay up for it.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A filled gap is a safer entry",
+    "A filled gap is a much safer entry",
     "The open is usually the day's low",
-    "The open can fade; let it prove itself"
+    "The open can fade; wait for proof"
    ],
    "kind": "mcq",
    "q": "Why might you wait before buying an earnings gap right at the open?",
@@ -11817,13 +11817,13 @@
     "summary": "StockCharts' gap method waits an hour after the open for the range to form. Bulkowski waits for a close above the report-day high, because sellers may push the stock down instead. Without enough buying, a gap up stalls or falls below its opening price. Up gaps acted as support only 20% of the time in a bull market (16% in a bear market). Earnings days with the best setups swing 2 or 3 times the normal daily range. Waiting for a strong gap to fill before buying can mean missing the move."
    },
    "facts": {
-    "given": "Why might you wait before buying an earnings gap right at the open? The open can fade; let it prove itself A filled gap is a safer entry The open is usually the day's low"
+    "given": "Why might you wait before buying an earnings gap right at the open? The open can fade; wait for proof A filled gap is a much safer entry The open is usually the day's low"
    },
    "lesson_line": "Let the gap show you it holds before you pay up for it.",
    "unit": "F5.07",
-   "why": "The open can fade. One gap method gives it an hour to set a range, and Bulkowski waits for a close above the report-day high to confirm.",
+   "why": "The open can fade. One gap method gives it an hour to set a range. Bulkowski waits for a close above the report-day high to confirm.",
    "wrong": {
-    "A filled gap is a safer entry": "Waiting for a fill can mean missing the move. Bulkowski found up gaps held as support only 20% of the time.",
+    "A filled gap is a much safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
     "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price."
    }
   },
@@ -12400,7 +12400,7 @@
  },
  {
   "answer_json": {
-   "answer": "It's shrunk; studies split on how much"
+   "answer": "It's shrunk; studies split on size"
   },
   "difficulty": 3,
   "id": "si_def9bc4733af",
@@ -12411,7 +12411,7 @@
    "choices": [
     "It has grown stronger each decade",
     "It works on every stock that beats",
-    "It's shrunk; studies split on how much",
+    "It's shrunk; studies split on size",
     "It only shows up in large stocks"
    ],
    "kind": "mcq",
@@ -12467,7 +12467,7 @@
     "summary": "Several recent studies argue the classic drift has shrunk to almost nothing. Other recent studies find the drift still exists. In his data, large stocks have shown no drift since 2006; microcaps only lost it recently. In recent years the classic drift has been close to zero in this paper's sample. The drift was first documented in 1968, named in 1989, and is commonly put down to investors underreacting, among other factors. After earnings beat expectations, prices have tended to keep rising for over 60 trading days; after misses, to keep falling."
    },
    "facts": {
-    "given": "What does recent research say about the classic post-earnings drift? It's shrunk; studies split on how much It has grown stronger each decade It works on every stock that beats It only shows up in large stocks"
+    "given": "What does recent research say about the classic post-earnings drift? It's shrunk; studies split on size It has grown stronger each decade It works on every stock that beats It only shows up in large stocks"
    },
    "lesson_line": "I treat the drift as a maybe, not a plan. The stop and the chart come first.",
    "unit": "F5.07",
@@ -13822,9 +13822,9 @@
   "prompt_json": {
    "choices": [
     "The full-year sales guide",
-    "The revenue miss",
-    "Nothing: EPS beat",
-    "The EPS line"
+    "The revenue miss for the quarter",
+    "Nothing: EPS beat the estimate",
+    "The adjusted EPS line"
    ],
    "kind": "mcq",
    "q": "Which line in this report worries you most?",
@@ -13901,15 +13901,15 @@
     "summary": "Nike earned $1.01 adjusted against 83 cents expected. Nike's fiscal fourth-quarter 2024 EPS was 99 cents, or $1.01 without restructuring charges. Nike's revenue was $12.61 billion against $12.84 billion expected. Nike guided fiscal 2025 sales down mid single digits; analysts expected a 0.9% rise. CNBC tied Nike's plunge to the guidance cut. Nike fell nearly 20% the day after the report. Guidance often drives the near-term price more than anything else in the release. Strong earnings with weak guidance can send a stock lower. A company can beat and still fall when its outlook disappoints."
    },
    "facts": {
-    "given": "Which line in this report worries you most? Nike, fiscal Q4 2024: adjusted EPS $1.01 vs 83 cents expected. Revenue $12.61 billion vs $12.84 billion expected. On the call, it guides fiscal 2025 sales down mid-single digits. Analysts expected a 0.9% rise. The full-year sales guide The EPS line The revenue miss Nothing: EPS beat"
+    "given": "Which line in this report worries you most? Nike, fiscal Q4 2024: adjusted EPS $1.01 vs 83 cents expected. Revenue $12.61 billion vs $12.84 billion expected. On the call, it guides fiscal 2025 sales down mid-single digits. Analysts expected a 0.9% rise. The full-year sales guide The adjusted EPS line The revenue miss for the quarter Nothing: EPS beat the estimate"
    },
    "lesson_line": "Read the guide before you celebrate the beat. The beat is last quarter; the guide is the year ahead.",
    "unit": "F5.08",
    "why": "The full-year sales guide. Analysts saw the year growing 0.9%, and Nike guided to a drop. Guidance looks ahead and often sets the near-term price. Shares plunged nearly 20% the next day.",
    "wrong": {
-    "Nothing: EPS beat": "A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut.",
-    "The EPS line": "It beat: $1.01 against 83 cents expected. And it's the quarter just gone.",
-    "The revenue miss": "It matters, but it's one quarter. The guide marks down the whole year ahead."
+    "Nothing: EPS beat the estimate": "A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut.",
+    "The adjusted EPS line": "It beat: $1.01 against 83 cents expected. And it's the quarter just gone.",
+    "The revenue miss for the quarter": "It matters, but it's one quarter. The guide marks down the whole year ahead."
    }
   },
   "review_status": "draft",
@@ -14187,7 +14187,7 @@
  },
  {
   "answer_json": {
-   "answer": "Members fell, with more losses guided"
+   "answer": "Members fell, more losses guided"
   },
   "difficulty": 3,
   "id": "si_0af386cf2bf4",
@@ -14196,10 +14196,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A currency gain inside EPS",
-    "Members fell, with more losses guided",
-    "The EPS beat",
-    "The revenue miss"
+    "A currency gain inside the EPS",
+    "Members fell, more losses guided",
+    "The EPS beat over the estimate",
+    "The slight revenue miss on sales"
    ],
    "kind": "mcq",
    "q": "What's the real news in this report?",
@@ -14283,15 +14283,15 @@
     "summary": "Netflix lost 200,000 subscribers where StreetAccount's survey expected 2.73 million added. Netflix guided to losing 2 million paid members in the second quarter of 2022. Netflix lost 0.2 million paid members in the quarter, against its own forecast of adding 2.5 million. Netflix earned $3.53 a share against a $2.89 Refinitiv consensus. Netflix's revenue was $7.87 billion against $7.93 billion expected. Netflix's first-quarter 2022 EPS was $3.53, and it included a $162 million non-cash currency gain. Subscriber growth had long been a key number for Netflix each quarter. Variety tied the after-hours drop to the subscriber loss and the forecast of more losses. After its first-quarter 2022 report, Netflix fell 35% in one day, on a revenue miss and a surprise subscriber loss. A company can beat and still fall when its outlook disappoints."
    },
    "facts": {
-    "given": "What's the real news in this report? Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter. Members fell, with more losses guided The EPS beat The revenue miss A currency gain inside EPS"
+    "given": "What's the real news in this report? Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter. Members fell, more losses guided The EPS beat over the estimate The slight revenue miss on sales A currency gain inside the EPS"
    },
    "lesson_line": "Find the key number for each stock. For Netflix in 2022, that was members, not EPS.",
    "unit": "F5.08",
    "why": "Members fell, with more losses guided. Subscriber growth had long been a key number for Netflix, and it went into reverse. The stock plunged 35% in one day.",
    "wrong": {
-    "A currency gain inside EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way.",
-    "The EPS beat": "It's real, but it looks back. Members and the guide speak to what comes next.",
-    "The revenue miss": "It missed, but only just: $7.87 billion against $7.93 billion. CNBC and Variety both led with the subscriber loss."
+    "A currency gain inside the EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way.",
+    "The EPS beat over the estimate": "It's real, but it looks back. Members and the guide speak to what comes next.",
+    "The slight revenue miss on sales": "It missed, but only just: $7.87 billion against $7.93 billion. CNBC and Variety both led with the subscriber loss."
    }
   },
   "review_status": "draft",

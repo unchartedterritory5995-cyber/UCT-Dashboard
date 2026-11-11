@@ -677,13 +677,13 @@
    "house": true,
    "q": "What does our market reading, Green, Yellow, Orange or Red, decide?",
    "choices": [
-    "When and how much the account trades",
+    "When, and how much, we trade",
     "Which stocks to buy",
     "Where each stop goes",
-    "The grade of a setup"
+    "The letter grade of a setup"
    ],
-   "answer": "When and how much the account trades",
-   "why": "When and how much the account trades. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first.",
+   "answer": "When, and how much, we trade",
+   "why": "When, and how much, we trade. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first.",
    "lesson_line": "Read the market before the stock. The reading decides whether, and how much, the account trades today.",
    "facts": [
     "h01",
@@ -693,7 +693,7 @@
    "wrong": {
     "Which stocks to buy": "The reading says how much to trade, not what. The setups and the leaders list pick the stocks.",
     "Where each stop goes": "The stop comes from the chart, a few cents under a low. The reading never moves a stop.",
-    "The grade of a setup": "A setup's grade is about the setup. The reading says which grades you may take and at what size."
+    "The letter grade of a setup": "A setup's grade is about the setup. The reading says which grades you may take and at what size."
    }
   },
   {
@@ -939,7 +939,7 @@
    "choices": [
     "No. No longs below the 200-day",
     "Yes. The setup is clean",
-    "Yes, at half size"
+    "Yes, at half size to be safe"
    ],
    "answer": "No. No longs below the 200-day",
    "why": "No. No longs below the 200-day, and that one is a hard rule. The one exception is a parabolic long, a burst down, and a steady stair-step isn't one.",
@@ -952,7 +952,7 @@
    ],
    "wrong": {
     "Yes. The setup is clean": "A clean pattern doesn't bend a hard rule. Below the 200-day the stock is in a long-term downtrend, and we don't buy those.",
-    "Yes, at half size": "Size doesn't bend a hard rule either. Below the 200-day it's no at any size."
+    "Yes, at half size to be safe": "Size doesn't bend a hard rule either. Below the 200-day it's no at any size."
    }
   },
   {
@@ -962,11 +962,11 @@
    "format": "scenario",
    "house": true,
    "story": "The market reading is Orange. A B setup triggers in a strong group, with an RS rating of 85.",
-   "q": "What does our rule say?",
+   "q": "Do we take it?",
    "choices": [
     "Pass. Orange means A+ setups only",
-    "Take it. The RS is over 80",
-    "Take it at half size"
+    "Take it. The RS is over 80, a leader",
+    "Take it at half size, as a B"
    ],
    "answer": "Pass. Orange means A+ setups only",
    "why": "Pass. In Orange we take only A+ setups. A B setup in a strong group is still a B. The reading is a guide, and the guide says wait for an A+.",
@@ -977,8 +977,8 @@
     "h13"
    ],
    "wrong": {
-    "Take it. The RS is over 80": "The RS rule picks which stocks qualify as leaders. It doesn't change what the market reading allows.",
-    "Take it at half size": "Orange cuts the setups you take, not the size you take them at. A B setup waits."
+    "Take it. The RS is over 80, a leader": "The RS rule picks which stocks qualify as leaders. It doesn't change what the market reading allows.",
+    "Take it at half size, as a B": "Orange allows only A+ setups, so a B setup waits, at any size."
    }
   },
   {
@@ -1151,11 +1151,11 @@
    "story": "A stock is up three straight days with two overnight gap ups, each day's range and volume bigger than the last. Today it gapped up again. It's far above its 200-day.",
    "q": "Under our rules, can this be shorted?",
    "choices": [
-    "Yes. A parabolic short, the exception",
+    "Yes. A parabolic short is allowed",
     "No. Shorts only below the 200-day",
-    "No. Its RS rating is surely over 80"
+    "No. Its RS rating is over 80"
    ],
-   "answer": "Yes. A parabolic short, the exception",
+   "answer": "Yes. A parabolic short is allowed",
    "why": "Yes. That's Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day. It's the one short we take above the 200-day, and the RS rule skips parabolics. Allowed isn't the same as now: he waits for the intraday turn, and too early is a recipe for disaster.",
    "lesson_line": "A parabolic burst is the one short above the 200-day. Three up days, two gaps, a climax gap.",
    "facts": [
@@ -1171,7 +1171,7 @@
    ],
    "wrong": {
     "No. Shorts only below the 200-day": "The 200-day rule has one exception, a parabolic short, and this one checks every box on Bracco's list.",
-    "No. Its RS rating is surely over 80": "The leader rule excepts parabolic and mean-reversion trades. A parabolic short is shorting strength on purpose."
+    "No. Its RS rating is over 80": "The leader rule excepts parabolic and mean-reversion trades. A parabolic short is shorting strength on purpose."
    }
   },
   {
@@ -1184,7 +1184,7 @@
    "choices": [
     "No new buys outside regular hours",
     "Buy. A trigger is a trigger",
-    "Buy with a limit order only",
+    "Buy, but with a limit order only",
     "Buy half now, half at the open"
    ],
    "answer": "No new buys outside regular hours",
@@ -1199,7 +1199,7 @@
    ],
    "wrong": {
     "Buy. A trigger is a trigger": "A trigger after hours is in extended-hours trading, and the next day's open can land somewhere else. The rule waits for regular hours.",
-    "Buy with a limit order only": "The order type doesn't change the rule. It's the session that matters, not the order.",
+    "Buy, but with a limit order only": "The order type doesn't change the rule. It's the session that matters, not the order.",
     "Buy half now, half at the open": "Half a buy after hours is still a buy after hours."
    }
   },
@@ -1213,8 +1213,8 @@
    "q": "How do you start?",
    "choices": [
     "A few positions, add as they work",
-    "All eight at once",
-    "Ten. Green allows up to 10"
+    "All eight at once, at full size",
+    "Ten. Green allows up to 10 positions"
    ],
    "answer": "A few positions, add as they work",
    "why": "A few positions, and add more only as the first ones work. Green allows up to 10 positions, but after a correction the first trades tell you whether the turn is real.",
@@ -1225,8 +1225,8 @@
     "h26"
    ],
    "wrong": {
-    "All eight at once": "That's full exposure on day one of a new uptrend. If the turn fails, eight stops hit together.",
-    "Ten. Green allows up to 10": "Up to 10 is the ceiling in a healthy Green market, not the opening move after a correction."
+    "All eight at once, at full size": "That's full exposure on day one of a new uptrend. If the turn fails, eight stops hit together.",
+    "Ten. Green allows up to 10 positions": "Up to 10 is the ceiling in a healthy Green market, not the opening move after a correction."
    }
   },
   {
@@ -1263,12 +1263,12 @@
    "house": true,
    "q": "Which of these breaks a hard rule, not a guide?",
    "choices": [
-    "A long under the 200-day, not parabolic",
-    "Six positions in a Yellow market",
+    "A long below the 200-day, no burst",
+    "Six positions in Yellow, half size",
     "A B setup at normal size in Green",
     "A short below the 200-day in Red"
    ],
-   "answer": "A long under the 200-day, not parabolic",
+   "answer": "A long below the 200-day, no burst",
    "why": "The long under the 200-day. That's our hard rule. What the market reading changes, how many positions and which grades, is a guide that varies. The 200-day line is not.",
    "lesson_line": "Guides bend with the market. The 200-day line does not.",
    "facts": [
@@ -1279,7 +1279,7 @@
     "h04"
    ],
    "wrong": {
-    "Six positions in a Yellow market": "Yellow means smaller and fewer, a guide. Six positions can fit it.",
+    "Six positions in Yellow, half size": "Yellow means smaller and fewer, a guide. Six positions can fit it.",
     "A B setup at normal size in Green": "Green allows full risk per grade, and a B setup gets normal size. Nothing broken.",
     "A short below the 200-day in Red": "That's exactly where our shorts belong: below the 200-day, in a Red market."
    }
@@ -1291,7 +1291,7 @@
    "format": "scenario",
    "house": true,
    "story": "You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against.",
-   "q": "What does our rule say?",
+   "q": "Can you trade it again, and how?",
    "choices": [
     "Take it as a new trade, own stop",
     "Skip it. It already stopped you out",
@@ -1318,12 +1318,12 @@
    "house": true,
    "q": "Which set of numbers belongs in our monthly review?",
    "choices": [
-    "Win rate, R per win and loss, expectancy",
+    "Win rate, average R, expectancy",
     "Dollar profit for the month only",
     "Number of trades and biggest winner",
     "The index's return that month"
    ],
-   "answer": "Win rate, R per win and loss, expectancy",
+   "answer": "Win rate, average R, expectancy",
    "why": "Win rate, average win and loss in R, and expectancy. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't tell you whether the process is working.",
    "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
    "facts": [
@@ -1333,7 +1333,7 @@
     "f21"
    ],
    "wrong": {
-    "Dollar profit for the month only": "A good month in dollars can hide a bad process, and a journal is there to keep you on process rather than P/L.",
+    "Dollar profit for the month only": "A good month in dollars can hide a bad process. A journal keeps you on process, not P/L.",
     "Number of trades and biggest winner": "One big winner says nothing about the average trade. Expectancy does.",
     "The index's return that month": "Useful context, but it doesn't measure your trading. The review is about your numbers."
    }
@@ -1371,12 +1371,7 @@
    "fixed": true,
    "notes": "All eight house quotes verbatim (D39, F64, E57, E58, D41, B22, C33, B27). h16's quote closed its parenthesis early ('(\"33, yes.\")' where section 9 reads '(\"33, yes.\"; ...'), so it was not verbatim; cut back to the rule sentence itself, which is. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D39, F64, E57, E58, D41, B22, C33, B27); awaiting cold check"
   },
-  "q01": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B18 and F65; IBD's 3 of 4 (f29) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B18, F65); awaiting cold check"
-  },
+  "q01": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B18 and F65; IBD's 3 of 4 (f29) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B18, F65); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice: the wrong choice was the unique longest on 8 of the 9 edited questions (inverted tell). Note: yes/no choices put the right answer alone in its polarity, inherent to the ask."},
   "q02": {
    "status": "pass",
    "by": "checker",
@@ -1443,18 +1438,8 @@
    "fixed": false,
    "notes": "6% is past C28's 4% (the story states both prices and the 6%); IBD f27 confirmed. Three real choices. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C28); awaiting cold check"
   },
-  "q13": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "B26 hard rule; the parabolic-long exception rests on the rulebook's own confirmed line (h09, '1, yes.') and the story rules it out ('steady stair-step', which Bracco's post calls linear progression, the opposite of parabolic). The key is No under either description of a parabolic long. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check"
-  },
-  "q14": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "F65 'Orange, only A+ setups' keyed as 'Pass'; the why says the reading is a guide (A10) and we follow it. Asked as 'What does our rule say?', so the key holds whether the owner later calls Orange firm or a guide. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F65, A10, C31); awaiting cold check"
-  },
+  "q13": {"status": "pass", "by": "checker", "fixed": false, "notes": "B26 hard rule; the parabolic-long exception rests on the rulebook's own confirmed line (h09, '1, yes.') and the story rules it out ('steady stair-step', which Bracco's post calls linear progression, the opposite of parabolic). The key is No under either description of a parabolic long. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice (inverted-tell fix)."},
+  "q14": {"status": "pass", "by": "checker", "fixed": false, "notes": "F65 'Orange, only A+ setups' keyed as 'Pass'; the why says the reading is a guide (A10) and we follow it. Asked as 'What does our rule say?', so the key holds whether the owner later calls Orange firm or a guide. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F65, A10, C31); awaiting cold check variety rewrite checked 2026-11-10: wrong note no longer claims what Orange does to size (the rule is silent on it)."},
   "q15": {
    "status": "pass",
    "by": "checker",
@@ -1497,47 +1482,17 @@
    "fixed": false,
    "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D45 verbatim. F9.08 q25 tests the same rule as a scenario; course_dups finds no pair at 0.8. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D45); awaiting cold check"
   },
-  "q22": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "B26's parabolic-short exception and C31's; b01-b06 verbatim on Bracco's live page (opened today) and in the saved copy. The story checks every box so the key is not a grading call. Added one sentence to the why so 'can be shorted' is not read as 'short it now': Bracco waits for the intraday turn (b06, too early is a recipe for disaster). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check"
-  },
-  "q23": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E58; FINRA hours (f03-f05) and NYSE f06 confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E58); awaiting cold check"
-  },
-  "q24": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F68 verbatim, with F65's 'up to 10' as the ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F68, F65, F64); awaiting cold check"
-  },
+  "q22": {"status": "pass", "by": "checker", "fixed": true, "notes": "B26's parabolic-short exception and C31's; b01-b06 verbatim on Bracco's live page (opened today) and in the saved copy. The story checks every box so the key is not a grading call. Added one sentence to the why so 'can be shorted' is not read as 'short it now': Bracco waits for the intraday turn (b06, too early is a recipe for disaster). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check variety rewrite checked 2026-11-10: dropped the hedge word 'surely' from a wrong choice."},
+  "q23": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E58; FINRA hours (f03-f05) and NYSE f06 confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E58); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice (inverted-tell fix)."},
+  "q24": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F68 verbatim, with F65's 'up to 10' as the ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F68, F65, F64); awaiting cold check variety rewrite checked 2026-11-10"},
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
    "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F67, D45, D44 verbatim. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F67, D45, D44); awaiting cold check"
   },
-  "q26": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "B26 is the one hard rule among the four choices (A10 makes the reading's effects guides). Correct as asked; the question does not claim the 200-day is our only hard rule. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26, A10, F65, D46); awaiting cold check"
-  },
-  "q27": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B21 verbatim; a second try in the week is inside E56. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B21, A4, D41); awaiting cold check"
-  },
-  "q28": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E59; Van Tharp expectancy (f20), Investopedia win rate (f31) and Steenbarger (f21) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E59, B27); awaiting cold check"
-  }
+  "q26": {"status": "pass", "by": "checker", "fixed": false, "notes": "B26 is the one hard rule among the four choices (A10 makes the reading's effects guides). Correct as asked; the question does not claim the 200-day is our only hard rule. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26, A10, F65, D46); awaiting cold check variety rewrite checked 2026-11-10"},
+  "q27": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B21 verbatim; a second try in the week is inside E56. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B21, A4, D41); awaiting cold check variety rewrite checked 2026-11-10"},
+  "q28": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E59; Van Tharp expectancy (f20), Investopedia win rate (f31) and Steenbarger (f21) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E59, B27); awaiting cold check variety rewrite checked 2026-11-10"}
  }
 }

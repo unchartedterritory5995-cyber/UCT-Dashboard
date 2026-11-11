@@ -1004,12 +1004,12 @@
    "format": "mcq",
    "q": "A $2 trillion company and a $2 billion company both close up today. How does each count on the A/D line?",
    "choices": [
-    "The same: one advance each",
-    "The giant counts far more",
+    "The same: just one advance each",
+    "The giant counts for far more",
     "By how much each one rose",
-    "By how many shares traded"
+    "By how many shares each traded"
    ],
-   "answer": "The same: one advance each",
+   "answer": "The same: just one advance each",
    "why": "The same: one advance each. Market cap and volume don't matter. An advance counts +1 and a decline counts -1.",
    "lesson_line": "On the A/D line, every stock gets one vote.",
    "facts": [
@@ -1018,9 +1018,9 @@
     "f64"
    ],
    "wrong": {
-    "The giant counts far more": "That's how a cap-weighted index counts. The A/D line ignores size on purpose.",
+    "The giant counts for far more": "That's how a cap-weighted index counts. The A/D line ignores size on purpose.",
     "By how much each one rose": "A tiny gain and a huge gain both count as one advance.",
-    "By how many shares traded": "Volume doesn't enter the A/D line. Volume-based breadth gauges are separate tools."
+    "By how many shares each traded": "Volume doesn't enter the A/D line. Volume-based breadth gauges are separate tools."
    }
   },
   {
@@ -1277,8 +1277,8 @@
    "q": "What is breadth telling you?",
    "choices": [
     "Fewer stocks are carrying the rally",
-    "Breadth confirms the new high",
-    "The top is in, so get out now"
+    "Breadth confirms the new record high",
+    "The top is in, so sell everything"
    ],
    "answer": "Fewer stocks are carrying the rally",
    "why": "Fewer stocks are carrying the rally. The index made a new high without the A/D line. That's narrowing participation: a warning to respect, not a sell order.",
@@ -1293,8 +1293,8 @@
     "f75"
    ],
    "wrong": {
-    "Breadth confirms the new high": "Confirmation needs the A/D line at a new high too. It's still below its last peak.",
-    "The top is in, so get out now": "A divergence is a condition, not a signal. A lot of bullish new highs can come before the last one, so watch price for a break of support."
+    "Breadth confirms the new record high": "Confirmation needs the A/D line at a new high too. It's still below its last peak.",
+    "The top is in, so sell everything": "A divergence is a condition, not a signal. A lot of bullish new highs can come before the last one, so watch price for a break of support."
    }
   },
   {
@@ -1305,11 +1305,11 @@
    "story": "The index breaks below last month's low. This time the A/D line holds above its own low from last month.",
    "q": "What's the best read?",
    "choices": [
-    "Fewer stocks are falling; watch price",
+    "Fewer stocks falling; watch price",
     "The selling is broad and speeding up",
-    "The bottom is in, so buy now"
+    "The bottom is in, so buy with size"
    ],
-   "answer": "Fewer stocks are falling; watch price",
+   "answer": "Fewer stocks falling; watch price",
    "why": "Fewer stocks are falling with it. Lower low in the index, higher low in the A/D line: that's a bullish divergence. Let price confirm the turn before you buy.",
    "lesson_line": "Breadth can show the selling drying up. Price tells you when to act.",
    "facts": [
@@ -1320,7 +1320,7 @@
    ],
    "wrong": {
     "The selling is broad and speeding up": "Broad selling would drag the A/D line to a new low too. It held above its last low.",
-    "The bottom is in, so buy now": "A bullish divergence says the decline may be ending. It isn't a buy signal on its own."
+    "The bottom is in, so buy with size": "A bullish divergence says the decline may be ending. It isn't a buy signal on its own."
    }
   },
   {
@@ -1409,8 +1409,8 @@
    "q": "What do those repeated high readings tell you?",
    "choices": [
     "Breadth is strong, not topping",
-    "It's overbought, so go short",
-    "The uptrend is about to end"
+    "It's overbought, so go short now",
+    "The uptrend is about to end soon"
    ],
    "answer": "Breadth is strong, not topping",
    "why": "Breadth is strong. ChartSchool calls above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. Multiple overbought readings are a sign of strength.",
@@ -1424,8 +1424,8 @@
     "f40"
    ],
    "wrong": {
-    "It's overbought, so go short": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
-    "The uptrend is about to end": "Strong trends can hold breadth gauges at extremes for a long time. A high reading alone doesn't end a trend."
+    "It's overbought, so go short now": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
+    "The uptrend is about to end soon": "Strong trends can hold breadth gauges at extremes for a long time. A high reading alone doesn't end a trend."
    }
   },
   {
@@ -1437,8 +1437,8 @@
    "q": "How does breadth grade this rally?",
    "choices": [
     "Broad: many stocks are joining in",
-    "Narrow: a few giants carry it",
-    "Bearish: breadth is diverging"
+    "Narrow: a few giants carry it up",
+    "Bearish: breadth is now diverging"
    ],
    "answer": "Broad: many stocks are joining in",
    "why": "Broad. The A/D line is rising with the index, which shows wide participation. Fidelity read that combination as broadly bullish.",
@@ -1451,8 +1451,8 @@
     "f19"
    ],
    "wrong": {
-    "Narrow: a few giants carry it": "Narrow means the index rises while the A/D line lags. Here the A/D line rose with it.",
-    "Bearish: breadth is diverging": "A divergence needs the two to split. They climbed together."
+    "Narrow: a few giants carry it up": "Narrow means the index rises while the A/D line lags. Here the A/D line rose with it.",
+    "Bearish: breadth is now diverging": "A divergence needs the two to split. They climbed together."
    }
   },
   {
@@ -1464,8 +1464,8 @@
    "q": "What's the best read?",
    "choices": [
     "A known Nasdaq quirk, not a crash call",
-    "The Nasdaq rally is fake",
-    "A crash is coming within weeks"
+    "The Nasdaq rally is a false one",
+    "A crash is coming in a few weeks"
    ],
    "answer": "A known Nasdaq quirk, not a crash call",
    "why": "A known quirk. Nasdaq listing standards are looser, so stocks that fail keep piling into the declines column. Its A/D line can fall for long stretches while the index rises.",
@@ -1479,8 +1479,8 @@
     "f101"
    ],
    "wrong": {
-    "The Nasdaq rally is fake": "The index really made new highs. The A/D line's slide comes largely from failing small listings, not from the leaders.",
-    "A crash is coming within weeks": "McClellan noted the Nasdaq A/D line has never got back to where its data began in 1972. A drift that old says little about the next few weeks."
+    "The Nasdaq rally is a false one": "The index really made new highs. The A/D line's slide comes largely from failing small listings, not from the leaders.",
+    "A crash is coming in a few weeks": "McClellan noted the Nasdaq A/D line has never got back to where its data began in 1972. A drift that old says little about the next few weeks."
    }
   },
   {
@@ -1612,7 +1612,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "f18 (ChartSchool; its ExxonMobil vs TECO example in context), f96 (McClellan) and f64 (Investopedia) agree: one vote per stock. No change.",
+   "notes": "f18 (ChartSchool; its ExxonMobil vs TECO example in context), f96 (McClellan) and f64 (Investopedia) agree: one vote per stock. No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1684,13 +1684,13 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "Key: f08, f09 (ChartSchool), f60 (Investopedia), f79 (Fidelity). f90 in context is about price new highs, which the wrong note uses correctly. 'The top is in, so sell everything' was a strawman; now 'The top is in, so get out now'. s11 (Investopedia) was unreachable to the quote checker; f75 confirmed in context on my own plain fetch (HTTP 200).",
+   "notes": "Key: f08, f09 (ChartSchool), f60 (Investopedia), f79 (Fidelity). f90 in context is about price new highs, which the wrong note uses correctly. 'The top is in, so sell everything' was a strawman; now 'The top is in, so get out now'. s11 (Investopedia) was unreachable to the quote checker; f75 confirmed in context on my own plain fetch (HTTP 200). variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q17": {
    "status": "pass",
-   "notes": "Key: f10 (ChartSchool) and f61 (Investopedia) agree; f55, f50 for confirming with price. 'It's the bottom; buy everything now' was a strawman; now 'The bottom is in, so buy now'.",
+   "notes": "Key: f10 (ChartSchool) and f61 (Investopedia) agree; f55, f50 for confirming with price. 'It's the bottom; buy everything now' was a strawman; now 'The bottom is in, so buy now'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1702,7 +1702,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "f25 (70/30, named as ChartSchool's), f26, f29, f30 confirmed in context (its S&P 500 example). Key matches f29 (wait for an upturn) and f55 (Investopedia: confirm with price). No change.",
+   "notes": "f25 (70/30, named as ChartSchool's), f26, f29, f30 confirmed in context (its S&P 500 example). Key matches f29 (wait for an upturn) and f55 (Investopedia: confirm with price). No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1714,19 +1714,19 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "Key: f28, f26, f27 (ChartSchool, 2009-10 S&P 500 example); f71 (Investopedia) agrees that strong trends hold breadth at extremes. The lesson line said 'The dips to oversold are the chances'; ChartSchool (f29) says wait for an upturn, so now 'Dips to oversold that turn back up are the chances.'",
+   "notes": "Key: f28, f26, f27 (ChartSchool, 2009-10 S&P 500 example); f71 (Investopedia) agrees that strong trends hold breadth at extremes. The lesson line said 'The dips to oversold are the chances'; ChartSchool (f29) says wait for an upturn, so now 'Dips to oversold that turn back up are the chances.' variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q22": {
    "status": "pass",
-   "notes": "f80, f81, f82 (Fidelity, April 20, 2026; FactSet data to April 16) confirmed; f07, f19 (ChartSchool). The key 'most stocks are joining in' overstated a rising A/D line (more advancers than decliners, not most stocks); now 'many stocks'.",
+   "notes": "f80, f81, f82 (Fidelity, April 20, 2026; FactSet data to April 16) confirmed; f07, f19 (ChartSchool). The key 'most stocks are joining in' overstated a rising A/D line (more advancers than decliners, not most stocks); now 'many stocks'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q23": {
    "status": "pass",
-   "notes": "f99, f100, f101 (McClellan), f14, f15 (ChartSchool), f62 (Investopedia) agree on the Nasdaq quirk. The article's warning headline is about the Nasdaq-100 A/D line; the same page calls the Composite's near-low A/D line 'not unusual', so the key stands. The lesson line 'It drifts down even in bull markets' was too absolute (ChartSchool: it rose with the Nasdaq in 2013); now 'can drift'.",
+   "notes": "f99, f100, f101 (McClellan), f14, f15 (ChartSchool), f62 (Investopedia) agree on the Nasdaq quirk. The article's warning headline is about the Nasdaq-100 A/D line; the same page calls the Composite's near-low A/D line 'not unusual', so the key stands. The lesson line 'It drifts down even in bull markets' was too absolute (ChartSchool: it rose with the Nasdaq in 2013); now 'can drift'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

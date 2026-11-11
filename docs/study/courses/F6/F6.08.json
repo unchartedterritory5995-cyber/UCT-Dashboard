@@ -1123,12 +1123,12 @@
    "story": "A stock reports earnings Wednesday night. Its options expiring that Friday show an implied volatility near 79%. The next monthly options show about 31%.",
    "q": "What most likely explains the gap?",
    "choices": [
-    "It's the first expiry after the report",
+    "It's the first expiry after earnings",
     "Weekly options always carry higher IV",
     "Traders expect the stock to drop",
     "The monthly options are mispriced"
    ],
-   "answer": "It's the first expiry after the report",
+   "answer": "It's the first expiry after earnings",
    "why": "It's the first expiry after the report, and that's where IV tends to run highest. The event sits inside those few days.",
    "lesson_line": "Before a report, compare the expiries. The first one after it shows the event's premium most.",
    "facts": [
@@ -1462,7 +1462,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "Story named IBM and treated Schwab's chain (s8) as a pre-report snapshot; Schwab gives no snapshot date, its '28 days before November 21' points to October 24 (after the October 22 report), and its cause is only 'likely'. Rewritten as an unnamed example; key rests on f45 (Fidelity) + f35/f36 (Schwab), read in context.",
+   "notes": "Story named IBM and treated Schwab's chain (s8) as a pre-report snapshot; Schwab gives no snapshot date, its '28 days before November 21' points to October 24 (after the October 22 report), and its cause is only 'likely'. Rewritten as an unnamed example; key rests on f45 (Fidelity) + f35/f36 (Schwab), read in context. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

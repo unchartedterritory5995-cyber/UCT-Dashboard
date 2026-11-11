@@ -836,9 +836,9 @@
    "q": "A falling trendline for a breakout is drawn over what?",
    "choices": [
     "The daily highs, wicks included",
-    "The daily closes only",
+    "The daily closes, not the wicks",
     "The daily lows",
-    "The 50-day average"
+    "The 50-day moving average line"
    ],
    "answer": "The daily highs, wicks included",
    "why": "The daily highs, wicks included. A downtrend line connects high points, drawn above the peaks and not through price.",
@@ -849,9 +849,9 @@
     "x09"
    ],
    "wrong": {
-    "The daily closes only": "A line over the closes cuts through the wicks. The line goes over the highs.",
+    "The daily closes, not the wicks": "A line over the closes cuts through the wicks. The line goes over the highs.",
     "The daily lows": "Lows make a rising line under price. The falling line sits over the highs.",
-    "The 50-day average": "An average is not a trendline. The line is drawn on the highs themselves."
+    "The 50-day moving average line": "An average is not a trendline. The line is drawn on the highs themselves."
    },
    "house": true
   },
@@ -880,11 +880,11 @@
    "criterion": "tl.stop",
    "q": "Where does the stop go on a trendline break bought during the day?",
    "choices": [
-    "A few cents under the trigger day's low",
-    "Exactly on the line",
-    "Under the 200-day average"
+    "A few cents under the day's low",
+    "Exactly on the falling line itself",
+    "Under the 200-day average line"
    ],
-   "answer": "A few cents under the trigger day's low",
+   "answer": "A few cents under the day's low",
    "why": "A few cents under the trigger day's low, as it stands at entry. Not exactly on it, and not on the line.",
    "lesson_line": "Stop first: a few cents under the trigger day's low.",
    "facts": [
@@ -893,8 +893,8 @@
     "h01"
    ],
    "wrong": {
-    "Exactly on the line": "The line is the trigger, not the stop. A close back under it is a warning; the stop is the exit.",
-    "Under the 200-day average": "That is far below the trade. The stop sits close, near the trigger day's low."
+    "Exactly on the falling line itself": "The line is the trigger, not the stop. A close back under it is a warning; the stop is the exit.",
+    "Under the 200-day average line": "That is far below the trade. The stop sits close, near the trigger day's low."
    },
    "house": true
   },
@@ -978,12 +978,12 @@
    "criterion": "tl.trigger",
    "q": "Which event is the buy on a trendline break?",
    "choices": [
-    "Trades through the line and prior high",
-    "Price touches the line from below",
+    "Trades through line and prior high",
+    "Price just touches the line from below",
     "A close 3% past the line",
     "The 50-day crossing the 200-day"
    ],
-   "answer": "Trades through the line and prior high",
+   "answer": "Trades through line and prior high",
    "why": "It trades through the line and the prior day's high, during regular hours, bought at market. That is our default trigger.",
    "lesson_line": "Through the line and the prior high, in hours, at market.",
    "facts": [
@@ -993,7 +993,7 @@
     "c14"
    ],
    "wrong": {
-    "Price touches the line from below": "Touching the line is not a break. Price has to trade through it.",
+    "Price just touches the line from below": "Touching the line is not a break. Price has to trade through it.",
     "A close 3% past the line": "Our default does not wait for a close 3% past the line. That filter is for long-term lines.",
     "The 50-day crossing the 200-day": "A crossing of averages is a different signal. The trigger is the line and the prior high."
    },
@@ -1513,11 +1513,11 @@
    "q": "What does the index break do for your list?",
    "story": "The S&P 500 breaks its own downtrend line on a strong day. Your list holds three valid line breaks.",
    "choices": [
-    "It helps; leaders break out with it",
+    "It helps; leaders break with it",
     "Nothing; indexes do not matter",
-    "Skip them; it is too late"
+    "Skip them; the move is already late"
    ],
-   "answer": "It helps; leaders break out with it",
+   "answer": "It helps; leaders break with it",
    "why": "It helps. The index breaking its own downtrend line is a cue, and Kell says the strongest stocks break out as the index pops.",
    "lesson_line": "A market that breaks its own line lifts the leaders.",
    "facts": [
@@ -1526,7 +1526,7 @@
    ],
    "wrong": {
     "Nothing; indexes do not matter": "The market reading is a guide for every setup, and the index break is a cue for this one.",
-    "Skip them; it is too late": "The cue says the strongest stocks break out as the index does. It is a reason to look."
+    "Skip them; the move is already late": "The cue says the strongest stocks break out as the index does. It is a reason to look."
    },
    "house": true
   },
@@ -1539,8 +1539,8 @@
    "q": "Where is the first overhead supply for a falling-line break?",
    "choices": [
     "The old high where the line starts",
-    "The 200-day average",
-    "Yesterday's low",
+    "The 200-day average below the line",
+    "Yesterday's low under the line",
     "The lowest low under the line"
    ],
    "answer": "The old high where the line starts",
@@ -1551,8 +1551,8 @@
     "x10"
    ],
    "wrong": {
-    "The 200-day average": "The 200-day is below a stock that qualifies. Supply sits above.",
-    "Yesterday's low": "That is where the stop sits, not supply.",
+    "The 200-day average below the line": "The 200-day is below a stock that qualifies. Supply sits above.",
+    "Yesterday's low under the line": "That is where the stop sits, not supply.",
     "The lowest low under the line": "That low is below the line. Supply sits above, at the old high."
    },
    "house": true
@@ -1566,11 +1566,11 @@
    "q": "Which is the setup, and which is the trigger?",
    "story": "A stock jumps 25% in 20 sessions, then drifts for 8 sessions under a falling line of two highs.",
    "choices": [
-    "Flag is the setup; line is the trigger",
-    "Line is the setup; flag is context",
-    "Two setups, two trades"
+    "Flag is the setup, line the trigger",
+    "Line is the setup; flag is the context",
+    "Two setups, so two separate trades"
    ],
-   "answer": "Flag is the setup; line is the trigger",
+   "answer": "Flag is the setup, line the trigger",
    "why": "The flag is the setup and the line is its trigger. A trendline break needs no pole, only a line of lower swing highs.",
    "lesson_line": "The flag is the setup. The line is how you get in.",
    "facts": [
@@ -1579,8 +1579,8 @@
     "c29"
    ],
    "wrong": {
-    "Line is the setup; flag is context": "When the line is the top of a flag, the flag is the setup and the line is its trigger.",
-    "Two setups, two trades": "One structure, one trade, one stop. A break is never an add."
+    "Line is the setup; flag is the context": "When the line is the top of a flag, the flag is the setup and the line is its trigger.",
+    "Two setups, so two separate trades": "One structure, one trade, one stop. A break is never an add."
    },
    "house": true
   },
@@ -1593,11 +1593,11 @@
    "q": "Trendline break or wedge pop?",
    "story": "A stock closed 12 of the last 15 sessions under its 20 EMA. A bar then clears a tight range and both fast averages.",
    "choices": [
-    "A wedge pop; it reclaimed the averages",
-    "A trendline break",
-    "A flat-top break"
+    "A wedge pop; averages reclaimed",
+    "A trendline break of a long line",
+    "A flat-top break at a ceiling"
    ],
-   "answer": "A wedge pop; it reclaimed the averages",
+   "answer": "A wedge pop; averages reclaimed",
    "why": "A wedge pop. It follows a decline with at least 8 of the last 15 closes under the 20 EMA. Then it reclaims the 10 and 20 EMAs. A trendline break already holds the fast averages.",
    "lesson_line": "Lost the averages, then reclaimed them: that is the pop.",
    "facts": [
@@ -1605,8 +1605,8 @@
     "c41"
    ],
    "wrong": {
-    "A trendline break": "A trendline break has the fast averages already reclaimed or held on the trigger day. This stock lost them.",
-    "A flat-top break": "Nothing here is a level ceiling. The tell is the lost and reclaimed averages."
+    "A trendline break of a long line": "A trendline break has the fast averages already reclaimed or held on the trigger day. This stock lost them.",
+    "A flat-top break at a ceiling": "Nothing here is a level ceiling. The tell is the lost and reclaimed averages."
    },
    "house": true
   },
@@ -1648,8 +1648,8 @@
    "story": "The honest stop sits 4.5% under the buy. Your usual size would risk too much.",
    "choices": [
     "Take the smaller size, or skip",
-    "Tighten the stop to 3%",
-    "Use full size anyway"
+    "Tighten the stop to 3% to fit",
+    "Use full size and accept the risk"
    ],
    "answer": "Take the smaller size, or skip",
    "why": "Take the smaller size the formula gives, or skip. Never tighten the stop to fit.",
@@ -1660,8 +1660,8 @@
     "h03"
    ],
    "wrong": {
-    "Tighten the stop to 3%": "Tightening the honest stop to fit the size is the mistake. The size moves, not the stop.",
-    "Use full size anyway": "Full size on a wide stop risks more than the rule allows."
+    "Tighten the stop to 3% to fit": "Tightening the honest stop to fit the size is the mistake. The size moves, not the stop.",
+    "Use full size and accept the risk": "Full size on a wide stop risks more than the rule allows."
    },
    "house": true
   },
@@ -1674,11 +1674,11 @@
    "q": "What was the weak spot?",
    "story": "A break barely clears the line, closing 0.4% over it on thin volume. You buy it. Next day it closes back under the line.",
    "choices": [
-    "A thin break barely clearing the line",
-    "The stop was too tight",
+    "A thin break barely over the line",
+    "The stop was too tight for the line",
     "Nothing; breaks just fail"
    ],
-   "answer": "A thin break barely clearing the line",
+   "answer": "A thin break barely over the line",
    "why": "A thin break that barely cleared the line. A break with volume matters more than one without, and this kind often closes back under.",
    "lesson_line": "A barely-there break on thin volume is a weak break.",
    "facts": [
@@ -1686,7 +1686,7 @@
     "x07"
    ],
    "wrong": {
-    "The stop was too tight": "The stop followed the rule. The weakness was the break itself.",
+    "The stop was too tight for the line": "The stop followed the rule. The weakness was the break itself.",
     "Nothing; breaks just fail": "Some do, but this one showed its weakness on the day: thin volume and a close barely over the line."
    },
    "house": true
@@ -1727,8 +1727,8 @@
    "story": "Lows rise into the falling line for three weeks, and volume fades each day. Today it pokes through.",
    "choices": [
     "No; it is wedging up into the line",
-    "Yes; it broke the line",
-    "Yes, if volume picks up"
+    "Yes; it broke the line on the day",
+    "Yes, if volume picks up on the break"
    ],
    "answer": "No; it is wedging up into the line",
    "why": "No. Rising lows into the line on shrinking volume is not the tight drift down this setup wants.",
@@ -1738,8 +1738,8 @@
     "c04"
    ],
    "wrong": {
-    "Yes; it broke the line": "Breaking the line is not enough. The shape into it has to be a tight drift down.",
-    "Yes, if volume picks up": "The wedge up into the line is the problem, and volume on the day does not fix the shape."
+    "Yes; it broke the line on the day": "Breaking the line is not enough. The shape into it has to be a tight drift down.",
+    "Yes, if volume picks up on the break": "The wedge up into the line is the problem, and volume on the day does not fix the shape."
    },
    "house": true
   },
@@ -1879,11 +1879,11 @@
    "q": "Buy it?",
    "story": "A clean break sets up for tomorrow. The company reports after the close in 2 days.",
    "choices": [
-    "No; no buys 3 days before a report",
-    "Yes; the line is clean",
+    "No; the report is inside 3 days",
+    "Yes; the line is clean and tight",
     "Yes, and sell before the report"
    ],
-   "answer": "No; no buys 3 days before a report",
+   "answer": "No; the report is inside 3 days",
    "why": "No. No new buys in the 3 days before an earnings report. Hold through one only if the trade is up 5R.",
    "lesson_line": "Stay three days clear of the report, or wait.",
    "facts": [
@@ -1891,7 +1891,7 @@
     "h08"
    ],
    "wrong": {
-    "Yes; the line is clean": "A clean line does not move the earnings window.",
+    "Yes; the line is clean and tight": "A clean line does not move the earnings window.",
     "Yes, and sell before the report": "The rule is no new buy in that window, not a quick trade through it."
    },
    "house": true
@@ -1931,11 +1931,11 @@
    "q": "What do you do?",
    "story": "You bought at 30.00 with the stop at 29.00. It trades to 33.00.",
    "choices": [
-    "Sell a third and move the stop to 30.00",
-    "Sell half and trail the rest",
-    "Hold all until 5R"
+    "Sell a third; stop to breakeven",
+    "Sell half now and trail the rest",
+    "Hold all of it until 5R"
    ],
-   "answer": "Sell a third and move the stop to 30.00",
+   "answer": "Sell a third; stop to breakeven",
    "why": "Sell a third at 3R and move the stop to breakeven, 30.00. The next third waits for 5R.",
    "lesson_line": "A third at 3R, then the stop to breakeven.",
    "facts": [
@@ -1945,8 +1945,8 @@
     "h20"
    ],
    "wrong": {
-    "Sell half and trail the rest": "The rule is a third at 3R and a third at 5R, not half at once.",
-    "Hold all until 5R": "Holding it all risks a 3R gain for a scratch. The first third comes off at 3R."
+    "Sell half now and trail the rest": "The rule is a third at 3R and a third at 5R, not half at once.",
+    "Hold all of it until 5R": "Holding it all risks a 3R gain for a scratch. The first third comes off at 3R."
    },
    "house": true
   },
@@ -2016,7 +2016,7 @@
    "story": "A stock doubles in a few weeks, then forms a tight, shallow flag. A falling line crosses the flag's highs.",
    "choices": [
     "Over the pattern's highest high",
-    "Through the falling line",
+    "Through the falling line at once",
     "At the 50-day average"
    ],
    "answer": "Over the pattern's highest high",
@@ -2026,7 +2026,7 @@
     "c43"
    ],
    "wrong": {
-    "Through the falling line": "On a high tight flag the flag's trendline break fails too often. That is the named mistake.",
+    "Through the falling line at once": "On a high tight flag the flag's trendline break fails too often. That is the named mistake.",
     "At the 50-day average": "A doubled stock holds far above its 50-day. The buy is on strength, over the high."
    },
    "house": true
@@ -2040,11 +2040,11 @@
    "q": "You were stopped out. What now?",
    "story": "You bought at 200.06 with the stop at 197.41. The low was 197.22, 19 cents under the stop. It closed 209.53 and reached 217 within a week.",
    "choices": [
-    "Only a new trigger buys it again",
-    "Buy it back; it ran 6%",
+    "Only a new trigger re-enters",
+    "Buy it back at once; it ran 6%",
     "Move your next stop lower"
    ],
-   "answer": "Only a new trigger buys it again",
+   "answer": "Only a new trigger re-enters",
    "why": "Only a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
    "lesson_line": "It ran without you. Only a new trigger buys it back.",
    "facts": [
@@ -2053,7 +2053,7 @@
     "d14"
    ],
    "wrong": {
-    "Buy it back; it ran 6%": "Chasing what ran is the mistake. A re-entry needs a new trigger.",
+    "Buy it back at once; it ran 6%": "Chasing what ran is the mistake. A re-entry needs a new trigger.",
     "Move your next stop lower": "The stop is a few cents under the day's low. Moving it lower to avoid a stop-out is not the rule."
    },
    "house": true
@@ -2094,11 +2094,11 @@
    "q": "Take the break?",
    "story": "A steep three-week drop leaves two lower highs. A line through them breaks today.",
    "choices": [
-    "Pass; steep, short, two close highs",
-    "Take it; the line broke",
-    "Take it, on half size"
+    "Pass; steep line, two close highs",
+    "Take it; the line broke on the day",
+    "Take it, but on half the size"
    ],
-   "answer": "Pass; steep, short, two close highs",
+   "answer": "Pass; steep line, two close highs",
    "why": "Pass. Buying breaks of steep lines is a named mistake, and two highs this close may be nothing more than noise.",
    "lesson_line": "A steep plunge draws a steep line. Skip it.",
    "facts": [
@@ -2108,8 +2108,8 @@
     "d21"
    ],
    "wrong": {
-    "Take it; the line broke": "The steeper the line, the less valid it is. A break of it is not enough.",
-    "Take it, on half size": "Size does not repair a steep line with two close highs."
+    "Take it; the line broke on the day": "The steeper the line, the less valid it is. A break of it is not enough.",
+    "Take it, but on half the size": "Size does not repair a steep line with two close highs."
    },
    "house": true
   },
@@ -2122,21 +2122,22 @@
    "q": "The stop traded. Did the rules fail?",
    "story": "You buy a clean break at 48.12 with the stop at 47.25. The next session is the first day of a market break, and the stop trades.",
    "choices": [
-    "No; a planned loss, rules followed",
-    "Yes; we should have waited",
+    "No; a planned loss, rules kept",
+    "Yes; we should have waited a day",
     "Yes; the stop was too wide"
    ],
-   "answer": "No; a planned loss, rules followed",
+   "answer": "No; a planned loss, rules kept",
    "why": "No. The stop is the exit and it did its job. The next session was the first day of the February 2020 market break, so the loss was the planned 1.80%.",
    "lesson_line": "A valid break can lose. The stop makes it small.",
    "facts": [
     "d10",
     "d23",
     "d09",
-    "c26"
+    "c26",
+    "h04"
    ],
    "wrong": {
-    "Yes; we should have waited": "Waiting would have been a different trade. The loss here was the planned 1.80%.",
+    "Yes; we should have waited a day": "Waiting would have been a different trade. The loss here was the planned 1.80%.",
     "Yes; the stop was too wide": "The stop was 1.80% away, inside the 3% a stop usually sits within."
    },
    "house": true
@@ -2281,7 +2282,7 @@
    "choices": [
     "No; the stock is not a leader",
     "Yes; the line is clean",
-    "Yes, with a smaller stop"
+    "Yes, with a smaller stop and size"
    ],
    "answer": "No; the stock is not a leader",
    "why": "No. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A clean line in a laggard is still a laggard.",
@@ -2292,7 +2293,7 @@
    ],
    "wrong": {
     "Yes; the line is clean": "A clean line is only one of the gates. The RS rating is another.",
-    "Yes, with a smaller stop": "A smaller stop does not make a laggard a leader."
+    "Yes, with a smaller stop and size": "A smaller stop does not make a laggard a leader."
    },
    "house": true
   },
@@ -2304,11 +2305,11 @@
    "criterion": "tl.above_200",
    "q": "Hidden ticker. A pullback drifts tight under a falling line. Above its 200-day? Take the break or pass.",
    "choices": [
-    "Take it; above the 200-day, tight drift",
+    "Take it; above 200-day, tight drift",
     "Pass; the stock is under the 200-day",
-    "Pass; the line is a flat top"
+    "Pass; the line is really a flat top"
    ],
-   "answer": "Take it; above the 200-day, tight drift",
+   "answer": "Take it; above 200-day, tight drift",
    "why": "Take it. The close sits above the 200-day and the pullback drifts tight under a shallow line. The break ran straight to new highs.",
    "lesson_line": "The 200-day and the tight drift first. Then the line.",
    "facts": [
@@ -2319,7 +2320,7 @@
    ],
    "wrong": {
     "Pass; the stock is under the 200-day": "Look again: price sits above the 200-day here.",
-    "Pass; the line is a flat top": "The line falls, slowly. A slow slope is still a slope."
+    "Pass; the line is really a flat top": "The line falls, slowly. A slow slope is still a slope."
    },
    "chart": {
     "sym": "MCK",
@@ -2436,7 +2437,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "c01 is a proposed line; x01 (ChartSchool) and x09 (Bulkowski) verbatim, two publishers agree a down-sloping line is drawn over the highs. Wrong notes true.",
+   "notes": "c01 is a proposed line; x01 (ChartSchool) and x09 (Bulkowski) verbatim, two publishers agree a down-sloping line is drawn over the highs. Wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2448,7 +2449,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "Settled tl.stop (A3, F62); c15/h24 verbatim. Wrong notes true.",
+   "notes": "Settled tl.stop (A3, F62); c15/h24 verbatim. Wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2478,7 +2479,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "tl.trigger is pending (D-003). The original why ended 'No close is needed', which rules the close out as if settled; now 'our default trigger'. E57 (market order) and E58 (regular hours) are settled. The 3% wrong choice rests on the card's proposed tl.no_3pct_filter and says 'our default'.",
+   "notes": "tl.trigger is pending (D-003). The original why ended 'No close is needed', which rules the close out as if settled; now 'our default trigger'. E57 (market order) and E58 (regular hours) are settled. The 3% wrong choice rests on the card's proposed tl.no_3pct_filter and says 'our default'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2616,25 +2617,25 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "c28 (proposed tl.index_break) and x13 (Kell) verbatim. Kept over q14.",
+   "notes": "c28 (proposed tl.index_break) and x13 (Kell) verbatim. Kept over q14. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q32": {
    "status": "pass",
-   "notes": "c31 (proposed tl.overhead_supply, basis measured) and x10 (Bulkowski, bull markets, best-case exits) verbatim. Key right; the 77% is context, never a target (q40 says so).",
+   "notes": "c31 (proposed tl.overhead_supply, basis measured) and x10 (Bulkowski, bull markets, best-case exits) verbatim. Key right; the 77% is context, never a target (q40 says so). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q33": {
    "status": "pass",
-   "notes": "c39 is the card's lookalike tell for the bull flag; the story (25% pole, 8 sessions of drift) fits the flag's 20% pole and 3 to 15 sessions. Does not lean on D-002's standalone-or-trigger ruling. Key right.",
+   "notes": "c39 is the card's lookalike tell for the bull flag; the story (25% pole, 8 sessions of drift) fits the flag's 20% pole and 3 to 15 sessions. Does not lean on D-002's standalone-or-trigger ruling. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q34": {
    "status": "pass",
-   "notes": "c40/c41 verbatim (the card's lookalike for the wedge pop). Story: 12 of 15 closes under the 20 EMA, then a bar reclaims both fast averages. why split to sentences of 22 words or fewer.",
+   "notes": "c40/c41 verbatim (the card's lookalike for the wedge pop). Story: 12 of 15 closes under the 20 EMA, then a bar reclaims both fast averages. why split to sentences of 22 words or fewer. variety rewrite checked 2026-11-10 (edited: choices)",
    "fixed": true,
    "by": "checker"
   },
@@ -2646,13 +2647,13 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "tl.stop_width is settled (A3, A5, A13); c16 verbatim. No share count asked. Key right.",
+   "notes": "tl.stop_width is settled (A3, A5, A13); c16 verbatim. No share count asked. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q37": {
    "status": "pass",
-   "notes": "c33 (the card's failure mode) and x07 (The Insider) verbatim. Keyed only on 'volume matters more', true whether D-069 makes volume a gate or a cue. The wrong note said the weakness showed 'before the buy', but the close and the day's volume are known only after an intraday buy; fixed. 'This kind closes back under' softened to 'often'.",
+   "notes": "c33 (the card's failure mode) and x07 (The Insider) verbatim. Keyed only on 'volume matters more', true whether D-069 makes volume a gate or a cue. The wrong note said the weakness showed 'before the buy', but the close and the day's volume are known only after an intraday buy; fixed. 'This kind closes back under' softened to 'often'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2664,7 +2665,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "c05 is proposed (tl.not_wedging_up, gate true); the card notes that EHC (model example 9) wedged up under the line for eight weeks and still broke, so the gate may soften. The story pairs rising lows with fading volume as the card does. Key right as the card stands.",
+   "notes": "c05 is proposed (tl.not_wedging_up, gate true); the card notes that EHC (model example 9) wedged up under the line for eight weeks and still broke, so the gate may soften. The story pairs rising lows with fading volume as the card does. Key right as the card stands. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2700,7 +2701,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "B22 (h08) and c11 verbatim; the report is inside 3 days. Key right.",
+   "notes": "B22 (h08) and c11 verbatim; the report is inside 3 days. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2712,7 +2713,7 @@
   },
   "q47": {
    "status": "pass",
-   "notes": "R = 1.00; 33.00 is 3R. A third at 3R and the stop to breakeven at the first trim (B19 default). Key right.",
+   "notes": "R = 1.00; 33.00 is 3R. A third at 3R and the stop to breakeven at the first trim (B19 default). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2730,13 +2731,13 @@
   },
   "q50": {
    "status": "pass",
-   "notes": "c43 is the card's mistake line (Bulkowski's high-tight-flag statement is the card's, not quoted from his page). Story: a stock that doubled, then a tight, shallow flag. Key right as the card stands.",
+   "notes": "c43 is the card's mistake line (Bulkowski's high-tight-flag statement is the card's, not quoted from his page). Story: a stock that doubled, then a tight, shallow flag. Key right as the card stands. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q51": {
    "status": "pass",
-   "notes": "Bars: DHR 2021-01-05 high 203.34, low 197.46 (stop 197.41), 2021-01-06 low 197.22 (19 cents under), close 209.53. h28 (B21) verbatim. Keys only 'a new trigger buys it again', not that a structural stop would have held (D-008 pending).",
+   "notes": "Bars: DHR 2021-01-05 high 203.34, low 197.46 (stop 197.41), 2021-01-06 low 197.22 (19 cents under), close 209.53. h28 (B21) verbatim. Keys only 'a new trigger buys it again', not that a structural stop would have held (D-008 pending). variety rewrite checked 2026-11-10 (edited: choices)",
    "fixed": false,
    "by": "checker"
   },
@@ -2748,13 +2749,13 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "x02 (ChartSchool) and x05 (The Insider) verbatim plus the card's steep-line mistake. No slope number keyed (D-069 pending), so 'steep' is by feel as the story says. Key right.",
+   "notes": "x02 (ChartSchool) and x05 (The Insider) verbatim plus the card's steep-line mistake. No slope number keyed (D-069 pending), so 'steep' is by feel as the story says. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q54": {
    "status": "pass",
-   "notes": "Bars: SCHW 2020-02-20 buy 48.12, stop 47.25 (1.80%), 2020-02-21 low 45.93. d09/d10 verbatim. The why said 'valid by every gate', but the scan never tested RS or the market reading; now 'the stop did its job'. The old wrong note ('a different trade with a wider stop') had no source. Kept over q48.",
+   "notes": "Bars: SCHW 2020-02-20 buy 48.12, stop 47.25 (1.80%), 2020-02-21 low 45.93. d09/d10 verbatim. The why said 'valid by every gate', but the scan never tested RS or the market reading; now 'the stop did its job'. The old wrong note ('a different trade with a wider stop') had no source. Kept over q48. variety rewrite checked 2026-11-10 (edited: facts)",
    "fixed": true,
    "by": "checker"
   },
@@ -2790,13 +2791,13 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "C31 (h14) and c08 verbatim; settled. Key right.",
+   "notes": "C31 (h14) and c08 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q61": {
    "status": "pass",
-   "notes": "Chart: MCK 2025-02-24 has 7,572 daily bars up to the date and 431 after; close 605.76, 50-day 589.01, 200-day 567.79 (above both). Trigger day 2025-02-25 high 627.92, low 601.45 (stop 601.40). The falling line is not drawn on the chart, so the key rests on the 200-day. d06/d07/d08 verbatim.",
+   "notes": "Chart: MCK 2025-02-24 has 7,572 daily bars up to the date and 431 after; close 605.76, 50-day 589.01, 200-day 567.79 (above both). Trigger day 2025-02-25 high 627.92, low 601.45 (stop 601.40). The falling line is not drawn on the chart, so the key rests on the 200-day. d06/d07/d08 verbatim. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

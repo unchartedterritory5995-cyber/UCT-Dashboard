@@ -845,12 +845,12 @@
    "term": "locate",
    "q": "Before a short sale, your broker must have a locate. What is it?",
    "choices": [
-    "Good grounds the shares can be borrowed",
+    "Grounds the shares can be borrowed",
     "Proof you already own the shares",
     "A buyer lined up for your shares",
     "A cash loan to buy the shares"
    ],
-   "answer": "Good grounds the shares can be borrowed",
+   "answer": "Grounds the shares can be borrowed",
    "why": "Good grounds the shares can be borrowed. Your broker needs reasonable grounds that they can be borrowed and delivered on time, documented before the short.",
    "lesson_line": "No locate, no short. It's the first thing your broker checks.",
    "facts": [
@@ -1011,7 +1011,7 @@
    "choices": [
     "It must be priced above the best bid",
     "Short sales are banned for the day",
-    "Nothing changes for short sellers"
+    "Nothing changes for any short sellers"
    ],
    "answer": "It must be priced above the best bid",
    "why": "Above the best bid. $44.50 is more than 10% under the $50.00 close, which trips the circuit breaker. Shorts must then be priced above the national best bid.",
@@ -1025,7 +1025,7 @@
    ],
    "wrong": {
     "Short sales are banned for the day": "The rule limits the price, not the act. A short priced above the national best bid is still allowed.",
-    "Nothing changes for short sellers": "A drop of 10% or more from the prior close trips the circuit breaker. Shorts can't hit the bid now."
+    "Nothing changes for any short sellers": "A drop of 10% or more from the prior close trips the circuit breaker. Shorts can't hit the bid now."
    }
   },
   {
@@ -1222,11 +1222,11 @@
    "story": "A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday.",
    "q": "You want to short it premarket. Is the short-sale price test on yet?",
    "choices": [
-    "No, it can only trip in regular hours",
-    "Yes, any 10% drop trips it",
-    "No, it covers only small caps"
+    "No, it trips in regular hours only",
+    "Yes, any 10% drop trips it at once",
+    "No, it covers just the small caps"
    ],
-   "answer": "No, it can only trip in regular hours",
+   "answer": "No, it trips in regular hours only",
    "why": "No. The 10% test is measured on regular-hours trades only. If regular trading prints 10% or more below the $40.00 close, it trips then.",
    "lesson_line": "A premarket gap doesn't trip the price test. The first regular-hours trades can.",
    "facts": [
@@ -1237,8 +1237,8 @@
     "f29"
    ],
    "wrong": {
-    "Yes, any 10% drop trips it": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
-    "No, it covers only small caps": "It generally covers every exchange-listed stock, large or small."
+    "Yes, any 10% drop trips it at once": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
+    "No, it covers just the small caps": "It generally covers every exchange-listed stock, large or small."
    }
   },
   {
@@ -1378,7 +1378,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "f16, f17 (SEC Key Points, live) define the locate as reasonable grounds the shares can be borrowed and delivered on time, documented before the sale; f59 (Schwab) agrees. Answer 39 characters for the term tile. Wrong notes: f22 (long sale), f54 (margin loan is cash).",
+   "notes": "f16, f17 (SEC Key Points, live) define the locate as reasonable grounds the shares can be borrowed and delivered on time, documented before the sale; f59 (Schwab) agrees. Answer 39 characters for the term tile. Wrong notes: f22 (long sale), f54 (margin loan is cash). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1420,7 +1420,7 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "$44.50 vs a $50.00 close is an 11% drop, past the 10% trigger (f26, SEC 2010-26; eCFR 242.201(b)(1)(i) '10% or more', current). Once tripped, shorts may not execute or display at or below the national best bid (f25, f27). Regular trading is stated, so the hours rule (q21) cannot change the key. Wrong choices are the two common myths (a ban, no change).",
+   "notes": "$44.50 vs a $50.00 close is an 11% drop, past the 10% trigger (f26, SEC 2010-26; eCFR 242.201(b)(1)(i) '10% or more', current). Once tripped, shorts may not execute or display at or below the national best bid (f25, f27). Regular trading is stated, so the hours rule (q21) cannot change the key. Wrong choices are the two common myths (a ban, no change). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1468,7 +1468,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "SEC Rule 201 FAQ 1.2 (f35): the trigger is determined in regular trading hours only, 9:30 a.m. to 4:00 p.m. ET (f36); 'Nothing restricted it yesterday' rules out a carry-over. Premarket gappers are not under the price test until regular trades print 10% or more down. f29: covers all exchange-listed stocks.",
+   "notes": "SEC Rule 201 FAQ 1.2 (f35): the trigger is determined in regular trading hours only, 9:30 a.m. to 4:00 p.m. ET (f36); 'Nothing restricted it yesterday' rules out a carry-over. Premarket gappers are not under the price test until regular trades print 10% or more down. f29: covers all exchange-listed stocks. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

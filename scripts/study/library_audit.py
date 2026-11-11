@@ -111,7 +111,7 @@ def audit_unit(u: dict) -> dict:
         flags.append(f"scenario {scen:.0%} (rule: at least {MIN_SCENARIO:.0%})")
     if tf < MIN_TF:
         flags.append(f"true/false {tf:.0%} (rule: at least {MIN_TF:.0%})")
-    if choice_share > MAX_CHOICE:
+    if choice_share > MAX_CHOICE and "choice" not in (u.get("variety_exempt") or []):
         flags.append(f"choice questions {choice_share:.0%} (rule: at most {MAX_CHOICE:.0%})")
 
     # where the right answer sits
@@ -176,8 +176,13 @@ def audit_unit(u: dict) -> dict:
         if c < max(1, n // 5):
             flags.append(f"only {c} of {n} on {name} (rule: at least a fifth)")
 
+    # a rewritten question stays marked until a second reader has checked it
+    revised = sum(1 for v in (u.get("verify") or {}).values() if isinstance(v, dict) and v.get("revised"))
+    if revised:
+        flags.append(f"{revised} revised question(s) await a second reader")
+
     return {
-        "unit": u["unit"], "title": u.get("title"), "n": n, "formats": dict(fmt), "levels": levels,
+        "unit": u["unit"], "title": u.get("title"), "n": n, "revised": revised, "formats": dict(fmt), "levels": levels,
         "answer_slots": pos_share, "longest_share": round(longest_share, 3),
         "true_share": None if true_share is None else round(true_share, 3),
         "top_opening": [top_open, top_n], "flags": flags,
@@ -273,6 +278,39 @@ def resting_on(decision: str) -> list[dict]:
     return rows
 
 
+def workorder(u: dict) -> dict:
+    """What a writer must change in one unit to clear its content tells: the questions whose right choice is the longest,
+    how many true/false answers to turn false, how many true/false questions to add, and the stems that repeat."""
+    qs = live_questions(u)
+    n = len(qs)
+    ch = [q for q in qs if is_choice(q) and q.get("answer") in q["choices"]]
+    longest_keys = []
+    for q in ch:
+        lens = [len(c) for c in q["choices"]]
+        if lens.count(max(lens)) == 1 and len(q["answer"]) == max(lens):
+            longest_keys.append(q["key"])
+    keep = int(0.30 * len(ch))
+    fix_longest = max(0, len(longest_keys) - keep) if len(ch) >= POSITION_MIN_N else 0
+    tfq = [q for q in qs if q.get("format") == "tf"]
+    true_keys = [q["key"] for q in tfq if str(q.get("answer")).lower() == "true"]
+    flip = 0
+    if len(tfq) >= TF_MIN_N and len(true_keys) / len(tfq) > TF_TRUE_RANGE[1]:
+        flip = len(true_keys) - int(round(0.5 * len(tfq)))
+    add_tf = max(0, int(MIN_TF * n) + 1 - len(tfq)) if len(tfq) / max(n, 1) < MIN_TF else 0
+    opens = collections.Counter(" ".join(w.lower() for w in words(q.get("q", ""))[:3]) for q in qs if q.get("q"))
+    repeated = {}
+    for op, c in opens.items():
+        if n >= STEM_MIN_N and c >= 4 and c / n > STEM_MAX_SHARE and "stems" not in (u.get("variety_exempt") or []):
+            repeated[op] = {"count": c, "rephrase_at_least": c - max(3, int(STEM_MAX_SHARE * n)),
+                            "keys": [q["key"] for q in qs if " ".join(w.lower() for w in words(q.get("q", ""))[:3]) == op]}
+    return {
+        "unit": u["unit"], "file": u.get("_file"), "live_questions": n,
+        "longest_tell": {"questions_where_right_is_longest": longest_keys, "must_fix_at_least": fix_longest},
+        "true_false": {"count": len(tfq), "true_keys": true_keys, "turn_false_at_least": flip, "add_true_false": add_tf},
+        "repeated_stems": repeated,
+    }
+
+
 def render(rep: dict) -> str:
     out = []
     n = sum(rep["formats"].values()) or 1
@@ -304,7 +342,20 @@ def main(argv=None) -> int:
     ap.add_argument("--stamp", action="store_true")
     ap.add_argument("--drift", action="store_true")
     ap.add_argument("--decision", metavar="D-nnn")
+    ap.add_argument("--unit", metavar="UNIT", help="report one unit only (with its work order)")
+    ap.add_argument("--workorder", action="store_true", help="JSON work orders for every unit that has a content tell")
     a = ap.parse_args(argv)
+    if a.unit or a.workorder:
+        units = load_units()
+        if a.unit:
+            units = [u for u in units if u["unit"] == a.unit]
+        orders = []
+        for u in units:
+            w, au = workorder(u), audit_unit(u)
+            if a.unit or w["longest_tell"]["must_fix_at_least"] or w["true_false"]["turn_false_at_least"] or w["true_false"]["add_true_false"] or w["repeated_stems"]:
+                orders.append({**w, "flags": au["flags"]})
+        print(json.dumps(orders if a.workorder else (orders[0] if orders else {}), indent=1, ensure_ascii=False))
+        return 0
     if a.stamp:
         print(f"stamped {len(stamp())} units into {os.path.relpath(LINEAGE, ROOT)}")
         return 0

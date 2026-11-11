@@ -1197,9 +1197,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "fh.above_200",
-   "q": "We buy a failed head-and-shoulders only when the trigger day's close is above the 200-day.",
-   "answer": "True",
-   "why": "True. The close is above the 200-day on the trigger day, a hard rule. No longs below the 200-day simple moving average.",
+   "q": "We may buy a failed head-and-shoulders when the trigger day's close is under the 200-day.",
+   "answer": "False",
+   "why": "False. The close must be above the 200-day on the trigger day, a hard rule. No longs below the 200-day simple moving average.",
    "lesson_line": "Under the 200-day there is no failed top to buy.",
    "facts": [
     "c37",
@@ -1424,12 +1424,12 @@
    "criterion": "fh.rounded_top",
    "q": "A slow dome with no single peak standing out. What is its neckline?",
    "choices": [
-    "The lower rim, the arc's lowest low",
-    "The dome high",
-    "The 50-day",
-    "A line across two peaks"
+    "The lower rim, the arc's low",
+    "The dome high, the top of the arc",
+    "The 50-day moving average",
+    "A line across the two high points"
    ],
-   "answer": "The lower rim, the arc's lowest low",
+   "answer": "The lower rim, the arc's low",
    "why": "The lower rim, the lowest low of the arc. Bulkowski: downward breakouts are a close below the lower of the two rims.",
    "lesson_line": "A dome has no shoulders. Its floor is the lower rim.",
    "facts": [
@@ -1438,9 +1438,9 @@
     "b08"
    ],
    "wrong": {
-    "The dome high": "The dome high is the top of the arc. The neckline is the floor.",
-    "The 50-day": "A moving average is context, not the pattern's floor.",
-    "A line across two peaks": "A dome has no two peaks to join. The floor is the lowest low of the arc."
+    "The dome high, the top of the arc": "The dome high is the top of the arc. The neckline is the floor.",
+    "The 50-day moving average": "A moving average is context, not the pattern's floor.",
+    "A line across the two high points": "A dome has no two peaks to join. The floor is the lowest low of the arc."
    },
    "house": true
   },
@@ -1470,9 +1470,9 @@
    "q": "Version B: the neckline broke and the break was bought back. How long may the trigger take?",
    "choices": [
     "Within 40 sessions of the failure",
-    "Within 5 sessions",
-    "Any time this year",
-    "Within 100 sessions"
+    "Within 5 sessions of the failure",
+    "Any time before the year is out",
+    "Within 100 sessions of the failure"
    ],
    "answer": "Within 40 sessions of the failure",
    "why": "Within 40 sessions of the failure. The failure itself comes within 60 sessions of the right shoulder. The speed of the reclaim did not matter much in our run.",
@@ -1482,9 +1482,9 @@
     "d33"
    ],
    "wrong": {
-    "Within 5 sessions": "Too tight. The reclaim can take weeks; over 15 bars did as well as under 5.",
-    "Any time this year": "A trigger months later is a new base, not this failure. The window is 40 sessions.",
-    "Within 100 sessions": "Too long. Past 40 sessions the failure is stale."
+    "Within 5 sessions of the failure": "Too tight. The reclaim can take weeks; over 15 bars did as well as under 5.",
+    "Any time before the year is out": "A trigger months later is a new base, not this failure. The window is 40 sessions.",
+    "Within 100 sessions of the failure": "Too long. Past 40 sessions the failure is stale."
    },
    "house": true
   },
@@ -1564,12 +1564,12 @@
    "criterion": "fh.market",
    "q": "The reading is Orange. A failed top triggers in a leader. May you buy it?",
    "choices": [
-    "Only if it grades A+",
-    "Yes, at full size",
-    "No; Orange is cash",
-    "Yes, at half size"
+    "Yes, but only an A+ setup",
+    "Yes, at full size, any grade",
+    "No; Orange means cash only",
+    "Yes, at half size, any grade"
    ],
-   "answer": "Only if it grades A+",
+   "answer": "Yes, but only an A+ setup",
    "why": "Only if it grades A+. Green is full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts.",
    "lesson_line": "Read the market before the pattern. Orange buys A+ and nothing else.",
    "facts": [
@@ -1577,9 +1577,9 @@
     "h26"
    ],
    "wrong": {
-    "Yes, at full size": "That is Green. Orange narrows you to A+.",
-    "No; Orange is cash": "Red is mostly cash. Orange still allows the best setups.",
-    "Yes, at half size": "Orange is about grade, not size. A B setup stays on the bench."
+    "Yes, at full size, any grade": "That is Green. Orange narrows you to A+.",
+    "No; Orange means cash only": "Red is mostly cash. Orange still allows the best setups.",
+    "Yes, at half size, any grade": "Orange is about grade, not size. A B setup stays on the bench."
    },
    "house": true
   },
@@ -1702,13 +1702,13 @@
    "story": "You bought the trigger over 320.28 and were stopped the next day at 315.40. Today it trades back over 320.28.",
    "q": "Buy again?",
    "choices": [
-    "Yes; a new trade with its own stop",
-    "No; one try per pattern",
-    "Yes, with a wider stop",
-    "No; the pattern failed"
+    "Yes; a new trade with a new stop",
+    "No; only one try per pattern",
+    "Yes, with a wider stop this time",
+    "No; the pattern has already failed"
    ],
-   "answer": "Yes; a new trade with its own stop",
-   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Failures whipsaw: count the tries, at most 3 in a week. AAPL then rose 11% without the trade.",
+   "answer": "Yes; a new trade with a new stop",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Failures whipsaw: count the tries, at most 3 in a week. AAPL then rose 11% within 60 sessions without the trade.",
    "lesson_line": "A whipsaw is not a verdict on the setup. The next trigger is a new trade.",
    "facts": [
     "h28",
@@ -1718,9 +1718,9 @@
     "d22"
    ],
    "wrong": {
-    "No; one try per pattern": "The limit is 3 tries in a week and 6 in a month, not one.",
-    "Yes, with a wider stop": "The stop is the trigger day's low again. A wider stop to avoid a repeat is the mistake.",
-    "No; the pattern failed": "The trade failed; the pattern triggered again. A second entry over the same level is allowed."
+    "No; only one try per pattern": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "Yes, with a wider stop this time": "The stop is the trigger day's low again. A wider stop to avoid a repeat is the mistake.",
+    "No; the pattern has already failed": "The trade failed; the pattern triggered again. A second entry over the same level is allowed."
    },
    "house": true
   },
@@ -1732,12 +1732,12 @@
    "criterion": "fh.breakeven",
    "q": "When does the stop move to breakeven on this trade?",
    "choices": [
-    "Between 2R and 5R, at the first trim",
-    "The day after entry",
-    "At 1R",
-    "Never; the stop is the stop"
+    "2R to 5R, at the first trim",
+    "The first higher close",
+    "At 1R, as soon as it arrives",
+    "Never; it stays where it is"
    ],
-   "answer": "Between 2R and 5R, at the first trim",
+   "answer": "2R to 5R, at the first trim",
    "why": "Between 2R and 5R, at the first trim by default. The third off at 3R is the natural moment.",
    "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
    "facts": [
@@ -1745,9 +1745,9 @@
     "h05"
    ],
    "wrong": {
-    "The day after entry": "That is inside the noise. A normal day would hit it.",
-    "At 1R": "Too soon. 1R is an ordinary swing on many names.",
-    "Never; the stop is the stop": "The stop only moves up. Moving it up to breakeven is allowed."
+    "The first higher close": "One up day is inside the noise. A normal pullback would hit the stop.",
+    "At 1R, as soon as it arrives": "Too soon. The card puts breakeven at 2R to 5R, ideally.",
+    "Never; it stays where it is": "The stop only moves up. Moving it up to breakeven is allowed."
    },
    "house": true
   },
@@ -1760,12 +1760,12 @@
    "story": "You bought at 107.59, stop 104.59. The next morning the stock opens at 96.73, far under your stop.",
    "q": "What is the rule?",
    "choices": [
-    "The first 30-minute low; past 2R, out",
+    "First 30-minute low; past 2R, out",
     "Hold; the stop was never touched",
     "Wait for a close back over the stop",
-    "Move the stop down to the open"
+    "Move the stop down to the gap open"
    ],
-   "answer": "The first 30-minute low; past 2R, out",
+   "answer": "First 30-minute low; past 2R, out",
    "why": "The first 30 minutes decide. The first 30-minute low is the new stop, and past 2R you get out. Here the open alone was past 2R: out. The top worked; GILD lost 20.1% within 60 sessions.",
    "lesson_line": "A gap through the stop is the one exception, and it has a 2R ceiling.",
    "facts": [
@@ -1778,7 +1778,7 @@
    "wrong": {
     "Hold; the stop was never touched": "A gap through the stop does not cancel it. The 30-minute rule replaces it.",
     "Wait for a close back over the stop": "Hoping for a reclaim is how a planned loss becomes a hole. The ceiling is 2R.",
-    "Move the stop down to the open": "The stop never moves down or wider. The gap rule is the only exception, and it has a ceiling."
+    "Move the stop down to the gap open": "The stop never moves down or wider. The gap rule is the only exception, and it has a ceiling."
    },
    "house": true
   },
@@ -1886,9 +1886,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "fh.trail",
-   "q": "The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on a close below.",
-   "answer": "True",
-   "why": "True. Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it. ICLR's slow three weeks to 3R and then a 25% run is the case for the trail.",
+   "q": "The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on the first touch.",
+   "answer": "False",
+   "why": "False. Sell on a close below the line, not a touch. ICLR's slow three weeks to 3R and then a 25% run is the case for the trail.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "c47",
@@ -1988,11 +1988,11 @@
    "story": "A three-peak top broke its neckline. The lowest close sat 10.9% under it. Then the stock came all the way back and trades over the right-shoulder high.",
    "q": "Take it?",
    "choices": [
-    "No; the top worked, then a V recovery",
-    "Yes; version B, bought back",
-    "Yes; the head is the target"
+    "No; the top worked, then recovered",
+    "Yes; version B, a break bought back",
+    "Yes; the head is the profit target"
    ],
-   "answer": "No; the top worked, then a V recovery",
+   "answer": "No; the top worked, then recovered",
    "why": "No. A fall of more than 10% under the neckline means the top worked. This is a completed top and a full V recovery, not a failed break. CSCO's buy over 62.04 was stopped at 0R.",
    "lesson_line": "A failed break stays shallow. A deep break that climbs back is a different chart.",
    "facts": [
@@ -2001,8 +2001,8 @@
     "b07"
    ],
    "wrong": {
-    "Yes; version B, bought back": "Version B stays under 10%. This went past it.",
-    "Yes; the head is the target": "No setup, no target. The head is a reference on a valid trade only."
+    "Yes; version B, a break bought back": "Version B is a shallow break bought back. This fall went past the 10% line, so the top worked.",
+    "Yes; the head is the profit target": "No setup, no target. The head is a reference on a valid trade only."
    },
    "house": true
   },
@@ -2016,9 +2016,9 @@
    "q": "What now?",
    "choices": [
     "Size down to the risk, or skip",
-    "Pull the stop up to 3%",
-    "Use the undercut low instead",
-    "Buy full size anyway"
+    "Pull the stop in to about 3%",
+    "Use the undercut low as the stop",
+    "Buy full size anyway, stop as is"
    ],
    "answer": "Size down to the risk, or skip",
    "why": "Size it down to the risk or skip. If the stop is more than about 3% under the entry, size it down or skip; never pull it in. The size comes from the stop.",
@@ -2029,9 +2029,9 @@
     "h04"
    ],
    "wrong": {
-    "Pull the stop up to 3%": "Stop first, size second. A stop pulled in to fit the size sits inside the noise.",
-    "Use the undercut low instead": "That line is the invalidation, usually far more than 3% away. The wrong direction.",
-    "Buy full size anyway": "The size comes from the stop. Full size at 4.2% risks more than the plan allows."
+    "Pull the stop in to about 3%": "Stop first, size second. A stop pulled in to fit the size sits inside the noise.",
+    "Use the undercut low as the stop": "That line is the invalidation, usually far more than 3% away. The wrong direction.",
+    "Buy full size anyway, stop as is": "The size comes from the stop. Full size at 4.2% risks more than the plan allows."
    },
    "house": true
   },
@@ -2059,12 +2059,12 @@
    "criterion": "fh.position_adv",
    "q": "The stock trades 3,000,000 shares a day on average. The most you may own?",
    "choices": [
-    "30,000 shares, 1% of the daily volume",
-    "300,000 shares",
-    "3,000 shares",
+    "30,000 shares, 1% of daily volume",
+    "300,000 shares, a tenth of the day",
+    "3,000 shares, far under the ceiling",
     "No ceiling with a tight stop"
    ],
-   "answer": "30,000 shares, 1% of the daily volume",
+   "answer": "30,000 shares, 1% of daily volume",
    "why": "30,000 shares. Never own more than 1% of a stock's average daily volume.",
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "facts": [
@@ -2072,8 +2072,8 @@
     "h19"
    ],
    "wrong": {
-    "300,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
-    "3,000 shares": "That is a tenth of the line. The ceiling is 1%.",
+    "300,000 shares, a tenth of the day": "That is a tenth of the day's volume. You could not get out without moving it.",
+    "3,000 shares, far under the ceiling": "That is a tenth of the line. The ceiling is 1%.",
     "No ceiling with a tight stop": "A tight stop cannot catch an overnight gap. The ceiling stands."
    },
    "house": true,
@@ -2095,11 +2095,11 @@
    "story": "A clean failed top on an $8 stock that trades about $6 million a day.",
    "q": "Take it?",
    "choices": [
-    "No; under $10 and $20 million a day",
-    "Yes; the pattern is the pattern",
-    "Yes, small"
+    "No; price and volume both too low",
+    "Yes; a clean pattern is still clean",
+    "Yes, but only in a small position"
    ],
-   "answer": "No; under $10 and $20 million a day",
+   "answer": "No; price and volume both too low",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "lesson_line": "A clean pattern in a thin stock is still a thin stock.",
    "facts": [
@@ -2107,8 +2107,8 @@
     "h09"
    ],
    "wrong": {
-    "Yes; the pattern is the pattern": "The pattern is fine and the stock is not ours. The liquidity rule comes before the chart.",
-    "Yes, small": "Size does not make a thin stock liquid."
+    "Yes; a clean pattern is still clean": "The pattern is fine and the stock is not ours. The liquidity rule comes before the chart.",
+    "Yes, but only in a small position": "Size does not make a thin stock liquid."
    },
    "house": true
   },
@@ -2150,11 +2150,11 @@
    "story": "A stock drifted in a slow dome for eight weeks, dipped under the dome's lowest low, and recovered. Now it trades over the dome high.",
    "q": "Which is it, and where was the trigger?",
    "choices": [
-    "A failed rounded top; the dome high",
-    "A flat base; the box top",
+    "Failed rounded top; the dome high",
+    "A flat base; the top of the box",
     "A cup with handle; the handle high"
    ],
-   "answer": "A failed rounded top; the dome high",
+   "answer": "Failed rounded top; the dome high",
    "why": "A failed rounded top. It is a dome that broke its lower rim, then recovered. By our current default, the buy comes as price trades over the dome high. A flat base holds one range with a flat top and breaks out of a box.",
    "lesson_line": "A box that breaks up is a flat base. A dome that lost its rim and came back is ours.",
    "facts": [
@@ -2163,7 +2163,7 @@
     "b09"
    ],
    "wrong": {
-    "A flat base; the box top": "A flat base holds one range with a flat top tapped twice. A dome that lost its rim is not a box.",
+    "A flat base; the top of the box": "A flat base holds one range with a flat top tapped twice. A dome that lost its rim is not a box.",
     "A cup with handle; the handle high": "No rounded bottom and no handle. This is a dome up top whose lower rim broke and then recovered."
    },
    "house": true
@@ -2233,11 +2233,11 @@
    "story": "A clean 51-bar top with a 2.8% undercut bought back. You bought over 320.28, stop 315.40. Next session the low printed 312.80 and the stop filled. Within 60 sessions the stock is 11% higher.",
    "q": "Was the stop a mistake?",
    "choices": [
-    "No; a planned loss, then a new trigger",
-    "Yes; it needed more room",
+    "No; a planned loss, a new trigger",
+    "Yes; it needed more room to work",
     "Yes; exit only under the neckline"
    ],
-   "answer": "No; a planned loss, then a new trigger",
+   "answer": "No; a planned loss, a new trigger",
    "why": "No. The stop is the exit; it only moves up, never wider. A whipsaw, not a wrong read: the trigger whipsawed through a tight day-low stop before the real move. The second entry over the same level is allowed.",
    "lesson_line": "A loss taken at plan is the system working. The re-entry is a new trade.",
    "facts": [
@@ -2248,7 +2248,7 @@
     "c36"
    ],
    "wrong": {
-    "Yes; it needed more room": "Never wider. The rule has one exception, the gap, and this was not it.",
+    "Yes; it needed more room to work": "Never wider. The rule has one exception, the gap, and this was not it.",
     "Yes; exit only under the neckline": "The stop is the exit, not the neckline. The neckline is the line the failure must hold."
    },
    "house": true
@@ -2461,12 +2461,12 @@
    "criterion": "fh.failure_b",
    "q": "What makes a version B failure?",
    "choices": [
-    "A close under the neckline, bought back",
-    "A close over the head",
-    "A bounce off the neckline",
-    "A close under the 200-day"
+    "Neckline break, then bought back",
+    "A close over the head of the top",
+    "A bounce off the neckline only",
+    "A close under the 200-day average"
    ],
-   "answer": "A close under the neckline, bought back",
+   "answer": "Neckline break, then bought back",
    "why": "A close under the neckline, or an undercut of the right armpit low, that does not fall far and is bought back. Murphy: any decisive close back above the neckline is a serious warning that the breakdown was a bad signal.",
    "lesson_line": "Version B is a real break that failed. The crowd sold the break; the stock refused.",
    "facts": [
@@ -2475,9 +2475,9 @@
     "u03"
    ],
    "wrong": {
-    "A close over the head": "That is Bulkowski's trigger after the failure, not the failure itself.",
-    "A bounce off the neckline": "No break, no failed break. That is version A at best.",
-    "A close under the 200-day": "That ends the setup; it does not make it."
+    "A close over the head of the top": "That is Bulkowski's trigger after the failure, not the failure itself.",
+    "A bounce off the neckline only": "No break, no failed break. That is version A at best.",
+    "A close under the 200-day average": "That ends the setup; it does not make it."
    },
    "house": true
   },
@@ -2490,11 +2490,11 @@
    "story": "The reading is Red. A leader's failed top triggers on heavy volume above its 200-day.",
    "q": "What do you do?",
    "choices": [
-    "Nothing long; Red is cash and shorts",
-    "Buy it; the pattern is A+",
-    "Buy half size"
+    "No longs; Red is cash and shorts",
+    "Buy it; the pattern is a clean A+",
+    "Buy half size and keep it tight"
    ],
-   "answer": "Nothing long; Red is cash and shorts",
+   "answer": "No longs; Red is cash and shorts",
    "why": "Nothing long. In a Red market, mostly cash plus shorts below the 200-day. The best failed top in a Red market is a chart to study.",
    "lesson_line": "The reading comes before the pattern. Red means sit on your hands.",
    "facts": [
@@ -2503,8 +2503,8 @@
     "h32"
    ],
    "wrong": {
-    "Buy it; the pattern is A+": "Orange allows A+. Red allows mostly cash and shorts.",
-    "Buy half size": "Half size in a Red market is half a mistake."
+    "Buy it; the pattern is a clean A+": "Orange allows A+. Red allows mostly cash and shorts.",
+    "Buy half size and keep it tight": "Half size in a Red market is half a mistake."
    },
    "house": true
   },
@@ -2592,12 +2592,12 @@
    "story": "The right-shoulder high is 27.71. The stock gaps open at 27.98, 1% over the level, on heavy volume.",
    "q": "Buy or pass?",
    "choices": [
-    "Buy the open; inside the chase limit",
-    "Pass; never buy a gap",
+    "Buy the open; within the limit",
+    "Pass; skip any gap on the open",
     "Wait for a pullback to 27.71"
    ],
-   "answer": "Buy the open; inside the chase limit",
-   "why": "Buy at the open. A gap 1% over the level is inside the 4% chase line. MCO was bought at the open on 2.6x volume and reached 3R in 1 day.",
+   "answer": "Buy the open; within the limit",
+   "why": "Buy at the open. A gap 1% over the level is inside the chase line. MCO was bought at the open on 2.6x volume and reached 3R in 1 day.",
    "lesson_line": "A small gap over the level is the trigger, filled at the open. A big one is a chase.",
    "facts": [
     "h11",
@@ -2605,7 +2605,7 @@
     "d10"
    ],
    "wrong": {
-    "Pass; never buy a gap": "A gap inside the chase line is still the trigger. The open is the fill.",
+    "Pass; skip any gap on the open": "A gap inside the chase line is still the trigger. The open is the fill.",
     "Wait for a pullback to 27.71": "It may never come back. Inside the limit, the open is the entry."
    },
    "house": true
@@ -2644,11 +2644,11 @@
    "story": "The same failed top has whipsawed you three times this week. Thursday it trades over the level again.",
    "q": "Buy a fourth time?",
    "choices": [
-    "No; three tries in a week is the cap",
-    "Yes; the fourth is the one",
-    "Yes, at half size"
+    "No; three tries a week is the cap",
+    "Yes; the fourth one will be the one",
+    "Yes, but at half size this time"
    ],
-   "answer": "No; three tries in a week is the cap",
+   "answer": "No; three tries a week is the cap",
    "why": "No. The same stock: at most 3 tries in a week and 6 in a month. Count the tries; failures whipsaw, and the cap is what keeps the damage small.",
    "lesson_line": "Three tries in a week. The fourth is a tilt, not a trade.",
    "facts": [
@@ -2656,8 +2656,8 @@
     "c30"
    ],
    "wrong": {
-    "Yes; the fourth is the one": "That is hope with a ticker on it. The cap is 3 in a week.",
-    "Yes, at half size": "Half size does not reset the count."
+    "Yes; the fourth one will be the one": "That is hope with a ticker on it. The cap is 3 in a week.",
+    "Yes, but at half size this time": "Half size does not reset the count."
    },
    "house": true
   },
@@ -2671,8 +2671,8 @@
    "q": "Write the plan: entry, stop (a few cents under the day's low), first trim.",
    "choices": [
     "Market 22.71; stop 22.30; third at 3R",
-    "Limit 21.22; stop 19.80; out at 2R",
-    "Market at close; stop 19.80; hold"
+    "Limit 21.22; stop 19.80; sell all at 2R",
+    "Market at close; stop 19.80; hold all"
    ],
    "answer": "Market 22.71; stop 22.30; third at 3R",
    "why": "Market at 22.71, stop 22.30, a few cents under the day's low of 22.35, a third at 3R. By our current default, the entry is a market order as price trades over the right-shoulder high. MGM reached 3R in 5 days and ran to 23.7R.",
@@ -2685,8 +2685,8 @@
     "d04"
    ],
    "wrong": {
-    "Limit 21.22; stop 19.80; out at 2R": "A limit at the neckline never fills on the trigger, and 19.80 is the undercut low, the invalidation line, not the stop.",
-    "Market at close; stop 19.80; hold": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop."
+    "Limit 21.22; stop 19.80; sell all at 2R": "A limit at the neckline never fills on the trigger, and 19.80 is the undercut low, the invalidation line, not the stop.",
+    "Market at close; stop 19.80; hold all": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop."
    },
    "house": true
   },
@@ -2843,7 +2843,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "c37 and h10 (B26) verbatim; settled hard rule.",
+   "notes": "c37 and h10 (B26) verbatim; settled hard rule. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2903,7 +2903,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "c17, b09, b08 verbatim (Bulkowski: downward breakouts are a close below the lower of the two rims). The why, lesson and one wrong note said the dome high is the trigger (D-003, pending); removed. Key (the lower rim) is the source's.",
+   "notes": "c17, b09, b08 verbatim (Bulkowski: downward breakouts are a close below the lower of the two rims). The why, lesson and one wrong note said the dome high is the trigger (D-003, pending); removed. Key (the lower rim) is the source's. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2915,7 +2915,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "c11 and d33 verbatim (proposed 40 and 60 sessions; reclaim speed +0.10R, +0.11R, +0.13R). Wrong notes true.",
+   "notes": "c11 and d33 verbatim (proposed 40 and 60 sessions; reclaim speed +0.10R, +0.11R, +0.13R). Wrong notes true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2939,7 +2939,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "c34 and h26 (F65) verbatim; settled. Orange is A+ only.",
+   "notes": "c34 and h26 (F65) verbatim; settled. Orange is A+ only. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2969,19 +2969,19 @@
   },
   "q25": {
    "status": "pass",
-   "notes": "h28 (B21), h29 (E56), c30, d21, d22 verbatim (AAPL 2026-08-28: buy 320.29, stop 315.40, low 312.80 next day). Re-buy as a new trade is settled.",
+   "notes": "h28 (B21), h29 (E56), c30, d21, d22 verbatim (AAPL 2026-08-28: buy 320.29, stop 315.40, low 312.80 next day). Re-buy as a new trade is settled. Added the 60-session window from d22 to the 11%. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q26": {
    "status": "pass",
-   "notes": "c44 and h05 verbatim. Breakeven between 2R and 5R.",
+   "notes": "c44 and h05 verbatim. Breakeven between 2R and 5R. Shortened the wrong choices (right was the shortest); the 1R note now cites h05 instead of an unsourced claim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q27": {
    "status": "pass",
-   "notes": "c45, h06, h07 (B20), d27, d28 verbatim; GILD buy 107.59, stop 104.59, open 96.73 on our bars = 3.6R against the stop; settled gap rule. Split a 24-word why sentence.",
+   "notes": "c45, h06, h07 (B20), d27, d28 verbatim; GILD buy 107.59, stop 104.59, open 96.73 on our bars = 3.6R against the stop; settled gap rule. Split a 24-word why sentence. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3011,7 +3011,7 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "c47, h21 (E52), d12 verbatim. Settled trail.",
+   "notes": "c47, h21 (E52), d12 verbatim. Settled trail. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3035,13 +3035,13 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "c05, d31, b07 verbatim (CSCO 2025-05-13, 10.9% under, stopped at 0R). 10% is a proposed line.",
+   "notes": "c05, d31, b07 verbatim (CSCO 2025-05-13, 10.9% under, stopped at 0R). 10% is a proposed line. Wrong note reworded so it cites c05 (the 10% line) rather than the pending version B depth. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q37": {
    "status": "pass",
-   "notes": "c33, h01, h04 verbatim; 4.2% > 3% so size down or skip. Settled.",
+   "notes": "c33, h01, h04 verbatim; 4.2% > 3% so size down or skip. Settled. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3053,13 +3053,13 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "calc re-derived: 1% of 3,000,000 = 30,000. c48 and h19 (D42) verbatim; settled.",
+   "notes": "calc re-derived: 1% of 3,000,000 = 30,000. c48 and h19 (D42) verbatim; settled. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q40": {
    "status": "pass",
-   "notes": "c49 and h09 (B23) verbatim; settled.",
+   "notes": "c49 and h09 (B23) verbatim; settled. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3071,7 +3071,7 @@
   },
   "q42": {
    "status": "pass",
-   "notes": "Keyed on the adopted D-002 (33:5 keep the rounded top, dome high as trigger) and D-003 (trade through the level) defaults. The story already says the dome dipped under its lowest low, recovered and now trades over the dome high. Fixed the wrong note that said the dome 'failed to break down', which contradicted the story. Facts c17, c18, b09 verbatim.",
+   "notes": "Keyed on the adopted D-002 (33:5 keep the rounded top, dome high as trigger) and D-003 (trade through the level) defaults. The story already says the dome dipped under its lowest low, recovered and now trades over the dome high. Fixed the wrong note that said the dome 'failed to break down', which contradicted the story. Facts c17, c18, b09 verbatim. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "resolver"
   },
@@ -3089,7 +3089,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "h02, d21, d22, c30, c36 verbatim. The story said the stock was 11% higher 'two weeks later'; on our bars it was +4% then, and the dossier's 11% is within 60 sessions. Corrected.",
+   "notes": "h02, d21, d22, c30, c36 verbatim. The story said the stock was 11% higher 'two weeks later'; on our bars it was +4% then, and the dossier's 11% is within 60 sessions. Corrected. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3143,13 +3143,13 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "c51, m03, u03 verbatim (Murphy, archive text: 'down- side' hyphenation only). Version B's definition holds under both D-109 options.",
+   "notes": "c51, m03, u03 verbatim (Murphy, archive text: 'down- side' hyphenation only). Version B's definition holds under both D-109 options. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q55": {
    "status": "pass",
-   "notes": "c34, h26, h32 verbatim. Red is mostly cash plus shorts; settled.",
+   "notes": "c34, h26, h32 verbatim. Red is mostly cash plus shorts; settled. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3173,7 +3173,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "h11, d09, d10 verbatim (MCO 27.98 against 27.71 = +1.0%). Holds under both D-022 options.",
+   "notes": "h11, d09, d10 verbatim (MCO 27.98 against 27.71 = +1.0%). Holds under both D-022 options. Why no longer states the 4% (pending D-022); shortened one wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3185,13 +3185,13 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "h29 (E56) and c30 verbatim. Three tries a week.",
+   "notes": "h29 (E56) and c30 verbatim. Three tries a week. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q62": {
    "status": "pass",
-   "notes": "Keyed on the adopted D-003 default. Added the right-shoulder high (22.70) and the trigger day's low (22.35, checked on our bars: MGM 2004-09-14 low 22.35) to the story so the 22.30 stop is derivable; the question now says 'a few cents under the day's low' (F62). 3R = 22.71 + 3 x 0.41 = 23.94, reached on 2004-09-21 (high 23.945), day 5 as d03 states.",
+   "notes": "Keyed on the adopted D-003 default. Added the right-shoulder high (22.70) and the trigger day's low (22.35, checked on our bars: MGM 2004-09-14 low 22.35) to the story so the 22.30 stop is derivable; the question now says 'a few cents under the day's low' (F62). 3R = 22.71 + 3 x 0.41 = 23.94, reached on 2004-09-21 (high 23.945), day 5 as d03 states. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "resolver"
   },

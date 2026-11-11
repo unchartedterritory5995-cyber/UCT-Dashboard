@@ -861,8 +861,8 @@
    "q": "In one line, what is a News Gapper?",
    "choices": [
     "A catalyst gap that holds its range",
-    "A gap that always fills by lunch",
-    "A gap with no news behind it",
+    "A gap on rumors that fills by lunch",
+    "A gap with no named news behind it",
     "A slow drift over several weeks"
    ],
    "answer": "A catalyst gap that holds its range",
@@ -873,8 +873,8 @@
     "c02"
    ],
    "wrong": {
-    "A gap that always fills by lunch": "A gap that fills is the opposite: that is a failed gap.",
-    "A gap with no news behind it": "Without a catalyst there is no News Gapper.",
+    "A gap on rumors that fills by lunch": "A gap that fills is the opposite: that is a failed gap.",
+    "A gap with no named news behind it": "Without a catalyst there is no News Gapper.",
     "A slow drift over several weeks": "A News Gapper is a gap day, not a drift."
    },
    "house": true
@@ -1099,12 +1099,12 @@
    "criterion": "ng.catalyst",
    "q": "Which headline is the strongest catalyst?",
    "choices": [
-    "An earnings beat with a raised outlook",
-    "A morning TV mention",
-    "One analyst upgrade",
-    "A vague press release"
+    "A beat with a raised outlook",
+    "A mention on a morning TV show",
+    "One analyst upgrade to a buy",
+    "A vague press release about plans"
    ],
-   "answer": "An earnings beat with a raised outlook",
+   "answer": "A beat with a raised outlook",
    "why": "An earnings beat with a raised outlook. Bonde: earnings, new products and raised guidance have a high probability of a multi-month rally. Mentions and upgrades do not.",
    "lesson_line": "Earnings with a raise beats a mention or an upgrade.",
    "facts": [
@@ -1114,9 +1114,9 @@
     "b02"
    ],
    "wrong": {
-    "A morning TV mention": "A media mention has a low probability of follow-through.",
-    "One analyst upgrade": "An upgrade alone is a B- catalyst.",
-    "A vague press release": "A vague press release is a B- catalyst."
+    "A mention on a morning TV show": "A media mention has a low probability of follow-through.",
+    "One analyst upgrade to a buy": "An upgrade alone is a B- catalyst.",
+    "A vague press release about plans": "A vague press release is a B- catalyst."
    },
    "house": true
   },
@@ -1153,9 +1153,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ng.fundamentals",
-   "q": "For an earnings gap, growing sales and earnings with a beat and a raise are a grade cue.",
-   "answer": "True",
-   "why": "True. Growing sales and earnings, ideally accelerating, with a beat and raised guidance, are a grade cue. The chart comes first.",
+   "q": "For an earnings gap, the fundamentals decide the grade before the chart is looked at.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings, ideally accelerating, with a beat and raised guidance, are a grade cue. The chart comes first.",
    "lesson_line": "Fundamentals are a cue. The chart decides.",
    "facts": [
     "c09",
@@ -1264,9 +1264,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ng.trail",
-   "q": "The last third trails a close under the 10-day for a fast mover or the 21-day for a steadier one.",
-   "answer": "True",
-   "why": "True. Sell on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
+   "q": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one.",
+   "answer": "False",
+   "why": "False. It is the other way round. Sell on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
    "lesson_line": "Trail the last third under the 10- or 21-day.",
    "facts": [
     "c22",
@@ -1307,8 +1307,8 @@
    "q": "Which gap is an A+ gap?",
    "choices": [
     "10% or more, and a true gap",
-    "Any gap that fills partly",
-    "A gap on average volume",
+    "Any gap that fills partly by noon",
+    "A gap on average daily volume",
     "A gap that closes red"
    ],
    "answer": "10% or more, and a true gap",
@@ -1319,8 +1319,8 @@
     "sc1"
    ],
    "wrong": {
-    "Any gap that fills partly": "A gap that fills is not holding.",
-    "A gap on average volume": "Average volume is not the A+ cue.",
+    "Any gap that fills partly by noon": "A gap that fills is not holding.",
+    "A gap on average daily volume": "Average volume is not the A+ cue.",
     "A gap that closes red": "A red close is a News Failure."
    },
    "house": true
@@ -1432,12 +1432,12 @@
    "q": "Buy or pass?",
    "story": "The reclaim level is 40.00. You were away from your desk, and at 10:30 the stock trades 41.80.",
    "choices": [
-    "Pass, more than 4% over the trigger",
+    "Pass, over 4% above the trigger",
     "Buy, the reclaim is confirmed",
-    "Buy half size",
-    "Buy with a wider stop"
+    "Buy half size to cut the risk",
+    "Buy with a wider stop to fit it"
    ],
-   "answer": "Pass, more than 4% over the trigger",
+   "answer": "Pass, over 4% above the trigger",
    "why": "Pass. 41.80 is more than 4% over the 40.00 reclaim level. Chasing costs size, not risk: the stop stays put and the shares shrink.",
    "lesson_line": "Miss it rather than chase it. Four percent and done.",
    "facts": [
@@ -1446,8 +1446,8 @@
    ],
    "wrong": {
     "Buy, the reclaim is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Buy half size": "Half of a bad entry is still a bad entry.",
-    "Buy with a wider stop": "A wider stop to fit a late entry is the mistake, not the fix."
+    "Buy half size to cut the risk": "Half of a bad entry is still a bad entry.",
+    "Buy with a wider stop to fit it": "A wider stop to fit a late entry is the mistake, not the fix."
    },
    "house": true
   },
@@ -1594,12 +1594,12 @@
    "q": "Which lesson owns the day, and which the pullback buy?",
    "story": "The gap day is a report's reaction day on an established leader clearing a four-month base.",
    "choices": [
-    "PEG owns the day; we teach the pullback",
+    "PEG owns the day; we teach the buy",
     "This lesson owns both",
-    "Gap Support owns the pullback",
-    "The Episodic Pivot owns the day"
+    "Gap Support owns the first pullback",
+    "The Episodic Pivot owns the gap day"
    ],
-   "answer": "PEG owns the day; we teach the pullback",
+   "answer": "PEG owns the day; we teach the buy",
    "why": "The PEG owns the day; the pullback buy is taught here. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on either is taught here.",
    "lesson_line": "A report day on a leader is a PEG. The pullback entry is taught here.",
    "facts": [
@@ -1608,8 +1608,8 @@
    ],
    "wrong": {
     "This lesson owns both": "The PEG lesson owns a report reaction day on a leader.",
-    "Gap Support owns the pullback": "Gap Support is the later test of the gap-up low, not the first pullback.",
-    "The Episodic Pivot owns the day": "An Episodic Pivot is a neglected name, not a leader clearing a base."
+    "Gap Support owns the first pullback": "Gap Support is the later test of the gap-up low, not the first pullback.",
+    "The Episodic Pivot owns the gap day": "An Episodic Pivot is a neglected name, not a leader clearing a base."
    },
    "house": true
   },
@@ -1735,8 +1735,8 @@
    "story": "Two 11% gaps on record volume. One is on a stock flat for three months. The other is on a stock up 42% in three months.",
    "choices": [
     "First stronger; second a B-",
-    "Both A+; record volume",
-    "Second stronger; momentum",
+    "Both A+; both have record volume",
+    "Second stronger; it has momentum",
     "Both B-; 11% is small"
    ],
    "answer": "First stronger; second a B-",
@@ -1749,8 +1749,8 @@
     "c05"
    ],
    "wrong": {
-    "Both A+; record volume": "Record volume is the same, but the months before the gap differ.",
-    "Second stronger; momentum": "A big run into the gap is the late-gap warning, not a plus.",
+    "Both A+; both have record volume": "Record volume is the same, but the months before the gap differ.",
+    "Second stronger; it has momentum": "A big run into the gap is the late-gap warning, not a plus.",
     "Both B-; 11% is small": "A gap of 10% or more is an A+ cue, not a small one."
    },
    "house": true
@@ -1852,7 +1852,7 @@
     "No; a report is within 3 sessions",
     "Yes; the reclaim is perfect",
     "Yes, at half size",
-    "Yes, and hold through the report"
+    "Yes, and hold it through the report"
    ],
    "answer": "No; a report is within 3 sessions",
    "why": "No. A news gapper with a report due within 3 sessions waits. We take no new buys in the 3 days before a report.",
@@ -1864,7 +1864,7 @@
    "wrong": {
     "Yes; the reclaim is perfect": "A perfect chart does not remove the report risk.",
     "Yes, at half size": "Half size is still a new buy in the report window.",
-    "Yes, and hold through the report": "Holding through a report needs 5R, not a new position."
+    "Yes, and hold it through the report": "Holding through a report needs 5R, not a new position."
    },
    "house": true
   },
@@ -2091,12 +2091,12 @@
    "q": "What does the plan do on day ten?",
    "story": "PEN, 2026. An 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70, and it has drifted under 1R since.",
    "choices": [
-    "Sells it; under 1R after ten sessions",
+    "Sells it; under 1R at ten sessions",
     "Holds it; the stop has not been hit",
     "Adds to it; it is coiling",
     "Moves the stop to the gap-day low"
    ],
-   "answer": "Sells it; under 1R after ten sessions",
+   "answer": "Sells it; under 1R at ten sessions",
    "why": "It sells the trade. Time stop: under 1R after 10 sessions, sell. The reclaim reached only 0.45R and drifted for ten sessions before the stop.",
    "lesson_line": "Under 1R after ten sessions, the trade is sold.",
    "facts": [
@@ -2320,12 +2320,12 @@
    "q": "What do you do?",
    "story": "A stock has gapped up two days in a row, each on wider ranges. Today a news headline gaps it a third time on 4x volume.",
    "choices": [
-    "Pass; the third gap of a burst is late",
-    "Buy day one; the volume is there",
-    "Buy the pullback tomorrow",
-    "Short it; it is exhausted"
+    "Pass; a third gap in a burst is late",
+    "Buy day one; the volume is strong there",
+    "Buy the pullback tomorrow morning",
+    "Short it; it looks exhausted now"
    ],
-   "answer": "Pass; the third gap of a burst is late",
+   "answer": "Pass; a third gap in a burst is late",
    "why": "Pass. The setup is not the 3rd to 5th day of a straight-up burst. Buying the third gap of a parabolic burst is a mistake.",
    "lesson_line": "The third gap of a burst is late. Pass.",
    "facts": [
@@ -2333,9 +2333,9 @@
     "c35"
    ],
    "wrong": {
-    "Buy day one; the volume is there": "Good volume does not fix a third gap in a burst.",
-    "Buy the pullback tomorrow": "A pullback buy still needs a setup that is not late.",
-    "Short it; it is exhausted": "A late gap is a reason to pass, not to short."
+    "Buy day one; the volume is strong there": "Good volume does not fix a third gap in a burst.",
+    "Buy the pullback tomorrow morning": "A pullback buy still needs a setup that is not late.",
+    "Short it; it looks exhausted now": "A late gap is a reason to pass, not to short."
    },
    "house": true
   },
@@ -2545,13 +2545,13 @@
    "q": "What is the lesson?",
    "story": "SEDG, 2019. A 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76, with the stop under the pullback low. It failed the next session.",
    "choices": [
-    "A planned loss; the stop did its job",
-    "The gap was too big to trust",
+    "A planned loss; the stop worked",
+    "The gap was too big to be trusted",
     "You should have bought the open",
     "The stop should have been wider"
    ],
-   "answer": "A planned loss; the stop did its job",
-   "why": "A planned loss; the stop did its job. The day-4 reclaim failed the next session and the whole gap was given back within weeks. The stop kept the loss small.",
+   "answer": "A planned loss; the stop worked",
+   "why": "A planned loss; the stop worked. The day-4 reclaim failed the next session and the whole gap was given back within weeks. The stop kept the loss small.",
    "lesson_line": "A reclaim that fails costs the stop and no more.",
    "facts": [
     "d17",
@@ -2559,7 +2559,7 @@
     "h02"
    ],
    "wrong": {
-    "The gap was too big to trust": "Size is not the flaw; a failed reclaim is part of the plan.",
+    "The gap was too big to be trusted": "Size is not the flaw; a failed reclaim is part of the plan.",
     "You should have bought the open": "We do not buy the open before the range forms.",
     "The stop should have been wider": "The stop only moves up; widening it turns a small loss into a big one."
    },
@@ -2575,8 +2575,8 @@
    "story": "In our scan of news gappers, roughly three in ten reach 3R before the stop. The rest do not.",
    "choices": [
     "Small stops and trims at 3R and 5R",
-    "A wider stop that rarely hits",
-    "Adding when volume climbs",
+    "A wider stop that rarely gets hit",
+    "Adding more when volume climbs fast",
     "Skipping every pullback buy"
    ],
    "answer": "Small stops and trims at 3R and 5R",
@@ -2589,8 +2589,8 @@
     "h20"
    ],
    "wrong": {
-    "A wider stop that rarely hits": "A wider stop turns a small loss into a big one.",
-    "Adding when volume climbs": "One buy, one price, one stop: no adding.",
+    "A wider stop that rarely gets hit": "A wider stop turns a small loss into a big one.",
+    "Adding more when volume climbs fast": "One buy, one price, one stop: no adding.",
     "Skipping every pullback buy": "The pullback buy is part of the plan, not the problem."
    },
    "house": true
@@ -2729,7 +2729,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "c01, c02 verbatim; matches the card's pattern line. Wrong notes true.",
+   "notes": "c01, c02 verbatim; matches the card's pattern line. Wrong notes true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2765,13 +2765,13 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "c38, c39, b01, b02 verbatim (Bonde's pages found). Holds under both pending ng.catalyst options (D-032): earnings with a raise outranks a mention, an upgrade or a vague release.",
+   "notes": "c38, c39, b01, b02 verbatim (Bonde's pages found). Holds under both pending ng.catalyst options (D-032): earnings with a raise outranks a mention, an upgrade or a vague release. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q14": {
    "status": "pass",
-   "notes": "c09, h17 verbatim: a grade cue (settled D40).",
+   "notes": "c09, h17 verbatim: a grade cue (settled D40). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2801,7 +2801,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "c22, h21 verbatim (E52, settled).",
+   "notes": "c22, h21 verbatim (E52, settled). Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2813,7 +2813,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "c05 and sc1 (ChartSchool, found by check_course_quotes) verbatim. 10% or more and a true gap is the proposed A+ cue; the pending 4/8/10% floor is not asked.",
+   "notes": "c05 and sc1 (ChartSchool, found by check_course_quotes) verbatim. 10% or more and a true gap is the proposed A+ cue; the pending 4/8/10% floor is not asked. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2837,7 +2837,7 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "Re-derived 41.80 / 40.00 = +4.5%, over the 4% chase line (C28, settled). The reference is the reclaim level (the D-022 default); the base-pivot option would only make it a bigger chase, so the key holds. h11, h12 verbatim.",
+   "notes": "Re-derived 41.80 / 40.00 = +4.5%, over the 4% chase line (C28, settled). The reference is the reclaim level (the D-022 default); the base-pivot option would only make it a bigger chase, so the key holds. h11, h12 verbatim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2861,7 +2861,7 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "c47, d10 verbatim. Follows the card's lookalike tell and SET.19's PEG line. Holds under ng.scope options b and c, and under a the PEG is a named version, so 'the PEG owns the day' still reads right. The why had a 23-word sentence, split.",
+   "notes": "c47, d10 verbatim. Follows the card's lookalike tell and SET.19's PEG line. Holds under ng.scope options b and c, and under a the PEG is a named version, so 'the PEG owns the day' still reads right. The why had a 23-word sentence, split. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2891,7 +2891,7 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "c41, c42, c08, c05 verbatim: quiet three months is the A+ cue, up 42% is past the 30% not-late line (both proposed); 11% clears the 10% A+ gap.",
+   "notes": "c41, c42, c08, c05 verbatim: quiet three months is the A+ cue, up 42% is past the 30% not-late line (both proposed); 11% clears the 10% A+ gap. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2915,7 +2915,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "c17, h08 verbatim. Monday gap, Thursday trigger, Friday after-close report: the buy is inside the 3 sessions before the report (B22, settled).",
+   "notes": "c17, h08 verbatim. Monday gap, Thursday trigger, Friday after-close report: the buy is inside the 3 sessions before the report (B22, settled). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2957,7 +2957,7 @@
   },
   "q50": {
    "status": "pass",
-   "notes": "d18, d19, c23, h15 verbatim. Dossier 13: PEN stopped on day 10 at best 0.45R, the time-stop case.",
+   "notes": "d18, d19, c23, h15 verbatim. Dossier 13: PEN stopped on day 10 at best 0.45R, the time-stop case. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2981,7 +2981,7 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "c08, c35 verbatim. The story said 'gapped up three days in a row' and then 'again' today, a fourth gap, against a key about the third; now two days then a third gap.",
+   "notes": "c08, c35 verbatim. The story said 'gapped up three days in a row' and then 'again' today, a fourth gap, against a key about the third; now two days then a third gap. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3023,13 +3023,13 @@
   },
   "q66": {
    "status": "pass",
-   "notes": "d17, h01, h02 verbatim (SEDG 2019: buy 51.76 on day 4, stop 50.50, best 0.0R). Loss framed as the plan working.",
+   "notes": "d17, h01, h02 verbatim (SEDG 2019: buy 51.76 on day 4, stop 50.50, best 0.0R). Loss framed as the plan working. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q67": {
    "status": "pass",
-   "notes": "d29 verbatim (29.5% to 3R, 19.5% to 5R, fixed stop, 60 sessions, 1,491 hits). The story said 'most buys end at the stop', a figure the news-gapper dossier does not give (the 80.7% stopped is the PEG's); now 'the rest do not' reach 3R, and the lesson line follows.",
+   "notes": "d29 verbatim (29.5% to 3R, 19.5% to 5R, fixed stop, 60 sessions, 1,491 hits). The story said 'most buys end at the stop', a figure the news-gapper dossier does not give (the 80.7% stopped is the PEG's); now 'the rest do not' reach 3R, and the lesson line follows. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   }

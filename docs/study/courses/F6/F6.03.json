@@ -464,7 +464,7 @@
    "skill": "options.value",
    "rung": 2,
    "format": "mcq",
-   "q": "The stock trades exactly at the option's strike price. What do you call that option?",
+   "q": "Price sits exactly at the option's strike price. What do you call that option?",
    "choices": [
     "At the money",
     "In the money",
@@ -514,7 +514,7 @@
    "skill": "options.value",
    "rung": 2,
    "format": "mcq",
-   "q": "The stock trades at 64. Which put is in the money?",
+   "q": "With the stock at 64, which put is in the money?",
    "choices": [
     "The 70 put",
     "The 60 put",
@@ -629,7 +629,7 @@
    "skill": "options.value",
    "rung": 4,
    "format": "numeric",
-   "q": "The stock trades at 61. What is the 70 put's intrinsic value, per share?",
+   "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
    "answer": 9,
    "prefix": "$",
    "calc": {
@@ -823,7 +823,7 @@
    "skill": "options.value",
    "rung": 6,
    "format": "numeric",
-   "q": "The stock trades at 150. The 100 call is 50.40. How much time value is in it, per share?",
+   "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
    "answer": 0.4,
    "prefix": "$",
    "calc": {
@@ -1123,7 +1123,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f8 (disclosure document glossary) and f40 (Schwab): stock exactly at the strike is at the money with no intrinsic value. 'Exactly' in the question removes the 'nearest strike' usage CME and Schwab also note.",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f8 (disclosure document glossary) and f40 (Schwab): stock exactly at the strike is at the money with no intrinsic value. 'Exactly' in the question removes the 'nearest strike' usage CME and Schwab also note. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1135,7 +1135,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Stock 64: the 70 put is in the money by f3; the 64 put is at the money by f8; the 60 put is out. Rewrote the 60-put note: 'That's the call side of the rule' was unclear, now 'It's the 60 call that would be in the money'.",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Stock 64: the 70 put is in the money by f3; the 64 put is at the money by f8; the 60 put is out. Rewrote the 60-put note: 'That's the call side of the rule' was unclear, now 'It's the 60 call that would be in the money'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1165,7 +1165,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 70 - 61 = 9; calc agrees. f3 + f10 give the put method.",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 70 - 61 = 9; calc agrees. f3 + f10 give the put method. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -1213,7 +1213,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 150 - 100 = 50 intrinsic; 50.40 - 50 = 0.40; calc agrees. f15: deep in the money 'normally has very little time value'.",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 150 - 100 = 50 intrinsic; 50.40 - 50 = 0.40; calc agrees. f15: deep in the money 'normally has very little time value'. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

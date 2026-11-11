@@ -947,12 +947,12 @@
    "criterion": "fb.above_mas",
    "q": "In one line, what is a flat base?",
    "choices": [
-    "A boxy rest near the highs after a run",
-    "A V-shaped bottom after a crash",
+    "A boxy rest near highs after a run",
+    "A V-shaped bottom after a hard crash",
     "A pole that doubles in a few weeks",
-    "A slow drift under the 200-day"
+    "A drift under the falling 200-day"
    ],
-   "answer": "A boxy rest near the highs after a run",
+   "answer": "A boxy rest near highs after a run",
    "why": "A boxy rest near the highs after a run. IBD: it should look like a rectangular box, forming as a stock takes a breather after an earlier advance.",
    "lesson_line": "A flat base is a leader catching its breath in a box near the highs.",
    "facts": [
@@ -962,9 +962,9 @@
     "p02"
    ],
    "wrong": {
-    "A V-shaped bottom after a crash": "That is a bottoming pattern after a drop. A flat base rests near the highs after an advance.",
+    "A V-shaped bottom after a hard crash": "That is a bottoming pattern after a drop. A flat base rests near the highs after an advance.",
     "A pole that doubles in a few weeks": "That is the high tight flag's pole. A flat base is the rest, not the run.",
-    "A slow drift under the 200-day": "Below the 200-day we do not buy. A flat base sits above its rising averages."
+    "A drift under the falling 200-day": "Below the 200-day we do not buy. A flat base sits above its rising averages."
    }
   },
   {
@@ -975,12 +975,12 @@
    "criterion": "fb.pivot",
    "q": "On a flat base, where is the pivot, the level a breakout has to trade through?",
    "choices": [
-    "The highest intraday high of the base",
-    "The lowest low of the base",
-    "The 50-day average",
-    "The midpoint of the base"
+    "The base's highest intraday high",
+    "The base's lowest intraday low",
+    "The rising 50-day moving average",
+    "The midpoint of the base's range"
    ],
-   "answer": "The highest intraday high of the base",
+   "answer": "The base's highest intraday high",
    "why": "The highest intraday high of the base. IBD adds 10 cents to it; with a market order the 10 cents does not matter.",
    "lesson_line": "The pivot is the top of the box. Mark it before the open.",
    "facts": [
@@ -989,9 +989,9 @@
     "i18"
    ],
    "wrong": {
-    "The lowest low of the base": "That is the base low, the floor. The breakout goes through the ceiling.",
-    "The 50-day average": "The 50-day is support inside the base, not the trigger.",
-    "The midpoint of the base": "Halfway up the box is still inside the box. Nothing has broken out."
+    "The base's lowest intraday low": "That is the base low, the floor. The breakout goes through the ceiling.",
+    "The rising 50-day moving average": "The 50-day is support inside the base, not the trigger.",
+    "The midpoint of the base's range": "Halfway up the box is still inside the box. Nothing has broken out."
    },
    "house": true
   },
@@ -1001,15 +1001,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "fb.stop",
-   "q": "On a flat base breakout the stop goes a few cents under the breakout day's low.",
-   "answer": "True",
-   "why": "True. A few cents under the day's low, not exactly on it. Kullamagi: the stop is always the low of the day.",
+   "q": "On a flat base breakout the stop goes a few cents under the base low.",
+   "answer": "False",
+   "why": "False. The stop goes a few cents under the breakout day's low. The base low is not the stop.",
    "lesson_line": "Stop first: a few cents under the breakout day's low.",
    "facts": [
     "c07",
     "h24",
     "h01",
-    "k03"
+    "k03",
+    "c08"
    ],
    "house": true
   },
@@ -1045,12 +1046,12 @@
    "criterion": "fb.trigger",
    "q": "A flat base pivot is 60.00. When do you buy?",
    "choices": [
-    "As it trades through 60.00, in hours",
-    "At a close above 60.00",
+    "Trade through 60.00, regular hours",
+    "At the first daily close above 60.00",
     "In premarket, if it gaps over 60.00",
-    "Inside the base, before the move"
+    "Inside the base, just under 60.00"
    ],
-   "answer": "As it trades through 60.00, in hours",
+   "answer": "Trade through 60.00, regular hours",
    "why": "As it trades through 60.00, regular hours, bought at market. Set the alert at the pivot and let the trade come to you.",
    "lesson_line": "The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
    "facts": [
@@ -1060,9 +1061,9 @@
     "k05"
    ],
    "wrong": {
-    "At a close above 60.00": "Waiting for the close can cost a day's move. The trigger is the trade through, in regular hours.",
+    "At the first daily close above 60.00": "Waiting for the close can cost a day's move. The trigger is the trade through, in regular hours.",
     "In premarket, if it gaps over 60.00": "No new buys outside regular trading hours.",
-    "Inside the base, before the move": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
+    "Inside the base, just under 60.00": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
    },
    "house": true
   },
@@ -1203,13 +1204,14 @@
    "rung": 2,
    "format": "tf",
    "criterion": "fb.inv_200",
-   "q": "Before the trigger, a close under the 200-day ends the flat base setup.",
-   "answer": "True",
-   "why": "True. A close under the 200-day before the trigger invalidates it. No longs below the 200-day simple moving average.",
+   "q": "Before the trigger, a close under the 200-day is only a warning. The setup stays alive.",
+   "answer": "False",
+   "why": "False. A close under the 200-day before the trigger invalidates the setup. A brief shakeout under the 50-day is allowed.",
    "lesson_line": "Under the 200-day, there is no flat base to buy.",
    "facts": [
     "c12",
-    "h10"
+    "h10",
+    "c06"
    ],
    "house": true
   },
@@ -1329,21 +1331,21 @@
    "criterion": "fb.earnings_window",
    "q": "Buy the breakout today?",
    "choices": [
-    "No, a report inside 3 sessions",
-    "Yes, the setup triggered",
-    "Yes, half size",
-    "Yes, if volume is heavy"
+    "No, earnings are within 3 days",
+    "Yes, the trigger fired today",
+    "Yes, but at half the usual size",
+    "Yes, if volume is heavy enough"
    ],
-   "answer": "No, a report inside 3 sessions",
+   "answer": "No, earnings are within 3 days",
    "why": "No. No new buys in the 3 days before an earnings report. If it is still a setup after the report, it can trigger again.",
    "lesson_line": "A breakout two days before earnings is a coin flip with a story. Wait.",
    "facts": [
     "h08"
    ],
    "wrong": {
-    "Yes, the setup triggered": "The trigger fired, and the calendar still says no. The earnings rule is a hard line.",
-    "Yes, half size": "Size does not fix a report risk. Smaller is still in.",
-    "Yes, if volume is heavy": "Volume grades the day. It does not override the earnings rule."
+    "Yes, the trigger fired today": "The trigger fired, and the calendar still says no. The earnings rule is a hard line.",
+    "Yes, but at half the usual size": "Size does not fix a report risk. Smaller is still in.",
+    "Yes, if volume is heavy enough": "Volume grades the day. It does not override the earnings rule."
    },
    "house": true,
    "story": "The base is clean and tight. The pivot is 112.00 and it trades through this morning. Earnings come after the close in two sessions."
@@ -1408,9 +1410,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "fb.leadership",
-   "q": "We buy flat base breakouts in leaders: an RS rating of 80 or more, in a strong group.",
-   "answer": "True",
-   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups.",
+   "q": "We buy flat base breakouts in leaders: an RS rating of 80 or more, in any group.",
+   "answer": "False",
+   "why": "False. Buy leaders: an RS rating of 80 or more, in one of the strongest groups, not any group.",
    "lesson_line": "A flat base in a laggard is a box going nowhere. Buy the leaders.",
    "facts": [
     "h14"
@@ -1636,12 +1638,12 @@
    "criterion": "fb.no_chase",
    "q": "Buy or pass?",
    "choices": [
-    "Pass, more than 4% past the pivot",
+    "Pass, over 4% past the pivot",
     "Buy, the breakout is confirmed",
-    "Buy half size",
-    "Buy with a wider stop"
+    "Buy half size to cut the risk",
+    "Buy, but widen the stop to fit"
    ],
-   "answer": "Pass, more than 4% past the pivot",
+   "answer": "Pass, over 4% past the pivot",
    "why": "Pass. 94.50 is more than 4% over 90.00. Chasing costs size, not risk: the stop stays under the buy point, so the shares shrink.",
    "lesson_line": "I would rather miss it than chase it. Four percent and done.",
    "facts": [
@@ -1650,8 +1652,8 @@
    ],
    "wrong": {
     "Buy, the breakout is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Buy half size": "Half of a bad entry is still a bad entry.",
-    "Buy with a wider stop": "A wider stop to fit a late entry is the mistake, not the fix."
+    "Buy half size to cut the risk": "Half of a bad entry is still a bad entry.",
+    "Buy, but widen the stop to fit": "A wider stop to fit a late entry is the mistake, not the fix."
    },
    "house": true,
    "story": "The pivot is 90.00. You missed the open. At 10:15 the stock trades 94.50."
@@ -1716,11 +1718,11 @@
    "criterion": "fb.trigger",
    "q": "Buy now?",
    "choices": [
-    "No; wait for the trade through 44.00",
-    "Yes; buy the inside day",
-    "Yes; a buy stop at 43.50"
+    "No; wait for a move through 44.00",
+    "Yes; buy the inside day at 43.20",
+    "Yes; a buy stop in the box at 43.50"
    ],
-   "answer": "No; wait for the trade through 44.00",
+   "answer": "No; wait for a move through 44.00",
    "why": "No. The trigger is the trade through the pivot in regular hours. Anticipating inside the base with no trigger is a named mistake; Kullamagi finds it less effective.",
    "lesson_line": "Feeling it coming is not a trigger. The pivot is.",
    "facts": [
@@ -1729,8 +1731,8 @@
     "k05"
    ],
    "wrong": {
-    "Yes; buy the inside day": "An inside day is the tell that it is tight, not the buy. The buy is the trade through 44.00.",
-    "Yes; a buy stop at 43.50": "A stop under the pivot fires inside the base. No trigger has happened at 43.50."
+    "Yes; buy the inside day at 43.20": "An inside day is the tell that it is tight, not the buy. The buy is the trade through 44.00.",
+    "Yes; a buy stop in the box at 43.50": "A stop under the pivot fires inside the base. No trigger has happened at 43.50."
    },
    "house": true,
    "story": "The base is tight and the pivot is 44.00. Thursday the stock sits at 43.20, an inside day. You feel it coming."
@@ -1788,21 +1790,21 @@
    "criterion": "fb.breakeven",
    "q": "When does the stop move to breakeven on a flat base winner?",
    "choices": [
-    "Between 2R and 5R, often at the trim",
-    "The day after entry",
-    "Never; the stop is the stop",
-    "At 1R"
+    "2R to 5R, often at the trim",
+    "The first higher close",
+    "Never; it stays where it is",
+    "At 1R, as soon as it arrives"
    ],
-   "answer": "Between 2R and 5R, often at the trim",
+   "answer": "2R to 5R, often at the trim",
    "why": "Between 2R and 5R, ideally. The first trim at 3R is the natural moment.",
    "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
    "facts": [
     "h05"
    ],
    "wrong": {
-    "The day after entry": "That is inside the noise. The stop would be hit by a normal day.",
-    "Never; the stop is the stop": "The stop only moves up. Moving it up to breakeven is allowed.",
-    "At 1R": "Too soon. 1R is a normal day's swing on many names."
+    "The first higher close": "One up day is inside the noise. A normal pullback would hit the stop.",
+    "Never; it stays where it is": "The stop only moves up. Moving it up to breakeven is allowed.",
+    "At 1R, as soon as it arrives": "Too soon. The card puts breakeven at 2R to 5R, ideally."
    },
    "house": true
   },
@@ -1812,9 +1814,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "fb.time_stop",
-   "q": "A flat base breakout still under 1R after 10 trading days is sold.",
-   "answer": "True",
-   "why": "True. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. Every example in our set was past 1R by day ten.",
+   "q": "A flat base breakout still under 1R after 10 trading days is held until the stop is hit.",
+   "answer": "False",
+   "why": "False. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. Every example in our set was past 1R by day ten.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
     "h15"
@@ -1884,11 +1886,11 @@
    "criterion": "fb.base_count",
    "q": "This is the stock's fourth base since the stage reset. The shape is clean. Your call?",
    "choices": [
-    "Pass; a late-stage base",
-    "A+, the shape is clean",
-    "B, normal size"
+    "Pass; it is a late-stage base",
+    "A+, a clean and tight shape",
+    "B, normal size; the box is clean"
    ],
-   "answer": "Pass; a late-stage base",
+   "answer": "Pass; it is a late-stage base",
    "why": "Pass. IBD: breakouts from late-stage bases will often blow up. Our card wants the first or second base; MarketSmith says later bases are more likely to fail.",
    "lesson_line": "A clean box on the fourth floor is still the fourth floor.",
    "facts": [
@@ -1897,8 +1899,8 @@
     "c13"
    ],
    "wrong": {
-    "A+, the shape is clean": "Shape is one row of the grade. Stage is another, and the fourth base fails it.",
-    "B, normal size": "A late-stage base is not a size question. It is a pass."
+    "A+, a clean and tight shape": "Shape is one row of the grade. Stage is another, and the fourth base fails it.",
+    "B, normal size; the box is clean": "A late-stage base is not a size question. It is a pass."
    },
    "house": true
   },
@@ -2043,9 +2045,9 @@
    "rung": 6,
    "format": "tf",
    "criterion": "fb.trail",
-   "q": "The last third of a flat base winner trails the 10-day or the 21-day. It is sold on a close below the line.",
-   "answer": "True",
-   "why": "True. Default trail: the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. Kullamagi waits for the first close below the 10-day.",
+   "q": "The last third of a flat base winner trails the 10-day or the 21-day. It is sold on the first touch of the line.",
+   "answer": "False",
+   "why": "False. Sell on a close below the line, not a touch. Kullamagi waits for the first close below the 10-day.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
@@ -2447,9 +2449,9 @@
    "rung": 8,
    "format": "tf",
    "criterion": "fb.stop_not_base_low",
-   "q": "Our flat base stop is the breakout day's low, not IBD's 7% to 8% loss limit.",
-   "answer": "True",
-   "why": "True. IBD's general guideline is the 7%-8% sell rule. Ours is a few cents under the breakout day's low, usually within about 3% of the buy.",
+   "q": "Our flat base stop is IBD's 7% to 8% loss limit, not the breakout day's low.",
+   "answer": "False",
+   "why": "False. IBD's general guideline is the 7%-8% sell rule. Ours is a few cents under the breakout day's low, usually within about 3% of the buy.",
    "lesson_line": "Our loss is the day's range, not a percent of the price.",
    "facts": [
     "i25",
@@ -2687,19 +2689,19 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "i08 (IBD S6), i12 (IBD S3), m02 (MarketSmith), p02 (Bonde) verbatim in dossier section 3; two Tier 2 publishers agree. Key and every wrong note true; choices 40 characters or fewer.",
+   "notes": "i08 (IBD S6), i12 (IBD S3), m02 (MarketSmith), p02 (Bonde) verbatim in dossier section 3; two Tier 2 publishers agree. Key and every wrong note true; choices 40 characters or fewer. Shortened one wrong choice so it is not the unique longest. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q02": {
    "status": "pass",
-   "notes": "c01 verbatim on the card (fb.pivot, proposed), m03 (MarketSmith manual) and i18 (IBD S6) verbatim in section 3. The 10-cent difference is explained, not keyed. Wrong notes true.",
+   "notes": "c01 verbatim on the card (fb.pivot, proposed), m03 (MarketSmith manual) and i18 (IBD S6) verbatim in section 3. The 10-cent difference is explained, not keyed. Wrong notes true. Shortened one wrong choice (it was the unique longest). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q03": {
-   "status": "pass",
-   "notes": "fb.stop is settled (A3, F62): c07, h24, h01 verbatim; k03 verbatim in section 3.5. True as written.",
+   "status": "cut",
+   "notes": "fb.stop is settled (A3, F62): c07, h24, h01 verbatim; k03 verbatim in section 3.5. True as written. CUT: turned False it asks that the stop is not the base low, the fact q24 (fill, base low) already asks. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2711,7 +2713,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "c02 (fb.trigger, settled, E57/E58), h22, h23 verbatim; k05 verbatim in 3.5. Key is the trade-through in regular hours at market; every wrong choice is a real mistake (close, premarket, anticipating). Bonde's buy-stop anticipation is in conflicts, not quoted.",
+   "notes": "c02 (fb.trigger, settled, E57/E58), h22, h23 verbatim; k05 verbatim in 3.5. Key is the trade-through in regular hours at market; every wrong choice is a real mistake (close, premarket, anticipating). Bonde's buy-stop anticipation is in conflicts, not quoted. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2753,7 +2755,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "c12 (fb.inv_200, settled, B26) and h10 verbatim. True.",
+   "notes": "c12 (fb.inv_200, settled, B26) and h10 verbatim. True. Rewritten: the old False (one close under the 50-day ends it) duplicated q44; now tests c12, the 200-day close, still False. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2789,7 +2791,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "h08 (B22, settled) verbatim. A report in two sessions is inside the 3-day window; key true; wrong notes true.",
+   "notes": "h08 (B22, settled) verbatim. A report in two sessions is inside the 3-day window; key true; wrong notes true. Lengthened the 14-character wrong choice and shortened the longest. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2807,7 +2809,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "h14 (C31, settled) verbatim. True.",
+   "notes": "h14 (C31, settled) verbatim. True. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2861,7 +2863,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "h11, h12 (C28) verbatim. 94.50 / 90.00 = 5% over the pivot, past 4%; key and wrong notes true.",
+   "notes": "h11, h12 (C28) verbatim. 94.50 / 90.00 = 5% over the pivot, past 4%; key and wrong notes true. Shortened two wrong choices so the right one is not the shortest by a margin. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2879,7 +2881,7 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "c02, c28 (anticipating with no trigger is a named mistake), k05 verbatim. A buy stop at 43.50 under a 44.00 pivot fires inside the base; key true. D-027 (the early entries) could add a named variant later, but not an inside-day buy with no level.",
+   "notes": "c02, c28 (anticipating with no trigger is a named mistake), k05 verbatim. A buy stop at 43.50 under a 44.00 pivot fires inside the base; key true. D-027 (the early entries) could add a named variant later, but not an inside-day buy with no level. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2897,13 +2899,13 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "h05 (B19: breakeven at 2R to 5R, ideally) verbatim. Key true; 'often at the trim' is the card's default.",
+   "notes": "h05 (B19: breakeven at 2R to 5R, ideally) verbatim. Key true; 'often at the trim' is the card's default. Shortened the wrong choices (right was the shortest); the 1R note now cites h05 instead of an unsourced claim. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q37": {
    "status": "pass",
-   "notes": "h15 (C33) verbatim. True. 'Every example in our set was past 1R by day ten' is dossier section 12's statement about the ten examples.",
+   "notes": "h15 (C33) verbatim. True. 'Every example in our set was past 1R by day ten' is dossier section 12's statement about the ten examples. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2921,7 +2923,7 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "i23 (IBD S7), m07 (MarketSmith), c13 verbatim. A fourth base fails the card's gate (first or second) and both sources call it late. Owner should see: the card's B- row says 'third or later', so a THIRD base is unsettled; this question asks only about a fourth.",
+   "notes": "i23 (IBD S7), m07 (MarketSmith), c13 verbatim. A fourth base fails the card's gate (first or second) and both sources call it late. Owner should see: the card's B- row says 'third or later', so a THIRD base is unsettled; this question asks only about a fourth. Shortened one wrong choice (right was the shortest). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2957,7 +2959,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "h21 (E52) and k06 verbatim. True.",
+   "notes": "h21 (E52) and k06 verbatim. True. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3047,7 +3049,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "i25 (IBD S8: the 7%-8% sell rule, a general loss limit), h24, h04 verbatim. True; the contrast is taught as IBD's rule, never ours.",
+   "notes": "i25 (IBD S8: the 7%-8% sell rule, a general loss limit), h24, h04 verbatim. True; the contrast is taught as IBD's rule, never ours. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

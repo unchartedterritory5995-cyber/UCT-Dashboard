@@ -397,7 +397,7 @@
    "rung": 1,
    "format": "tf",
    "house": true,
-   "q": "Under our rules, the most you can put in one stock is 40% of the account.",
+   "q": "Our max position in one stock is 40% of the account.",
    "answer": "True",
    "why": "True. 40% of the account is our max position. It was 20% to 25% until 2026-11-09, when we raised it: early trims at 3R to 5R make 40% fine.",
    "lesson_line": "One stock, 40% of the account at most. That's the cap, whatever the stop.",
@@ -521,13 +521,13 @@
    "house": true,
    "q": "How do we grade a setup A+, A, B or B-?",
    "choices": [
-    "A judgment call, no fixed checklist",
-    "A points checklist adds it up",
-    "By the stop distance alone",
+    "A judgment call, no set checklist",
+    "A points checklist that adds it up",
+    "By how tight the stop distance is",
     "By the share price"
    ],
-   "answer": "A judgment call, no fixed checklist",
-   "why": "A judgment call, no fixed checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down.",
+   "answer": "A judgment call, no set checklist",
+   "why": "A judgment call, no set checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down.",
    "lesson_line": "Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
    "facts": [
     "h09",
@@ -535,8 +535,8 @@
     "h11"
    ],
    "wrong": {
-    "A points checklist adds it up": "We teach no fixed checklist. The grade is discretionary.",
-    "By the stop distance alone": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
+    "A points checklist that adds it up": "We teach no fixed checklist. The grade is discretionary.",
+    "By how tight the stop distance is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
     "By the share price": "Price decides whether a stock is tradable ($10 or more), not how good the setup is."
    }
   },
@@ -649,7 +649,7 @@
    "format": "scenario",
    "house": true,
    "story": "Account $100,000. An A+ setup, so you pick 1.5% risk. Entry $20, stop $19.70, a 1.5% stop. The risk math says $100,000 in the stock.",
-   "q": "Under our rules, how big is the position?",
+   "q": "How big is the position?",
    "choices": [
     "$40,000",
     "$100,000",
@@ -790,23 +790,23 @@
    "format": "scenario",
    "house": true,
    "story": "You've been stopped out of the same stock three times this week. On Thursday it sets up again, cleaner than ever.",
-   "q": "Under our rules, what do you do?",
+   "q": "Do you take the trade?",
    "choices": [
-    "Pass. Three tries a week is the limit",
-    "Take it, the setup is cleaner",
+    "Pass. Three tries a week, done",
+    "Take it, the setup is cleaner now",
     "Take it at half size",
-    "Take it with a wider stop"
+    "Take it with a wider stop to fit"
    ],
-   "answer": "Pass. Three tries a week is the limit",
+   "answer": "Pass. Three tries a week, done",
    "why": "Pass. The same stock gets at most 3 tries in a week and 6 in a month. You've used the week's three. If it's still setting up next week, it's a new trade with its own stop.",
    "lesson_line": "Same stock: 3 tries a week, 6 a month. The fourth try waits.",
    "facts": [
     "h16"
    ],
    "wrong": {
-    "Take it, the setup is cleaner": "It looked clean the first three times too. The limit exists for exactly this moment.",
+    "Take it, the setup is cleaner now": "It looked clean the first three times too. The limit exists for exactly this moment.",
     "Take it at half size": "Half size is still a fourth try. The rule counts tries, not shares.",
-    "Take it with a wider stop": "A wider stop changes the share count, not the count of tries. And the stop sits where the setup fails, not where it's comfortable."
+    "Take it with a wider stop to fit": "A wider stop changes the share count, not the count of tries. And the stop sits where the setup fails, not where it's comfortable."
    }
   },
   {
@@ -816,12 +816,12 @@
    "format": "scenario",
    "house": true,
    "story": "A small stock looks perfect: a tight base and a clean pivot. It trades at $14 and about $8 million a day.",
-   "q": "Under our rules, is it a trade?",
+   "q": "Is it a trade by our rules?",
    "choices": [
     "No, it doesn't trade enough",
     "Yes, the price clears $10",
-    "Yes, at a smaller size",
-    "Yes, with a limit order"
+    "Yes, at a much smaller size",
+    "Yes, if you use a limit order"
    ],
    "answer": "No, it doesn't trade enough",
    "why": "No. We trade stocks that do at least $20 million a day. At $8 million it isn't even on the watchlist, and clearing $10 doesn't save it. A thin stock can be hard to sell and hand you a bigger loss.",
@@ -834,8 +834,8 @@
    ],
    "wrong": {
     "Yes, the price clears $10": "Price is one test. Volume is the other, and $8 million a day fails it.",
-    "Yes, at a smaller size": "Size doesn't fix thin trading. Under $20 million a day, the stock isn't watched at all.",
-    "Yes, with a limit order": "A limit order helps in a thin stock, but our rule keeps thin stocks off the list entirely."
+    "Yes, at a much smaller size": "Size doesn't fix thin trading. Under $20 million a day, the stock isn't watched at all.",
+    "Yes, if you use a limit order": "A limit order helps in a thin stock, but our rule keeps thin stocks off the list entirely."
    }
   },
   {
@@ -860,9 +860,9 @@
    "rung": 8,
    "format": "tf",
    "house": true,
-   "q": "Under our rules, a stop usually sits within about 3% of the buy price.",
+   "q": "By our rules, a stop usually sits within about 3% of the buy price.",
    "answer": "True",
-   "why": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low, and buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account.",
+   "why": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low. Buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account.",
    "lesson_line": "Buy near the low, so the honest stop sits within about 3%. If it doesn't fit, skip.",
    "facts": [
     "h06",
@@ -878,7 +878,7 @@
    "q": "Our line: \"I almost never take a loss greater than 3%.\" 3% of what?",
    "choices": [
     "The position's value",
-    "The account",
+    "The account's total value",
     "The day's range",
     "The buying power"
    ],
@@ -891,7 +891,7 @@
     "h19"
    ],
    "wrong": {
-    "The account": "A 3% loss on the account would be above our 2% ceiling. The 3% is on the position.",
+    "The account's total value": "A 3% loss on the account would be above our 2% ceiling. The 3% is on the position.",
     "The day's range": "The stop sits a few cents under the day's low, but the 3% is measured from your buy price.",
     "The buying power": "Margin changes buying power, not where the stop sits. The 3% is on the stock you bought."
    }
@@ -933,9 +933,9 @@
    "q": "What does our rule say?",
    "choices": [
     "Buy all 400 at one price, one stop",
-    "Scaling in is fine",
-    "Add the rest only after it pays",
-    "Buy 200 now, 200 lower"
+    "Scaling in is fine if it works",
+    "Add the rest once it starts paying",
+    "Buy 200 now, 200 on a dip lower"
    ],
    "answer": "Buy all 400 at one price, one stop",
    "why": "Buy all 400 at one price with one stop. We don't scale in and we don't add. If the full size doesn't fit the stop and the cap, the trade is smaller or it's a pass.",
@@ -946,9 +946,9 @@
     "h21"
    ],
    "wrong": {
-    "Scaling in is fine": "Not under our rules. The full size goes on at one price with one stop.",
-    "Add the rest only after it pays": "That's a pilot-then-add plan, and it isn't ours. Full size at one spot with one stop.",
-    "Buy 200 now, 200 lower": "Adding below your buy is adding to a trade that's going against you. One price, one stop."
+    "Scaling in is fine if it works": "Not under our rules. The full size goes on at one price with one stop.",
+    "Add the rest once it starts paying": "That's a pilot-then-add plan, and it isn't ours. Full size at one spot with one stop.",
+    "Buy 200 now, 200 on a dip lower": "Adding below your buy is adding to a trade that's going against you. One price, one stop."
    }
   },
   {
@@ -958,12 +958,12 @@
    "format": "scenario",
    "house": true,
    "story": "Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it.",
-   "q": "Under our rules, what do you risk?",
+   "q": "What do our rules let you risk?",
    "choices": [
     "0.5% to 1%, the B range",
-    "2%, the ceiling",
+    "2%, the absolute ceiling",
     "1.5%, you've earned it",
-    "3%, you're hot"
+    "3%, you're on a hot streak"
    ],
    "answer": "0.5% to 1%, the B range",
    "why": "0.5% to 1%. A B setup is normal size, and a run of winners never raises risk past the rules. The grade sets the risk; your streak doesn't.",
@@ -974,9 +974,9 @@
     "h19"
    ],
    "wrong": {
-    "2%, the ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
+    "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
     "1.5%, you've earned it": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+.",
-    "3%, you're hot": "Above our 2% ceiling, and sizing up on a hot streak is exactly what the rule forbids."
+    "3%, you're on a hot streak": "Above our 2% ceiling, and sizing up on a hot streak is exactly what the rule forbids."
    }
   },
   {
@@ -1052,7 +1052,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key true on A7. The why named the owner ('when the owner raised it'); now 'when we raised it'. The h03 claim also misread 'raised from 20-25%' as 'from 20% to 25%'; corrected to 'from the old 20% to 25%'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check"
+   "notes": "Key true on A7. The why named the owner ('when the owner raised it'); now 'when we raised it'. The h03 claim also misread 'raised from 20-25%' as 'from 20% to 25%'; corrected to 'from the old 20% to 25%'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q03": {
    "status": "pass",
@@ -1088,7 +1088,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E50: discretionary, no checklist taught. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D38, E50); awaiting cold check"
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E50: discretionary, no checklist taught. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D38, E50); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q09": {
    "status": "pass",
@@ -1118,7 +1118,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.5% of 100,000 = 1,500 at risk; 1,500 / 0.30 = 5,000 shares = $100,000; cap 40% = $40,000 (calc). Each wrong choice is a real misreading ($1,500 is the risk, $100,000 the uncapped math). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A5, A7, E49); awaiting cold check"
+   "notes": "1.5% of 100,000 = 1,500 at risk; 1,500 / 0.30 = 5,000 shares = $100,000; cap 40% = $40,000 (calc). Each wrong choice is a real misreading ($1,500 is the risk, $100,000 the uncapped math). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A5, A7, E49); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q14": {
    "status": "pass",
@@ -1148,13 +1148,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E56: three tries in a week used, the fourth waits; the story names three stop-outs this week. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E56); awaiting cold check"
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E56: three tries in a week used, the fourth waits; the story names three stop-outs this week. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E56); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. $8 million fails B23's $20 million floor; Investor.gov f05 confirmed. The limit-order note is general (Fidelity f06) and ends on the house answer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B23, D42); awaiting cold check"
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. $8 million fails B23's $20 million floor; Investor.gov f05 confirmed. The limit-order note is general (Fidelity f06) and ends on the house answer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B23, D42); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q20": {
    "status": "pass",
@@ -1166,13 +1166,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "A13 and A3 verbatim; keyed as 'usually' / 'about 3%', a position loss, never a hard rule. The h06 claim said 'The owner's stop'; now 'Our stop' (member-facing summary text never names him). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A13); awaiting cold check"
+   "notes": "A13 and A3 verbatim; keyed as 'usually' / 'about 3%', a position loss, never a hard rule. The h06 claim said 'The owner's stop'; now 'Our stop' (member-facing summary text never names him). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A13); awaiting cold check Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A13's own gloss: a loss on the position, not the account; the 'account' note is right that 3% would exceed the 2% ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A13, E49); awaiting cold check"
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A13's own gloss: a loss on the position, not the account; the 'account' note is right that 3% would exceed the 2% ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A13, E49); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q23": {
    "status": "pass",
@@ -1184,13 +1184,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "A5 verbatim ('full size at one price with one stop; no adding'). The 'add after it pays' note named the owner ('The owner struck it: he buys full'); now 'it isn't ours. Full size at one spot with one stop.' Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A5); awaiting cold check"
+   "notes": "A5 verbatim ('full size at one price with one stop; no adding'). The 'add after it pays' note named the owner ('The owner struck it: he buys full'); now 'it isn't ours. Full size at one spot with one stop.' Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A5); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D45 and E49; 1.5% and 2% notes match A1. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A1, D45, E49); awaiting cold check"
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D45 and E49; 1.5% and 2% notes match A1. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A1, D45, E49); awaiting cold check variety rewrite checked 2026-11-10."
   },
   "q26": {
    "status": "pass",

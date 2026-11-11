@@ -868,7 +868,7 @@
  },
  {
   "answer_json": {
-   "answer": "How long you'd give it to work"
+   "answer": "A time limit to make it work"
   },
   "difficulty": 2,
   "id": "si_422dd436cab6",
@@ -878,9 +878,9 @@
   "prompt_json": {
    "choices": [
     "A rule for adding more shares",
-    "A second, higher target",
-    "A tighter stop",
-    "How long you'd give it to work"
+    "A second, higher profit target",
+    "A tighter stop on the trade",
+    "A time limit to make it work"
    ],
    "kind": "mcq",
    "q": "Which line was missing from your plan?",
@@ -915,15 +915,15 @@
     "summary": "A plan asks how long the trade should take and what could go wrong. A time exit sets the longest you'll hold a position. A time exit helps when a stock goes sideways for a long time without hitting the stop."
    },
    "facts": {
-    "given": "Which line was missing from your plan? Four months ago you bought a breakout. It never hit your stop or your target. It has gone sideways the whole time, with your money stuck in it. How long you'd give it to work A second, higher target A tighter stop A rule for adding more shares"
+    "given": "Which line was missing from your plan? Four months ago you bought a breakout. It never hit your stop or your target. It has gone sideways the whole time, with your money stuck in it. A time limit to make it work A second, higher profit target A tighter stop on the trade A rule for adding more shares"
    },
    "lesson_line": "Know how long you'll give a trade, not just where its stop and target sit.",
    "unit": "F12.01",
    "why": "How long you'd give it to work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period.",
    "wrong": {
     "A rule for adding more shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot.",
-    "A second, higher target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
-    "A tighter stop": "That changes where you're wrong on price. This trade's problem is time."
+    "A second, higher profit target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
+    "A tighter stop on the trade": "That changes where you're wrong on price. This trade's problem is time."
    }
   },
   "review_status": "draft",
@@ -995,7 +995,7 @@
  },
  {
   "answer_json": {
-   "answer": "Keep it, review the rule after the close"
+   "answer": "Keep it; review the rule tonight"
   },
   "difficulty": 3,
   "id": "si_13203c26bf6b",
@@ -1004,10 +1004,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Buy more to lower your cost",
-    "Widen it now, before it's hit",
-    "Keep it, review the rule after the close",
-    "Cancel the stop and watch it"
+    "Buy more to lower your average cost",
+    "Widen it now, before it gets hit",
+    "Keep it; review the rule tonight",
+    "Cancel the stop and just watch it"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -1035,15 +1035,15 @@
     "summary": "The plan's signals don't change while you're trading; you re-evaluate them when the market is closed. Don't change the plan as a knee-jerk reaction to a drop."
    },
    "facts": {
-    "given": "What do you do? It's 11 a.m. Your stock dips toward the stop you wrote last night. Suddenly a wider stop feels smarter. Keep it, review the rule after the close Widen it now, before it's hit Buy more to lower your cost Cancel the stop and watch it"
+    "given": "What do you do? It's 11 a.m. Your stock dips toward the stop you wrote last night. Suddenly a wider stop feels smarter. Keep it; review the rule tonight Widen it now, before it gets hit Buy more to lower your average cost Cancel the stop and just watch it"
    },
    "lesson_line": "Plan when it's closed. Follow it when it's open.",
    "unit": "F12.01",
    "why": "Keep it, and review the rule after the close. Investopedia says a plan's signals don't change while you're trading, only when the market is closed. Fidelity warns against knee-jerk changes.",
    "wrong": {
-    "Buy more to lower your cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
-    "Cancel the stop and watch it": "Then nothing guards the trade, and you're deciding everything in the moment.",
-    "Widen it now, before it's hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade."
+    "Buy more to lower your average cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
+    "Cancel the stop and just watch it": "Then nothing guards the trade, and you're deciding everything in the moment.",
+    "Widen it now, before it gets hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade."
    }
   },
   "review_status": "draft",
@@ -1134,7 +1134,7 @@
     "A tighter stop for report day",
     "A line on what you'll do at the report",
     "A bigger size to catch the pop",
-    "Nothing. The stop covers a bad report"
+    "Nothing; the stop covers a report"
    ],
    "kind": "mcq",
    "q": "What does the plan need before you buy?",
@@ -1169,7 +1169,7 @@
     "summary": "A plan lists the dates of the data releases that matter. Plan ahead for known events such as earnings reports. A stop can't protect you from a gap."
    },
    "facts": {
-    "given": "What does the plan need before you buy? You're writing a plan for a three-week swing. The company reports earnings in 10 days, inside that window. A line on what you'll do at the report Nothing. The stop covers a bad report A tighter stop for report day A bigger size to catch the pop"
+    "given": "What does the plan need before you buy? You're writing a plan for a three-week swing. The company reports earnings in 10 days, inside that window. A line on what you'll do at the report Nothing; the stop covers a report A tighter stop for report day A bigger size to catch the pop"
    },
    "lesson_line": "Put the dates on the plan. A gap won't wait for your stop.",
    "unit": "F12.01",
@@ -1177,7 +1177,7 @@
    "wrong": {
     "A bigger size to catch the pop": "That's a bet on which way the report goes, with more at risk if it gaps the wrong way.",
     "A tighter stop for report day": "A tighter stop does nothing against a gap. The open can land below it.",
-    "Nothing. The stop covers a bad report": "A stop can't protect you from a gap. After a bad report the open can land far below it."
+    "Nothing; the stop covers a report": "A stop can't protect you from a gap. After a bad report the open can land far below it."
    }
   },
   "review_status": "draft",
@@ -1201,7 +1201,7 @@
     "No trades until a new plan is written",
     "Keep using the old rules for now",
     "Trade on feel until a new idea comes",
-    "Trade smaller with no set rules"
+    "Trade a smaller size with no rules"
    ],
    "kind": "mcq",
    "q": "What do you do tomorrow?",
@@ -1229,15 +1229,15 @@
     "summary": "Scrap a plan that doesn't work, and place no trades until a new one is written. If you drop or change the plan, put a new plan in its place."
    },
    "facts": {
-    "given": "What do you do tomorrow? After a careful review of your trades, you decide your plan's rules don't work. The market opens tomorrow. No trades until a new plan is written Trade on feel until a new idea comes Keep using the old rules for now Trade smaller with no set rules"
+    "given": "What do you do tomorrow? After a careful review of your trades, you decide your plan's rules don't work. The market opens tomorrow. No trades until a new plan is written Trade on feel until a new idea comes Keep using the old rules for now Trade a smaller size with no rules"
    },
    "lesson_line": "Scrap a broken plan, but never trade without one.",
    "unit": "F12.01",
    "why": "No trades until a new plan is written. Investopedia says scrap a plan that doesn't work and place no trades until a new one is made. Fidelity agrees: a change needs a replacement plan.",
    "wrong": {
     "Keep using the old rules for now": "You've just decided they don't work. Trading them anyway means knowingly using a broken plan.",
-    "Trade on feel until a new idea comes": "That's trading with no plan at all, the very thing a plan is there to stop.",
-    "Trade smaller with no set rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
+    "Trade a smaller size with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan.",
+    "Trade on feel until a new idea comes": "That's trading with no plan at all, the very thing a plan is there to stop."
    }
   },
   "review_status": "draft",
@@ -1259,7 +1259,7 @@
   "prompt_json": {
    "choices": [
     "Hold: the stop hasn't been hit",
-    "Lower the stop to give it room",
+    "Lower the stop to give it more room",
     "Hold: one report doesn't change much",
     "Get out: your reason to own it is gone"
    ],
@@ -1303,7 +1303,7 @@
     "summary": "The plan lists the changes, in the business or on the chart, that would make you close the trade. Write what would change your mind when you place the trade, before you fall in love with the idea. A plan writes down the method and the reasoning behind the trade. The plan's signals don't change while you're trading; you re-evaluate them when the market is closed."
    },
    "facts": {
-    "given": "What does your plan tell you? You bought for speeding sales growth. Your plan's exits: the stop, or growth slowing. The next report shows growth slowing sharply. The stock is still above your stop. Get out: your reason to own it is gone Hold: the stop hasn't been hit Hold: one report doesn't change much Lower the stop to give it room"
+    "given": "What does your plan tell you? You bought for speeding sales growth. Your plan's exits: the stop, or growth slowing. The next report shows growth slowing sharply. The stock is still above your stop. Get out: your reason to own it is gone Hold: the stop hasn't been hit Hold: one report doesn't change much Lower the stop to give it more room"
    },
    "lesson_line": "The stop is where price says you're wrong. Your reason can say it first.",
    "unit": "F12.01",
@@ -1311,7 +1311,7 @@
    "wrong": {
     "Hold: one report doesn't change much": "That's how people fall in love with an idea and hold on too long. Your plan named this exact change.",
     "Hold: the stop hasn't been hit": "The stop is one of your exits. The other one you wrote just triggered.",
-    "Lower the stop to give it room": "That gives more room to a trade whose written exit has already triggered."
+    "Lower the stop to give it more room": "That gives more room to a trade whose written exit has already triggered."
    }
   },
   "review_status": "draft",
@@ -1601,16 +1601,16 @@
  },
  {
   "answer_json": {
-   "answer": "How the market is taking overnight news"
+   "answer": "How the market takes overnight news"
   },
   "difficulty": 1,
   "id": "si_5e5c94a7cb80",
   "lesson_origin": "session",
-  "lesson_text": "How the market is taking overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them. Futures are the market's overnight vote. A hint about the open, not a promise.",
+  "lesson_text": "How the market takes overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them. Futures are the market's overnight vote. A hint about the open, not a promise.",
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "How the market is taking overnight news",
+    "How the market takes overnight news",
     "Which stocks will lead today",
     "The exact price stocks will open at",
     "Nothing that matters for stocks"
@@ -1696,11 +1696,11 @@
     "summary": "S&P 500 index futures trade nearly 24 hours, so they react to news while stocks are closed. When big events hit after the close, the futures react without waiting for the open. One E-mini S&P 500 future gives nearly the same exposure as owning the 500 stocks. The NYSE core session runs from 9:30 a.m. to 4:00 p.m. ET. Traders watch the premarket to judge the market's strength and direction before the open. SPY's premarket quotes move with the S&P 500 futures. A big gap in the futures can also move the largest stocks in the index. The opening price is set by supply and demand at the open, not by the earlier premarket trades. Premarket prices may not hold. A premarket price may not match where the stock trades once the regular session opens."
    },
    "facts": {
-    "given": "Before the 9:30 a.m. ET open, what do S&P 500 futures show you? How the market is taking overnight news The exact price stocks will open at Which stocks will lead today Nothing that matters for stocks"
+    "given": "Before the 9:30 a.m. ET open, what do S&P 500 futures show you? How the market takes overnight news The exact price stocks will open at Which stocks will lead today Nothing that matters for stocks"
    },
    "lesson_line": "Futures are the market's overnight vote. A hint about the open, not a promise.",
    "unit": "F12.02",
-   "why": "How the market is taking overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them.",
+   "why": "How the market takes overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them.",
    "wrong": {
     "Nothing that matters for stocks": "They do matter. SPY's premarket quotes move with the futures, and a big gap moves the largest index stocks too.",
     "The exact price stocks will open at": "No. The open is set by supply and demand at the open itself, and premarket prices may not hold.",
@@ -2449,7 +2449,7 @@
   "prompt_json": {
    "choices": [
     "A fresh scan for new names to buy",
-    "Lower stops to give trades room",
+    "Lower stops to give trades more room",
     "Positions, stops and news due later"
    ],
    "kind": "mcq",
@@ -2498,14 +2498,14 @@
     "summary": "Every day, review open positions for new support levels and chances to adjust your stops. The Fed's Oct. 28, 2026 policy statement came out at 2:00 p.m. Eastern, during the trading session. A scheduled event like a Fed rate decision can upset the day's usual rhythm. Midday is usually the calmest part of the session. Roze checks what he owns before he looks for new buys: protection comes first."
    },
    "facts": {
-    "given": "It's 12:30 p.m. and the market has gone quiet. What comes first in your midday check? Positions, stops and news due later A fresh scan for new names to buy Lower stops to give trades room"
+    "given": "It's 12:30 p.m. and the market has gone quiet. What comes first in your midday check? Positions, stops and news due later A fresh scan for new names to buy Lower stops to give trades more room"
    },
    "lesson_line": "Midday is a check, not a hunt.",
    "unit": "F12.02",
    "why": "Positions, stops and news due later. Protection comes before new buys. Know what's scheduled too: the Fed's Oct. 28, 2026 statement landed at 2:00 p.m. ET.",
    "wrong": {
     "A fresh scan for new names to buy": "New buys can wait. Veteran trader Gatis Roze checks what he owns first: protection takes precedence over fresh purchases.",
-    "Lower stops to give trades room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it."
+    "Lower stops to give trades more room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it."
    }
   },
   "review_status": "draft",
@@ -2527,9 +2527,9 @@
   "prompt_json": {
    "choices": [
     "Scanning your names' news",
-    "Marking levels on your names",
+    "Marking levels on each of your names",
     "Checking the day's economic calendar",
-    "Reading the overnight futures"
+    "Reading the overnight index futures"
    ],
    "kind": "mcq",
    "q": "Which premarket step would have warned you?",
@@ -2578,14 +2578,14 @@
     "summary": "The Fed's Oct. 28, 2026 policy statement came out at 2:00 p.m. Eastern, during the trading session. The economic calendar lists the scheduled reports and events that can move a stock or the whole market. The economic calendar covers reports such as jobless claims and interest rate announcements. A scheduled event like a Fed rate decision can upset the day's usual rhythm. Steenbarger's morning covers overseas markets, the day's economic reports, yesterday's indicators and the overnight futures."
    },
    "facts": {
-    "given": "Which premarket step would have warned you? At 2:00 p.m. the market whips both ways, and your stock swings through your stop and back. Later you learn the Fed's statement came out at 2:00. Checking the day's economic calendar Reading the overnight futures Marking levels on your names Scanning your names' news"
+    "given": "Which premarket step would have warned you? At 2:00 p.m. the market whips both ways, and your stock swings through your stop and back. Later you learn the Fed's statement came out at 2:00. Checking the day's economic calendar Reading the overnight index futures Marking levels on each of your names Scanning your names' news"
    },
    "lesson_line": "Levels tell you where. The calendar tells you when.",
    "unit": "F12.02",
    "why": "Checking the day's economic calendar. Rate announcements are on it, and the Fed's Oct. 28, 2026 statement came out at 2:00 p.m. ET. Big news like that can upset the day's normal rhythm.",
    "wrong": {
-    "Marking levels on your names": "Levels tell you where to act, not when the market is about to jolt.",
-    "Reading the overnight futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
+    "Marking levels on each of your names": "Levels tell you where to act, not when the market is about to jolt.",
+    "Reading the overnight index futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
     "Scanning your names' news": "Company news matters, but a Fed statement is market-wide and scheduled. It sits on the economic calendar."
    }
   },
@@ -2608,8 +2608,8 @@
   "prompt_json": {
    "choices": [
     "Consider raising it under the new low",
-    "Cancel it, the trade is working",
-    "Lower it to give the trade room"
+    "Cancel it, since the trade is working",
+    "Lower it to give the trade more room"
    ],
    "kind": "mcq",
    "q": "What does the recap do with that stop?",
@@ -2637,14 +2637,14 @@
     "summary": "Every day, review open positions for new support levels and chances to adjust your stops. Support is usually a previous low."
    },
    "facts": {
-    "given": "What does the recap do with that stop? After the close you run your recap. One holding just made a new higher low, well above your stop. Consider raising it under the new low Lower it to give the trade room Cancel it, the trade is working"
+    "given": "What does the recap do with that stop? After the close you run your recap. One holding just made a new higher low, well above your stop. Consider raising it under the new low Lower it to give the trade more room Cancel it, since the trade is working"
    },
    "lesson_line": "Stops move one way: in the direction of the trade.",
    "unit": "F12.02",
    "why": "Consider raising it under the new low. Schwab's daily routine: monitor open positions for new support levels and chances to adjust your stops. Support is usually a previous low.",
    "wrong": {
-    "Cancel it, the trade is working": "Working trades can turn. Without a stop, a winner can become a loser.",
-    "Lower it to give the trade room": "Widening a stop on a winner adds risk for no reason."
+    "Cancel it, since the trade is working": "Working trades can turn. Without a stop, a winner can become a loser.",
+    "Lower it to give the trade more room": "Widening a stop on a winner adds risk for no reason."
    }
   },
   "review_status": "draft",
@@ -3408,7 +3408,7 @@
  },
  {
   "answer_json": {
-   "answer": "So trades can be sorted and compared"
+   "answer": "So you can sort and compare trades"
   },
   "difficulty": 1,
   "id": "si_f984fcb4621d",
@@ -3418,7 +3418,7 @@
   "prompt_json": {
    "choices": [
     "So each entry is longer and richer",
-    "So trades can be sorted and compared",
+    "So you can sort and compare trades",
     "So you can skip the written notes"
    ],
    "kind": "mcq",
@@ -3488,7 +3488,7 @@
     "summary": "A spreadsheet log lets you track, sort and analyze your trades. A common journaling mistake: entries that change in detail and timing, with no consistent process. Tagging trades by type shows quickly which kinds of trades work best. Tags turn a journal into a database: you can pull up every entry on one stock or one topic, like overtrading. Keep records so you can check the profit or loss of each strategy. The best journals keep data collection light. Entries hold both written notes and numbers like P&L and wins and losses. Write down why you took the trade as you enter it."
    },
    "facts": {
-    "given": "Why log every trade in the same fixed fields instead of free notes? So trades can be sorted and compared So each entry is longer and richer So you can skip the written notes"
+    "given": "Why log every trade in the same fixed fields instead of free notes? So you can sort and compare trades So each entry is longer and richer So you can skip the written notes"
    },
    "lesson_line": "Same fields on every trade. That's what makes a journal you can sort.",
    "unit": "F12.03",
@@ -3873,7 +3873,7 @@
  },
  {
   "answer_json": {
-   "answer": "Grade for following the plan"
+   "answer": "Your grade for following the plan"
   },
   "difficulty": 2,
   "id": "si_561564edde75",
@@ -3882,10 +3882,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Grade for following the plan",
-    "Exit price on the fill",
-    "Realized gain or loss",
-    "Planned target price"
+    "Your grade for following the plan",
+    "Exit price on the closing fill",
+    "Realized gain or loss in dollars",
+    "Planned target price for the trade"
    ],
    "kind": "mcq",
    "q": "Which field shows you broke your rules, even on a trade that made money?",
@@ -3912,15 +3912,15 @@
     "summary": "After the trade: the realized gain or loss, and a grade for how closely you followed the plan. The journal tracks how well you follow your rules, not only whether you made money."
    },
    "facts": {
-    "given": "Which field shows you broke your rules, even on a trade that made money? Grade for following the plan Realized gain or loss Exit price on the fill Planned target price"
+    "given": "Which field shows you broke your rules, even on a trade that made money? Your grade for following the plan Realized gain or loss in dollars Exit price on the closing fill Planned target price for the trade"
    },
    "lesson_line": "Grade the plan apart from the P&L. A broken rule that paid is still broken.",
    "unit": "F12.03",
    "why": "The plan grade. Schwab's worksheet grades how closely the plan was followed, on its own line next to the gain or loss. Your journal tracks how well you follow your rules, not just whether you made money.",
    "wrong": {
-    "Exit price on the fill": "The exit says where you got out. It can't say whether that was the plan.",
-    "Planned target price": "That's part of the plan itself. It can't say whether you stuck to it.",
-    "Realized gain or loss": "P&L shows the result, not how you got it. A rule break can still make money."
+    "Exit price on the closing fill": "The exit says where you got out. It can't say whether that was the plan.",
+    "Planned target price for the trade": "That's part of the plan itself. It can't say whether you stuck to it.",
+    "Realized gain or loss in dollars": "P&L shows the result, not how you got it. A rule break can still make money."
    }
   },
   "review_status": "draft",
@@ -5368,7 +5368,7 @@
  },
  {
   "answer_json": {
-   "answer": "You chased it far past your entry"
+   "answer": "You chased it past your entry"
   },
   "difficulty": 1,
   "id": "si_2ed4160e03f7",
@@ -5379,7 +5379,7 @@
    "choices": [
     "It fell the day after you sold",
     "You skipped your morning review",
-    "You chased it far past your entry",
+    "You chased it past your entry",
     "The setup had no real edge"
    ],
    "kind": "mcq",
@@ -5421,7 +5421,7 @@
     "summary": "The trading grade asks if the entry gave good reward for the risk or chased into poor reward for the risk, and how the position was sized. The trading grade also covers how you managed the position and how you exited. Another: how well you entered and got good reward for the risk you took. Schwab's trade review asks whether your entries, stops and exits were carried out well."
    },
    "facts": {
-    "given": "Which of these belongs under how you traded the idea? You chased it far past your entry The setup had no real edge You skipped your morning review It fell the day after you sold"
+    "given": "Which of these belongs under how you traded the idea? You chased it past your entry The setup had no real edge You skipped your morning review It fell the day after you sold"
    },
    "lesson_line": "A good idea can still be traded badly. Grade the entry, size and exit on their own.",
    "unit": "F12.04",
@@ -5707,7 +5707,7 @@
     "Bad idea, since it didn't work",
     "Good idea, but traded badly",
     "Good idea, traded well, just lost",
-    "Bad trade, since it lost money"
+    "Bad trade, since it lost real money"
    ],
    "kind": "mcq",
    "q": "How do you grade it?",
@@ -5742,14 +5742,14 @@
     "summary": "On SMB's review panel: a trade made on all your checklist criteria is an A trade, even if that one lost money. Annie Duke: in poker you can win with the worst hand and lose with the best. Tendler: a loss with good process is not a step backward; making money with bad process is."
    },
    "facts": {
-    "given": "How do you grade it? The setup met every rule on your written checklist. You bought at your price, sized to plan, with your stop set. It hit the stop for your planned loss. Good idea, traded well, just lost Bad trade, since it lost money Good idea, but traded badly Bad idea, since it didn't work"
+    "given": "How do you grade it? The setup met every rule on your written checklist. You bought at your price, sized to plan, with your stop set. It hit the stop for your planned loss. Good idea, traded well, just lost Bad trade, since it lost real money Good idea, but traded badly Bad idea, since it didn't work"
    },
    "lesson_line": "A loss on a clean trade is the cost of doing business. I grade the work.",
    "unit": "F12.04",
    "why": "Good idea, traded well, just lost. A trade made on all your criteria is an A trade even if it didn't pay this time. You can lose with the best hand.",
    "wrong": {
     "Bad idea, since it didn't work": "A real edge still loses some of the time. One stop-out doesn't make the idea bad.",
-    "Bad trade, since it lost money": "That's resulting, grading the decision by the result. A loss with good process isn't a step backward.",
+    "Bad trade, since it lost real money": "That's resulting, grading the decision by the result. A loss with good process isn't a step backward.",
     "Good idea, but traded badly": "Nothing in the story says so. Entry, size and stop all went to plan."
    }
   },
@@ -6127,7 +6127,7 @@
     "Crediting skill for a lucky win",
     "Blaming luck for every loss",
     "Selling winners too early",
-    "Trading less after a loss"
+    "Trading less after every loss"
    ],
    "kind": "mcq",
    "q": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap?",
@@ -6168,7 +6168,7 @@
     "summary": "Resulting: blaming a bad outcome on a bad decision process. The other half: crediting a good outcome to a sound process when it was just luck. Resulting can make you believe some good decisions should never be repeated and some bad ones should be reinforced. Judging ourselves, we take credit for good outcomes and duck the blame for bad ones."
    },
    "facts": {
-    "given": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap? Crediting skill for a lucky win Blaming luck for every loss Trading less after a loss Selling winners too early"
+    "given": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap? Crediting skill for a lucky win Blaming luck for every loss Trading less after every loss Selling winners too early"
    },
    "lesson_line": "A lucky win graded as skill gets repeated. That's how bad habits grow.",
    "unit": "F12.04",
@@ -6176,7 +6176,7 @@
    "wrong": {
     "Blaming luck for every loss": "That's a cousin bias: wins are your skill, losses are bad luck. Resulting grades by the result either way.",
     "Selling winners too early": "That's an exit habit. Resulting is about how you judge a decision after the fact.",
-    "Trading less after a loss": "That's a reaction to losing, not a way of judging the decision."
+    "Trading less after every loss": "That's a reaction to losing, not a way of judging the decision."
    }
   },
   "review_status": "draft",
@@ -6693,8 +6693,8 @@
   "prompt_json": {
    "choices": [
     "Your grades are tracking the P&L",
-    "You only take great trades",
-    "Your losers were all bad trades",
+    "You only take truly great trades",
+    "Your losers were all just bad trades",
     "Your stops are too tight"
    ],
    "kind": "mcq",
@@ -6737,14 +6737,14 @@
     "summary": "In the study, people rated the thinking behind a decision as better when its outcome was favorable. Grading yourself by outcomes can make you take credit and blame for luck: smug after wins, hard on yourself after losses. Good decisions can end badly, and very bad decisions can end well. Resulting: blaming a bad outcome on a bad decision process."
    },
    "facts": {
-    "given": "What's the most likely problem? You look back at a month of your own trade grades. Every winner got an A. Every loser got a C or worse. Your grades are tracking the P&L You only take great trades Your losers were all bad trades Your stops are too tight"
+    "given": "What's the most likely problem? You look back at a month of your own trade grades. Every winner got an A. Every loser got a C or worse. Your grades are tracking the P&L You only take truly great trades Your losers were all just bad trades Your stops are too tight"
    },
    "lesson_line": "If my grades always match my P&L, I'm grading the result, not the trade.",
    "unit": "F12.04",
    "why": "Your grades are tracking the P&L. People rate the thinking as better when the outcome is good. Grade yourself by outcomes and you can end up smug after wins and hard on yourself after losses. Good trades lose and bad ones win.",
    "wrong": {
-    "You only take great trades": "Then some of those great trades would still lose. Not one A-grade loser all month is the giveaway.",
-    "Your losers were all bad trades": "Some losers are good trades that just lost. Every single one being bad is a pattern in your grading.",
+    "You only take truly great trades": "Then some of those great trades would still lose. Not one A-grade loser all month is the giveaway.",
+    "Your losers were all just bad trades": "Some losers are good trades that just lost. Every single one being bad is a pattern in your grading.",
     "Your stops are too tight": "Tight stops could mean more losers. They don't explain grades that match the P&L every time."
    }
   },
@@ -7294,7 +7294,7 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "The setup's total dollar P&L only",
+    "The setup's total dollar P&L",
     "Win rate and number of trades only",
     "Count, win rate, average win and loss"
    ],
@@ -7344,13 +7344,13 @@
     "summary": "The monthly numbers include the share of winners and the average win against the average loss. Win rate is the share of closed trades that make money. A high win rate can still lose money when the losses are big next to the wins. Expectancy is the average R per trade: what a system makes per dollar risked. At the end of each day, knowing why and how you traded matters more than the P&L total."
    },
    "facts": {
-    "given": "Which numbers belong in each setup's monthly stats? Count, win rate, average win and loss Win rate and number of trades only The setup's total dollar P&L only"
+    "given": "Which numbers belong in each setup's monthly stats? Count, win rate, average win and loss Win rate and number of trades only The setup's total dollar P&L"
    },
    "lesson_line": "Win rate is half the story. How big the wins and losses run is the other half.",
    "unit": "F12.05",
    "why": "Count, win rate, average win and loss. Together they give you the average R the setup has paid. A high win rate can still lose money if the losses are big next to the wins.",
    "wrong": {
-    "The setup's total dollar P&L only": "One total hides the parts. It can't show how often the setup wins or how big its wins and losses run.",
+    "The setup's total dollar P&L": "One total hides the parts. It can't show how often the setup wins or how big its wins and losses run.",
     "Win rate and number of trades only": "That leaves out how big the wins and losses are. Even with a high win rate, a poor risk/reward can lose."
    }
   },
@@ -7438,9 +7438,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Make fewer mistakes",
+    "Make fewer mistakes next week",
     "Trade with more discipline",
-    "Be more careful with my trading",
+    "Be more careful with my trading plan",
     "Stop after three trades each day"
    ],
    "kind": "mcq",
@@ -7482,14 +7482,14 @@
     "summary": "A vague note like \"be more careful with sizing\" is not a plan; the plan says exactly what you will do. A vague goal is only a good intention, and it gets the least follow-through. \"Trade with greater discipline\" is Steenbarger's example of a goal a trader sets against overtrading. The plan's signals are clear and fixed during the session, and you reevaluate them when the market is closed."
    },
    "facts": {
-    "given": "Your review shows you overtrade. Which note is a plan you can act on next week? Stop after three trades each day Be more careful with my trading Trade with more discipline Make fewer mistakes"
+    "given": "Your review shows you overtrade. Which note is a plan you can act on next week? Stop after three trades each day Be more careful with my trading plan Trade with more discipline Make fewer mistakes next week"
    },
    "lesson_line": "If you can't check it next week, it isn't a plan.",
    "unit": "F12.05",
    "why": "Stop after three trades each day. It's concrete, and next Sunday you can check whether you kept it. A vague goal, Steenbarger says, is only a good intention.",
    "wrong": {
-    "Be more careful with my trading": "Careful how. Steenbarger's test is what, specifically, you will do. This note doesn't say.",
-    "Make fewer mistakes": "Which ones, and how. Vague goals get the least follow-through.",
+    "Be more careful with my trading plan": "Careful how. Steenbarger's test is what, specifically, you will do. This note doesn't say.",
+    "Make fewer mistakes next week": "Which ones, and how. Vague goals get the least follow-through.",
     "Trade with more discipline": "That's Steenbarger's own example of a vague goal against overtrading. It names a wish, not an action."
    }
   },
@@ -9263,7 +9263,7 @@
  },
  {
   "answer_json": {
-   "answer": "Helps you act on it without hesitating"
+   "answer": "Helps you act on it without pause"
   },
   "difficulty": 1,
   "id": "si_6d9f45c6a569",
@@ -9273,7 +9273,7 @@
   "prompt_json": {
    "choices": [
     "Tells you what to buy tomorrow",
-    "Helps you act on it without hesitating",
+    "Helps you act on it without pause",
     "Proves the setup will win next time"
    ],
    "kind": "mcq",
@@ -9315,7 +9315,7 @@
     "summary": "Writing the play up helps a trader internalize it, so they trade it instinctively when it shows up again. Once a play is internalized you execute it automatically; before that, each trade is a struggle of indecision. Expertise comes from internalizing what you learn. It has sizing rules so a run of losing trades, which comes by chance, cannot ruin you."
    },
    "facts": {
-    "given": "Bellafiore wants the play written up the same day. What does the writing do for you? Helps you act on it without hesitating Proves the setup will win next time Tells you what to buy tomorrow"
+    "given": "Bellafiore wants the play written up the same day. What does the writing do for you? Helps you act on it without pause Proves the setup will win next time Tells you what to buy tomorrow"
    },
    "lesson_line": "Write it down so next time you act instead of debate.",
    "unit": "F12.06",
@@ -9345,7 +9345,7 @@
    "choices": [
     "What is moving the whole market",
     "Why this one stock is moving",
-    "Where your stop goes"
+    "Where your stop goes on the trade"
    ],
    "kind": "mcq",
    "q": "Bellafiore's book starts each trade breakdown with the big picture. What does that section look at?",
@@ -9386,13 +9386,13 @@
     "summary": "The big picture section comes first: know what is moving the market. The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review. A team's playbook is the set of plays it runs in different situations. Much of the skill is knowing which play fits which situation."
    },
    "facts": {
-    "given": "Bellafiore's book starts each trade breakdown with the big picture. What does that section look at? What is moving the whole market Why this one stock is moving Where your stop goes"
+    "given": "Bellafiore's book starts each trade breakdown with the big picture. What does that section look at? What is moving the whole market Why this one stock is moving Where your stop goes on the trade"
    },
    "lesson_line": "Start with the market, then the stock, then the trade.",
    "unit": "F12.06",
    "why": "What is moving the whole market. His book puts it plainly: first know what is moving the market. Plays suit some situations more than others, and Steenbarger says much of the skill is knowing which play to call when.",
    "wrong": {
-    "Where your stop goes": "That's trade management, further down the page.",
+    "Where your stop goes on the trade": "That's trade management, further down the page.",
     "Why this one stock is moving": "That's the next section, intraday fundamentals: the news behind the stock."
    }
   },
@@ -9826,7 +9826,7 @@
  },
  {
   "answer_json": {
-   "answer": "B, your setup traded as written"
+   "answer": "B, the setup traded as written"
   },
   "difficulty": 3,
   "id": "si_c9880070034c",
@@ -9837,8 +9837,8 @@
    "choices": [
     "All three, every trade counts",
     "A, the biggest winner",
-    "C, so you learn from it",
-    "B, your setup traded as written"
+    "C, so you can learn from it",
+    "B, the setup traded as written"
    ],
    "kind": "mcq",
    "q": "Which one goes in your playbook tonight?",
@@ -9880,7 +9880,7 @@
     "summary": "Bellafiore has his traders write up, after every session, the setup that made the most sense to them that day. A playbook is the plays and patterns that make sense to you and that you want to trade more of. A playbook trade starts with a pattern of market behavior that has paid over a defined time frame. Review your best trade by asking what helped you find it."
    },
    "facts": {
-    "given": "Which one goes in your playbook tonight? Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower. B, your setup traded as written A, the biggest winner C, so you learn from it All three, every trade counts"
+    "given": "Which one goes in your playbook tonight? Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower. B, the setup traded as written A, the biggest winner C, so you can learn from it All three, every trade counts"
    },
    "lesson_line": "Archive the play you'd gladly run again, not the trade that paid the most.",
    "unit": "F12.06",
@@ -9888,7 +9888,7 @@
    "wrong": {
     "A, the biggest winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
     "All three, every trade counts": "That's a trade log. The playbook holds the setups that made the most sense.",
-    "C, so you learn from it": "Learn from it in your journal. A trade where you broke your plan isn't a play you want more of."
+    "C, so you can learn from it": "Learn from it in your journal. A trade where you broke your plan isn't a play you want more of."
    }
   },
   "review_status": "draft",
@@ -9995,7 +9995,7 @@
  },
  {
   "answer_json": {
-   "answer": "No method to archive their best plays"
+   "answer": "No method to save their best plays"
   },
   "difficulty": 3,
   "id": "si_f487494401fa",
@@ -10004,9 +10004,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Too few stocks to trade",
-    "Not enough chart indicators",
-    "No method to archive their best plays",
+    "Too few stocks to choose from",
+    "Not enough chart indicators to use",
+    "No method to save their best plays",
     "Too little time watching screens"
    ],
    "kind": "mcq",
@@ -10048,14 +10048,14 @@
     "summary": "Bellafiore met a group of very experienced traders who were underperforming. What they shared: no method to archive their favorite setups, and no clear, instant way to say what their best plays were. Asked for their strengths, traders give vague answers that don't map onto a specific process. A section of the book is titled You Are Trading Too Many Stocks."
    },
    "facts": {
-    "given": "Bellafiore met very experienced traders who were underperforming. What did they have in common? No method to archive their best plays Too little time watching screens Too few stocks to trade Not enough chart indicators"
+    "given": "Bellafiore met very experienced traders who were underperforming. What did they have in common? No method to save their best plays Too little time watching screens Too few stocks to choose from Not enough chart indicators to use"
    },
    "lesson_line": "If you can't name your best play in one line, write it down.",
    "unit": "F12.06",
    "why": "No method to archive their best plays. They couldn't clearly and instantly say what their best plays were. Steenbarger hears the same: traders describe their strengths in vague terms that don't map onto a process.",
    "wrong": {
-    "Not enough chart indicators": "His common thread was no record of their best plays, not a missing tool.",
-    "Too few stocks to trade": "If anything, his book has a section titled You Are Trading Too Many Stocks.",
+    "Not enough chart indicators to use": "His common thread was no record of their best plays, not a missing tool.",
+    "Too few stocks to choose from": "If anything, his book has a section titled You Are Trading Too Many Stocks.",
     "Too little time watching screens": "They were very experienced. Time wasn't the gap; the missing method was."
    }
   },

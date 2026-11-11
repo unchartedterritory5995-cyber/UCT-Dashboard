@@ -979,9 +979,9 @@
    "q": "In one line, what is a launchpad?",
    "choices": [
     "Tight averages, a long rest, a launch",
-    "A box at the highs after a 30% run",
+    "A box at the highs after a 30% run-up",
     "A pole that doubles in a few weeks",
-    "A V rally into the averages"
+    "A V rally up through the averages"
    ],
    "answer": "Tight averages, a long rest, a launch",
    "why": "Tight averages, a long rest, a launch. TraderLion: price trades underneath the averages in a base, reclaims them, and they curl underneath price.",
@@ -995,9 +995,9 @@
    ],
    "house": true,
    "wrong": {
-    "A box at the highs after a 30% run": "That is a flat base: it holds above the 50-day and breaks out over its own high.",
+    "A box at the highs after a 30% run-up": "That is a flat base: it holds above the 50-day and breaks out over its own high.",
     "A pole that doubles in a few weeks": "That is the high tight flag's pole. A launchpad follows a correction, not a doubling.",
-    "A V rally into the averages": "A V rally up into the bundle is a breakout, not a launchpad. The pad lives under the averages for weeks."
+    "A V rally up through the averages": "A V rally up into the bundle is a breakout, not a launchpad. The pad lives under the averages for weeks."
    }
   },
   {
@@ -1140,9 +1140,9 @@
    "q": "Where does the 200-day sit on a good launchpad?",
    "choices": [
     "At or just under the bundle",
-    "Far above price",
-    "Far below, 30% away",
-    "It does not matter"
+    "Far above price, as a ceiling",
+    "Far below, a full 30% away",
+    "Its position does not matter"
    ],
    "answer": "At or just under the bundle",
    "why": "At or just under the bundle, within 10% of its middle. Haber: a pile of flat averages above price is a ceiling, not a launchpad.",
@@ -1154,9 +1154,9 @@
    ],
    "house": true,
    "wrong": {
-    "Far above price": "Flat averages above price are a ceiling, not a launchpad.",
-    "Far below, 30% away": "Too far. The 200-day sits within 10% of the bundle's middle, better at or just under it.",
-    "It does not matter": "It matters. The launch has to clear the 200-day too, and it should be close."
+    "Far above price, as a ceiling": "Flat averages above price are a ceiling, not a launchpad.",
+    "Far below, a full 30% away": "Too far. The 200-day sits within 10% of the bundle's middle, better at or just under it.",
+    "Its position does not matter": "It matters. The launch has to clear the 200-day too, and it should be close."
    }
   },
   {
@@ -1168,9 +1168,9 @@
    "q": "How long is a launchpad base, at least?",
    "choices": [
     "25 sessions, about five weeks",
-    "5 sessions, one week",
-    "10 sessions, two weeks",
-    "100 sessions, five months"
+    "5 sessions, about one week",
+    "10 sessions, about two weeks",
+    "100 sessions, about five months"
    ],
    "answer": "25 sessions, about five weeks",
    "why": "At least 25 sessions: five weeks of closes within 10% of the bundle's middle. A wedge pop is the few-day version.",
@@ -1182,9 +1182,9 @@
    ],
    "house": true,
    "wrong": {
-    "5 sessions, one week": "A tight range of a few days under the fast averages is a wedge pop, not a launchpad.",
-    "10 sessions, two weeks": "Two weeks is a pause, not a pad. The rule is 25 sessions.",
-    "100 sessions, five months": "Many pads run that long, but the floor is 25 sessions, not 100."
+    "5 sessions, about one week": "A tight range of a few days under the fast averages is a wedge pop, not a launchpad.",
+    "10 sessions, about two weeks": "Two weeks is a pause, not a pad. The rule is 25 sessions.",
+    "100 sessions, about five months": "Five months is not the rule. The floor is 25 sessions."
    }
   },
   {
@@ -1309,8 +1309,8 @@
    "q": "The stock averages 3,000,000 shares a day. The most you may own?",
    "choices": [
     "30,000 shares, 1% of the volume",
-    "300,000 shares",
-    "3,000 shares",
+    "300,000 shares, a tenth of volume",
+    "3,000 shares, a tenth of the cap",
     "No ceiling with a tight stop"
    ],
    "answer": "30,000 shares, 1% of the volume",
@@ -1322,8 +1322,8 @@
    ],
    "house": true,
    "wrong": {
-    "300,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
-    "3,000 shares": "That is a tenth of the 1% ceiling. The ceiling is 1%, not less.",
+    "300,000 shares, a tenth of volume": "That is a tenth of the day's volume. You could not get out without moving it.",
+    "3,000 shares, a tenth of the cap": "That is a tenth of the 1% ceiling. The ceiling is 1%, not less.",
     "No ceiling with a tight stop": "A stop cannot catch a gap. The ceiling stands."
    }
   },
@@ -1491,8 +1491,8 @@
    "q": "Buy, or pass?",
    "choices": [
     "Pass; 5% over the launch close",
-    "Buy; it is near the averages",
-    "Buy half size"
+    "Buy; still near the averages",
+    "Buy half size to cut the risk"
    ],
    "answer": "Pass; 5% over the launch close",
    "why": "Pass. Never buy more than 4% above the buy point; this open is 5% over the launch close. Chasing costs size, not risk.",
@@ -1503,8 +1503,8 @@
    ],
    "house": true,
    "wrong": {
-    "Buy; it is near the averages": "Near is not the test. The open is 5% past the launch close, and further still past the averages.",
-    "Buy half size": "Half of a chase is still a chase."
+    "Buy; still near the averages": "Near is not the test. The open is 5% past the launch close, and further still past the averages.",
+    "Buy half size to cut the risk": "Half of a chase is still a chase."
    },
    "story": "The launch closed at 50.00. Next morning it opens at 52.50. The top of the averages sits at 47.00.",
    "calc": {
@@ -1705,8 +1705,8 @@
    "q": "Where is the stop now?",
    "choices": [
     "71.20, the first 30-minute low",
-    "Sell at the open, 71.80",
-    "72.43 still",
+    "Sell at the open, at 71.80",
+    "72.43 still; the gap is noise",
     "Get out; the gap is past 2R"
    ],
    "answer": "71.20, the first 30-minute low",
@@ -1719,8 +1719,8 @@
    ],
    "house": true,
    "wrong": {
-    "Sell at the open, 71.80": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision, not the open.",
-    "72.43 still": "Price is already under it. A stop that has been gapped through needs the gap rule.",
+    "Sell at the open, at 71.80": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision, not the open.",
+    "72.43 still; the gap is noise": "Price is already under it. A stop that has been gapped through needs the gap rule.",
     "Get out; the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit."
    },
    "story": "You bought the launch at 76.16 with the stop at 72.43. It gaps open at 71.80, under the stop. The first 30-minute bar's low is 71.20."
@@ -2081,11 +2081,11 @@
    "criterion": "lp.inv_bundle_spreads",
    "q": "Still on the list?",
    "choices": [
-    "No; the bundle spread, off the list",
-    "Yes; wait for the launch",
+    "No; the bundle spread; drop it",
+    "Yes; keep waiting for a launch",
     "Yes; buy the 200-day retest"
    ],
-   "answer": "No; the bundle spread, off the list",
+   "answer": "No; the bundle spread; drop it",
    "why": "No. Before the entry, a bundle wider than 3% again takes it off the list. So does a close back under the 200-day after a pop.",
    "lesson_line": "A pad that unwinds is not resting. Drop it and look again later.",
    "facts": [
@@ -2093,7 +2093,7 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; wait for the launch": "There is no pad to launch from once the averages fan out past 3%.",
+    "Yes; keep waiting for a launch": "There is no pad to launch from once the averages fan out past 3%.",
     "Yes; buy the 200-day retest": "Under the 200-day there is no long to buy. The pad is off."
    },
    "story": "You have watched a pad for six weeks. This week the three averages fan out to 4.5% apart and price slides under the 200-day."
@@ -2349,11 +2349,11 @@
    "criterion": "lp.inv_pullback_breakout",
    "q": "Launchpad or flat base?",
    "choices": [
-    "A flat base; the buy is the base top",
-    "A launchpad; the averages are near",
-    "Both; take either"
+    "A flat base; buy the base top",
+    "A launchpad; averages nearby",
+    "Both; take whichever you like"
    ],
-   "answer": "A flat base; the buy is the base top",
+   "answer": "A flat base; buy the base top",
    "why": "A flat base. It holds above the 50-day and breaks out over its own highest high. A launchpad lives under the averages, and the launch is the close above them.",
    "lesson_line": "Look where the closes sat. Above the 50-day in a box is the flat base.",
    "facts": [
@@ -2363,8 +2363,8 @@
    ],
    "house": true,
    "wrong": {
-    "A launchpad; the averages are near": "Near is not under. A pad spends weeks under the bundle; this one never did.",
-    "Both; take either": "Each has its own trigger and stop. Name it first, then trade it by its own card."
+    "A launchpad; averages nearby": "Near is not under. A pad spends weeks under the bundle; this one never did.",
+    "Both; take whichever you like": "Each has its own trigger and stop. Name it first, then trade it by its own card."
    },
    "story": "For nine weeks every close held above a rising 50-day in a box near the highs. Today it trades through the box's top."
   },
@@ -2686,7 +2686,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2728,13 +2728,13 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. Wrong choice reworded to even the lengths. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q09": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. Unsupported wrong note ('Many pads run that long') replaced. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2770,7 +2770,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "30,000 = 1% of 3,000,000 (D42). The 3,000 wrong note said 'a tenth of the line', which does not read; now 'a tenth of the 1% ceiling'.",
+   "notes": "30,000 = 1% of 3,000,000 (D42). The 3,000 wrong note said 'a tenth of the line', which does not read; now 'a tenth of the 1% ceiling'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2818,7 +2818,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "5.0 re-derived (52.50 / 50.00 - 1). Passes under both D-022 buy points (5% over the launch close, 11.7% over the 47.00 top of the averages). The wrong note said 'the averages are not the buy point; the launch close is', which picks D-022's option for the owner: now says the open is past both.",
+   "notes": "5.0 re-derived (52.50 / 50.00 - 1). Passes under both D-022 buy points (5% over the launch close, 11.7% over the 47.00 top of the averages). The wrong note said 'the averages are not the buy point; the launch close is', which picks D-022's option for the owner: now says the open is past both. Two wrong choices shortened to even the lengths. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2866,7 +2866,7 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "NEE's levels: R = 3.73; a 71.20 first-30-minute low is a 4.96 loss, 1.33R, inside B20's 2R ceiling. Key right.",
+   "notes": "NEE's levels: R = 3.73; a 71.20 first-30-minute low is a 4.96 loss, 1.33R, inside B20's 2R ceiling. Key right. Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2956,7 +2956,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "Key on c22 (proposed). Why had a 24-word sentence: split.",
+   "notes": "Key on c22 (proposed). Why had a 24-word sentence: split. Two wrong choices shortened. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3022,7 +3022,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "The card's flat-base lookalike (c34, c33). Why had a 31-word sentence: split.",
+   "notes": "The card's flat-base lookalike (c34, c33). Why had a 31-word sentence: split. Wrong choice shortened. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

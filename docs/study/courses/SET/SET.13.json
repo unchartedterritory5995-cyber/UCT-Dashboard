@@ -1016,12 +1016,12 @@
    "criterion": "htf.pole_size",
    "q": "In one line, what is a high tight flag?",
    "choices": [
-    "A short pause after a near-double",
-    "A long box after a modest run",
+    "A short rest after a near-double",
+    "A long box after a modest run up",
     "Pullbacks that shrink for months",
-    "A rebound off a crash low"
+    "A sharp rebound off a crash low"
    ],
-   "answer": "A short pause after a near-double",
+   "answer": "A short rest after a near-double",
    "why": "A short pause after a near-double. IBD: first the stock gains 100% to 120% in four to eight weeks. Then the flag forms as it pulls back.",
    "lesson_line": "A high tight flag is a rocket catching its breath for a few weeks, a little under the high.",
    "facts": [
@@ -1031,9 +1031,9 @@
     "c01"
    ],
    "wrong": {
-    "A long box after a modest run": "That is a flat base. The flag follows a far bigger, faster run and rests for weeks, not months.",
+    "A long box after a modest run up": "That is a flat base. The flag follows a far bigger, faster run and rests for weeks, not months.",
     "Pullbacks that shrink for months": "That is a VCP. The flag is one shelf a little under the high of the pole.",
-    "A rebound off a crash low": "That is a V. Bulkowski says to avoid V shapes, where price drops hard into the start of the pole."
+    "A sharp rebound off a crash low": "That is a V. Bulkowski says to avoid V shapes, where price drops hard into the start of the pole."
    }
   },
   {
@@ -1085,9 +1085,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "htf.flag_volume",
-   "q": "In a proper flag, volume runs lighter than it did on the pole.",
-   "answer": "True",
-   "why": "True. Flag volume runs below the pole's average. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
+   "q": "In a proper flag, volume runs heavier than it did on the pole.",
+   "answer": "False",
+   "why": "False. Flag volume runs below the pole's average. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
    "lesson_line": "Loud on the way up, quiet in the flag. Holders are not selling.",
    "facts": [
     "c07",
@@ -1105,9 +1105,9 @@
    "q": "Where does the best pole usually start?",
    "choices": [
     "A quiet base, then real news",
-    "A crash low, falling hard",
+    "A crash low, still falling hard",
     "The third leg of a long run",
-    "Under a falling 200-day"
+    "Under a falling 200-day average"
    ],
    "answer": "A quiet base, then real news",
    "why": "A quiet base, then real news. Kuhn: a long, well-contained base first, then a news event lifts the stock. Bulkowski: poles springing from flat bases work better.",
@@ -1118,9 +1118,9 @@
     "b10"
    ],
    "wrong": {
-    "A crash low, falling hard": "That is the V Bulkowski says to avoid. A rebound off a crash is not a fresh pole.",
+    "A crash low, still falling hard": "That is the V Bulkowski says to avoid. A rebound off a crash is not a fresh pole.",
     "The third leg of a long run": "Late legs break down. Bonde: a tight flag late in the move breaks down.",
-    "Under a falling 200-day": "We do not buy under the 200-day. A real pole starts from a base, not a downtrend."
+    "Under a falling 200-day average": "We do not buy under the 200-day. A real pole starts from a base, not a downtrend."
    }
   },
   {
@@ -1147,12 +1147,12 @@
    "criterion": "htf.pole_size",
    "q": "IBD says how many of these you might find in a whole bull market?",
    "choices": [
-    "One or two, if you are lucky",
-    "About one a week",
-    "A dozen every month",
-    "Hundreds in each scan"
+    "One or two, with some luck",
+    "About one every single week",
+    "A dozen or so every month",
+    "Hundreds in each daily scan"
    ],
-   "answer": "One or two, if you are lucky",
+   "answer": "One or two, with some luck",
    "why": "One or two, if you are lucky. Bonde: if you find too many high tight flags, your reading is wrong. Our scan found only 12 liquid hits in 36 years before 2020.",
    "lesson_line": "If you see one every week, you are calling ordinary flags by the wrong name.",
    "facts": [
@@ -1162,9 +1162,9 @@
     "d24"
    ],
    "wrong": {
-    "About one a week": "Far too many. It is rare, and Bonde warns that seeing too many means a misreading.",
-    "A dozen every month": "That many means ordinary tight flags are being called by this name.",
-    "Hundreds in each scan": "A scan that returns hundreds is catching bull flags, not near-doubles."
+    "About one every single week": "Far too many. It is rare, and Bonde warns that seeing too many means a misreading.",
+    "A dozen or so every month": "That many means ordinary tight flags are being called by this name.",
+    "Hundreds in each daily scan": "A scan that returns hundreds is catching bull flags, not near-doubles."
    },
    "house": true
   },
@@ -1361,8 +1361,8 @@
    "q": "Which stop is ours on a high tight flag?",
    "choices": [
     "A few cents under the day's low",
-    "At the flag's bottom",
-    "8% under the buy",
+    "At the very bottom of the flag",
+    "A flat 8% under the buy price",
     "Half the pole under the high"
    ],
    "answer": "A few cents under the day's low",
@@ -1378,8 +1378,8 @@
     "k02"
    ],
    "wrong": {
-    "At the flag's bottom": "That is Bulkowski's stop. For us the flag low kills the idea; it is not the stop.",
-    "8% under the buy": "That is IBD's general sell rule, not a stop for this base. Taser triggered it and then recovered.",
+    "At the very bottom of the flag": "That is Bulkowski's stop. For us the flag low kills the idea; it is not the stop.",
+    "A flat 8% under the buy price": "That is IBD's general sell rule, not a stop for this base. Taser triggered it and then recovered.",
     "Half the pole under the high": "That is far too wide. Our stop usually sits within about 3% of the buy."
    },
    "house": true
@@ -1436,9 +1436,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "htf.trim_1",
-   "q": "On a high tight flag our hard rule sells the first third at 3R.",
-   "answer": "True",
-   "why": "True. The hard rule for the first trim is a third at 3R. Ideally anywhere from 3R to 6R; in practice we mostly wait for 5R.",
+   "q": "On a high tight flag our hard rule sells the first third at 5R.",
+   "answer": "False",
+   "why": "False. The hard rule for the first trim is a third at 3R. Ideally anywhere from 3R to 6R; in practice we mostly wait for 5R.",
    "lesson_line": "A third at 3R is the hard rule. Know the price before the open.",
    "facts": [
     "h05",
@@ -1480,12 +1480,12 @@
    "criterion": "htf.catalyst",
    "q": "What usually sits behind the pole?",
    "choices": [
-    "A real change, like an earnings beat",
-    "Nothing; poles are random",
-    "A stock split",
-    "A big index rebalance"
+    "A real business change or news",
+    "Nothing at all; poles are random",
+    "A stock split or a name change",
+    "A big index fund rebalance"
    ],
-   "answer": "A real change, like an earnings beat",
+   "answer": "A real business change or news",
    "why": "A real change, like an earnings beat. With heavy volume it is the A+ context. Seven of the ten examples had a report inside the pole.",
    "lesson_line": "Ask why it doubled. A real change in the business is the best answer.",
    "facts": [
@@ -1494,9 +1494,9 @@
     "g01"
    ],
    "wrong": {
-    "Nothing; poles are random": "Kuhn: an important news event usually lifts the stock out of dormancy.",
-    "A stock split": "A split changes the share count, not the business. It is no reason to double.",
-    "A big index rebalance": "Flows can move a stock, but the card's A+ context is a change in the business."
+    "Nothing at all; poles are random": "Kuhn: an important news event usually lifts the stock out of dormancy.",
+    "A stock split or a name change": "A split changes the share count, not the business. It is no reason to double.",
+    "A big index fund rebalance": "Flows can move a stock, but the card's A+ context is a change in the business."
    },
    "house": true
   },
@@ -1784,7 +1784,7 @@
     "Hold; the stop is the exit",
     "Widen it to the flag low",
     "Sell now, before it fails",
-    "Add more at the high"
+    "Add more at the pattern high"
    ],
    "answer": "Hold; the stop is the exit",
    "why": "Hold. The stop only moves up, never down or wider. Two in three winners come back to the breakout price within a month.",
@@ -1797,7 +1797,7 @@
    "wrong": {
     "Widen it to the flag low": "The stop never moves down. Widening it is the mistake the rule exists to stop.",
     "Sell now, before it fails": "A pullback to the breakout price is common. Selling early turns a normal test into a loss.",
-    "Add more at the high": "We never add. The full size goes on at one price with one stop."
+    "Add more at the pattern high": "We never add. The full size goes on at one price with one stop."
    },
    "house": true
   },
@@ -1839,12 +1839,12 @@
    "q": "What do you do at the open?",
    "story": "Bought at 40.00, stop 39.00, so 3R is 43.00. The next morning it opens at 43.60.",
    "choices": [
-    "Sell the first third at the open",
-    "Wait for a dip to 43.00",
-    "Sell it all at the open",
-    "Do nothing until 5R"
+    "Sell one third at the open",
+    "Wait for a dip back to 43.00",
+    "Sell the whole lot at the open",
+    "Do nothing at all until 5R"
    ],
-   "answer": "Sell the first third at the open",
+   "answer": "Sell one third at the open",
    "why": "Sell the first third at the open. If a stock opens above a trim level, take that trim at the open.",
    "lesson_line": "A trim level the open jumps over is taken at the open, not waited for.",
    "facts": [
@@ -1852,9 +1852,9 @@
     "h05"
    ],
    "wrong": {
-    "Wait for a dip to 43.00": "The open already passed 3R. Waiting for a dip can leave the trim untaken.",
-    "Sell it all at the open": "A third comes off at 3R. The rest keeps working.",
-    "Do nothing until 5R": "The hard rule is a third at 3R. The open is past it."
+    "Wait for a dip back to 43.00": "The open already passed 3R. Waiting for a dip can leave the trim untaken.",
+    "Sell the whole lot at the open": "A third comes off at 3R. The rest keeps working.",
+    "Do nothing at all until 5R": "The hard rule is a third at 3R. The open is past it."
    },
    "house": true
   },
@@ -1986,9 +1986,9 @@
    "q": "What relative strength do we want on this setup?",
    "choices": [
     "An RS rating of 80 or more",
-    "Anything above 50",
-    "RS does not matter here",
-    "Only a rating of 99"
+    "Anything over 50 is fine",
+    "RS does not matter on this one",
+    "Only a rating of 99 or better"
    ],
    "answer": "An RS rating of 80 or more",
    "why": "An RS rating of 80 or more, in one of the strongest groups. After a doubling it is almost automatic: Taser showed a 98 RS at its breakout.",
@@ -2000,9 +2000,9 @@
     "c46"
    ],
    "wrong": {
-    "Anything above 50": "Our floor is 80. Half the market sits above 50.",
-    "RS does not matter here": "Buy leaders is our rule on every long setup except parabolic and mean-reversion trades.",
-    "Only a rating of 99": "Too narrow. The floor is 80, with 90 or more as the A+ cue."
+    "Anything over 50 is fine": "Our floor is 80. Half the market sits above 50.",
+    "RS does not matter on this one": "Buy leaders is our rule on every long setup except parabolic and mean-reversion trades.",
+    "Only a rating of 99 or better": "Too narrow. The floor is 80, with 90 or more as the A+ cue."
    },
    "house": true
   },
@@ -2012,9 +2012,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "htf.pole_size",
-   "q": "A VCP strings shrinking pullbacks; a high tight flag is one shelf a little under the high.",
-   "answer": "True",
-   "why": "True. Look for shrinking pullbacks. A VCP strings several contractions after an advance; this setup is one shelf under the high of a huge pole.",
+   "q": "A VCP is one shelf a little under the high; a high tight flag strings shrinking pullbacks.",
+   "answer": "False",
+   "why": "False. The two are swapped. A VCP strings several contractions after an advance; this setup is one shelf under the high of a huge pole.",
    "lesson_line": "Several shrinking dips is a VCP. One shelf after a rocket is the flag.",
    "facts": [
     "c33"
@@ -2031,21 +2031,21 @@
    "story": "The stock was up 250% in the six months before this pole began. Now it doubles again and pauses tight.",
    "choices": [
     "Pass; too late in the move",
-    "A+, more momentum",
+    "A+, with more momentum",
     "Buy it; tight is tight",
-    "A fresh first base"
+    "A fresh first base off a low"
    ],
    "answer": "Pass; too late in the move",
-   "why": "Pass. Not late: the stock was not already up more than 200% in the 6 months before the pole. Bonde: a tight flag late in the move breaks down.",
+   "why": "Pass. The gate is not late: no more than 200% up in the 6 months before the pole. This one was up 250%. Bonde: a tight flag late in the move breaks down.",
    "lesson_line": "Early legs pay. A flag after a giant run is where tired moves end.",
    "facts": [
     "c11",
     "p03"
    ],
    "wrong": {
-    "A+, more momentum": "Momentum this late is the risk, not the edge. The not-late line is a gate.",
+    "A+, with more momentum": "Momentum this late is the risk, not the edge. The not-late line is a gate.",
     "Buy it; tight is tight": "Tightness does not fix a late flag. Bonde: late flags break down.",
-    "A fresh first base": "After 250% in six months it is not first. The count starts at the quiet base."
+    "A fresh first base off a low": "After 250% in six months it is not first. The count starts at the quiet base."
    },
    "house": true
   },
@@ -2143,8 +2143,8 @@
    "story": "The stock doubled in seven weeks. Then it rested 38 sessions in a 9% box near the high.",
    "choices": [
     "Flat base; the rest is too long",
-    "High tight flag; it doubled",
-    "Bull flag; it is tight"
+    "High tight flag; the price doubled",
+    "Bull flag; the box is tight"
    ],
    "answer": "Flat base; the rest is too long",
    "why": "The flat base. Count the rest. IBD's flag forms over the next three to five weeks, and 38 sessions is far past that.",
@@ -2155,8 +2155,8 @@
     "b05"
    ],
    "wrong": {
-    "High tight flag; it doubled": "The double fits, but the rest runs far past a few weeks. It has become a base.",
-    "Bull flag; it is tight": "A bull flag is a short drift after a smaller run. This is a long box."
+    "High tight flag; the price doubled": "The double fits, but the rest runs far past a few weeks. It has become a base.",
+    "Bull flag; the box is tight": "A bull flag is a short drift after a smaller run. This is a long box."
    },
    "house": true
   },
@@ -2197,8 +2197,8 @@
    "story": "The stock rose 35% in six weeks. Then it tightened for four weeks with higher lows, riding its rising short averages.",
    "choices": [
     "Qullamaggie breakout",
-    "High tight flag",
-    "A V off a crash"
+    "High tight flag setup",
+    "A V off a crash low"
    ],
    "answer": "Qullamaggie breakout",
    "why": "The Qullamaggie breakout. It needs only a 30% move in the past 1 to 3 months. The high tight flag needs the double in 8 weeks or less.",
@@ -2208,8 +2208,8 @@
     "k01"
    ],
    "wrong": {
-    "High tight flag": "35% is nowhere near a double. The flag needs the near-double first.",
-    "A V off a crash": "Nothing here fell. It rose and tightened."
+    "High tight flag setup": "35% is nowhere near a double. The flag needs the near-double first.",
+    "A V off a crash low": "Nothing here fell. It rose and tightened."
    },
    "house": true
   },
@@ -2767,7 +2767,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key by the card's pattern line and lookalikes; IBD i01/i02 found on the page. The IBD 100% to 120% in the why is a source figure, not a gate.",
+   "notes": "Key by the card's pattern line and lookalikes; IBD i01/i02 found on the page. The IBD 100% to 120% in the why is a source figure, not a gate. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2785,13 +2785,13 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "Key c07 (proposed); IBD i03 and Bulkowski b03 found.",
+   "notes": "Key c07 (proposed); IBD i03 and Bulkowski b03 found. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q05": {
    "status": "pass",
-   "notes": "Kuhn g01 and Bulkowski b10/b11 found on the pages. Key is a context cue (proposed).",
+   "notes": "Kuhn g01 and Bulkowski b10/b11 found on the pages. Key is a context cue (proposed). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2803,7 +2803,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "IBD i15 (via Bonde) found; d24 verbatim (12 liquid hits in 36 years before 2020).",
+   "notes": "IBD i15 (via Bonde) found; d24 verbatim (12 liquid hits in 36 years before 2020). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2857,7 +2857,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "Settled stop (c03, F62); Bulkowski b19 and IBD i17 found for the wrong notes; A13 for the 3%.",
+   "notes": "Settled stop (c03, F62); Bulkowski b19 and IBD i17 found for the wrong notes; A13 for the 3%. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2875,7 +2875,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "Settled: B19 verbatim (a third at 3R is the hard rule).",
+   "notes": "Settled: B19 verbatim (a third at 3R is the hard rule). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2887,7 +2887,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "Key c12 (proposed) and Kuhn g01 found; c39 (seven of ten examples had a report inside the pole) is on the card.",
+   "notes": "Key c12 (proposed) and Kuhn g01 found; c39 (seven of ten examples had a report inside the pole) is on the card. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2959,7 +2959,7 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "Settled A4 and the card's throwback line (c27, two in three winners).",
+   "notes": "Settled A4 and the card's throwback line (c27, two in three winners). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2971,7 +2971,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "Re-derived: 3R = 40.00 + 3 x 1.00 = 43.00; the open 43.60 is past it. Settled F63 (h25) verbatim.",
+   "notes": "Re-derived: 3R = 40.00 + 3 x 1.00 = 43.00; the open 43.60 is past it. Settled F63 (h25) verbatim. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3001,19 +3001,19 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "Settled C31 (RS 80 or more); IBD i12 found (Taser 98 RS).",
+   "notes": "Settled C31 (RS 80 or more); IBD i12 found (Taser 98 RS). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q41": {
    "status": "pass",
-   "notes": "Key c33 (the card's VCP tell) verbatim.",
+   "notes": "Key c33 (the card's VCP tell) verbatim. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q42": {
    "status": "pass",
-   "notes": "Key c11 (not up more than 200% in the 6 months before the pole, proposed) and Bonde p03 found.",
+   "notes": "Key c11 (not up more than 200% in the 6 months before the pole, proposed) and Bonde p03 found. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3037,7 +3037,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "Key c02/c32 and the card's flat-base lookalike (a rest of 25+ sessions in a box 15% or less); 38 sessions is past every source's maximum (IBD 3 to 5 weeks, Kuhn 3 to 6), so no pending flag_length number is keyed. The why said 'Bulkowski avoids flags that are too long', which b05 does not say; removed. Fixed.",
+   "notes": "Key c02/c32 and the card's flat-base lookalike (a rest of 25+ sessions in a box 15% or less); 38 sessions is past every source's maximum (IBD 3 to 5 weeks, Kuhn 3 to 6), so no pending flag_length number is keyed. The why said 'Bulkowski avoids flags that are too long', which b05 does not say; removed. Fixed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3049,7 +3049,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "Key c34 and Kullamagi k01 found (a 30% to 100% move in the past 1 to 3 months).",
+   "notes": "Key c34 and Kullamagi k01 found (a 30% to 100% move in the past 1 to 3 months). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

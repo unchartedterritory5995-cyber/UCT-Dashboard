@@ -2360,9 +2360,9 @@
    "q": "What is a breakout?",
    "choices": [
     "A move through resistance or support",
-    "A bounce off support",
+    "A bounce off support on heavy volume",
     "A dip back to the moving average",
-    "Any big up day"
+    "Any big up day on heavy volume"
    ],
    "answer": "A move through resistance or support",
    "why": "A move through resistance or support. Price leaves the level that held it. A break below support is often called a breakdown.",
@@ -2376,9 +2376,9 @@
     "f28"
    ],
    "wrong": {
-    "A bounce off support": "A bounce turns at the level. A breakout goes through it.",
+    "A bounce off support on heavy volume": "A bounce turns at the level. A breakout goes through it.",
     "A dip back to the moving average": "That's a pullback, a pause inside a trend.",
-    "Any big up day": "A big day inside a range isn't a breakout. Price has to clear a level that held it."
+    "Any big up day on heavy volume": "A big day inside a range isn't a breakout. Price has to clear a level that held it."
    }
   },
   {
@@ -2497,7 +2497,7 @@
    "rung": 8,
    "format": "tf",
    "term": "throwback",
-   "q": "After a real breakout, price almost never comes back to the breakout level.",
+   "q": "After a real breakout, price rarely comes back to the breakout level.",
    "answer": "False",
    "why": "False. In Bulkowski's data since 2000, 58% of upward breakouts came back to the breakout price. He calls that a throwback. Investopedia says it often happens even after high-volume breakouts.",
    "lesson_line": "Plan for a retest. Set your stop so a normal throwback to the level doesn't shake you out.",
@@ -2519,9 +2519,9 @@
    "q": "What does a moving average line on a chart show?",
    "choices": [
     "The average close over recent days",
-    "Today's high and low",
-    "Where price will go next",
-    "The stock's fair value"
+    "Today's high, low and closing price",
+    "Where price will most likely go next",
+    "The stock's fair value per share"
    ],
    "answer": "The average close over recent days",
    "why": "The average close over recent days. Each day the newest close is added and the oldest dropped, so the line moves along with price.",
@@ -2538,9 +2538,9 @@
     "f202"
    ],
    "wrong": {
-    "Today's high and low": "That's one day's range. A moving average averages many days.",
-    "Where price will go next": "It doesn't predict. ChartSchool says it defines the current direction, and it lags.",
-    "The stock's fair value": "It's only an average of past prices. It says nothing about what the company is worth."
+    "Today's high, low and closing price": "That's one day's range. A moving average averages many days.",
+    "Where price will most likely go next": "It doesn't predict. ChartSchool says it defines the current direction, and it lags.",
+    "The stock's fair value per share": "It's only an average of past prices. It says nothing about what the company is worth."
    }
   },
   {
@@ -2706,12 +2706,12 @@
    "term": "extended",
    "q": "When we call a stock extended, what do we mean?",
    "choices": [
-    "Stretched far above its moving averages",
-    "Down a lot from its highs",
+    "Stretched far above its averages",
+    "Down a lot from its 52-week high",
     "Stuck in a tight sideways range"
    ],
-   "answer": "Stretched far above its moving averages",
-   "why": "Stretched far above its moving averages. We put a number on it: the percent the price sits above the averages. ChartSchool adds that an extended stock has already started its advance past the buy point.",
+   "answer": "Stretched far above its averages",
+   "why": "Stretched far above its averages. We put a number on it: the percent the price sits above the averages. ChartSchool adds that an extended stock has already started its advance past the buy point.",
    "lesson_line": "Extended is a measurement, not a feeling. Know the percent before you chase.",
    "facts": [
     "h1",
@@ -2719,7 +2719,7 @@
     "f96"
    ],
    "wrong": {
-    "Down a lot from its highs": "That's the other number we track, percent down from highs. Extended is the stretch above the averages.",
+    "Down a lot from its 52-week high": "That's the other number we track, percent down from highs. Extended is the stretch above the averages.",
     "Stuck in a tight sideways range": "That's a stock resting. Extended is a stock that has run far from its averages."
    },
    "house": true
@@ -2759,8 +2759,8 @@
    "q": "What's the sound move now?",
    "choices": [
     "Wait for a pullback or a new setup",
-    "Buy now before it runs further",
-    "Short it: it has to come down"
+    "Buy now before it runs even further",
+    "Short it: it has to come back down"
    ],
    "answer": "Wait for a pullback or a new setup",
    "why": "Wait. A stock this far above its average has already begun its advance, so buying it here is riskier. ChartSchool says after a big advance it may be prudent to wait for a pullback.",
@@ -2773,8 +2773,8 @@
     "f29"
    ],
    "wrong": {
-    "Buy now before it runs further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
-    "Short it: it has to come down": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short."
+    "Buy now before it runs even further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
+    "Short it: it has to come back down": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short."
    }
   },
   {
@@ -2830,12 +2830,12 @@
    "story": "A stock has been in a steady downtrend for months. Its RSI drops to 25. A friend says it's oversold, so it has to bounce.",
    "q": "What's the better read?",
    "choices": [
-    "It can stay oversold and keep falling",
-    "Oversold means buy right now",
-    "RSI 25 means the downtrend ended"
+    "It can stay oversold for a long time",
+    "Oversold means it is time to buy now",
+    "RSI 25 means the downtrend has ended"
    ],
-   "answer": "It can stay oversold and keep falling",
-   "why": "It can stay oversold and keep falling. Oversold is an alert, not a buy signal, and stocks in a downtrend can look cheap all the way down.",
+   "answer": "It can stay oversold for a long time",
+   "why": "It can stay oversold for a long time and keep falling. Oversold is an alert, not a buy signal, and stocks in a downtrend can look cheap all the way down.",
    "lesson_line": "Oversold isn't a reason to buy. Wait for price to turn up and show you.",
    "facts": [
     "f111",
@@ -2848,8 +2848,8 @@
     "f213"
    ],
    "wrong": {
-    "Oversold means buy right now": "Investopedia says some traders wrongly read oversold as a buy signal. It's more of an alert.",
-    "RSI 25 means the downtrend ended": "A reading doesn't end a trend. Price ends it, with a higher low and then a higher high."
+    "Oversold means it is time to buy now": "Investopedia says some traders wrongly read oversold as a buy signal. It's more of an alert.",
+    "RSI 25 means the downtrend has ended": "A reading doesn't end a trend. Price ends it, with a higher low and then a higher high."
    }
   },
   {
@@ -3050,8 +3050,8 @@
    "q": "When a chart shows heavy volume on a day, what does that mean?",
    "choices": [
     "Far more shares traded than usual",
-    "The price moved a lot",
-    "Buyers outnumbered sellers"
+    "The price moved a lot that day",
+    "Buyers outnumbered sellers that day"
    ],
    "answer": "Far more shares traded than usual",
    "why": "Far more shares traded than usual. Volume counts shares changing hands, and heavy means well above the stock's average.",
@@ -3065,8 +3065,8 @@
     "f144"
    ],
    "wrong": {
-    "The price moved a lot": "Price and volume are separate measures. A big move can come on light volume, and a quiet day on heavy volume.",
-    "Buyers outnumbered sellers": "Every share bought is a share sold. Heavy volume means more shares changed hands, not more buyers than sellers."
+    "The price moved a lot that day": "Price and volume are separate measures. A big move can come on light volume, and a quiet day on heavy volume.",
+    "Buyers outnumbered sellers that day": "Every share bought is a share sold. Heavy volume means more shares changed hands, not more buyers than sellers."
    }
   },
   {
@@ -3149,13 +3149,13 @@
    "term": "base",
    "q": "On a chart, what is a base?",
    "choices": [
-    "A sideways range lasting weeks or more",
-    "A one-day gap up",
+    "A sideways range lasting weeks",
+    "A one-day gap up on heavy volume",
     "A steady climb with no pauses",
     "The year's lowest price"
    ],
-   "answer": "A sideways range lasting weeks or more",
-   "why": "A sideways range lasting weeks or more. Price rests in a flat area, touching the same levels again and again, with no clear trend.",
+   "answer": "A sideways range lasting weeks",
+   "why": "A sideways range lasting weeks. Price rests in a flat area, touching the same levels again and again, with no clear trend.",
    "lesson_line": "A base is a stock catching its breath. Learn to spot the flat stretch before the next move.",
    "facts": [
     "f138",
@@ -3164,7 +3164,7 @@
     "f190"
    ],
    "wrong": {
-    "A one-day gap up": "A gap is a single jump. A base takes weeks to build.",
+    "A one-day gap up on heavy volume": "A gap is a single jump. A base takes weeks to build.",
     "A steady climb with no pauses": "That's a trend. A base is the pause.",
     "The year's lowest price": "That's the 52-week low. A base is a stretch of time, not one price."
    }
@@ -3201,12 +3201,12 @@
    "term": "distribution",
    "q": "On a chart, what does distribution mean?",
    "choices": [
-    "Big holders selling without moving price",
-    "Big holders buying in a quiet range",
-    "A company paying out a dividend"
+    "Big holders selling off quietly",
+    "Big holders buying quietly in a range",
+    "A company paying out a cash dividend"
    ],
-   "answer": "Big holders selling without moving price",
-   "why": "Big holders selling without moving price much. Near a top it often shows as heavy volume with no progress in price.",
+   "answer": "Big holders selling off quietly",
+   "why": "Big holders selling off quietly, without moving price much. Near a top it often shows as heavy volume with no progress in price.",
    "lesson_line": "Heavy volume and no upside progress near the highs is a warning. Someone big may be selling.",
    "facts": [
     "f143",
@@ -3214,8 +3214,8 @@
     "f140"
    ],
    "wrong": {
-    "Big holders buying in a quiet range": "That's accumulation, the opposite.",
-    "A company paying out a dividend": "That's a different, business use of the word. On a chart, distribution means big holders selling."
+    "Big holders buying quietly in a range": "That's accumulation, the opposite.",
+    "A company paying out a cash dividend": "That's a different, business use of the word. On a chart, distribution means big holders selling."
    }
   },
   {
@@ -3245,8 +3245,8 @@
    "q": "What does the coil tell you about the next move?",
    "choices": [
     "A move may come; direction unknown",
-    "It will break out to the upside",
-    "It will break down",
+    "It will break out to the upside soon",
+    "It will break down through the low",
     "It will stay quiet for months"
    ],
    "answer": "A move may come; direction unknown",
@@ -3261,8 +3261,8 @@
     "f146"
    ],
    "wrong": {
-    "It will break out to the upside": "Maybe, but nothing in a coil promises that. ChartSchool says the direction can only be known after the break.",
-    "It will break down": "Same problem the other way. Guessing the break is how you get caught.",
+    "It will break out to the upside soon": "Maybe, but nothing in a coil promises that. ChartSchool says the direction can only be known after the break.",
+    "It will break down through the low": "Same problem the other way. Guessing the break is how you get caught.",
     "It will stay quiet for months": "Low-volatility stretches are often followed by high volatility. That's why traders watch coils."
    }
   },
@@ -3380,7 +3380,7 @@
    "rung": 7,
    "format": "tf",
    "term": "gap fill",
-   "q": "Sooner or later, every gap on a chart gets filled.",
+   "q": "Any gap on a chart is sure to get filled sooner or later.",
    "answer": "False",
    "why": "False. Common gaps usually fill fast, but breakaway gaps often don't. In bull markets, Bulkowski found only 1% of upward breakaway gaps closed within a week.",
    "lesson_line": "Don't sit out a strong breakaway gap waiting for a fill. It may never come.",
@@ -3801,7 +3801,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f52, f53 (Investopedia breakout, live), f59, f60 (Schwab), f61 (ChartSchool glossary B) confirmed. Removed the unsourced 'Most traders mean the upside break'; 'usually called a breakdown' is now the source's 'often called'.",
+   "notes": "f52, f53 (Investopedia breakout, live), f59, f60 (Schwab), f61 (ChartSchool glossary B) confirmed. Removed the unsourced 'Most traders mean the upside break'; 'usually called a breakdown' is now the source's 'often called'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3831,13 +3831,13 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "f72 confirmed on Bulkowski's throwbacks page (dated 11/06/2026): 'Since year 2000, 58% of 10,305 chart patterns with upward breakouts had throwbacks.' Reveal now says 'since 2000'. f55 (Investopedia), f219 (ChartSchool), f220 (Fidelity) confirmed. Stop lesson agrees with f57.",
+   "notes": "f72 confirmed on Bulkowski's throwbacks page (dated 11/06/2026): 'Since year 2000, 58% of 10,305 chart patterns with upward breakouts had throwbacks.' Reveal now says 'since 2000'. f55 (Investopedia), f219 (ChartSchool), f220 (Fidelity) confirmed. Stop lesson agrees with f57. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q18": {
    "status": "pass",
-   "notes": "f75, f76, f77 (ChartSchool MA), f197, f198 (Schwab), f204 (Fidelity) live; f88 (Investopedia MA) in the archive copy (updated Dec 18, 2025). Each wrong choice is a real misconception.",
+   "notes": "f75, f76, f77 (ChartSchool MA), f197, f198 (Schwab), f204 (Fidelity) live; f88 (Investopedia MA) in the archive copy (updated Dec 18, 2025). Each wrong choice is a real misconception. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3879,7 +3879,7 @@
   },
   "q25": {
    "status": "pass",
-   "notes": "House item: h1 is the owner's quoted words ('% extended from MAs', OWNER_PRINCIPLES rule 9). f95 (ChartSchool glossary E: past its pivot point) and f96 confirmed live. Both wrong choices are wrong under either meaning.",
+   "notes": "House item: h1 is the owner's quoted words ('% extended from MAs', OWNER_PRINCIPLES rule 9). f95 (ChartSchool glossary E: past its pivot point) and f96 confirmed live. Both wrong choices are wrong under either meaning. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3891,7 +3891,7 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "f95, f99, f100 (ChartSchool), f231 (ChartSchool overview), f29 (Investopedia pullback) confirmed. 'Has already made its move and is more likely to pull back' was stronger than the source; now ChartSchool's 'already begun its advance', so buying is riskier. Waiting, not chasing or shorting, is sound.",
+   "notes": "f95, f99, f100 (ChartSchool), f231 (ChartSchool overview), f29 (Investopedia pullback) confirmed. 'Has already made its move and is more likely to pull back' was stronger than the source; now ChartSchool's 'already begun its advance', so buying is riskier. Waiting, not chasing or shorting, is sound. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3909,7 +3909,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "f102, f211, f213 confirmed live; f111-f114 (Investopedia oversold) word for word in the archive copy (updated Dec 15, 2023). A wrong note said Investopedia 'calls that a common mistake'; the page says 'some traders', and the note now says so.",
+   "notes": "f102, f211, f213 confirmed live; f111-f114 (Investopedia oversold) word for word in the archive copy (updated Dec 15, 2023). A wrong note said Investopedia 'calls that a common mistake'; the page says 'some traders', and the note now says so. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3957,7 +3957,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "f130 (Investopedia volume, live), f131 (ChartSchool glossary V: 100 bought = 100 sold), f132, f193 (Schwab), f210 (Fidelity) confirmed. Added f144 (Schwab: volume up without price up) to back 'a quiet day on heavy volume'.",
+   "notes": "f130 (Investopedia volume, live), f131 (ChartSchool glossary V: 100 bought = 100 sold), f132, f193 (Schwab), f210 (Fidelity) confirmed. Added f144 (Schwab: volume up without price up) to back 'a quiet day on heavy volume'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3981,7 +3981,7 @@
   },
   "q42": {
    "status": "pass",
-   "notes": "f138 (ChartSchool glossary B, basing) and f139 (Bulkowski flat base: several weeks or months) confirmed. The key keeps only what both share.",
+   "notes": "f138 (ChartSchool glossary B, basing) and f139 (Bulkowski flat base: several weeks or months) confirmed. The key keeps only what both share. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3993,7 +3993,7 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "f143 (ChartSchool glossary D) and f144 (Schwab: 'an increase in volume but without an increase in price') confirmed. The dividend meaning is a real mix-up.",
+   "notes": "f143 (ChartSchool glossary D) and f144 (Schwab: 'an increase in volume but without an increase in price') confirmed. The dividend meaning is a real mix-up. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -4005,7 +4005,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "f148-f150 (ChartSchool symmetrical triangle; in context even a continuation pattern does not always break with the trend), f151, f152 (no directional clues), f146 (Investopedia) confirmed. No direction is keyed.",
+   "notes": "f148-f150 (ChartSchool symmetrical triangle; in context even a continuation pattern does not always break with the trend), f151, f152 (no directional clues), f146 (Investopedia) confirmed. No direction is keyed. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -4035,7 +4035,7 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "f158, f159 (ChartSchool gaps; context: waiting for a fill can make you miss a big move) and f161 (Bulkowski, under 'Gaps: Important Bull Market Results', over 1,100 samples) confirmed. Removed f160 (Investopedia gap; not in the archive copy); 'common gaps usually fill fast' now rests on f188 (Bulkowski).",
+   "notes": "f158, f159 (ChartSchool gaps; context: waiting for a fill can make you miss a big move) and f161 (Bulkowski, under 'Gaps: Important Bull Market Results', over 1,100 samples) confirmed. Removed f160 (Investopedia gap; not in the archive copy); 'common gaps usually fill fast' now rests on f188 (Bulkowski). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

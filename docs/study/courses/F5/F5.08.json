@@ -1220,9 +1220,9 @@
    "q": "Which line in this report worries you most?",
    "choices": [
     "The full-year sales guide",
-    "The EPS line",
-    "The revenue miss",
-    "Nothing: EPS beat"
+    "The adjusted EPS line",
+    "The revenue miss for the quarter",
+    "Nothing: EPS beat the estimate"
    ],
    "answer": "The full-year sales guide",
    "why": "The full-year sales guide. Analysts saw the year growing 0.9%, and Nike guided to a drop. Guidance looks ahead and often sets the near-term price. Shares plunged nearly 20% the next day.",
@@ -1239,9 +1239,9 @@
     "f04"
    ],
    "wrong": {
-    "The EPS line": "It beat: $1.01 against 83 cents expected. And it's the quarter just gone.",
-    "The revenue miss": "It matters, but it's one quarter. The guide marks down the whole year ahead.",
-    "Nothing: EPS beat": "A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut."
+    "The adjusted EPS line": "It beat: $1.01 against 83 cents expected. And it's the quarter just gone.",
+    "The revenue miss for the quarter": "It matters, but it's one quarter. The guide marks down the whole year ahead.",
+    "Nothing: EPS beat the estimate": "A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut."
    }
   },
   {
@@ -1339,12 +1339,12 @@
    "story": "Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter.",
    "q": "What's the real news in this report?",
    "choices": [
-    "Members fell, with more losses guided",
-    "The EPS beat",
-    "The revenue miss",
-    "A currency gain inside EPS"
+    "Members fell, more losses guided",
+    "The EPS beat over the estimate",
+    "The slight revenue miss on sales",
+    "A currency gain inside the EPS"
    ],
-   "answer": "Members fell, with more losses guided",
+   "answer": "Members fell, more losses guided",
    "why": "Members fell, with more losses guided. Subscriber growth had long been a key number for Netflix, and it went into reverse. The stock plunged 35% in one day.",
    "lesson_line": "Find the key number for each stock. For Netflix in 2022, that was members, not EPS.",
    "facts": [
@@ -1360,9 +1360,9 @@
     "f04"
    ],
    "wrong": {
-    "The EPS beat": "It's real, but it looks back. Members and the guide speak to what comes next.",
-    "The revenue miss": "It missed, but only just: $7.87 billion against $7.93 billion. CNBC and Variety both led with the subscriber loss.",
-    "A currency gain inside EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way."
+    "The EPS beat over the estimate": "It's real, but it looks back. Members and the guide speak to what comes next.",
+    "The slight revenue miss on sales": "It missed, but only just: $7.87 billion against $7.93 billion. CNBC and Variety both led with the subscriber loss.",
+    "A currency gain inside the EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way."
    }
   },
   {
@@ -1666,7 +1666,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "CNBC: $1.01 adjusted vs 83 cents (LSEG), $12.61B vs $12.84B, FY25 sales down mid-single digits vs analysts' 0.9% rise, 'plunged nearly 20% in trading Friday'; release confirms $1.01 ex-charges. Key backed by FINRA f04 (Tier 1) and Schwab f87/f88; 'often' matches Schwab's hedge. Consensus rests on CNBC alone (other estimates seen sit on the same side).",
+   "notes": "CNBC: $1.01 adjusted vs 83 cents (LSEG), $12.61B vs $12.84B, FY25 sales down mid-single digits vs analysts' 0.9% rise, 'plunged nearly 20% in trading Friday'; release confirms $1.01 ex-charges. Key backed by FINRA f04 (Tier 1) and Schwab f87/f88; 'often' matches Schwab's hedge. Consensus rests on CNBC alone (other estimates seen sit on the same side). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1690,7 +1690,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "CNBC Apr 19 (StreetAccount 2.73m; Refinitiv $2.89, $7.93B), Variety and the letter confirmed. f19's quote says 'a key metric'; the why, lesson line and a wrong note said 'the number Netflix was judged on', an overstatement, now 'a key number / the key metric'. CNBC's July story also names the revenue miss, and the wrong note does not deny it. f18's quote extended to the whole sentence.",
+   "notes": "CNBC Apr 19 (StreetAccount 2.73m; Refinitiv $2.89, $7.93B), Variety and the letter confirmed. f19's quote says 'a key metric'; the why, lesson line and a wrong note said 'the number Netflix was judged on', an overstatement, now 'a key number / the key metric'. CNBC's July story also names the revenue miss, and the wrong note does not deny it. f18's quote extended to the whole sentence. Wrong choice shortened so it is not the unique longest. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

@@ -1067,7 +1067,7 @@
    "q": "What has to come right before a bull flag?",
    "choices": [
     "A sharp, fast run: the pole",
-    "A long flat base",
+    "A long flat base of many weeks",
     "A gap down on news",
     "A slow grind higher"
    ],
@@ -1081,7 +1081,7 @@
     "b1"
    ],
    "wrong": {
-    "A long flat base": "A base can come before the run, but the flag itself follows the run.",
+    "A long flat base of many weeks": "A base can come before the run, but the flag itself follows the run.",
     "A gap down on news": "That is a break, not a pole. The pole goes up.",
     "A slow grind higher": "A slow grind is not a pole. Bulkowski: the flagpole should be unusually steep."
    }
@@ -1097,7 +1097,7 @@
     "Sideways or down against the trend",
     "Up, with higher highs and lows",
     "Straight down to the 200-day",
-    "It does not matter"
+    "It does not matter; the pole counts"
    ],
    "answer": "Sideways or down against the trend",
    "why": "Sideways or down, against the trend. ChartSchool: a small rectangle sloping against the previous trend. Zanger: lower tops and bottoms, parallel lines.",
@@ -1110,7 +1110,7 @@
    "wrong": {
     "Up, with higher highs and lows": "Higher highs and higher lows is a wedge up, not a flag.",
     "Straight down to the 200-day": "That is a correction, not a rest. A flag stays near the top of the pole.",
-    "It does not matter": "It matters. Three sources say against the trend; our card says flat or down."
+    "It does not matter; the pole counts": "It matters. Three sources say against the trend; our card says flat or down."
    }
   },
   {
@@ -1207,7 +1207,7 @@
    "q": "Which flag in a run is the one we want most?",
    "choices": [
     "First after a breakout or correction",
-    "The third, once the trend is proven",
+    "The third, once the trend is well proven",
     "Any; the shape decides",
     "The one with the deepest pullback"
    ],
@@ -1220,7 +1220,7 @@
     "c30"
    ],
    "wrong": {
-    "The third, once the trend is proven": "By the third flag the run is late. Our card grades it B- or passes.",
+    "The third, once the trend is well proven": "By the third flag the run is late. Our card grades it B- or passes.",
     "Any; the shape decides": "The shape is the same every time. Where it sits in the run is not.",
     "The one with the deepest pullback": "Depth is a grade cue, not a reason to prefer a flag. Shallow is the leader's habit."
    },
@@ -1235,9 +1235,9 @@
    "q": "Which stocks make the flags we trade?",
    "choices": [
     "Leaders: RS 80 or more, strong group",
-    "Laggards about to catch up",
-    "Any stock with the shape",
-    "Only stocks under $10"
+    "Laggards that are about to catch up",
+    "Any stock that shows the right shape",
+    "Only cheap stocks under $10 a share"
    ],
    "answer": "Leaders: RS 80 or more, strong group",
    "why": "Leaders, an RS rating of 80 or more in one of the strongest groups. Bonde: flags are the most common continuation patterns on momentum leaders.",
@@ -1248,9 +1248,9 @@
     "h09"
    ],
    "wrong": {
-    "Laggards about to catch up": "A flag is a continuation pattern. It continues what the leader was already doing.",
-    "Any stock with the shape": "The shape alone does not pay. The leader, the catalyst and the market do.",
-    "Only stocks under $10": "We trade stocks at $10 or more that trade at least $20 million a day."
+    "Laggards that are about to catch up": "A flag is a continuation pattern. It continues what the leader was already doing.",
+    "Any stock that shows the right shape": "The shape alone does not pay. The leader, the catalyst and the market do.",
+    "Only cheap stocks under $10 a share": "We trade stocks at $10 or more that trade at least $20 million a day."
    },
    "house": true
   },
@@ -1447,8 +1447,8 @@
    "q": "On flag day four price dips under the 21-day EMA at noon and closes back above it. What is that?",
    "choices": [
     "Allowed; the close held",
-    "The flag is over",
-    "A heavy red day",
+    "The flag is over; stand aside",
+    "A heavy red day on volume",
     "A wedge up"
    ],
    "answer": "Allowed; the close held",
@@ -1458,8 +1458,8 @@
     "c10"
    ],
    "wrong": {
-    "The flag is over": "The close is what counts, and it closed back above the line.",
-    "A heavy red day": "A heavy red day is a red close on heavy volume. This closed up, back above the EMA.",
+    "The flag is over; stand aside": "The close is what counts, and it closed back above the line.",
+    "A heavy red day on volume": "A heavy red day is a red close on heavy volume. This closed up, back above the EMA.",
     "A wedge up": "A wedge up is a pause whose highs rise. This is one shakeout under a line."
    },
    "house": true
@@ -1515,7 +1515,7 @@
    "q": "A flag whose pole was an earnings gap is now five sessions old, with the next report months away. Is it ours?",
    "choices": [
     "Yes; a post-earnings flag is fine",
-    "No; earnings flags are banned",
+    "No; any flag after earnings is banned",
     "Only if the gap was under 4%"
    ],
    "answer": "Yes; a post-earnings flag is fine",
@@ -1527,7 +1527,7 @@
     "d33"
    ],
    "wrong": {
-    "No; earnings flags are banned": "The ban is on buying in the 3 sessions before a report. After it is allowed.",
+    "No; any flag after earnings is banned": "The ban is on buying in the 3 sessions before a report. After it is allowed.",
     "Only if the gap was under 4%": "The 4% rule is about chasing past the trigger, not about the pole's gap."
    },
    "house": true
@@ -1582,7 +1582,7 @@
    "q": "Buy here?",
    "choices": [
     "No; it is 4.8% past the level",
-    "Yes; the break is confirmed",
+    "Yes; the break is confirmed now",
     "Yes; half size"
    ],
    "answer": "No; it is 4.8% past the level",
@@ -1602,7 +1602,7 @@
     "c23"
    ],
    "wrong": {
-    "Yes; the break is confirmed": "Confirmed is not the question. The fill would sit 4.8% over the level, past the 4% limit.",
+    "Yes; the break is confirmed now": "Confirmed is not the question. The fill would sit 4.8% over the level, past the 4% limit.",
     "Yes; half size": "Half size does not fix a chase. The limit is the price, not the shares."
    },
    "house": true,
@@ -1694,7 +1694,7 @@
    "q": "Is the flag still on?",
    "choices": [
     "No; the close was not reclaimed",
-    "Yes; the flag low still holds",
+    "Yes; the flag low still holds up",
     "Yes; wait one more session"
    ],
    "answer": "No; the close was not reclaimed",
@@ -1705,7 +1705,7 @@
     "r1"
    ],
    "wrong": {
-    "Yes; the flag low still holds": "The flag low is not the test before entry. The rising 21-day EMA is.",
+    "Yes; the flag low still holds up": "The flag low is not the test before entry. The rising 21-day EMA is.",
     "Yes; wait one more session": "You waited one session already. Day seven closed under it again."
    },
    "house": true,
@@ -1719,11 +1719,11 @@
    "criterion": "bf.earnings_window",
    "q": "Buy the break today?",
    "choices": [
-    "No; the report is inside 3 sessions",
-    "Yes; the flag is perfect",
+    "No; a report inside 3 sessions",
+    "Yes; the flag is perfect, buy it",
     "Yes; but sell before the report"
    ],
-   "answer": "No; the report is inside 3 sessions",
+   "answer": "No; a report inside 3 sessions",
    "why": "No. No new buy in the 3 sessions before an earnings report. A perfect flag two days before a report is a flag we watch, not one we buy.",
    "lesson_line": "Earnings in two days is a gap you cannot stop. Wait for the other side of it.",
    "facts": [
@@ -1731,7 +1731,7 @@
     "h08"
    ],
    "wrong": {
-    "Yes; the flag is perfect": "Perfect does not report earnings. The company does, in two sessions.",
+    "Yes; the flag is perfect, buy it": "Perfect does not report earnings. The company does, in two sessions.",
     "Yes; but sell before the report": "Buying to sell in two days is not a flag trade. It is a coin flip with fees."
    },
    "house": true,
@@ -1788,12 +1788,12 @@
    "criterion": "bf.length",
    "q": "Bulkowski draws a line on how long a flag can run. Where is it?",
    "choices": [
-    "Under 3 weeks; longer is a rectangle",
-    "Up to 12 weeks, no limit",
+    "Under 3 weeks, else a rectangle",
+    "Up to 12 weeks with no real limit",
     "One day only",
     "At least 7 to 8 weeks"
    ],
-   "answer": "Under 3 weeks; longer is a rectangle",
+   "answer": "Under 3 weeks, else a rectangle",
    "why": "Under 3 weeks. Bulkowski: flags are short, less than 3 weeks long; patterns longer than that are rectangles or channels. ChartSchool ideally sees one to four weeks.",
    "lesson_line": "A flag is a short rest. Weeks of it is a base with another name.",
    "facts": [
@@ -1805,7 +1805,7 @@
     "i1"
    ],
    "wrong": {
-    "Up to 12 weeks, no limit": "ChartSchool stretches the outside to 12 weeks, but even it calls one to four ideal.",
+    "Up to 12 weeks with no real limit": "ChartSchool stretches the outside to 12 weeks, but even it calls one to four ideal.",
     "One day only": "One sideways bar is Brooks's bull flag, a different idea. Ours rests for days.",
     "At least 7 to 8 weeks": "That is IBD's floor for a sound base. A flag is far shorter."
    },
@@ -1874,8 +1874,8 @@
    "q": "Which is the one thing you never do here?",
    "choices": [
     "Tighten the stop to fit the size",
-    "Take fewer shares",
-    "Wait for an inside day"
+    "Take fewer shares than planned",
+    "Wait for an inside day to buy in"
    ],
    "answer": "Tighten the stop to fit the size",
    "why": "Never tighten the stop to fit. Stop first; the size comes from the stop. If the honest stop does not fit the risk, skip the trade or wait for a tighter spot.",
@@ -1886,8 +1886,8 @@
     "c12"
    ],
    "wrong": {
-    "Take fewer shares": "Fewer shares is what a wider stop costs. That is the rule working, not breaking.",
-    "Wait for an inside day": "Waiting for a tighter spot is allowed. An inside day gives a nearer stop."
+    "Take fewer shares than planned": "Fewer shares is what a wider stop costs. That is the rule working, not breaking.",
+    "Wait for an inside day to buy in": "Waiting for a tighter spot is allowed. An inside day gives a nearer stop."
    },
    "house": true,
    "story": "The break fills at 48.60. The honest stop, under the entry day's low, sits 4.6% away. You wanted full size."
@@ -1900,11 +1900,11 @@
    "criterion": "bf.not_after_burst",
    "q": "Buy the break?",
    "choices": [
-    "No; wait for the 10-day to catch up",
-    "Yes; the flag is textbook",
-    "Yes; a 12% stretch is normal"
+    "No; let the 10-day catch up",
+    "Yes; the flag is a textbook one",
+    "Yes; a 12% stretch is quite normal"
    ],
-   "answer": "No; wait for the 10-day to catch up",
+   "answer": "No; let the 10-day catch up",
    "why": "No. A flag right after a parabolic burst is extended until the 10-day catches up. No entry while the closes sit more than 10% above the 10-day. QCOM 2019 was a textbook flag after a one-gap pole, and the trigger day was the top.",
    "lesson_line": "A pole that was one gap is not a leader's run. Let the average catch up first.",
    "facts": [
@@ -1914,8 +1914,8 @@
     "d19"
    ],
    "wrong": {
-    "Yes; the flag is textbook": "Textbook shape, wrong pole. QCOM looked like this and fell for four weeks from the trigger day.",
-    "Yes; a 12% stretch is normal": "Skip a long more than 10% above its 10-day average. Twelve is past it."
+    "Yes; the flag is a textbook one": "Textbook shape, wrong pole. QCOM looked like this and fell for four weeks from the trigger day.",
+    "Yes; a 12% stretch is quite normal": "Skip a long more than 10% above its 10-day average. Twelve is past it."
    },
    "house": true,
    "story": "A one-day gap made the whole pole. Five days later a tidy flag sits 12% above the 10-day average and ticks over yesterday's high."
@@ -1996,11 +1996,11 @@
    "criterion": "bf.no_heavy_red",
    "q": "What does that day do to the flag?",
    "choices": [
-    "Drops the grade; a second one ends it",
+    "Drops the grade; a second ends it",
     "Nothing; only break volume counts",
-    "Ends the flag at once"
+    "Ends the flag at once; it is a sell"
    ],
-   "answer": "Drops the grade; a second one ends it",
+   "answer": "Drops the grade; a second ends it",
    "why": "Drops the grade. One red close on 1.5 times average volume or more drops the grade; two end the flag. Two or more heavy red days is distribution, not a rest.",
    "lesson_line": "One heavy red day is a mark against. Two is supply, and the rest is over.",
    "facts": [
@@ -2008,7 +2008,7 @@
     "c15"
    ],
    "wrong": {
-    "Ends the flag at once": "One such day drops the grade. The flag ends on the second.",
+    "Ends the flag at once; it is a sell": "One such day drops the grade. The flag ends on the second.",
     "Nothing; only break volume counts": "Volume is read inside the flag too. A heavy red day is sellers, not rest."
    },
    "house": true,
@@ -2024,7 +2024,7 @@
    "choices": [
     "Idea dead; the stop went long ago",
     "Widen the stop to the flag low",
-    "Hold; the pole still counts"
+    "Hold; the pole still counts for it"
    ],
    "answer": "Idea dead; the stop went long ago",
    "why": "The idea is dead. After the entry a close under the flag's low means the idea failed; the stop was hit well before it, at 19.81.",
@@ -2035,7 +2035,7 @@
    ],
    "wrong": {
     "Widen the stop to the flag low": "The stop only moves up. The flag low was never the stop; it is the line that says the idea failed.",
-    "Hold; the pole still counts": "The pole was the past. A close under the flag low says the run is over for now."
+    "Hold; the pole still counts for it": "The pole was the past. A close under the flag low says the run is over for now."
    },
    "house": true,
    "story": "You bought at 20.09 with the stop at 19.81. Two weeks later the stock closes at 18.50, under the flag's low of 18.73."
@@ -2050,7 +2050,7 @@
    "choices": [
     "Smaller and fewer; the grade is B-",
     "Nothing; the flag is the flag",
-    "No flags at all until Green"
+    "No flags at all until it turns Green"
    ],
    "answer": "Smaller and fewer; the grade is B-",
    "why": "Smaller and fewer. Yellow is smaller and fewer on the reading, and a Yellow market is the B- row on our card. Full risk waits for Green.",
@@ -2062,7 +2062,7 @@
    ],
    "wrong": {
     "Nothing; the flag is the flag": "The flag is the same. The market reading grades it down and sizes it down.",
-    "No flags at all until Green": "No flags at all is Red. Yellow still trades, smaller and fewer."
+    "No flags at all until it turns Green": "No flags at all is Red. Yellow still trades, smaller and fewer."
    },
    "house": true,
    "story": "The reading turns Yellow. Your list has three clean first flags at their triggers."
@@ -2793,13 +2793,13 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key on b2/cs2/z1 (two publishers). The wrong note quotes Bulkowski's 'unusually steep' pole, which was b1 and not cited: b1 added.",
+   "notes": "Key on b2/cs2/z1 (two publishers). The wrong note quotes Bulkowski's 'unusually steep' pole, which was b1 and not cited: b1 added. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q02": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2829,13 +2829,13 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "Key on the card's which_flag row (proposed, c03/c40). The answer choice was 40 characters; shortened to 36.",
+   "notes": "Key on the card's which_flag row (proposed, c03/c40). The answer choice was 40 characters; shortened to 36. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q08": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2889,7 +2889,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "The key said 'often the buy': that is the T1 support-reclaim buy, pending D-027, and the reclaim-as-buy half of D-047. Now keys only that the close held, which every option of both allows.",
+   "notes": "The key said 'often the buy': that is the T1 support-reclaim buy, pending D-027, and the reclaim-as-buy half of D-047. Now keys only that the close held, which every option of both allows. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2907,7 +2907,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2925,7 +2925,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "4.8 re-derived: 52.40 / 50.00 - 1 = 4.8%, past C28's 4%.",
+   "notes": "4.8 re-derived: 52.40 / 50.00 - 1 = 4.8%, past C28's 4%. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2949,13 +2949,13 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "Re-keyed on the adopted default of D-047 (yes: a close under the 21-day EMA not reclaimed the next session is the disqualifier; an intraday undercut and reclaim is allowed). Day six closes under and day seven closes under again, so the close was not reclaimed. Dropped Kullamagi's toe-the-50-day quote (k3), which argued the other side; added the card's inv_ema line. The old why's 'two is the exit' is replaced by the rule itself.",
+   "notes": "Re-keyed on the adopted default of D-047 (yes: a close under the 21-day EMA not reclaimed the next session is the disqualifier; an intraday undercut and reclaim is allowed). Day six closes under and day seven closes under again, so the close was not reclaimed. Dropped Kullamagi's toe-the-50-day quote (k3), which argued the other side; added the card's inv_ema line. The old why's 'two is the exit' is replaced by the rule itself. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "resolver"
   },
   "q28": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2973,7 +2973,7 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "Keys Bulkowski's own line as his (b4); the wrong notes quote ChartSchool's 12 weeks, Brooks's one sideways bar and IBD's 7 to 8 weeks, which were not cited: cs6, br2, i1 added.",
+   "notes": "Keys Bulkowski's own line as his (b4); the wrong notes quote ChartSchool's 12 weeks, Brooks's one sideways bar and IBD's 7 to 8 weeks, which were not cited: cs6, br2, i1 added. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2991,13 +2991,13 @@
   },
   "q34": {
    "status": "pass",
-   "notes": "Key on A3 (settled); no stop-width cap is keyed (D-005 pending). Why had a 26-word sentence: split.",
+   "notes": "Key on A3 (settled); no stop-width cap is keyed (D-005 pending). Why had a 26-word sentence: split. variety rewrite checked 2026-11-10 (edited: choices)",
    "fixed": true,
    "by": "checker"
   },
   "q35": {
    "status": "pass",
-   "notes": "Key on C29 (settled) and c04; QCOM 2019 numbers match the failure table. Why had a 26-word sentence: split.",
+   "notes": "Key on C29 (settled) and c04; QCOM 2019 numbers match the failure table. Why had a 26-word sentence: split. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3021,19 +3021,19 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "Key on c09/c15 (proposed). A choice was 40 characters: shortened.",
+   "notes": "Key on c09/c15 (proposed). A choice was 40 characters: shortened. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q40": {
    "status": "pass",
-   "notes": "Key on c18/c14. The answer choice was 40 characters (shortened). The story is invented on AMD's levels while AMD in fact ran to 34; d03 was cited as if it happened: removed (the numbers are givens).",
+   "notes": "Key on c18/c14. The answer choice was 40 characters (shortened). The story is invented on AMD's levels while AMD in fact ran to 34; d03 was cited as if it happened: removed (the numbers are givens). variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q41": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

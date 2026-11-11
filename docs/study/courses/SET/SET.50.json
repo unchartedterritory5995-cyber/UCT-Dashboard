@@ -771,12 +771,12 @@
    "criterion": "spr.dip_depth",
    "q": "In Wyckoff's words, what is a spring?",
    "choices": [
-    "A quick dip under support, then back in",
+    "A quick dip under support, then back",
     "A breakout over resistance that holds",
     "A slow slide through support",
-    "A gap up on news"
+    "A gap up on news over resistance"
    ],
-   "answer": "A quick dip under support, then back in",
+   "answer": "A quick dip under support, then back",
    "why": "A quick dip under support, then back in. A spring takes price below the low of the range and reverses to close within it.",
    "lesson_line": "A spring dips under the floor and snaps back inside.",
    "facts": [
@@ -787,7 +787,7 @@
    "wrong": {
     "A breakout over resistance that holds": "That is a breakout. A spring goes under support, not over resistance.",
     "A slow slide through support": "A spring reverses quickly. Slower violations that fail are washouts or bear traps.",
-    "A gap up on news": "A gap up is not a move under support."
+    "A gap up on news over resistance": "A gap up is not a move under support."
    }
   },
   {
@@ -986,12 +986,12 @@
    "criterion": "spr.market_reading",
    "q": "Which market readings fit a spring?",
    "choices": [
-    "Green or Yellow",
-    "Red only",
-    "Orange only",
-    "Any reading"
+    "Green or Yellow readings",
+    "Red only, where we hold mostly cash",
+    "Orange only, where only A+ trades",
+    "Any reading at all"
    ],
-   "answer": "Green or Yellow",
+   "answer": "Green or Yellow readings",
    "why": "Green or Yellow. In an Orange market we take only A+ setups, and in a Red market we are mostly cash and shorts.",
    "lesson_line": "Springs fit Green or Yellow markets.",
    "facts": [
@@ -1000,9 +1000,9 @@
    ],
    "house": true,
    "wrong": {
-    "Red only": "In a Red market we are mostly cash and shorts.",
-    "Orange only": "In Orange we take only A+ setups, so it is not the home reading.",
-    "Any reading": "The reading is a guide we follow, and springs fit Green or Yellow."
+    "Red only, where we hold mostly cash": "In a Red market we are mostly cash and shorts.",
+    "Orange only, where only A+ trades": "In Orange we take only A+ setups, so it is not the home reading.",
+    "Any reading at all": "The reading is a guide we follow, and springs fit Green or Yellow."
    }
   },
   {
@@ -1239,13 +1239,13 @@
    "criterion": "spr.inv_no_range",
    "q": "Is this a spring?",
    "choices": [
-    "No; there is no range behind the dip",
+    "No; no range behind the dip",
     "Yes; it closed back up",
-    "Yes; any undercut is one",
+    "Yes; any undercut counts as one",
     "No; the volume is wrong"
    ],
    "story": "A stock makes a new low every day for two weeks. Then it ticks up and closes above yesterday's low.",
-   "answer": "No; there is no range behind the dip",
+   "answer": "No; no range behind the dip",
    "why": "No. A falling stock makes a new low every day. With no real range behind the dip, that is not a spring.",
    "lesson_line": "A spring needs a floor. A falling stock has none.",
    "facts": [
@@ -1255,7 +1255,7 @@
    "house": true,
    "wrong": {
     "Yes; it closed back up": "A bounce in a downtrend is not a spring. There is no floor to reclaim.",
-    "Yes; any undercut is one": "A spring needs a flat range behind the undercut.",
+    "Yes; any undercut counts as one": "A spring needs a flat range behind the undercut.",
     "No; the volume is wrong": "Volume is not the problem. The missing range is."
    }
   },
@@ -1380,9 +1380,9 @@
    "q": "Buy the spring?",
    "choices": [
     "Pass; springs need Green or Yellow",
-    "Yes; the stock is clean",
+    "Yes; the stock itself is clean",
     "Yes; springs ignore the market",
-    "Yes, at half size"
+    "Yes, at half size with a tight stop"
    ],
    "story": "A clean spring in a stock above its 200-day. The market reading is Red.",
    "answer": "Pass; springs need Green or Yellow",
@@ -1396,9 +1396,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the stock is clean": "A clean chart does not beat the market reading.",
+    "Yes; the stock itself is clean": "A clean chart does not beat the market reading.",
     "Yes; springs ignore the market": "They do not. Springs fit Green or Yellow readings.",
-    "Yes, at half size": "Half size does not fix the wrong reading."
+    "Yes, at half size with a tight stop": "Half size does not fix the wrong reading."
    }
   },
   {
@@ -1467,13 +1467,13 @@
    "criterion": "spr.earnings_window",
    "q": "What do you do?",
    "choices": [
-    "Skip it; buyout news is off the list",
-    "Buy it; the shape is perfect",
-    "Buy double; buyouts jump",
+    "Skip it; buyouts are off the list",
+    "Buy it; the shape is textbook perfect",
+    "Buy double; buyouts tend to jump",
     "Buy it with a wide stop"
    ],
    "story": "A textbook spring in a leader. Then a buyout report comes out.",
-   "answer": "Skip it; buyout news is off the list",
+   "answer": "Skip it; buyouts are off the list",
    "why": "Skip it. We skip on buyout news. As soon as there is buyout stuff, it comes off the list.",
    "lesson_line": "Buyout news takes the stock off the list.",
    "facts": [
@@ -1482,8 +1482,8 @@
    ],
    "house": true,
    "wrong": {
-    "Buy it; the shape is perfect": "A perfect shape does not beat the buyout rule.",
-    "Buy double; buyouts jump": "Size never goes up to chase a rumor.",
+    "Buy it; the shape is textbook perfect": "A perfect shape does not beat the buyout rule.",
+    "Buy double; buyouts tend to jump": "Size never goes up to chase a rumor.",
     "Buy it with a wide stop": "A wide stop does not fix the news risk."
    }
   },
@@ -1623,12 +1623,12 @@
    "criterion": "spr.trail",
    "q": "How do we trail the rest of a spring?",
    "choices": [
-    "Under the 21-day, or the 10-day if fast",
-    "Under the 200-day",
-    "A fixed 3% stop",
-    "We never trail"
+    "Under the 21-day, or 10-day if fast",
+    "Under the 200-day average line",
+    "A fixed 3% stop under the entry",
+    "We never trail; we sell at the highs"
    ],
-   "answer": "Under the 21-day, or the 10-day if fast",
+   "answer": "Under the 21-day, or 10-day if fast",
    "why": "Under the 21-day for most springs, or the 10-day for fast movers, and out on a close below it.",
    "lesson_line": "Trail the 21-day, or the 10-day when it runs.",
    "facts": [
@@ -1637,9 +1637,9 @@
    ],
    "house": true,
    "wrong": {
-    "Under the 200-day": "The 200-day is far too slow to trail a spring.",
-    "A fixed 3% stop": "A fixed stop does not follow the move.",
-    "We never trail": "We trail the last third."
+    "Under the 200-day average line": "The 200-day is far too slow to trail a spring.",
+    "A fixed 3% stop under the entry": "A fixed stop does not follow the move.",
+    "We never trail; we sell at the highs": "We trail the last third."
    }
   },
   {
@@ -1717,8 +1717,8 @@
    "q": "What do you do at the open?",
    "choices": [
     "Sell the third at the open",
-    "Wait for 60.00",
-    "Hold everything",
+    "Wait for 60.00 to sell the third",
+    "Hold everything and trail it",
     "Add at 57.50"
    ],
    "story": "You bought at 50.00 with a stop at 48.00. 3R is 56.00. The next day opens at 57.50.",
@@ -1732,8 +1732,8 @@
    ],
    "house": true,
    "wrong": {
-    "Wait for 60.00": "A trim level the day opens past is taken at the open.",
-    "Hold everything": "Holding it all risks giving the gap back.",
+    "Wait for 60.00 to sell the third": "A trim level the day opens past is taken at the open.",
+    "Hold everything and trail it": "Holding it all risks giving the gap back.",
     "Add at 57.50": "We never add after a gap up. One price, one stop."
    }
   },
@@ -1745,12 +1745,12 @@
    "criterion": "spr.volume",
    "q": "Do the sources agree on volume at the spring?",
    "choices": [
-    "No; Fraser wants it modest, Taylor high",
-    "Yes; all want loud volume",
+    "No; Fraser modest, Taylor high",
+    "Yes; all of them want loud volume",
     "Yes; all want quiet volume",
     "None of them mention volume"
    ],
-   "answer": "No; Fraser wants it modest, Taylor high",
+   "answer": "No; Fraser modest, Taylor high",
    "why": "No. Fraser buys a spring on modest volume. Taylor says volume on the spring is typically quite high, the higher the better.",
    "lesson_line": "The sources disagree on volume. Know both views.",
    "facts": [
@@ -1758,7 +1758,7 @@
     "y01"
    ],
    "wrong": {
-    "Yes; all want loud volume": "Fraser buys a spring on modest volume.",
+    "Yes; all of them want loud volume": "Fraser buys a spring on modest volume.",
     "Yes; all want quiet volume": "Taylor says volume on the spring is typically quite high.",
     "None of them mention volume": "Both do. They disagree."
    }
@@ -1772,9 +1772,9 @@
    "q": "After a loud, deep spring, what does Fraser wait for?",
    "choices": [
     "A test that makes a higher low",
-    "A gap up",
-    "The 200-day to turn",
-    "The next earnings report"
+    "A gap up on heavy volume",
+    "The 200-day to turn upward",
+    "The next earnings report to pass"
    ],
    "answer": "A test that makes a higher low",
    "why": "A test. High volume springs need to be tested in the following days or weeks. A successful test typically makes a higher low on lesser volume.",
@@ -1785,9 +1785,9 @@
     "w04"
    ],
    "wrong": {
-    "A gap up": "The sources wait for a test, not a gap.",
-    "The 200-day to turn": "The line is not the test. The test is a pullback that holds above the spring low.",
-    "The next earnings report": "We avoid buying near a report, and it is not the test."
+    "A gap up on heavy volume": "The sources wait for a test, not a gap.",
+    "The 200-day to turn upward": "The line is not the test. The test is a pullback that holds above the spring low.",
+    "The next earnings report to pass": "We avoid buying near a report, and it is not the test."
    }
   },
   {
@@ -1854,7 +1854,7 @@
    "q": "Buy, watch or pass?",
    "choices": [
     "Pass; no longs under the 200-day",
-    "Buy; it is a textbook spring",
+    "Buy now; it is a textbook spring",
     "Buy at half size",
     "Buy after a month"
    ],
@@ -1868,7 +1868,7 @@
    ],
    "house": true,
    "wrong": {
-    "Buy; it is a textbook spring": "A textbook shape under the 200-day still breaks the rule.",
+    "Buy now; it is a textbook spring": "A textbook shape under the 200-day still breaks the rule.",
     "Buy at half size": "Half size does not fix a rule break.",
     "Buy after a month": "Time does not change the line. The stock must be back above it."
    }
@@ -1909,13 +1909,13 @@
    "criterion": "spr.range_length",
    "q": "Which setup is this?",
    "choices": [
-    "An undercut and rally, not a spring",
-    "A Wyckoff spring",
-    "A capitulation",
-    "A flat base"
+    "An undercut and rally",
+    "A Wyckoff spring in a range",
+    "A capitulation flush",
+    "A flat base breakout"
    ],
    "story": "A stock undercuts its rising 50-day, with no flat range behind it, and closes back above the average.",
-   "answer": "An undercut and rally, not a spring",
+   "answer": "An undercut and rally",
    "why": "An undercut and rally. A U&R's level can be a rising average, one swing low or a prior high. A spring's floor is a flat level.",
    "lesson_line": "A flat floor is a spring. A rising average is a U&R.",
    "facts": [
@@ -1925,9 +1925,9 @@
    ],
    "house": true,
    "wrong": {
-    "A Wyckoff spring": "A spring's floor is a flat level. A rising 50-day is not.",
-    "A capitulation": "A capitulation is a straight fall with a 2 ATR flush. Nothing like that is here.",
-    "A flat base": "A flat base is bought through the top of a range."
+    "A Wyckoff spring in a range": "A spring's floor is a flat level. A rising 50-day is not.",
+    "A capitulation flush": "A capitulation is a straight fall with a 2 ATR flush. Nothing like that is here.",
+    "A flat base breakout": "A flat base is bought through the top of a range."
    }
   },
   {
@@ -2136,11 +2136,11 @@
    "criterion": "spr.dip_depth",
    "q": "Hidden ticker. The last bar undercut a recent low and closed back above it. Take it or pass?",
    "choices": [
-    "Take it; a flat floor, a modest dip",
+    "Take it; flat floor, modest dip",
     "Pass; there is no range behind it",
-    "Pass; the dip is a breakdown"
+    "Pass; the dip is a real breakdown"
    ],
-   "answer": "Take it; a flat floor, a modest dip",
+   "answer": "Take it; flat floor, modest dip",
    "why": "Take it. A flat range 7.2% tall, five floor touches, and one probe of 0.75 ATR that closed back inside on 0.96x volume.",
    "lesson_line": "A flat floor and a modest dip that snaps back.",
    "facts": [
@@ -2152,7 +2152,7 @@
    "house": true,
    "wrong": {
     "Pass; there is no range behind it": "Look again: the floor was touched five times.",
-    "Pass; the dip is a breakdown": "A breakdown is over 2 ATR. This probe was 0.75 ATR."
+    "Pass; the dip is a real breakdown": "A breakdown is over 2 ATR. This probe was 0.75 ATR."
    },
    "chart": {
     "sym": "ODFL",
@@ -2472,7 +2472,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "w01 (Pruden), t01 (ChartSchool), y03 (Taylor) verbatim; three publishers agree. Key right.",
+   "notes": "w01 (Pruden), t01 (ChartSchool), y03 (Taylor) verbatim; three publishers agree. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2514,7 +2514,7 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "c05 on the card (spr.market_reading, settled) and F65. Key right.",
+   "notes": "c05 on the card (spr.market_reading, settled) and F65. Key right. variety rewrite checked 2026-11-10 (edited: choices)",
    "fixed": false,
    "by": "checker"
   },
@@ -2562,7 +2562,7 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "c23/c29 on the card. Key right.",
+   "notes": "c23/c29 on the card. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2616,7 +2616,7 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "c21/h21: E52 (settled). Key right.",
+   "notes": "c21/h21: E52 (settled). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2634,19 +2634,19 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "calc re-derived: 3R = 50 + 3 x 2 = 56; the open of 57.50 is past it. F63 (settled). Key right.",
+   "notes": "calc re-derived: 3R = 50 + 3 x 2 = 56; the open of 57.50 is past it. F63 (settled). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q40": {
    "status": "pass",
-   "notes": "f01 (Fraser) and y01 (Taylor) verbatim and they disagree on volume. The question asks only whether they agree, so no disputed fact is keyed as ours. Key right.",
+   "notes": "f01 (Fraser) and y01 (Taylor) verbatim and they disagree on volume. The question asks only whether they agree, so no disputed fact is keyed as ours. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q41": {
    "status": "pass",
-   "notes": "f04 (Fraser), t04 (ChartSchool), w04 (Pruden) agree: a loud spring needs a test. Asked as the school's view, not ours (D-003 pending). Key right.",
+   "notes": "f04 (Fraser), t04 (ChartSchool), w04 (Pruden) agree: a loud spring needs a test. Asked as the school's view, not ours (D-003 pending). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2706,25 +2706,25 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "The story only said SPY was making lower lows, which does not give a reading (Yellow also fits a spring, c05). Now the reading is stated, Red. The GOOGL case (d10/d11) stays as the example in the why.",
+   "notes": "The story only said SPY was making lower lows, which does not give a reading (Yellow also fits a spring, c05). Now the reading is stated, Red. The GOOGL case (d10/d11) stays as the example in the why. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q30": {
    "status": "pass",
-   "notes": "c04/u04 verbatim. The wrong note on a wide stop quoted A4 (a stop that moves after entry); an entry stop is not that.",
+   "notes": "c04/u04 verbatim. The wrong note on a wide stop quoted A4 (a stop that moves after entry); an entry stop is not that. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q44": {
    "status": "pass",
-   "notes": "h10 (B26). The why's last sentence ('a watch until back above the line') is the pending spr.above_200 (D-009); removed.",
+   "notes": "h10 (B26). The why's last sentence ('a watch until back above the line') is the pending spr.above_200 (D-009); removed. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q46": {
    "status": "pass",
-   "notes": "c27/c29. 'Which card' used an untaught word; now 'Which setup'.",
+   "notes": "c27/c29. 'Which card' used an untaught word; now 'Which setup'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2754,7 +2754,7 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "Bars: ODFL has 6,720 daily bars to 2021-10-01 (120 needed); 25-session range 141.88-152.11 (7.2%), low 139.505 = 0.75 ATR under the floor, 0.96x volume, close 142.765 (73% of the bar). The stem described the whole spring ('dipped under the floor of a flat range and closed back inside'); now the member reads the range.",
+   "notes": "Bars: ODFL has 6,720 daily bars to 2021-10-01 (120 needed); 25-session range 141.88-152.11 (7.2%), low 139.505 = 0.75 ATR under the floor, 0.96x volume, close 142.765 (73% of the bar). The stem described the whole spring ('dipped under the floor of a flat range and closed back inside'); now the member reads the range. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

@@ -799,12 +799,12 @@
    "criterion": "oops.stop",
    "q": "Where does the Oops stop go?",
    "choices": [
-    "A few cents under the Oops day's low",
-    "At the prior day's low",
-    "At the prior close",
-    "Under the 200-day"
+    "A few cents under the Oops-day low",
+    "A few cents under the prior day's low",
+    "A few cents under the prior close",
+    "A few cents under the 200-day"
    ],
-   "answer": "A few cents under the Oops day's low",
+   "answer": "A few cents under the Oops-day low",
    "why": "A few cents under the Oops day's low, the point where the trap was set.",
    "lesson_line": "The stop sits under the low the trap was set at.",
    "facts": [
@@ -813,9 +813,9 @@
     "h24"
    ],
    "wrong": {
-    "At the prior day's low": "The Oops day trades under it. A stop there sits inside the trap.",
-    "At the prior close": "The prior close is the buy point, not the stop.",
-    "Under the 200-day": "The 200-day is context. The stop sits under the Oops-day low."
+    "A few cents under the prior day's low": "The Oops day trades under it. A stop even a few cents below sits inside the trap.",
+    "A few cents under the prior close": "The prior close is the buy point, not the stop.",
+    "A few cents under the 200-day": "The 200-day is context. The stop sits under the Oops-day low."
    },
    "house": true
   },
@@ -928,21 +928,21 @@
    "criterion": "oops.location",
    "q": "Where should the Oops-day low tag?",
    "choices": [
-    "The 21-day or 50-day, or a visible level",
-    "Open air above the highs",
-    "A fresh 52-week high",
-    "Nothing in particular"
+    "A 21- or 50-day, or a clear level",
+    "Open air well above the old highs",
+    "A brand new 52-week high today",
+    "Nothing in particular; any spot"
    ],
-   "answer": "The 21-day or 50-day, or a visible level",
+   "answer": "A 21- or 50-day, or a clear level",
    "why": "The 21-day EMA or 50-day SMA, or a visible level such as a flag low or a gap. Location matters.",
    "lesson_line": "The undercut should tag something the market can see.",
    "facts": [
     "o_loc"
    ],
    "wrong": {
-    "Open air above the highs": "There is no level there to undercut.",
-    "A fresh 52-week high": "An Oops follows a pullback, not a new high.",
-    "Nothing in particular": "Location matters. The low should tag a level."
+    "Open air well above the old highs": "There is no level there to undercut.",
+    "A brand new 52-week high today": "An Oops follows a pullback, not a new high.",
+    "Nothing in particular; any spot": "Location matters. The low should tag a level."
    },
    "house": true
   },
@@ -970,9 +970,9 @@
    "q": "How big should the Oops day be?",
    "choices": [
     "Under 3 ATR, a technical candle",
-    "The bigger the better",
-    "Over 5 ATR on news",
-    "Tiny, under 0.1 ATR"
+    "The bigger and louder the better",
+    "Over 5 ATR on a news headline",
+    "Tiny, under 0.1 ATR, barely a bar"
    ],
    "answer": "Under 3 ATR, a technical candle",
    "why": "Under 3 ATR, a technical candle. A news-sized day is a named mistake.",
@@ -982,9 +982,9 @@
     "m_size"
    ],
    "wrong": {
-    "The bigger the better": "A dramatic, news-sized Oops day is a named mistake.",
-    "Over 5 ATR on news": "A news-sized day is not a technical Oops.",
-    "Tiny, under 0.1 ATR": "The rule sets a ceiling of 3 ATR. It does not ask for a tiny range."
+    "The bigger and louder the better": "A dramatic, news-sized Oops day is a named mistake.",
+    "Over 5 ATR on a news headline": "A news-sized day is not a technical Oops.",
+    "Tiny, under 0.1 ATR, barely a bar": "The rule sets a ceiling of 3 ATR. It does not ask for a tiny range."
    },
    "house": true
   },
@@ -1081,12 +1081,12 @@
    "criterion": "oops.liquidity",
    "q": "What floor must an Oops stock clear?",
    "choices": [
-    "$10 a share and $20 million a day",
-    "$5 a share and $5 million a day",
-    "$2 a share and $10,000 a day",
-    "No floor for leaders"
+    "$10 and $20 million a day",
+    "$5 and $5 million a day",
+    "$2 and $10,000 a day",
+    "No floor for a clean leader"
    ],
-   "answer": "$10 a share and $20 million a day",
+   "answer": "$10 and $20 million a day",
    "why": "$10 a share and $20 million a day. Thin stocks are not even watched.",
    "lesson_line": "Ten dollars a share, twenty million a day. Below that, no Oops.",
    "facts": [
@@ -1094,9 +1094,9 @@
     "h19"
    ],
    "wrong": {
-    "$5 a share and $5 million a day": "Too low. Our floor is $10 a share and $20 million a day.",
-    "$2 a share and $10,000 a day": "Far under our floor of $10 and $20 million.",
-    "No floor for leaders": "Every setup has the floor."
+    "$5 and $5 million a day": "Too low. Our floor is $10 a share and $20 million a day.",
+    "$2 and $10,000 a day": "Far under our floor of $10 and $20 million.",
+    "No floor for a clean leader": "Every setup has the floor."
    },
    "house": true
   },
@@ -1132,12 +1132,12 @@
    "criterion": "oops.stop",
    "q": "Why does the stop sit under the Oops-day low?",
    "choices": [
-    "It is the point where the trap was set",
+    "It marks where the trap was set",
     "It is the middle of the range",
-    "It matches the app target",
-    "It is where volume peaks"
+    "It equals the app's first target",
+    "It is where volume peaked"
    ],
-   "answer": "It is the point where the trap was set",
+   "answer": "It marks where the trap was set",
    "why": "It is the point where the trap was set. If price trades below it, the trap failed.",
    "lesson_line": "Under the Oops-day low the trap has failed. That is the exit.",
    "facts": [
@@ -1148,8 +1148,8 @@
    ],
    "wrong": {
     "It is the middle of the range": "The stop is not a midpoint. It is the low of the trap.",
-    "It matches the app target": "Targets are 3R and 5R thirds, not stops.",
-    "It is where volume peaks": "Volume is not part of the Oops."
+    "It equals the app's first target": "Targets are 3R and 5R thirds, not stops.",
+    "It is where volume peaked": "Volume is not part of the Oops."
    },
    "house": true
   },
@@ -1284,13 +1284,13 @@
    "criterion": "oops.order_market",
    "q": "In our scans, which touch of the prior close fills the buy?",
    "choices": [
-    "The one at 11:00, after the undercut",
+    "The 11:00 one, after the undercut",
     "The 9:40 touch of the prior close",
-    "Either one",
-    "Neither; wait for the close"
+    "Either one; both touched 50.00",
+    "Neither; wait for the daily close"
    ],
    "story": "The prior close is 50.00 and the prior low 49.40. The stock opens under 50.00, touches it at 9:40, then breaks 49.40. At 11:00 it is back at 50.00.",
-   "answer": "The one at 11:00, after the undercut",
+   "answer": "The 11:00 one, after the undercut",
    "why": "The 11:00 touch, after the undercut. Buying the touch of the prior close before the undercut is a named mistake.",
    "lesson_line": "Undercut first. A touch before it is not the trigger.",
    "facts": [
@@ -1300,8 +1300,8 @@
    ],
    "wrong": {
     "The 9:40 touch of the prior close": "That touch came before the undercut. A touch of the prior close before the undercut is not a trigger.",
-    "Either one": "Only the touch after the undercut counts.",
-    "Neither; wait for the close": "Our scans buy during the day, as a market order when the trigger prints."
+    "Either one; both touched 50.00": "Only the touch after the undercut counts.",
+    "Neither; wait for the daily close": "Our scans buy during the day, as a market order when the trigger prints."
    },
    "house": true
   },
@@ -1313,13 +1313,13 @@
    "criterion": "oops.no_chase",
    "q": "Do you buy it now?",
    "choices": [
-    "No, it is over 4% above the prior close",
-    "Yes, a strong Oops keeps going",
-    "Yes, with a smaller stop",
-    "Yes, at half size"
+    "No, over 4% above the prior close",
+    "Yes, a strong Oops often continues",
+    "Yes, with a smaller stop to fit",
+    "Yes, at half size to stay safe"
    ],
    "story": "The prior close is 50.00. You missed the reclaim. At 11:30 the stock is at 52.30.",
-   "answer": "No, it is over 4% above the prior close",
+   "answer": "No, over 4% above the prior close",
    "why": "No. 52.30 is more than 4% above the prior close of 50.00. Never chase; the stop stays put and the shares shrink.",
    "lesson_line": "Past 4% over the prior close, you missed it. Let it go.",
    "facts": [
@@ -1328,9 +1328,9 @@
     "h12"
    ],
    "wrong": {
-    "Yes, a strong Oops keeps going": "Strength is not a reason to chase.",
-    "Yes, with a smaller stop": "You do not tighten the stop to fit.",
-    "Yes, at half size": "Half size does not change the rule."
+    "Yes, a strong Oops often continues": "Strength is not a reason to chase.",
+    "Yes, with a smaller stop to fit": "You do not tighten the stop to fit.",
+    "Yes, at half size to stay safe": "Half size does not change the rule."
    },
    "house": true
   },
@@ -1370,12 +1370,12 @@
    "criterion": "oops.orderly",
    "q": "A random big red bar came three days before. What does it do to the Oops?",
    "choices": [
-    "It takes the stock off the list",
-    "Nothing, it is just history",
-    "It makes it a Super Oops",
-    "It adds a grade point"
+    "It removes it from the list",
+    "Nothing, it is old history now",
+    "It upgrades it to a Super Oops",
+    "It adds a point to the grade"
    ],
-   "answer": "It takes the stock off the list",
+   "answer": "It removes it from the list",
    "why": "It takes the stock off the list. The pullback should be orderly, with no bar in the 5 sessions before that drops over 4%.",
    "lesson_line": "An orderly drift only. A big red bar in the days before is out.",
    "facts": [
@@ -1383,9 +1383,9 @@
     "o_ord2"
    ],
    "wrong": {
-    "Nothing, it is just history": "A big red bar in the days before is a named mistake to buy.",
-    "It makes it a Super Oops": "A Super Oops is a close over the prior high.",
-    "It adds a grade point": "It takes grade away. The stock comes off the list."
+    "Nothing, it is old history now": "A big red bar in the days before is a named mistake to buy.",
+    "It upgrades it to a Super Oops": "A Super Oops is a close over the prior high.",
+    "It adds a point to the grade": "It takes grade away. The stock comes off the list."
    },
    "house": true
   },
@@ -1395,11 +1395,11 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "oops.failed_reclaim",
-   "q": "What do you do?",
+   "q": "Your move at the close?",
    "choices": [
     "Hold to the stop; do not add",
-    "Sell at the close",
-    "Add on the dip",
+    "Sell at the close, it failed",
+    "Add a second lot on the dip",
     "Move the stop under 31.30"
    ],
    "story": "You bought the reclaim of the 31.50 prior close at 31.52, the way our scans do, with the stop at 31.12. The day closes at 31.30, back under the prior close, above your stop.",
@@ -1411,8 +1411,8 @@
     "h02"
    ],
    "wrong": {
-    "Sell at the close": "The stop is the exit, not a weak close.",
-    "Add on the dip": "We never add after a warning.",
+    "Sell at the close, it failed": "The stop is the exit, not a weak close.",
+    "Add a second lot on the dip": "We never add after a warning.",
     "Move the stop under 31.30": "A stop only moves up."
    },
    "house": true
@@ -1455,9 +1455,9 @@
    "q": "Where is the stop now?",
    "choices": [
     "30.85, the first 30-minute low",
-    "31.12, where it was",
-    "Out at once, past 2R",
-    "The open, 30.95"
+    "31.12, the original stop price",
+    "Out at once; the loss is past 2R",
+    "The open, 30.95, the gap price"
    ],
    "story": "You bought at 31.52 with the stop at 31.12. The next morning it gaps open at 30.95. The first 30-minute low is 30.85.",
    "answer": "30.85, the first 30-minute low",
@@ -1469,9 +1469,9 @@
     "h02"
    ],
    "wrong": {
-    "31.12, where it was": "The stop is already through. The 30-minute low is the new stop.",
-    "Out at once, past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
-    "The open, 30.95": "The open is not the decision. The 30-minute low is."
+    "31.12, the original stop price": "The stop is already through. The 30-minute low is the new stop.",
+    "Out at once; the loss is past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
+    "The open, 30.95, the gap price": "The open is not the decision. The 30-minute low is."
    },
    "house": true
   },
@@ -1481,11 +1481,11 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "oops.trim_1",
-   "q": "What do you do at 3R?",
+   "q": "What is the plan at 3R?",
    "choices": [
     "Sell a third, stop to breakeven",
-    "Sell it all",
-    "Sell half, keep the stop",
+    "Sell it all and lock in the 3R",
+    "Sell half, leave the stop alone",
     "Hold all, nudge the stop up"
    ],
    "story": "You bought at 149.22 with the stop at 146.52. The Oops reaches 3R.",
@@ -1497,8 +1497,8 @@
     "tp2"
    ],
    "wrong": {
-    "Sell it all": "Trims are thirds, and the last third is trailed.",
-    "Sell half, keep the stop": "The hard rule is a third.",
+    "Sell it all and lock in the 3R": "Trims are thirds, and the last third is trailed.",
+    "Sell half, leave the stop alone": "The hard rule is a third.",
     "Hold all, nudge the stop up": "The first third comes off at 3R."
    },
    "house": true
@@ -1536,12 +1536,12 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "oops.time_stop",
-   "q": "What do you do?",
+   "q": "Your move on day 10?",
    "choices": [
     "Sell it and free the money",
-    "Hold for 5R",
-    "Add on a breakout",
-    "Widen the stop"
+    "Hold on and wait for 5R",
+    "Add on a break of the range",
+    "Widen the stop for more room"
    ],
    "story": "It is day 10. The Oops has chopped sideways at +0.5R. The stop has not been touched.",
    "answer": "Sell it and free the money",
@@ -1551,9 +1551,9 @@
     "h15"
    ],
    "wrong": {
-    "Hold for 5R": "A trade under 1R after 10 days is sold.",
-    "Add on a breakout": "We buy once.",
-    "Widen the stop": "A stop never moves wider."
+    "Hold on and wait for 5R": "A trade under 1R after 10 days is sold.",
+    "Add on a break of the range": "We buy once.",
+    "Widen the stop for more room": "A stop never moves wider."
    },
    "house": true
   },
@@ -1580,12 +1580,12 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "oops.market_reading",
-   "q": "What do you do?",
+   "q": "How do you play it?",
    "choices": [
     "Take it only if it is an A+",
-    "Take it at full size",
+    "Full size, the same as Green",
     "Pass, only Green allows it",
-    "Short the market instead"
+    "Short the market index instead"
    ],
    "story": "A clean Oops reclaims the prior close, but the market reading is Orange.",
    "answer": "Take it only if it is an A+",
@@ -1596,9 +1596,9 @@
     "h26"
    ],
    "wrong": {
-    "Take it at full size": "Full risk is for Green.",
+    "Full size, the same as Green": "Full risk is for Green.",
     "Pass, only Green allows it": "Orange allows an A+. Red is mostly cash.",
-    "Short the market instead": "Red is mostly cash and shorts. Orange still allows an A+ long."
+    "Short the market index instead": "Red is mostly cash and shorts. Orange still allows an A+ long."
    },
    "house": true
   },
@@ -1677,12 +1677,12 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "oops.after_entry_stop",
-   "q": "What do you do about the new high?",
+   "q": "How do you treat the new high?",
    "choices": [
     "A new trade needs a new trigger",
-    "Buy it back, you were right",
+    "Buy it back now, you were right",
     "Blame the stop and widen it",
-    "Skip the stock for good"
+    "Skip it for good, it failed"
    ],
    "story": "You bought at 176.35 with the stop at 174.16. The next day it fell through the stop. Four weeks later the stock makes a new high.",
    "answer": "A new trade needs a new trigger",
@@ -1695,9 +1695,9 @@
     "h28"
    ],
    "wrong": {
-    "Buy it back, you were right": "Buy again only if the setup triggers again, as a new trade.",
+    "Buy it back now, you were right": "Buy again only if the setup triggers again, as a new trade.",
     "Blame the stop and widen it": "A stop never moves wider.",
-    "Skip the stock for good": "The stock is fine to trade again on a new trigger."
+    "Skip it for good, it failed": "The stock is fine to trade again on a new trigger."
    },
    "house": true
   },
@@ -2073,12 +2073,12 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "oops.after_entry_stop",
-   "q": "What do you do?",
+   "q": "Your move after the stop-out?",
    "choices": [
     "Take the loss; the setup was right",
     "Move the stop lower next time",
-    "Rewrite the rules after one loss",
-    "Buy it back at once"
+    "Rewrite the rules after one stop-out",
+    "Buy it right back at the open"
    ],
    "story": "A clean Oops with a red prior day, a pullback to the 21-day and a strong close. Two days later it trades under the Oops-day low and you are stopped out.",
    "answer": "Take the loss; the setup was right",
@@ -2090,8 +2090,8 @@
    ],
    "wrong": {
     "Move the stop lower next time": "A stop never moves down or wider.",
-    "Rewrite the rules after one loss": "One loss on a good setup is part of the system.",
-    "Buy it back at once": "Buy again only on a new trigger."
+    "Rewrite the rules after one stop-out": "One loss on a good setup is part of the system.",
+    "Buy it right back at the open": "Buy again only on a new trigger."
    },
    "house": true
   },
@@ -2314,7 +2314,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "oops.stop settled (F62).",
+   "notes": "oops.stop settled (F62). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2350,7 +2350,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "oops.location proposed.",
+   "notes": "oops.location proposed. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2362,7 +2362,7 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "oops.day_size proposed (under 3 ATR).",
+   "notes": "oops.day_size proposed (under 3 ATR). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2392,7 +2392,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "B23 settled; oops.liquidity itself is pending (D-030) but only B23 is keyed.",
+   "notes": "B23 settled; oops.liquidity itself is pending (D-030) but only B23 is keyed. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2404,7 +2404,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "oops.stop settled.",
+   "notes": "oops.stop settled. Right was the shortest of four; evened the wrong choices. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2440,13 +2440,13 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "Asked 'Which touch is the trigger?' as a ruled trigger and called waiting for the close wrong. oops.trigger is pending (D-003). Now asks about our scans; the key rests on the card's named mistake (buying the touch before the undercut) and the settled oops.order_market.",
+   "notes": "Asked 'Which touch is the trigger?' as a ruled trigger and called waiting for the close wrong. oops.trigger is pending (D-003). Now asks about our scans; the key rests on the card's named mistake (buying the touch before the undercut) and the settled oops.order_market. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q28": {
    "status": "pass",
-   "notes": "C28 settled: 52.30 / 50.00 = +4.6%, over 4%.",
+   "notes": "C28 settled: 52.30 / 50.00 = +4.6%, over 4%. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2458,13 +2458,13 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "oops.orderly proposed; the card lists a random big red bar as off the list.",
+   "notes": "oops.orderly proposed; the card lists a random big red bar as off the list. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q31": {
    "status": "pass",
-   "notes": "Story narrated the reclaim entry as the rule; now 'the way our scans do' (oops.trigger pending, D-003). Key is the settled oops.failed_reclaim: hold to the stop, do not add.",
+   "notes": "Story narrated the reclaim entry as the rule; now 'the way our scans do' (oops.trigger pending, D-003). Key is the settled oops.failed_reclaim: hold to the stop, do not add. Right was the longest and two wrong choices were 14 and 17 characters; lengthened them. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2476,13 +2476,13 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "B20 settled. R = 0.40; loss at 30.85 = 0.67 = 1.7R, inside the 2R ceiling.",
+   "notes": "B20 settled. R = 0.40; loss at 30.85 = 0.67 = 1.7R, inside the 2R ceiling. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q34": {
    "status": "pass",
-   "notes": "B19 / tp2 settled.",
+   "notes": "B19 / tp2 settled. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2494,7 +2494,7 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "C33 settled (the tighter time stop, D-019, is pending and not keyed).",
+   "notes": "C33 settled (the tighter time stop, D-019, is pending and not keyed). Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2506,7 +2506,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "oops.market_reading settled (F65). OWNER: the card's grading lists Orange or Red as B- while an A+ needs Green, so an Orange Oops can never be an A+. Requoted 2026-11-10: wrong note said 'Red allows none'; now 'Red is mostly cash'. Key holds (Orange: A+ only).",
+   "notes": "oops.market_reading settled (F65). OWNER: the card's grading lists Orange or Red as B- while an A+ needs Green, so an Orange Oops can never be an A+. Requoted 2026-11-10: wrong note said 'Red allows none'; now 'Red is mostly cash'. Key holds (Orange: A+ only). Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "requoter"
   },
@@ -2530,7 +2530,7 @@
   },
   "q42": {
    "status": "pass",
-   "notes": "B21 settled. V 2019-08-13: buy 176.35, stop 174.16; next day low 173.16 under the stop.",
+   "notes": "B21 settled. V 2019-08-13: buy 176.35, stop 174.16; next day low 173.16 under the stop. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2620,7 +2620,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "Card mistake (m_good); the owner's own wording on WFRD and SEI.",
+   "notes": "Card mistake (m_good); the owner's own wording on WFRD and SEI. Right was the longest and one wrong choice was 19 characters; evened them. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

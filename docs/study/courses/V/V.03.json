@@ -1799,7 +1799,7 @@
    "format": "scenario",
    "term": "gravestone doji",
    "story": "A stock opens at $20.00 and rallies to $21.50 by midday. Sellers push it all the way back. It closes at $20.00, which is also the day's low.",
-   "q": "Which word fits that candle?",
+   "q": "Name that candle.",
    "choices": [
     "Gravestone doji",
     "Dragonfly doji",
@@ -1939,7 +1939,7 @@
    "format": "scenario",
    "term": "spinning top",
    "story": "Yesterday was a long white candle. Today opens at $80.00, trades up to $83.60 and down to $77.70, then closes at $81.20.",
-   "q": "Which word fits today's candle?",
+   "q": "How would you name today's candle?",
    "choices": [
     "Spinning top",
     "Doji",
@@ -2133,7 +2133,7 @@
    "format": "scenario",
    "term": "shooting star",
    "story": "A stock has run for three weeks. Today it opens at $64.00, spikes to $68.10, then sells off to close at $63.20. The low is $63.00.",
-   "q": "Which word fits today's candle?",
+   "q": "What do you call today's candle?",
    "choices": [
     "Shooting star",
     "Inverted hammer",
@@ -2299,7 +2299,7 @@
    "format": "scenario",
    "term": "bearish engulfing",
    "story": "A stock has rallied for two weeks. Day 1 opens at $40.00 and closes at $41.00. Day 2 opens at $41.40 and closes at $39.60.",
-   "q": "Which word fits the two days?",
+   "q": "What pattern do the two days make?",
    "choices": [
     "Bearish engulfing",
     "Dark cloud cover",
@@ -2440,7 +2440,7 @@
    "format": "scenario",
    "term": "bearish harami",
    "story": "A stock has rallied for two weeks. Day 1 is a long white candle from $40.00 to $44.00. Day 2 opens at $43.20 and closes at $42.80.",
-   "q": "Which word fits the two days?",
+   "q": "The two days make which pattern?",
    "choices": [
     "Bearish harami",
     "Bearish engulfing",
@@ -2514,7 +2514,7 @@
    "format": "scenario",
    "term": "inside day",
    "story": "Monday: open $49.00, high $52.00, low $48.00, close $49.40. Tuesday: open $50.50, high $51.20, low $48.90, close $50.80.",
-   "q": "Which word fits Tuesday?",
+   "q": "Tuesday is best called what?",
    "choices": [
     "Inside day",
     "Harami",
@@ -2587,7 +2587,7 @@
    "format": "scenario",
    "term": "outside reversal day",
    "story": "A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low.",
-   "q": "Which word fits today?",
+   "q": "Today is best described as what?",
    "choices": [
     "Outside reversal day",
     "Inside day",
@@ -2718,7 +2718,7 @@
    "format": "scenario",
    "term": "morning doji star",
    "story": "Day 1 is a long black candle from $50.00 down to $45.00. Day 2 gaps lower and opens and closes at $44.20. Day 3 opens at $45.20 and closes at $48.50.",
-   "q": "Which word fits the three days?",
+   "q": "Name the three-day pattern.",
    "choices": [
     "Morning doji star",
     "Evening doji star",
@@ -3190,7 +3190,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f30, f109 confirmed; open = low = close = $20.00 with a $21.50 high is a gravestone. Investopedia's shooting star page says its body is 'very short but not nonexistent', so the note is right; added f90 (shooting star has a small body) to back it.",
+   "notes": "f30, f109 confirmed; open = low = close = $20.00 with a $21.50 high is a gravestone. Investopedia's shooting star page says its body is 'very short but not nonexistent', so the note is right; added f90 (shooting star has a small body) to back it. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3220,7 +3220,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Recomputed: body $1.20, upper shadow $2.40, lower $2.30, range $5.90; body 20% of range, well above ChartSchool's doji scale (f20). Spinning top is right. Added f36 to back the marubozu note. No other change.",
+   "notes": "Recomputed: body $1.20, upper shadow $2.40, lower $2.30, range $5.90; body 20% of range, well above ChartSchool's doji scale (f20). Spinning top is right. Added f36 to back the marubozu note. No other change. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3262,7 +3262,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "Recomputed: body $0.80, upper shadow $4.10 (about 5x), lower shadow $0.20; after a three-week run. Shooting star is right; no gap needed (conflicts, Nison). Added f48, f42, f82 to back the wrong notes.",
+   "notes": "Recomputed: body $0.80, upper shadow $4.10 (about 5x), lower shadow $0.20; after a three-week run. Shooting star is right; no gap needed (conflicts, Nison). Added f48, f42, f82 to back the wrong notes. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -3298,7 +3298,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "Recomputed: Day 2 body $41.40 to $39.60 covers Day 1 $40.00 to $41.00 and closes below its open (f82, f83). Not a dark cloud (that closes inside the body). No change.",
+   "notes": "Recomputed: Day 2 body $41.40 to $39.60 covers Day 1 $40.00 to $41.00 and closes below its open (f82, f83). Not a dark cloud (that closes inside the body). No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3328,7 +3328,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "Recomputed: Day 2 body $43.20 to $42.80 inside $40.00 to $44.00, after a rally. Bearish harami (f86, f87). Dark cloud note right: opened below the $44.00 close. No change.",
+   "notes": "Recomputed: Day 2 body $43.20 to $42.80 inside $40.00 to $44.00, after a rally. Bearish harami (f86, f87). Dark cloud note right: opened below the $44.00 close. No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3346,7 +3346,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "Recomputed: Tuesday $48.90-$51.20 inside Monday $48.00-$52.00; bodies $50.50-$50.80 vs $49.00-$49.40 do not overlap, so not a harami or engulfing. No change.",
+   "notes": "Recomputed: Tuesday $48.90-$51.20 inside Monday $48.00-$52.00; bodies $50.50-$50.80 vs $49.00-$49.40 do not overlap, so not a harami or engulfing. No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3364,7 +3364,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "f94: outside day that closes against the prior trend ('in an uptrend, the second day must close down'). Story fits. No change.",
+   "notes": "f94: outside day that closes against the prior trend ('in an uptrend, the second day must close down'). Story fits. No change. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3394,7 +3394,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "Recomputed: Day 1 midpoint $47.50; Day 3 closes $48.50 above it; doji at $44.20 below the $45.00 close. Key right (f62, f78). One why sentence was 23 words; shortened to 21, same meaning.",
+   "notes": "Recomputed: Day 1 midpoint $47.50; Day 3 closes $48.50 above it; doji at $44.20 below the $45.00 close. Key right (f62, f78). One why sentence was 23 words; shortened to 21, same meaning. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

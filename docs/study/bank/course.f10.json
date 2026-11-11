@@ -1832,7 +1832,7 @@
  },
  {
   "answer_json": {
-   "answer": "Sells at market when price hits the stop"
+   "answer": "Sells at market when the stop is hit"
   },
   "difficulty": 1,
   "id": "si_8dc38515d3dd",
@@ -1842,8 +1842,8 @@
   "prompt_json": {
    "choices": [
     "Sells if the stock rises to your price",
-    "Sells at market when price hits the stop",
-    "Sells only at your stop price or better",
+    "Sells at market when the stop is hit",
+    "Sells only at your stop or better",
     "Sells right now at the market price"
    ],
    "kind": "mcq",
@@ -1892,14 +1892,14 @@
     "summary": "Once the stop price is reached, a stop order turns into a market order. A sell stop goes in below the current price. Schwab's definition: a stop order acts at market once the stock has traded at or through the stop price. A sell stop becomes a market sell at the next available bid once the price falls to or through the stop. The stop price is a trigger for a market order, not a promised fill price."
    },
    "facts": {
-    "given": "What does a sell stop order do? Sells at market when price hits the stop Sells only at your stop price or better Sells if the stock rises to your price Sells right now at the market price"
+    "given": "What does a sell stop order do? Sells at market when the stop is hit Sells only at your stop or better Sells if the stock rises to your price Sells right now at the market price"
    },
    "lesson_line": "A sell stop is a trigger for a market sale. It puts the exit first, not the price.",
    "unit": "F10.02",
    "why": "It sells at market once the price reaches your stop. The stop price is the trigger. The fill is the next available bid.",
    "wrong": {
     "Sells if the stock rises to your price": "That's a sell limit, which sells at your price or higher. A sell stop sits below the price.",
-    "Sells only at your stop price or better": "That's closer to a stop-limit. A plain stop becomes a market order, and the fill can be below the stop.",
+    "Sells only at your stop or better": "That's closer to a stop-limit. A plain stop becomes a market order, and the fill can be below the stop.",
     "Sells right now at the market price": "That's a plain market order. A stop waits until the price falls to your stop."
    }
   },
@@ -2660,7 +2660,7 @@
  },
  {
   "answer_json": {
-   "answer": "Nothing sells; the stop expired Monday"
+   "answer": "Nothing sells; it canceled Monday"
   },
   "difficulty": 2,
   "id": "si_5ad5283ae685",
@@ -2669,9 +2669,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "They sell near your stop price",
+    "They sell near your stop on Thursday",
     "They sell at exactly your stop price",
-    "Nothing sells; the stop expired Monday"
+    "Nothing sells; it canceled Monday"
    ],
    "kind": "mcq",
    "q": "What happens to your shares?",
@@ -2713,14 +2713,14 @@
     "summary": "Unless you set a time frame, an order is a day order, good only on the day you enter it. A day order that has not filled generally cancels at that day's regular close and does not carry to the next day. A day stop expires at the end of the session; a good-'til-canceled stop carries over to later sessions. A good-'til-canceled order lasts until it fills in full or is canceled."
    },
    "facts": {
-    "given": "What happens to your shares? You buy on Monday and place a sell stop, leaving the time in force on Day. You don't look again. On Thursday the stock trades down through your stop price. Nothing sells; the stop expired Monday They sell near your stop price They sell at exactly your stop price"
+    "given": "What happens to your shares? You buy on Monday and place a sell stop, leaving the time in force on Day. You don't look again. On Thursday the stock trades down through your stop price. Nothing sells; it canceled Monday They sell near your stop on Thursday They sell at exactly your stop price"
    },
    "lesson_line": "A day stop dies at the close. If you hold for days, make it good-'til-canceled.",
    "unit": "F10.02",
    "why": "Nothing sells. A day order that hasn't triggered generally cancels at the end of the day it was entered. For a swing trade, make the stop good-'til-canceled.",
    "wrong": {
     "They sell at exactly your stop price": "A working stop doesn't promise its price either. And this one canceled on Monday.",
-    "They sell near your stop price": "Only a working stop can trigger. Yours canceled at Monday's close."
+    "They sell near your stop on Thursday": "Only a working stop can trigger. Yours canceled at Monday's close."
    }
   },
   "review_status": "draft",
@@ -3241,7 +3241,7 @@
  },
  {
   "answer_json": {
-   "answer": "No fill unless it comes back to $50.50"
+   "answer": "No fill unless it dips to $50.50"
   },
   "difficulty": 3,
   "id": "si_89d6d19385c4",
@@ -3250,10 +3250,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "You buy at $52.40",
-    "It cancels at the open",
-    "No fill unless it comes back to $50.50",
-    "You buy at $50.50"
+    "You buy at the $52.40 open price",
+    "It cancels at the open on the gap",
+    "No fill unless it dips to $50.50",
+    "You buy at your $50.50 limit price"
    ],
    "kind": "mcq",
    "q": "What happens to your order?",
@@ -3295,15 +3295,15 @@
     "summary": "If the stock gaps past the buy limit, the order doesn't fill unless the price comes back to the limit or below. Schwab's buy stop-limit example: buy when the price reaches $125, but not above $130. Once triggered, a stop-limit becomes a limit order that fills only at its limit price or better. If the price moves away from the limit, a stop-limit order may not fill at all."
    },
    "facts": {
-    "given": "What happens to your order? Your buy stop-limit is in: stop $50, limit $50.50. News hits overnight, and the stock opens at $52.40. No fill unless it comes back to $50.50 You buy at $52.40 You buy at $50.50 It cancels at the open"
+    "given": "What happens to your order? Your buy stop-limit is in: stop $50, limit $50.50. News hits overnight, and the stock opens at $52.40. No fill unless it dips to $50.50 You buy at the $52.40 open price You buy at your $50.50 limit price It cancels at the open on the gap"
    },
    "lesson_line": "A gap past your limit means no fill. Fine on an entry, dangerous on an exit.",
    "unit": "F10.02",
    "why": "No fill unless it trades back down to $50.50. The gap triggered the stop, but the limit won't pay $52.40. On an entry, that's the order doing its job.",
    "wrong": {
-    "It cancels at the open": "It's still working as a buy limit at $50.50, for as long as its time in force allows.",
-    "You buy at $50.50": "Only if someone sells at $50.50 or lower. At the open the stock is at $52.40.",
-    "You buy at $52.40": "That's what a plain buy stop does. The limit says $50.50 at most."
+    "It cancels at the open on the gap": "It's still working as a buy limit at $50.50, for as long as its time in force allows.",
+    "You buy at the $52.40 open price": "That's what a plain buy stop does. The limit says $50.50 at most.",
+    "You buy at your $50.50 limit price": "Only if someone sells at $50.50 or lower. At the open the stock is at $52.40."
    }
   },
   "review_status": "draft",
@@ -8028,7 +8028,7 @@
     "Buy more right at the stop"
    ],
    "kind": "mcq",
-   "q": "What do you do?",
+   "q": "How do you respond?",
    "story": "You bought at $50 with a stop at $47. It's now $47.50 and still sliding. A friend says buy more here to lower your average.",
    "subject": "F10.05#q12"
   },
@@ -8067,7 +8067,7 @@
     "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Buying more of a falling stock because it looks cheaper is often a way of not admitting you were wrong. Most people can't tell a temporary dip from the start of a much bigger drop."
    },
    "facts": {
-    "given": "What do you do? You bought at $50 with a stop at $47. It's now $47.50 and still sliding. A friend says buy more here to lower your average. Stick to the stop, add nothing Buy more, it's cheaper now Hold, but lower the stop to $45 Buy more right at the stop"
+    "given": "How do you respond? You bought at $50 with a stop at $47. It's now $47.50 and still sliding. A friend says buy more here to lower your average. Stick to the stop, add nothing Buy more, it's cheaper now Hold, but lower the stop to $45 Buy more right at the stop"
    },
    "lesson_line": "Never add to a loser. The stop is the plan.",
    "unit": "F10.05",
@@ -8521,7 +8521,7 @@
     "Take the loss and move on"
    ],
    "kind": "mcq",
-   "q": "What do you do?",
+   "q": "Which move fits our plan?",
    "story": "Your swing trade is well under your entry and close to your stop. You already bought more once on the way down. You still like the company and want to buy more.",
    "subject": "F10.05#q24"
   },
@@ -8567,7 +8567,7 @@
     "summary": "If you're tempted to average down again, sell the loser and move on. Bulkowski's answer for swing traders on averaging down: probably not, and never more than once. O'Neil's advice on buying more of a stock after it drops: don't. Hirsch lists averaging down into losing positions first among the deadly sins of managing positions. Buying more of a falling stock raises your total exposure to it."
    },
    "facts": {
-    "given": "What do you do? Your swing trade is well under your entry and close to your stop. You already bought more once on the way down. You still like the company and want to buy more. Take the loss and move on Average down one more time Lower the stop, give it room Buy more, half size this time"
+    "given": "Which move fits our plan? Your swing trade is well under your entry and close to your stop. You already bought more once on the way down. You still like the company and want to buy more. Take the loss and move on Average down one more time Lower the stop, give it room Buy more, half size this time"
    },
    "lesson_line": "Admit the mistake, take the loss, move on. Liking the company doesn't change the chart.",
    "unit": "F10.05",

@@ -1312,7 +1312,7 @@
    "term": "Kicker",
    "house": true,
    "story": "Yesterday a stock opened at $20.50 and closed red at $20.00, near its low. Its high was $20.60. Today it opens at $20.55 and trades up through $20.60.",
-   "q": "Which of our setups is this?",
+   "q": "Which setup of ours is this?",
    "choices": [
     "Kicker",
     "Oops Reversal",
@@ -1343,7 +1343,7 @@
    "term": "Oops Reversal",
    "house": true,
    "story": "A stock closed at $30.00 yesterday, with a low of $29.20. Today it opens at $29.60 and trades down to $29.00. By midday it's back at $30.05.",
-   "q": "Which of our setups fits?",
+   "q": "Which setup of ours fits?",
    "choices": [
     "Oops Reversal",
     "Kicker",
@@ -1400,7 +1400,7 @@
    "term": "Launchpad",
    "house": true,
    "story": "A stock's short-term, 21-day and 50-day averages have bunched tightly together. Price has sat just on top of the bunch for days. Today it closes higher, out of the cluster.",
-   "q": "Which of our setups is this?",
+   "q": "What is our name for this setup?",
    "choices": [
     "Launchpad",
     "Slingshot",
@@ -2201,6 +2201,21 @@
     "Yes: it bounced off the low": "A bounce off the low isn't the trigger. The reclaim of the prior close is.",
     "Yes: it closed in the upper half": "A strong close is one of the Go Signal's checks. The Oops needs the prior close back."
    }
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "On a Slingshot, our stop is the trigger day's low.",
+   "answer": "True",
+   "why": "True. The stop is the trigger day's low. The day before's low is the wider choice.",
+   "lesson_line": "Slingshot stop: the trigger day's low.",
+   "facts": [
+    "h12"
+   ],
+   "term": "Slingshot"
   }
  ],
  "conflicts": [
@@ -2403,11 +2418,11 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Checker 2026-11-09: h05's quote refreshed to TRADE_PLANS.md's current Kicker row (the 'a cent over' wording left the page on 2026-11-09, 3556ebf263); the why now says 'over that high, at market as it trades through'. Key, story and numbers unchanged. Earlier note: h05 and t01 confirmed. Story checked against uct_kicker.py: a red day closing near its low (weak close), an open at $20.55, over the $20.00 close by more than a tenth of the range, and a trade through the $20.60 high. It also opens over the prior open (Investopedia's shape). Wrong notes are fair. Track auditor, 2026-11-09: the why said 'a gap up the other way'. The $20.55 open is over the $20.00 red close but under its $20.60 high, which V.02 q50 would not call a chart gap, so the why now says 'a gap up over its close', the sense our Kicker uses. Key, choices and numbers unchanged; h05 and t01 still carry it."
+   "notes": "Checker 2026-11-09: h05's quote refreshed to TRADE_PLANS.md's current Kicker row (the 'a cent over' wording left the page on 2026-11-09, 3556ebf263); the why now says 'over that high, at market as it trades through'. Key, story and numbers unchanged. Earlier note: h05 and t01 confirmed. Story checked against uct_kicker.py: a red day closing near its low (weak close), an open at $20.55, over the $20.00 close by more than a tenth of the range, and a trade through the $20.60 high. It also opens over the prior open (Investopedia's shape). Wrong notes are fair. Track auditor, 2026-11-09: the why said 'a gap up the other way'. The $20.55 open is over the $20.00 red close but under its $20.60 high, which V.02 q50 would not call a chart gap, so the why now says 'a gap up over its close', the sense our Kicker uses. Key, choices and numbers unchanged; h05 and t01 still carry it. variety rewrite checked 2026-11-10"
   },
   "q29": {
    "status": "pass",
-   "notes": "h09 confirmed. Story fits uct_oops_reversal.py: open $29.60 under the $30.00 close, low $29.00 under the $29.20 prior low, back over $30.00. The Go Signal (same entry) is not a choice.",
+   "notes": "h09 confirmed. Story fits uct_oops_reversal.py: open $29.60 under the $30.00 close, low $29.00 under the $29.20 prior low, back over $30.00. The Go Signal (same entry) is not a choice. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2419,7 +2434,7 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "h14 and h15 confirmed; the story matches uct_launch_pad.py (a tight cluster, price just over it, the close as entry).",
+   "notes": "h14 and h15 confirmed; the story matches uct_launch_pad.py (a tight cluster, price just over it, the close as entry). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2596,6 +2611,11 @@
    "notes": "h09 confirmed; never trading $50.00 means no reclaim, so no Oops.",
    "fixed": false,
    "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "new 2026-11-10 variety question, awaiting second reader variety rewrite checked 2026-11-10",
+   "by": "writer"
   }
  }
 }

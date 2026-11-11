@@ -815,7 +815,7 @@
     "A bounce trade after a fast, deep drop",
     "A breakout from a quiet, flat base",
     "A hold for months in a rising leader",
-    "A bet that a slow decline keeps going"
+    "A bet that a slow decline keeps on going"
    ],
    "answer": "A bounce trade after a fast, deep drop",
    "why": "A bounce trade after a fast, deep drop. It is a swing trade against an unusually fast move, aimed at a return to a short average. Stockbee: extremes tend to mean revert in short time frames.",
@@ -827,7 +827,7 @@
    "wrong": {
     "A breakout from a quiet, flat base": "That is a base breakout. Mean reversion buys after a drop, not after quiet.",
     "A hold for months in a rising leader": "That is a trend hold. A snapback trade is short.",
-    "A bet that a slow decline keeps going": "A slow, controlled decline is a skip for this setup. We want a fast, deep drop."
+    "A bet that a slow decline keeps on going": "A slow, controlled decline is a skip for this setup. We want a fast, deep drop."
    },
    "house": true
   },
@@ -897,12 +897,12 @@
    "criterion": "mr.stop",
    "q": "Where does the stop go on a mean-reversion long?",
    "choices": [
-    "A few cents under the flush low",
+    "Just under the flush day's low",
     "At the 20-day average",
-    "A fixed 5% under your fill",
+    "A fixed 5% under your fill price",
     "Under the flush day's high"
    ],
-   "answer": "A few cents under the flush low",
+   "answer": "Just under the flush day's low",
    "why": "A few cents under the flush low, or the turn day's low if that is lower. Kell puts the stop just below the low of the reversal bar.",
    "lesson_line": "Stop first: a few cents under the flush low.",
    "facts": [
@@ -912,7 +912,7 @@
    ],
    "wrong": {
     "At the 20-day average": "The 20-day is where the bounce may run, not where the trade is wrong.",
-    "A fixed 5% under your fill": "A fixed percent ignores where the sellers gave up. The stop sits under the low.",
+    "A fixed 5% under your fill price": "A fixed percent ignores where the sellers gave up. The stop sits under the low.",
     "Under the flush day's high": "The high is above your entry, so a stop there would end the trade at once. The stop sits under the low."
    },
    "house": true
@@ -942,12 +942,12 @@
    "criterion": "mr.mark_band",
    "q": "Which of these ticks stretch mark 2?",
    "choices": [
-    "A close under the lower Bollinger band",
+    "A close under the lower band",
     "An intraday tag of the lower band",
     "A close above the upper band",
-    "A close under the 50-day"
+    "A close under the 50-day average"
    ],
-   "answer": "A close under the lower Bollinger band",
+   "answer": "A close under the lower band",
    "why": "A close under the lower Bollinger band. A tag of the lower band is not a signal on its own. Bollinger: tags are just tags.",
    "lesson_line": "Mark 2 is a close under the lower band, not a touch.",
    "facts": [
@@ -957,7 +957,7 @@
    "wrong": {
     "An intraday tag of the lower band": "Bollinger: tags of the bands are just tags, not signals.",
     "A close above the upper band": "That is a stretch up, not down. Mark 2 is a close under the lower band.",
-    "A close under the 50-day": "That is not one of the five marks."
+    "A close under the 50-day average": "That is not one of the five marks."
    },
    "house": true
   },
@@ -1203,7 +1203,7 @@
    "choices": [
     "Take the loss; the stop is the exit",
     "Add half; it is cheaper now",
-    "Wait for a close under the low"
+    "Wait for a close under the flush low"
    ],
    "answer": "Take the loss; the stop is the exit",
    "why": "Take the loss. The stop is the exit and it only moves up. The full size goes in at one price with one stop.",
@@ -1215,7 +1215,7 @@
    ],
    "wrong": {
     "Add half; it is cheaper now": "No adding: the full size goes in at one price with one stop.",
-    "Wait for a close under the low": "The stop is a real order. It is not a closing-price suggestion."
+    "Wait for a close under the flush low": "The stop is a real order. It is not a closing-price suggestion."
    },
    "story": "You bought the turn. Price trades under the flush low, where your stop sits.",
    "house": true
@@ -1548,11 +1548,11 @@
    "criterion": "mr.no_chase",
    "q": "What do you do?",
    "choices": [
-    "Skip it; it is past 4% above the trigger",
-    "Buy at market and widen the stop",
-    "Place a limit at 50.00 and wait"
+    "Skip it; over 4% past the trigger",
+    "Buy at market, then widen the stop",
+    "Place a limit at 50.00 and just wait"
    ],
-   "answer": "Skip it; it is past 4% above the trigger",
+   "answer": "Skip it; over 4% past the trigger",
    "why": "Skip it. Never buy more than 4% above the trigger. Chasing costs size, not risk.",
    "lesson_line": "A missed turn is a missed trade, not a new entry.",
    "facts": [
@@ -1561,8 +1561,8 @@
     "h22"
    ],
    "wrong": {
-    "Buy at market and widen the stop": "The stop only moves up, never wider. And you would be chasing.",
-    "Place a limit at 50.00 and wait": "Our entries are market orders on the trigger. A limit under the market is hope, not a trigger."
+    "Buy at market, then widen the stop": "The stop only moves up, never wider. And you would be chasing.",
+    "Place a limit at 50.00 and just wait": "Our entries are market orders on the trigger. A limit under the market is hope, not a trigger."
    },
    "story": "The turn printed at 50.00 while you were in a meeting. You see 52.40 now.",
    "house": true
@@ -1670,11 +1670,11 @@
    "criterion": "mr.no_add",
    "q": "Add to the position?",
    "choices": [
-    "No, one price, one stop, no adding",
-    "Yes, add half at 40.50",
-    "Yes, add and move both stops"
+    "No; one price, one stop, no adds",
+    "Yes, add half at 40.50 on the dip",
+    "Yes, add and move both stops up"
    ],
-   "answer": "No, one price, one stop, no adding",
+   "answer": "No; one price, one stop, no adds",
    "why": "No. The full size goes in at one price with one stop. A re-entry after a stop-out is a new trade on a new trigger.",
    "lesson_line": "One entry, one stop. No adding.",
    "facts": [
@@ -1682,8 +1682,8 @@
     "h28"
    ],
    "wrong": {
-    "Yes, add half at 40.50": "The full size goes in at one price with one stop; no adding.",
-    "Yes, add and move both stops": "No adding, and the stop only moves up."
+    "Yes, add half at 40.50 on the dip": "The full size goes in at one price with one stop; no adding.",
+    "Yes, add and move both stops up": "No adding, and the stop only moves up."
    },
    "story": "You are in at 40.00 with the stop at 38.50. It bounces 1R, dips back to 40.50 and looks ready again.",
    "house": true
@@ -1739,7 +1739,7 @@
    "choices": [
     "No stop; sell at the 5-day average",
     "A real stop; a third off at 3R",
-    "A real stop; trail the last third"
+    "A real stop; trail the last third up"
    ],
    "answer": "No stop; sell at the 5-day average",
    "why": "No stop, sell at the 5-day average. Connors does not advocate stops and exits on a move above the 5-day SMA. We keep a real stop and trim in thirds.",
@@ -1752,7 +1752,7 @@
    ],
    "wrong": {
     "A real stop; a third off at 3R": "That is ours: a real stop and a third at 3R.",
-    "A real stop; trail the last third": "That is ours: a real stop and a trail on the last third."
+    "A real stop; trail the last third up": "That is ours: a real stop and a trail on the last third."
    },
    "house": true
   },
@@ -1813,18 +1813,18 @@
    "criterion": "mr.inv_stall",
    "q": "Day one's bounce stalls and closes weak. What is that?",
    "choices": [
-    "The early warning of a failing bounce",
-    "A normal shakeout to add on",
+    "A warning that the bounce fails",
+    "A normal shakeout you can add on",
     "Proof the flush is complete"
    ],
-   "answer": "The early warning of a failing bounce",
+   "answer": "A warning that the bounce fails",
    "why": "The early warning. A bounce that stalls and closes weak on day one or two warns that it is failing.",
    "lesson_line": "A weak close on day one is the early warning.",
    "facts": [
     "cN"
    ],
    "wrong": {
-    "A normal shakeout to add on": "No adding. A weak close is a warning, not an invitation.",
+    "A normal shakeout you can add on": "No adding. A weak close is a warning, not an invitation.",
     "Proof the flush is complete": "A bounce that stalls proves nothing is finished."
    },
    "house": true
@@ -1837,11 +1837,11 @@
    "criterion": "mr.trigger",
    "q": "How does Kullamagi enter his long bounce?",
    "choices": [
-    "Opening range high, first green candle",
-    "The close of the flush day",
+    "Opening range high, green candle",
+    "The close of the flush day itself",
     "A limit at the low of the day"
    ],
-   "answer": "Opening range high, first green candle",
+   "answer": "Opening range high, green candle",
    "why": "The opening range high or the first green 5-minute candle. He waits for the bounce to start, as we wait for the turn.",
    "lesson_line": "Wait for the bounce to start, then buy.",
    "facts": [
@@ -1849,7 +1849,7 @@
     "cJ"
    ],
    "wrong": {
-    "The close of the flush day": "That buys the falling price. Kullamagi waits for the bounce to start.",
+    "The close of the flush day itself": "That buys the falling price. Kullamagi waits for the bounce to start.",
     "A limit at the low of the day": "That tries to catch the exact low. He waits for an upward break instead."
    },
    "house": true
@@ -1878,7 +1878,7 @@
    "q": "Mean-reversion flush or something else?",
    "choices": [
     "A moving-average pullback",
-    "A mean-reversion flush",
+    "A mean-reversion flush day",
     "An oops reversal"
    ],
    "answer": "A moving-average pullback",
@@ -1889,7 +1889,7 @@
     "cG"
    ],
    "wrong": {
-    "A mean-reversion flush": "A flush is a hard, fast day. This is a slow drift with no big day.",
+    "A mean-reversion flush day": "A flush is a hard, fast day. This is a slow drift with no big day.",
     "An oops reversal": "An oops gaps under the prior day's low and reclaims the prior close the same day. Nothing like that happened here."
    },
    "story": "A leader drifts for six sessions on light volume to its rising 20 EMA. No day drops more than 1 ATR.",
@@ -2010,11 +2010,11 @@
    "criterion": "mr.prior_trend_a",
    "q": "Stopped out next day. What did the chart say before you bought?",
    "choices": [
-    "A broken leader after a parabolic top",
-    "A clean leader at support",
-    "A slow grind on no volume"
+    "A broken leader, a parabolic top",
+    "A clean leader resting at support",
+    "A slow grind down on no volume"
    ],
-   "answer": "A broken leader after a parabolic top",
+   "answer": "A broken leader, a parabolic top",
    "why": "A broken leader after a parabolic top. An eight-day slide through the 50-day is a broken leader, not a stretched one.",
    "lesson_line": "Eight red days through the 50-day is a break, not a stretch.",
    "facts": [
@@ -2022,8 +2022,8 @@
     "cA"
    ],
    "wrong": {
-    "A clean leader at support": "Eight down closes through the 50-day is not a clean leader resting at support.",
-    "A slow grind on no volume": "The flush came on 3x volume. This was no slow grind."
+    "A clean leader resting at support": "Eight down closes through the 50-day is not a clean leader resting at support.",
+    "A slow grind down on no volume": "The flush came on 3x volume. This was no slow grind."
    },
    "story": "A stock just made a parabolic top, up 58%. It falls eight straight days, 21% in all, through its 50-day. A 3x volume flush comes next and RSI(2) is 0.",
    "house": true
@@ -2036,11 +2036,11 @@
    "criterion": "mr.inv_second_flush",
    "q": "What now?",
    "choices": [
-    "Take the loss; rebuy on a new trigger",
-    "Buy back at once, it is cheaper",
+    "Take the loss; rebuy on a trigger",
+    "Buy back at once, since it is cheaper",
     "Widen the next stop to give it room"
    ],
-   "answer": "Take the loss; rebuy on a new trigger",
+   "answer": "Take the loss; rebuy on a trigger",
    "why": "Take the loss. A second flush on heavier volume means the selling was not done. A re-entry needs a new trigger, as a new trade with its own stop.",
    "lesson_line": "A planned loss. Buy again only on a new trigger.",
    "facts": [
@@ -2050,7 +2050,7 @@
     "dIL2"
    ],
    "wrong": {
-    "Buy back at once, it is cheaper": "After a stop-out, buy again only if the setup triggers again. No trigger, no trade.",
+    "Buy back at once, since it is cheaper": "After a stop-out, buy again only if the setup triggers again. No trigger, no trade.",
     "Widen the next stop to give it room": "The stop is under the low, where the rule puts it. A wider stop only makes the loss bigger."
    },
    "story": "You buy at 320.55 with the stop at 311.69 after a five-day slide. Two sessions later the market breaks. The stock makes a new low on heavier volume and stops you out.",
@@ -2066,7 +2066,7 @@
    "choices": [
     "No, a planned loss at the stop",
     "Yes, you should have held it",
-    "Yes, the stop was too tight"
+    "Yes, the stop was too tight here"
    ],
    "answer": "No, a planned loss at the stop",
    "why": "No. The stop did its job. A bounce that closes weak on day one is the early warning, and the loss was the plan.",
@@ -2079,7 +2079,7 @@
    ],
    "wrong": {
     "Yes, you should have held it": "The stop is the exit. It only moves up, never down or wider.",
-    "Yes, the stop was too tight": "The stop sat under the lows, where the rules put it. A wider stop only makes the loss bigger."
+    "Yes, the stop was too tight here": "The stop sat under the lows, where the rules put it. A wider stop only makes the loss bigger."
    },
    "story": "You buy at 105.48 with the stop at 103.39. Day one trades down to 99.80 and closes at 101.13, in the lower quarter of its range. The index makes a new low.",
    "house": true
@@ -2121,7 +2121,7 @@
    "choices": [
     "B, the stronger case",
     "A, it is calmer",
-    "They grade the same"
+    "They grade about the same"
    ],
    "answer": "B, the stronger case",
    "why": "B. Flush A is only the second red day, a skip on its own. B has the 4th down day, a level to lean on and fear in the market.",
@@ -2135,7 +2135,7 @@
    ],
    "wrong": {
     "A, it is calmer": "Calm weakens the case, and a second red day is a skip. Fear in the market strengthens it.",
-    "They grade the same": "The 4th day, the level and the fear all point to B."
+    "They grade about the same": "The 4th day, the level and the fear all point to B."
    },
    "story": "Flush A is the second red day, mid-range, with the VIX at 14 and the index at highs. Flush B is the fourth red day, into the prior breakout level, with the VIX at 31 and breadth washed out.",
    "house": true
@@ -2165,7 +2165,7 @@
    "q": "Take the turn?",
    "choices": [
     "Pass; the business changed",
-    "Take it; 20% is a washout",
+    "Take it; a 20% drop is a washout",
     "Take it with a tight stop"
    ],
    "answer": "Pass; the business changed",
@@ -2176,7 +2176,7 @@
     "bu1"
    ],
    "wrong": {
-    "Take it; 20% is a washout": "The size of the drop is not the issue. A real change in the business is.",
+    "Take it; a 20% drop is a washout": "The size of the drop is not the issue. A real change in the business is.",
     "Take it with a tight stop": "A tight stop cannot fix a broken story. The bounce is the likely path to fail."
    },
    "story": "A leader drops 20% in a day after a guidance cut and a fraud probe. It bounces intraday and the chart looks stretched.",
@@ -2248,11 +2248,11 @@
    "criterion": "mr.stop",
    "q": "Take it?",
    "choices": [
-    "Take it; market order, stop under low",
+    "Take it; market buy, stop under low",
     "Wait for the close of the next day",
-    "Pass; the report is too close"
+    "Pass; the report is too close to buy"
    ],
-   "answer": "Take it; market order, stop under low",
+   "answer": "Take it; market buy, stop under low",
    "why": "Take it. A leader above both averages, up 30%, a real stretch, a level, the turn printed, a report five days out. Market order, stop a few cents under the flush low.",
    "lesson_line": "All gates pass: buy the turn at market, stop under the low.",
    "facts": [
@@ -2268,7 +2268,7 @@
    ],
    "wrong": {
     "Wait for the close of the next day": "The turn is the trigger. Waiting for another close buys later and at a worse price.",
-    "Pass; the report is too close": "The rule is no new buys in the 3 days before a report. Five days out is clear."
+    "Pass; the report is too close to buy": "The rule is no new buys in the 3 days before a report. Five days out is clear."
    },
    "story": "A leader is up 30% over three months, above its 50-day and 200-day. It falls four days, the last a 2.4 ATR drop with RSI(2) at 1, to its rising 50-day. Then it trades back over the prior day's low. Its report is five days away.",
    "house": true
@@ -2281,11 +2281,11 @@
    "criterion": "mr.prior_trend_a",
    "q": "Hidden ticker, the flush day just closed. Wait for the turn, or pass?",
    "choices": [
-    "Wait for the turn; far above the 200-day",
+    "Wait for the turn; over the 200-day",
     "Pass; it is under the 200-day",
-    "Buy this close; the drop is huge"
+    "Buy this close; the drop is that huge"
    ],
-   "answer": "Wait for the turn; far above the 200-day",
+   "answer": "Wait for the turn; over the 200-day",
    "why": "Wait for the turn. An earnings flush, 13% under the rising 50-day in a stock still 20% above its 200-day. The next day it turned and closed at 3R.",
    "lesson_line": "A leader flush well above the 200-day: wait for the turn.",
    "facts": [
@@ -2296,7 +2296,7 @@
    ],
    "wrong": {
     "Pass; it is under the 200-day": "Look again: price sits well above a rising 200-day.",
-    "Buy this close; the drop is huge": "Buying the close of the flush buys before any turn. We wait for the turn."
+    "Buy this close; the drop is that huge": "Buying the close of the flush buys before any turn. We wait for the turn."
    },
    "house": true,
    "chart": {
@@ -2359,7 +2359,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "cDef and bo4 verbatim. The 1-to-5-session hold (mr.definition, pending D-016) is not keyed. Key right; wrong notes true.",
+   "notes": "cDef and bo4 verbatim. The 1-to-5-session hold (mr.definition, pending D-016) is not keyed. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2383,8 +2383,8 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "cK/h24 verbatim in the card, the rulebook (sizing_rule.md section 9); ke2 verbatim on the cited page. Key right; wrong notes true.",
-   "fixed": false,
+   "notes": "cK/h24 verbatim in the card, the rulebook (sizing_rule.md section 9); ke2 verbatim on the cited page. Key right; wrong notes true. | variety rewrite checked 2026-11-10: lengthened a wrong choice so the right one is not the longest",
+   "fixed": true,
    "by": "checker"
   },
   "q06": {
@@ -2395,7 +2395,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "cC verbatim in the card; bl1 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "cC verbatim in the card; bl1 verbatim on the cited page. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2413,7 +2413,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "h10, sc1 verbatim. B26 as written; the index exception (mr.prior_trend_b, D-009) is not keyed. Key right; wrong notes true.",
+   "notes": "h10, sc1 verbatim. B26 as written; the index exception (mr.prior_trend_b, D-009) is not keyed. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2461,7 +2461,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "h02/h18/h30 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "h02/h18/h30 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2479,7 +2479,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "h08 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "h08 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2533,7 +2533,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "cG, gD2, cE verbatim. A skip on the second down day is the card's no-trade row. Key right; wrong notes true.",
+   "notes": "cG, gD2, cE verbatim. A skip on the second down day is the card's no-trade row. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2545,7 +2545,7 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "h11, h12, h22 verbatim. 52.40 / 50.00 = 4.8% above the trigger, more than 4%. Key right. Same rule as q20 (tf) but a different decision and number; kept.",
+   "notes": "h11, h12, h22 verbatim. 52.40 / 50.00 = 4.8% above the trigger, more than 4%. Key right. Same rule as q20 (tf) but a different decision and number; kept. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2557,7 +2557,7 @@
   },
   "q34": {
    "status": "pass",
-   "notes": "h21, h20 verbatim. Key right; the thirds are our plan (E51).",
+   "notes": "h21, h20 verbatim. Key right; the thirds are our plan (E51). | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2575,13 +2575,13 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "h30/h28 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "h30/h28 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q38": {
    "status": "pass",
-   "notes": "h29, h28 verbatim. Three stop-outs this week make a fourth try over E56's cap. Key right.",
+   "notes": "h29, h28 verbatim. Three stop-outs this week make a fourth try over E56's cap. Key right. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2593,7 +2593,7 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "h18/h05 verbatim in the rulebook (sizing_rule.md section 9); sc4/sc5 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "h18/h05 verbatim in the rulebook (sizing_rule.md section 9); sc4/sc5 verbatim on the cited page. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2611,13 +2611,13 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "cN verbatim. The why said 'how the card flags'; 'the card' means nothing to a member, so it now says the bounce warns that it is failing.",
+   "notes": "cN verbatim. The why said 'how the card flags'; 'the card' means nothing to a member, so it now says the bounce warns that it is failing. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q44": {
    "status": "pass",
-   "notes": "cJ verbatim in the card; ku1 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "cJ verbatim in the card; ku1 verbatim on the cited page. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2629,7 +2629,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "tMA/cG verbatim in the card. Key right; wrong notes true.",
+   "notes": "tMA/cG verbatim in the card. Key right; wrong notes true. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2659,19 +2659,19 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "dEL, cA verbatim; the ELF numbers (up 58%, eight down closes, 21%, 3x, RSI(2) 0) are in the dossier failures tables. The dossier files it under mr.inv_stall (section 14) and the card under mr.prior_trend_a; the question asks the broken-leader reading (conflicts). Key right.",
+   "notes": "dEL, cA verbatim; the ELF numbers (up 58%, eight down closes, 21%, 3x, RSI(2) 0) are in the dossier failures tables. The dossier files it under mr.inv_stall (section 14) and the card under mr.prior_trend_a; the question asks the broken-leader reading (conflicts). Key right. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q52": {
    "status": "pass",
-   "notes": "cM, h28, dIL1, dIL2 verbatim. Bars: buy 320.55 = flush close + a cent, stop 311.69 = 5 cents under the turn-day low 311.74, 2018-10-10 low 296.28, volume 2.18M against 2.15M on the flush day (heavier). Key right.",
+   "notes": "cM, h28, dIL1, dIL2 verbatim. Bars: buy 320.55 = flush close + a cent, stop 311.69 = 5 cents under the turn-day low 311.74, 2018-10-10 low 296.28, volume 2.18M against 2.15M on the flush day (heavier). Key right. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q53": {
    "status": "pass",
-   "notes": "dSB1, dSB2, cN, h02 verbatim. Bars: SBUX 2025-03-10 ranged 99.80 to 106.00 and closed 101.13, the lower quarter; the story said 'near its low', now 'in the lower quarter of its range' as the dossier says. The open (105.73) was above the stop, so the gap rule does not apply. Key right.",
+   "notes": "dSB1, dSB2, cN, h02 verbatim. Bars: SBUX 2025-03-10 ranged 99.80 to 106.00 and closed 101.13, the lower quarter; the story said 'near its low', now 'in the lower quarter of its range' as the dossier says. The open (105.73) was above the stop, so the gap rule does not apply. Key right. | variety rewrite checked 2026-11-10: shortened a wrong choice so the right one is not the shortest",
    "fixed": true,
    "by": "checker"
   },
@@ -2683,7 +2683,7 @@
   },
   "q55": {
    "status": "pass",
-   "notes": "gD1, gD2, gL, gF1, gF2 verbatim. Flush A is the second red day, which is a skip (q08, q30) and not a B-minus, so the why contradicted the unit, and the A+/B-minus labels were E50 checklist wording. Rewritten: B is the stronger case; the choice 'B, by a long way' is now 'B, the stronger case'.",
+   "notes": "gD1, gD2, gL, gF1, gF2 verbatim. Flush A is the second red day, which is a skip (q08, q30) and not a B-minus, so the why contradicted the unit, and the A+/B-minus labels were E50 checklist wording. Rewritten: B is the stronger case; the choice 'B, by a long way' is now 'B, the stronger case'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2695,7 +2695,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "cO, bu1 verbatim. Key right; a real change in the business is the card's no-trade row.",
+   "notes": "cO, bu1 verbatim. Key right; a real change in the business is the card's no-trade row. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2719,13 +2719,13 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "cA, cE, cH, cJ, cK, h08, h22 verbatim. The story had four down days only (one mark) while the key said all gates pass; the card needs at least two marks (D-114 pending), so the story now gives the last day as a 2.4 ATR drop with RSI(2) at 1 (cB and cD added to the facts). Key right.",
+   "notes": "cA, cE, cH, cJ, cK, h08, h22 verbatim. The story had four down days only (one mark) while the key said all gates pass; the card needs at least two marks (D-114 pending), so the story now gives the last day as a 2.4 ATR drop with RSI(2) at 1 (cB and cD added to the facts). Key right. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q62": {
    "status": "pass",
-   "notes": "cA, dKR1, dKR2, h10 verbatim. Bars: KRYS 2023-08-07 has 1,478 daily bars before it (120 needed) and 819 after; flush day low 106.925, close 108.51, 19.6% over the 200-day (90.69), 11.3% under the 50-day (122.38) on the close, 12.6% on the low. The wrong note 'a B-minus' reworded (E50). Key right.",
+   "notes": "cA, dKR1, dKR2, h10 verbatim. Bars: KRYS 2023-08-07 has 1,478 daily bars before it (120 needed) and 819 after; flush day low 106.925, close 108.51, 19.6% over the 200-day (90.69), 11.3% under the 50-day (122.38) on the close, 12.6% on the low. The wrong note 'a B-minus' reworded (E50). Key right. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },

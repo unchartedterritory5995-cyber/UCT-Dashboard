@@ -507,11 +507,11 @@
    "format": "mcq",
    "q": "Why log every trade in the same fixed fields instead of free notes?",
    "choices": [
-    "So trades can be sorted and compared",
+    "So you can sort and compare trades",
     "So each entry is longer and richer",
     "So you can skip the written notes"
    ],
-   "answer": "So trades can be sorted and compared",
+   "answer": "So you can sort and compare trades",
    "why": "So trades can be sorted and compared. Free notes drift, detailed one day and sketchy the next. Fixed fields let you track, sort and analyze, and pull up every trade of one kind at once.",
    "lesson_line": "Same fields on every trade. That's what makes a journal you can sort.",
    "facts": [
@@ -660,12 +660,12 @@
    "format": "mcq",
    "q": "Which field shows you broke your rules, even on a trade that made money?",
    "choices": [
-    "Grade for following the plan",
-    "Realized gain or loss",
-    "Exit price on the fill",
-    "Planned target price"
+    "Your grade for following the plan",
+    "Realized gain or loss in dollars",
+    "Exit price on the closing fill",
+    "Planned target price for the trade"
    ],
-   "answer": "Grade for following the plan",
+   "answer": "Your grade for following the plan",
    "why": "The plan grade. Schwab's worksheet grades how closely the plan was followed, on its own line next to the gain or loss. Your journal tracks how well you follow your rules, not just whether you made money.",
    "lesson_line": "Grade the plan apart from the P&L. A broken rule that paid is still broken.",
    "facts": [
@@ -673,9 +673,9 @@
     "f22"
    ],
    "wrong": {
-    "Realized gain or loss": "P&L shows the result, not how you got it. A rule break can still make money.",
-    "Exit price on the fill": "The exit says where you got out. It can't say whether that was the plan.",
-    "Planned target price": "That's part of the plan itself. It can't say whether you stuck to it."
+    "Realized gain or loss in dollars": "P&L shows the result, not how you got it. A rule break can still make money.",
+    "Exit price on the closing fill": "The exit says where you got out. It can't say whether that was the plan.",
+    "Planned target price for the trade": "That's part of the plan itself. It can't say whether you stuck to it."
    }
   },
   {
@@ -1046,7 +1046,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key: Schwab f06 (spreadsheets track, sort, analyze) + Steenbarger f23/f27 (tags pull up every entry of one kind), confirmed live. Replaced the distractor 'So the P&L adds up on its own': a fixed-field spreadsheet does total P&L, so it was partly true. New distractor 'skip the written notes' is wrong per f30 and f01.",
+   "notes": "Key: Schwab f06 (spreadsheets track, sort, analyze) + Steenbarger f23/f27 (tags pull up every entry of one kind), confirmed live. Replaced the distractor 'So the P&L adds up on its own': a fixed-field spreadsheet does total P&L, so it was partly true. New distractor 'skip the written notes' is wrong per f30 and f01. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -1088,7 +1088,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f12 (Schwab: realized gain/loss, then grade how closely the plan was followed) and f22 (Steenbarger: track rule-following, not just money) confirmed. Question said 'broke your plan' and the key 'following the plan', a giveaway; now 'broke your rules', and 'Planned target price' replaces the weak 'Time and date' distractor.",
+   "notes": "f12 (Schwab: realized gain/loss, then grade how closely the plan was followed) and f22 (Steenbarger: track rule-following, not just money) confirmed. Question said 'broke your plan' and the key 'following the plan', a giveaway; now 'broke your rules', and 'Planned target price' replaces the weak 'Time and date' distractor. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },

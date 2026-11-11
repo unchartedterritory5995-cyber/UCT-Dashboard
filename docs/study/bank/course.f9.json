@@ -12110,8 +12110,8 @@
   "prompt_json": {
    "choices": [
     "Freeriding, a Regulation T breach",
-    "A good faith violation",
-    "Nothing wrong, it made money"
+    "A good faith violation on the sale",
+    "Nothing wrong, it made a profit"
    ],
    "kind": "mcq",
    "q": "What did you just do?",
@@ -12160,14 +12160,14 @@
     "summary": "Buying and selling before you pay is freeriding. Freeriding breaks Regulation T and can get the cash account frozen for 90 days. During a freeze you can still buy, but you pay in full on the trade date. Selling a stock you never paid for is freeriding. Buying with unsettled cash and selling before that cash settles is a good faith violation."
    },
    "facts": {
-    "given": "What did you just do? Cash account with $0 in it. Monday you buy $5,000 of a stock and send no money. Wednesday you sell it for $5,400 to cover the cost. Freeriding, a Regulation T breach A good faith violation Nothing wrong, it made money"
+    "given": "What did you just do? Cash account with $0 in it. Monday you buy $5,000 of a stock and send no money. Wednesday you sell it for $5,400 to cover the cost. Freeriding, a Regulation T breach A good faith violation on the sale Nothing wrong, it made a profit"
    },
    "lesson_line": "Pay for it before you sell it. A freeze means paying in full on the trade date for 90 days.",
    "unit": "F9.07",
    "why": "Freeriding. You bought and sold before paying for it. Regulation T doesn't allow that, and your broker can freeze the cash account for 90 days.",
    "wrong": {
-    "A good faith violation": "Close, but that's selling a stock bought with unsettled sale cash. You never paid at all, and that's freeriding.",
-    "Nothing wrong, it made money": "Profit doesn't fix it. You sold the stock before you paid for it."
+    "A good faith violation on the sale": "Close, but that's selling a stock bought with unsettled sale cash. You never paid at all, and that's freeriding.",
+    "Nothing wrong, it made a profit": "Profit doesn't fix it. You sold the stock before you paid for it."
    }
   },
   "review_status": "draft",
@@ -12179,7 +12179,7 @@
  },
  {
   "answer_json": {
-   "answer": "Your equity against positions, all day"
+   "answer": "Equity against positions all day"
   },
   "difficulty": 2,
   "id": "si_a9dba86a8b7c",
@@ -12189,9 +12189,9 @@
   "prompt_json": {
    "choices": [
     "Day trades counted over five days",
-    "A $25,000 minimum balance",
+    "A $25,000 minimum balance to trade",
     "Nothing, day trading is unlimited",
-    "Your equity against positions, all day"
+    "Equity against positions all day"
    ],
    "kind": "mcq",
    "q": "What does the new rule check?",
@@ -12233,13 +12233,13 @@
     "summary": "The new rule drops the trade count and checks your equity against your positions during the day. Under the new rule there is no $25,000 minimum to day trade. Too little equity for your open positions during the day is an intraday margin deficit, and you must cover it promptly. Repeatedly missing intraday margin deficits can get the account restricted for up to 90 days."
    },
    "facts": {
-    "given": "What does the new rule check? Your broker has switched to FINRA's new intraday margin rule. You day trade a few times a week in a $15,000 margin account. Your equity against positions, all day Day trades counted over five days A $25,000 minimum balance Nothing, day trading is unlimited"
+    "given": "What does the new rule check? Your broker has switched to FINRA's new intraday margin rule. You day trade a few times a week in a $15,000 margin account. Equity against positions all day Day trades counted over five days A $25,000 minimum balance to trade Nothing, day trading is unlimited"
    },
    "lesson_line": "The new rule doesn't count your trades. It checks your equity, all day.",
    "unit": "F9.07",
    "why": "Your equity against your positions, all through the day. No trade count, no $25,000 minimum. Come up short and you have an intraday margin deficit to cover promptly.",
    "wrong": {
-    "A $25,000 minimum balance": "The new rule has no $25,000 minimum for day trading.",
+    "A $25,000 minimum balance to trade": "The new rule has no $25,000 minimum for day trading.",
     "Day trades counted over five days": "That was the old pattern day trader count. The new rule has no trade count.",
     "Nothing, day trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
    }
@@ -13107,7 +13107,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Under our rules, the most you can put in one stock is 40% of the account.",
+   "q": "Our max position in one stock is 40% of the account.",
    "subject": "F9.08#q02"
   },
   "reveal_json": {
@@ -13131,7 +13131,7 @@
     "summary": "Our max position is 40% of the account, raised on 2026-11-09 from the old 20% to 25%. A tight stop never earns a position above the cap, because a gap can jump the stop."
    },
    "facts": {
-    "given": "Under our rules, the most you can put in one stock is 40% of the account."
+    "given": "Our max position in one stock is 40% of the account."
    },
    "lesson_line": "One stock, 40% of the account at most. That's the cap, whatever the stop.",
    "unit": "F9.08",
@@ -13438,19 +13438,19 @@
  },
  {
   "answer_json": {
-   "answer": "A judgment call, no fixed checklist"
+   "answer": "A judgment call, no set checklist"
   },
   "difficulty": 1,
   "id": "si_71a165abbdf7",
   "lesson_origin": "session",
-  "lesson_text": "A judgment call, no fixed checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down. Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
+  "lesson_text": "A judgment call, no set checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down. Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A judgment call, no fixed checklist",
+    "A judgment call, no set checklist",
     "By the share price",
-    "By the stop distance alone",
-    "A points checklist adds it up"
+    "By how tight the stop distance is",
+    "A points checklist that adds it up"
    ],
    "kind": "mcq",
    "q": "How do we grade a setup A+, A, B or B-?",
@@ -13484,15 +13484,15 @@
     "summary": "Grading a setup is a judgment call; we teach no fixed checklist. The setup's grade sets the size: A and B normal, A+ bigger, B- or lower smaller. We trade only stocks priced $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "How do we grade a setup A+, A, B or B-? A judgment call, no fixed checklist A points checklist adds it up By the stop distance alone By the share price"
+    "given": "How do we grade a setup A+, A, B or B-? A judgment call, no set checklist A points checklist that adds it up By how tight the stop distance is By the share price"
    },
    "lesson_line": "Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
    "unit": "F9.08",
-   "why": "A judgment call, no fixed checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down.",
+   "why": "A judgment call, no set checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down.",
    "wrong": {
-    "A points checklist adds it up": "We teach no fixed checklist. The grade is discretionary.",
-    "By the share price": "Price decides whether a stock is tradable ($10 or more), not how good the setup is.",
-    "By the stop distance alone": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+."
+    "A points checklist that adds it up": "We teach no fixed checklist. The grade is discretionary.",
+    "By how tight the stop distance is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
+    "By the share price": "Price decides whether a stock is tradable ($10 or more), not how good the setup is."
    }
   },
   "review_status": "draft",
@@ -13805,7 +13805,7 @@
     "$100,000"
    ],
    "kind": "mcq",
-   "q": "Under our rules, how big is the position?",
+   "q": "How big is the position?",
    "story": "Account $100,000. An A+ setup, so you pick 1.5% risk. Entry $20, stop $19.70, a 1.5% stop. The risk math says $100,000 in the stock.",
    "subject": "F9.08#q13"
   },
@@ -13853,7 +13853,7 @@
      "fn": "arith",
      "result": 40000.0
     },
-    "given": "Under our rules, how big is the position? Account $100,000. An A+ setup, so you pick 1.5% risk. Entry $20, stop $19.70, a 1.5% stop. The risk math says $100,000 in the stock. $40,000 $100,000 $60,000 $1,500"
+    "given": "How big is the position? Account $100,000. An A+ setup, so you pick 1.5% risk. Entry $20, stop $19.70, a 1.5% stop. The risk math says $100,000 in the stock. $40,000 $100,000 $60,000 $1,500"
    },
    "lesson_line": "The cap binds before the grade. Size from the stop, then take the smaller number.",
    "unit": "F9.08",
@@ -14145,7 +14145,7 @@
  },
  {
   "answer_json": {
-   "answer": "Pass. Three tries a week is the limit"
+   "answer": "Pass. Three tries a week, done"
   },
   "difficulty": 3,
   "id": "si_9b7e0dc5d201",
@@ -14154,13 +14154,13 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Take it, the setup is cleaner",
-    "Pass. Three tries a week is the limit",
-    "Take it with a wider stop",
+    "Take it, the setup is cleaner now",
+    "Pass. Three tries a week, done",
+    "Take it with a wider stop to fit",
     "Take it at half size"
    ],
    "kind": "mcq",
-   "q": "Under our rules, what do you do?",
+   "q": "Do you take the trade?",
    "story": "You've been stopped out of the same stock three times this week. On Thursday it sets up again, cleaner than ever.",
    "subject": "F9.08#q18"
   },
@@ -14178,15 +14178,15 @@
     "summary": "The same stock gets at most 3 tries in a week and 6 in a month."
    },
    "facts": {
-    "given": "Under our rules, what do you do? You've been stopped out of the same stock three times this week. On Thursday it sets up again, cleaner than ever. Pass. Three tries a week is the limit Take it, the setup is cleaner Take it at half size Take it with a wider stop"
+    "given": "Do you take the trade? You've been stopped out of the same stock three times this week. On Thursday it sets up again, cleaner than ever. Pass. Three tries a week, done Take it, the setup is cleaner now Take it at half size Take it with a wider stop to fit"
    },
    "lesson_line": "Same stock: 3 tries a week, 6 a month. The fourth try waits.",
    "unit": "F9.08",
    "why": "Pass. The same stock gets at most 3 tries in a week and 6 in a month. You've used the week's three. If it's still setting up next week, it's a new trade with its own stop.",
    "wrong": {
     "Take it at half size": "Half size is still a fourth try. The rule counts tries, not shares.",
-    "Take it with a wider stop": "A wider stop changes the share count, not the count of tries. And the stop sits where the setup fails, not where it's comfortable.",
-    "Take it, the setup is cleaner": "It looked clean the first three times too. The limit exists for exactly this moment."
+    "Take it with a wider stop to fit": "A wider stop changes the share count, not the count of tries. And the stop sits where the setup fails, not where it's comfortable.",
+    "Take it, the setup is cleaner now": "It looked clean the first three times too. The limit exists for exactly this moment."
    }
   },
   "review_status": "draft",
@@ -14207,13 +14207,13 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Yes, at a smaller size",
-    "Yes, with a limit order",
+    "Yes, at a much smaller size",
+    "Yes, if you use a limit order",
     "Yes, the price clears $10",
     "No, it doesn't trade enough"
    ],
    "kind": "mcq",
-   "q": "Under our rules, is it a trade?",
+   "q": "Is it a trade by our rules?",
    "story": "A small stock looks perfect: a tight base and a clean pivot. It trades at $14 and about $8 million a day.",
    "subject": "F9.08#q19"
   },
@@ -14252,15 +14252,15 @@
     "summary": "We trade only stocks priced $10 or more that trade at least $20 million a day. Never own more than 1% of a stock's average daily volume; illiquid stocks are not watched at all. A stock with low liquidity can be hard to sell and can hand you a bigger loss. A stock's liquidity is how fast its shares can be bought or sold without moving the price much."
    },
    "facts": {
-    "given": "Under our rules, is it a trade? A small stock looks perfect: a tight base and a clean pivot. It trades at $14 and about $8 million a day. No, it doesn't trade enough Yes, the price clears $10 Yes, at a smaller size Yes, with a limit order"
+    "given": "Is it a trade by our rules? A small stock looks perfect: a tight base and a clean pivot. It trades at $14 and about $8 million a day. No, it doesn't trade enough Yes, the price clears $10 Yes, at a much smaller size Yes, if you use a limit order"
    },
    "lesson_line": "Both tests, every time: $10 or more, and $20 million a day or more.",
    "unit": "F9.08",
    "why": "No. We trade stocks that do at least $20 million a day. At $8 million it isn't even on the watchlist, and clearing $10 doesn't save it. A thin stock can be hard to sell and hand you a bigger loss.",
    "wrong": {
-    "Yes, at a smaller size": "Size doesn't fix thin trading. Under $20 million a day, the stock isn't watched at all.",
-    "Yes, the price clears $10": "Price is one test. Volume is the other, and $8 million a day fails it.",
-    "Yes, with a limit order": "A limit order helps in a thin stock, but our rule keeps thin stocks off the list entirely."
+    "Yes, at a much smaller size": "Size doesn't fix thin trading. Under $20 million a day, the stock isn't watched at all.",
+    "Yes, if you use a limit order": "A limit order helps in a thin stock, but our rule keeps thin stocks off the list entirely.",
+    "Yes, the price clears $10": "Price is one test. Volume is the other, and $8 million a day fails it."
    }
   },
   "review_status": "draft",
@@ -14336,7 +14336,7 @@
   "difficulty": 3,
   "id": "si_6e5be7cabfbc",
   "lesson_origin": "session",
-  "lesson_text": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low, and buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account. Buy near the low, so the honest stop sits within about 3%. If it doesn't fit, skip.",
+  "lesson_text": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low. Buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account. Buy near the low, so the honest stop sits within about 3%. If it doesn't fit, skip.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -14344,7 +14344,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Under our rules, a stop usually sits within about 3% of the buy price.",
+   "q": "By our rules, a stop usually sits within about 3% of the buy price.",
    "subject": "F9.08#q21"
   },
   "reveal_json": {
@@ -14368,11 +14368,11 @@
     "summary": "Our stop usually sits within about 3% of the buy price; that 3% is a loss on the position, not the account. Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
    },
    "facts": {
-    "given": "Under our rules, a stop usually sits within about 3% of the buy price."
+    "given": "By our rules, a stop usually sits within about 3% of the buy price."
    },
    "lesson_line": "Buy near the low, so the honest stop sits within about 3%. If it doesn't fit, skip.",
    "unit": "F9.08",
-   "why": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low, and buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account."
+   "why": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low. Buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account."
   },
   "review_status": "draft",
   "skill_id": "risk.our_rules",
@@ -14392,7 +14392,7 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The account",
+    "The account's total value",
     "The position's value",
     "The buying power",
     "The day's range"
@@ -14429,13 +14429,13 @@
     "summary": "Our stop usually sits within about 3% of the buy price; that 3% is a loss on the position, not the account. Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
    },
    "facts": {
-    "given": "Our line: \"I almost never take a loss greater than 3%.\" 3% of what? The position's value The account The day's range The buying power"
+    "given": "Our line: \"I almost never take a loss greater than 3%.\" 3% of what? The position's value The account's total value The day's range The buying power"
    },
    "lesson_line": "3% is the stop's distance on the stock. The account's loss is your risk percent.",
    "unit": "F9.08",
    "why": "The position's value. The stop usually sits within about 3% of the buy, a loss on the stock, not on the account. What the account loses is set by your risk percent, 0.25% to 1.5% by grade.",
    "wrong": {
-    "The account": "A 3% loss on the account would be above our 2% ceiling. The 3% is on the position.",
+    "The account's total value": "A 3% loss on the account would be above our 2% ceiling. The 3% is on the position.",
     "The buying power": "Margin changes buying power, not where the stop sits. The 3% is on the stock you bought.",
     "The day's range": "The stop sits a few cents under the day's low, but the 3% is measured from your buy price."
    }
@@ -14519,9 +14519,9 @@
   "prompt_json": {
    "choices": [
     "Buy all 400 at one price, one stop",
-    "Scaling in is fine",
-    "Add the rest only after it pays",
-    "Buy 200 now, 200 lower"
+    "Scaling in is fine if it works",
+    "Add the rest once it starts paying",
+    "Buy 200 now, 200 on a dip lower"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -14556,15 +14556,15 @@
     "summary": "Our rule: buy the full position at one price with one stop; never scale in or add. Our rule: shares are the account times the risk percent, divided by entry minus stop, rounded down, then the smaller of that and the position cap. Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
    },
    "facts": {
-    "given": "What does our rule say? An A setup triggers. Your plan says 400 shares. You buy 200 now and plan to add the other 200 if it keeps working. Buy all 400 at one price, one stop Scaling in is fine Add the rest only after it pays Buy 200 now, 200 lower"
+    "given": "What does our rule say? An A setup triggers. Your plan says 400 shares. You buy 200 now and plan to add the other 200 if it keeps working. Buy all 400 at one price, one stop Scaling in is fine if it works Add the rest once it starts paying Buy 200 now, 200 on a dip lower"
    },
    "lesson_line": "Full size at one price with one stop. No pilot, no adds.",
    "unit": "F9.08",
    "why": "Buy all 400 at one price with one stop. We don't scale in and we don't add. If the full size doesn't fit the stop and the cap, the trade is smaller or it's a pass.",
    "wrong": {
-    "Add the rest only after it pays": "That's a pilot-then-add plan, and it isn't ours. Full size at one spot with one stop.",
-    "Buy 200 now, 200 lower": "Adding below your buy is adding to a trade that's going against you. One price, one stop.",
-    "Scaling in is fine": "Not under our rules. The full size goes on at one price with one stop."
+    "Add the rest once it starts paying": "That's a pilot-then-add plan, and it isn't ours. Full size at one spot with one stop.",
+    "Buy 200 now, 200 on a dip lower": "Adding below your buy is adding to a trade that's going against you. One price, one stop.",
+    "Scaling in is fine if it works": "Not under our rules. The full size goes on at one price with one stop."
    }
   },
   "review_status": "draft",
@@ -14586,12 +14586,12 @@
   "prompt_json": {
    "choices": [
     "1.5%, you've earned it",
-    "3%, you're hot",
+    "3%, you're on a hot streak",
     "0.5% to 1%, the B range",
-    "2%, the ceiling"
+    "2%, the absolute ceiling"
    ],
    "kind": "mcq",
-   "q": "Under our rules, what do you risk?",
+   "q": "What do our rules let you risk?",
    "story": "Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it.",
    "subject": "F9.08#q25"
   },
@@ -14623,15 +14623,15 @@
     "summary": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. A run of winners never raises your risk past the rules. Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
    },
    "facts": {
-    "given": "Under our rules, what do you risk? Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it. 0.5% to 1%, the B range 2%, the ceiling 1.5%, you've earned it 3%, you're hot"
+    "given": "What do our rules let you risk? Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it. 0.5% to 1%, the B range 2%, the absolute ceiling 1.5%, you've earned it 3%, you're on a hot streak"
    },
    "lesson_line": "Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
    "unit": "F9.08",
    "why": "0.5% to 1%. A B setup is normal size, and a run of winners never raises risk past the rules. The grade sets the risk; your streak doesn't.",
    "wrong": {
     "1.5%, you've earned it": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+.",
-    "2%, the ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
-    "3%, you're hot": "Above our 2% ceiling, and sizing up on a hot streak is exactly what the rule forbids."
+    "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
+    "3%, you're on a hot streak": "Above our 2% ceiling, and sizing up on a hot streak is exactly what the rule forbids."
    }
   },
   "review_status": "draft",
@@ -15020,18 +15020,18 @@
  },
  {
   "answer_json": {
-   "answer": "When and how much the account trades"
+   "answer": "When, and how much, we trade"
   },
   "difficulty": 1,
   "id": "si_ca61166924ef",
   "lesson_origin": "session",
-  "lesson_text": "When and how much the account trades. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first. Read the market before the stock. The reading decides whether, and how much, the account trades today.",
+  "lesson_text": "When, and how much, we trade. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first. Read the market before the stock. The reading decides whether, and how much, the account trades today.",
   "module": "F9",
   "prompt_json": {
    "choices": [
     "Which stocks to buy",
-    "The grade of a setup",
-    "When and how much the account trades",
+    "The letter grade of a setup",
+    "When, and how much, we trade",
     "Where each stop goes"
    ],
    "kind": "mcq",
@@ -15066,13 +15066,13 @@
     "summary": "Our market reading, Green, Yellow, Orange or Red, decides when the account trades. Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash and shorts. IBD: 3 of 4 stocks move with the general market."
    },
    "facts": {
-    "given": "What does our market reading, Green, Yellow, Orange or Red, decide? When and how much the account trades Which stocks to buy Where each stop goes The grade of a setup"
+    "given": "What does our market reading, Green, Yellow, Orange or Red, decide? When, and how much, we trade Which stocks to buy Where each stop goes The letter grade of a setup"
    },
    "lesson_line": "Read the market before the stock. The reading decides whether, and how much, the account trades today.",
    "unit": "F9.09",
-   "why": "When and how much the account trades. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first.",
+   "why": "When, and how much, we trade. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first.",
    "wrong": {
-    "The grade of a setup": "A setup's grade is about the setup. The reading says which grades you may take and at what size.",
+    "The letter grade of a setup": "A setup's grade is about the setup. The reading says which grades you may take and at what size.",
     "Where each stop goes": "The stop comes from the chart, a few cents under a low. The reading never moves a stop.",
     "Which stocks to buy": "The reading says how much to trade, not what. The setups and the leaders list pick the stocks."
    }
@@ -15786,7 +15786,7 @@
    "choices": [
     "Yes. The setup is clean",
     "No. No longs below the 200-day",
-    "Yes, at half size"
+    "Yes, at half size to be safe"
    ],
    "kind": "mcq",
    "q": "Do you take the long?",
@@ -15828,13 +15828,13 @@
     "summary": "No longs below the 200-day simple moving average and shorts only below it; the one exception each way is a parabolic move. The 200-day rule is a hard rule, not a guide. A parabolic long is the mirror image: a burst down. The 200-day moving average is the most watched long-term average."
    },
    "facts": {
-    "given": "Do you take the long? A clean breakout setup forms in a stock trading under its 200-day simple moving average. The decline has been a steady stair-step, nothing parabolic about it. No. No longs below the 200-day Yes. The setup is clean Yes, at half size"
+    "given": "Do you take the long? A clean breakout setup forms in a stock trading under its 200-day simple moving average. The decline has been a steady stair-step, nothing parabolic about it. No. No longs below the 200-day Yes. The setup is clean Yes, at half size to be safe"
    },
    "lesson_line": "Below the 200-day the answer to a long is no, however clean the pattern.",
    "unit": "F9.09",
    "why": "No. No longs below the 200-day, and that one is a hard rule. The one exception is a parabolic long, a burst down, and a steady stair-step isn't one.",
    "wrong": {
-    "Yes, at half size": "Size doesn't bend a hard rule either. Below the 200-day it's no at any size.",
+    "Yes, at half size to be safe": "Size doesn't bend a hard rule either. Below the 200-day it's no at any size.",
     "Yes. The setup is clean": "A clean pattern doesn't bend a hard rule. Below the 200-day the stock is in a long-term downtrend, and we don't buy those."
    }
   },
@@ -15857,11 +15857,11 @@
   "prompt_json": {
    "choices": [
     "Pass. Orange means A+ setups only",
-    "Take it at half size",
-    "Take it. The RS is over 80"
+    "Take it at half size, as a B",
+    "Take it. The RS is over 80, a leader"
    ],
    "kind": "mcq",
-   "q": "What does our rule say?",
+   "q": "Do we take it?",
    "story": "The market reading is Orange. A B setup triggers in a strong group, with an RS rating of 85.",
    "subject": "F9.09#q14"
   },
@@ -15893,14 +15893,14 @@
     "summary": "Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash and shorts. What the market reading changes about risk and size is a guide, not a hard cap. We buy leaders, an RS rating of 80 or more in one of the strongest groups, except for parabolic and mean-reversion trades."
    },
    "facts": {
-    "given": "What does our rule say? The market reading is Orange. A B setup triggers in a strong group, with an RS rating of 85. Pass. Orange means A+ setups only Take it. The RS is over 80 Take it at half size"
+    "given": "Do we take it? The market reading is Orange. A B setup triggers in a strong group, with an RS rating of 85. Pass. Orange means A+ setups only Take it. The RS is over 80, a leader Take it at half size, as a B"
    },
    "lesson_line": "Orange: only A+ setups. A good stock in a B setup waits for a better market.",
    "unit": "F9.09",
    "why": "Pass. In Orange we take only A+ setups. A B setup in a strong group is still a B. The reading is a guide, and the guide says wait for an A+.",
    "wrong": {
-    "Take it at half size": "Orange cuts the setups you take, not the size you take them at. A B setup waits.",
-    "Take it. The RS is over 80": "The RS rule picks which stocks qualify as leaders. It doesn't change what the market reading allows."
+    "Take it at half size, as a B": "Orange allows only A+ setups, so a B setup waits, at any size.",
+    "Take it. The RS is over 80, a leader": "The RS rule picks which stocks qualify as leaders. It doesn't change what the market reading allows."
    }
   },
   "review_status": "draft",
@@ -16274,7 +16274,7 @@
  },
  {
   "answer_json": {
-   "answer": "Yes. A parabolic short, the exception"
+   "answer": "Yes. A parabolic short is allowed"
   },
   "difficulty": 3,
   "id": "si_8a8bbff2c927",
@@ -16283,8 +16283,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Yes. A parabolic short, the exception",
-    "No. Its RS rating is surely over 80",
+    "Yes. A parabolic short is allowed",
+    "No. Its RS rating is over 80",
     "No. Shorts only below the 200-day"
    ],
    "kind": "mcq",
@@ -16362,13 +16362,13 @@
     "summary": "No longs below the 200-day simple moving average and shorts only below it; the one exception each way is a parabolic move. A parabolic burst is a 3 to 5 day final leg: three straight up days, two overnight gap ups, range expansion, rising volume and a gap up on the climax day. Bracco's parabolic burst is a 3 to 5 day move, the final leg of a parabolic run. The burst starts with three straight up days; more is better. Two overnight gap ups in a row, the climax-day gap included. Bracco will not short a parabolic without the gap up on the climax day. Not every box must be checked, but the more that are, the stronger the parabolic setup. We buy leaders, an RS rating of 80 or more in one of the strongest groups, except for parabolic and mean-reversion trades. Shorting a parabolic move too early is a recipe for disaster."
    },
    "facts": {
-    "given": "Under our rules, can this be shorted? A stock is up three straight days with two overnight gap ups, each day's range and volume bigger than the last. Today it gapped up again. It's far above its 200-day. Yes. A parabolic short, the exception No. Shorts only below the 200-day No. Its RS rating is surely over 80"
+    "given": "Under our rules, can this be shorted? A stock is up three straight days with two overnight gap ups, each day's range and volume bigger than the last. Today it gapped up again. It's far above its 200-day. Yes. A parabolic short is allowed No. Shorts only below the 200-day No. Its RS rating is over 80"
    },
    "lesson_line": "A parabolic burst is the one short above the 200-day. Three up days, two gaps, a climax gap.",
    "unit": "F9.09",
    "why": "Yes. That's Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day. It's the one short we take above the 200-day, and the RS rule skips parabolics. Allowed isn't the same as now: he waits for the intraday turn, and too early is a recipe for disaster.",
    "wrong": {
-    "No. Its RS rating is surely over 80": "The leader rule excepts parabolic and mean-reversion trades. A parabolic short is shorting strength on purpose.",
+    "No. Its RS rating is over 80": "The leader rule excepts parabolic and mean-reversion trades. A parabolic short is shorting strength on purpose.",
     "No. Shorts only below the 200-day": "The 200-day rule has one exception, a parabolic short, and this one checks every box on Bracco's list."
    }
   },
@@ -16393,7 +16393,7 @@
     "Buy. A trigger is a trigger",
     "Buy half now, half at the open",
     "No new buys outside regular hours",
-    "Buy with a limit order only"
+    "Buy, but with a limit order only"
    ],
    "kind": "mcq",
    "q": "A long setup triggers at 4:35 p.m. ET in after-hours trading. What does our rule say?",
@@ -16441,14 +16441,14 @@
     "summary": "No new buys outside regular trading hours. Regular trading hours for listed stocks are 9:30 a.m. to 4 p.m. ET. Trading outside regular hours, pre-market, after-hours or overnight, is extended-hours trading. The next day's opening price is set by supply and demand at the open, not by the after-hours session. The NYSE core trading session runs 9:30 a.m. to 4:00 p.m. ET."
    },
    "facts": {
-    "given": "A long setup triggers at 4:35 p.m. ET in after-hours trading. What does our rule say? No new buys outside regular hours Buy. A trigger is a trigger Buy with a limit order only Buy half now, half at the open"
+    "given": "A long setup triggers at 4:35 p.m. ET in after-hours trading. What does our rule say? No new buys outside regular hours Buy. A trigger is a trigger Buy, but with a limit order only Buy half now, half at the open"
    },
    "lesson_line": "New buys only between 9:30 and 4. After hours, you watch.",
    "unit": "F9.09",
    "why": "No new buys outside regular hours, and regular hours are 9:30 a.m. to 4 p.m. ET. The next day's open is set by supply and demand at the open, so the after-hours price may not hold.",
    "wrong": {
     "Buy half now, half at the open": "Half a buy after hours is still a buy after hours.",
-    "Buy with a limit order only": "The order type doesn't change the rule. It's the session that matters, not the order.",
+    "Buy, but with a limit order only": "The order type doesn't change the rule. It's the session that matters, not the order.",
     "Buy. A trigger is a trigger": "A trigger after hours is in extended-hours trading, and the next day's open can land somewhere else. The rule waits for regular hours."
    }
   },
@@ -16471,8 +16471,8 @@
   "prompt_json": {
    "choices": [
     "A few positions, add as they work",
-    "All eight at once",
-    "Ten. Green allows up to 10"
+    "All eight at once, at full size",
+    "Ten. Green allows up to 10 positions"
    ],
    "kind": "mcq",
    "q": "How do you start?",
@@ -16507,14 +16507,14 @@
     "summary": "After a correction, when the reading turns Green, start with a few positions and add more only as the first ones work. Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash and shorts. Each day we keep a focus list of the 5 to 10 best setups and ignore the rest."
    },
    "facts": {
-    "given": "How do you start? A correction ends and the reading turns Green. Your focus list has eight setups, and you have cash for ten positions. A few positions, add as they work All eight at once Ten. Green allows up to 10"
+    "given": "How do you start? A correction ends and the reading turns Green. Your focus list has eight setups, and you have cash for ten positions. A few positions, add as they work All eight at once, at full size Ten. Green allows up to 10 positions"
    },
    "lesson_line": "After a correction, ease back in. Let the first few positions earn the next ones.",
    "unit": "F9.09",
    "why": "A few positions, and add more only as the first ones work. Green allows up to 10 positions, but after a correction the first trades tell you whether the turn is real.",
    "wrong": {
-    "All eight at once": "That's full exposure on day one of a new uptrend. If the turn fails, eight stops hit together.",
-    "Ten. Green allows up to 10": "Up to 10 is the ceiling in a healthy Green market, not the opening move after a correction."
+    "All eight at once, at full size": "That's full exposure on day one of a new uptrend. If the turn fails, eight stops hit together.",
+    "Ten. Green allows up to 10 positions": "Up to 10 is the ceiling in a healthy Green market, not the opening move after a correction."
    }
   },
   "review_status": "draft",
@@ -16591,7 +16591,7 @@
  },
  {
   "answer_json": {
-   "answer": "A long under the 200-day, not parabolic"
+   "answer": "A long below the 200-day, no burst"
   },
   "difficulty": 3,
   "id": "si_bcb40658b0c0",
@@ -16602,8 +16602,8 @@
    "choices": [
     "A B setup at normal size in Green",
     "A short below the 200-day in Red",
-    "Six positions in a Yellow market",
-    "A long under the 200-day, not parabolic"
+    "Six positions in Yellow, half size",
+    "A long below the 200-day, no burst"
    ],
    "kind": "mcq",
    "q": "Which of these breaks a hard rule, not a guide?",
@@ -16651,7 +16651,7 @@
     "summary": "No longs below the 200-day simple moving average and shorts only below it; the one exception each way is a parabolic move. The 200-day rule is a hard rule, not a guide. What the market reading changes about risk and size is a guide, not a hard cap. Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash and shorts. In a Red market we sit mostly in cash, with shorts below the 200-day."
    },
    "facts": {
-    "given": "Which of these breaks a hard rule, not a guide? A long under the 200-day, not parabolic Six positions in a Yellow market A B setup at normal size in Green A short below the 200-day in Red"
+    "given": "Which of these breaks a hard rule, not a guide? A long below the 200-day, no burst Six positions in Yellow, half size A B setup at normal size in Green A short below the 200-day in Red"
    },
    "lesson_line": "Guides bend with the market. The 200-day line does not.",
    "unit": "F9.09",
@@ -16659,7 +16659,7 @@
    "wrong": {
     "A B setup at normal size in Green": "Green allows full risk per grade, and a B setup gets normal size. Nothing broken.",
     "A short below the 200-day in Red": "That's exactly where our shorts belong: below the 200-day, in a Red market.",
-    "Six positions in a Yellow market": "Yellow means smaller and fewer, a guide. Six positions can fit it."
+    "Six positions in Yellow, half size": "Yellow means smaller and fewer, a guide. Six positions can fit it."
    }
   },
   "review_status": "draft",
@@ -16685,7 +16685,7 @@
     "Buy without a stop; it keeps shaking you"
    ],
    "kind": "mcq",
-   "q": "What does our rule say?",
+   "q": "Can you trade it again, and how?",
    "story": "You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against.",
    "subject": "F9.09#q27"
   },
@@ -16717,7 +16717,7 @@
     "summary": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. The stop only moves up, never down or wider; the gap rule is the one exception. Every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "What does our rule say? You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against. Take it as a new trade, own stop Skip it. It already stopped you out Buy without a stop; it keeps shaking you"
+    "given": "Can you trade it again, and how? You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against. Take it as a new trade, own stop Skip it. It already stopped you out Buy without a stop; it keeps shaking you"
    },
    "lesson_line": "A stop-out closes a trade, not a stock. A fresh trigger is a fresh trade.",
    "unit": "F9.09",
@@ -16736,7 +16736,7 @@
  },
  {
   "answer_json": {
-   "answer": "Win rate, R per win and loss, expectancy"
+   "answer": "Win rate, average R, expectancy"
   },
   "difficulty": 3,
   "id": "si_50bc683827c9",
@@ -16746,7 +16746,7 @@
   "prompt_json": {
    "choices": [
     "Dollar profit for the month only",
-    "Win rate, R per win and loss, expectancy",
+    "Win rate, average R, expectancy",
     "The index's return that month",
     "Number of trades and biggest winner"
    ],
@@ -16789,13 +16789,13 @@
     "summary": "Each month, review win rate, average win and loss in R, expectancy and other statistics. Expectancy is what a system makes per dollar risked, on average: the mean R of its trades. Win rate is the number of winning trades out of all trades. A journal keeps you focused on process instead of the ups and downs of P/L."
    },
    "facts": {
-    "given": "Which set of numbers belongs in our monthly review? Win rate, R per win and loss, expectancy Dollar profit for the month only Number of trades and biggest winner The index's return that month"
+    "given": "Which set of numbers belongs in our monthly review? Win rate, average R, expectancy Dollar profit for the month only Number of trades and biggest winner The index's return that month"
    },
    "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
    "unit": "F9.09",
    "why": "Win rate, average win and loss in R, and expectancy. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't tell you whether the process is working.",
    "wrong": {
-    "Dollar profit for the month only": "A good month in dollars can hide a bad process, and a journal is there to keep you on process rather than P/L.",
+    "Dollar profit for the month only": "A good month in dollars can hide a bad process. A journal keeps you on process, not P/L.",
     "Number of trades and biggest winner": "One big winner says nothing about the average trade. Expectancy does.",
     "The index's return that month": "Useful context, but it doesn't measure your trading. The review is about your numbers."
    }

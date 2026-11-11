@@ -1299,9 +1299,9 @@
    "q": "The gap is holding and the volume is there. Where is the day-one buy?",
    "choices": [
     "Over the opening-range high, at market",
-    "At the open, before any range forms",
-    "On a limit order under the open",
-    "At the close, if it held all day"
+    "At the open, before any range has formed",
+    "On a limit order a little under the open",
+    "At the close, if the gap held all day"
    ],
    "answer": "Over the opening-range high, at market",
    "why": "Over the opening-range high, at market, in regular hours. Kullamagi: enter opening range highs, the stop at the lows of the day. Our GRRR plan: break the opening range, enter there, stop at the low of the day.",
@@ -1314,9 +1314,9 @@
     "c32"
    ],
    "wrong": {
-    "At the open, before any range forms": "Buying the open means buying with no low to lean on. Let the range form first.",
-    "On a limit order under the open": "A limit under the open fills only when the gap is failing. Entries are market orders.",
-    "At the close, if it held all day": "By the close the low is often 7% or more away. Buy early near the opening-range high."
+    "At the open, before any range has formed": "Buying the open means buying with no low to lean on. Let the range form first.",
+    "On a limit order a little under the open": "A limit under the open fills only when the gap is failing. Entries are market orders.",
+    "At the close, if the gap held all day": "By the close the low is often 7% or more away. Buy early near the opening-range high."
    },
    "house": true
   },
@@ -1446,7 +1446,7 @@
    "q": "Does this one count as our Episodic Pivot?",
    "choices": [
     "Not our EP; it fails the first-EP test",
-    "A fresh EP; buy the opening range",
+    "A fresh EP; buy over the opening range",
     "An A+; two surprises in a row",
     "An EP, but only on a delayed entry"
    ],
@@ -1460,7 +1460,7 @@
     "b19"
    ],
    "wrong": {
-    "A fresh EP; buy the opening range": "March's gap was inside the prior 126 sessions. This is the second, not the first.",
+    "A fresh EP; buy over the opening range": "March's gap was inside the prior 126 sessions. This is the second, not the first.",
     "An A+; two surprises in a row": "Bonde: the third and fourth surprises are priced in and often reverse. The count works against you.",
     "An EP, but only on a delayed entry": "A delayed entry is a later way to buy a first EP. It does not fix a failed first-EP test."
    },
@@ -1543,13 +1543,13 @@
    "criterion": "ep.stop_delayed",
    "q": "You buy a delayed entry on day three. Where is the stop?",
    "choices": [
-    "A few cents under the trigger day's low",
-    "Under the gap-day low, 7% away",
+    "Just under the trigger day's low",
+    "Under the gap-day low, about 7% away",
     "Under the prior close, the gap fill",
     "No stop until the first trim"
    ],
-   "answer": "A few cents under the trigger day's low",
-   "why": "A few cents under the trigger day's low. Stop first; the size comes from the stop. Morales uses the gap-up day's low as his selling guide; ours is tighter.",
+   "answer": "Just under the trigger day's low",
+   "why": "Just under the trigger day's low, by a few cents. Stop first; the size comes from the stop. Morales uses the gap-up day's low as his selling guide; ours is tighter.",
    "lesson_line": "The trigger day's low is the stop. Not the gap-day low, not the base.",
    "facts": [
     "c17",
@@ -1560,7 +1560,7 @@
     "h18"
    ],
    "wrong": {
-    "Under the gap-day low, 7% away": "That is the named mistake: a stop far away so the size is tiny or the 3% rule is broken.",
+    "Under the gap-day low, about 7% away": "That is the named mistake: a stop far away so the size is tiny or the 3% rule is broken.",
     "Under the prior close, the gap fill": "A gap fill is an invalidation before entry, not a stop after it. Far too wide.",
     "No stop until the first trim": "Every position has a real stop order with the broker from the first minute."
    },
@@ -1627,13 +1627,13 @@
    "criterion": "ep.entry_day1",
    "q": "Buy, or wait?",
    "choices": [
-    "Buy at market; stop under the day's low",
-    "Wait for the close to confirm",
+    "Buy at market; stop under the low",
+    "Wait for the close to confirm the gap",
     "Wait for a pullback to the gap fill",
     "Buy half now, half at the close"
    ],
    "story": "A neglected stock gaps 14% on earnings on 6x volume. At 9:40 it trades over the 5-minute high. The low of the day is 2.1% below.",
-   "answer": "Buy at market; stop under the day's low",
+   "answer": "Buy at market; stop under the low",
    "why": "Buy at market, stop a few cents under the low of the day. The gap holds, the volume is there, and the stop sits inside 3%. Our GRRR plan: enter there and place a stop at the low of the day.",
    "lesson_line": "A tight low under a holding gap is the day-one buy. Take it.",
    "facts": [
@@ -1645,7 +1645,7 @@
     "h04"
    ],
    "wrong": {
-    "Wait for the close to confirm": "By the close the stop is far away and the size is tiny. The opening range is the tight entry.",
+    "Wait for the close to confirm the gap": "By the close the stop is far away and the size is tiny. The opening range is the tight entry.",
     "Wait for a pullback to the gap fill": "A gap fill is the invalidation, not the entry. We want the gap to stay open.",
     "Buy half now, half at the close": "The full size at one price with one stop. No adding."
    },
@@ -2367,13 +2367,13 @@
    "criterion": "ep.entry_delayed",
    "q": "Was that loss a mistake?",
    "choices": [
-    "No; a planned loss on the weaker trigger",
+    "No; a planned loss, weaker trigger",
     "Yes; a CEO change is not a catalyst",
-    "Yes; the stop was too tight",
+    "Yes; the stop was set too tight",
     "Yes; you should have bought day one"
    ],
    "story": "A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
-   "answer": "No; a planned loss on the weaker trigger",
+   "answer": "No; a planned loss, weaker trigger",
    "why": "No. The stop is the exit; a loss taken at plan is the system working. The inside-day trigger is the weaker one: 28% to 3R against 41% for the break of the post-gap high.",
    "lesson_line": "A strong gap with no follow-through is common. The stop is what makes it cheap.",
    "facts": [
@@ -2384,7 +2384,7 @@
    ],
    "wrong": {
     "Yes; a CEO change is not a catalyst": "A new CEO is company news, a named catalyst. The gap and the volume agreed.",
-    "Yes; the stop was too tight": "A few cents under the trigger day's low is the rule. It kept the loss near 1R.",
+    "Yes; the stop was set too tight": "A few cents under the trigger day's low is the rule. It kept the loss near 1R.",
     "Yes; you should have bought day one": "Day one may have been fine too. The loss came from the trigger, not the day."
    },
    "house": true
@@ -2692,9 +2692,9 @@
    "q": "What do you do?",
    "choices": [
     "Pass; Red is mostly cash and shorts",
-    "Buy it; EPs ignore the market",
-    "Buy half size",
-    "Buy it; Red allows an A+"
+    "Buy it; EPs ignore the market anyway",
+    "Buy half size and use a tight stop",
+    "Buy it; Red allows an A+ setup"
    ],
    "story": "The market reading is Red. A neglected stock gaps 15% on a blowout report, on 8x volume, and holds all day.",
    "answer": "Pass; Red is mostly cash and shorts",
@@ -2706,9 +2706,9 @@
     "bk1"
    ],
    "wrong": {
-    "Buy it; EPs ignore the market": "Bonde thinks so. Our card keeps the house filter, and Red is mostly cash.",
-    "Buy half size": "Half size in a Red market is half a mistake.",
-    "Buy it; Red allows an A+": "Orange allows an A+. Red allows mostly cash and shorts."
+    "Buy it; EPs ignore the market anyway": "Bonde thinks so. Our card keeps the house filter, and Red is mostly cash.",
+    "Buy half size and use a tight stop": "Half size in a Red market is half a mistake.",
+    "Buy it; Red allows an A+ setup": "Orange allows an A+. Red allows mostly cash and shorts."
    },
    "house": true
   },
@@ -2720,13 +2720,13 @@
    "criterion": "ep.entry_delayed",
    "q": "What is the trade?",
    "choices": [
-    "Buy it; stop under the inside day's low",
-    "Pass; three days is too late",
-    "Buy; stop under the gap-day low",
+    "Buy; stop under the inside day's low",
+    "Pass; three days is already too late",
+    "Buy it; stop under the gap-day low",
     "Wait for the gap-day high to break"
    ],
    "story": "A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91.",
-   "answer": "Buy it; stop under the inside day's low",
+   "answer": "Buy; stop under the inside day's low",
    "why": "Buy at market over the inside day's high, with the stop a few cents under the inside day's low. That was WING: a 12% gap, two days of holding, an inside day, the break on day 4, 3R on day 6.",
    "lesson_line": "An inside day after the gap is a tight trigger with a tight stop. That is the point.",
    "facts": [
@@ -2736,8 +2736,8 @@
     "c17"
    ],
    "wrong": {
-    "Pass; three days is too late": "The gap held and the trigger is tight. Nine of our ten examples were delayed entries like this.",
-    "Buy; stop under the gap-day low": "The inside day's low is the stop. The gap-day low is wider than the trade needs.",
+    "Pass; three days is already too late": "The gap held and the trigger is tight. Nine of our ten examples were delayed entries like this.",
+    "Buy it; stop under the gap-day low": "The inside day's low is the stop. The gap-day low is wider than the trade needs.",
     "Wait for the gap-day high to break": "That is the other trigger. The inside-day break came first, with a tighter stop."
    },
    "house": true
@@ -2782,13 +2782,13 @@
    "criterion": "ep.volume_ideal",
    "q": "On the cues shown: A+, A, B or B-?",
    "choices": [
-    "A+; record volume, neglect, first EP",
-    "B-; the gap is over 20%",
+    "A+; record volume, a neglected name",
+    "B-; the gap is over 20% and too big",
     "A; record volume is just a cue",
-    "B; the close is only 82%"
+    "B; the close is only 82% of range"
    ],
    "story": "A stock sideways-to-down for a year gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
-   "answer": "A+; record volume, neglect, first EP",
+   "answer": "A+; record volume, a neglected name",
    "why": "A+. The highest volume in years is the A+ volume cue, after a year of sideways-to-down, the first EP. Bonde: the earnings-day volume is often the highest in the stock's history.",
    "lesson_line": "Record volume on a forgotten stock is the loudest EP there is.",
    "facts": [
@@ -2800,9 +2800,9 @@
     "c02"
    ],
    "wrong": {
-    "B-; the gap is over 20%": "The grade-down line on our card is 25%, not 20%. 20.3% is under it.",
+    "B-; the gap is over 20% and too big": "The grade-down line on our card is 25%, not 20%. 20.3% is under it.",
     "A; record volume is just a cue": "It is a cue, and cues set the grade. Record volume is the A+ row.",
-    "B; the close is only 82%": "82% is in the top quarter, the grade-up cue. Nothing here grades down."
+    "B; the close is only 82% of range": "82% is in the top quarter, the grade-up cue. Nothing here grades down."
    },
    "house": true
   },
@@ -2919,6 +2919,37 @@
     "h18"
    ],
    "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.episodic_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ep.close_top_quarter",
+   "q": "On our card, a gap day must close in the top quarter of its range to count as an EP.",
+   "answer": "False",
+   "why": "False. The gate is a close in the upper half of the range. The top quarter is a grade cue, not a gate.",
+   "lesson_line": "Upper half is the gate. Top quarter is a grade cue.",
+   "facts": [
+    "c07",
+    "c08"
+   ],
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.episodic_pivot",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "ep.trim_gap_open",
+   "q": "If an EP opens above your 3R level, you take that trim at the open.",
+   "answer": "True",
+   "why": "True. If a stock opens above a trim level, 3R or 5R, take that trim at the open.",
+   "lesson_line": "Gap past a trim level: take it at the open.",
+   "facts": [
+    "h25"
+   ],
+   "house": true
   }
  ],
  "verify": {
@@ -2966,7 +2997,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "c11 (card trigger), k09, u04, h22 verbatim. 'The owner:' removed from the why (member-facing; u04 is the unsigned GRRR plan). The close wrong note now uses the card's named mistake (7% or more away) instead of an unsourced line. Rests on ep.entry_day1 (D-005): option c, delayed entries only, would cut this item.",
+   "notes": "c11 (card trigger), k09, u04, h22 verbatim. 'The owner:' removed from the why (member-facing; u04 is the unsigned GRRR plan). The close wrong note now uses the card's named mistake (7% or more away) instead of an unsourced line. Rests on ep.entry_day1 (D-005): option c, delayed entries only, would cut this item. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3002,7 +3033,7 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "The card contradicted itself (ep.first_ep gate against ep.inv_late grade-down). Dossier 8.1 says all listed conditions must be true and item 6 is the first-EP gate, so the key follows the gate: not our EP. Story now gives the 4x volume and about 100 sessions between gaps (inside 126). Dropped the c23 fact and the 'wait for a third' distractor, which was half right under a gate; replaced with a delayed-entry distractor.",
+   "notes": "The card contradicted itself (ep.first_ep gate against ep.inv_late grade-down). Dossier 8.1 says all listed conditions must be true and item 6 is the first-EP gate, so the key follows the gate: not our EP. Story now gives the 4x volume and about 100 sessions between gaps (inside 126). Dropped the c23 fact and the 'wait for a third' distractor, which was half right under a gate; replaced with a delayed-entry distractor. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "resolver"
   },
@@ -3026,7 +3057,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "c17 (A3, settled), h24, h01, m02 (found), c32, h18 verbatim. Wrong notes true.",
+   "notes": "c17 (A3, settled), h24, h01, m02 (found), c32, h18 verbatim. Wrong notes true. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3044,7 +3075,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "c11, c16, u04, u01, h22, h04 verbatim. 2.1% is inside A13's 3% (settled). 'The owner:' removed. Rests on ep.entry_day1 (D-005 option c would cut it); the no-adding wrong note is A5.",
+   "notes": "c11, c16, u04, u01, h22, h04 verbatim. 2.1% is inside A13's 3% (settled). 'The owner:' removed. Rests on ep.entry_day1 (D-005 option c would cut it); the no-adding wrong note is A5. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3212,7 +3243,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "d16, d17, d30 verbatim (SBUX: 18.2%, 13.1x, 98%, buy 94.97, stop 92.93 = 2.1%, 0.0R). The loss is framed as a planned loss; 28% against 41% is the dossier's cut.",
+   "notes": "d16, d17, d30 verbatim (SBUX: 18.2%, 13.1x, 98%, buy 94.97, stop 92.93 = 2.1%, 0.0R). The loss is framed as a planned loss; 28% against 41% is the dossier's cut. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3278,13 +3309,13 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "c24, h26 (F65) verbatim; bk1 found. Answer said Red 'is cash and shorts'; F65 says 'mostly cash and shorts', a guide (A10); now 'mostly'.",
+   "notes": "c24, h26 (F65) verbatim; bk1 found. Answer said Red 'is cash and shorts'; F65 says 'mostly cash and shorts', a guide (A10); now 'mostly'. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q58": {
    "status": "pass",
-   "notes": "d12, d13 verbatim (WING 59.92 over 59.91, stop 58.54 = 2.3%, 3R day 6). 'the dossier's examples' (member-facing) to 'Nine of our ten examples' (card evidence).",
+   "notes": "d12, d13 verbatim (WING 59.92 over 59.91, stop 58.54 = 2.3%, 3R day 6). 'the dossier's examples' (member-facing) to 'Nine of our ten examples' (card evidence). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3296,7 +3327,7 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "d14, d15, c04, c35, c02 verbatim (DLB). Grading is discretionary (E50) and the story gives no fundamentals or market, so the q now says 'On the cues shown'; the 24-word story sentence split. Rests on the proposed A+ cue, not a measured edge (the scan found none beyond 3x).",
+   "notes": "d14, d15, c04, c35, c02 verbatim (DLB). Grading is discretionary (E50) and the story gives no fundamentals or market, so the q now says 'On the cues shown'; the 24-word story sentence split. Rests on the proposed A+ cue, not a measured edge (the scan found none beyond 3x). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3323,6 +3354,16 @@
    "notes": "h02 (A4), c17, h18 verbatim. Why said the stop 'stays there until the first trim'; it may only move up, so reworded.",
    "fixed": true,
    "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "new 2026-11-10 variety question, awaiting second reader variety rewrite checked 2026-11-10.",
+   "by": "writer"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "new 2026-11-10 variety question, awaiting second reader variety rewrite checked 2026-11-10.",
+   "by": "writer"
   }
  }
 }

@@ -743,12 +743,12 @@
    "criterion": "rg.line",
    "q": "Which price is the red-to-green line?",
    "choices": [
-    "The prior day's official close",
-    "Today's open",
-    "Today's VWAP",
+    "The prior day's close",
+    "Today's opening price",
+    "Today's running VWAP",
     "The prior day's high"
    ],
-   "answer": "The prior day's official close",
+   "answer": "The prior day's close",
    "why": "The prior day's official close. Red to green is a move from below the previous close to above it. The line is never the day's open or VWAP.",
    "lesson_line": "The line is yesterday's close.",
    "facts": [
@@ -756,8 +756,8 @@
     "iu1"
    ],
    "wrong": {
-    "Today's open": "A green candle is close over open. The red-to-green line is the prior close, never the open.",
-    "Today's VWAP": "VWAP is an intraday average. The line is the prior close, never VWAP.",
+    "Today's opening price": "A green candle is close over open. The red-to-green line is the prior close, never the open.",
+    "Today's running VWAP": "VWAP is an intraday average. The line is the prior close, never VWAP.",
     "The prior day's high": "The high is a different level. The line is the prior close."
    },
    "house": true
@@ -786,12 +786,12 @@
    "criterion": "rg.role",
    "q": "What is red to green on its own?",
    "choices": [
-    "An entry trigger that rides on a setup",
+    "An entry trigger on a setup",
     "A standalone base pattern",
     "A gap-up continuation setup",
     "A reversal pattern at the lows"
    ],
-   "answer": "An entry trigger that rides on a setup",
+   "answer": "An entry trigger on a setup",
    "why": "An entry trigger that rides on a setup that already qualifies. The setup is a leader pulling back to support. The cross of the prior close is the trigger.",
    "lesson_line": "Setup first. The cross is only the trigger.",
    "facts": [
@@ -853,8 +853,8 @@
    "q": "Where does the stop go on a red-to-green buy?",
    "choices": [
     "A few cents under the dip's low",
-    "At the prior close",
-    "Under the 200-day",
+    "At the prior day's close line",
+    "Under the 200-day average line",
     "A fixed 8% under your fill"
    ],
    "answer": "A few cents under the dip's low",
@@ -867,8 +867,8 @@
     "ra1"
    ],
    "wrong": {
-    "At the prior close": "The prior close is the line you buy over, not the stop. A stop there sits just under your fill.",
-    "Under the 200-day": "The 200-day is usually far below the dip. The stop is the dip's low.",
+    "At the prior day's close line": "The prior close is the line you buy over, not the stop. A stop there sits just under your fill.",
+    "Under the 200-day average line": "The 200-day is usually far below the dip. The stop is the dip's low.",
     "A fixed 8% under your fill": "A fixed percent ignores the dip. The stop sits under the low, within about 3%."
    },
    "house": true
@@ -899,9 +899,9 @@
    "q": "Which stock fits the setup under a red to green?",
    "choices": [
     "RS 90, above 200-day, rising 20-day",
-    "RS 90, but under the 200-day",
-    "RS 60, above the 200-day",
-    "RS 90, 20-day EMA falling"
+    "RS 90, but under the 200-day line",
+    "RS 60, above 200-day, rising 20-day",
+    "RS 90, above 200-day, 20-day falling"
    ],
    "answer": "RS 90, above 200-day, rising 20-day",
    "why": "RS 90, above the 200-day with a rising 20-day EMA. A leader is RS 80 or more, above the 200-day, pulling back into support.",
@@ -913,9 +913,9 @@
     "h10"
    ],
    "wrong": {
-    "RS 90, but under the 200-day": "No longs below the 200-day.",
-    "RS 60, above the 200-day": "RS 60 is a laggard. A leader is RS 80 or more.",
-    "RS 90, 20-day EMA falling": "A falling 20-day EMA is a bounce in a correction, not a pullback in a trend."
+    "RS 90, but under the 200-day line": "No longs below the 200-day.",
+    "RS 60, above 200-day, rising 20-day": "RS 60 is a laggard. A leader is RS 80 or more.",
+    "RS 90, above 200-day, 20-day falling": "A falling 20-day EMA is a bounce in a correction, not a pullback in a trend."
    },
    "house": true
   },
@@ -1117,21 +1117,21 @@
    "criterion": "rg.index_gap_down",
    "q": "Which of these helps a red to green?",
    "choices": [
-    "The index gapped down and got bought too",
-    "The stock has no level nearby",
-    "The cross came late in the day",
-    "The 20-day EMA is falling"
+    "The index gapped down, got bought",
+    "The stock sits with no level nearby",
+    "The cross came late in the session",
+    "The 20-day EMA is falling fast"
    ],
-   "answer": "The index gapped down and got bought too",
+   "answer": "The index gapped down, got bought",
    "why": "The index gapped down and got bought the same morning. That helps: the market is buying the same dip.",
    "lesson_line": "The market buying the dip helps your cross.",
    "facts": [
     "cIdx"
    ],
    "wrong": {
-    "The stock has no level nearby": "Not at a level, in the middle of nowhere, weakens the case.",
-    "The cross came late in the day": "A slow, grinding cross long after the open is the weaker cross.",
-    "The 20-day EMA is falling": "A falling 20-day EMA is a bounce in a correction, not a pullback in a trend."
+    "The stock sits with no level nearby": "Not at a level, in the middle of nowhere, weakens the case.",
+    "The cross came late in the session": "A slow, grinding cross long after the open is the weaker cross.",
+    "The 20-day EMA is falling fast": "A falling 20-day EMA is a bounce in a correction, not a pullback in a trend."
    },
    "house": true
   },
@@ -1144,8 +1144,8 @@
    "q": "Has it gone red to green?",
    "choices": [
     "Yes, it crossed after trading under",
-    "No, it has not closed green yet",
-    "No, it is still under the open"
+    "No, it has not closed green as yet",
+    "No, it is still under today's open"
    ],
    "answer": "Yes, it crossed after trading under",
    "why": "Yes. It traded under the prior close, then at least a cent over it during regular hours. That is the red-to-green cross.",
@@ -1155,8 +1155,8 @@
     "iu1"
    ],
    "wrong": {
-    "No, it has not closed green yet": "The cross is the first trade over the prior close, not the close of the day.",
-    "No, it is still under the open": "The open is not the line. The prior close is."
+    "No, it has not closed green as yet": "The cross is the first trade over the prior close, not the close of the day.",
+    "No, it is still under today's open": "The open is not the line. The prior close is."
    },
    "story": "The prior close was 50.00. The stock opened at 49.40, dipped to 49.30, then traded at 50.02 at 9:45.",
    "house": true
@@ -1230,7 +1230,7 @@
    "q": "Buy now, or wait?",
    "choices": [
     "Wait for the trade through the line",
-    "Buy now, it will cross",
+    "Buy now; it is about to cross",
     "Buy half now and half on the cross"
    ],
    "answer": "Wait for the trade through the line",
@@ -1242,7 +1242,7 @@
     "bo1"
    ],
    "wrong": {
-    "Buy now, it will cross": "Buying under the line in anticipation is a named mistake.",
+    "Buy now; it is about to cross": "Buying under the line in anticipation is a named mistake.",
     "Buy half now and half on the cross": "Full size at one price. No starter, no add."
    },
    "story": "The stock is 20 cents under the prior close at 9:52 and looks like it will cross.",
@@ -1284,11 +1284,11 @@
    "criterion": "rg.no_chase",
    "q": "What do you do?",
    "choices": [
-    "Skip it; it is past 4% over the line",
-    "Buy at market",
-    "Buy and widen the stop"
+    "Skip it; more than 4% over",
+    "Buy at market; it is running",
+    "Buy and give it a wider stop"
    ],
-   "answer": "Skip it; it is past 4% over the line",
+   "answer": "Skip it; more than 4% over",
    "why": "Skip it. Skip if the price is more than 4% above the prior close when you act. A stock already 4% green is a chase.",
    "lesson_line": "Past 4% over the line is a chase.",
    "facts": [
@@ -1297,8 +1297,8 @@
     "h12"
    ],
    "wrong": {
-    "Buy at market": "52.30 is more than 4% above 50.00. That is a chase.",
-    "Buy and widen the stop": "The stop only moves up, never wider. And it would still be a chase."
+    "Buy at market; it is running": "52.30 is more than 4% above 50.00. That is a chase.",
+    "Buy and give it a wider stop": "The stop only moves up, never wider. And it would still be a chase."
    },
    "story": "The prior close was 50.00. You look at 10:40 and the stock is at 52.30, green and running.",
    "house": true
@@ -1312,8 +1312,8 @@
    "q": "Take the red-to-green long?",
    "choices": [
     "No, Red is mostly cash and shorts",
-    "Yes, the setup is clean",
-    "Yes, at half size"
+    "Yes, the setup is clean enough",
+    "Yes, but only at half size"
    ],
    "answer": "No, Red is mostly cash and shorts",
    "why": "No. In a Red market it is mostly cash, plus shorts below the 200-day. A leader's long waits for a better market.",
@@ -1322,8 +1322,8 @@
     "h26"
    ],
    "wrong": {
-    "Yes, the setup is clean": "A clean setup does not lift the market reading. Red is mostly cash and shorts.",
-    "Yes, at half size": "Red is not a size rule. It is mostly cash and shorts."
+    "Yes, the setup is clean enough": "A clean setup does not lift the market reading. Red is mostly cash and shorts.",
+    "Yes, but only at half size": "Red is not a size rule. It is mostly cash and shorts."
    },
    "story": "The market reading is Red. A leader above its 200-day gaps down onto its 20-day EMA and crosses the prior close.",
    "house": true
@@ -1486,8 +1486,8 @@
    "q": "What do you do at the open?",
    "choices": [
     "Take the 3R trim at the open",
-    "Wait for 5R before selling",
-    "Add more at the open"
+    "Wait for 5R before you sell any",
+    "Add more at the open price"
    ],
    "answer": "Take the 3R trim at the open",
    "why": "Take the third at the open. A trim level the day opens past is taken at the open.",
@@ -1498,8 +1498,8 @@
     "dTP"
    ],
    "wrong": {
-    "Wait for 5R before selling": "3R is already past. If a stock opens above a trim level, take that trim at the open.",
-    "Add more at the open": "The full size goes in at one price. No adding."
+    "Wait for 5R before you sell any": "3R is already past. If a stock opens above a trim level, take that trim at the open.",
+    "Add more at the open price": "The full size goes in at one price. No adding."
    },
    "story": "You bought at 111.93 with the stop at 110.75, so 3R is 115.47. The next morning the stock opens at 117.00.",
    "house": true
@@ -1513,8 +1513,8 @@
    "q": "Take the fourth try?",
    "choices": [
     "No, 3 tries a week is the limit",
-    "Yes, each cross is a new trade",
-    "Yes, at half size"
+    "Yes, each cross is its own trade",
+    "Yes, but only at half size"
    ],
    "answer": "No, 3 tries a week is the limit",
    "why": "No. At most 3 tries a week and 6 a month on one stock, and after the third failed attempt we stop trying.",
@@ -1524,8 +1524,8 @@
     "h29"
    ],
    "wrong": {
-    "Yes, each cross is a new trade": "Each cross is a new trade, but the cap is 3 tries in a week.",
-    "Yes, at half size": "Half size does not lift the cap."
+    "Yes, each cross is its own trade": "Each cross is a new trade, but the cap is 3 tries in a week.",
+    "Yes, but only at half size": "Half size does not lift the cap."
    },
    "story": "A stock crossed the prior close three times this week and each time fell back to your stop. A fourth cross prints on Friday.",
    "house": true
@@ -1539,8 +1539,8 @@
    "q": "Has it gone red to green?",
    "choices": [
     "No, a green candle is not the line",
-    "Yes, the candle is green",
-    "Yes, price rose from the low"
+    "Yes, the hourly candle is green",
+    "Yes, price rose a lot from the low"
    ],
    "answer": "No, a green candle is not the line",
    "why": "No. A green candle is a close over the open. The line is the prior close, and price is still under it.",
@@ -1550,8 +1550,8 @@
     "cLine"
    ],
    "wrong": {
-    "Yes, the candle is green": "A green candle is a close over the open. The line is the prior close.",
-    "Yes, price rose from the low": "Rising from the low is not crossing the line. 79.10 is still under 80.00."
+    "Yes, the hourly candle is green": "A green candle is a close over the open. The line is the prior close.",
+    "Yes, price rose a lot from the low": "Rising from the low is not crossing the line. 79.10 is still under 80.00."
    },
    "story": "The prior close was 80.00. The 10:30 hourly candle opened at 78.60 and closed at 79.10, a green candle. Price is 79.10.",
    "house": true
@@ -1613,11 +1613,11 @@
    "criterion": "rg.volume",
    "q": "Is light volume a no-trade?",
    "choices": [
-    "No, volume is a grade cue, not a gate",
-    "Yes, 0.6x is too light",
+    "No, volume is a cue, not a gate",
+    "Yes, 0.6x is too light to trust",
     "Yes, add only on the next day"
    ],
-   "answer": "No, volume is a grade cue, not a gate",
+   "answer": "No, volume is a cue, not a gate",
    "why": "No. There is no hard volume rule. Higher volume is a plus, graded. This cross ran 3R in 2 days on light volume.",
    "lesson_line": "Volume grades the cross. It does not gate it.",
    "facts": [
@@ -1626,7 +1626,7 @@
     "dAN1"
    ],
    "wrong": {
-    "Yes, 0.6x is too light": "There is no hard volume rule. Light volume was ANF's one blemish and it still ran.",
+    "Yes, 0.6x is too light to trust": "There is no hard volume rule. Light volume was ANF's one blemish and it still ran.",
     "Yes, add only on the next day": "No adding. The full size goes in at one price."
    },
    "story": "A leader flagged on its 20-day EMA, gapped down and crossed the prior close in the first hour. Volume is 0.6x of average.",
@@ -1722,11 +1722,11 @@
    "criterion": "rg.index_gap_down",
    "q": "What helped this red to green?",
    "choices": [
-    "The market gapped down, then got bought",
-    "The stock was a laggard",
-    "The cross came after lunch"
+    "The market gapped, then got bought",
+    "The stock was a weak metals laggard",
+    "The cross came late, after lunch"
    ],
-   "answer": "The market gapped down, then got bought",
+   "answer": "The market gapped, then got bought",
    "why": "The market gapped down and was bought the same morning. That helps. The leader had flagged four days on its 9-day EMA.",
    "lesson_line": "A dip the whole market buys is stronger.",
    "facts": [
@@ -1734,8 +1734,8 @@
     "cIdx"
    ],
    "wrong": {
-    "The stock was a laggard": "CDE was a metals leader. A laggard weakens the case.",
-    "The cross came after lunch": "It crossed in hour one, which is the quicker cross."
+    "The stock was a weak metals laggard": "CDE was a metals leader. A laggard weakens the case.",
+    "The cross came late, after lunch": "It crossed in hour one, which is the quicker cross."
    },
    "house": true
   },
@@ -1773,11 +1773,11 @@
    "criterion": "rg.timing",
    "q": "Red to green or Go Signal?",
    "choices": [
-    "A red-to-green trigger, not a Go Signal",
-    "A Go Signal",
-    "An Oops reversal"
+    "A red-to-green, not a Go Signal",
+    "A Go Signal off the 2 pm cross",
+    "An Oops reversal at the open bar"
    ],
-   "answer": "A red-to-green trigger, not a Go Signal",
+   "answer": "A red-to-green, not a Go Signal",
    "why": "A red-to-green trigger. A cross at 2 pm, or with no flag under it, is a trigger, not a Go Signal. A Go Signal is the red to green with a timer and a level.",
    "lesson_line": "No flag, no timer: only a trigger.",
    "facts": [
@@ -1785,8 +1785,8 @@
     "tGo2"
    ],
    "wrong": {
-    "A Go Signal": "A Go Signal needs a timer and a flag under the cross. A 2 pm cross with no flag is neither.",
-    "An Oops reversal": "An Oops opens under the prior low. Nothing here says that."
+    "A Go Signal off the 2 pm cross": "A Go Signal needs a timer and a flag under the cross. A 2 pm cross with no flag is neither.",
+    "An Oops reversal at the open bar": "An Oops opens under the prior low. Nothing here says that."
    },
    "story": "The cross came at 14:00. There was no tight hourly flag under it.",
    "house": true
@@ -1799,11 +1799,11 @@
    "criterion": "rg.line",
    "q": "Can a Kicker be a red-to-green entry?",
    "choices": [
-    "No, it never trades back to the line",
-    "Yes, it is the cleanest one",
-    "Yes, if it fades first"
+    "No, it never starts under the line",
+    "Yes, it is the cleanest of them all",
+    "Yes, if it gaps up on huge volume"
    ],
-   "answer": "No, it never trades back to the line",
+   "answer": "No, it never starts under the line",
    "why": "No. A Kicker opens above the prior close and never trades back to it, so it cannot go red to green.",
    "lesson_line": "Red to green needs a red start.",
    "facts": [
@@ -1811,8 +1811,8 @@
     "cLine"
    ],
    "wrong": {
-    "Yes, it is the cleanest one": "A Kicker is never red at the open, so it cannot cross the line from below.",
-    "Yes, if it fades first": "If it fades back under the prior close it has left the Kicker. Then you would judge it as a red to green."
+    "Yes, it is the cleanest of them all": "A Kicker is never red at the open, so it cannot cross the line from below.",
+    "Yes, if it gaps up on huge volume": "Volume changes nothing. A Kicker still opens above the prior close and never starts under the line."
    },
    "story": "A Kicker gaps up and trades through the prior day's high at the open. Someone calls it the cleanest red to green.",
    "house": true
@@ -2290,7 +2290,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2302,7 +2302,7 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "cRole, cSetup verbatim. 'A trigger that rides on a setup' is rg.role, pending-owner D-002 (options: trigger only, own setup unit, both); the key fits options a and c, not b. The course plans (SET.06) call it a trigger. Owner item.",
+   "notes": "cRole, cSetup verbatim. 'A trigger that rides on a setup' is rg.role, pending-owner D-002 (options: trigger only, own setup unit, both); the key fits options a and c, not b. The course plans (SET.06) call it a trigger. Owner item. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2320,7 +2320,7 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "cStop, h01, ku1, ra1 verbatim. rg.stop is pending-owner (D-008: the dip's low, the prior day's low or a moving average) but the key is A3's first alternative and the card's choice; q60 keys the settled never-wider line. Key right.",
+   "notes": "cStop, h01, ku1, ra1 verbatim. rg.stop is pending-owner (D-008: the dip's low, the prior day's low or a moving average) but the key is A3's first alternative and the card's choice; q60 keys the settled never-wider line. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2332,7 +2332,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "cLeader, cAbove, cEma, h10 verbatim. Key right.",
+   "notes": "cLeader, cAbove, cEma, h10 verbatim. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2392,13 +2392,13 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "cIdx verbatim; gI was dropped and the why and wrong notes lost their A+ / B-minus labels (E50). The stem said 'helps a grade the most'; now 'helps a red to green'. The wrong note for a falling 20-day EMA said 'a B-minus cue' while q56 and q59 treat it as a pass; now 'a bounce in a correction'.",
+   "notes": "cIdx verbatim; gI was dropped and the why and wrong notes lost their A+ / B-minus labels (E50). The stem said 'helps a grade the most'; now 'helps a red to green'. The wrong note for a falling 20-day EMA said 'a B-minus cue' while q56 and q59 treat it as a pass; now 'a bounce in a correction'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q19": {
    "status": "pass",
-   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2422,7 +2422,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "mAnt/cLine verbatim in the card; bo1 verbatim on the cited page. Key right; wrong notes true.",
+   "notes": "mAnt/cLine verbatim in the card; bo1 verbatim on the cited page. Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2434,13 +2434,13 @@
   },
   "q25": {
    "status": "pass",
-   "notes": "cChase/h11/h12 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "cChase/h11/h12 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q26": {
    "status": "pass",
-   "notes": "h26 verbatim; cMkt dropped. The card's 'Red: shorts only' conflicts with the rulebook's 'mostly cash and shorts' (F65, D46); the choice 'No, Red is shorts only' now follows the rulebook.",
+   "notes": "h26 verbatim; cMkt dropped. The card's 'Red: shorts only' conflicts with the rulebook's 'mostly cash and shorts' (F65, D46); the choice 'No, Red is shorts only' now follows the rulebook. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2482,19 +2482,19 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "h25/h05/dTP verbatim in the dossier tables, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "h25/h05/dTP verbatim in the dossier tables, the rulebook (sizing_rule.md section 9). Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q34": {
    "status": "pass",
-   "notes": "cTries, h29 verbatim. Key right (E56's 3 tries a week; the card's 'third failed attempt' wording is the same cap).",
+   "notes": "cTries, h29 verbatim. Key right (E56's 3 tries a week; the card's 'third failed attempt' wording is the same cap). variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q35": {
    "status": "pass",
-   "notes": "mGreen, cLine verbatim. Same fact as q02 in a scenario with numbers (79.10 against 80.00); kept.",
+   "notes": "mGreen, cLine verbatim. Same fact as q02 in a scenario with numbers (79.10 against 80.00); kept. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2518,7 +2518,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "cVol, dAN, dAN1 verbatim (ANF 0.6x volume, 3R in 2 days; bars: 3R 144.73 first reached 2026-10-12, day 2). Key right.",
+   "notes": "cVol, dAN, dAN1 verbatim (ANF 0.6x volume, 3R in 2 days; bars: 3R 144.73 first reached 2026-10-12, day 2). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2542,7 +2542,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "dCD verbatim; gI dropped; 'most' and 'an A+ cue' removed (E50). The wrong notes lost their B-minus labels. Key right.",
+   "notes": "dCD verbatim; gI dropped; 'most' and 'an A+ cue' removed (E50). The wrong notes lost their B-minus labels. Key right. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2554,13 +2554,13 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "tGo/tGo2 verbatim in the card. Key right; wrong notes true.",
+   "notes": "tGo/tGo2 verbatim in the card. Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q46": {
    "status": "pass",
-   "notes": "tKi/cLine verbatim in the card. Key right; wrong notes true.",
+   "notes": "tKi/cLine verbatim in the card. Key right; wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

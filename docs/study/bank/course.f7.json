@@ -4724,7 +4724,7 @@
  },
  {
   "answer_json": {
-   "answer": "Tech, telecom and internet stocks"
+   "answer": "Technology, telecom and internet stocks"
   },
   "difficulty": 1,
   "id": "si_2b608a5d645e",
@@ -4733,9 +4733,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Tech, telecom and internet stocks",
-    "Banks and other financial firms",
-    "Energy companies"
+    "Technology, telecom and internet stocks",
+    "Banks and other big financial firms",
+    "Energy and other oil companies"
    ],
    "kind": "mcq",
    "q": "Which stocks took some of the most dramatic plunges of 2000?",
@@ -4797,14 +4797,14 @@
     "summary": "Some of the most dramatic stock plunges of 2000 were in technology, telecom and internet shares. Those plunges came partly from investors rethinking the high valuations in those sectors. Financial-sector stock indexes fell about 20% in 2007 on the subprime mortgage problems. In autumn 2008 stock prices tumbled and volatility hit record levels. In the autumn 2008 slide, financial and energy stocks fell the most, but declines were widespread. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough. Bear Stearns was rescued in spring 2008, and Lehman Brothers went bankrupt in September 2008."
    },
    "facts": {
-    "given": "Which stocks took some of the most dramatic plunges of 2000? Tech, telecom and internet stocks Banks and other financial firms Energy companies"
+    "given": "Which stocks took some of the most dramatic plunges of 2000? Technology, telecom and internet stocks Banks and other big financial firms Energy and other oil companies"
    },
    "lesson_line": "When rich valuations get rethought, the richly priced groups can fall hard.",
    "unit": "F7.03",
    "why": "Tech, telecom and internet stocks. The Fed's report says those plunges came partly from rethinking the elevated valuations in those sectors.",
    "wrong": {
-    "Banks and other financial firms": "That was the 2007 to 2009 bear. Financial stocks fell about 20% in 2007 alone.",
-    "Energy companies": "Energy fell hard in the autumn of 2008, a different bear."
+    "Banks and other big financial firms": "That was the 2007 to 2009 bear. Financial stocks fell about 20% in 2007 alone.",
+    "Energy and other oil companies": "Energy fell hard in the autumn of 2008, a different bear."
    }
   },
   "review_status": "draft",
@@ -5343,7 +5343,7 @@
  },
  {
   "answer_json": {
-   "answer": "A higher low, then a higher high"
+   "answer": "A higher low, then a new higher high"
   },
   "difficulty": 2,
   "id": "si_e011206e36d0",
@@ -5352,10 +5352,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A 20% gain off the low",
-    "A higher low, then a higher high",
+    "A 20% gain off the Nasdaq low",
+    "A higher low, then a new higher high",
     "One huge up day like this one",
-    "More rate cuts from the Fed"
+    "More rate cuts from the Fed soon"
    ],
    "kind": "mcq",
    "q": "What would confirm the downtrend has turned up?",
@@ -5453,14 +5453,14 @@
     "summary": "A downtrend holds until price makes a higher low and then rises above the last rally high. Higher highs and higher lows after a downtrend point to a possible turn up. The FOMC statement is dated January 3, 2001. On January 3, 2001 the Fed cut its rate target by half a point, to 6%. The Nasdaq closed at 2,291.86 on January 2, 2001. The Nasdaq closed at 2,616.69 on January 3, 2001, the day the Fed made its first rate cut of that easing. Stocks rose in January 2001 on the Fed's first rate cut, then fell in February and March. The Nasdaq closed at 1,638.80 on April 4, 2001, a new bear-market low at the time. The Fed cut rates another full point over March and April 2001, and stocks rallied. In 2001 the Nasdaq rallied almost 40% from April to the end of May. The Nasdaq closed at 1,423.19 on September 21, 2001, below its April 2001 low. The Nasdaq closed at 1,114.11 on October 9, 2002, the lowest close on the page between the March 2000 peak and the recovery."
    },
    "facts": {
-    "given": "What would confirm the downtrend has turned up? It's January 3, 2001. The Fed cuts its rate target by half a point. The Nasdaq jumps from 2,291.86 to 2,616.69 in one day. A higher low, then a higher high One huge up day like this one More rate cuts from the Fed A 20% gain off the low"
+    "given": "What would confirm the downtrend has turned up? It's January 3, 2001. The Fed cuts its rate target by half a point. The Nasdaq jumps from 2,291.86 to 2,616.69 in one day. A higher low, then a new higher high One huge up day like this one More rate cuts from the Fed soon A 20% gain off the Nasdaq low"
    },
    "lesson_line": "Don't buy the headline. Let the market confirm it with a higher low and a higher high.",
    "unit": "F7.03",
    "why": "A higher low, then a higher high. One day proves nothing. Stocks rose in January, then fell in February and March, and the Nasdaq closed at 1,638.80 on April 4.",
    "wrong": {
-    "A 20% gain off the low": "Size isn't proof. From April to the end of May 2001 the Nasdaq rose almost 40%, then made new lows.",
-    "More rate cuts from the Fed": "The Fed cut another 1 percentage point over March and April 2001. Stocks rallied, then made new lows into 2002.",
+    "A 20% gain off the Nasdaq low": "Size isn't proof. From April to the end of May 2001 the Nasdaq rose almost 40%, then made new lows.",
+    "More rate cuts from the Fed soon": "The Fed cut another 1 percentage point over March and April 2001. Stocks rallied, then made new lows into 2002.",
     "One huge up day like this one": "A single day can't change a trend. Stocks rose through January, then fell, and the Nasdaq was at new lows by April."
    }
   },
@@ -5732,7 +5732,7 @@
  },
  {
   "answer_json": {
-   "answer": "No: it's still under the last rally top"
+   "answer": "No: still under the last rally top"
   },
   "difficulty": 3,
   "id": "si_048665fc7ecb",
@@ -5741,9 +5741,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Yes: it made a higher low",
+    "Yes: it made a clear higher low",
     "Yes: it rallied hard off the low",
-    "No: it's still under the last rally top",
+    "No: still under the last rally top",
     "Yes: the Fed has cut rates to zero"
    ],
    "kind": "mcq",
@@ -5849,13 +5849,13 @@
     "summary": "The Nasdaq closed at 1,316.12 on November 20, 2008, a new low at the time. A rally top: the Nasdaq closed at 1,652.38 on January 6, 2009, below the November 4, 2008 rally top. After the January 6 top, the Nasdaq's lowest close before February 6 was 1,440.86 on January 20, 2009, above the November 20, 2008 low (a higher low). The next bounce topped at 1,591.71 on February 6, 2009, below the January 6 top. No close beat 1,652.38 before the March 9 low. The Nasdaq closed at 1,268.64 on March 9, 2009, its lowest close of the 2007 to 2009 bear. A downtrend holds until price makes a higher low and then rises above the last rally high. A higher low alone is not enough; the turn is confirmed only when the last rally high is cleared. Higher highs and higher lows after a downtrend point to a possible turn up. The FOMC statement is dated December 16, 2008. On December 16, 2008 the Fed set its rate target at 0 to 0.25%, effectively zero. In 2001 the Nasdaq rallied almost 40% from April to the end of May. The Nasdaq closed at 1,423.19 on September 21, 2001, below its April 2001 low. The Fed cut its rate from 5.25% in September 2007 to a range of 0 to 0.25% by December 2008."
    },
    "facts": {
-    "given": "Is the turn up confirmed yet? Nov. 20, 2008: the Nasdaq closes at a new low, 1,316.12. Jan. 6, 2009: the rally off that low tops at 1,652.38. Jan. 20: a pullback holds at 1,440.86. Feb. 6: it has bounced back to 1,591.71. No: it's still under the last rally top Yes: it rallied hard off the low Yes: it made a higher low Yes: the Fed has cut rates to zero"
+    "given": "Is the turn up confirmed yet? Nov. 20, 2008: the Nasdaq closes at a new low, 1,316.12. Jan. 6, 2009: the rally off that low tops at 1,652.38. Jan. 20: a pullback holds at 1,440.86. Feb. 6: it has bounced back to 1,591.71. No: still under the last rally top Yes: it rallied hard off the low Yes: it made a clear higher low Yes: the Fed has cut rates to zero"
    },
    "lesson_line": "Half the proof isn't proof. You need the higher low AND a break above the last rally top.",
    "unit": "F7.03",
    "why": "No. It held a higher low, but the bounce stalled below 1,652.38. On March 9 it closed at 1,268.64, a new low.",
    "wrong": {
-    "Yes: it made a higher low": "That's only step one. A downtrend holds until the rally off the higher low clears the last rally top.",
+    "Yes: it made a clear higher low": "That's only step one. A downtrend holds until the rally off the higher low clears the last rally top.",
     "Yes: it rallied hard off the low": "Size doesn't prove a bottom. In 2001 the Nasdaq rose almost 40% in a rally and still made new lows.",
     "Yes: the Fed has cut rates to zero": "The Fed set 0 to 0.25% on December 16, 2008. Stocks still made a new low in March 2009."
    }
@@ -6558,10 +6558,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Three losing weeks in a row",
+    "Three lower weekly closes in a row",
     "A drop of 20% or more from a high",
     "The Fed raising interest rates",
-    "A drop of 10% from a high"
+    "A drop of 10% from a recent high"
    ],
    "kind": "mcq",
    "q": "By the usual rule of thumb, what makes a bear market?",
@@ -6595,15 +6595,15 @@
     "summary": "A bear market generally means a broad index down 20% or more, over at least two months. The 20% bear line is a convention, not a law; 10% is the usual line for a correction. A change in the federal funds rate can help bring on a bear market."
    },
    "facts": {
-    "given": "By the usual rule of thumb, what makes a bear market? A drop of 20% or more from a high A drop of 10% from a high Three losing weeks in a row The Fed raising interest rates"
+    "given": "By the usual rule of thumb, what makes a bear market? A drop of 20% or more from a high A drop of 10% from a recent high Three lower weekly closes in a row The Fed raising interest rates"
    },
    "lesson_line": "Down 20% from the high is the usual bear line. It's a label, not a signal.",
    "unit": "F7.04",
    "why": "A drop of 20% or more from a high. The SEC's investor site puts it at a broad index down 20% or more over at least two months. It's a convention, not a law.",
    "wrong": {
-    "A drop of 10% from a high": "That's the usual line for a correction. A bear is the bigger drop, 20% or more.",
+    "A drop of 10% from a recent high": "That's the usual line for a correction. A bear is the bigger drop, 20% or more.",
     "The Fed raising interest rates": "Rate changes can help bring on a bear. The label itself is about how far prices fall.",
-    "Three losing weeks in a row": "Losing streaks happen in bull markets too. The label is about how far prices fell from the high."
+    "Three lower weekly closes in a row": "Losing streaks happen in bull markets too. The label is about how far prices fell from the high."
    }
   },
   "review_status": "draft",
@@ -6625,7 +6625,7 @@
   "prompt_json": {
    "choices": [
     "A slow drift lower on light volume",
-    "The first big up day off the low",
+    "The first big up day off the market low",
     "Panic selling that speeds up the fall",
     "Big buyers stepping in at the low"
    ],
@@ -6675,7 +6675,7 @@
     "summary": "Capitulation is panic selling that speeds up a decline. A bottom starts with a washout: panic, extreme fear and capitulation on a big drop. The washout starts the bottoming process but is rarely the index's low. Capitulation shows up as sharp drops on unusually high volume. Wyckoff's selling climax: panicky public selling is absorbed by big professional buyers at or near a bottom."
    },
    "facts": {
-    "given": "What does capitulation mean in a falling market? Panic selling that speeds up the fall Big buyers stepping in at the low A slow drift lower on light volume The first big up day off the low"
+    "given": "What does capitulation mean in a falling market? Panic selling that speeds up the fall Big buyers stepping in at the low A slow drift lower on light volume The first big up day off the market low"
    },
    "lesson_line": "Capitulation is the crowd giving up. Fast, loud, heavy volume.",
    "unit": "F7.04",
@@ -6683,7 +6683,7 @@
    "wrong": {
     "A slow drift lower on light volume": "That's the opposite. Capitulation is sharp drops on unusually high volume.",
     "Big buyers stepping in at the low": "That's the other side of the trade. In a selling climax big buyers absorb the panic, but the panic itself is the capitulation.",
-    "The first big up day off the low": "That's the bounce that can come after. Capitulation is the selling before it."
+    "The first big up day off the market low": "That's the bounce that can come after. Capitulation is the selling before it."
    }
   },
   "review_status": "draft",
@@ -8063,9 +8063,9 @@
   "prompt_json": {
    "choices": [
     "Peak fear can come before the low",
-    "The VIX called the exact low",
+    "The VIX called the exact bottom day",
     "The VIX doesn't track fear",
-    "VIX over 30 is a buy signal"
+    "VIX over 30 is a clear buy signal"
    ],
    "kind": "mcq",
    "q": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you?",
@@ -8127,15 +8127,15 @@
     "summary": "The VIX closed at 36.45 on March 7, 2022. The VIX closed at 33.57 on Oct. 12, 2022, the day of the S&P 500's lowest 2022 close. The S&P 500 closed at 3,577.03 on Oct. 12, 2022, the lowest 2022 close in FRED's table. In 2008-09 the VIX peaked months before the S&P 500's low. Volatility indices show sentiment extremes; they don't predict. The VIX measures the market's expected near-term volatility, read from index option prices. The VIX typically moves opposite to the stock market."
    },
    "facts": {
-    "given": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you? Peak fear can come before the low The VIX called the exact low VIX over 30 is a buy signal The VIX doesn't track fear"
+    "given": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you? Peak fear can come before the low The VIX called the exact bottom day VIX over 30 is a clear buy signal The VIX doesn't track fear"
    },
    "lesson_line": "A fear spike is one signpost. On its own it rarely marks the low.",
    "unit": "F7.04",
    "why": "Peak fear can come before the low. The March reading was higher than the reading at the October low. Same in 2008: the VIX peaked in late 2008, the S&P 500 bottomed in March 2009.",
    "wrong": {
-    "The VIX called the exact low": "It didn't. It was lower at the October low than in March.",
+    "The VIX called the exact bottom day": "It didn't. It was lower at the October low than in March.",
     "The VIX doesn't track fear": "It does. It measures expected volatility from option prices, and it usually rises when stocks fall.",
-    "VIX over 30 is a buy signal": "It was over 30 in March, and the S&P 500 didn't make its low close until Oct. 12. Spikes show extremes. They don't predict."
+    "VIX over 30 is a clear buy signal": "It was over 30 in March, and the S&P 500 didn't make its low close until Oct. 12. Spikes show extremes. They don't predict."
    }
   },
   "review_status": "draft",
@@ -9047,7 +9047,7 @@
  },
  {
   "answer_json": {
-   "answer": "The same: one advance each"
+   "answer": "The same: just one advance each"
   },
   "difficulty": 1,
   "id": "si_d1872b01c004",
@@ -9056,9 +9056,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "By how many shares traded",
-    "The same: one advance each",
-    "The giant counts far more",
+    "By how many shares each traded",
+    "The same: just one advance each",
+    "The giant counts for far more",
     "By how much each one rose"
    ],
    "kind": "mcq",
@@ -9093,15 +9093,15 @@
     "summary": "Every advancing stock counts +1 and every declining stock -1, whatever its size or volume. Price indexes are dominated by the biggest stocks; on the A/D line every stock gets an equal vote. The A/D line weights every stock equally, so it tracks the average small and mid cap, not the giants."
    },
    "facts": {
-    "given": "A $2 trillion company and a $2 billion company both close up today. How does each count on the A/D line? The same: one advance each The giant counts far more By how much each one rose By how many shares traded"
+    "given": "A $2 trillion company and a $2 billion company both close up today. How does each count on the A/D line? The same: just one advance each The giant counts for far more By how much each one rose By how many shares each traded"
    },
    "lesson_line": "On the A/D line, every stock gets one vote.",
    "unit": "F7.05",
    "why": "The same: one advance each. Market cap and volume don't matter. An advance counts +1 and a decline counts -1.",
    "wrong": {
-    "By how many shares traded": "Volume doesn't enter the A/D line. Volume-based breadth gauges are separate tools.",
+    "By how many shares each traded": "Volume doesn't enter the A/D line. Volume-based breadth gauges are separate tools.",
     "By how much each one rose": "A tiny gain and a huge gain both count as one advance.",
-    "The giant counts far more": "That's how a cap-weighted index counts. The A/D line ignores size on purpose."
+    "The giant counts for far more": "That's how a cap-weighted index counts. The A/D line ignores size on purpose."
    }
   },
   "review_status": "draft",
@@ -9882,8 +9882,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The top is in, so get out now",
-    "Breadth confirms the new high",
+    "The top is in, so sell everything",
+    "Breadth confirms the new record high",
     "Fewer stocks are carrying the rally"
    ],
    "kind": "mcq",
@@ -9947,14 +9947,14 @@
     "summary": "An A/D line that fails to confirm the index's new highs shows narrowing participation. Narrowing participation often shows up as a bearish divergence between the A/D line and its index. Index up while the A/D line slopes down is a bearish divergence: breadth is weakening. Index rising while the A/D line falls means fewer stocks are carrying the rally. A divergence is a condition, not a signal. Only the last new high is the bearish one; many bullish new highs can come first. When the A/D line drops while the index still rises, watch price for a break of its trendline or support."
    },
    "facts": {
-    "given": "What is breadth telling you? The S&P 500 closes at a record high. Its A/D line is still below the peak it set two months ago. Fewer stocks are above their 50-day average than at that peak. Fewer stocks are carrying the rally Breadth confirms the new high The top is in, so get out now"
+    "given": "What is breadth telling you? The S&P 500 closes at a record high. Its A/D line is still below the peak it set two months ago. Fewer stocks are above their 50-day average than at that peak. Fewer stocks are carrying the rally Breadth confirms the new record high The top is in, so sell everything"
    },
    "lesson_line": "A new high on fewer stocks is a warning. Price still has to confirm it.",
    "unit": "F7.05",
    "why": "Fewer stocks are carrying the rally. The index made a new high without the A/D line. That's narrowing participation: a warning to respect, not a sell order.",
    "wrong": {
-    "Breadth confirms the new high": "Confirmation needs the A/D line at a new high too. It's still below its last peak.",
-    "The top is in, so get out now": "A divergence is a condition, not a signal. A lot of bullish new highs can come before the last one, so watch price for a break of support."
+    "Breadth confirms the new record high": "Confirmation needs the A/D line at a new high too. It's still below its last peak.",
+    "The top is in, so sell everything": "A divergence is a condition, not a signal. A lot of bullish new highs can come before the last one, so watch price for a break of support."
    }
   },
   "review_status": "draft",
@@ -9966,7 +9966,7 @@
  },
  {
   "answer_json": {
-   "answer": "Fewer stocks are falling; watch price"
+   "answer": "Fewer stocks falling; watch price"
   },
   "difficulty": 2,
   "id": "si_51d9649f968a",
@@ -9976,8 +9976,8 @@
   "prompt_json": {
    "choices": [
     "The selling is broad and speeding up",
-    "Fewer stocks are falling; watch price",
-    "The bottom is in, so buy now"
+    "Fewer stocks falling; watch price",
+    "The bottom is in, so buy with size"
    ],
    "kind": "mcq",
    "q": "What's the best read?",
@@ -10019,13 +10019,13 @@
     "summary": "Bullish divergence: the index makes a lower low and the A/D line does not, so fewer stocks are falling and the decline may be ending. Index down while the A/D line turns up is a bullish divergence: sellers may be losing conviction. Don't trade on a breadth reading alone; confirm with price. The oscillator is volatile and throws many signals; confirm them with the chart."
    },
    "facts": {
-    "given": "What's the best read? The index breaks below last month's low. This time the A/D line holds above its own low from last month. Fewer stocks are falling; watch price The selling is broad and speeding up The bottom is in, so buy now"
+    "given": "What's the best read? The index breaks below last month's low. This time the A/D line holds above its own low from last month. Fewer stocks falling; watch price The selling is broad and speeding up The bottom is in, so buy with size"
    },
    "lesson_line": "Breadth can show the selling drying up. Price tells you when to act.",
    "unit": "F7.05",
    "why": "Fewer stocks are falling with it. Lower low in the index, higher low in the A/D line: that's a bullish divergence. Let price confirm the turn before you buy.",
    "wrong": {
-    "The bottom is in, so buy now": "A bullish divergence says the decline may be ending. It isn't a buy signal on its own.",
+    "The bottom is in, so buy with size": "A bullish divergence says the decline may be ending. It isn't a buy signal on its own.",
     "The selling is broad and speeding up": "Broad selling would drag the A/D line to a new low too. It held above its last low."
    }
   },
@@ -10275,9 +10275,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It's overbought, so go short",
+    "It's overbought, so go short now",
     "Breadth is strong, not topping",
-    "The uptrend is about to end"
+    "The uptrend is about to end soon"
    ],
    "kind": "mcq",
    "q": "What do those repeated high readings tell you?",
@@ -10333,14 +10333,14 @@
     "summary": "Repeated overbought readings are a sign of strength, not weakness. In a strong trend this gauge can go overbought (uptrend) or oversold (downtrend) again and again. ChartSchool treats above 70% as overbought and below 30% as oversold, and says the levels vary by index. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were used as buying chances. In a strong trend the high-low index can stay at an extreme for a long time. In a strong trend this gauge can stay near its extremes."
    },
    "facts": {
-    "given": "What do those repeated high readings tell you? The index has been in a strong uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. Breadth is strong, not topping It's overbought, so go short The uptrend is about to end"
+    "given": "What do those repeated high readings tell you? The index has been in a strong uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. Breadth is strong, not topping It's overbought, so go short now The uptrend is about to end soon"
    },
    "lesson_line": "In an uptrend, overbought breadth is strength. Dips to oversold that turn back up are the chances.",
    "unit": "F7.05",
    "why": "Breadth is strong. ChartSchool calls above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. Multiple overbought readings are a sign of strength.",
    "wrong": {
-    "It's overbought, so go short": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
-    "The uptrend is about to end": "Strong trends can hold breadth gauges at extremes for a long time. A high reading alone doesn't end a trend."
+    "It's overbought, so go short now": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
+    "The uptrend is about to end soon": "Strong trends can hold breadth gauges at extremes for a long time. A high reading alone doesn't end a trend."
    }
   },
   "review_status": "draft",
@@ -10362,8 +10362,8 @@
   "prompt_json": {
    "choices": [
     "Broad: many stocks are joining in",
-    "Bearish: breadth is diverging",
-    "Narrow: a few giants carry it"
+    "Bearish: breadth is now diverging",
+    "Narrow: a few giants carry it up"
    ],
    "kind": "mcq",
    "q": "How does breadth grade this rally?",
@@ -10412,14 +10412,14 @@
     "summary": "From the late-March 2026 low, the S&P 500's A/D line rose alongside the index, which got back above 7,000. Fidelity's chart data runs to April 16, 2026. Fidelity read the rising A/D line together with the index rally as broadly bullish. An A/D line making new highs with its index shows strong, bullish participation. A broad advance that lifts most stocks is bullish."
    },
    "facts": {
-    "given": "How does breadth grade this rally? Mid-April 2026. The S&P 500 is back above 7,000 after a sharp selloff. Its A/D line has climbed with it since the late-March low. Broad: many stocks are joining in Narrow: a few giants carry it Bearish: breadth is diverging"
+    "given": "How does breadth grade this rally? Mid-April 2026. The S&P 500 is back above 7,000 after a sharp selloff. Its A/D line has climbed with it since the late-March low. Broad: many stocks are joining in Narrow: a few giants carry it up Bearish: breadth is now diverging"
    },
    "lesson_line": "Index and A/D line rising together is the healthy picture.",
    "unit": "F7.05",
    "why": "Broad. The A/D line is rising with the index, which shows wide participation. Fidelity read that combination as broadly bullish.",
    "wrong": {
-    "Bearish: breadth is diverging": "A divergence needs the two to split. They climbed together.",
-    "Narrow: a few giants carry it": "Narrow means the index rises while the A/D line lags. Here the A/D line rose with it."
+    "Bearish: breadth is now diverging": "A divergence needs the two to split. They climbed together.",
+    "Narrow: a few giants carry it up": "Narrow means the index rises while the A/D line lags. Here the A/D line rose with it."
    }
   },
   "review_status": "draft",
@@ -10441,8 +10441,8 @@
   "prompt_json": {
    "choices": [
     "A known Nasdaq quirk, not a crash call",
-    "The Nasdaq rally is fake",
-    "A crash is coming within weeks"
+    "The Nasdaq rally is a false one",
+    "A crash is coming in a few weeks"
    ],
    "kind": "mcq",
    "q": "What's the best read?",
@@ -10498,14 +10498,14 @@
     "summary": "In June 2024 the Nasdaq Composite was at record highs while its A/D line sat near record lows, which McClellan called not unusual. Nasdaq's looser listing standards mean more stocks that fail, and each one adds to the declines. The Nasdaq A/D line can fall for long periods while the Nasdaq rises, because Nasdaq's listing rules are looser. The Nasdaq A/D line can fall for long periods while Nasdaq indexes rise. From 2010 to 2012 the Nasdaq A/D line fell while the Nasdaq rose. The Nasdaq A/D line has fallen since its data began in 1972 and never got back to its starting level."
    },
    "facts": {
-    "given": "What's the best read? June 2024. The Nasdaq Composite is making new all-time highs. Its A/D line sits near its all-time low. A known Nasdaq quirk, not a crash call The Nasdaq rally is fake A crash is coming within weeks"
+    "given": "What's the best read? June 2024. The Nasdaq Composite is making new all-time highs. Its A/D line sits near its all-time low. A known Nasdaq quirk, not a crash call The Nasdaq rally is a false one A crash is coming in a few weeks"
    },
    "lesson_line": "Don't read the Nasdaq A/D line like the NYSE's. It can drift down even in bull markets.",
    "unit": "F7.05",
    "why": "A known quirk. Nasdaq listing standards are looser, so stocks that fail keep piling into the declines column. Its A/D line can fall for long stretches while the index rises.",
    "wrong": {
-    "A crash is coming within weeks": "McClellan noted the Nasdaq A/D line has never got back to where its data began in 1972. A drift that old says little about the next few weeks.",
-    "The Nasdaq rally is fake": "The index really made new highs. The A/D line's slide comes largely from failing small listings, not from the leaders."
+    "A crash is coming in a few weeks": "McClellan noted the Nasdaq A/D line has never got back to where its data began in 1972. A drift that old says little about the next few weeks.",
+    "The Nasdaq rally is a false one": "The index really made new highs. The A/D line's slide comes largely from failing small listings, not from the leaders."
    }
   },
   "review_status": "draft",
@@ -11174,7 +11174,7 @@
  },
  {
   "answer_json": {
-   "answer": "The rate banks pay to borrow overnight"
+   "answer": "The overnight bank borrowing rate"
   },
   "difficulty": 1,
   "id": "si_ea0f0519523b",
@@ -11183,10 +11183,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The rate banks pay to borrow overnight",
-    "The 10-year Treasury yield",
-    "The 30-year mortgage rate",
-    "The Fed's inflation goal"
+    "The overnight bank borrowing rate",
+    "The yield on the 10-year Treasury",
+    "The average 30-year mortgage rate",
+    "The Fed's yearly inflation goal"
    ],
    "kind": "mcq",
    "q": "What is the federal funds rate?",
@@ -11234,15 +11234,15 @@
     "summary": "Fed funds is the rate banks pay to borrow reserves overnight. The fed funds rate is the overnight rate banks charge each other to lend the balances they keep at the Fed. The FOMC's main tool is its target for the fed funds rate. The FOMC's inflation goal is 2% a year, measured by the PCE price index. Long-term rates price where policy and the economy are expected to go, not just today's fed funds rate."
    },
    "facts": {
-    "given": "What is the federal funds rate? The rate banks pay to borrow overnight The 10-year Treasury yield The 30-year mortgage rate The Fed's inflation goal"
+    "given": "What is the federal funds rate? The overnight bank borrowing rate The yield on the 10-year Treasury The average 30-year mortgage rate The Fed's yearly inflation goal"
    },
    "lesson_line": "Fed funds is the overnight rate between banks. It's the rate the Fed targets.",
    "unit": "F7.06",
    "why": "The rate banks pay to borrow overnight. Banks lend each other the reserve balances they keep at the Fed.",
    "wrong": {
-    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
-    "The 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
-    "The Fed's inflation goal": "That's 2% a year on PCE prices. It's what policy aims at, not the rate itself."
+    "The Fed's yearly inflation goal": "That's 2% a year on PCE prices. It's what policy aims at, not the rate itself.",
+    "The average 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
+    "The yield on the 10-year Treasury": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year."
    }
   },
   "review_status": "draft",
@@ -12032,7 +12032,7 @@
  },
  {
   "answer_json": {
-   "answer": "Most of their profits sit years ahead"
+   "answer": "Most of their profit is years away"
   },
   "difficulty": 2,
   "id": "si_a00439a1cedb",
@@ -12042,8 +12042,8 @@
   "prompt_json": {
    "choices": [
     "Their sales drop the day rates rise",
-    "Most of their profits sit years ahead",
-    "They pay the biggest dividends"
+    "Most of their profit is years away",
+    "They pay the largest cash dividends"
    ],
    "kind": "mcq",
    "q": "Rates jumped in 2022, and fast-growing, barely profitable stocks got hit hard. What made them so exposed?",
@@ -12119,14 +12119,14 @@
     "summary": "Higher rates shrink what future cash flows are worth today, so valuations can fall. Long-duration growth stocks, whose profit growth lies further ahead, may face valuation pressure as higher rates discount those earnings. Rate moves often hit growth stocks' valuations harder, because more of their value rests on expected future earnings. As the Fed hiked in 2022, investors stopped paying up for unprofitable growth and wanted cash generation. Rising rates drove selling in high-priced tech giants in 2022. In 2022 the Fed's aggressive hikes battered growth and tech stocks. In 2022 the Fed took its range from 0-0.25% to 4.25-4.5% in seven hikes. High-tech and telecom stocks reacted to Fed surprises about one and a half times as much as the broad market. Rate changes usually take at least 12 months to reach the wider economy, but stocks often react much sooner."
    },
    "facts": {
-    "given": "Rates jumped in 2022, and fast-growing, barely profitable stocks got hit hard. What made them so exposed? Most of their profits sit years ahead They pay the biggest dividends Their sales drop the day rates rise"
+    "given": "Rates jumped in 2022, and fast-growing, barely profitable stocks got hit hard. What made them so exposed? Most of their profit is years away They pay the largest cash dividends Their sales drop the day rates rise"
    },
    "lesson_line": "Distant profits get discounted harder when rates rise. That's a big part of why 2022 hit unprofitable growth so hard.",
    "unit": "F7.06",
    "why": "Most of their profits sit years ahead. A higher rate shrinks what future cash flows are worth today. That hit is often bigger for growth stocks valued on future earnings.",
    "wrong": {
     "Their sales drop the day rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
-    "They pay the biggest dividends": "Barely profitable companies have little to pay out. The hit comes from discounting profits still years away."
+    "They pay the largest cash dividends": "Barely profitable companies have little to pay out. The hit comes from discounting profits still years away."
    }
   },
   "review_status": "draft",
@@ -12297,7 +12297,7 @@
  },
  {
   "answer_json": {
-   "answer": "2s10s inverted, 10y-3m still positive"
+   "answer": "2s10s inverted; 10y-3m positive"
   },
   "difficulty": 3,
   "id": "si_fefd01d6bea4",
@@ -12306,10 +12306,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Only the 10y-3m is inverted",
+    "Only the 10y-3m spread is inverted",
     "Normal: long yields beat short",
-    "Both spreads inverted",
-    "2s10s inverted, 10y-3m still positive"
+    "Both spreads are inverted today",
+    "2s10s inverted; 10y-3m positive"
    ],
    "kind": "mcq",
    "q": "What is the curve doing?",
@@ -12358,15 +12358,15 @@
     "summary": "Treasury's curve on July 6, 2022: 3-month 1.90%, 2-year 2.97%, 10-year 2.93%. Different spreads can invert at different times. The 10-year minus 2-year spread (the subject of this sentence on the page) tends to go negative earlier and more often than the 10-year minus 3-month spread. Market analysts often watch the 10-year minus 2-year spread. The spread in the New York Fed's model is the 10-year rate minus the 3-month bill rate."
    },
    "facts": {
-    "given": "What is the curve doing? Treasury's yield curve for July 6, 2022: 3-month 1.90%, 2-year 2.97%, 10-year 2.93%. 2s10s inverted, 10y-3m still positive Both spreads inverted Normal: long yields beat short Only the 10y-3m is inverted"
+    "given": "What is the curve doing? Treasury's yield curve for July 6, 2022: 3-month 1.90%, 2-year 2.97%, 10-year 2.93%. 2s10s inverted; 10y-3m positive Both spreads are inverted today Normal: long yields beat short Only the 10y-3m spread is inverted"
    },
    "lesson_line": "When you hear the curve inverted, ask which spread. The 2s10s often flips first.",
    "unit": "F7.06",
    "why": "The 2s10s is inverted, the 10y-3m isn't. The 10-year at 2.93% sits just under the 2-year at 2.97%, but far above the 3-month at 1.90%.",
    "wrong": {
-    "Both spreads inverted": "The 10-year at 2.93% still yields more than the 3-month at 1.90%. That spread is positive.",
+    "Both spreads are inverted today": "The 10-year at 2.93% still yields more than the 3-month at 1.90%. That spread is positive.",
     "Normal: long yields beat short": "Not against the 2-year. The 10-year at 2.93% is below the 2-year at 2.97%.",
-    "Only the 10y-3m is inverted": "It's the other way round. The 10-year beats the 3-month but trails the 2-year."
+    "Only the 10y-3m spread is inverted": "It's the other way round. The 10-year beats the 3-month but trails the 2-year."
    }
   },
   "review_status": "draft",
@@ -15259,8 +15259,8 @@
   "prompt_json": {
    "choices": [
     "The 2007-09 financial crisis",
-    "The 2022 inflation bear",
-    "The 2020 COVID crash",
+    "The 2022 inflation bear market",
+    "The 2020 COVID shutdown crash",
     "The 2000-02 dot-com bust"
    ],
    "kind": "mcq",
@@ -15323,15 +15323,15 @@
     "summary": "The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough. S&P DJI: the 2007-09 bear ran from October 9, 2007 (1,565.15) to March 9, 2009 (676.53), 17 months, down 56.8%. S&P DJI: the 2000-02 bear ran from March 24, 2000 (1,527.46) to October 9, 2002 (776.76), 30.5 months, down 49.1%. Fox Business (Ned Davis data): the S&P 500 lost 49% from March 2000 to October 2002, set off by the dot-com bubble bursting. S&P DJI: the 2020 fall ran from February 19 (3,386.15) to March 23, 2020 (2,237.40), 1.1 months, down 33.9%. The S&P 500 closed at 4,796.56 on January 3, 2022, the peak before the 2022 bear market. The S&P 500 closed at 3,577.03 on October 12, 2022, the lowest close in the cited series, below the June 16 close."
    },
    "facts": {
-    "given": "Since 2000, which fall cut the S&P 500 the most from peak to low? The 2007-09 financial crisis The 2000-02 dot-com bust The 2020 COVID crash The 2022 inflation bear"
+    "given": "Since 2000, which fall cut the S&P 500 the most from peak to low? The 2007-09 financial crisis The 2000-02 dot-com bust The 2020 COVID shutdown crash The 2022 inflation bear market"
    },
    "lesson_line": "The worst of these falls took 57% off the index. Never assume a drop can't go that deep.",
    "unit": "F7.08",
    "why": "The 2007-09 financial crisis. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough, the deepest of the four.",
    "wrong": {
     "The 2000-02 dot-com bust": "Close, but not the deepest. The S&P 500 fell 49.1% from March 2000 to October 2002.",
-    "The 2020 COVID crash": "It was the fastest, not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
-    "The 2022 inflation bear": "A smaller fall. The S&P 500 went from 4,796.56 in January 2022 to 3,577.03 in October."
+    "The 2020 COVID shutdown crash": "It was the fastest, not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
+    "The 2022 inflation bear market": "A smaller fall. The S&P 500 went from 4,796.56 in January 2022 to 3,577.03 in October."
    }
   },
   "review_status": "draft",
@@ -15656,7 +15656,7 @@
   "prompt_json": {
    "choices": [
     "A US credit rating downgrade",
-    "The dot-com bubble bursting",
+    "The dot-com bubble finally bursting",
     "A collapse in home prices",
     "Hot inflation and Fed rate hikes"
    ],
@@ -15720,7 +15720,7 @@
     "summary": "In the first half of 2022 US stocks fell sharply on high inflation, expected Fed tightening and uncertainty over Russia's invasion of Ukraine. The 2022 bear market was driven by the Fed raising rates to fight the fastest inflation in 40 years. Falling home prices helped spark the 2007-08 financial crisis, through losses on mortgage-related assets. The tech bubble bursting caused the 2000-02 bear market. In August 2011, S&P cut the US long-term credit rating from AAA to AA+. Stocks roughly won back those 2011 losses by the fourth quarter of 2011 and early 2012. S&P DJI: the 2007-09 bear ran from October 9, 2007 (1,565.15) to March 9, 2009 (676.53), 17 months, down 56.8%."
    },
    "facts": {
-    "given": "What drove the 2022 bear market in US stocks? Hot inflation and Fed rate hikes A collapse in home prices The dot-com bubble bursting A US credit rating downgrade"
+    "given": "What drove the 2022 bear market in US stocks? Hot inflation and Fed rate hikes A collapse in home prices The dot-com bubble finally bursting A US credit rating downgrade"
    },
    "lesson_line": "When the Fed raises rates to fight inflation, it can pull the whole market lower, not just a few stocks.",
    "unit": "F7.08",
@@ -15728,7 +15728,7 @@
    "wrong": {
     "A US credit rating downgrade": "That was 2011, when Standard & Poor's cut the US credit rating from AAA to AA+.",
     "A collapse in home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
-    "The dot-com bubble bursting": "That was the 2000-2002 bear market."
+    "The dot-com bubble finally bursting": "That was the 2000-2002 bear market."
    }
   },
   "review_status": "draft",
@@ -16299,10 +16299,10 @@
     "window_bars": 250
    },
    "choices": [
-    "About 17 months",
+    "About seventeen months",
     "About five weeks",
     "About nine months",
-    "About 30 months"
+    "About thirty months"
    ],
    "kind": "mcq",
    "q": "How long did this fall take, from the peak close to the last close shown?",
@@ -16371,15 +16371,15 @@
     "summary": "The S&P 500 closed at 4,796.56 on January 3, 2022, the peak before the 2022 bear market. The S&P 500 closed at 3,577.03 on October 12, 2022, the lowest close in the cited series, below the June 16 close. S&P DJI dates the 2022 bear market from the January 3, 2022 peak of 4,796.56; by June 13 the index was down 21.8%. On January 19, 2024 the S&P 500 closed at a record 4,839.81, above its January 2022 records. The S&P 500's 2020 fall took 33 days, from its February 19 high to its March 23 trough. S&P DJI: the 2020 fall ran from February 19 (3,386.15) to March 23, 2020 (2,237.40), 1.1 months, down 33.9%. S&P DJI: the 2007-09 bear ran from October 9, 2007 (1,565.15) to March 9, 2009 (676.53), 17 months, down 56.8%. S&P DJI: the 2000-02 bear ran from March 24, 2000 (1,527.46) to October 9, 2002 (776.76), 30.5 months, down 49.1%."
    },
    "facts": {
-    "given": "How long did this fall take, from the peak close to the last close shown? About five weeks About nine months About 17 months About 30 months"
+    "given": "How long did this fall take, from the peak close to the last close shown? About five weeks About nine months About seventeen months About thirty months"
    },
    "lesson_line": "A slow bear grinds you down. I cut size early instead of waiting for one big flush.",
    "unit": "F7.08",
    "why": "About nine months. The S&P 500 closed at its 4,796.56 peak on January 3, 2022, and at 3,577.03 on October 12.",
    "wrong": {
-    "About 17 months": "That was 2007-09, from October 2007 to March 2009.",
-    "About 30 months": "That was 2000-02, which ran 30.5 months.",
-    "About five weeks": "That was the 2020 pace: 33 days from February 19 to March 23."
+    "About five weeks": "That was the 2020 pace: 33 days from February 19 to March 23.",
+    "About seventeen months": "That was 2007-09, from October 2007 to March 2009.",
+    "About thirty months": "That was 2000-02, which ran 30.5 months."
    }
   },
   "review_status": "draft",
@@ -16508,7 +16508,7 @@
   "difficulty": 3,
   "id": "si_17ef39872af5",
   "lesson_origin": "session",
-  "lesson_text": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16, then closed at 3,577.03 on October 12, below the June low. A big bounce inside a bear is not proof of a bottom. That only shows up in hindsight.",
+  "lesson_text": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16. Then it closed at 3,577.03 on October 12, below the June low. A big bounce inside a bear is not proof of a bottom. That only shows up in hindsight.",
   "module": "F7",
   "prompt_json": {
    "chart": {
@@ -16517,7 +16517,7 @@
    },
    "choices": [
     "Fell to a new low within two months",
-    "Went on to a new record that year",
+    "Went on to make a new record that year",
     "Held its gains and went sideways"
    ],
    "kind": "mcq",
@@ -16588,14 +16588,14 @@
     "summary": "The S&P 500 closed at 3,666.77 on June 16, 2022, its lowest close of 2022 up to that day. The S&P 500 closed at 4,305.20 on August 16, 2022, the highest close between June 16 and October 12, 2022. The S&P 500 closed at 3,577.03 on October 12, 2022, the lowest close in the cited series, below the June 16 close. The S&P 500 closed at 4,796.56 on January 3, 2022, the peak before the 2022 bear market. On January 19, 2024 the S&P 500 closed at 4,839.81, its first close above 4,796.56 since January 3, 2022. On January 19, 2024 the S&P 500 closed at a record 4,839.81, above its January 2022 records. S&P DJI marks a bear market's end at the low, once the index later rises 20%, so the end is only known in hindsight. S&P Dow Jones Indices' table lists each S&P 500 bear market's start and end date, prices, length in months and % change."
    },
    "facts": {
-    "given": "What did the index do next? The index fell hard for months. Then it bounced for two straight months off its low, a big rally. Fell to a new low within two months Went on to a new record that year Held its gains and went sideways"
+    "given": "What did the index do next? The index fell hard for months. Then it bounced for two straight months off its low, a big rally. Fell to a new low within two months Went on to make a new record that year Held its gains and went sideways"
    },
    "lesson_line": "A big bounce inside a bear is not proof of a bottom. That only shows up in hindsight.",
    "unit": "F7.08",
-   "why": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16, then closed at 3,577.03 on October 12, below the June low.",
+   "why": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16. Then it closed at 3,577.03 on October 12, below the June low.",
    "wrong": {
     "Held its gains and went sideways": "The S&P 500 gave the whole rally back and more, closing at 3,577.03 on October 12.",
-    "Went on to a new record that year": "No. The S&P 500's 4,796.56 record from January 2022 wasn't topped until January 2024."
+    "Went on to make a new record that year": "No. The S&P 500's 4,796.56 record from January 2022 wasn't topped until January 2024."
    }
   },
   "review_status": "draft",
@@ -16838,7 +16838,7 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Stocks can fall after a recession ends"
+   "answer": "Stocks can fall once a recession ends"
   },
   "asof": "2002-10-09",
   "bars": {
@@ -16851,7 +16851,7 @@
   "difficulty": 3,
   "id": "si_3da7aa3d1f41",
   "lesson_origin": "session",
-  "lesson_text": "Stocks can fall after a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997. The economy and the market keep different clocks. Trade the chart, not the GDP headlines.",
+  "lesson_text": "Stocks can fall once a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997. The economy and the market keep different clocks. Trade the chart, not the GDP headlines.",
   "module": "F7",
   "prompt_json": {
    "chart": {
@@ -16859,7 +16859,7 @@
     "window_bars": 250
    },
    "choices": [
-    "Stocks can fall after a recession ends",
+    "Stocks can fall once a recession ends",
     "A growing economy stops a stock slide",
     "Stocks bottom before the economy does"
    ],
@@ -16917,11 +16917,11 @@
     "summary": "The NBER dates the 2001 recession from March 2001 to November 2001. The US economy kept growing through 2002, after the upturn that began in late 2001. In spring and summer 2002, accounting scandals, profit warnings and geopolitical tension deepened the stock slide. By early October 2002, US stock indexes were at their lowest since spring 1997. Stocks turned up in late October 2002 when third-quarter earnings came in better than feared. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough."
    },
    "facts": {
-    "given": "What does this low teach you? The economy has been growing for most of a year. Accounting scandals and profit warnings keep hitting stocks. The index sits at a new low. Stocks can fall after a recession ends Stocks bottom before the economy does A growing economy stops a stock slide"
+    "given": "What does this low teach you? The economy has been growing for most of a year. Accounting scandals and profit warnings keep hitting stocks. The index sits at a new low. Stocks can fall once a recession ends Stocks bottom before the economy does A growing economy stops a stock slide"
    },
    "lesson_line": "The economy and the market keep different clocks. Trade the chart, not the GDP headlines.",
    "unit": "F7.08",
-   "why": "Stocks can fall after a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997.",
+   "why": "Stocks can fall once a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997.",
    "wrong": {
     "A growing economy stops a stock slide": "It didn't here. The economy grew in 2002 while scandals and profit warnings drove stocks lower.",
     "Stocks bottom before the economy does": "Not always. In 2009 they did, but here the low came almost a year after the recession ended."

@@ -1888,9 +1888,9 @@
    "q": "What does premium mean on an option?",
    "choices": [
     "The price of the option contract",
-    "The profit at expiration",
-    "The fee your broker charges",
-    "The gap from stock to strike"
+    "The profit if held to expiration",
+    "The fee your broker charges you",
+    "The gap from stock price to strike"
    ],
    "answer": "The price of the option contract",
    "why": "The price of the option contract. The buyer pays it and the seller receives it. It's intrinsic value plus time value.",
@@ -1903,9 +1903,9 @@
     "f32"
    ],
    "wrong": {
-    "The profit at expiration": "Profit is what's left after the premium. You subtract what you paid from what you made.",
-    "The fee your broker charges": "Commissions are separate. The premium goes to whoever sold you the option.",
-    "The gap from stock to strike": "That gap, when it's in your favor, is intrinsic value. It's only one part of the premium."
+    "The profit if held to expiration": "Profit is what's left after the premium. You subtract what you paid from what you made.",
+    "The fee your broker charges you": "Commissions are separate. The premium goes to whoever sold you the option.",
+    "The gap from stock price to strike": "That gap, when it's in your favor, is intrinsic value. It's only one part of the premium."
    }
   },
   {
@@ -1966,7 +1966,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Writer",
-   "q": "Which word is this: the seller who opened a short option and must fulfill it if assigned?",
+   "q": "Name this role: the seller who opened a short option and must fulfill it if assigned.",
    "choices": [
     "Writer",
     "Holder",
@@ -2054,7 +2054,7 @@
     "The in-the-money part of its price",
     "The whole price you pay for it",
     "What the company is really worth",
-    "The value of the time left"
+    "The value of the time that is left"
    ],
    "answer": "The in-the-money part of its price",
    "why": "The in-the-money part of its price. Out of the money, intrinsic value is zero.",
@@ -2069,7 +2069,7 @@
    "wrong": {
     "The whole price you pay for it": "That's the premium: intrinsic value plus time value.",
     "What the company is really worth": "That's the stock investor's meaning of the phrase. On an option it's the in-the-money amount.",
-    "The value of the time left": "That's time value, the other part of the premium."
+    "The value of the time that is left": "That's time value, the other part of the premium."
    }
   },
   {
@@ -2247,9 +2247,9 @@
    "q": "On an option chain, what does open interest count?",
    "choices": [
     "Contracts open, not yet closed out",
-    "Contracts traded so far today",
+    "Contracts traded so far in the day",
     "Shares of the stock sold short",
-    "Buy orders waiting to be filled"
+    "Buy orders still waiting to be filled"
    ],
    "answer": "Contracts open, not yet closed out",
    "why": "Contracts open, not yet closed out. It's the total of outstanding contracts in that series.",
@@ -2261,9 +2261,9 @@
     "f189"
    ],
    "wrong": {
-    "Contracts traded so far today": "That's volume, which counts one session's trading.",
+    "Contracts traded so far in the day": "That's volume, which counts one session's trading.",
     "Shares of the stock sold short": "Open interest counts option contracts, not shares of stock.",
-    "Buy orders waiting to be filled": "Waiting buy orders show up as the bid. Open interest counts positions already opened."
+    "Buy orders still waiting to be filled": "Waiting buy orders show up as the bid. Open interest counts positions already opened."
    }
   },
   {
@@ -2275,8 +2275,8 @@
    "q": "What is assignment on an option?",
    "choices": [
     "Notice a writer must now fulfill",
-    "The holder using their right",
-    "Buying back a short option",
+    "The holder using their right to act",
+    "Buying back a short option early",
     "Your broker's options approval"
    ],
    "answer": "Notice a writer must now fulfill",
@@ -2292,8 +2292,8 @@
     "f200"
    ],
    "wrong": {
-    "The holder using their right": "That's exercise. Assignment is the other side of it.",
-    "Buying back a short option": "That's a closing purchase. It ends the short option so it can't be assigned.",
+    "The holder using their right to act": "That's exercise. Assignment is the other side of it.",
+    "Buying back a short option early": "That's a closing purchase. It ends the short option so it can't be assigned.",
     "Your broker's options approval": "Brokers do have to approve you for options, but that isn't assignment."
    }
   },
@@ -2303,7 +2303,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Exercise",
-   "q": "Which word is this: the holder uses the option's right to buy or sell at the strike?",
+   "q": "Pick the word for this: the holder uses the option's right to buy or sell at the strike.",
    "choices": [
     "Exercise",
     "Assignment",
@@ -2734,7 +2734,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Vertical spread",
-   "q": "Which word is this: buy one option, write another of the same type and expiry, at a different strike?",
+   "q": "What do you call buying one option and writing another, same type and expiry, at a different strike?",
    "choices": [
     "Vertical spread",
     "Calendar spread",
@@ -2964,12 +2964,12 @@
    "term": "Iron butterfly",
    "q": "What makes an iron butterfly different from an iron condor?",
    "choices": [
-    "Short call and put share one strike",
-    "It is built only from calls",
-    "It costs a debit to open",
-    "Its loss has no limit"
+    "Short call and put at one strike",
+    "It is built only from long calls",
+    "It costs a net debit to open it",
+    "Its loss has no limit on either side"
    ],
-   "answer": "Short call and put share one strike",
+   "answer": "Short call and put at one strike",
    "why": "Short call and put share one strike. The iron butterfly sells both at the middle strike. The condor splits that body into two strikes.",
    "lesson_line": "Butterfly: one body strike. Condor: two.",
    "facts": [
@@ -2981,9 +2981,9 @@
     "f170"
    ],
    "wrong": {
-    "It is built only from calls": "That's a call butterfly. The iron version mixes calls and puts.",
-    "It costs a debit to open": "Debit or credit doesn't separate them. Sold the usual way, both take in cash up front.",
-    "Its loss has no limit": "Its long wings cap the loss: body to wing, less the credit."
+    "It is built only from long calls": "That's a call butterfly. The iron version mixes calls and puts.",
+    "It costs a net debit to open it": "Debit or credit doesn't separate them. Sold the usual way, both take in cash up front.",
+    "Its loss has no limit on either side": "Its long wings cap the loss: body to wing, less the credit."
    }
   },
   {
@@ -3083,12 +3083,12 @@
    "term": "Option chain",
    "q": "What is an option chain?",
    "choices": [
-    "List of contracts by strike and expiry",
+    "Contracts listed by strike, expiry",
     "A chart of the option's past prices",
     "A string of rolls on one position",
-    "The route your order takes"
+    "The route your order takes to market"
    ],
-   "answer": "List of contracts by strike and expiry",
+   "answer": "Contracts listed by strike, expiry",
    "why": "A list of contracts by strike and expiry. It shows the calls and puts available on one underlying, with bid, ask, volume and open interest.",
    "lesson_line": "Read the chain before you trade: the bid, the ask, the volume and the open interest.",
    "facts": [
@@ -3102,7 +3102,7 @@
    "wrong": {
     "A chart of the option's past prices": "That's a price chart. The chain is a table of the contracts listed now.",
     "A string of rolls on one position": "Rolling closes one option and opens another. A chain is the list of contracts.",
-    "The route your order takes": "Your order flows from your broker to an exchange. The chain is the quote table you pick from."
+    "The route your order takes to market": "Your order flows from your broker to an exchange. The chain is the quote table you pick from."
    }
   },
   {
@@ -3356,8 +3356,8 @@
    "q": "What happened to volume and open interest?",
    "choices": [
     "Volume 300; open interest stays 1,200",
-    "Volume 300; open interest 1,500",
-    "Volume 600; open interest 1,500",
+    "Volume 300; open interest rises to 1,500",
+    "Volume 600; open interest up to 1,500",
     "No volume; open interest 900"
    ],
    "answer": "Volume 300; open interest stays 1,200",
@@ -3380,8 +3380,8 @@
     "f182"
    ],
    "wrong": {
-    "Volume 300; open interest 1,500": "Open interest rises only when both sides open. The seller was closing.",
-    "Volume 600; open interest 1,500": "Volume counts contracts traded, and 300 changed hands. Open interest didn't rise either.",
+    "Volume 300; open interest rises to 1,500": "Open interest rises only when both sides open. The seller was closing.",
+    "Volume 600; open interest up to 1,500": "Volume counts contracts traded, and 300 changed hands. Open interest didn't rise either.",
     "No volume; open interest 900": "There was a trade, so there's volume. Open interest falls only when both sides close."
    }
   },
@@ -3607,7 +3607,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f68 (What is an Option?: premium is what the buyer pays and the seller receives) and f48; per-share quote is f73. Commission and intrinsic distractors correctly explained.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f68 (What is an Option?: premium is what the buyer pays and the seller receives) and f48; per-share quote is f73. Commission and intrinsic distractors correctly explained. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3625,7 +3625,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f43, f66 (glossary: writer, covered or not) and the SEC holder/writer line (f192). Holder (f29), market maker (f40), underlying (f63) are really wrong and explained.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f43, f66 (glossary: writer, covered or not) and the SEC holder/writer line (f192). Holder (f29), market maker (f40), underlying (f63) are really wrong and explained. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3643,7 +3643,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f32 (glossary intrinsic value) and f80 (Options Pricing). Distractors: premium (f48), the stock investor's sense, time value (f60). Answer 34 chars fits a tile.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f32 (glossary intrinsic value) and f80 (Options Pricing). Distractors: premium (f48), the stock investor's sense, time value (f60). Answer 34 chars fits a tile. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3685,19 +3685,19 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f41 (glossary) and f96 (OIC FAQ: open contracts not yet closed out); volume contrast is f179. Bid distractor explained by f189. All wrong choices really wrong.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f41 (glossary) and f96 (OIC FAQ: open contracts not yet closed out); volume contrast is f179. Bid distractor explained by f189. All wrong choices really wrong. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q18": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f2 (glossary: OCC notification, random assignment), f193 (SEC) and f199 (FINRA: firm passes it to a customer short that series). Distractors: exercise (f22), closing purchase (f16), broker approval (f200). Fixed: the 23-word why sentence split in two.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f2 (glossary: OCC notification, random assignment), f193 (SEC) and f199 (FINRA: firm passes it to a customer short that series). Distractors: exercise (f22), closing purchase (f16), broker approval (f200). Fixed: the 23-word why sentence split in two. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q19": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f22 (glossary exercise) and f194 (SEC). Lesson line is f89 (OIC FAQ: early exercise forfeits time value) with OIC's worked example f90. Read in context: OIC says selling the option can be the more profitable choice.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f22 (glossary exercise) and f194 (SEC). Lesson line is f89 (OIC FAQ: early exercise forfeits time value) with OIC's worked example f90. Read in context: OIC says selling the option can be the more profitable choice. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3793,7 +3793,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f65 (glossary vertical spread) and f149. Calendar (f11), diagonal (f20), straddle (f54) distractors correct.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f65 (glossary vertical spread) and f149. Calendar (f11), diagonal (f20), straddle (f54) distractors correct. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3841,7 +3841,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f168 (OIC short iron butterfly: short call and short put at one middle strike) vs f167 (condor splits the body). f169 (credit up front) and f166 make 'debit' wrong; f170 makes 'no limit' wrong.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f168 (OIC short iron butterfly: short call and short put at one middle strike) vs f167 (condor splits the body). f169 (credit up front) and f166 make 'debit' wrong; f170 makes 'no limit' wrong. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3871,7 +3871,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). Two Tier 2 publishers agree on the key: f201 (Investopedia) and f204 (IBKR, fetched fresh 200). Chain contents f202, f205. Order-route wrong choice uses f190 (OIC). Investopedia's liquidity line conflicts with OIC's FAQ; recorded in conflicts and not used here.",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). Two Tier 2 publishers agree on the key: f201 (Investopedia) and f204 (IBKR, fetched fresh 200). Chain contents f202, f205. Order-route wrong choice uses f190 (OIC). Investopedia's liquidity line conflicts with OIC's FAQ; recorded in conflicts and not used here. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -3937,7 +3937,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f180 (OIC open interest article: one side to open, the other to close, unchanged) and f179; calc 1200 + 300 - 300 = 1200 checked by hand; volume of 300 contracts traded. f181, f182 make the other choices wrong. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). ",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f180 (OIC open interest article: one side to open, the other to close, unchanged) and f179; calc 1200 + 300 - 300 = 1200 checked by hand; volume of 300 contracts traded. f181, f182 make the other choices wrong. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

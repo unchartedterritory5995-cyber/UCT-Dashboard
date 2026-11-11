@@ -1425,8 +1425,8 @@
    "q": "In trading, what does it mean to be on tilt?",
    "choices": [
     "Making bad decisions out of anger",
-    "Feeling too sure after wins",
-    "Holding a loser too long"
+    "Feeling too sure after a few wins",
+    "Holding a losing trade too long"
    ],
    "answer": "Making bad decisions out of anger",
    "why": "Making bad decisions out of anger. Tendler calls tilt a problem with anger in performance. A poker study defines it as out-of-control decisions driven by negative emotions.",
@@ -1438,8 +1438,8 @@
     "f01"
    ],
    "wrong": {
-    "Feeling too sure after wins": "That's overconfidence. Tendler says no one gets angry about winning.",
-    "Holding a loser too long": "That's the disposition effect. Tilt is about anger driving your decisions."
+    "Feeling too sure after a few wins": "That's overconfidence. Tendler says no one gets angry about winning.",
+    "Holding a losing trade too long": "That's the disposition effect. Tilt is about anger driving your decisions."
    }
   },
   {
@@ -1448,7 +1448,7 @@
    "rung": 3,
    "format": "tf",
    "term": "Tilt",
-   "q": "Tilt often follows a big loss or a run of losses.",
+   "q": "Tilt is often set off by a big loss.",
    "answer": "True",
    "why": "True. A study of poker players' own stories found tilt was often set off by a significant loss. Tendler ties drawdown anger to triggers piling up faster than you can recover.",
    "lesson_line": "After a big loss, check your temper before the next click.",
@@ -1555,9 +1555,9 @@
    "rung": 4,
    "format": "tf",
    "term": "Revenge trading",
-   "q": "Revenge trading usually shows up as bigger size and more trades.",
-   "answer": "True",
-   "why": "True. Investopedia says traders out for revenge usually increase the size and frequency of their trades. Schwab names doubling down on the next trade to make up the loss.",
+   "q": "Revenge trading usually shows up as smaller size and fewer trades.",
+   "answer": "False",
+   "why": "False. Investopedia says traders out for revenge usually increase the size and frequency of their trades. Schwab names doubling down on the next trade to make up the loss.",
    "lesson_line": "If your size jumps right after a loss, that's revenge, not conviction.",
    "facts": [
     "f73",
@@ -1657,11 +1657,11 @@
    "term": "Overconfidence",
    "q": "What is overconfidence bias?",
    "choices": [
-    "Overrating your own skill and knowledge",
-    "Being sure you knew it all along",
-    "Copying what the crowd is doing"
+    "Overrating your skill and knowledge",
+    "Being sure you saw the outcome coming",
+    "Following the crowd into a hot name"
    ],
-   "answer": "Overrating your own skill and knowledge",
+   "answer": "Overrating your skill and knowledge",
    "why": "Overrating your own skill and knowledge. Schwab defines it as overestimating your knowledge and abilities, which tricks you into risky bets.",
    "lesson_line": "Let your record, not your mood, tell you how good you are.",
    "facts": [
@@ -1673,8 +1673,8 @@
     "f97"
    ],
    "wrong": {
-    "Being sure you knew it all along": "That's hindsight bias, though it can feed overconfidence.",
-    "Copying what the crowd is doing": "That's herding. Overconfidence is about how you rate yourself."
+    "Being sure you saw the outcome coming": "That's hindsight bias, though it can feed overconfidence.",
+    "Following the crowd into a hot name": "That's herding. Overconfidence is about how you rate yourself."
    }
   },
   {
@@ -1727,9 +1727,9 @@
    "rung": 7,
    "format": "tf",
    "term": "Overconfidence",
-   "q": "FINRA Foundation research found social media users more often overrate their investing knowledge.",
-   "answer": "True",
-   "why": "True. FINRA says social media users are more likely than non-users to show overconfidence in their investment knowledge.",
+   "q": "FINRA Foundation research found social media users less often overrate their investing knowledge.",
+   "answer": "False",
+   "why": "False. FINRA says social media users are more likely than non-users to show overconfidence in their investment knowledge.",
    "lesson_line": "A feed full of winners makes everyone feel smart. Check your own numbers.",
    "facts": [
     "f20"
@@ -1798,11 +1798,11 @@
    "term": "Loss aversion",
    "q": "What is loss aversion?",
    "choices": [
-    "A loss stings more than a same-size gain",
+    "A loss hurts more than an equal gain",
     "Avoiding risk to protect your capital",
-    "Selling winners too early"
+    "Selling your winners far too early"
    ],
-   "answer": "A loss stings more than a same-size gain",
+   "answer": "A loss hurts more than an equal gain",
    "why": "A loss stings more than a same-size gain. The Nobel summary of Kahneman's work: most people are more averse to losses than partial to gains of the same size.",
    "lesson_line": "Expect a loss to hurt more than a win feels good. Plan your exit before that feeling shows up.",
    "facts": [
@@ -1817,7 +1817,7 @@
    ],
    "wrong": {
     "Avoiding risk to protect your capital": "That's risk aversion, which can be rational. Loss aversion is the lopsided feeling about losses and gains.",
-    "Selling winners too early": "That's half of the disposition effect, which loss aversion helps explain."
+    "Selling your winners far too early": "That's half of the disposition effect, which loss aversion helps explain."
    }
   },
   {
@@ -1921,9 +1921,9 @@
    "rung": 5,
    "format": "tf",
    "term": "Disposition effect",
-   "q": "Per the SEC, winners people sell too soon often go on to beat the losers they keep.",
-   "answer": "True",
-   "why": "True. The SEC bulletin says the winners sold often keep outperforming the losers still held. The report behind it says the habit achieves the reverse of what investors hope.",
+   "q": "Per the SEC, winners people sell too soon often go on to trail the losers they keep.",
+   "answer": "False",
+   "why": "False. The SEC bulletin says the winners sold often keep outperforming the losers still held. The report behind it says the habit achieves the reverse of what investors hope.",
    "lesson_line": "Let the chart and the plan decide what you sell, not where you bought it.",
    "facts": [
     "f02",
@@ -2060,11 +2060,11 @@
    "term": "Anchoring",
    "q": "What is anchoring?",
    "choices": [
-    "Over-relying on the first number you saw",
+    "Leaning on the first number you saw",
     "Holding a stock for the long run",
-    "Following a mentor's every trade"
+    "Following a mentor into every trade"
    ],
-   "answer": "Over-relying on the first number you saw",
+   "answer": "Leaning on the first number you saw",
    "why": "Over-relying on the first number you saw. The OSC defines anchoring as relying too heavily on the first piece of information you're offered.",
    "lesson_line": "Ask what the stock is doing now, not what it used to cost.",
    "facts": [
@@ -2075,7 +2075,7 @@
    ],
    "wrong": {
     "Holding a stock for the long run": "That's a holding period. Anchoring is a reference number steering your judgment.",
-    "Following a mentor's every trade": "That's closer to herding. Anchoring is about a number in your head."
+    "Following a mentor into every trade": "That's closer to herding. Anchoring is about a number in your head."
    }
   },
   {
@@ -2316,8 +2316,8 @@
    "story": "You passed on a stock last month. It has since run 60%. Now you tell everyone the move was obvious and you saw it coming.",
    "choices": [
     "Write down your read at the time",
-    "Buy it now to make up for it",
-    "Forget it and move on"
+    "Buy it now to make up for the miss",
+    "Forget it and move on quickly"
    ],
    "answer": "Write down your read at the time",
    "why": "Write down your read at the time. Roese and Vohs say hindsight bias starts with misremembering what you thought before. Steenbarger notes that memory is biased by emotion and hindsight.",
@@ -2328,8 +2328,8 @@
     "f144"
    ],
    "wrong": {
-    "Buy it now to make up for it": "That's FOMO and regret steering you. Missing the move doesn't make it a setup now.",
-    "Forget it and move on": "Moving on is fine, but the illusion repeats. A written record shows what you really thought."
+    "Buy it now to make up for the miss": "That's FOMO and regret steering you. Missing the move doesn't make it a setup now.",
+    "Forget it and move on quickly": "Moving on is fine, but the illusion repeats. A written record shows what you really thought."
    }
   },
   {
@@ -2340,11 +2340,11 @@
    "term": "Herd mentality",
    "q": "What is herd mentality?",
    "choices": [
-    "Copying others instead of your own work",
-    "Investing in a well-known company",
+    "Copying others over your own research",
+    "Investing in a company everyone knows",
     "Trusting a stock's old high price"
    ],
-   "answer": "Copying others instead of your own work",
+   "answer": "Copying others over your own research",
    "why": "Copying others instead of your own work. The OSC says herding is doing the same thing because others are doing it. Schwab says chasing trends outsources your due diligence to the crowd.",
    "lesson_line": "A crowded trade can still be a good trade. Just make sure it's your trade.",
    "facts": [
@@ -2357,7 +2357,7 @@
     "f40"
    ],
    "wrong": {
-    "Investing in a well-known company": "Favoring well-known names is familiarity bias.",
+    "Investing in a company everyone knows": "Favoring well-known names is familiarity bias.",
     "Trusting a stock's old high price": "That's anchoring. Herding is copying the crowd instead of doing your own work."
    }
   },
@@ -2403,11 +2403,11 @@
    "term": "House money effect",
    "q": "What is the house money effect?",
    "choices": [
-    "Taking more risk with recent profits",
-    "Trading someone else's capital",
-    "Keeping profits in cash"
+    "Risking more after recent profits",
+    "Trading with someone else's capital",
+    "Keeping recent profits in cash"
    ],
-   "answer": "Taking more risk with recent profits",
+   "answer": "Risking more after recent profits",
    "why": "Taking more risk with recent profits. Thaler and Johnson found more risk seeking after a prior gain. Investopedia calls it risking profits more freely than earned money.",
    "lesson_line": "Profit is your money once it's booked. Risk it by the same rule.",
    "facts": [
@@ -2415,8 +2415,8 @@
     "f69"
    ],
    "wrong": {
-    "Trading someone else's capital": "That's trading other people's money. The effect is about how you treat your own recent gains.",
-    "Keeping profits in cash": "That's the opposite: locking gains away rather than risking them."
+    "Trading with someone else's capital": "That's trading other people's money. The effect is about how you treat your own recent gains.",
+    "Keeping recent profits in cash": "That's the opposite: locking gains away rather than risking them."
    }
   },
   {
@@ -2778,14 +2778,14 @@
   },
   "q06": {
    "status": "pass",
-   "notes": "f108, f110 (Tendler, read in full) and f113 (poker study abstract) confirmed. Key fits both. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy.",
+   "notes": "f108, f110 (Tendler, read in full) and f113 (poker study abstract) confirmed. Key fits both. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
   "q07": {
    "status": "pass",
-   "notes": "f114 (tilt often set off by a significant loss) and f111 (Tendler: drawdown anger) confirmed. 'Often' matches the sources. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy.",
-   "fixed": false,
+   "notes": "f114 (tilt often set off by a significant loss) and f111 (Tendler: drawdown anger) confirmed. 'Often' matches the sources. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy. variety rewrite checked 2026-11-10; edited: restored to True: the False version duplicated q09 (tilt is not a win state); f114 supports the True.",
+   "fixed": true,
    "by": "checker"
   },
   "q08": {
@@ -2814,7 +2814,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f73 ('usually by increasing the size and frequency of their trades') and f49 confirmed. No change.",
+   "notes": "f73 ('usually by increasing the size and frequency of their trades') and f49 confirmed. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2838,7 +2838,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "f34, f33 (Schwab), f91 (OSC) confirmed. The herding wrong note cited unconfirmable Investopedia f63; now OSC f97.",
+   "notes": "f34, f33 (Schwab), f91 (OSC) confirmed. The herding wrong note cited unconfirmable Investopedia f63; now OSC f97. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2856,7 +2856,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "f20 confirmed on FINRA's October 14, 2026 page. Tier 1. No change.",
+   "notes": "f20 confirmed on FINRA's October 14, 2026 page. Tier 1. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2874,7 +2874,7 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "Why quoted the LoC line whose source text calls it 'excessive risk aversion', which clashes with the risk-aversion wrong note. Why now uses the Nobel summary (f102) and f13 is dropped from this item. f76, f86, f31, f78, f87 confirmed. No multiple is keyed.",
+   "notes": "Why quoted the LoC line whose source text calls it 'excessive risk aversion', which clashes with the risk-aversion wrong note. Why now uses the Nobel summary (f102) and f13 is dropped from this item. f76, f86, f31, f78, f87 confirmed. No multiple is keyed. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -2904,7 +2904,7 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "f02 (SEC bulletin) and f15 (LoC) confirmed in context. No change.",
+   "notes": "f02 (SEC bulletin) and f15 (LoC) confirmed in context. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },
@@ -2940,7 +2940,7 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "f94, f88 (OSC) and f35 (Schwab) confirmed. The herding wrong note now cites OSC f97 instead of unconfirmable f63.",
+   "notes": "f94, f88 (OSC) and f35 (Schwab) confirmed. The herding wrong note now cites OSC f97 instead of unconfirmable f63. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3006,13 +3006,13 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "Key cited Investopedia f60 (journal), which could not be confirmed. Now APS f144 (hindsight starts as misremembering an earlier opinion) and Steenbarger f140. The story has you passing, not trading, so the key is now 'Write down your read at the time'. A wrong note asserted the move 'isn't a setup now'; now 'Missing the move doesn't make it a setup now'. Lesson line now says \"written at the time\" to match.",
+   "notes": "Key cited Investopedia f60 (journal), which could not be confirmed. Now APS f144 (hindsight starts as misremembering an earlier opinion) and Steenbarger f140. The story has you passing, not trading, so the key is now 'Write down your read at the time'. A wrong note asserted the move 'isn't a setup now'; now 'Missing the move doesn't make it a setup now'. Lesson line now says \"written at the time\" to match. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
   "q45": {
    "status": "pass",
-   "notes": "Key cited unconfirmable f63. Now OSC f97, Schwab f145 ('outsourcing your due diligence to the crowds') and Investopedia f146, all confirmed. The weak distractor 'Selling when your stop is hit' is now anchoring, 'Trusting a stock's old high price' (Schwab f40).",
+   "notes": "Key cited unconfirmable f63. Now OSC f97, Schwab f145 ('outsourcing your due diligence to the crowds') and Investopedia f146, all confirmed. The weak distractor 'Selling when your stop is hit' is now anchoring, 'Trusting a stock's old high price' (Schwab f40). variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
   },
@@ -3030,7 +3030,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "f116 (Thaler and Johnson) and f69 confirmed. No change.",
+   "notes": "f116 (Thaler and Johnson) and f69 confirmed. No change. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
   },

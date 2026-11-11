@@ -827,12 +827,12 @@
    "criterion": "w4b.never_plain_4b",
    "q": "In Weinstein's stage legend, what does a plain 4B mean?",
    "choices": [
-    "Late in the decline: too soon to buy",
-    "A bottom is in: buy now",
-    "Early in the decline",
-    "A Stage 2 breakout"
+    "Late in the decline: not a buy yet",
+    "A bottom is in: buy on strength",
+    "Early in the decline: sell rallies",
+    "A Stage 2 breakout on volume"
    ],
-   "answer": "Late in the decline: too soon to buy",
+   "answer": "Late in the decline: not a buy yet",
    "why": "Late in the downtrend, and much too soon to consider buying. The buy is the 4B-, the one with the minus.",
    "lesson_line": "A plain 4B is not a buy. Wait for the minus.",
    "facts": [
@@ -841,9 +841,9 @@
     "x08"
    ],
    "wrong": {
-    "A bottom is in: buy now": "That is the minus. A plain 4B is late in the downtrend and much too soon to consider buying.",
-    "Early in the decline": "The B means late in the stage, not early.",
-    "A Stage 2 breakout": "Stage 2 is the advance. A plain 4B is still the declining stage, and there is no reason to be long."
+    "A bottom is in: buy on strength": "That is the minus. A plain 4B is late in the downtrend and much too soon to consider buying.",
+    "Early in the decline: sell rallies": "The B means late in the stage, not early.",
+    "A Stage 2 breakout on volume": "Stage 2 is the advance. A plain 4B is still the declining stage, and there is no reason to be long."
    },
    "house": true
   },
@@ -855,12 +855,12 @@
    "criterion": "w4b.no_new_low",
    "q": "What does the minus in 4B- say?",
    "choices": [
-    "The stock has seen its low for the cycle",
+    "The low for the cycle is now in",
     "The stock is still falling hard",
     "The stock is already in Stage 2",
-    "The stock is a short"
+    "The stock is a short candidate"
    ],
-   "answer": "The stock has seen its low for the cycle",
+   "answer": "The low for the cycle is now in",
    "why": "The stock has now seen its low for the cycle. It is not yet officially in Stage 1A, but the low is in.",
    "lesson_line": "The minus says the low is in. Not yet a base, but the low is in.",
    "facts": [
@@ -870,7 +870,7 @@
    "wrong": {
     "The stock is still falling hard": "That is a plain 4B. The minus says the low for the cycle is in.",
     "The stock is already in Stage 2": "It is not yet even officially in Stage 1A. The minus only says the low is in.",
-    "The stock is a short": "The minus says the low for the cycle is in, so it is a long idea, not a short."
+    "The stock is a short candidate": "The minus says the low for the cycle is in, so it is a long idea, not a short."
    },
    "house": true
   },
@@ -970,8 +970,8 @@
    "choices": [
     "Lowest low of the 252 sessions before",
     "Lowest close of the last 20 sessions",
-    "The 50-day average at its lowest",
-    "The day with the most volume"
+    "The 50-day average at its lowest point",
+    "The day with the most volume traded"
    ],
    "answer": "Lowest low of the 252 sessions before",
    "why": "The lowest low of the 252 sessions before the trigger, our working rule. The 52-week high is the highest high of the 252 sessions before the cycle low.",
@@ -981,8 +981,8 @@
    ],
    "wrong": {
     "Lowest close of the last 20 sessions": "That is a recent dip, not the low for the cycle. The cycle low looks back 252 sessions.",
-    "The 50-day average at its lowest": "An average is not the low. The cycle low is the lowest low of the 252 sessions.",
-    "The day with the most volume": "Volume does not pick the low. The lowest low of the 252 sessions does."
+    "The 50-day average at its lowest point": "An average is not the low. The cycle low is the lowest low of the 252 sessions.",
+    "The day with the most volume traded": "Volume does not pick the low. The lowest low of the 252 sessions does."
    },
    "house": true
   },
@@ -1045,10 +1045,10 @@
    "rung": 2,
    "format": "tf",
    "criterion": "w4b.liquidity",
-   "q": "We take a 4B- only in a stock at $10 or more that trades $20 million a day.",
-   "answer": "True",
-   "why": "True. Price $10 or more and at least $20 million traded a day.",
-   "lesson_line": "A clean base in a thin stock is still a thin stock.",
+   "q": "We take a 4B- in a $5 stock that trades $20 million a day.",
+   "answer": "False",
+   "why": "False. The price must be $10 or more, and at least $20 million has to trade a day.",
+   "lesson_line": "Under $10 is out, however clean the base.",
    "facts": [
     "c17",
     "h09"
@@ -1064,9 +1064,9 @@
    "q": "What is the buy on a 4B-?",
    "choices": [
     "Trades over the pause high, at market",
-    "The first close over the 50-day",
-    "A limit order at the higher low",
-    "A close over the 200-day"
+    "The first daily close over the 50-day",
+    "A limit order at the new higher low",
+    "A close over the 200-day average"
    ],
    "answer": "Trades over the pause high, at market",
    "why": "It trades over the highest high of the pause above the 50-day, during regular hours, bought at market. That is our default trigger.",
@@ -1077,9 +1077,9 @@
     "h22"
    ],
    "wrong": {
-    "The first close over the 50-day": "The 50-day reclaim comes first. The buy waits for the pause and the trade over its high.",
-    "A limit order at the higher low": "A limit at the higher low buys before the pause is built. Entries are market orders.",
-    "A close over the 200-day": "Being over the 200-day is a gate, not the trigger. The trigger is the pause high."
+    "The first daily close over the 50-day": "The 50-day reclaim comes first. The buy waits for the pause and the trade over its high.",
+    "A limit order at the new higher low": "A limit at the higher low buys before the pause is built. Entries are market orders.",
+    "A close over the 200-day average": "Being over the 200-day is a gate, not the trigger. The trigger is the pause high."
    },
    "house": true
   },
@@ -1089,9 +1089,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "w4b.base_length",
-   "q": "A buy 6 sessions after the cycle low is too early for a 4B-.",
-   "answer": "True",
-   "why": "True. Our working rule needs at least 15 sessions from the cycle low to the trigger. A small base right after a big decline is buying too early.",
+   "q": "A buy 12 sessions after the cycle low is long enough for a 4B-.",
+   "answer": "False",
+   "why": "False. Our working rule needs at least 15 sessions from the cycle low to the trigger, so 12 is still too early.",
    "lesson_line": "Give the base time. At least 15 sessions off the low.",
    "facts": [
     "c05",
@@ -1222,10 +1222,10 @@
    "rung": 3,
    "format": "tf",
    "criterion": "w4b.fresh_reason",
-   "q": "A fresh reason for the turn, like an earnings reaction, helps a 4B-.",
-   "answer": "True",
-   "why": "True, as a cue, provided the buy is not in the 3 days before a report.",
-   "lesson_line": "A fresh reason helps. A report next week does not.",
+   "q": "A fresh reason for the turn, like an earnings reaction, counts against a 4B-.",
+   "answer": "False",
+   "why": "False. A fresh reason for the turn, like an earnings reaction or a guidance change, helps. Keep the buy out of the 3 days before a report.",
+   "lesson_line": "A fresh reason for the turn helps the setup.",
    "facts": [
     "c14",
     "h08"
@@ -1258,8 +1258,8 @@
    "story": "The pause high is 40.00. The stock gaps open at 42.00.",
    "choices": [
     "Pass; 5% past the pause high",
-    "Buy at market; it is strong",
-    "Buy half size"
+    "Buy at market; it is so strong",
+    "Buy half size at the open"
    ],
    "answer": "Pass; 5% past the pause high",
    "calc": {
@@ -1278,8 +1278,8 @@
     "h12"
    ],
    "wrong": {
-    "Buy at market; it is strong": "Past 4% the stop stays far away and the shares shrink. That is a chase.",
-    "Buy half size": "Half of a chase is still a chase. The line is 4%."
+    "Buy at market; it is so strong": "Past 4% the stop stays far away and the shares shrink. That is a chase.",
+    "Buy half size at the open": "Half of a chase is still a chase. The line is 4%."
    },
    "house": true
   },
@@ -1292,11 +1292,11 @@
    "q": "Buy it?",
    "story": "A stock down 60% still makes new lows under a falling 30-week line. It looks cheap.",
    "choices": [
-    "No; that is a plain 4B",
-    "Yes; it is cheap",
-    "Yes, a small starter"
+    "No; that stock is a plain 4B",
+    "Yes; it is cheap, down 60%",
+    "Yes, but only a small starter"
    ],
-   "answer": "No; that is a plain 4B",
+   "answer": "No; that stock is a plain 4B",
    "why": "No. Never a 4B without the minus. A stock still making new lows is much too soon to consider buying.",
    "lesson_line": "Cheap is not a reason. A falling stock is a falling stock.",
    "facts": [
@@ -1305,8 +1305,8 @@
     "x01"
    ],
    "wrong": {
-    "Yes; it is cheap": "Buying because it seems cheap is the named mistake.",
-    "Yes, a small starter": "Size does not fix timing. It is much too soon to consider buying."
+    "Yes; it is cheap, down 60%": "Buying because it seems cheap is the named mistake.",
+    "Yes, but only a small starter": "Size does not fix timing. It is much too soon to consider buying."
    },
    "house": true
   },
@@ -1319,11 +1319,11 @@
    "q": "What does that tell you?",
    "story": "A stock bounces for three weeks, then closes under its cycle low.",
    "choices": [
-    "The low call was wrong; it is still a 4",
-    "A bargain; buy more",
-    "A higher low; the setup is on"
+    "The low call was wrong; still a 4",
+    "A bargain; buy more on the dip",
+    "A higher low; the setup is now on"
    ],
-   "answer": "The low call was wrong; it is still a 4",
+   "answer": "The low call was wrong; still a 4",
    "why": "The low-for-the-cycle call was wrong. It is still a 4B or a 4.",
    "lesson_line": "A close under the cycle low resets the count.",
    "facts": [
@@ -1331,8 +1331,8 @@
     "c03"
    ],
    "wrong": {
-    "A bargain; buy more": "A close under the cycle low is no bargain. The low was not the low.",
-    "A higher low; the setup is on": "A higher low sits above the cycle low. This closed under it."
+    "A bargain; buy more on the dip": "A close under the cycle low is no bargain. The low was not the low.",
+    "A higher low; the setup is now on": "A higher low sits above the cycle low. This closed under it."
    },
    "house": true
   },
@@ -1394,9 +1394,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "w4b.breakeven",
-   "q": "The stop moves to breakeven somewhere between 2R and 5R.",
-   "answer": "True",
-   "why": "True. Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "q": "The stop moves to breakeven at 1R, well before the first trim.",
+   "answer": "False",
+   "why": "False. Stop to breakeven between 2R and 5R, at the first trim by default.",
    "lesson_line": "Breakeven between 2R and 5R, at the first trim.",
    "facts": [
     "c27",
@@ -1413,9 +1413,9 @@
    "q": "In our test, which pause above the 50-day did worst?",
    "choices": [
     "A bare 2 to 4 session pause",
-    "A 5 to 10 session pause",
-    "An 11 to 20 session pause",
-    "A 21 to 40 session pause"
+    "A pause of 5 to 10 sessions",
+    "A pause of 11 to 20 sessions",
+    "A pause of 21 to 40 sessions"
    ],
    "answer": "A bare 2 to 4 session pause",
    "why": "A bare 2 to 4 session pause: 15.7% reached 3R. The 5 to 10 session pause did best, at 25.9%.",
@@ -1426,9 +1426,9 @@
     "d25"
    ],
    "wrong": {
-    "A 5 to 10 session pause": "That did best: 25.9% reached 3R.",
-    "An 11 to 20 session pause": "23.1% reached 3R, well above the bare pause.",
-    "A 21 to 40 session pause": "21.3% reached 3R, also above the bare pause."
+    "A pause of 5 to 10 sessions": "That did best: 25.9% reached 3R.",
+    "A pause of 11 to 20 sessions": "23.1% reached 3R, well above the bare pause.",
+    "A pause of 21 to 40 sessions": "21.3% reached 3R, also above the bare pause."
    },
    "house": true
   },
@@ -1441,8 +1441,8 @@
    "q": "Which group reading helps a 4B-?",
    "choices": [
     "The group ETF closes above its 50-day",
-    "The group ETF falls the hardest",
-    "The group is not part of the call"
+    "The group ETF falls hardest on the day",
+    "The group is not part of the 4B- call"
    ],
    "answer": "The group ETF closes above its 50-day",
    "why": "The stock's group ETF or index closing above its own 50-day. It helps most when the group is basing too and the stock is among the first to reclaim its 50-day.",
@@ -1452,8 +1452,8 @@
     "c13"
    ],
    "wrong": {
-    "The group ETF falls the hardest": "A weak group is the B- end. We want the group turning up too.",
-    "The group is not part of the call": "A weak group is a named mistake. The group turning up helps."
+    "The group ETF falls hardest on the day": "A group falling hardest is the weak end. We want the group turning up too.",
+    "The group is not part of the 4B- call": "A weak group is a named mistake. The group turning up helps."
    },
    "house": true
   },
@@ -1492,11 +1492,11 @@
    "q": "Is that a 4B-?",
    "story": "A stock undercuts its low and reclaims it two sessions later. You want to buy the reclaim.",
    "choices": [
-    "No; a 4B- waits weeks for a higher low",
-    "Yes; it reclaimed the low",
-    "Yes, if volume is big"
+    "No; a 4B- waits for a higher low",
+    "Yes; it reclaimed the old low fast",
+    "Yes, if the reclaim volume is big"
    ],
-   "answer": "No; a 4B- waits weeks for a higher low",
+   "answer": "No; a 4B- waits for a higher low",
    "why": "No. A 4B- never closes under its cycle low. It waits 15 or more sessions for a higher low, a 50-day reclaim and a pause before the buy.",
    "lesson_line": "An undercut and reclaim is quick. A 4B- takes weeks.",
    "facts": [
@@ -1504,8 +1504,8 @@
     "c05"
    ],
    "wrong": {
-    "Yes; it reclaimed the low": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
-    "Yes, if volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base."
+    "Yes; it reclaimed the old low fast": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
+    "Yes, if the reclaim volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base."
    },
    "house": true
   },
@@ -1519,8 +1519,8 @@
    "story": "A stock flushes on twice its usual volume under every fast average. You buy the snap back two days later.",
    "choices": [
     "No; a capitulation snap back",
-    "Yes; it flushed to the low",
-    "Yes, if it holds the low"
+    "Yes; it flushed hard to the low",
+    "Yes, if it holds the new low"
    ],
    "answer": "No; a capitulation snap back",
    "why": "No. A capitulation buys the snap back within 3 sessions of a flush. A 4B- waits weeks for a higher low on drying volume and a 50-day reclaim.",
@@ -1530,8 +1530,8 @@
     "c04"
    ],
    "wrong": {
-    "Yes; it flushed to the low": "A flush buys the snap back. A 4B- waits for the base.",
-    "Yes, if it holds the low": "Holding the low is not enough. A 4B- waits for a higher low and a 50-day reclaim."
+    "Yes; it flushed hard to the low": "A flush buys the snap back. A 4B- waits for the base.",
+    "Yes, if it holds the new low": "Holding the low is not enough. A 4B- waits for a higher low and a 50-day reclaim."
    },
    "house": true
   },
@@ -1634,11 +1634,11 @@
    "q": "Buy the break?",
    "story": "A pause breaks out, and the stock sits 12% over its 10-day average.",
    "choices": [
-    "No; too stretched over the 10-day",
-    "Yes; it is a clean break",
-    "Yes, on half size"
+    "No; too far over the 10-day",
+    "Yes; the break itself is clean",
+    "Yes, but only on half size"
    ],
-   "answer": "No; too stretched over the 10-day",
+   "answer": "No; too far over the 10-day",
    "why": "No. Skip if more than 10% above the 10-day average. This one is 12% over.",
    "lesson_line": "A clean break, too far above its average, is a pass.",
    "facts": [
@@ -1646,8 +1646,8 @@
     "h13"
    ],
    "wrong": {
-    "Yes; it is a clean break": "The break is clean, but the stretch rule comes before the break.",
-    "Yes, on half size": "Half size does not cure a stretch."
+    "Yes; the break itself is clean": "The break is clean, but the stretch rule comes before the break.",
+    "Yes, but only on half size": "Half size does not cure a stretch."
    },
    "house": true
   },
@@ -1683,12 +1683,12 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.inv_market_red",
-   "q": "What do you do?",
+   "q": "Buy it, or stand aside?",
    "story": "A clean 4B- breaks the pause high, but the market reading just turned Red.",
    "choices": [
     "No new long; Red is mostly cash",
-    "Buy; the base is great",
-    "Buy half size"
+    "Buy; the base is great and clean",
+    "Buy half size, tight stop"
    ],
    "answer": "No new long; Red is mostly cash",
    "why": "No new long. Red is mostly cash and shorts, and a 4B- is a long. Existing trades keep their stops.",
@@ -1698,8 +1698,8 @@
     "c15"
    ],
    "wrong": {
-    "Buy; the base is great": "Buying against the market is the named mistake. Red is mostly cash.",
-    "Buy half size": "Half size is still a new long in a Red market."
+    "Buy; the base is great and clean": "Buying against the market is the named mistake. Red is mostly cash.",
+    "Buy half size, tight stop": "Half size is still a new long in a Red market."
    },
    "house": true
   },
@@ -1712,19 +1712,19 @@
    "q": "What now?",
    "story": "A stock has reclaimed its 50-day and paused for a week. Today it closes back under the 50-day.",
    "choices": [
-    "Wait for a new 2-session pause above it",
-    "Buy the dip; it is cheaper",
-    "Move the stop to the 200-day"
+    "Wait for a new 2-session pause",
+    "Buy the dip; it is cheaper now",
+    "Move the stop down to the 200-day"
    ],
-   "answer": "Wait for a new 2-session pause above it",
+   "answer": "Wait for a new 2-session pause",
    "why": "Wait for a new pause. A close back under the 50-day before the trigger re-arms the setup only after a new 2-session pause above it.",
    "lesson_line": "Lost the 50-day, so wait for a fresh pause above it.",
    "facts": [
     "c36"
    ],
    "wrong": {
-    "Buy the dip; it is cheaper": "The setup is off until a new pause forms. A dip under the 50-day is no entry.",
-    "Move the stop to the 200-day": "There is no position yet, and the 200-day is not the stop."
+    "Buy the dip; it is cheaper now": "The setup is off until a new pause forms. A dip under the 50-day is no entry.",
+    "Move the stop down to the 200-day": "There is no position yet, and the 200-day is not the stop."
    },
    "house": true
   },
@@ -1762,14 +1762,14 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.trim_gap_open",
-   "q": "What do you do at the open?",
+   "q": "How do you play the open?",
    "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. The next morning it opens at 43.60.",
    "choices": [
-    "Sell a third at the open",
-    "Wait for the close",
-    "Sell it all"
+    "Take a third off at the open",
+    "Wait for the close to decide",
+    "Sell it all and take the gain"
    ],
-   "answer": "Sell a third at the open",
+   "answer": "Take a third off at the open",
    "why": "Sell a third at the open. A trim level the day opens past is taken at the open.",
    "lesson_line": "Take the trim the open hands you.",
    "facts": [
@@ -1778,8 +1778,8 @@
     "c28"
    ],
    "wrong": {
-    "Wait for the close": "The level is already passed. Waiting gives the gap time to fill.",
-    "Sell it all": "A third at 3R. The rest waits for 5R and the trail."
+    "Wait for the close to decide": "The level is already passed. Waiting gives the gap time to fill.",
+    "Sell it all and take the gain": "A third at 3R. The rest waits for 5R and the trail."
    },
    "house": true
   },
@@ -1792,11 +1792,11 @@
    "q": "What now?",
    "story": "You bought at 40.00 with the stop at 39.00. It gaps open at 38.20, and the first 30-minute low is 37.80.",
    "choices": [
-    "Out; the loss is past 2R",
-    "The new stop is 37.80",
-    "Hold; gaps fill"
+    "Out now; the loss is past the 2R cap",
+    "The new stop is the 37.80 low",
+    "Hold; gaps tend to fill in time"
    ],
-   "answer": "Out; the loss is past 2R",
+   "answer": "Out now; the loss is past the 2R cap",
    "why": "Out. On a gap through the stop the first 30-minute low is the new stop, but past 2R you get out. A low of 37.80 is more than 2R from 40.00.",
    "lesson_line": "A gap through the stop has a ceiling of 2R.",
    "facts": [
@@ -1805,8 +1805,8 @@
     "h07"
    ],
    "wrong": {
-    "The new stop is 37.80": "The 30-minute low is the stop only while the loss is inside 2R. This one is past it.",
-    "Hold; gaps fill": "Hope is not a rule. The gap rule has a ceiling, and this is past it."
+    "The new stop is the 37.80 low": "The 30-minute low is the stop only while the loss is inside 2R. This one is past it.",
+    "Hold; gaps tend to fill in time": "Hope is not a rule. The gap rule has a ceiling, and this is past it."
    },
    "house": true
   },
@@ -1820,8 +1820,8 @@
    "story": "You hold the last third of a fast mover after both trims. Today it closes under its 10-day.",
    "choices": [
     "Sell the last third on that close",
-    "Hold until the 50-day breaks",
-    "Move the stop down"
+    "Hold until the 50-day breaks down",
+    "Move the stop down to the 50-day"
    ],
    "answer": "Sell the last third on that close",
    "why": "Sell the last third. A fast mover trails the 10-day, and we sell on a close below it.",
@@ -1832,8 +1832,8 @@
     "h02"
    ],
    "wrong": {
-    "Hold until the 50-day breaks": "The trail is the 10-day for a fast mover, not the 50-day.",
-    "Move the stop down": "The stop only moves up, never down or wider."
+    "Hold until the 50-day breaks down": "The trail is the 10-day for a fast mover, not the 50-day.",
+    "Move the stop down to the 50-day": "The stop only moves up, never down or wider."
    },
    "house": true
   },
@@ -1843,14 +1843,14 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.size_by_grade",
-   "q": "What do you tell them?",
+   "q": "How do you answer them?",
    "story": "Your 4B- trade is working. A friend says to add along the way, as some traders do.",
    "choices": [
-    "No; one price, one stop, no adding",
-    "Yes; add on each higher low",
-    "Yes, but only half size"
+    "No; one price, one stop, no adds",
+    "Yes; add on each fresh higher low",
+    "Yes, but only add half the size"
    ],
-   "answer": "No; one price, one stop, no adding",
+   "answer": "No; one price, one stop, no adds",
    "why": "No. Size from the stop; one price, one stop, no adding along the way. Adding on the way up is the named mistake.",
    "lesson_line": "Full size once. A winner is not a reason to add.",
    "facts": [
@@ -1858,8 +1858,8 @@
     "m05"
    ],
    "wrong": {
-    "Yes; add on each higher low": "Adding to it on the way up is the named mistake.",
-    "Yes, but only half size": "A smaller add is still an add with a second price and a second stop."
+    "Yes; add on each fresh higher low": "Adding to it on the way up is the named mistake.",
+    "Yes, but only add half the size": "A smaller add is still an add with a second price and a second stop."
    },
    "house": true
   },
@@ -1895,9 +1895,9 @@
    "rung": 6,
    "format": "tf",
    "criterion": "w4b.position_adv",
-   "q": "Our position should be at most 1% of the stock's average daily volume.",
-   "answer": "True",
-   "why": "True. Never own more than 1% of a stock's average daily volume.",
+   "q": "Our position can be up to 5% of the stock's average daily volume.",
+   "answer": "False",
+   "why": "False. Never own more than 1% of a stock's average daily volume.",
    "lesson_line": "Size to the stock's volume, not just the stop.",
    "facts": [
     "c18",
@@ -2391,13 +2391,13 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "x01 (stageanalysis.net) and x08 (Deepvue) verbatim, two publishers agree a plain 4B is not a buy; c38 on the card. Wrong notes true.",
+   "notes": "x01 (stageanalysis.net) and x08 (Deepvue) verbatim, two publishers agree a plain 4B is not a buy; c38 on the card. Wrong notes true. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q02": {
    "status": "pass",
-   "notes": "x02 (stageanalysis.net, the stage legend) verbatim and c03 on the card. One publisher plus the card: acceptable because c03 is the card's own line (basis originator) and the item defines a term, not a trade.",
+   "notes": "x02 (stageanalysis.net, the stage legend) verbatim and c03 on the card. One publisher plus the card: acceptable because c03 is the card's own line (basis originator) and the item defines a term, not a trade. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2433,7 +2433,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "w4b.cycle_low is proposed ('my proposal'); c01 verbatim on the card. The why now says 'our working rule' so the 252 reads as the card's, not a source's.",
+   "notes": "w4b.cycle_low is proposed ('my proposal'); c01 verbatim on the card. The why now says 'our working rule' so the 252 reads as the card's, not a source's. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2451,19 +2451,19 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "B23 (h09) and c17 verbatim; settled. Key right.",
+   "notes": "B23 (h09) and c17 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q12": {
    "status": "pass",
-   "notes": "w4b.trigger is pending (D-003). E57 (market order) is settled; the 'when' is the card default. The why now says 'our default trigger'; no choice marks a close-based buyer wrong except as 'the first close over the 50-day', which is a different event (the reclaim, not the pause high).",
+   "notes": "w4b.trigger is pending (D-003). E57 (market order) is settled; the 'when' is the card default. The why now says 'our default trigger'; no choice marks a close-based buyer wrong except as 'the first close over the 50-day', which is a different event (the reclaim, not the pause high). variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q13": {
    "status": "pass",
-   "notes": "w4b.base_length is proposed ('my proposal'); x10 (stageanalysis.net) supports only 'too early on a small base after a large decline', not the number 15. Reworded to our working rule; the number is the card's.",
+   "notes": "w4b.base_length is proposed ('my proposal'); x10 (stageanalysis.net) supports only 'too early on a small base after a large decline', not the number 15. Reworded to our working rule; the number is the card's. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -2499,7 +2499,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "c14 (proposed cue) and B22 (h08) verbatim. Key right.",
+   "notes": "c14 (proposed cue) and B22 (h08) verbatim. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2511,19 +2511,19 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "(42.00 - 40.00) / 40.00 = 5.0%, recomputed. C28 (h11) settled; c21 verbatim.",
+   "notes": "(42.00 - 40.00) / 40.00 = 5.0%, recomputed. C28 (h11) settled; c21 verbatim. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q22": {
    "status": "pass",
-   "notes": "x01, c38, m01 verbatim. Key right; kept next to q01 because q01 defines the term and this applies it.",
+   "notes": "x01, c38, m01 verbatim. Key right; kept next to q01 because q01 defines the term and this applies it. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q23": {
    "status": "pass",
-   "notes": "c35 (proposed, basis originator) and c03 verbatim. Key right as the card stands.",
+   "notes": "c35 (proposed, basis originator) and c03 verbatim. Key right as the card stands. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2541,19 +2541,19 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "B19 (h05), c27 verbatim; settled. Key right.",
+   "notes": "B19 (h05), c27 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q27": {
    "status": "pass",
-   "notes": "d27 verbatim (15.7% / 11.8% for 2 to 4 sessions, 25.9% / 15.4% for 5 to 10, 23.1%, 21.3%). Every figure matches. 'Our scan' became 'our test'. It is a research finding about one fixed-stop test, not a rule; the card keeps it a cue.",
+   "notes": "d27 verbatim (15.7% / 11.8% for 2 to 4 sessions, 25.9% / 15.4% for 5 to 10, 23.1%, 21.3%). Every figure matches. 'Our scan' became 'our test'. It is a research finding about one fixed-stop test, not a rule; the card keeps it a cue. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q28": {
    "status": "pass",
-   "notes": "c12/c13 (proposed, my proposal) verbatim. Key right as a cue.",
+   "notes": "c12/c13 (proposed, my proposal) verbatim. Key right as a cue. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2565,13 +2565,13 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "l2 verbatim (the card's lookalike for the undercut and reclaim). 15 sessions is the card's proposed number. why split to sentences of 22 words or fewer.",
+   "notes": "l2 verbatim (the card's lookalike for the undercut and reclaim). 15 sessions is the card's proposed number. why split to sentences of 22 words or fewer. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q31": {
    "status": "pass",
-   "notes": "l3 verbatim (the card's lookalike for capitulation). Key right.",
+   "notes": "l3 verbatim (the card's lookalike for capitulation). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2595,7 +2595,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "C29 (h13) settled; 12% over is past 10%. Key right.",
+   "notes": "C29 (h13) settled; 12% over is past 10%. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2607,13 +2607,13 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "F65 (D46: Red, mostly cash and shorts) is a guide (A10); the card's 'Red: no new longs' is stronger than the rulebook. Reworded to 'mostly cash'; c39 verbatim for 'existing trades keep their stops'.",
+   "notes": "F65 (D46: Red, mostly cash and shorts) is a guide (A10); the card's 'Red: no new longs' is stronger than the rulebook. Reworded to 'mostly cash'; c39 verbatim for 'existing trades keep their stops'. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q38": {
    "status": "pass",
-   "notes": "c36 (proposed) verbatim. Key right as the card stands.",
+   "notes": "c36 (proposed) verbatim. Key right as the card stands. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2625,25 +2625,25 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "F63 (h25) and c30 verbatim; 43.60 is past 43.00 (3R). Key right.",
+   "notes": "F63 (h25) and c30 verbatim; 43.60 is past 43.00 (3R). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q41": {
    "status": "pass",
-   "notes": "R = 1.00; the first 30-minute low 37.80 is a 2.2R loss, past the 2R ceiling, so out (B20, h06/h07). Key right.",
+   "notes": "R = 1.00; the first 30-minute low 37.80 is a 2.2R loss, past the 2R ceiling, so out (B20, h06/h07). Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q42": {
    "status": "pass",
-   "notes": "E52 (h21), c31 verbatim; A4 for the wrong note. Key right.",
+   "notes": "E52 (h21), c31 verbatim; A4 for the wrong note. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q43": {
    "status": "pass",
-   "notes": "A5 (c26) and m05 verbatim; settled. Key right. Kept over q5.",
+   "notes": "A5 (c26) and m05 verbatim; settled. Key right. Kept over q5. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2655,7 +2655,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "D42 (h19) and c18 verbatim; settled. Key right.",
+   "notes": "D42 (h19) and c18 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },

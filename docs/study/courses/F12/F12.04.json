@@ -659,12 +659,12 @@
    "format": "mcq",
    "q": "Which of these belongs under how you traded the idea?",
    "choices": [
-    "You chased it far past your entry",
+    "You chased it past your entry",
     "The setup had no real edge",
     "You skipped your morning review",
     "It fell the day after you sold"
    ],
-   "answer": "You chased it far past your entry",
+   "answer": "You chased it past your entry",
    "why": "The chase. How you traded it covers the entry, the reward you got for the risk, the size, the management and the exit. Chasing turns good reward for the risk into poor.",
    "lesson_line": "A good idea can still be traded badly. Grade the entry, size and exit on their own.",
    "facts": [
@@ -768,7 +768,7 @@
    "q": "How do you grade it?",
    "choices": [
     "Good idea, traded well, just lost",
-    "Bad trade, since it lost money",
+    "Bad trade, since it lost real money",
     "Good idea, but traded badly",
     "Bad idea, since it didn't work"
    ],
@@ -781,7 +781,7 @@
     "f53"
    ],
    "wrong": {
-    "Bad trade, since it lost money": "That's resulting, grading the decision by the result. A loss with good process isn't a step backward.",
+    "Bad trade, since it lost real money": "That's resulting, grading the decision by the result. A loss with good process isn't a step backward.",
     "Good idea, but traded badly": "Nothing in the story says so. Entry, size and stop all went to plan.",
     "Bad idea, since it didn't work": "A real edge still loses some of the time. One stop-out doesn't make the idea bad."
    }
@@ -929,7 +929,7 @@
    "choices": [
     "Crediting skill for a lucky win",
     "Blaming luck for every loss",
-    "Trading less after a loss",
+    "Trading less after every loss",
     "Selling winners too early"
    ],
    "answer": "Crediting skill for a lucky win",
@@ -943,7 +943,7 @@
    ],
    "wrong": {
     "Blaming luck for every loss": "That's a cousin bias: wins are your skill, losses are bad luck. Resulting grades by the result either way.",
-    "Trading less after a loss": "That's a reaction to losing, not a way of judging the decision.",
+    "Trading less after every loss": "That's a reaction to losing, not a way of judging the decision.",
     "Selling winners too early": "That's an exit habit. Resulting is about how you judge a decision after the fact."
    }
   },
@@ -1127,8 +1127,8 @@
    "q": "What's the most likely problem?",
    "choices": [
     "Your grades are tracking the P&L",
-    "You only take great trades",
-    "Your losers were all bad trades",
+    "You only take truly great trades",
+    "Your losers were all just bad trades",
     "Your stops are too tight"
    ],
    "answer": "Your grades are tracking the P&L",
@@ -1141,8 +1141,8 @@
     "f51"
    ],
    "wrong": {
-    "You only take great trades": "Then some of those great trades would still lose. Not one A-grade loser all month is the giveaway.",
-    "Your losers were all bad trades": "Some losers are good trades that just lost. Every single one being bad is a pattern in your grading.",
+    "You only take truly great trades": "Then some of those great trades would still lose. Not one A-grade loser all month is the giveaway.",
+    "Your losers were all just bad trades": "Some losers are good trades that just lost. Every single one being bad is a pattern in your grading.",
     "Your stops are too tight": "Tight stops could mean more losers. They don't explain grades that match the P&L every time."
    }
   }
@@ -1200,13 +1200,13 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "f02 confirmed in context: his first question is 'was this the right idea', a genuine edge or a bias, a flow or a piece of news; f13 (s2) agrees. Each wrong choice maps to another grade or to the outcome.",
+   "notes": "f02 confirmed in context: his first question is 'was this the right idea', a genuine edge or a bias, a flow or a piece of news; f13 (s2) agrees. Each wrong choice maps to another grade or to the outcome. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q05": {
    "status": "pass",
-   "notes": "f04 puts chasing and poor risk reward inside the trading grade, f05 the management and exit; s2 (f14) and Schwab (f56) agree. Wrong choices are the idea grade, the prep grade and an after-the-fact outcome.",
+   "notes": "f04 puts chasing and poor risk reward inside the trading grade, f05 the management and exit; s2 (f14) and Schwab (f56) agree. Wrong choices are the idea grade, the prep grade and an after-the-fact outcome. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1236,7 +1236,7 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "f08 (SMB panel: decisions on all your criteria make an A trade even if it lost), f29, f53 (Tendler, confirmed with WebFetch) agree. The story states every fact needed; a planned loss on a rules trade is the right read.",
+   "notes": "f08 (SMB panel: decisions on all your criteria make an A trade even if it lost), f29, f53 (Tendler, confirmed with WebFetch) agree. The story states every fact needed; a planned loss on a rules trade is the right read. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -1272,7 +1272,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "f51, f52 (WisdomTree 2018-02-27, Jeremy Schwartz) state both halves; f50 self-serving bias (s9). Duke says resulting 'can make us believe ... some bad decisions should be reinforced', so 'reinforces bad decisions' became 'can make you repeat bad decisions'. Track audit 2026-11-09: the wrong note named the bias 'the self-serving bias' (f50, the Pomeranz write-up), while F12.05 q17, F8.05 and V.12 all teach the same bias as 'self-attribution bias' (Schwab). Two names for one thing across the course; the note now says 'That's a cousin bias: wins are your skill, losses are bad luck', which f50 still supports, and f50's shown claim drops the name too (the quote keeps Duke's own wording).",
+   "notes": "f51, f52 (WisdomTree 2018-02-27, Jeremy Schwartz) state both halves; f50 self-serving bias (s9). Duke says resulting 'can make us believe ... some bad decisions should be reinforced', so 'reinforces bad decisions' became 'can make you repeat bad decisions'. Track audit 2026-11-09: the wrong note named the bias 'the self-serving bias' (f50, the Pomeranz write-up), while F12.05 q17, F8.05 and V.12 all teach the same bias as 'self-attribution bias' (Schwab). Two names for one thing across the course; the note now says 'That's a cousin bias: wins are your skill, losses are bad luck', which f50 still supports, and f50's shown claim drops the name too (the quote keeps Duke's own wording). | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
@@ -1320,7 +1320,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "f22, f27, f42, f51 confirmed. f27 says people 'may hold themselves responsible', so 'you end up smug' became 'you can end up'. The paper did not test self-judgment; f27 is its own line on judging yourself. 'Most likely' keeps the key honest.",
+   "notes": "f22, f27, f42, f51 confirmed. f27 says people 'may hold themselves responsible', so 'you end up smug' became 'you can end up'. The paper did not test self-judgment; f27 is its own line on judging yourself. 'Most likely' keeps the key honest. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   }

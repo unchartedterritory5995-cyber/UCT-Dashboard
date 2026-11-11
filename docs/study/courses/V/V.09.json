@@ -1352,8 +1352,8 @@
    "choices": [
     "Money from sales, before costs",
     "Profit left after every cost",
-    "Cash the company holds",
-    "Profit per share"
+    "Cash the company holds today",
+    "Profit divided by the shares"
    ],
    "answer": "Money from sales, before costs",
    "why": "Money from sales, before costs. Revenue sits at the top of the income statement, before any expenses come out.",
@@ -1367,8 +1367,8 @@
    ],
    "wrong": {
     "Profit left after every cost": "That's net income, the bottom line. Revenue comes before any costs.",
-    "Cash the company holds": "Cash sits on the balance sheet, a snapshot on one date. Revenue is sales over a period.",
-    "Profit per share": "That's EPS, net income divided by the shares outstanding."
+    "Cash the company holds today": "Cash sits on the balance sheet, a snapshot on one date. Revenue is sales over a period.",
+    "Profit divided by the shares": "That's EPS, net income divided by the shares outstanding."
    }
   },
   {
@@ -1500,8 +1500,8 @@
    "choices": [
     "EPS counting possible new shares",
     "EPS with one-time items removed",
-    "EPS expected for next year",
-    "EPS of the last 12 months"
+    "EPS expected for the next year",
+    "EPS for the last 12 full months"
    ],
    "answer": "EPS counting possible new shares",
    "why": "EPS counting possible new shares. Diluted EPS also counts the shares that options, warrants and convertible securities could become.",
@@ -1514,8 +1514,8 @@
    ],
    "wrong": {
     "EPS with one-time items removed": "That's adjusted, or non-GAAP, EPS. Dilution is about the share count, not the items.",
-    "EPS expected for next year": "That's an estimate. Diluted EPS is a reported number.",
-    "EPS of the last 12 months": "That's trailing 12-month EPS, a time window. Diluted is about the share count."
+    "EPS expected for the next year": "That's an estimate. Diluted EPS is a reported number.",
+    "EPS for the last 12 full months": "That's trailing 12-month EPS, a time window. Diluted is about the share count."
    }
   },
   {
@@ -1637,9 +1637,9 @@
    "q": "What does operating margin measure?",
    "choices": [
     "Operating income divided by revenue",
-    "Gross profit divided by revenue",
-    "Net income divided by shares",
-    "Share price divided by EPS"
+    "Gross profit divided by total sales",
+    "Net income divided by the shares",
+    "Share price divided by annual EPS"
    ],
    "answer": "Operating income divided by revenue",
    "why": "Operating income divided by revenue. It shows how much of each sales dollar is left after running the business, before interest and taxes.",
@@ -1653,9 +1653,9 @@
     "f14"
    ],
    "wrong": {
-    "Gross profit divided by revenue": "That's gross margin. It comes before operating expenses.",
-    "Net income divided by shares": "That's EPS, a per-share number, not a margin.",
-    "Share price divided by EPS": "That's the P/E ratio, a valuation number."
+    "Gross profit divided by total sales": "That's gross margin. It comes before operating expenses.",
+    "Net income divided by the shares": "That's EPS, a per-share number, not a margin.",
+    "Share price divided by annual EPS": "That's the P/E ratio, a valuation number."
    }
   },
   {
@@ -1693,12 +1693,12 @@
    "story": "A software company reports a 75% gross margin. A grocery chain reports 25%.",
    "q": "What can you conclude from that gap alone?",
    "choices": [
-    "Their direct costs differ by industry",
+    "Direct costs differ by industry",
     "The software company is better run",
-    "The grocery chain is losing money",
+    "The grocery chain loses money",
     "The software stock will go up more"
    ],
-   "answer": "Their direct costs differ by industry",
+   "answer": "Direct costs differ by industry",
    "why": "Their direct costs differ by industry. Software has low direct production costs, so its gross margins run much higher than a retailer's. Compare a company with its own industry.",
    "lesson_line": "Compare margins inside an industry, not across industries.",
    "facts": [
@@ -1710,7 +1710,7 @@
    ],
    "wrong": {
     "The software company is better run": "Margins vary widely by industry. Judge a company against its peers, not against a grocer.",
-    "The grocery chain is losing money": "A 25% gross margin is still a profit before overhead. Net income comes further down.",
+    "The grocery chain loses money": "A 25% gross margin is still a profit before overhead. Net income comes further down.",
     "The software stock will go up more": "A margin says nothing about where a stock goes next."
    }
   },
@@ -1725,7 +1725,7 @@
     "The standard US accounting rules",
     "Management's adjusted numbers",
     "The analysts' average estimate",
-    "The company's forecast"
+    "The company's own forecast"
    ],
    "answer": "The standard US accounting rules",
    "why": "The standard US accounting rules. GAAP stands for generally accepted accounting principles, set by the Financial Accounting Standards Board.",
@@ -1741,7 +1741,7 @@
    "wrong": {
     "Management's adjusted numbers": "Those are non-GAAP, or adjusted, numbers.",
     "The analysts' average estimate": "That's the consensus estimate.",
-    "The company's forecast": "That's guidance."
+    "The company's own forecast": "That's guidance."
    }
   },
   {
@@ -1846,12 +1846,12 @@
    "term": "Consensus estimate",
    "q": "What is the consensus estimate?",
    "choices": [
-    "The average of analysts' estimates",
-    "Management's own forecast",
-    "Traders' unofficial number",
-    "Last year's reported EPS"
+    "The analysts' average estimate",
+    "Management's own forward forecast",
+    "Traders' own unofficial number",
+    "Last year's reported EPS figure"
    ],
-   "answer": "The average of analysts' estimates",
+   "answer": "The analysts' average estimate",
    "why": "The average of analysts' estimates. Several groups track it, and every beat or miss is measured against it.",
    "lesson_line": "The consensus is the bar. The report gets judged against it.",
    "facts": [
@@ -1863,9 +1863,9 @@
     "f134"
    ],
    "wrong": {
-    "Management's own forecast": "That's guidance. It comes from the company.",
-    "Traders' unofficial number": "That's the whisper number.",
-    "Last year's reported EPS": "That's a past result. Comparing with it gives year-over-year growth, not the estimate."
+    "Management's own forward forecast": "That's guidance. It comes from the company.",
+    "Traders' own unofficial number": "That's the whisper number.",
+    "Last year's reported EPS figure": "That's a past result. Comparing with it gives year-over-year growth, not the estimate."
    }
   },
   {
@@ -1958,8 +1958,8 @@
    "choices": [
     "Actual results vs. the consensus",
     "A report on an unexpected date",
-    "Any big move after a report",
-    "A change in guidance"
+    "Any big price move after a report",
+    "A change in the company's guidance"
    ],
    "answer": "Actual results vs. the consensus",
    "why": "Actual results vs. the consensus. A surprise is how far the reported number lands above or below what analysts expected.",
@@ -1973,8 +1973,8 @@
    ],
    "wrong": {
     "A report on an unexpected date": "That's a date change. The surprise is about the numbers.",
-    "Any big move after a report": "That's the reaction. FINRA notes a beat or a miss doesn't always decide the move.",
-    "A change in guidance": "Guidance is the company's forecast. The surprise compares this quarter's actual with the estimate."
+    "Any big price move after a report": "That's the reaction. FINRA notes a beat or a miss doesn't always decide the move.",
+    "A change in the company's guidance": "Guidance is the company's forecast. The surprise compares this quarter's actual with the estimate."
    }
   },
   {
@@ -2076,12 +2076,12 @@
    "story": "Consensus EPS is $1.00. Traders expect closer to $1.10 and bid the stock up into the report. The company reports $1.05.",
    "q": "What's the risk now?",
    "choices": [
-    "It beat consensus but missed the whisper",
+    "A beat that missed the whisper",
     "None, a beat always lifts the stock",
     "It missed the consensus estimate",
-    "The report was in line"
+    "The report was exactly in line"
    ],
-   "answer": "It beat consensus but missed the whisper",
+   "answer": "A beat that missed the whisper",
    "why": "It beat consensus but missed the whisper. With the stock bid up toward $1.10, $1.05 can disappoint even though it tops $1.00.",
    "lesson_line": "Know what's priced in before the print. A beat below the whisper can still sell off.",
    "facts": [
@@ -2095,7 +2095,7 @@
    "wrong": {
     "None, a beat always lifts the stock": "FINRA says beating or missing isn't always what moves the price.",
     "It missed the consensus estimate": "$1.05 is above the $1.00 consensus. That's a beat.",
-    "The report was in line": "In line means equal to the estimate. $1.05 isn't $1.00."
+    "The report was exactly in line": "In line means equal to the estimate. $1.05 isn't $1.00."
    }
   },
   {
@@ -2106,12 +2106,12 @@
    "term": "Guidance",
    "q": "What is guidance?",
    "choices": [
-    "Management's forecast of future results",
-    "The analysts' average estimate",
+    "Management's forecast of results",
+    "The average of analysts' estimates",
     "The standard US accounting rules",
     "Last quarter's reported results"
    ],
-   "answer": "Management's forecast of future results",
+   "answer": "Management's forecast of results",
    "why": "Management's forecast of future results. It usually covers the coming quarter, sometimes the full year, often as a range.",
    "lesson_line": "Earnings look back. Guidance looks ahead, and a stock's price rests on what's ahead.",
    "facts": [
@@ -2123,7 +2123,7 @@
     "f71"
    ],
    "wrong": {
-    "The analysts' average estimate": "That's the consensus. Guidance comes from the company itself.",
+    "The average of analysts' estimates": "That's the consensus. Guidance comes from the company itself.",
     "The standard US accounting rules": "That's GAAP.",
     "Last quarter's reported results": "Those are the actual results. Guidance is about what comes next."
    }
@@ -2353,12 +2353,12 @@
    "term": "Year over year (YoY)",
    "q": "What does YoY mean on an earnings release?",
    "choices": [
-    "Vs. the same period a year earlier",
+    "Vs. the same period last year",
     "Vs. the quarter just before",
-    "The last 12 months added up",
-    "Vs. the analysts' estimate"
+    "The last 12 months added together",
+    "Vs. the average analyst estimate"
    ],
-   "answer": "Vs. the same period a year earlier",
+   "answer": "Vs. the same period last year",
    "why": "Vs. the same period a year earlier. NVIDIA's Y/Y column sets this year's third quarter against last year's third quarter.",
    "lesson_line": "YoY takes the season out. Same quarter, one year apart.",
    "facts": [
@@ -2370,8 +2370,8 @@
    ],
    "wrong": {
     "Vs. the quarter just before": "That's quarter over quarter, also called sequential.",
-    "The last 12 months added up": "That's trailing 12 months, TTM.",
-    "Vs. the analysts' estimate": "That's the surprise: a beat or a miss."
+    "The last 12 months added together": "That's trailing 12 months, TTM.",
+    "Vs. the average analyst estimate": "That's the surprise: a beat or a miss."
    }
   },
   {
@@ -2407,12 +2407,12 @@
    "term": "Quarter over quarter (QoQ)",
    "q": "NVIDIA's table shows Q3 fiscal 2026 revenue up 22% in the Q/Q column. What does Q/Q compare?",
    "choices": [
-    "Q3 with Q2 of the same fiscal year",
-    "Q3 with Q3 of the year before",
+    "Q3 with Q2 of that fiscal year",
+    "Q3 with Q3 of the prior fiscal year",
     "Q3 with the analysts' estimate",
     "Q3 with the full prior year"
    ],
-   "answer": "Q3 with Q2 of the same fiscal year",
+   "answer": "Q3 with Q2 of that fiscal year",
    "why": "Q3 with Q2 of the same fiscal year. NVIDIA's release says revenue rose 22% from the previous quarter and 62% from a year ago.",
    "lesson_line": "Quarter over quarter is sequential. Seasons get in the way, so read it next to YoY.",
    "facts": [
@@ -2423,7 +2423,7 @@
     "f125"
    ],
    "wrong": {
-    "Q3 with Q3 of the year before": "That's the Y/Y column, up 62%.",
+    "Q3 with Q3 of the prior fiscal year": "That's the Y/Y column, up 62%.",
     "Q3 with the analysts' estimate": "That's the surprise. The table only holds NVIDIA's own results.",
     "Q3 with the full prior year": "Q/Q is quarter against quarter. Setting one quarter against a full year mixes different lengths of time."
    }
@@ -2639,12 +2639,12 @@
    "term": "Market cap",
    "q": "What is market cap?",
    "choices": [
-    "Share price times shares outstanding",
-    "A year's total revenue",
+    "Price times shares outstanding",
+    "A year's total revenue from sales",
     "The cash the company holds",
     "Shares free for the public to trade"
    ],
-   "answer": "Share price times shares outstanding",
+   "answer": "Price times shares outstanding",
    "why": "Share price times shares outstanding. It's the market's price tag on the whole company, and it's how companies get sized.",
    "lesson_line": "Market cap is size. It changes every time the share price does.",
    "facts": [
@@ -2655,7 +2655,7 @@
     "f57"
    ],
    "wrong": {
-    "A year's total revenue": "That's sales, from the income statement. Market cap comes from the share price.",
+    "A year's total revenue from sales": "That's sales, from the income statement. Market cap comes from the share price.",
     "The cash the company holds": "Cash is on the balance sheet. Market cap is the value the market puts on the shares.",
     "Shares free for the public to trade": "That's the float, a share count, not a dollar value."
    }
@@ -2694,12 +2694,12 @@
    "term": "Float",
    "q": "What does float mean for a stock?",
    "choices": [
-    "Shares free for the public to trade",
-    "All shares, insiders' included",
+    "Shares open to public trading",
+    "All shares, insiders included",
     "Shares sold short right now",
     "Shares the company bought back"
    ],
-   "answer": "Shares free for the public to trade",
+   "answer": "Shares open to public trading",
    "why": "Shares free for the public to trade. The float leaves out shares held by insiders and other locked-up holders.",
    "lesson_line": "Float is the supply that actually trades. Shares outstanding can be far bigger.",
    "facts": [
@@ -2710,7 +2710,7 @@
     "f130"
    ],
    "wrong": {
-    "All shares, insiders' included": "That's shares outstanding. The float takes out insiders' and restricted shares.",
+    "All shares, insiders included": "That's shares outstanding. The float takes out insiders' and restricted shares.",
     "Shares sold short right now": "Short selling doesn't change the float. It just moves shares between holders.",
     "Shares the company bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float."
    }
@@ -2870,9 +2870,9 @@
    "rung": 4,
    "format": "tf",
    "term": "10-K",
-   "q": "The 10-K's financial statements are audited. The 10-Q's are not.",
-   "answer": "True",
-   "why": "True. Investor.gov says the annual 10-K includes audited financial statements, while the quarterly 10-Q includes unaudited ones.",
+   "q": "The 10-Q's financial statements are audited. The 10-K's are not.",
+   "answer": "False",
+   "why": "False. It is the other way round. Investor.gov says the annual 10-K includes audited financial statements, while the quarterly 10-Q includes unaudited ones.",
    "lesson_line": "Quarterly numbers are unaudited. The annual 10-K is the audited version.",
    "facts": [
     "f44",
@@ -2914,15 +2914,29 @@
    "rung": 3,
    "format": "tf",
    "term": "Earnings season",
-   "q": "Earnings season usually starts about two weeks after a calendar quarter ends.",
-   "answer": "True",
-   "why": "True. FINRA says it typically begins in the first two weeks after quarter end, in January, April, July and October. Schwab puts it at about two weeks after.",
+   "q": "Earnings season usually starts about two months after a calendar quarter ends.",
+   "answer": "False",
+   "why": "False. FINRA says it typically begins in the first two weeks after quarter end, in January, April, July and October. Schwab puts it at about two weeks after.",
    "lesson_line": "Mark the four seasons on your calendar. FINRA calls them a busy and volatile time.",
    "facts": [
     "f24",
     "f23",
     "f112",
     "f25"
+   ]
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Consensus estimate",
+   "q": "The consensus estimate is the highest number among the analysts covering a stock.",
+   "answer": "False",
+   "why": "False. The consensus is the average of all the analysts covering the stock, not the highest one.",
+   "lesson_line": "Consensus is the average of the analysts, not the high or the low.",
+   "facts": [
+    "f34"
    ]
   }
  ],
@@ -2961,7 +2975,7 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f1, f3, f4, f9, f10 (SEC Beginners' Guide) confirmed in context. Key and all three wrong notes right; the 30-character answer fits a tile. No change.",
+   "notes": "f1, f3, f4, f9, f10 (SEC Beginners' Guide) confirmed in context. Key and all three wrong notes right; the 30-character answer fits a tile. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -2997,7 +3011,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "f22 (SEC: securities 'converted into or exercised for' shares) and f66 (Nasdaq) support the key; 'options' in the why is covered by 'exercised for'. Wrong notes right. No change.",
+   "notes": "f22 (SEC: securities 'converted into or exercised for' shares) and f66 (Nasdaq) support the key; 'options' in the why is covered by 'exercised for'. Wrong notes right. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3027,7 +3041,7 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f13 (SEC: income from operations / net revenues) and f122 (Fidelity) confirmed. No change.",
+   "notes": "f13 (SEC: income from operations / net revenues) and f122 (Fidelity) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3039,13 +3053,13 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "f139 (Investopedia), f123 (Fidelity), f15 (SEC) agree margins are an industry matter; 'from that gap alone' keeps the key honest. f139's claim now says 'often', as the source does. No change to the question.",
+   "notes": "f139 (Investopedia), f123 (Fidelity), f15 (SEC) agree margins are an industry matter; 'from that gap alone' keeps the key honest. f139's claim now says 'often', as the source does. No change to the question. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q15": {
    "status": "pass",
-   "notes": "f71 (eCFR Regulation G: 'GAAP refers to generally accepted accounting principles in the United States') and f91 (Schwab, FASB) confirmed. No change.",
+   "notes": "f71 (eCFR Regulation G: 'GAAP refers to generally accepted accounting principles in the United States') and f91 (Schwab, FASB) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3075,7 +3089,7 @@
   },
   "q20": {
    "status": "pass",
-   "notes": "f34 (FINRA: the average for all the analysts) and f65 (Nasdaq: the mean) confirmed. Wrong notes right. No change.",
+   "notes": "f34 (FINRA: the average for all the analysts) and f65 (Nasdaq: the mean) confirmed. Wrong notes right. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3099,7 +3113,7 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "f125 (Investopedia) and f140 (Zacks) agree a surprise is actual against expectations; f35 (FINRA) is the Tier 1 comparison with consensus. Investopedia's 'significantly' is in conflicts. No change.",
+   "notes": "f125 (Investopedia) and f140 (Zacks) agree a surprise is actual against expectations; f35 (FINRA) is the Tier 1 comparison with consensus. Investopedia's 'significantly' is in conflicts. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3117,19 +3131,19 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "f36, f37 (FINRA) confirmed. s37 (Investopedia whisper page) refused curl (403) and WebFetch today; f126 and f127 confirmed word for word in the Wayback copy of 2025-01-30 and in the quote checker's 200 copy fetched today (page updated Apr 27, 2022). No change.",
+   "notes": "f36, f37 (FINRA) confirmed. s37 (Investopedia whisper page) refused curl (403) and WebFetch today; f126 and f127 confirmed word for word in the Wayback copy of 2025-01-30 and in the quote checker's 200 copy fetched today (page updated Apr 27, 2022). No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
   "q28": {
    "status": "pass",
-   "notes": "f127 (Investopedia, confirmed as in q27), f37, f38, f40 (FINRA) and f88 (Schwab) support the key. The story put the whisper at $6.00 on a $5.00 consensus, a 20% gap no desk sees; now $1.10 against $1.00 with a $1.05 print, and the why and wrong notes match.",
+   "notes": "f127 (Investopedia, confirmed as in q27), f37, f38, f40 (FINRA) and f88 (Schwab) support the key. The story put the whisper at $6.00 on a $5.00 consensus, a 20% gap no desk sees; now $1.10 against $1.00 with a $1.05 print, and the why and wrong notes match. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
   },
   "q29": {
    "status": "pass",
-   "notes": "f84 (Schwab: target ranges for the coming quarter or full year), f29 (FINRA), f63 (Nasdaq) confirmed. No change.",
+   "notes": "f84 (Schwab: target ranges for the coming quarter or full year), f29 (FINRA), f63 (Nasdaq) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3183,7 +3197,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "f134 (Investopedia) and f73 (NVIDIA's Y/Y column) confirmed. No change.",
+   "notes": "f134 (Investopedia) and f73 (NVIDIA's Y/Y column) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3195,7 +3209,7 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "f72, f73 (NVIDIA 8-K: the Q2 FY26 column, 'up 22% from the previous quarter') confirmed. No change.",
+   "notes": "f72, f73 (NVIDIA 8-K: the Q2 FY26 column, 'up 22% from the previous quarter') confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3249,7 +3263,7 @@
   },
   "q49": {
    "status": "pass",
-   "notes": "f42 (Investor.gov) and f56 (Nasdaq) confirmed. No change.",
+   "notes": "f42 (Investor.gov) and f56 (Nasdaq) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3261,8 +3275,8 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "f57 (Nasdaq), f26 (FINRA), f128-f130 (Investopedia) confirmed. f26's claim now says public float is a value, as FINRA's quote does. No change to the question.",
-   "fixed": false,
+   "notes": "f57 (Nasdaq), f26 (FINRA), f128-f130 (Investopedia) confirmed. f26's claim now says public float is a value, as FINRA's quote does. No change to the question. | variety rewrite checked 2026-11-10: wrong choices shortened so the right one is no longer the shortest",
+   "fixed": true,
    "by": "checker"
   },
   "q52": {
@@ -3303,7 +3317,7 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "f43, f44 (Investor.gov: 10-K audited, 10-Q unaudited) confirmed. No change.",
+   "notes": "f43, f44 (Investor.gov: 10-K audited, 10-Q unaudited) confirmed. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   },
@@ -3315,9 +3329,14 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "f24 (FINRA: the first two weeks after quarter end) and f112 (Schwab: two weeks after) agree with 'about two weeks'. No change.",
+   "notes": "f24 (FINRA: the first two weeks after quarter end) and f112 (Schwab: two weeks after) agree with 'about two weeks'. No change. | variety rewrite checked 2026-11-10",
    "fixed": false,
    "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "new 2026-11-10 variety question, awaiting second reader | variety rewrite checked 2026-11-10",
+   "by": "writer"
   }
  }
 }
