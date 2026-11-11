@@ -39,6 +39,39 @@ _RECOVERY_COOLDOWN_SECONDS = 60.0
 # Per-process (web and worker are separate processes / separate DBs).
 _WRITE_LOCK = threading.Lock()
 
+#: Held by whoever REPLACES bars.db wholesale (snapshot install, clustered adoption)
+#: across the rename + `bump_db_epoch`, and by any long-lived connection that is not
+#: `_conn()` (the WAL checkpointer) around its epoch check + use. A connection still on
+#: the OLD inode can then never checkpoint/truncate the -wal/-shm the new file now shares.
+DB_SWAP_LOCK = threading.Lock()
+
+#: (ticker, tf) pairs written through put_bars/put_bars_many while tracking is on -- lets
+#: a store adoption re-carry ONLY what changed during its long unlocked pass.
+_tracked_writes: set | None = None
+_tracked_lock = threading.Lock()
+
+
+def start_write_tracking() -> None:
+    global _tracked_writes
+    with _tracked_lock:
+        _tracked_writes = set()
+
+
+def stop_write_tracking() -> set:
+    """Stop tracking; return the pairs written since `start_write_tracking`."""
+    global _tracked_writes
+    with _tracked_lock:
+        out, _tracked_writes = (_tracked_writes or set()), None
+    return out
+
+
+def _track(pairs) -> None:
+    if _tracked_writes is None:
+        return
+    with _tracked_lock:
+        if _tracked_writes is not None:
+            _tracked_writes.update(pairs)
+
 # Connection epoch — bumped whenever /data/bars.db is replaced wholesale
 # (currently: data_sync.download_snapshot when the web pulls a fresh
 # snapshot from R2). Each thread caches its own (conn, epoch) pair in
@@ -1690,6 +1723,7 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
                         snapped_rows,
                     )
                 c.commit()
+            _track({(r[0], tf) for r in rows} | {(r[0], tf) for r in snapped_rows})
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
@@ -1757,6 +1791,7 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
                         snapped_rows,
                     )
                 c.commit()
+            _track(((ticker, tf),))
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-

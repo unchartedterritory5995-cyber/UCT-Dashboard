@@ -427,9 +427,11 @@ def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
         src.close()
 
 
-#: Build the snapshot's bars.db in the clustered layout (bars_cluster). `0` ships the
-#: rowid copy unchanged -- the pre-2026-11-11 behaviour, and the rollback lever.
-SNAPSHOT_CLUSTER = os.environ.get("SNAPSHOT_CLUSTER", "1") != "0"
+#: Build the snapshot's bars.db in the clustered layout (bars_cluster). OFF by default
+#: for a concrete safety reason: it adds hours and ~0.8x the copy in disk to the worker's
+#: daily base, so it is an owner-approved rollout step (PR #1102 rollout order). Unset/`0`
+#: ships the rowid copy unchanged -- the pre-2026-11-11 behaviour and the rollback lever.
+SNAPSHOT_CLUSTER = os.environ.get("SNAPSHOT_CLUSTER", "0") == "1"
 #: Free space the conversion needs beside the copy (the clustered file is ~half the
 #: rowid file; 0.8x + 1 GB is the margin).
 _CLUSTER_DISK_FACTOR = 0.8
@@ -478,6 +480,19 @@ _adoption_active = threading.Event()
 #: An adopted store must hold at least this share of the local store's rows.
 ADOPT_MIN_ROW_RATIO = float(os.environ.get("BARS_ADOPT_MIN_ROW_RATIO", "0.9"))
 _adopt_logged: set = set()
+#: Hard budget for the adoption's LOCKED pass (writers paused). Over it -> abort, keep
+#: the old store, retry in a later window.
+ADOPT_LOCKED_BUDGET_S = float(os.environ.get("BARS_ADOPT_LOCKED_BUDGET_S", "10"))
+
+
+def in_quiet_window(now: Optional[_dt.datetime] = None) -> bool:
+    """True overnight ET (20:15 -> 03:45, Mon-Fri) and all weekend: no live store, no
+    session -- the only time a store adoption may run."""
+    et = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(_ET)
+    minute = et.hour * 60 + et.minute
+    if et.weekday() >= 5:
+        return True
+    return minute >= 20 * 60 + 15 or minute < 3 * 60 + 45
 
 
 def _log_once(key: str, msg: str) -> None:
@@ -537,13 +552,17 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
       2. free disk must cover the new store (+10% + 2 GB) beside the old one;
       3. stream-extract onto the SAME volume (no tarball on disk); the copy must be
          clustered, pass integrity_check and hold >= ADOPT_MIN_ROW_RATIO of the live rows;
+      0. only inside the quiet window (`in_quiet_window`); otherwise it returns
+         "not-quiet" and is retried at the next boot / periodic pull;
       4. carry what only this pod holds (live-store bars, heals, cold fetches, deep warms):
          the standard newer-wins merge FROM the old store INTO the new copy (forward tails,
-         holes/corrections inside the heal window, and whole pairs the base lacks), then
-         once more under the write lock (writers paused) for the tail; planner stats too;
-      5. under the write lock: TRUNCATE-checkpoint the old store (its -wal/-shm are then
-         empty and reset, so they are safe beside the new file), atomic rename,
-         `bump_db_epoch`;
+         holes/corrections inside the heal window, and whole pairs the base lacks),
+         UNLOCKED; then, under the write lock, a second merge of ONLY the (ticker, tf)
+         pairs written since pass 1 began (`bars_sqlite` write tracking), within
+         ADOPT_LOCKED_BUDGET_S -- over budget aborts and keeps the old store;
+      5. under the write lock AND `DB_SWAP_LOCK` (the WAL checkpointer waits): TRUNCATE-
+         checkpoint the old store (its -wal/-shm are then empty and reset, so they are
+         safe beside the new file), atomic rename, `bump_db_epoch`;
       6. markers: adopted (one-shot), last-sync = the snapshot, last-delta CLEARED so every
          delta newer than the base re-applies.
     Any failure leaves the old store exactly as it was and is logged once. Returns a
@@ -563,6 +582,8 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
     except Exception as e:  # noqa: BLE001
         _log_once("probe", f"[data_sync] adopt-clustered: local probe failed: {e}")
         return "failed"
+    if not in_quiet_window():
+        return "not-quiet"                    # retried at the next boot / pull in a window
     client, bucket = _client(), _bucket()
     ts = get_latest_snapshot_ts() if (client and bucket) else None
     if not ts:
@@ -604,10 +625,21 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
         if n_new < ADOPT_MIN_ROW_RATIO * n_old:
             raise RuntimeError(f"downloaded store holds {n_new} rows < "
                                f"{ADOPT_MIN_ROW_RATIO:.0%} of the local {n_old}")
-        carried = max(0, _merge_ohlcv_from(p, new))
-        _copy_stat1(p, new)
-        with bars_sqlite._WRITE_LOCK:
-            carried += max(0, _merge_ohlcv_from(p, new))
+        # Pass 1, UNLOCKED: the full carry while the pod keeps serving and writing.
+        bars_sqlite.start_write_tracking()
+        try:
+            carried = max(0, _merge_ohlcv_from(p, new))
+            _copy_stat1(p, new)
+        except BaseException:
+            bars_sqlite.stop_write_tracking()
+            raise
+        with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
+            # Pass 2, LOCKED and BUDGETED: only the series written since pass 1 began.
+            changed = sorted(bars_sqlite.stop_write_tracking())
+            t_lock = time.monotonic()
+            if changed:
+                carried += max(0, _merge_ohlcv_from(
+                    p, new, pairs=changed, deadline=t_lock + ADOPT_LOCKED_BUDGET_S))
             c = sqlite3.connect(p, timeout=30)
             try:
                 busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
@@ -922,7 +954,10 @@ def download_snapshot(ts: str) -> bool:
             # plus the put_bars malformed handler that triggers force_resync.
             # That fail-safe path is much cheaper than corrupting writes
             # every 5 min during snapshot pulls.
-            shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
+            from api.services import bars_sqlite as _bs_swap
+            with _bs_swap.DB_SWAP_LOCK:       # the checkpointer never straddles the swap
+                shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
+                _bs_swap.bump_db_epoch()
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):
@@ -1364,7 +1399,9 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     return added, corrected
 
 
-def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
+def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
+                      pairs: Optional[list] = None,
+                      deadline: Optional[float] = None) -> int:
     """Merge snapshot ohlcv into the local bars.db (rules above), in short chunks.
 
     Returns rows adopted + corrected (best-effort), or -1 if there is no local DB
@@ -1381,7 +1418,11 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
         conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
         _ensure_old_grid_fn(conn)
         try:
-            pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
+            # `pairs` narrows the merge to known-changed series; `deadline` (monotonic)
+            # aborts between chunks -- both for a store adoption's locked pass.
+            if pairs is None:
+                pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
+            pairs = [tuple(p) for p in pairs]
             t_start = time.monotonic()
             logger.info(f"[data_sync] merge start: {len(pairs)} pairs")
             added = corrected = chunks = 0
@@ -1389,6 +1430,8 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
             size = _MERGE_CHUNK_PAIRS
             i = 0
             while i < len(pairs):
+                if deadline is not None and time.monotonic() > deadline:
+                    raise TimeoutError(f"merge over budget after {i}/{len(pairs)} pairs")
                 chunk = pairs[i:i + size]
                 t0 = time.monotonic()
                 conn.execute("BEGIN IMMEDIATE")

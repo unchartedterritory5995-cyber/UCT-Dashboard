@@ -162,11 +162,14 @@ def test_verify_catches_any_difference(tmp_path, tamper):
 # ── C3 ───────────────────────────────────────────────────────────────────────
 @pytest.fixture
 def data_sync_at(tmp_path, monkeypatch):
-    from api.services import data_sync
+    from api.services import bars_sqlite, data_sync
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    importlib.reload(bars_sqlite)
     importlib.reload(data_sync)
     yield data_sync
+    bars_sqlite._drop_local_conn()
     monkeypatch.undo()
+    importlib.reload(bars_sqlite)
     importlib.reload(data_sync)
 
 
@@ -190,8 +193,18 @@ def _big_enough(data_sync, path):
     c.commit(); c.close()
 
 
-def test_snapshot_ships_clustered_with_every_index(tmp_path, data_sync_at):
+def test_snapshot_clustering_is_off_unless_enabled(data_sync_at, monkeypatch):
+    monkeypatch.delenv("SNAPSHOT_CLUSTER", raising=False)
+    importlib.reload(data_sync_at)
+    assert data_sync_at.SNAPSHOT_CLUSTER is False, "an owner-approved rollout step"
+    monkeypatch.setenv("SNAPSHOT_CLUSTER", "1")
+    importlib.reload(data_sync_at)
+    assert data_sync_at.SNAPSHOT_CLUSTER is True
+
+
+def test_snapshot_ships_clustered_with_every_index(tmp_path, data_sync_at, monkeypatch):
     from api.services import bars_sqlite as bs
+    monkeypatch.setattr(data_sync_at, "SNAPSHOT_CLUSTER", True)
     src = tmp_path / "bars.db"
     _rowid_store(src)
     _big_enough(data_sync_at, src)
@@ -278,6 +291,7 @@ def adoption(tmp_path, data_sync_at, monkeypatch):
     monkeypatch.setattr(ds, "_bucket", lambda: "b")
     monkeypatch.setattr(ds, "get_latest_snapshot_ts", lambda: "1700000000")
     monkeypatch.setenv("BARS_ADOPT_CLUSTERED", "1")
+    monkeypatch.setattr(ds, "in_quiet_window", lambda now=None: True)
     return ds, fake, local, snap
 
 
@@ -356,6 +370,7 @@ def test_adoption_is_off_by_default_and_syncs_stand_aside_while_it_runs(adoption
 
 def test_the_upload_tags_the_snapshot_layout(tmp_path, data_sync_at, monkeypatch):
     ds = data_sync_at
+    monkeypatch.setattr(ds, "SNAPSHOT_CLUSTER", True)
     src = tmp_path / "bars.db"
     _rowid_store(src)
     _big_enough(ds, src)
@@ -478,3 +493,109 @@ def test_ohlcv_ddl_is_the_only_bar_table_ddl():
                     and _OHLCV_DDL.search(node.value):
                 offenders.append(f"{path.relative_to(REPO)}:{node.lineno}")
     assert offenders == [], f"ohlcv DDL outside bars_sqlite.ohlcv_ddl: {offenders}"
+
+
+# ── adoption: quiet window, two-pass carry, locked budget, swap lock ────────────
+def test_adoption_never_runs_outside_the_quiet_window(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    monkeypatch.setattr(ds, "in_quiet_window", lambda now=None: False)
+    before = _dump(local)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "not-quiet"
+    assert fake.downloads == 0 and _dump(local) == before
+
+
+@pytest.mark.parametrize("utc,quiet", [
+    ("2026-11-11T14:30", False), ("2026-11-11T09:00", False), ("2026-11-12T00:59", False),
+    ("2026-11-12T01:30", True), ("2026-11-12T08:00", True), ("2026-11-12T08:50", False),
+    ("2026-11-14T17:00", True), ("2026-11-16T07:00", True),
+])
+def test_quiet_window(utc, quiet):
+    from datetime import datetime, timezone
+    from api.services import data_sync
+    assert data_sync.in_quiet_window(
+        datetime.fromisoformat(utc).replace(tzinfo=timezone.utc)) is quiet
+
+
+def _write_during_pass_one(ds, monkeypatch, row):
+    """Wrap the merge so the pod writes `row` (through put_bars) while pass 1 runs, and
+    record every merge call's `pairs`."""
+    from api.services import bars_sqlite
+    real = ds._merge_ohlcv_from
+    calls = []
+
+    def merge(src, local=None, **kw):
+        calls.append(kw.get("pairs"))
+        if len(calls) == 1:
+            tkr, tf, ts = row
+            bars_sqlite.put_bars(tkr, tf, [{"t": ts, "o": 5.0, "h": 6.0, "l": 4.0, "c": 5.5,
+                                            "v": 9}])
+        return real(src, local, **kw)
+
+    monkeypatch.setattr(ds, "_merge_ohlcv_from", merge)
+    return calls
+
+
+def test_locked_pass_carries_only_series_written_during_pass_one(adoption, tmp_path,
+                                                                 monkeypatch):
+    ds, fake, local, snap = adoption
+    row = ("LATE", "D", 20210105)
+    calls = _write_during_pass_one(ds, monkeypatch, row)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert calls[0] is None, "pass 1 is the full merge"
+    assert calls[1] == [("LATE", "D")], "the locked pass re-merges only what changed"
+    c = sqlite3.connect(str(local))
+    try:
+        assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
+                         row).fetchone()[0] == 1, "a write during pass 1 was lost"
+    finally:
+        c.close()
+
+
+def test_locked_pass_over_budget_aborts_and_keeps_the_old_store(adoption, tmp_path,
+                                                               monkeypatch):
+    ds, fake, local, snap = adoption
+    _write_during_pass_one(ds, monkeypatch, ("LATE", "D", 20210105))
+    monkeypatch.setattr(ds, "ADOPT_LOCKED_BUDGET_S", -1.0)
+    before_layout = _layout(local)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "failed"
+    assert before_layout == _layout(local) == "rowid"
+    assert not (tmp_path / ".adopted_clustered").exists() and _no_tmp_left(tmp_path)
+    from api.services import bars_sqlite
+    assert bars_sqlite._tracked_writes is None, "tracking must never be left on"
+
+
+def test_put_bars_records_pairs_only_while_tracking(data_sync_at):
+    from api.services import bars_sqlite
+    bars_sqlite.init_db()
+    bar = [{"t": 20210105, "o": 5.0, "h": 6.0, "l": 4.0, "c": 5.5, "v": 9}]
+    bars_sqlite.put_bars("AAA", "D", bar)
+    bars_sqlite.start_write_tracking()
+    bars_sqlite.put_bars("BBB", "D", bar)
+    bars_sqlite.put_bars_many("D", {"CCC": bar, "DDD": bar})
+    assert bars_sqlite.stop_write_tracking() == {("BBB", "D"), ("CCC", "D"), ("DDD", "D")}
+    bars_sqlite.put_bars("EEE", "D", bar)
+    assert bars_sqlite.stop_write_tracking() == set()
+
+
+def test_checkpointer_waits_for_a_swap_and_reconnects_after_it(data_sync_at, tmp_path):
+    import threading
+    from api.services import bars_sqlite, bars_wal_checkpointer as ck
+    bars_sqlite.init_db()
+    state = {"conn": None, "epoch": None}
+    ck._cycle(state)
+    first = state["conn"]
+    n0 = ck.last_status()["cycles"]
+    bars_sqlite.DB_SWAP_LOCK.acquire()
+    try:
+        t = threading.Thread(target=ck._cycle, args=(state,))
+        t.start()
+        t.join(0.5)
+        assert t.is_alive() and ck.last_status()["cycles"] == n0, \
+            "the checkpointer ran while a swap held DB_SWAP_LOCK"
+        bars_sqlite.bump_db_epoch()            # the swap replaced bars.db
+    finally:
+        bars_sqlite.DB_SWAP_LOCK.release()
+    t.join(5)
+    assert ck.last_status()["cycles"] == n0 + 1
+    assert state["conn"] is not first, "a connection on the old inode checkpointed again"
+    state["conn"].close()

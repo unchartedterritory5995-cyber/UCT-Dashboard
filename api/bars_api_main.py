@@ -166,6 +166,12 @@ def _start_periodic_pull() -> None:
         while True:
             time.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
             try:
+                # One-shot clustered adoption, retried here in a later quiet window
+                # if the boot attempt fell outside one (no-op once done / when off).
+                data_sync.adopt_clustered_store(_DATA_DIR)
+            except Exception as e:  # noqa: BLE001
+                _log.warning("[bars-api] adopt-clustered retry failed (non-fatal): %s", e)
+            try:
                 if data_sync.DELTA_ENABLED:
                     data_sync.sync_with_deltas()
                 elif legacy:

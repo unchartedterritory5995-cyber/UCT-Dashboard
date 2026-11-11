@@ -95,35 +95,44 @@ def _run_once(conn: sqlite3.Connection) -> None:
                      cycles=_last["cycles"] + 1)
 
 
+def _cycle(state: dict) -> None:
+    """One checkpoint cycle, under `bars_sqlite.DB_SWAP_LOCK`: a bars.db replaced
+    wholesale (snapshot install / clustered adoption) is noticed by its epoch BEFORE
+    this connection touches the -wal again, and never mid-swap."""
+    from api.services import bars_sqlite as _bs
+    with _bs.DB_SWAP_LOCK:
+        if state.get("conn") is not None and state.get("epoch") != _bs._db_epoch:
+            try:
+                state["conn"].close()
+            except Exception:
+                pass
+            state["conn"] = None
+        state["epoch"] = _bs._db_epoch
+        if state.get("conn") is None:
+            conn = sqlite3.connect(_db_path(), check_same_thread=False, timeout=5)
+            # A checkpointer must NOT itself hold a long busy wait -- if it can't
+            # act now it should return quickly and retry next cycle.
+            conn.execute("PRAGMA busy_timeout=1000")
+            state["conn"] = conn
+        _run_once(state["conn"])
+
+
 def _loop() -> None:
     time.sleep(_STARTUP_DELAY_S)  # let boot settle before touching the store
-    conn = None
-    epoch = None
+    state: dict = {"conn": None, "epoch": None}
     while True:
         try:
-            # bars.db replaced wholesale (snapshot install / clustered adoption): a
-            # connection on the old inode must never checkpoint the shared -wal again.
-            from api.services import bars_sqlite as _bs
-            if conn is not None and epoch != _bs._db_epoch:
-                conn.close()
-                conn = None
-            epoch = _bs._db_epoch
-            if conn is None:
-                conn = sqlite3.connect(_db_path(), check_same_thread=False, timeout=5)
-                # A checkpointer must NOT itself hold a long busy wait — if it can't
-                # act now it should return quickly and retry next cycle.
-                conn.execute("PRAGMA busy_timeout=1000")
-            _run_once(conn)
+            _cycle(state)
         except Exception as e:  # noqa: BLE001
             # Never die: a locked/replaced db is a runtime condition, not a bug.
             with _last_lock:
                 _last.update(ts=time.time(), err=str(e)[:200])
             try:
-                if conn is not None:
-                    conn.close()
+                if state.get("conn") is not None:
+                    state["conn"].close()
             except Exception:
                 pass
-            conn = None  # reopen next cycle (handles a force_resync inode swap)
+            state["conn"] = None  # reopen next cycle (handles a force_resync inode swap)
         time.sleep(_INTERVAL_S)
 
 
