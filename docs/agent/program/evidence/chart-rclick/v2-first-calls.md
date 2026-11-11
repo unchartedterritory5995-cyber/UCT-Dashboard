@@ -1,6 +1,6 @@
 # Routing v1 and v2 first calls: master vs agent/pl/chart-rclick-parity
 
-Master `7a2c1fae47` (origin/master at branch time) vs this branch at `e536a25f92` (the code is unchanged after that commit; later commits are SAT-1, status rows and docs). LOCAL, deterministic, no model.
+Master `7a2c1fae47` (origin/master at branch time) vs this branch at `e536a25f92`. Routing is unchanged after that commit: the later commits are SAT-1, status rows, docs, lint and shorter chartMenu summary/hint text (manifest text only, no group, word or action change). LOCAL, deterministic, no model.
 
 Method: `dump.test.js.txt` here, the #1027 / wordsonly-fill method (docs/agent/program/evidence/wordsonly-fill/), extended to dump routing v1 (`routeManifest`) beside v2 (`routeManifestV2`). It ran once on the untouched worktree (master) and once on this branch; the two JSON dumps were compared row by row (same row order; ids repeat inside some sets, so rows are matched by index). Inputs: the lookbehind corpus, NLM-1 dev, NL-1 corpus / dev-nl1 / heldout-v1 / heldout-v2, the agentExec held-out and tune sets: **3650 requests**. "Differ" = the selected groups or the sent action names differ, ignoring the new chartMenu actions themselves. Held-out rows are counted by set only; no held-out text is quoted.
 
