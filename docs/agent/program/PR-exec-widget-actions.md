@@ -314,7 +314,7 @@ Logs: `rule-mutants/round1-without-rules-rail.txt` and `rule-mutants/round2-<id>
 | unseen7 | 29 | 24 | 24 | 0 | 0 | 0 | 0 |
 | unseen18 | 42 | 42 | 37 | 0 | 2 (u18-show-05, u18-export-04) | 1 (u18-cols-06) | **0** |
 
-- **No set is worse than master.** At the head, all 5 of unseen18's `clarify` cases are asked.
+- **No set is worse than master.** Master `75421184a3` still has no guard (no `whichWidget` or `screenWatchlistWidget` in its tree), so its column is still 0 everywhere and the sets were not recounted. At the head, all 5 of unseen18's `clarify` cases are asked.
 - **The two over-asks (u18-show-05, u18-export-04):** "Swing" names the Watchlist that shows Swing, so it acts with no question. Railed in `agentWhichWidget.rail.test.jsx` "over-asks (AUDIT 3)".
 - **u18-cols-06**, found by this count: in "on the Swing list, move volume right after symbol", "right" named both Watchlists, which sit on the right. Rail first (`a2dfb73113`, red `Tests 2 failed | 17 passed (19)`), then the fix (`ec04598d11`, an addition): "right after / before / next to / now …" is no place. After: `Tests 110 passed (110)` over the rules rail, the F1 rails, watchlistTarget.rail, agentWatchlistShow / Out with their held-out files, and noRegexLookbehind.
 - **OPEN, u18-refresh-06:** the guard REFUSES it rather than re-aiming the planner's Period Sort op at the Scanner ("never re-aimed across types", F2). The excluded widget is untouched, and nothing is claimed. But the Scanner refresh the words asked for is not done until a planner aims the op at the Scanner. Master runs the excluded Period Sort, so it is not better.
@@ -347,6 +347,7 @@ Logs: `rule-mutants/round1-without-rules-rail.txt` and `rule-mutants/round2-<id>
 - `agentRouting` 158 → 160 and `agentScreener` 152 → 154 (`654e35d59a`). Master has 157 and 151. The extra three are `watchlist.showList` (b812facdd8, the only commit that had bumped the pins), `watchlist.exportList` and `watchlist.arrangeColumns`.
 - Before the bump: `Tests 1 failed | 22 passed (23)` and `1 failed | 12 passed (13)`. After: 23/23 and 13/13 (`pins-*.txt`).
 - On the merged head `4e33baae36`: `Tests 36 passed (36)`, with `[routing] 43/43 routed; mean 23.7 of 160 capabilities`.
+- On the re-merged head `97222bb5fe` (origin/master `75421184a3`): agentRouting 23/23 and agentScreener 13/13 inside the scoped run below, `[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full`.
 
 #### Scoped suites (under the suite lock, `--who pl-widget`, BelowNormal; focused, NOT a full run)
 
@@ -355,10 +356,13 @@ Logs: `rule-mutants/round1-without-rules-rail.txt` and `rule-mutants/round2-<id>
   - **The screenWatchlistWidget set is 116/116**: watchlistTarget.rail 10, widgetActionKeys 5, agentWatchlistShow 35, agentWatchlistOut 29, widgetActions.outcome 24, settingsLiveness 13.
   - `watchlistTarget.rail.test.js` is byte-identical to `a7d44da95a` (`git diff a7d44da95a HEAD -- app/src/agent/watchlistTarget.rail.test.js` is empty), so its exclusion cases stay where they were.
 - **Merged head `4e33baae36`** (origin/master `0a0737665a` merged in cleanly; the merge changes nothing under `app/src/agent/`): 22 files (the 18 above, plus the rules rail, agentNotDoneExport.rail, agentRouting and agentScreener): **`Test Files 22 passed (22)` / `Tests 565 passed (565)`.** No file fails, so there is no failing file to compare with master. The 116 set is again 10 + 5 + 35 + 29 + 24 + 13 = 116/116. Logs: `scoped-d9486ea660.txt` and `scoped-merged-4e33baae36.txt`.
+- **Re-merged head `97222bb5fe`** (origin/master `75421184a3`, which contains `4f1d2d4533`, merged in cleanly; the only file both sides touch is `section_b_requests.json`, master's `min_volume_3d_prior` field and ours auto-merged, and the json still loads). The same 22 files, same lock, same LinkType header: **`Test Files 22 passed (22)` / `Tests 565 passed (565)`**. The 116 set is again 10 + 5 + 35 + 29 + 24 + 13 = 116/116. Log: `scoped-merged-97222bb5fe.txt`.
 
 #### Server tests (pytest, real; local venv, Python 3.12.10, pytest 8.3.4)
 
 The owner now allows local pytest. The scope is the 18 test files that read a file this PR changes (`manifest.golden.json`, `nl1_assemble_parity.json`, the capreg `baseline.lock.json` / corpus, `section_b_requests.json`). The same files were run on head and on master: **head `4e33baae36`: `499 passed, 1 warning`**; **master `0a0737665a`: `499 passed, 1 warning`**. The warning is starlette's anyio deprecation, the same on both. Logs: `pytest-head-4e33baae36.txt` and `pytest-master-0a0737665a.txt`. The full list of 18 files is the log's first line.
+
+Re-run on the re-merged head `97222bb5fe` (the merged `section_b_requests.json` changed; none of the 18 test files did; pl-grid venv, BelowNormal, no lock): **`499 passed, 1 warning`**, the same as before. Log: `pytest-head-97222bb5fe.txt`.
 
 #### AUDIT's six GO conditions
 
