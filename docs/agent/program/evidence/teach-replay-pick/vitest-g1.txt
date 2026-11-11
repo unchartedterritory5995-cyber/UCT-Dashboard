@@ -1,0 +1,4 @@
+# node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  15 passed (15)
+      Tests  450 passed (450)
+# exit=0 end 00:58:50
