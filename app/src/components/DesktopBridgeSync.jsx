@@ -7,7 +7,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
 import DesktopDeskToast from './DesktopDeskToast'
-import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit, onDeskVisibility } from '../lib/desktopBridge'
+import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit, onDeskVisibility, reportDesktopEvent } from '../lib/desktopBridge'
 import { setDeskHidden } from '../lib/deskVisibility'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
 import { requestDeskLaunch, withdrawDeskLaunch } from '../lib/popoutRegistry'
@@ -56,6 +56,13 @@ export default function DesktopBridgeSync() {
     }
     if (!hasDesktopFeature('before-quit') || window.opener || isTerminalPopoutChild()) return
     if (hasDeskRecords(uid)) requestDeskLaunch()
+  }, [uid])
+
+  // Telemetry: a member is signed in in the main window. The shell sends first_signin once per
+  // install, so repeating this on every launch costs nothing.
+  useEffect(() => {
+    if (!uid || window.opener || isTerminalPopoutChild()) return
+    reportDesktopEvent('signed_in')
   }, [uid])
 
   return (
