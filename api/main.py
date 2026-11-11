@@ -2140,7 +2140,13 @@ def _check_nightly_finished() -> None:
         last = snapshot_db.last_build_run()
         why = _nightly_missing(last)
         if not why:
-            return
+            # A receipt that started after 03:00 is not proof the table was
+            # rebuilt: a capped run (the resume job, the boot warm) writes one too.
+            # The rows are the authority, so read them before saying nothing.
+            behind = snapshot_db.count_rows_built_before(_snapshot_cutoff())
+            if not behind or behind < SNAPSHOT_RESUME_MIN_ROWS:
+                return
+            why = f"{behind} rows were last rebuilt before 03:00 ET"
         if snapshot_builder.build_in_flight():
             why += "; a build is still running"
         from api.services import chart_health_alerts
@@ -2155,6 +2161,121 @@ def _check_nightly_finished() -> None:
         )
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] could not run the screener nightly watchdog: {e}")
+
+
+# -- Resume a nightly that a restart killed ----------------------------------------
+#
+# 2026-11-11: web was redeployed 11 times between 02:52 and 08:50 ET. The 03:00
+# nightly died ~2,000 rows in, the boot warm skipped (it checks only the ROW COUNT,
+# and 11,230 rows were there, just old), and the watchdog could only alert. Members
+# screened on 9,230 rows whose bars ended Nov 6 or Nov 9; MINV3.1 existed on just
+# the 2,000 fresh rows, so Anticipation's 600K-volume rule silently ignored 82% of
+# the market. The last complete build had been Nov 6; every nightly since died the
+# same way.
+#
+# This job finishes the nightly instead. `_stalest` orders never-built and oldest
+# rows first, so a capped run picks up exactly where the killed one stopped, and a
+# run that is itself killed is picked up again on the next tick after the reboot.
+#
+# ⛔ BOUNDED TO THE PRE-OPEN WINDOW AND SIZED TO FINISH INSIDE IT. A build holds
+# `snapshot_builder._BUILD_LOCK`, which the 30 s live sweep shares, so a build
+# still running at 09:30 ET freezes the live screener for its whole length. It
+# never runs in the session and never starts a run it cannot finish in the window.
+#
+# ⛔ BUILT THROUGH THE LAST COMPLETED SESSION (`through_ymd`). bars.db holds today's
+# forming bar for every charted ticker, so without the limit a pre-market build
+# would publish a half-day bar as a finished session.
+#
+#: The window, ET. Ten minutes after 03:00 so the nightly takes the lock first; ten
+#: minutes before the open so the last run is done before the live tier starts.
+SNAPSHOT_RESUME_START_ET = (3, 10)
+SNAPSHOT_RESUME_END_ET = (9, 20)
+#: Fewer rows behind than this is left to the next nightly. A ticker with no bars
+#: is skipped by every build and keeps its old `built_at`, so zero behind never
+#: comes; without a floor the job would rebuild that handful every tick.
+SNAPSHOT_RESUME_MIN_ROWS = 50
+
+
+def _snapshot_resume_rate() -> int:
+    """Rows per minute the resume job plans on. Measured: full builds of 11,230 rows
+    took 36 to 77 minutes (146 to 312 rows a minute, receipts Oct 23 to Nov 6), so
+    120 sits under the slowest and a run sized with it ends inside the window."""
+    try:
+        return max(10, int(os.environ.get("SCREENER_SNAPSHOT_RESUME_ROWS_PER_MIN") or 120))
+    except ValueError:
+        return 120
+
+
+def _snapshot_cutoff(now=None) -> float:
+    """Today's 03:00 ET, when the nightly starts: a row built before it is behind."""
+    now = now or datetime.now(_ET)
+    return now.replace(hour=3, minute=0, second=0, microsecond=0).timestamp()
+
+
+def _snapshot_resume_plan(now, behind, in_flight, rate):
+    """``(rows_to_build, None)`` or ``(None, why_not)``. Pure; the job does the I/O."""
+    if in_flight:
+        return None, "a build is already running"
+    if behind is None:
+        return None, "the rows behind could not be counted"
+    if behind < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "every row is current"
+    start = now.replace(hour=SNAPSHOT_RESUME_START_ET[0], minute=SNAPSHOT_RESUME_START_ET[1],
+                        second=0, microsecond=0)
+    end = now.replace(hour=SNAPSHOT_RESUME_END_ET[0], minute=SNAPSHOT_RESUME_END_ET[1],
+                      second=0, microsecond=0)
+    if not (start <= now < end):
+        return None, "outside the resume window"
+    room = int((end - now).total_seconds() / 60 * rate)
+    if room < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "too close to the open to finish a run"
+    return min(behind, room), None
+
+
+def _run_snapshot_resume() -> None:
+    """The resume job. Never raises. Off with SCREENER_SNAPSHOT_RESUME_ENABLED=0."""
+    try:
+        if os.environ.get("SCREENER_SNAPSHOT_RESUME_ENABLED", "1") != "1":
+            return
+        from api.services.screener import snapshot_builder, snapshot_db
+        now = datetime.now(_ET)
+        cutoff = _snapshot_cutoff(now)
+        behind = snapshot_db.count_rows_built_before(cutoff)
+        rows, why = _snapshot_resume_plan(now, behind, snapshot_builder.build_in_flight(),
+                                          _snapshot_resume_rate())
+        if rows is None:
+            if why not in ("every row is current", "outside the resume window"):
+                print(f"[scheduler] screener snapshot resume: not run ({why}; behind={behind})")
+            return
+        session = snapshot_builder.settled_session(now)
+        if session is None:
+            # Without the limit a pre-market build can store a forming bar as settled.
+            print("[scheduler] screener snapshot resume: not run (the exchange calendar "
+                  "does not cover today, so there is no settled session to build through)")
+            return
+        through = int(session.strftime("%Y%m%d"))
+        stats = snapshot_builder.run_build(max_tickers=rows, through_ymd=through)
+        left = snapshot_db.count_rows_built_before(cutoff)
+        print(f"[scheduler] screener snapshot resume: behind={behind} planned={rows} "
+              f"through={through} built={stats.get('built')} skipped={stats.get('skipped')} "
+              f"errors={stats.get('errors')} refused={stats.get('skipped_reason')} left={left}")
+        if (not stats.get("skipped_reason") and left is not None
+                and left < SNAPSHOT_RESUME_MIN_ROWS):
+            # Caught up: the steps the nightly runs after a complete build.
+            try:
+                from api.services.screener import distribution
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: distributions error: {e}")
+            try:
+                from api.services.screener import volume_curve
+                vc = volume_curve.nightly_job()
+                print(f"[scheduler] screener volume curve (resume): stored={vc.get('stored')} "
+                      f"samples={vc.get('samples')} reason={vc.get('reason')}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: volume curve error: {e}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] screener snapshot resume error: {type(e).__name__}: {e}")
 
 
 # -- UCT Relative Strength: the IBD-style rating history (engineering map --------
@@ -2568,6 +2689,13 @@ def register_screener_jobs(scheduler):
                       trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
                       id="screener_nightly_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    # Finishes a nightly a restart killed (see `_run_snapshot_resume`). Every five
+    # minutes, so a run lost to a deploy is picked up minutes after the reboot; the
+    # job itself decides whether there is anything to do and whether there is time.
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(_run_snapshot_resume, trigger=IntervalTrigger(minutes=5),
+                      id="screener_snapshot_resume", max_instances=1,
+                      replace_existing=True, coalesce=True)
 
     # -- UCT Relative Strength rating history: its OWN cron at 04:15 ET ---------
     #
