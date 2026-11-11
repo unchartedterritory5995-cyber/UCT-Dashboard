@@ -10,6 +10,7 @@
 //   H4 IDB history segment: persist then hydrate gives back the series (up to the cap), the
 //      persisted depth never shrinks on a shallower later write, and a basis heal deletes it.
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { barsBeforeUrl as urlFor } from './prefetchBars'
 import {
   prependOlder, wantsOlder, etDateOf, historyWindowUrl, createHistoryLoader,
   HISTORY_WINDOW_BARS, EXHAUSTED_TTL_MS,
@@ -88,7 +89,7 @@ describe('H2 a member scrolling back always reaches the listing (fuzz)', () => {
       let cur = full.slice(full.length - firstPaint)
       const right = cur[cur.length - 1]
       const { fetchJson, calls } = fakeServer(full)
-      const L = createHistoryLoader({ fetchJson })
+      const L = createHistoryLoader({ urlFor, fetchJson })
       const win = 100 + Math.floor(r() * 2500)
       for (let step = 0; step < 400; step++) {
         const res = await L.loadOlder('K', { sym: 'X', tf: '15', oldestT: cur[0].t, bars: win })
@@ -109,7 +110,7 @@ describe('H3 loader', () => {
   it('one request per key in flight; a second ask joins it', async () => {
     let release
     const fetchJson = vi.fn(() => new Promise((res) => { release = () => res({ bars: [{ t: 1 }] }) }))
-    const L = createHistoryLoader({ fetchJson })
+    const L = createHistoryLoader({ urlFor, fetchJson })
     const a = L.loadOlder('K', { sym: 'X', tf: '5', oldestT: 1_800_000_000 })
     const b = L.loadOlder('K', { sym: 'X', tf: '5', oldestT: 1_800_000_000 })
     expect(fetchJson).toHaveBeenCalledTimes(1)
@@ -118,7 +119,7 @@ describe('H3 loader', () => {
   })
   it('warming 503 and `filling` are retried, not treated as the floor', async () => {
     const w = new Error('HTTP 503'); w.warming = true; w.retryAfterMs = 3000
-    const L = createHistoryLoader({ fetchJson: vi.fn().mockRejectedValueOnce(w).mockResolvedValueOnce({ bars: [], filling: true }) })
+    const L = createHistoryLoader({ urlFor, fetchJson: vi.fn().mockRejectedValueOnce(w).mockResolvedValueOnce({ bars: [], filling: true }) })
     const o = { sym: 'X', tf: '60', oldestT: 1_800_000_000 }
     expect(await L.loadOlder('K', o)).toMatchObject({ exhausted: false, retryAfterMs: 3000 })
     expect(await L.loadOlder('K', o)).toMatchObject({ exhausted: false, retryAfterMs: 3000 })
@@ -127,7 +128,7 @@ describe('H3 loader', () => {
   it('the floor expires after EXHAUSTED_TTL_MS', async () => {
     let now = 0
     const fetchJson = vi.fn(async () => ({ bars: [] }))
-    const L = createHistoryLoader({ fetchJson, now: () => now })
+    const L = createHistoryLoader({ urlFor, fetchJson, now: () => now })
     const o = { sym: 'X', tf: '1', oldestT: 1_800_000_000 }
     expect((await L.loadOlder('K', o)).exhausted).toBe(true)
     await L.loadOlder('K', o)
@@ -147,8 +148,8 @@ describe('window URL / trigger', () => {
     expect(etDateOf(Date.UTC(2026, 10, 2, 0, 30) / 1000)).toBe('2026-11-01')
     // 2026-07-01 03:30 UTC = 2026-06-30 23:30 EDT
     expect(etDateOf(Date.UTC(2026, 6, 1, 3, 30) / 1000)).toBe('2026-06-30')
-    expect(historyWindowUrl('BRK.B', '60', Date.UTC(2026, 6, 1, 14) / 1000, '&session=eth'))
-      .toBe(`/api/bars/BRK.B?tf=60&bars=${HISTORY_WINDOW_BARS}&to=2026-07-01&session=eth`)
+    expect(historyWindowUrl(urlFor, 'BRK.B', '60', Date.UTC(2026, 6, 1, 14) / 1000, '&session=eth'))
+      .toBe(`/api/bars/BRK.B?tf=60&bars=${HISTORY_WINDOW_BARS}&session=eth&to=2026-07-01`)
   })
   it('fires while the left edge is within LOOKAHEAD_SCREENS widths of the oldest bar', () => {
     expect(wantsOlder({ fromIndex: 1000, toIndex: 1200, loadedCount: 1200 })).toBe(false)
@@ -230,7 +231,7 @@ describe('H4 IDB deep-history segment', () => {
     const idb = await import('./barsIDB')
     const s = history(300)
     const n = s.length
-    expect(idb.historyNeedsRefresh(s[n - 1].t, s)).toBe(false)
-    expect(idb.historyNeedsRefresh(s[n - idb.INTRADAY_MAX_BARS + 10].t, s)).toBe(true)
+    expect(idb.historyLagsTail(s[n - 1].t, s)).toBe(false)
+    expect(idb.historyLagsTail(s[n - idb.INTRADAY_MAX_BARS + 10].t, s)).toBe(true)
   })
 })

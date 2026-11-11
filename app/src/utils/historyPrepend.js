@@ -54,11 +54,13 @@ export function etDateOf(unixSec) {
 }
 
 /** The left-window URL: `bars` bars ending at the ET date of `oldestT` (inclusive day —
- *  a count-limited series that starts mid-day gets the rest of that day back too). */
-export function historyWindowUrl(sym, tf, oldestT, sessQ = '', bars = HISTORY_WINDOW_BARS) {
+ *  a count-limited series that starts mid-day gets the rest of that day back too).
+ *  `build` is the ONE `to=` URL builder (prefetchBars `barsBeforeUrl`), injected so this
+ *  module imports no bar cache. */
+export function historyWindowUrl(build, sym, tf, oldestT, sessQ = '', bars = HISTORY_WINDOW_BARS) {
   const d = etDateOf(oldestT)
-  if (!sym || !d) return null
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${d}${sessQ || ''}`
+  if (!sym || !d || typeof build !== 'function') return null
+  return build(sym, tf, bars, d, sessQ || '')
 }
 
 /**
@@ -109,7 +111,8 @@ export function wantsOlder({ fromIndex, toIndex, loadedCount }, screens = LOOKAH
 }
 
 /**
- * Per-key window loader. `fetchJson(url, { background })` → parsed JSON (throws with
+ * Per-key window loader. `urlFor` = prefetchBars `barsBeforeUrl`.
+ * `fetchJson(url, { background })` → parsed JSON (throws with
  * `.warming`/`.retryAfterMs` on a warming 503, `.canceled` on abort).
  *
  * loadOlder(key, { sym, tf, sessQ, oldestT, background }) resolves to
@@ -119,7 +122,7 @@ export function wantsOlder({ fromIndex, toIndex, loadedCount }, screens = LOOKAH
  * key whose window came back with nothing older than `oldestT` is remembered as
  * exhausted at that point for EXHAUSTED_TTL_MS (a listing date, or the provider floor).
  */
-export function createHistoryLoader({ fetchJson, now = () => Date.now() }) {
+export function createHistoryLoader({ fetchJson, urlFor, now = () => Date.now() }) {
   const inflight = new Map()     // key -> { oldestT, promise }
   const exhausted = new Map()    // key -> { atT, until }
 
@@ -134,7 +137,7 @@ export function createHistoryLoader({ fetchJson, now = () => Date.now() }) {
     if (isExhausted(key, oldestT)) return Promise.resolve({ bars: [], exhausted: true })
     const cur = inflight.get(key)
     if (cur) return cur.promise
-    const url = historyWindowUrl(sym, tf, oldestT, sessQ, bars)
+    const url = historyWindowUrl(urlFor, sym, tf, oldestT, sessQ, bars)
     if (!url) return Promise.resolve({ bars: [], exhausted: false })
     const promise = (async () => {
       try {

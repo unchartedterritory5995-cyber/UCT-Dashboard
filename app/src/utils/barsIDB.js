@@ -488,7 +488,7 @@ export function historyReachesTail(hist, tail) {
 
 /** Re-write the segment when it would otherwise stop reaching the tail: the newest
  *  history bar has fallen behind the MIDDLE of the (capped) tail window. */
-export function historyNeedsRefresh(histLastT, series) {
+export function historyLagsTail(histLastT, series) {
   if (!Array.isArray(series) || series.length <= INTRADAY_MAX_BARS) return false
   if (typeof histLastT !== 'number') return true
   const tail0 = series.length - INTRADAY_MAX_BARS

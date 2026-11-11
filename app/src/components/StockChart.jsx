@@ -239,7 +239,7 @@ import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
-import { _packStillIngesting, joinPendingBars, setPrefetchShowExtended } from '../utils/prefetchBars'
+import { _packStillIngesting, joinPendingBars, setPrefetchShowExtended, barsBeforeUrl } from '../utils/prefetchBars'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import { mergePushBar, reconcileWithServerTail, foldPrice, mergeRegistryMinute, isCompleteOhlc, LIVE_PERIOD_SECONDS, provisionalOpen } from '../lib/liveBarMerge'
@@ -1555,7 +1555,7 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
-import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory, historyReachesTail, historyNeedsRefresh, INTRADAY_MAX_BARS } from '../utils/barsIDB'
+import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory, historyReachesTail, historyLagsTail, INTRADAY_MAX_BARS } from '../utils/barsIDB'
 import { createHistoryLoader, prependOlder, wantsOlder, PREFETCH_WINDOWS, HISTORY_WINDOW_BARS } from '../utils/historyPrepend'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
@@ -1788,6 +1788,7 @@ export const WARMING_GIVE_UP_MS = 75000
 // <=1 window in flight per series key across every chart on the page; background windows
 // take BACKGROUND fetch slots, so they never queue the chart a member is looking at.
 export const _historyLoader = createHistoryLoader({
+  urlFor: barsBeforeUrl,
   fetchJson: (url, { background = false } = {}) => fetcher(url, undefined, { background }),
 })
 // Background prefetch after first paint stops once the series holds this many bars;
@@ -9011,7 +9012,7 @@ export default function StockChart({
   const _histPrependOn = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
     && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive && !!sym
   const _histLoadRef = useRef(null)
-  _histLoadRef.current = { on: _histPrependOn, key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, sessQ: _sessQ }
+  _histLoadRef.current = { on: _histPrependOn, key: _depthKey, sym, tf: resolvedTf, ck: _barsTf, sessQ: _sessQ }
   // Merge one window into THIS chart's series (same cross-ticker guard as every bars merge).
   const _applyOlderRef = useRef(null)
   _applyOlderRef.current = (key, win, { persist = true } = {}) => {
@@ -9227,18 +9228,18 @@ export default function StockChart({
   // ── Deep history after the dwell: persisted segment first, then background windows ──
   // Needs a series to prepend to (`idbBars` set for THIS key — the first network answer sets
   // it on a cold open), so it re-checks when that lands. Cancelled on sym/tf change.
-  const _histHasBase = idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}` && (idbBars?.length || 0) > 0
+  const _histHasBase = idbLoaded && idbReadyForRef.current === _depthKey && (idbBars?.length || 0) > 0
   useEffect(() => {
     if (!_histPrependOn || !_intradayDeepArmed || !_histHasBase) return undefined
-    const key = `${sym}_${_barsTf}`
+    const key = _depthKey
     let cancelled = false
     ;(async () => {
       const hist = await idbGetHistory(sym, _barsTf)
       if (cancelled || idbReadyForRef.current !== key) return
       if (hist && historyReachesTail(hist, idbBarsRef.current)) {
-        // Re-persist only when the tail is about to outrun the segment (historyNeedsRefresh).
+        // Re-persist only when the tail is about to outrun the segment (historyLagsTail).
         _applyOlderRef.current(key, hist, { persist: false })
-        if (historyNeedsRefresh(hist[hist.length - 1]?.t, idbBarsRef.current)) _persistHistorySoon(sym, _barsTf, idbBarsRef.current)
+        if (historyLagsTail(hist[hist.length - 1]?.t, idbBarsRef.current)) _persistHistorySoon(sym, _barsTf, idbBarsRef.current)
       }
       for (let i = 0; i <= PREFETCH_WINDOWS && !cancelled; i++) {
         if ((idbBarsRef.current?.length || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
