@@ -982,7 +982,7 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         return resp
     payload["tf"] = "60"
     payload["session"] = "eth"
-    base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev",
+    base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev", "sealed_through",
                                                  "verified_through", "complete_through")}
     rows = payload.get("bars")
     if isinstance(rows, list) and rows:

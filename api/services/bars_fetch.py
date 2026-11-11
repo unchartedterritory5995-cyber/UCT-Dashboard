@@ -826,10 +826,19 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
     checked_at = _time.time()
     status: dict = {}
     new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
+    persisted = not new
     if new and not _is_intraday_stale(new):
         _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+        persisted = True
     if status.get("ok"):
         _mark_tail_verified(ticker_up, tf, checked_at)
+        # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
+        # through `checked_at`, and those rows are in the store — so every bucket that
+        # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
+        if persisted and status.get("window_start") is not None:
+            from api.services.bar_contract import SEAL_LAG_S
+            _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
+                                  status["window_start"], checked_at)
     return new
 
 
@@ -2662,6 +2671,16 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     if gapfill_on:
         from_date = min(from_date, _prior_session_iso())
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    if status is not None:
+        # The REWRITTEN window starts here: every fetched row at/after it is re-emitted
+        # (bar contract seal, `_heal_intraday_tail`). ET midnight of `from_date` is the
+        # later (conservative) reading of the provider's date bound.
+        try:
+            _fd = datetime.strptime(from_date, "%Y-%m-%d")
+            status["window_start"] = max(heal_floor, int(datetime(
+                _fd.year, _fd.month, _fd.day, tzinfo=_ZI("America/New_York")).timestamp()))
+        except Exception:                 # noqa: BLE001 — no window, no seal
+            status.pop("window_start", None)
 
     # Timestamps already stored in (roughly) the fetched window. A re-fetched bar
     # NOT in this set is a genuine hole to restore. One indexed, lock-free read.

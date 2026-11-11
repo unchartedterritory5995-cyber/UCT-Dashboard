@@ -35,7 +35,7 @@ from api.services import bars_sqlite as bs
 ROOT = Path(__file__).resolve().parents[1]
 ET = ZoneInfo("America/New_York")
 FIELDS = ("contract", "grid", "session", "cache_key", "series_rev", "history_rev",
-          "verified_through", "complete_through", "developing")
+          "verified_through", "sealed_through", "complete_through", "developing")
 
 
 def et(y, mo, d, h=0, mi=0, s=0):
@@ -66,12 +66,7 @@ def bar(t, c=10.0, v=100):
 def _restart_in_process():
     """Forget everything this process holds: queued proofs, floors, its own copy of the
     proofs, and every connection."""
-    with bs._pending_lock:
-        bs._pending_verified.clear()
-    with bs._floor_lock:
-        for k in bs._mem_floors:
-            bs._mem_floors[k] = 0.0
-        bs._pending_floors.clear()
+    bs.reset_meta_state_for_tests()
     with bf._tail_verified_lock:
         bf._tail_verified.clear()
     bs.bump_db_epoch()
@@ -115,13 +110,16 @@ def test_history_rev_moves_only_when_sealed_history_changes(store):
     assert bs.series_meta("AAA", "5")["history_rev"] == h0
     bs.put_bars("AAA", "5", [bar(t0)])                          # identical rewrite
     assert bs.series_meta("AAA", "5")["history_rev"] == h0
-    bs.put_bars("AAA", "5", [bar(t0, c=9)])                     # a correction below the tail
+    bs.put_bars("AAA", "5", [bar(t0, c=9)])                     # not sealed yet: provisional
+    assert bs.series_meta("AAA", "5")["history_rev"] == h0
+    bs.record_sealed("AAA", "5", float(t1 + 300), float(t0), float(t1 + 306))
+    bs.put_bars("AAA", "5", [bar(t2, c=14)])                    # the unsealed tail
+    assert bs.series_meta("AAA", "5")["history_rev"] == h0
+    bs.put_bars("AAA", "5", [bar(t0, c=8)])                     # a correction of sealed rows
     h1 = bs.series_meta("AAA", "5")["history_rev"]
     assert h1 > h0
-    # the tail itself becomes history once it is proven complete
-    bs.record_verified("AAA", "5", t2 + 300 + 1)
-    bs.flush_meta()
-    bs.put_bars("AAA", "5", [bar(t2, c=13)])
+    bs.flush_meta()                                             # same answer from the store
+    bs.put_bars("AAA", "5", [bar(t1, c=15)])
     assert bs.series_meta("AAA", "5")["history_rev"] > h1
 
 
@@ -205,23 +203,66 @@ def _answer(ticker, tf, now, rows=None, **kw):
     return rows, bc.compute(ticker, tf, kw.pop("session", None), rows, now=now, meta=meta, **kw)
 
 
-def test_unproven_tail_is_developing_and_the_bucket_before_it_is_complete(store):
+class _Clock:
+    """`bars_fetch._time` stand-in: `time()` is the simulation clock."""
+    def __init__(self, now):
+        self.now = float(now)
+
+    def time(self):
+        return self.now
+
+    def __getattr__(self, name):
+        return getattr(time, name)
+
+
+def _fake_provider(monkeypatch, answer):
+    """Route `_heal_intraday_tail`'s provider delta to `answer(last_ts) -> (rows, wstart)`."""
+    def _delta(ticker, tf, last_ts, status=None, tail_only=False):
+        rows, wstart = answer(last_ts)
+        if status is not None:
+            status["ok"] = True
+            status["window_start"] = wstart
+        return rows
+    monkeypatch.setattr(bf, "_delta_intraday", _delta)
+
+
+def test_nothing_is_complete_until_a_provider_answer_seals_it(store):
     t = [et(*WED, 10, m) for m in (0, 5, 10)]
     bs.put_bars("AAA", "5", [bar(x) for x in t])
     _rows, c = _answer("AAA", "5", et(*WED, 10, 12, 30))
-    assert c["complete_through"] == t[2]                       # end of the 10:05 bucket
+    assert c["complete_through"] is None                       # rows alone prove nothing
     assert c["developing"]["t"] == t[2]
     assert c["grid"] == "eth-clock" and c["cache_key"] == "b1:AAA:5:eth-clock"
     assert c["developing"]["rev"] == c["series_rev"] > 0
 
 
-def test_a_proof_after_the_tail_closed_completes_the_tail(store):
+def test_a_heal_seals_every_bucket_that_ended_a_seal_lag_before_it(store, monkeypatch):
     t = [et(*WED, 10, m) for m in (0, 5, 10)]
-    bs.put_bars("AAA", "5", [bar(x) for x in t])
-    bf._mark_tail_verified("AAA", "5", float(et(*WED, 10, 15, 2)))
-    _rows, c = _answer("AAA", "5", et(*WED, 10, 16))
-    assert c["complete_through"] == et(*WED, 10, 15)
-    assert c["developing"] is None
+    clock = _Clock(et(*WED, 10, 10, 2))                        # 2 s after 10:05 closed
+    monkeypatch.setattr(bf, "_time", clock)
+    _fake_provider(monkeypatch, lambda last: ([bar(x) for x in t], t[0]))
+    bf._heal_intraday_tail("AAA", "5", t[0])
+    _rows, c = _answer("AAA", "5", clock.now)
+    assert c["complete_through"] == t[1]                       # 10:05 is inside the lag
+    clock.now = et(*WED, 10, 11)
+    bf._heal_intraday_tail("AAA", "5", t[2])
+    _rows, c = _answer("AAA", "5", clock.now)
+    assert c["complete_through"] == t[2]
+    assert c["developing"]["t"] == t[2]
+
+
+def test_a_heal_that_starts_past_the_seal_does_not_extend_it(store, monkeypatch):
+    t = [et(*WED, 10, m) for m in range(0, 30, 5)]
+    clock = _Clock(et(*WED, 10, 6))
+    monkeypatch.setattr(bf, "_time", clock)
+    _fake_provider(monkeypatch, lambda last: ([bar(x) for x in t[:2]], t[0]))
+    bf._heal_intraday_tail("AAA", "5", t[0])                   # sealed through 10:00
+    bs.put_bars("AAA", "5", [bar(x) for x in t[2:5]])          # live writes, unproven
+    clock.now = et(*WED, 10, 26)
+    _fake_provider(monkeypatch, lambda last: ([bar(t[4]), bar(t[5])], t[4]))
+    bf._heal_intraday_tail("AAA", "5", t[4])                   # window starts 10:20
+    _rows, c = _answer("AAA", "5", clock.now)
+    assert c["complete_through"] == t[1]                       # the gap is not proven
 
 
 def test_a_stale_cached_answer_gets_the_store_tail_spliced_in(store):
@@ -229,6 +270,7 @@ def test_a_stale_cached_answer_gets_the_store_tail_spliced_in(store):
     bs.put_bars("AAA", "5", [bar(t[0]), bar(t[1], c=10)])
     stale = bf._fmt_sqlite_bars(_store_rows("AAA", "5"), "5")   # the cached snapshot
     bs.put_bars("AAA", "5", [bar(t[1], c=11), bar(t[2])])
+    bs.record_sealed("AAA", "5", float(t[2] + 1), float(t[0]), float(t[2] + 6))
     _rows, c = _answer("AAA", "5", et(*WED, 10, 12), rows=stale)
     spliced = c.pop("_bars")
     assert [r["t"] for r in spliced] == t and spliced[1]["c"] == 11
@@ -238,18 +280,22 @@ def test_a_stale_cached_answer_gets_the_store_tail_spliced_in(store):
 def test_a_delta_answer_states_the_store_tail(store):
     t = [et(*WED, 10, m) for m in (0, 5, 10)]
     bs.put_bars("AAA", "5", [bar(x) for x in t])
+    bs.record_sealed("AAA", "5", float(t[2] + 2), float(t[0]), float(t[2] + 7))
     c = bc.compute("AAA", "5", None, [], delta=True, now=et(*WED, 10, 12))
     assert c["complete_through"] == t[2] and c["developing"]["t"] == t[2]
 
 
-def test_daily_rows_complete_through_the_session_before_the_store_tail(store):
+def test_daily_answers_carry_the_fields_and_claim_nothing_unsealed(store):
     bs.put_bars("AAA", "D", [bar("2026-11-09"), bar("2026-11-10")], date_tf=True)
     rows = bf._fmt_sqlite_bars(_store_rows("AAA", "D"), "D")
     rows = rows + [bar("2026-11-11")]                       # today's appended developing bar
     c = bc.compute("AAA", "D", None, rows, now=et(*WED, 11, 0))
     assert c["grid"] == "plain" and c["session"] is None
-    assert c["complete_through"] == et(2026, 11, 9, 16, 0)
+    assert c["complete_through"] is None                    # no daily seal recorded (deferred)
     assert c["developing"]["t"] == "2026-11-11"
+    bs.record_sealed("AAA", "D", float(et(2026, 11, 10, 20, 0)), 0.0, float(et(2026, 11, 10, 20, 0)))
+    c = bc.compute("AAA", "D", None, rows, now=et(*WED, 11, 0))
+    assert c["complete_through"] == et(2026, 11, 10, 16, 0)
 
 
 def test_not_store_backed_answers_say_so():
@@ -260,18 +306,22 @@ def test_not_store_backed_answers_say_so():
 
 
 @pytest.mark.parametrize("seed", range(12))
-def test_property_complete_through_is_bounded_monotonic_and_final(store, seed):
-    """Random interleavings of provider heals (rewrite from the stored tail bucket
-    inclusive, then prove), live tail writes, idle clock advances and memory-cache
-    snapshots. Invariants:
-      I1 complete_through is None or the end of an answer row, <= now, and <= the end
-         of the newest SEALED stored row;
+def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeypatch, seed):
+    """Random interleavings, driven through the REAL repair (`_heal_intraday_tail`) with a
+    simulated provider that publishes a bucket's final aggregate a few seconds after it
+    ends, whose rewritten window starts anywhere from the stored tail back a few buckets;
+    plus live tail writes (no proof), idle clock steps and memory-cache snapshots.
+    Invariants:
+      I1 complete_through is None or the end of an answer row, <= now, and <= the end of
+         the newest SEALED stored row;
       I2 it never moves backwards;
-      I3 every row it has ever called final still has the same values at the end,
-         unless history_rev moved (here no corrections happen, so it never may)."""
+      I3 every row it has ever called final still has the same values at the end
+         (no corrections happen here, and history_rev never moves)."""
     rng = random.Random(seed)
     tf, step = "5", 300
-    now = float(et(*WED, 9, 30))
+    clock = _Clock(et(*WED, 9, 30))
+    monkeypatch.setattr(bf, "_time", clock)
+    lag = bc.SEAL_LAG_S - 1           # the provider is late, but within the seal lag
     truth: dict[int, tuple] = {}
     claimed: dict[int, tuple] = {}
     last_ct = None
@@ -279,44 +329,46 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, seed):
     cached = None
 
     def true_bar(b):
-        return truth.setdefault(b, (rng.uniform(5, 50), rng.randint(1, 10_000)))
+        return truth.setdefault(b, (round(rng.uniform(5, 50), 4), rng.randint(1, 10_000)))
 
-    def partial(b):
+    def published(b):
+        """What the provider returns for bucket b at the current instant."""
         c, v = true_bar(b)
-        frac = min(1.0, max(0.0, (now - b) / step))
-        return {"t": b, "o": c, "h": c + 1, "l": c - 1, "c": c, "v": int(v * frac) or 1}
+        done = b + step <= clock.now - lag
+        frac = 1.0 if done else min(0.99, max(0.0, (clock.now - lag - b) / step))
+        return {"t": b, "o": c, "h": c + 1, "l": c - 1, "c": c, "v": max(1, int(v * frac))}
 
-    def final(b):
-        c, v = true_bar(b)
-        return {"t": b, "o": c, "h": c + 1, "l": c - 1, "c": c, "v": v}
+    def provider(last_ts):
+        cur = int(clock.now) // step * step
+        if last_ts is None or not last_ts:
+            start = cur - 6 * step
+        else:
+            start = max(int(_store_rows("AAA", tf)[0][0]), int(last_ts) - rng.choice([0, 1, 3]) * step)
+        return [published(b) for b in range(start, cur + 1, step)], start
 
+    _fake_provider(monkeypatch, provider)
     for _ in range(160):
-        now += rng.choice([7, 31, 60, 120, 299, 301, 600])
-        cur = int(now) // step * step
+        clock.now += rng.choice([2, 4, 7, 31, 60, 120, 299, 301, 600])
+        cur = int(clock.now) // step * step
         op = rng.random()
         last = bs.get_last_ts("AAA", tf)
-        if op < 0.35:                                         # provider heal
-            start = last if last is not None else cur - 6 * step
-            bs.put_bars("AAA", tf, [final(b) if b + step <= now else partial(b)
-                                    for b in range(int(start), cur + 1, step)])
-            bf._mark_tail_verified("AAA", tf, now)
-        elif op < 0.6 and last is not None and last >= cur - step:   # live tail write
-            bs.put_bars("AAA", tf, [partial(cur)] if last <= cur else [])
+        if op < 0.35 or last is None:
+            bf._heal_intraday_tail("AAA", tf, int(last or 0))
+        elif op < 0.6 and last >= cur - step:                  # live tail write
+            bs.put_bars("AAA", tf, [published(cur)])
         elif op < 0.7:
             cached = bf._fmt_sqlite_bars(_store_rows("AAA", tf), tf)
-        if bs.get_last_ts("AAA", tf) is None:
-            continue
         rows = cached if (cached and rng.random() < 0.3) else None
-        served, c = _answer("AAA", tf, now, rows=rows)
+        served, c = _answer("AAA", tf, clock.now, rows=rows)
         served = c.pop("_bars", served)
         if h0 is None:
             h0 = c["history_rev"]
         ct = c["complete_through"]
         stored = _store_rows("AAA", tf)
-        sealed = [r[0] + step for r in stored if r[0] + step <= now]
+        sealed_ends = [r[0] + step for r in stored if r[0] + step <= clock.now]
         if ct is not None:
-            assert ct <= now
-            assert sealed and ct <= max(sealed)
+            assert ct <= clock.now
+            assert sealed_ends and ct <= max(sealed_ends)
             assert any(r["t"] + step == ct for r in served)
             if last_ct is not None:
                 assert ct >= last_ct, (ct, last_ct)
@@ -325,11 +377,13 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, seed):
                 if r["t"] + step <= ct:
                     claimed.setdefault(r["t"], (r["c"], r["v"]))
         if c["developing"] is not None:
-            assert c["developing"]["t"] <= now < c["developing"]["t"] + step
+            assert c["developing"]["t"] <= clock.now < c["developing"]["t"] + step
     final_rows = {r[0]: (r[4], r[5]) for r in _store_rows("AAA", tf)}
+    assert claimed, "the simulation never reached a sealed bucket — vacuous"
     assert bs.series_meta("AAA", tf)["history_rev"] == h0
     for t, val in claimed.items():
         assert final_rows[t][0] == pytest.approx(val[0]) and final_rows[t][1] == val[1], t
+        assert val[1] == truth[t][1], ("a row called final was a partial", t)
 
 
 # ── B. every serve branch carries the contract ──────────────────────────────

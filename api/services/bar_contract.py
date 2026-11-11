@@ -21,11 +21,17 @@ intraday; the session clock in `bars_fetch` for D/W/M closes).
 """
 from __future__ import annotations
 
+import os
 import time as _time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 CONTRACT_VERSION = 1
+#: A provider answer at instant X proves buckets that ended by X - SEAL_LAG_S: the
+#: just-closed bucket's final aggregate lands seconds after its end (a bucket stored
+#: while forming carries the same `ts` as the finished one). Same env knob as the
+#: request path's sealed-bucket rule (#1090 `_SEAL_LAG_S`) — one value for both.
+SEAL_LAG_S = float(os.environ.get("BARS_SEAL_LAG_SECONDS", "5"))
 INTRADAY_TFS = ("1", "5", "15", "30", "60")
 DATE_TFS = ("D", "W", "M")
 _ET = ZoneInfo("America/New_York")
@@ -176,15 +182,14 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     tail had to be refreshed from the store the new rows come back under "_bars".
 
     complete_through (see the doc for the proof):
-      P  = max(verified_through, start of the store's newest row)  — every bucket that
-           ENDS at or before P is final in the store: the provider was asked after it
-           closed (verified_through), or a later row exists (every tail writer re-fetches
-           from the stored tail bucket inclusive, so a bucket older than the store's
-           newest row was last written after it closed).
-      CT = end of the newest row R of this answer with end(R) <= min(P, now), and
-           <= start of the answer's last row when that row is not the store's current
-           row (a cached/older snapshot: its last row may be a stale partial), and
-           <= end of the newest SEALED stored row (never past what the store holds).
+      S  = the store's `sealed_through`: every bucket that ENDED by S is final in the
+           store (a provider answer rewrote the series contiguously from at or before the
+           previous seal through S + seal lag — `bars_fetch._heal_intraday_tail`).
+      CT = end of the newest row R of this answer with end(R) <= min(S, now), and
+           <= end of the newest stored row that has ended (never past what the store
+           holds); an intraday answer is first made equal to the store over the store's
+           mutable window (`_reconcile_tail`), and a D/W/M answer whose last row is not
+           the store's is capped below that row.
     """
     from api.services import bars_fetch as _bf
     from api.services import bars_sqlite as _bs
@@ -193,8 +198,8 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     grid = grid_for(tf, sess)
     out = {"contract": CONTRACT_VERSION, "grid": grid, "session": sess,
            "cache_key": cache_key(ticker, tf, sess), "series_rev": None,
-           "history_rev": None, "verified_through": None, "complete_through": None,
-           "developing": None}
+           "history_rev": None, "verified_through": None, "sealed_through": None,
+           "complete_through": None, "developing": None}
     rows = [r for r in (rows or []) if isinstance(r, dict)]
     src = source_series(tf, sess)
     if not store_backed:
@@ -235,15 +240,12 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
                          or _live_partial(tkr, tf, sess, grid, now))
     if not store_rows or not considered:
         return out
-    # P: the store's proof instant.
-    tail_b = bucket_bounds(tf, store_rows[-1][0] if tf in INTRADAY_TFS
-                           else _row_from_store(tf, store_rows[-1])["t"], grid)
-    if tail_b is None:
+    # P: the store's seal — every bucket that ended by it is final in the store.
+    sealed = meta.get("sealed_through")
+    out["sealed_through"] = sealed
+    if sealed is None:
         return out
-    proof = tail_b[0]
-    if vt is not None:
-        proof = max(proof, float(vt))
-    limit = min(proof, now)
+    limit = min(float(sealed), now)
     # Never past the newest SEALED stored row.
     sealed_ends = [b[1] for b in (bucket_bounds(tf, (r[0] if tf in INTRADAY_TFS
                                                      else _row_from_store(tf, r)["t"]), grid)
@@ -281,28 +283,47 @@ def snapshot_meta(ticker: str, tf: str, session=None):
 
 
 def _reconcile_tail(ticker: str, tf: str, rows: list, store_rows: list) -> list:
-    """`rows` with every row from its last bucket onward replaced by the store's, when
-    the answer's last row is not the store's current row for that bucket. Returns
-    `rows` itself (identity) when nothing had to change or the store cannot be read."""
-    try:
-        last_key = int(rows[-1].get("t"))
-    except (TypeError, ValueError):
-        return rows
-    stored = {int(r[0]): r for r in store_rows}
-    if last_key > int(store_rows[-1][0]):
-        return rows                        # newer than the store (not persisted yet)
-    if (last_key == int(store_rows[-1][0])
-            and _same_values(rows[-1], stored[last_key])):
-        return rows                        # the answer already ends on the store's tail
+    """`rows` made equal to the store over the store's MUTABLE window — every row a tail
+    repair may still rewrite (`_DELTA_HEAL_WINDOW_SECONDS` back from the stored tail):
+    a stored row replaces the answer's row of the same bucket, a stored row the answer
+    lacks is added, and an answer row the store does not hold is kept (a fetch not yet
+    persisted). Rows older than the window change only through a correction, which
+    `history_rev` announces. Returns `rows` itself (identity) when nothing differed or
+    the store cannot be read. ⛔ Why the whole window and not just the last row: a
+    memory-cache answer taken while a bucket was still provisional keeps that partial
+    BELOW its own tail after a later repair finalised it in the store."""
     try:
         from api.services import bars_sqlite as _bs
-        from api.services.bars_fetch import _fmt_sqlite_bars
-        fresh = _fmt_sqlite_bars(_bs.get_bars_since(ticker, tf, last_key - 1), tf, ticker)
+        from api.services.bars_fetch import _fmt_sqlite_bars, _DELTA_HEAL_WINDOW_SECONDS
+        cut = int(store_rows[-1][0]) - int(_DELTA_HEAL_WINDOW_SECONDS)
+        first = int(rows[0].get("t"))
+        fresh = _fmt_sqlite_bars(_bs.get_bars_since(ticker, tf, max(cut, first) - 1), tf, ticker)
     except Exception:                      # noqa: BLE001
         return rows
     if not fresh:
         return rows
-    return [r for r in rows if int(r.get("t")) < last_key] + fresh
+    by_t = {int(f["t"]): f for f in fresh}
+    out, changed, seen = [], False, set()
+    for row in rows:
+        try:
+            t = int(row.get("t"))
+        except (TypeError, ValueError):
+            return rows
+        f = by_t.get(t)
+        if f is not None:
+            seen.add(t)
+            if not (_same_values(row, (t, f.get("o"), f.get("h"), f.get("l"), f.get("c"), f.get("v")))
+                    and row.get("o") == f.get("o") and row.get("h") == f.get("h")
+                    and row.get("l") == f.get("l")):
+                changed = True
+                out.append(f)
+                continue
+        out.append(row)
+    missing = [f for t, f in by_t.items() if t not in seen]
+    if missing:
+        changed = True
+        out = sorted(out + missing, key=lambda x: int(x["t"]))
+    return out if changed else rows
 
 
 def _developing(tf: str, grid: str, rows: list, rev, now: float):
@@ -348,6 +369,7 @@ def derive_for_grid(ticker: str, tf: str, session, rows: list, base: dict,
     out = {"contract": CONTRACT_VERSION, "grid": grid, "session": sess,
            "cache_key": cache_key(ticker, tf, sess), "series_rev": base.get("series_rev"),
            "history_rev": base.get("history_rev"),
+           "sealed_through": base.get("sealed_through"),
            "verified_through": base.get("verified_through"), "complete_through": None,
            "developing": _developing(tf, grid, rows, base.get("series_rev"), now)}
     bct = base.get("complete_through")

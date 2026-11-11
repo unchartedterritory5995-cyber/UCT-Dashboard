@@ -552,12 +552,12 @@ def _isolate_bars_series_meta():
             from api.services import bars_sqlite as _bs
         except Exception:
             return
-        with _bs._pending_lock:
-            _bs._pending_verified.clear()
-        with _bs._floor_lock:
-            _bs._pending_floors.clear()
-            for k in _bs._mem_floors:
-                _bs._mem_floors[k] = 0.0
+        _bs.reset_meta_state_for_tests()
+        try:
+            from api.services import bar_contract as _bc
+            _bc._stream_rev_cache.clear()
+        except Exception:
+            pass
 
     _clear()
     yield

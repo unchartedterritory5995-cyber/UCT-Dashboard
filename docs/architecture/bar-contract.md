@@ -25,6 +25,7 @@ cache_key         "b1:<TICKER>:<tf>:<grid>"
 series_rev        int | null
 history_rev       int | null
 verified_through  float (unix s) | null
+sealed_through    float (unix s) | null
 complete_through  int (unix s) | null
 developing        {t, o, h, l, c, v, rev} | null
 ```
@@ -70,12 +71,13 @@ in the same transaction as the rows.
   guaranteed monotonic with this one.
 
 ### history_rev
-The `series_rev` of the newest write that changed SEALED history: a row older than the
-series' stored tail (a correction, or an interior hole filled), the tail row itself once
-it was proven complete, or any delete; a wholesale change raises it too. Determined by
-the writer, under the write lock, by comparing the rows it is about to write with the
-stored ones (`bars_sqlite._history_keys`) — identical rewrites do not count, and tail
-growth / developing-bar updates never do.
+The `series_rev` of the newest write that changed SEALED history: a row whose bucket
+ended at or before the series' `sealed_through` (the region `complete_through` calls
+final) got different values, or a previously empty sealed bucket got a row; any delete;
+a wholesale change. Determined by the writer, under the write lock, by comparing the rows
+it is about to write with the stored ones (`bars_sqlite._history_keys`) — identical
+rewrites do not count, and completing a provisional row, tail growth and developing-bar
+updates never do.
 - While `history_rev` is unchanged, a client that holds the series only needs `since=`
   deltas: nothing it holds at or below `complete_through` has changed.
 - A newer `history_rev` = re-read the window you hold (split re-adjust, heal, merge
@@ -95,28 +97,42 @@ from every process on that store.
 - Never derived from the stored tail.
 - On the wire this is the value `tail_status` uses: for a 5m series the universe live
   stream covers it also includes the stream's proof (`bars_live_store.proven_through_s`).
-  `complete_through` rests ONLY on the store-persisted proof (the one the history
-  accounting reads), so it can trail this field by one bucket on covered 5m names.
+  It says "nothing NEWER existed"; it does not say the stored rows are final — that is
+  `sealed_through`.
+
+### sealed_through
+Unix seconds: every bucket of the series that ENDED at or before it is final in this
+store. Persisted in `series_meta.sealed_through` (write-behind with the proofs).
+- Advanced only by THE intraday tail repair (`bars_fetch._heal_intraday_tail`) after a
+  provider answer that did not raise and whose rows were persisted: to
+  `checked_at - SEAL_LAG_S` (`BARS_SEAL_LAG_SECONDS`, default 5 — a provider asked at X
+  has the final aggregate only of buckets that ended a few seconds before X; the same
+  knob as the request path's sealed-bucket rule), and only when the answer's rewritten
+  window (`_delta_intraday` reports `window_start`) starts at or before the current
+  value — a contiguous proof. A repair that starts past the seal (rows written in
+  between by the live feed, a cold fetch, a merge) cannot extend it.
+- A series with no seal yet trusts the rows below the first repair's window: they are
+  that repair's own "already-final history" (`_DELTA_HEAL_WINDOW_SECONDS`, 8 h).
+- Voided like `verified_through` (deletes, wholesale changes).
+- `null` until the first repair after deploy (cold fetches do not seal; D/W/M are not
+  sealed yet — section 8).
 
 ### complete_through
 Unix seconds. Guarantee: **every row of this answer whose bucket END is
-`<= complete_through` is final** — it will not change unless `series_rev` changes
-or `history_rev` changes (a correction). `null` = nothing is guaranteed.
+`<= complete_through` is final** — it will not change unless `history_rev` changes (a
+correction). `null` = nothing is guaranteed. It is always the END of a row of the answer;
+`sealed_through` (which may be later, e.g. a thin name with no prints since) says the
+series has no further rows up to that instant.
 
 Computation (`bar_contract.compute`):
-1. `P = max(store verified_through, start of the store's newest row)`. Every bucket that ends
-   at or before P is final in the store: either the provider was asked after it closed,
-   or a later row exists (every intraday tail writer re-fetches from the stored tail
-   bucket inclusive, so a bucket older than the newest stored row was last written
-   after it closed).
-2. `limit = min(P, now, end of the newest SEALED stored row)`.
-3. Intraday full answers whose last row is not the store's current tail (a memory-cache
-   snapshot, a write that landed after the rows were read) get the store's rows from
-   that bucket onward spliced in — read after the proof, so the answer describes the
-   store at `series_rev` or later. Where that is not done (D/W/M, whose rows pass
-   serve-time sanitising) and the last row differs from the store's,
-   `limit = min(limit, start of that last row)`.
-4. `complete_through = end of the newest answer row with end <= limit`.
+1. `limit = min(sealed_through, now, end of the newest stored row that has ended)`.
+2. An intraday full answer is first made equal to the store over the store's MUTABLE
+   window (`_DELTA_HEAL_WINDOW_SECONDS` back from the stored tail): a memory-cache answer
+   taken while a bucket was provisional would otherwise keep that partial below its own
+   tail after a later repair finalised it. Read after the series meta, so the answer
+   describes the store at `series_rev` or later. D/W/M answers (serve-time sanitised)
+   whose last row is not the store's are capped below that row instead.
+3. `complete_through = end of the newest answer row with end <= limit`.
 
 For a `since=` delta the rows considered are the store's newest rows (after merging the
 delta the client holds the store's tail). For `to=` (replay) the rows are read straight
@@ -129,7 +145,10 @@ Invariants (railed in `tests/test_bar_contract.py`):
   successive answers never decreases (in particular never while `series_rev` is
   unchanged); every row it called final keeps its values.
 - I3 A row with end `> complete_through` is either `developing` or *provisional*
-  (sealed but not yet proven); a client may show it but must re-read it.
+  (closed but not yet sealed); a client may show it but must re-read it.
+- The property test drives the REAL repair with a provider that publishes a bucket's
+  final aggregate a few seconds late and rewrites from a random window start; mutating
+  the contiguity rule or the mutable-window reconcile each fails it.
 
 ### developing
 The bar of the bucket that contains `now` (`start <= now < end`), or `null`.
@@ -147,21 +166,21 @@ developing bar with the greater `rev` for the same `t`.
 
 ## 3. Examples
 
-5m, 10:12:30 ET, store tail = the 10:10 bucket (partial), last provider check 10:11:02:
+5m, 10:12:30 ET, store tail = the 10:10 bucket (partial), last repair at 10:11:02:
 ```
 "bars": [... {"t": <10:05>}, {"t": <10:10>}],
 "grid": "eth-clock", "session": "rth", "cache_key": "b1:AAPL:5:eth-clock",
-"series_rev": 1762871522000, "verified_through": 1762871462.0,
+"series_rev": 1762871522000, "verified_through": <10:11:02>,
+"sealed_through": <10:10:57>,
 "complete_through": <10:10>,          # the 10:05 bucket's end
 "developing": {"t": <10:10>, ..., "rev": 1762871522000}
 ```
-Same series at 10:15:20 before any new write: the 10:10 bucket is sealed but only
-proven if `verified_through >= 10:15`; until then `complete_through` stays `<10:10>`
-and `developing` is `null` (the 10:15 bucket is not stored yet).
+Same series at 10:15:20 before any new repair: the 10:10 bucket has closed but is not
+sealed (a repair at or after 10:15:05 seals it); `complete_through` stays `<10:10>` and
+`developing` is `null` (the 10:15 bucket is not stored yet).
 
 D at 11:00 ET, store tail = yesterday, today's bar appended live: `complete_through`
-= the close of the day BEFORE yesterday (the newest row older than the store's tail; no
-daily proof is recorded yet, see section 8); `developing` = today's bar.
+null (no daily seal is recorded yet, section 8); `developing` = today's bar.
 
 60m `session=eth` (derived from 15m): `series_rev` / `verified_through` are the 15m
 series'; `complete_through` = end of the newest clock hour that ends at or before the
@@ -173,7 +192,8 @@ series'; `complete_through` = end of the newest clock hour that ends at or befor
 series_meta(ticker, tf, rev INTEGER, verified_through REAL, proof_floor REAL)  PK(ticker, tf)
 store_meta(k TEXT PK, v REAL)   -- rev_floor_ms, proof_floor_s
 ```
-Writers: `bump_series_revs(conn, keys, deleted=)` inside the writer's transaction
+`series_meta` also carries `history_rev INTEGER` and `sealed_through REAL`.
+Writers: `bump_series_revs(conn, keys, deleted=, history=)` inside the writer's transaction
 (`put_bars`, `put_bars_many`, `replace_ticker_tf_rows`, `delete_bars`, the weekly /
 impossible-bar purges, `intraday_grid.repair_pair`, `bars_reconciliation`,
 `data_sync._merge_pair`); wholesale writers call `bump_store_floor()` (snapshot
@@ -198,7 +218,7 @@ Consistency with REST:
 - `cache_key`/`grid` equal REST's for the same (ticker, tf, session) — a client routes a
   frame to the same store entry.
 - `final: false` <=> the frame is that series' developing bar (REST `developing`, same
-  `t`); `final: true` = the bucket CLOSED in the feed's view (sealed). Completeness is
+  `t`); `final: true` = the bucket CLOSED in the feed's view (not a seal). Completeness is
   only ever asserted by REST `complete_through` (the stream proves nothing about the
   store); a later `final` frame for the same `t` is a correction.
 - `series_rev` is the store's rev (cached up to 1 s); a frame never bumps it — the push
@@ -217,13 +237,28 @@ Tolerance is ONE bucket everywhere.
 
 ## 7. Write-lock cost
 
-Measured (interleaved A/B on one store, this machine — see the PR): reported there.
+Measured 2026-11-11, interleaved A/B on one temp store (2000 tickers x 400 rows, this
+dev machine under load; medians of 6 rounds; meta = rev upsert + history check):
+
+| write | without meta | with meta |
+|---|---|---|
+| request-path tail delta (2 rows, `put_bars`) | 0.21 ms | 0.31 ms |
+| universe live batch (2000 tickers x 1 row, `put_bars_many`) | 343 ms | 370 ms (+8%) |
+| interior 50-row rewrite, unsealed series | 0.53 ms | 0.71 ms |
+| proof/seal flush (500 series, one transaction) | n/a | one short txn per second |
+
+A rewrite INSIDE the sealed region (a correction) additionally reads the rows it
+replaces to compare them — bounded by the rows written. `bars_sqlite.meta_flush_stats()`
+reports flush lock time in production. A per-row SQLite trigger was measured 6x slower on
+a 4M-row bulk load and rejected.
 
 ## 8. Deferred
 
-- D/W/M `verified_through` is not recorded yet (the daily delta does not call
-  `_mark_tail_verified`), so D/W/M `complete_through` stops at the session before the
-  store's tail.
+- D/W/M are not sealed yet (the daily delta does not record a seal), so their
+  `complete_through` is null. Cold intraday fetches and the 30m/60m local derivation
+  (#1090) do not seal either: a series' first seal comes with its first tail repair.
+- `bars_live_store` (universe 5m/D feed) proves currentness (`verified_through`) but
+  does not seal: a covered 5m name's `complete_through` advances only with repairs.
 - The completeness attempt markers (`_completeness_attempt`, 6 h, and
   `_ext_completeness_attempt`, 120 s) stay in process memory: they only THROTTLE
   provider asks (forgetting one costs one extra ask after a restart) and never decide
