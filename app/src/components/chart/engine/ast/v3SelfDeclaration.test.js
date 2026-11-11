@@ -5,7 +5,10 @@
 // `s := nz(s[1]) + close`). Engine 48 refused one such spelling (`x = na(x[k]) ? na : U`) in
 // every version; every other one was still drawn in v3+ (review ENG48-1096 note 4): a stated
 // seed, `na(nz(x[1]))`, `na(x[1] + 0)`, `x = f(x[1])`. Since engine 49 each of them refuses
-// `pine:cycle` with the one v3+ sentence (`pine.js::selfReferenceSentence`), in both lanes:
+// `pine:cycle` with the one v3+ sentence (`pine.js::selfReferenceSentence`), in both lanes, for
+// every spelling below (each one a binding the plot's value reads). Three shapes are refused by the
+// runtime lane only (an unread declaration, one read only through `color=`, a name an earlier user
+// function holds): TradingView compiles none of them (EVIDENCE.md, "Where the doors disagree"):
 //   - the host lane marks the declaration (`markSelfDeclaration`, asking
 //     `selfReferencingDeclaration` of the env the declaration was written in) and the
 //     `Resolver` refuses a marked binding before resolving it;
@@ -16,7 +19,7 @@
 // and vendor captures, or the licence-held sample spells one (EVIDENCE.md, engine 49).
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, REFUSALS, selfReferenceSentence, selfReferencingDeclaration, parseWholeExpression, lexPine } from './pine.js'
+import { translatePine, REFUSALS, selfReferenceSentence, selfReferencingDeclaration, parseWholeExpression, lexPine, PINE_BUILTIN_VARIABLE_NAMES } from './pine.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 
@@ -163,6 +166,28 @@ describe('⭐⭐ engine 49 — controls keep their path in every pragma (the che
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
     expect(guards(pineAt(v, lines))).toEqual(want)
+  })
+})
+
+describe('⭐ engine 49 review note 2 — EVERY name in the built-in exclusion set keeps its engine-48 path in v5', () => {
+  // The set is IMPORTED from `pine.js`, never copied here, so a name removed from it (review
+  // mutant X4: `vwap`) drops out of the exclusion and this rail sees its declaration refuse.
+  // "Engine-48 path": engine 49 is version-gated and leaves v2 alone (the v1/v2 rails above), and
+  // for every one of these names the engine-48 v5 path equalled its v2 path at all four doors
+  // (measured on 8f775b6ce4, EVIDENCE.md). So v5 must equal v2 here, and no door may say `pine:cycle`.
+  it('the set is non-empty and holds the names it exists for', () => {
+    expect(PINE_BUILTIN_VARIABLE_NAMES.size).toBeGreaterThan(20)
+    for (const n of ['close', 'open', 'hl2', 'vwap', 'tr', 'bar_index', 'time']) {
+      expect(PINE_BUILTIN_VARIABLE_NAMES.has(n), n).toBe(true)
+    }
+  })
+  const rhs = (text) => parseWholeExpression(lexPine(text).tokens)
+  it.each([...PINE_BUILTIN_VARIABLE_NAMES].map((n) => [n]))('`%s = nz(%s[1]) + 1`: not asked; v5 equals v2 at all four doors, none `pine:cycle`', (n) => {
+    expect(selfReferencingDeclaration(rhs(`nz(${n}[1]) + 1`), n, false)).toBe(false)
+    const lines = [`${n} = nz(${n}[1]) + 1`, `plot(${n})`]
+    const v5 = guards(pineAt(5, lines))
+    expect(v5).not.toContain('pine:cycle')
+    expect(v5).toEqual(guards(pineAt(2, lines)))
   })
 })
 

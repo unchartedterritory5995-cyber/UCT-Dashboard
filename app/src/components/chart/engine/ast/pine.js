@@ -4037,7 +4037,7 @@ export function selfReferencingDeclaration(node, name, declaredBefore) {
  *  `close[1]` may be Pine's own `close`, and whether TradingView reads it that way (or refuses the
  *  name) is not settled here, so nothing is refused for it. The bar series, the clock names, and
  *  the other built-in series a script can read bare. */
-const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
+export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
   'ohlc4', 'hlcc4', 'time', 'time_close', 'time_tradingday', 'timenow', 'bar_index', 'last_bar_index',
   'tr', 'vwap', 'obv', 'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na',
   ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.clock || {})])
@@ -8414,6 +8414,11 @@ export class Resolver {
     // in the env the declaration was written in: a shadowing local, a parameter, a `var`, a
     // tuple and the `x = 0.0` + `x := …` form are never marked. v1/v2 and no pragma compile the
     // spelling and keep their paths (engine 48's `na`-seeded refusal below included).
+    // ⚠️ THIS LANE REFUSES ONLY WHAT IT RESOLVES. A marked binding nothing reads, one read only
+    // through a `color=` argument, and a name an earlier user function holds (the env has it, so
+    // it is not marked) are still drawn here, while the runtime lane, which asks at the statement,
+    // refuses them (review ENG49-1122 notes 1-3). TradingView compiles none of them, so the split
+    // is between this lane's pre-existing leniency and a true refusal, never an over-refusal.
     if (bound.selfDeclaration && !listingSeedIsUnpinned(this.pineVersion)) {
       throw new PineRefusal('pine:cycle',
         `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(bound.selfDeclaration, this.pineVersion)}`,

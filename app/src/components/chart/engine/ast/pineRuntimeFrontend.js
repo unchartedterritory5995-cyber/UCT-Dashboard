@@ -12815,6 +12815,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // before the initialiser is lowered, so no later wall of this lane speaks first. "Declared
         // before" is this lane's scope chain, its env (a parameter of an inlined body is there),
         // and the root scope a function body reads through (`guardOuter`).
+        // ⚠️ Asked at the STATEMENT, so it also refuses shapes the host draws (it refuses only what
+        // its `Resolver` resolves): an unread declaration, one read only through `color=`, and a
+        // name an earlier user function holds (review ENG49-1122 notes 1-3; none compiles in v3+).
         if (!listingSeedIsUnpinned(pineVersion) && selfReferencingDeclaration(value, nameTok.value,
           scope.lookup(nameTok.value) !== null || env.has(nameTok.value)
             || (guardOuter && guardOuter.lookup(nameTok.value) !== null))) {
