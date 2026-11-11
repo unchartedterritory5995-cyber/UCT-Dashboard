@@ -151,6 +151,10 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
     fnCounter: [['f(s) =>', '    x = na(x[1]) ? na : x[1] + s', '    x', 'plot(f(close))'], [null, 2, 3, 5]],
     fnForgets: [['f(s) =>', '    x = na(x[1]) ? na : s < 105 ? s : x[1]', '    x', 'plot(f(close))'], [null, 2, 3, 5]],
     readsVarSlot: [['var float a = 0.0', 'a := close', 'x = na(x[1]) ? na : x[1] + a', 'plot(x)'], [4, 5, 6]],
+    // each branch of the runtime lane's detector: a deeper read, `iff`, and a `float(na)` seed
+    fnLag2: [['f(s) =>', '    x = na(x[2]) ? na : x[2] + s', '    x', 'plot(f(close))'], [null, 5]],
+    fnIff: [['f(s) =>', '    x = iff(na(x[1]), na, x[1] + s)', '    x', 'plot(f(close))'], [null, 4]],
+    fnFloatNa: [['f(s) =>', '    x = na(x[1]) ? float(na) : x[1] + s', '    x', 'plot(f(close))'], [5]],
     // `iff` (v1-v4) is the same `?:` once translated
     iff: [['x = iff(na(x[1]), na, x[1] + 1)', 'plot(x)'], [null, 2, 3, 4]],
   }
