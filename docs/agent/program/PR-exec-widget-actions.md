@@ -430,6 +430,10 @@ Master now has a guard: #1029's in-file `whichWidget` on `widget.setOption` and 
 
 #### Scoped suite and server tests at the re-merged head
 
-PENDING: the 28-file scoped run under the lock (`--who pl-widget`) waits for pl-exec's run to free the lock.
+- **Scoped vitest at `f26d527eca`**, under the suite lock (`--who pl-widget`, BelowNormal; focused, NOT a full run). 28 files: the 22 from before, plus #1029's rails (agentWhichWidget, agentFlowChipsParity, agentFlowFiltersHeldOut, flowFilters.outcome, agentExecReach) and agentContracts (the golden manifest). Result: **`Test Files 28 passed (28)` / `Tests 683 passed (683)`**, `[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full`.
+  - The 116 set is again 10 + 5 + 35 + 29 + 24 + 13 = 116/116.
+  - agentRouting 23/23 and agentScreener 13/13 (pins 160 / 154). #1029's agentExecReach widget pin: 23/23, unchanged.
+  - Log: `scoped-post1029-f26d527eca.txt`.
 
-PENDING: real pytest of the 20 server files that read the changed json (the 18 before, plus #1029's two f16 files).
+- **Real pytest at `f26d527eca`** (pl-grid venv, BelowNormal, no lock). 20 files: the 18 from before, plus #1029's `test_uct_agent_f16_calls_control.py` and `test_uct_agent_f16_flow_chips.py`, which read `manifest.golden.json`. Result: **`883 passed, 1 warning`**. That is 499 (the 18 files, as before) + 384 (the two f16 files, `--collect-only`). The warning is the same starlette/anyio deprecation as before.
+  - Log: `pytest-post1029-f26d527eca.txt`.
