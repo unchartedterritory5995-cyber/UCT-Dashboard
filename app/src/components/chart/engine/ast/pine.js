@@ -4004,12 +4004,13 @@ export function seedAndUpdateOf(body, table) {
  *  instead. */
 export function naSeededSelfReference(body, parts, table) {
   if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
-  const spec = table && table.functions && table.functions.accum
-  const bind = spec && spec.recurrence && spec.recurrence.binds
+  // ⛔ THE SHAPE ONLY, NOT THE NAME (engine-48 review N5). `ternarySeedAndUpdate` already
+  // requires the `na(…)` test to contain a free `self`, and `na` takes one argument, so a bare
+  // series read here (or an offset of one) can only be `self`. A name check beside it could
+  // never fire, and a guard that cannot fail is not counted as one.
   const read = body.args[0].args && body.args[0].args[0]
-  return !!read && ((read.type === 'series' && read.name === bind)
-    || (read.type === 'offset' && read.args && read.args[0]
-      && read.args[0].type === 'series' && read.args[0].name === bind))
+  return !!read && (read.type === 'series'
+    || (read.type === 'offset' && read.args && read.args[0] && read.args[0].type === 'series'))
 }
 
 /** ⭐⭐ ENGINE 48 — the specifics of the `pine:cycle` refusal of `x = na(x[k]) ? na : U`
@@ -4022,11 +4023,11 @@ export function naSeededSelfReferenceSentence(name, version) {
       + 'draws nothing for this script and nothing is drawn here. In v3+ the variable is declared '
       + 'once and updated with `:=`'
   }
-  return `\`${name}\` is \`na\` whenever its own previous value is \`na\`. Pine v1/v2 (and a script `
-    + `with no \`//@version\`) does not state what \`${name}\`'s history reads before the first bar: read as `
-    + `\`na\`, \`${name}\` is \`na\` on every bar; read as 0, the update runs from the first bar. The `
-    + 'two answers differ on every bar and no TradingView capture has settled which one it draws, '
-    + 'so neither is drawn'
+  return `\`${name}\` is set to \`na\` whenever its own earlier value, as its \`na()\` test reads it, `
+    + `is \`na\`. Pine v1/v2 (and a script with no \`//@version\`) does not state what that earlier value `
+    + `is before the first bar: if it is \`na\`, \`${name}\` is \`na\` on every bar; if it is 0, the update `
+    + 'runs from the first bar. The two readings can disagree, and no TradingView capture has settled '
+    + 'which one TradingView draws, so neither is drawn'
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8479,8 +8480,13 @@ export class Resolver {
             bound.at || locate(tok))
         }
         // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
-        // every lane (the runtime lane resolves through this same `Resolver`), and no
-        // column is drawn for it. Neither answer it could draw is witnessed:
+        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+        // whose update reads a slot) is refused with the same sentence by
+        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+        // by that name instead; the member door shows this one. Neither answer it could draw is
+        // witnessed:
         //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
         //     removed self-reference in a declaration, so there is no TradingView value
         //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it

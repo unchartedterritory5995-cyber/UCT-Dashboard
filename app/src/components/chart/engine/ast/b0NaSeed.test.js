@@ -144,11 +144,24 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
     // a deeper history read is the same spelling
     lag2: ['x = na(x[2]) ? na : x[2] + 1', 'plot(x)'],
   }
+  // ⭐ review N1 — the bindings the runtime lane makes a SLOT, which never reach the `Resolver`
+  // there (`pineRuntimeFrontend.js::naSeededSelfDeclaration`): a function local, counter and
+  // forgetting, and a top-level binding whose update reads a `var` slot.
+  const SLOT_SPELLINGS = {
+    fnCounter: [['f(s) =>', '    x = na(x[1]) ? na : x[1] + s', '    x', 'plot(f(close))'], [null, 2, 3, 5]],
+    fnForgets: [['f(s) =>', '    x = na(x[1]) ? na : s < 105 ? s : x[1]', '    x', 'plot(f(close))'], [null, 2, 3, 5]],
+    readsVarSlot: [['var float a = 0.0', 'a := close', 'x = na(x[1]) ? na : x[1] + a', 'plot(x)'], [4, 5, 6]],
+    // `iff` (v1-v4) is the same `?:` once translated
+    iff: [['x = iff(na(x[1]), na, x[1] + 1)', 'plot(x)'], [null, 2, 3, 4]],
+  }
   const V3 = 'does not compile in Pine v3+: a variable cannot refer to itself in its own declaration'
-  const V2 = 'Pine v1/v2 (and a script with no `//@version`) does not state what `x`\'s history reads before the first bar'
+  const V2 = 'Pine v1/v2 (and a script with no `//@version`) does not state what that earlier value is before the first bar'
   const cases = []
   for (const [shape, lines] of Object.entries(SPELLINGS)) {
     for (const v of [null, 2, 3, 4, 5, 6]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines])
+  }
+  for (const [shape, [lines, versions]] of Object.entries(SLOT_SPELLINGS)) {
+    for (const v of versions) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines])
   }
 
   it.each(cases)('%s, pragma %s: host (screen and pane), runtime and the member door all refuse with ONE sentence', (shape, _label, v, lines) => {
@@ -169,11 +182,28 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
       + 'This does not compile in Pine v3+: a variable cannot refer to itself in its own declaration, so '
       + 'TradingView draws nothing for this script and nothing is drawn here. In v3+ the variable is '
       + 'declared once and updated with `:=`')
-    expect(naSeededSelfReferenceSentence('x', 2)).toBe('`x` is `na` whenever its own previous value is `na`. '
-      + 'Pine v1/v2 (and a script with no `//@version`) does not state what `x`\'s history reads before the '
-      + 'first bar: read as `na`, `x` is `na` on every bar; read as 0, the update runs from the first bar. '
-      + 'The two answers differ on every bar and no TradingView capture has settled which one it draws, so '
-      + 'neither is drawn')
+    // ⭐ review N3 — true for every spelling the detector catches: any lag `k` (the test's own
+    // read), and a warm-up update whose two readings agree ("can disagree", not "differ")
+    expect(naSeededSelfReferenceSentence('x', 2)).toBe('`x` is set to `na` whenever its own earlier value, '
+      + 'as its `na()` test reads it, is `na`. Pine v1/v2 (and a script with no `//@version`) does not state '
+      + 'what that earlier value is before the first bar: if it is `na`, `x` is `na` on every bar; if it is 0, '
+      + 'the update runs from the first bar. The two readings can disagree, and no TradingView capture has '
+      + 'settled which one TradingView draws, so neither is drawn')
+  })
+
+  it.each([[2, 'sma'], [5, 'ta.sma']])('a warm-up update (v%i): the host and the member door refuse `pine:cycle`; the runtime lane refuses by its own earlier wall', (v, sma) => {
+    // ⭐ review N2 — the runtime lane meets `runtime:conditional-history` before this rule; both
+    // refuse and nothing is drawn, and the member door shows the host's sentence
+    const src = pine(v, [`x = na(x[1]) ? na : x[1] * 0.9 + ${sma}(close, 5) * 0.1`, 'plot(x)'])
+    const sentence = `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence('x', v)}`
+    for (const r of [hostRefusal(src), hostRefusal(src, { strict: true })]) {
+      expect(r && r.guard).toBe('pine:cycle')
+      expect(r.message).toBe(sentence)
+    }
+    expect(runtimeRefusal(src)).not.toBe(null)
+    const door = memberPaneDefinition({ source: src, id: 'u_eng48', name: 'eng48' })
+    expect(door.ok).toBe(false)
+    expect(door.guard).toBe('pine:cycle')
   })
 
   it('controls: a stated seed and a test that is not a bare history read still translate, in both lanes', () => {

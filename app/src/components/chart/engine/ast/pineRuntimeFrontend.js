@@ -36,7 +36,7 @@ import {
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
-  legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE,
+  legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, naSeededSelfReferenceSentence,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -952,6 +952,37 @@ export function scanMutability(stmts, out) {
  *  ⛔ Top-level, single-line definitions of a name nothing else declares or
  *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
  *  object door never calls this (master's answer stands there). */
+/** ⭐⭐ ENGINE 48 (review N1) — `x = na(x[k]) ? na : U` as THIS lane's parser spells it (`ternary`,
+ *  or `iff(…)`, with `na` or `float(na)`/`int(na)` as the seed), for the declaration of `name`. The
+ *  host refuses it `pine:cycle` at the `Resolver` (`pine.js::naSeededSelfReference`), but a binding
+ *  this lane makes a SLOT (a function local, or one whose update reads a slot) never reaches that
+ *  branch: the slot is declared before its initialiser is lowered, so `x[k]` read the slot itself
+ *  and the run drew `na` on every bar. Same shape as the host's detector: the test is a bare history
+ *  read of `name` (`na(x)` or `na(x[k])`), and the update arm reads `name` (otherwise it is a
+ *  first-bar test, not a recurrence). */
+export function naSeededSelfDeclaration(value, name) {
+  let parts = null
+  if (value && value.type === 'ternary') parts = [value.test, value.yes, value.no]
+  else if (value && value.type === 'call' && value.name === 'iff' && Array.isArray(value.args)
+    && value.args.length === 3 && value.args.every((a) => a && !a.name)) parts = value.args.map((a) => a.value)
+  if (!parts) return false
+  const [test, seed, update] = parts
+  const isNa = (n) => !!n && ((n.type === 'name' && n.name === 'na')
+    || (n.type === 'call' && (n.name === 'float' || n.name === 'int') && Array.isArray(n.args)
+      && n.args.length === 1 && !n.args[0].name && isNa(n.args[0].value)))
+  const read = test && test.type === 'call' && test.name === 'na' && Array.isArray(test.args)
+    && test.args.length === 1 && !test.args[0].name ? test.args[0].value : null
+  const bare = !!read && ((read.type === 'name' && read.name === name)
+    || (read.type === 'offset' && read.arg && read.arg.type === 'name' && read.arg.name === name))
+  const reads = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return false
+    if (n.type === 'name' && n.name === name) return true
+    return Object.entries(n).some(([k, v]) => k !== 'endTok' && v && typeof v === 'object'
+      && (Array.isArray(v) ? v.some((x) => reads(x, depth + 1)) : reads(v, depth + 1)))
+  }
+  return bare && isNa(seed) && reads(update)
+}
+
 export function v2SelfReferenceStatements(stmts, version) {
   if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts
   const mut = scanMutability(stmts)
@@ -12776,6 +12807,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ W6-T10 — an enum initialiser is admitted here (`admitEnumBinding`).
         admitEnumBinding(value, scope, toks, eq)
         const mutable = mut.mutated.has(nameTok.value)
+        // ⭐⭐ ENGINE 48 (review N1) — the host's `pine:cycle` refusal, with its one sentence, for the
+        // bindings this lane would make a slot and so never send to the `Resolver` (see
+        // `naSeededSelfDeclaration`). Asked before the env/slot decision so both paths agree.
+        if (!mutable && naSeededSelfDeclaration(value, nameTok.value)) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence(nameTok.value, pineVersion)}`,
+            locate(nameTok))
+        }
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
         // name bound in `env` is SUBSTITUTED at each use, so `a = array.new<string>()`
         // followed by `array.push(a, x)` and `array.size(a)` would build a FRESH
