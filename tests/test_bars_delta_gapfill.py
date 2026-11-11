@@ -128,9 +128,24 @@ def test_delta_30m_resamples_from_15m():
         seen["url"] = url
         return raw
 
-    with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()),          patch.object(bars_fetch, "_paginate_massive_aggs", side_effect=fake_pages),          patch.object(bars_fetch._sqlite, "get_bars_since", return_value=[]):
+    # The fetched 15m is the BASE: persisted to the 15m store, then the 30m is derived
+    # from the stored base (one derivation path). A tiny in-memory store stands in.
+    store: dict = {}
+
+    def _fake_put(sym, tf, bars, date_tf=False):
+        store.setdefault(tf, {}).update({int(b["t"]): b for b in bars})
+        return len(bars)
+
+    def _fake_since(sym, tf, since):
+        rows = store.get(tf, {})
+        return [(t, b["o"], b["h"], b["l"], b["c"], b["v"])
+                for t, b in sorted(rows.items()) if t > since]
+
+    with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()),          patch.object(bars_fetch, "_paginate_massive_aggs", side_effect=fake_pages),          patch.object(bars_fetch._sqlite, "put_bars", side_effect=_fake_put), \
+            patch.object(bars_fetch._sqlite, "get_bars_since", side_effect=_fake_since):
         out = bars_fetch._delta_intraday("QQQ", "30", now - 4 * 3600)
     assert "/range/15/minute/" in seen["url"]
+    assert sorted(store["15"]) == [base + i * 900 for i in range(4)], "the base was persisted"
     assert [b["t"] for b in out] == [base, base + 1800]
     assert [b["v"] for b in out] == [2, 2]
     assert [b["h"] for b in out] == [12, 14]
