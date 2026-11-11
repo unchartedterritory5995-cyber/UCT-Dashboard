@@ -9,18 +9,26 @@ Source of the defects: `dsk/reviews/LANE2-r1r3.md` N1 and N3 (and `LANE2.md` N1)
   `PineRefusal('pine:cycle', REFUSALS['pine:cycle'] + ' — ' + naSeededSelfReferenceSentence(name, version))`
   before the seed/update fold. It used to return the constant `na` on v3+ (engine 46) and fall
   through to the `accum` fold on v1/v2.
-- The runtime lane resolves through the same `Resolver`, so the host (screen and pane
-  translations), the runtime lane and the member door all refuse with the same sentence.
+- The runtime lane resolves a binding it keeps in its environment through the same `Resolver`.
+  A binding it makes a SLOT (a function local, or one whose update reads a slot) never reached
+  that branch, and drew `na` on every bar (review ENG48-1096 N1). `pineRuntimeFrontend.js::
+  naSeededSelfDeclaration` asks the same shape of that lane's parse (ternary or `iff`; `na`,
+  `float(na)` or `int(na)` seed; bare `na(x)`/`na(x[k])` test; update reads `x`) before the
+  env/slot decision and throws the same refusal. So the host (screen and pane translations), the
+  runtime lane and the member door refuse with one sentence, with one exception: a warm-up update
+  (`ta.sma` and the like) meets the runtime lane's `runtime:conditional-history` wall first. Both
+  lanes refuse and nothing is drawn; the member door shows the `pine:cycle` sentence.
 - `naSeededSelfReferenceSentence` (exported, one wording for both lanes):
   - v3+: "`x` reads its own history inside its own declaration. This does not compile in Pine
     v3+: a variable cannot refer to itself in its own declaration, so TradingView draws nothing
     for this script and nothing is drawn here. In v3+ the variable is declared once and updated
     with `:=`"
-  - v1/v2 and no pragma: "`x` is `na` whenever its own previous value is `na`. Pine v1/v2 (and a
-    script with no `//@version`) does not state what `x`'s history reads before the first bar:
-    read as `na`, `x` is `na` on every bar; read as 0, the update runs from the first bar. The two
-    answers differ on every bar and no TradingView capture has settled which one it draws, so
-    neither is drawn"
+  - v1/v2 and no pragma: "`x` is set to `na` whenever its own earlier value, as its `na()` test
+    reads it, is `na`. Pine v1/v2 (and a script with no `//@version`) does not state what that
+    earlier value is before the first bar: if it is `na`, `x` is `na` on every bar; if it is 0, the
+    update runs from the first bar. The two readings can disagree, and no TradingView capture has
+    settled which one TradingView draws, so neither is drawn" (review N3: true for any lag `k`, and
+    for a warm-up update whose two readings agree).
   - Both follow the lead sentence `REFUSALS['pine:cycle']` ("this Pine name is defined in terms of
     itself"). `editorStatus.js` files `pine:cycle` under the "language" family.
 
@@ -104,10 +112,51 @@ copy, restored blob verified equal to HEAD's; `git status` clean after):
   before (9d5e0847b8) MATCH 163 / DIVERGE 46 / INCONCLUSIVE 127; after MATCH 163 / DIVERGE 46 /
   INCONCLUSIVE 127; `verdicts.json` byte-identical.
 
+## Review fixes (ENG48-1096, GO-WITH-NOTES): N1 runtime slot bindings, N3 wording, N5 detector
+- N1: `pineRuntimeFrontend.js::naSeededSelfDeclaration`, asked before the env/slot decision (see
+  "What changed"). New rails: function-local counter and forgetting forms (pragma none, 2, 3, 5),
+  a top-level binding whose update reads a `var` slot (4, 5, 6), `iff` (none, 2, 3, 4), and a
+  function local per detector branch (lag 2, `iff`, `float(na)` seed). Each runs through the
+  screen and pane translations, the runtime build and the member door, with one guard and message.
+- N3: the v1/v2 sentence above; pinned in full.
+- N5: `naSeededSelfReference`'s variable-identity check could not fire (`ternarySeedAndUpdate`
+  already requires `self` in the one-argument `na()` test). It is replaced by a comment saying so;
+  the detector now checks the read's shape only.
+- N2: a warm-up rail pins "host and door `pine:cycle`, runtime refuses" (v2 `sma`, v5 `ta.sma`).
+
+Mutations (same private method, restored blob verified equal to HEAD's, `git status` clean):
+
+| mutant | result |
+|---|---|
+| C0 control: no-op comment on the runtime check | GREEN (76/76, then 81/81) |
+| R1 runtime slot-binding refusal off (N1) | KILLED (11 failed) |
+| R2 v1/v2 sentence back to "differ on every bar" (N3) | KILLED (1 failed) |
+| R3 runtime check accepts only `na(x[1])` | KILLED (2 failed); survived before the lag-2 rail was added |
+| R4 runtime check drops the `iff` spelling | KILLED (2 failed) |
+| R5 runtime check drops the `float(na)`/`int(na)` seed | KILLED (1 failed) |
+
+Runs on the review-fix head (Node 20.20.2 unless stated, heavy_lock, maxWorkers 1):
+- b0NaSeed + listingSeed: 81/81.
+- `runtime/__tests__` plus every ast/ and `__tests__/` file that imports the runtime frontend:
+  248 files passed, 1 skipped; 4831 tests passed, 1 skipped.
+- hostParity `--host node --check` (Node 24.13.1): HP-1 GREEN 166/166. The refusal text feeds no
+  digest; nothing was re-recorded, and `service_smoke.json` is unchanged.
+- Vendor harness, runtime ON: MATCH 163 / DIVERGE 46 / INCONCLUSIVE 127; `verdicts.json`
+  byte-identical to the base run.
+- The whole-engine-folder run above (18115 tests) was on `c96628c03a`, before these fixes.
+
+
 ## Open (not this change)
-- v3+ still serves other self-referencing declarations that TradingView does not compile (a stated
-  seed `y = na(y[1]) ? 7.0 : U`, `na(nz(x[1]))`). A v3+ refusal for every self-reference in a
+- Review N4: v3+ still serves other self-referencing declarations that TradingView does not compile
+  (a stated seed `y = na(y[1]) ? 7.0 : U`, `na(nz(x[1]))`, `na(x[1] + 0)`), while the new v3+
+  sentence states the general rule to members. A v3+ refusal for every self-reference in a
   declaration would be the consistent rule; it needs its own census before it moves any column.
+- Review N2: a warm-up update (`x = na(x[1]) ? na : x[1] * 0.9 + ta.sma(close, 5) * 0.1`) refuses
+  `runtime:conditional-history` in the runtime lane, before this rule, so that lane's sentence
+  differs from the host's `pine:cycle` one. Honest (both refuse; the door shows `pine:cycle`), not
+  changed here.
+- A MUTABLE binding (`x = na(x[1]) ? na : U` later reassigned with `:=`) is not covered by the
+  runtime lane's slot check, which mirrors the host detector's non-mutable scope.
 - LANE2-r1r3 N2 (unstamped legacy documents) and N4's v2 PLAIN bar-0 asymmetry are untouched.
 
 ## Logs
