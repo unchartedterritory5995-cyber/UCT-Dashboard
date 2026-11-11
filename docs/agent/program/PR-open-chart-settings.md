@@ -35,6 +35,11 @@ existed and still teaches the same door.
   row's explain now mentions right-click and Alt+, and its "do it" line says "Say “open chart settings” and I’ll open
   them".
 
+**Priority note (Lead, 11-11): Charts execution first, tutorial expansion paused.** The execution half is the point of
+this PR. The walkthrough half was already built before this PR (the `settings` guide row), so it is kept as is. This
+PR adds no new walkthrough. It only verifies that row with unit tests and adds right-click / Alt+, to its explain line
+and the Agent's door to its "do it" line. No further tutorial work was done.
+
 ## Requests the owner can try (on /charts)
 
 1. One chart on the board: **"open chart settings"**. The dialog opens, and the receipt says nothing was changed and
