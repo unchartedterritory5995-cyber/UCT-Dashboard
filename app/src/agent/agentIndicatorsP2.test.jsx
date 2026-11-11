@@ -247,12 +247,30 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
     const res = await commitPlan(b.host, p, { env, ctx: CTX })
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toContain('This indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly; nothing was deleted.')
-    expect(res.failed[0].reason).toMatch(/ — nothing was left changed$/)
-    expect(res.failed[0].reason).not.toMatch(/could not read it back|could not be reversed/)
+    // ⛔ THE EXACT TEXT THE MEMBER READS (useAgent: `${label} ${reason}` inside "Some of that didn't
+    // take effect: …."), each fact once: no "nothing was deleted" beside "nothing was left changed".
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe('Your indicators failed (That can’t be done: this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly) — nothing was left changed')
     expect(srv.rows.get(MINE).live).toBe(true)
   })
-  it('F-15: an Undo that cannot be exact says WHY, not "something already holds it again"', async () => {
+  it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
+    const srv = server()
+    const row = srv.rows.get(MINE)
+    // a stamped Pine import WITH its script deletes; its Undo record then loses the script (a record
+    // made before F-15), so the Undo is refused before anything is written
+    row.definition = { ...row.definition, meta: { ...(row.definition.meta || {}), engineVersion: 1 } }
+    row.pine_source = '//@version=5\nindicator("x")\nplot(close)'
+    row.has_pine_source = true
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(srv.rows.get(MINE).live).toBe(false)
+    delete res.undo.items[0].undoData.pineSource
+    const back = await undoEntry(b.host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(back.reason).toBe('Your indicators could not be undone (It can’t be restored exactly: the indicator’s saved script was not kept). Nothing was undone.')
+    expect(srv.rows.get(MINE).live).toBe(false)
+  })
+  it('F-15: the other Undo refusal reads once too (legacy import record)', async () => {
     const srv = server()
     const row = srv.rows.get(MINE)
     row.live = false
@@ -261,7 +279,7 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     const legacy = { ...row.definition, meta: { ...(row.definition.meta || {}), recurrenceOrigin: R.PINE_RECURRENCE_ORIGIN } }
     const record = { contract: 'uct.indicators.definitions/1', kind: 'undo', op: 'delete', defId: MINE, name: 'My Breakout Dots', definition: legacy, repaint: false }
     await expect(definitionLibraryKind.commit(b.host, 'definitions', { undo: record }))
-      .rejects.toThrow('It can’t be restored exactly: the indicator was imported from Pine before its script was kept, so it cannot be restored exactly. Nothing was changed.')
+      .rejects.toThrow(/^It can’t be restored exactly: it was imported from Pine before its script was kept$/)
     expect(srv.rows.get(MINE).live).toBe(false)
   })
 })

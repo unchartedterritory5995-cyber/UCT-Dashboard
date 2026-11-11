@@ -282,12 +282,14 @@ const editedMark = (def) => !!(isObj(def) && isObj(def.meta) && def.meta.scriptE
 const wouldMarkEdited = (def) => isScriptDocument(def) && !editedMark(def)
 
 /** Why a delete of this row could not be undone exactly — each sentence true of the row it
- *  names — so the Agent refuses it. Exported for the tests that rail the words. */
+ *  names — so the Agent refuses it. Exported for the tests that rail the words.
+ *  ⛔ Each is a CAUSE clause, said once: the Agent shows it as "That can’t be done: <why>" and
+ *  the runtime then adds "nothing was left changed", so "nothing was deleted" is not repeated. */
 export const DELETE_REFUSALS = Object.freeze({
-  scriptUnread: 'Could not read this indicator’s saved script, so it could not be restored exactly after a delete; nothing was deleted.',
-  sharedCopy: 'This indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly; nothing was deleted.',
-  stampWithoutScript: 'This indicator is marked as translated from a Pine script that is not stored with it, so a delete could not be undone exactly; nothing was deleted.',
-  legacyImport: 'This indicator was imported from Pine before its script was kept, so a delete could not be undone exactly; nothing was deleted.',
+  scriptUnread: 'could not read this indicator’s saved script, so a delete could not be undone exactly',
+  sharedCopy: 'this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly',
+  stampWithoutScript: 'this indicator is marked as translated from a Pine script that is not stored with it, so a delete could not be undone exactly',
+  legacyImport: 'this indicator was imported from Pine before its script was kept, so a delete could not be undone exactly',
 })
 
 /**
@@ -350,14 +352,14 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     // this fix, or edited) cannot be exact, so it is refused before anything is written.
     const pineSource = typeof undo.pineSource === 'string' && undo.pineSource.trim() ? undo.pineSource : null
     if (engineStampOf(undo.definition) !== null && !pineSource) {
-      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept, so it cannot be restored exactly' })
+      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept' })
     }
     // ⛔ F-15 N2 — the delete's own legacy rule, asked again of the RECORD: without a script
     // the save door marks a script-shaped document `scriptEdited` (L2), so this restore
     // could not be exact either. Refused before anything is written. (The delete never
     // makes such a record; this guards one made before F-15, or edited.)
     if (!pineSource && wouldMarkEdited(undo.definition)) {
-      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator was imported from Pine before its script was kept, so it cannot be restored exactly' })
+      return refuse(REASONS.RESTORE_CONFLICT, { why: 'it was imported from Pine before its script was kept' })
     }
     const save = deps.save || saveUserDefinition
     const options = {
