@@ -73,8 +73,9 @@ to every session and every agent, whatever the task.
    a surface members do not use (the Terminal pop-out pages are not the Charts path).
 2. **Nothing always on screen animates forever.** An `infinite` CSS animation makes the window draw at the
    display rate forever (12 chart widgets: 549 presents/s, GPU main thread 90% busy). Rail:
-   `app/src/styles/endlessAnimations.test.js` (stylesheets AND inline styles). Ambient cues ride an existing
-   once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
+   `app/src/styles/endlessAnimations.test.js` (stylesheets, inline styles AND SVG SMIL: an endless
+   `<animateTransform>` is invisible to `document.getAnimations()` yet re-laid-out /dashboard 60 times a second).
+   Ambient cues ride an existing once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
 3. **No unconditional per-frame loop.** A `requestAnimationFrame` that re-arms itself forever costs every chart,
    every frame. Use `createAdaptiveFrameLoop` (`app/src/components/chart/adaptiveFrameLoop.js`): every frame while
    something moves, a 250 ms safety pass when still, woken by pointer/resize/range/data events.
@@ -97,7 +98,10 @@ to every session and every agent, whatever the task.
    (`UPDATE_SAT1_REQUESTS=1`). On 2026-11-10 skipping these left master red for every session for hours.
 9. **The CDN is part of the product.** Check what Cloudflare actually delivers (fetch `/assets/*` through the edge
    AND from `web-production-05cb6.up.railway.app`), not just what the origin sends. See `ASSETS_NO_TRANSFORM_ENABLED`
-   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed.
+   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed. **Check with an
+   `Origin` header too** (browsers send one on every module script): Cloudflare caches that variant separately, and
+   a purge must name both (`tools/cdn_asset_integrity.py` checks both). Proof windows go on a display nobody covers:
+   a window under a full-screen window draws no frames and every number reads idle.
 
 
 ## Project Overview

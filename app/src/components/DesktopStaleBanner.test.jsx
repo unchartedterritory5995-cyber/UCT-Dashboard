@@ -1,98 +1,120 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import DesktopStaleBanner, { CATCH_UP_MS, RESUME_GAP_MS, TICK_MS } from './DesktopStaleBanner'
+import DesktopStaleBanner from './DesktopStaleBanner'
+import { CAP_MS, TICK_MS, WAKE_GAP_MS, createRecovery } from '../lib/recovery'
+
+// The banner shows lib/recovery.js's state. These drive a real recovery instance, installed on the
+// real window, with the streams' connected state in the test's hands.
+let online
+let streamsUp
+let recovery
+let uninstall
 
 function setOnline(value) {
+  online = value
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => value })
 }
-
-function fire(name) { act(() => { window.dispatchEvent(new Event(name)) }) }
-
-/** Sleep: the wall clock jumps and the interval then fires once, late. */
-function sleepFor(ms) {
-  act(() => {
+async function fire(name) { await act(async () => { window.dispatchEvent(new Event(name)); await vi.advanceTimersByTimeAsync(0) }) }
+async function advance(ms) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+/** Sleep: the wall clock jumps and the tick then fires once, late. */
+async function sleepFor(ms) {
+  await act(async () => {
     vi.setSystemTime(Date.now() + ms)
-    vi.advanceTimersByTime(TICK_MS)
+    await vi.advanceTimersByTimeAsync(TICK_MS)
   })
 }
-
 const banner = () => screen.queryByRole('status')
+
+function mount() {
+  recovery = createRecovery({ recheckAuth: async () => {}, reconnectStreams: () => {}, streamsConnected: () => streamsUp, isOnline: () => online })
+  uninstall = recovery.install(window, document)
+  return render(<DesktopStaleBanner recovery={recovery} />)
+}
 
 beforeEach(() => {
   vi.useFakeTimers()
   setOnline(true)
+  streamsUp = true
 })
 afterEach(() => {
   cleanup()
+  uninstall?.()
   vi.useRealTimers()
   delete navigator.onLine
 })
 
 describe('DesktopStaleBanner', () => {
-  it('shows nothing while online and awake', () => {
-    render(<DesktopStaleBanner />)
+  it('shows nothing while online and awake', async () => {
+    mount()
     expect(banner()).toBeNull()
-    act(() => { vi.advanceTimersByTime(TICK_MS * 20) })
+    await advance(TICK_MS * 20)
     expect(banner()).toBeNull()
   })
 
-  it('starts offline when the machine is offline at launch, and stays up while it is', () => {
+  it('starts offline when the machine is offline at launch, and stays up while it is', async () => {
     setOnline(false)
-    render(<DesktopStaleBanner />)
+    mount()
     expect(banner()).toHaveTextContent(/offline/i)
-    act(() => { vi.advanceTimersByTime(CATCH_UP_MS * 10) })
+    await advance(CAP_MS * 3)
     expect(banner()).toHaveTextContent(/offline/i)
   })
 
-  it('shows offline at the offline event, then catches up and clears after coming back', () => {
-    render(<DesktopStaleBanner />)
+  it('offline, then back online: "Reconnecting" stays up until the streams are connected, then clears', async () => {
+    mount()
     setOnline(false)
-    fire('offline')
+    await fire('offline')
     expect(banner()).toHaveTextContent(/offline/i)
     setOnline(true)
-    fire('online')
+    streamsUp = false
+    await fire('online')
     expect(banner()).toHaveTextContent(/moment behind/i)
-    act(() => { vi.advanceTimersByTime(CATCH_UP_MS) })
+    await advance(5000)
+    expect(banner()).toHaveTextContent(/moment behind/i) // no blind timer clears it
+    streamsUp = true
+    await advance(300)
     expect(banner()).toBeNull()
   })
 
-  it('shows the catch-up banner after the PC wakes from sleep, then clears', () => {
-    render(<DesktopStaleBanner />)
-    sleepFor(RESUME_GAP_MS + 1000)
+  it('after the PC wakes from sleep it shows "Reconnecting", then clears once connected', async () => {
+    streamsUp = false
+    mount()
+    await sleepFor(WAKE_GAP_MS + 1000)
     expect(banner()).toHaveTextContent(/moment behind/i)
-    act(() => { vi.advanceTimersByTime(CATCH_UP_MS) })
+    streamsUp = true
+    await advance(300)
     expect(banner()).toBeNull()
   })
 
-  it('an ordinary late tick is not a wake from sleep', () => {
-    render(<DesktopStaleBanner />)
-    sleepFor(RESUME_GAP_MS - 10000)
+  it('an ordinary late tick is not a wake from sleep', async () => {
+    mount()
+    await sleepFor(WAKE_GAP_MS - 10000)
     expect(banner()).toBeNull()
   })
 
-  it('a wake while offline keeps the offline message', () => {
+  it('a wake while offline keeps the offline message', async () => {
     setOnline(false)
-    render(<DesktopStaleBanner />)
-    sleepFor(RESUME_GAP_MS + 1000)
+    mount()
+    await sleepFor(WAKE_GAP_MS + 1000)
     expect(banner()).toHaveTextContent(/offline/i)
   })
 
-  it('going offline during the catch-up keeps offline up, the old timer does not clear it', () => {
-    render(<DesktopStaleBanner />)
-    setOnline(true)
-    fire('online')
+  it('going offline during the catch-up keeps offline up', async () => {
+    streamsUp = false
+    mount()
+    await fire('online')
+    expect(banner()).toHaveTextContent(/moment behind/i)
     setOnline(false)
-    fire('offline')
-    act(() => { vi.advanceTimersByTime(CATCH_UP_MS * 2) })
+    await fire('offline')
+    streamsUp = true
+    await advance(CAP_MS)
     expect(banner()).toHaveTextContent(/offline/i)
   })
 
-  it('removes its listeners and interval on unmount', () => {
-    const removed = vi.spyOn(window, 'removeEventListener')
-    const { unmount } = render(<DesktopStaleBanner />)
-    unmount()
-    const names = removed.mock.calls.map(([n]) => n)
-    expect(names).toEqual(expect.arrayContaining(['offline', 'online']))
-    expect(vi.getTimerCount()).toBe(0)
+  it('streams that never connect still clear the banner at the cap', async () => {
+    streamsUp = false
+    mount()
+    await fire('online')
+    await advance(CAP_MS + 500)
+    expect(banner()).toBeNull()
   })
 })
