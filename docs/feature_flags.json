@@ -3194,6 +3194,14 @@
       "where": [],
       "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the RECEIVE half on flow-worker. Read in api/schwab_token_replica.py (receive_enabled), default '0'; POST /api/flow/schwab-token/install (admin-gated). Strips the refresh token unconditionally so flow-worker can never refresh or invalidate web's grant; refuses a replay, a token already expired on arrival, and a future saved_at. Ships DARK on purpose; pairs with SCHWAB_TOKEN_PUSH_ENABLED on web. While dark, flow-worker keeps its own (stale) token and falls back to Massive OI as before. Entry added 2026-11-10 because the gate merged without one."
     },
+    "ASSETS_NO_TRANSFORM_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "DEFAULT ON (today's behaviour): unset or 1 keeps Cache-Control no-transform on every /assets response. 0 drops no-transform from hashed JS/CSS ONLY so Cloudflare may compress them: with it on, Cloudflare decompresses our precompressed response and may not re-compress it, so members got every JS/CSS file uncompressed (measured 2026-11-10: main script 573 KB vs 157 KB Brotli). Safe only while the zone's Compression Rule limits /assets/* to brotli or gzip, never zstd (zstd truncated the ECharts chunk, 72f1c438f8), and only after every hashed asset is verified byte-for-byte through the edge. Read per request in api/services/static_assets.py (no_transform_enabled). Rails: tests/test_precompressed_static_assets.py. Rollback: railway variables --service web --set ASSETS_NO_TRANSFORM_ENABLED=1 (a delete stages but does not restart: redeploy), then PURGE /assets AT CLOUDFLARE."
+    },
     "PRECOMPRESSED_ASSETS_ENABLED": {
       "status": "dark",
       "since": "2026-11-10",
