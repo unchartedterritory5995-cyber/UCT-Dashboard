@@ -71,18 +71,59 @@ in the same transaction as the rows.
   guaranteed monotonic with this one.
 
 ### history_rev
-The `series_rev` of the newest write that changed SEALED history: a row whose bucket
-ended at or before the series' `sealed_through` (the region `complete_through` calls
-final) got different values, or a previously empty sealed bucket got a row; any delete;
-a wholesale change. Determined by the writer, under the write lock, by comparing the rows
-it is about to write with the stored ones (`bars_sqlite._history_keys`) — identical
-rewrites do not count, and completing a provisional row, tail growth and developing-bar
-updates never do.
-- While `history_rev` is unchanged, a client that holds the series only needs `since=`
-  deltas: nothing it holds at or below `complete_through` has changed.
+The `series_rev` of the newest write that changed HELD HISTORY: a row a client may hold
+and that its `since=` deltas will not re-read. Determined by the writer, under the write
+lock, by comparing the rows it is about to write with the stored ones
+(`bars_sqlite._history_keys`, the only implementation — `data_sync`'s R2 merge feeds its
+candidate rows through it too). A write moves it when a row it writes
+- is keyed at or below the series' **history floor** — `stored tail - MUTABLE_WINDOW_S`
+  intraday (`bars_sqlite.MUTABLE_WINDOW_S` = `BARS_DELTA_HEAL_WINDOW_SECONDS`, 8 h, the
+  same window the tail repair rewrites and the client re-reads); every row before the
+  tail period on D/W/M (the daily/weekly/monthly delta rewrites only the tail) — sealed
+  or NOT, or
+- ended at or before the series' `sealed_through` (the region `complete_through` calls
+  final),
+
+AND its values differ from the stored row, or its bucket was EMPTY inside the stored span
+(a hole: a client may hold the absence). Also: any delete, and a wholesale change. The
+stored tail is read before the write.
+
+Never counted: identical rewrites; rows inside the mutable window and past the seal (tail
+repairs, live-store updates, hole fills inside the window, completing a provisional row,
+tail growth, the developing bar) — deltas carry those, and counting them would turn every
+tail repair into a client full reload; rows older than the series' OLDEST stored row
+(prepending history: the deep fetch, #1116's `to=` windows, a cold populate) — no client
+can hold a bucket older than the store's oldest row (every held row was served from the
+store, and a delete moves `history_rev`), and scroll-back reads them from the store. A
+deep write's overlap with stored rows is still judged row by row.
+
+Which writers this catches (each goes through `put_bars` / `put_bars_many` /
+`_history_keys`): split re-adjust (`bars_split_repair`), the R2 merge's hole fills and
+higher-volume corrections below the window, gap-fill and live-store backfill restoring an
+old hole, deep writes that differ from stored rows, alert/ingest add-only writes into old
+holes. Deletes (#1062 off-grid purge `intraday_grid.repair_pair`, the weekly / impossible /
+off-calendar purges, reconciliation) and `replace_ticker_tf_rows` always move it.
+
+**The client poll rule this guarantees** (railed by H1 in
+`tests/test_history_rev_corrections.py`, a property test over random write sequences
+incl. D/W/M): a client that does a full read whenever `history_rev` differs from the one
+it holds, and otherwise asks `since = held tail - MUTABLE_WINDOW_S` (D/W/M: the tail
+period) and replaces its rows after `since` with the answer, holds rows byte-identical to
+the store over its held span after every poll. The server answers `ts > since`, so the
+row AT `tail - window` is history.
+- While `history_rev` is unchanged, nothing a client holds below its delta start (or at
+  or below `complete_through`) has changed.
 - A newer `history_rev` = re-read the window you hold (split re-adjust, heal, merge
   correction, reconciliation, snapshot install).
 - `history_rev <= series_rev` always.
+- The rule is judged against the STORE's tail. A client whose tail runs ahead of the
+  store (a push-fed developing bar the store has not written yet) and starts its delta
+  from that tail can miss a correction in the few buckets it is ahead by, at the far
+  (8 h old) edge of the window; a client should start deltas from the newest REST-served
+  row.
+- Legacy StockChart tail poll (not BarStore): it asks `since = held tail - 1` and never
+  reads `history_rev`, so it misses ANY interior change (inside the window too) until a
+  full reload — `history_rev` cannot help it; BarStore is the fix.
 
 ### verified_through
 Unix seconds at which the provider (or, for live-covered 5m series, the universe live
@@ -131,7 +172,8 @@ store. Persisted in `series_meta.sealed_through` (write-behind with the proofs).
   carries its check instant (`put_bars(checked_at=)` / the `provider_check` context
   `_heal_intraday_tail` and the background full fetch open), and rows inside a span a
   NEWER check sealed are not replaced by it. Writes without a check instant (split
-  repair, merges, rebuilds) are corrections and move `history_rev`.
+  repair, merges, rebuilds) are not filtered; when they change held history (section 2,
+  history_rev) they move `history_rev`, sealed or not.
 - A series with no seal yet trusts the rows below the first repair's window (that
   repair's own "already-final history", `_DELTA_HEAL_WINDOW_SECONDS`, 8 h) — UNLESS rows
   were deleted since: a delete records the oldest deleted key (`unsealed_from`) and the
@@ -283,8 +325,13 @@ dev machine under load; medians of 6 rounds; meta = rev upsert + history check):
 | interior 50-row rewrite, unsealed series | 0.53 ms | 0.71 ms |
 | proof/seal flush (500 series, one transaction) | n/a | one short txn per second |
 
-A rewrite INSIDE the sealed region (a correction) additionally reads the rows it
-replaces to compare them — bounded by the rows written. `bars_sqlite.meta_flush_stats()`
+Every write reads each written series' stored tail (one PK seek per series, one
+statement per 400 series) to place its history floor; a write that touches rows below the
+floor or inside the sealed region additionally reads the rows it replaces to compare them
+(and, for an absent row, the series' oldest key) — bounded by the rows written. Measured
+2026-11-11 (A/B, 2000 tickers x 400 rows, medians): universe live batch 78 -> 81 ms
+(+3%), request-path tail write 0.03 -> 0.04 ms, 50-row rewrite below the floor 0.13 ->
+0.22 ms. `bars_sqlite.meta_flush_stats()`
 reports flush lock time in production. A per-row SQLite trigger was measured 6x slower on
 a 4M-row bulk load and rejected.
 
@@ -299,8 +346,8 @@ a 4M-row bulk load and rejected.
   `_ext_completeness_attempt`, 120 s) stay in process memory: they only THROTTLE
   provider asks (forgetting one costs one extra ask after a restart) and never decide
   what is claimed, so they do not affect correctness.
-- `data_sync` merge counts a corrected TAIL row (higher snapshot volume) as tail
-  growth, not history, even if that tail had been proven.
+- `data_sync` merge counts a corrected row inside the mutable window (incl. the TAIL,
+  higher snapshot volume) as a delta, not history, unless it is sealed.
 
 ## 9. Migration
 

@@ -2772,7 +2772,9 @@ def rebuild_sixty_min_grid(ticker: str) -> dict:
 # live-tick display), so re-writing the recent window is always safe. 8h covers
 # a full RTH session + buffer; deeper/cross-session poison is handled by the
 # reconciliation worker + one-time heal. Env-tunable.
-_DELTA_HEAL_WINDOW_SECONDS = int(_os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS", str(8 * 3600)))
+# ⭐ ONE OWNER: `bars_sqlite.MUTABLE_WINDOW_S` (same env var) — the store decides
+# `history_rev` against the same window this repair rewrites (bar-contract.md §2).
+_DELTA_HEAL_WINDOW_SECONDS = _sqlite.MUTABLE_WINDOW_S
 
 # Gap-fill lookback (days). The trailing heal window above only RE-WRITES recent
 # bars; it never restores an interior bar that was NEVER stored (first fetched

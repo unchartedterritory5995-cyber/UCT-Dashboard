@@ -1399,10 +1399,16 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
                 and not _merge_split_near(ticker, window_floor)
                 and _merge_basis_agrees(conn, ticker, tf, mx, window_floor))
     floor = window_floor if interior else mx
-    # Bar contract `history_rev`: an interior hole fill or a correction below the local
-    # tail rewrites SEALED history; a forward add (or the tail itself) does not.
-    history = bool(interior and conn.execute(
-        _MERGE_HISTORY_SQL, (ticker, tf, floor, mx, ticker, tf, floor, mx)).fetchone()[0])
+    # Bar contract `history_rev`: THE store rule (`bars_sqlite._history_keys`) judges the
+    # rows this merge is about to write below the local tail (hole fills + corrections) —
+    # older than the mutable window or sealed => history; inside the window => a delta.
+    # A forward add (or the tail itself) never is.
+    history = False
+    if interior:
+        from api.services.bars_sqlite import _history_keys
+        cand = conn.execute(_MERGE_HISTORY_SQL,
+                            (ticker, tf, floor, mx, ticker, tf, floor, mx)).fetchall()
+        history = bool(cand and _history_keys(conn, tf, cand))
     conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
     added = conn.total_changes - before
     corrected = 0
@@ -1415,14 +1421,17 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     return added, corrected
 
 
-#: Would this pair's merge touch a row strictly BELOW the local tail (hole or correction)?
+#: The rows this pair's merge writes strictly BELOW the local tail (holes + corrections),
+#: as (ticker, tf, ts, o, h, l, c, v) — bounded by the rows the merge itself writes.
 _MERGE_HISTORY_SQL = (
-    "SELECT EXISTS (SELECT 1 FROM snap.ohlcv s WHERE s.ticker=? AND s.tf=? AND s.ts > ? "
-    "AND s.ts < ? AND NOT EXISTS (SELECT 1 FROM main.ohlcv m WHERE m.ticker=s.ticker "
-    "AND m.tf=s.tf AND m.ts=s.ts) AND " + _MERGE_VALID_SQL + _MERGE_GRID_SQL + ") "
-    "OR EXISTS (SELECT 1 FROM snap.ohlcv s JOIN main.ohlcv m ON m.ticker=s.ticker "
-    "AND m.tf=s.tf AND m.ts=s.ts WHERE s.ticker=? AND s.tf=? AND s.ts > ? AND s.ts < ? "
-    "AND COALESCE(s.v,0) > COALESCE(m.v,0) AND " + _MERGE_VALID_SQL + _MERGE_GRID_SQL + ")"
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s WHERE s.ticker=? "
+    "AND s.tf=? AND s.ts > ? AND s.ts < ? AND NOT EXISTS (SELECT 1 FROM main.ohlcv m "
+    "WHERE m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts) AND " + _MERGE_VALID_SQL
+    + _MERGE_GRID_SQL + " UNION ALL "
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s JOIN main.ohlcv m "
+    "ON m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts WHERE s.ticker=? AND s.tf=? "
+    "AND s.ts > ? AND s.ts < ? AND COALESCE(s.v,0) > COALESCE(m.v,0) AND "
+    + _MERGE_VALID_SQL + _MERGE_GRID_SQL
 )
 
 
