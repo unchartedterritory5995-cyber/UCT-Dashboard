@@ -16,6 +16,7 @@ export default function ChartIdentityRow({
   boundsRef = null,
   themeVars = undefined,
   onSymbolChange = null,
+  onTypedIntent = null,
   economic = false,
   showChange = true,
   dayGain = null,
@@ -46,6 +47,7 @@ export default function ChartIdentityRow({
             ref={searchRef}
             sym={sym}
             onSymbolChange={onSymbolChange}
+            onTypedIntent={onTypedIntent}
             hideIcon
             fullLabel
             logoSym={logoSym}

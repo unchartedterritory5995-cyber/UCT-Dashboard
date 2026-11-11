@@ -15,6 +15,9 @@ export { POPULAR_RESULTS }
 
 // Render `text` with every case-insensitive occurrence of the typed query wrapped in
 // a gold `.hit` span (TradingView highlights the matched term; ours is gold).
+// How long the typed text must hold still before the host is told (see onTypedIntent).
+export const TYPED_INTENT_SETTLE_MS = 40
+
 function highlighted(text, query, styles) {
   if (!text) return null
   const q = (query || '').trim()
@@ -34,7 +37,7 @@ function highlighted(text, query, styles) {
   return parts
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -199,6 +202,20 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     }, 150)
     return () => { clearTimeout(t); ctl.abort() }
   }, [query, open, chip, breadthAll, econ, chips])
+
+  // ⭐ TYPE-TO-SEARCH WARM (2026-11-11): tell the host what is being typed, so the chart can
+  // start fetching that symbol BEFORE Enter (see `warmTypedSymbol`). A short settle coalesces
+  // a paste / key-repeat burst; it is shorter than a typist's inter-key gap on purpose, so the
+  // full ticker is warmed as soon as its last letter lands. Plain-ticker text only.
+  useEffect(() => {
+    if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth') return undefined
+    const q = query.trim()
+    if (!q) return undefined
+    const clean = canonicalTicker(q, breadthAll)
+    if (!clean || !/^[A-Z0-9][A-Z0-9.^-]{0,11}$/i.test(clean) || clean.toUpperCase() === String(sym || '').toUpperCase()) return undefined
+    const t = setTimeout(() => { try { onTypedIntent(clean.toUpperCase()) } catch { /* a warm never breaks search */ } }, TYPED_INTENT_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [query, open, chip, onTypedIntent, breadthAll, sym])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {

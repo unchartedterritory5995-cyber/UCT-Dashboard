@@ -1547,7 +1547,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -2529,7 +2529,7 @@ export function _dailyReserveDates(lastISO) {
 // first paint. A set missing TWO or more cannot: the older missing sessions exist only
 // on the server, so painting it GUARANTEES a later right-edge insertion. Everything
 // past this threshold is REPAIR INPUT, not paint authority.
-export const DAILY_PAINT_MAX_GAP = 1
+export { DAILY_PAINT_MAX_GAP }   // owned by marketSession (dailyCachePaintVerdict)
 
 // The ISO date of the CURRENT developing bar for a D/W/M tf (today / this week's Friday / first
 // of this month) — the SAME `t` the real developing bar will carry (computeBarTime), or null when
@@ -8586,34 +8586,15 @@ export default function StockChart({
   // A set that fails here is still perfectly good DEPTH and REPAIR input — it just
   // may not be the first frame. Returns 'ok' or the reason it is refused (the reason
   // is what the harness reads, so a refusal can never be mistaken for a missing paint).
+  // The rules themselves live in ONE place, `marketSession.dailyCachePaintVerdict` (the
+  // type-to-search warm asks the same function), with their rationale:
+  //   breadth → paints its sealed history unless > 1 session behind (2026-10-10)
+  //   provisional-close → a today set written mid-session, after the bell
+  //   too-far-behind → missing more than today: repair first, never insert at the edge
+  //   no-local-today / today-stale → paintable only with a REAL local today bar (seed)
   const _dailyCacheVerdict = (tailISO, savedAtMs) => {
-    if (resolvedTf !== 'D' || typeof tailISO !== 'string' || tailISO.length < 10) return 'ok'
-    // ⭐ (2026-10-10) BREADTH PAINTS ITS CACHED HISTORY AT ONCE. A breadth series has no live
-    // tick and no today-seed (neither the live-price store nor the today-pack carries it), so
-    // the rules below refused every cached breadth tail all session and after the close —
-    // every open waited for the network (2-10 s, owner report). Its history is sealed and its
-    // developing bar is one point; paint what we hold now and let the fetch add/refresh the
-    // right edge. A tail more than one session behind still repairs first.
-    if (breadthSeries) {
-      const g = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
-      return g > Math.max(1, DAILY_PAINT_MAX_GAP) ? 'too-far-behind' : 'ok'
-    }
-    // savedAtMs: a set written after the close holds the sealed close (marketSession).
-    if (isDailyTodayCloseProvisionalForPaint(tailISO, savedAtMs)) return 'provisional-close'
-    const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
-    // Missing MORE than the current session: the older missing sessions exist only on
-    // the server, so painting this guarantees a right-edge insertion afterwards. No
-    // reserve size makes that acceptable — a stable picture of the wrong week is still
-    // the wrong week. Repair first.
-    if (gap > DAILY_PAINT_MAX_GAP) return 'too-far-behind'
-    // Missing exactly TODAY: paintable only if we can put a REAL today bar there now.
-    // Without a seed the slot would be whitespace and would become a candle in front
-    // of the member — the transition this whole change exists to remove.
-    if (gap > 0) return _dailyTodaySeed ? 'ok' : 'no-local-today'
-    // Reaches the frontier, but the today bar itself may simply be OLD. That is
-    // repairable IN PLACE (same date, so no geometry moves) when a seed is available.
-    if (isDailyTodayBarStaleForPaint(tailISO, savedAtMs)) return _dailyTodaySeed ? 'ok' : 'today-stale'
-    return 'ok'
+    if (resolvedTf !== 'D') return 'ok'
+    return dailyCachePaintVerdict(tailISO, savedAtMs, { hasSeed: !!_dailyTodaySeed, breadth: !!breadthSeries })
   }
 
   // Three ways a cached daily tail is not fit to be the FIRST frame:

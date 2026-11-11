@@ -4,7 +4,7 @@ The owner's report (2026-11-11): on the web /charts, typing a ticker and pressin
 on a DAILY chart sometimes lags ~0.5 s before the chart shows, even for liquid names.
 This drives exactly that member path in a real browser — the /charts workspace, the
 chart pane focused, letters typed into type-to-search, Enter — against a built
-`app/dist` with every `/api/**` route-mocked (no backend, no /data, no cookie), and
+`app/dist` with every `/api/**` answered by fixtures (no backend, no /data, no cookie), and
 reads the chart's own instrumentation to time Enter -> first candles of the new symbol.
 
 Latencies are production-measured from this PC (2026-11-11, IPv4, 30 liquid names):
@@ -124,16 +124,12 @@ class Fixture:
     def __init__(self):
         self.requests = []
 
-    def handle(self, route, request):
-        url = request.url
+    def answer(self, url):
+        """(body, delay_ms) for one /api request — served by the THREADED static
+        server, so concurrent requests overlap as they would against the real origin
+        (a Playwright route handler runs one at a time and would serialize them)."""
         path = url.split("?", 1)[0]
         qs = dict(re.findall(r"[?&]([^=&]+)=([^&]*)", url))
-
-        def send(obj, status=200, delay_ms=0):
-            if delay_ms:
-                time.sleep(delay_ms / 1000.0)
-            route.fulfill(status=status, content_type="application/json", body=json.dumps(obj))
-
         m = re.search(r"/api/bars/([^/?]+)$", path)
         if m:
             sym = m.group(1).upper()
@@ -143,39 +139,51 @@ class Fixture:
                 bars = daily_bars(sym, FAKE_NOW.date(), int(qs.get("bars", "600")))
                 if tf != "D":
                     bars = bars[-200:]
-                return send({"ticker": sym, "tf": tf, "bars": bars}, delay_ms=FULL_MS)
-            return send({"ticker": sym, "tf": tf, "bars": []}, delay_ms=FULL_MS)
+                return {"ticker": sym, "tf": tf, "bars": bars}, FULL_MS
+            return {"ticker": sym, "tf": tf, "bars": []}, FULL_MS
         if path.endswith("/api/bars-today-pack"):
             self.requests.append({"sym": "*todaypack", "tf": "-", "warm": False, "at": time.time()})
             bars = {}
             for s in [START] + SCAN:
                 b = _lvl(s) + (599 % 17) * 0.3
                 bars[s] = [round(b, 2), round(b + 1.2, 2), round(b - 1.1, 2), round(b + 0.4, 2), 1_000_000]
-            return send({"d": FAKE_NOW.date().isoformat(), "bars": bars}, delay_ms=TODAY_PACK_MS)
+            return {"d": FAKE_NOW.date().isoformat(), "bars": bars}, TODAY_PACK_MS
         if "/api/bars-history/" in path:
-            return send({"ticker": "X", "tf": qs.get("tf", "D"), "bars": [], "sealed": True})
+            return {"ticker": "X", "tf": qs.get("tf", "D"), "bars": [], "sealed": True}, 0
         if "/api/auth/me" in path:
-            return send({"user": {"id": 1, "email": "bench@local", "role": "user", "name": "Bench", "email_verified": True},
-                         "plan": "pro"})
+            return {"user": {"id": 1, "email": "bench@local", "role": "user", "name": "Bench",
+                             "email_verified": True}, "plan": "pro"}, 0
         if "/api/maintenance" in path:
-            return send({"maintenance": False})
+            return {"maintenance": False}, 0
         if "/api/ticker-search" in path:
             q = (qs.get("q") or "").upper()
-            return send({"results": [{"ticker": q, "name": q + " Inc", "type": "stock"}]}, delay_ms=170)
-        if "/api/live-prices" in path:
-            return send({})
+            return {"results": [{"ticker": q, "name": q + " Inc", "type": "stock"}]}, 170
         if path.endswith("/manifest"):
-            return send({"available": False})
-        return send({})
+            return {"available": False}, 0
+        return {}, 0
 
 
-def handler_for(dist):
+def handler_for(dist, fixture=None):
     class H(SimpleHTTPRequestHandler):
         def __init__(self, *a, **k):
             super().__init__(*a, directory=dist, **k)
 
+        def do_POST(self):
+            return self.do_GET()
+
         def do_GET(self):
             p = self.path.split("?", 1)[0]
+            if p.startswith("/api/"):
+                body, delay = (fixture.answer(self.path) if fixture else ({}, 0))
+                if delay:
+                    time.sleep(delay / 1000.0)
+                raw = json.dumps(body).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+                return None
             if not os.path.isfile(os.path.join(dist, p.lstrip("/"))):
                 self.path = "/index.html"
             return SimpleHTTPRequestHandler.do_GET(self)
@@ -190,11 +198,10 @@ def _pct(vals, q):
     return round(v[min(len(v) - 1, int(q * len(v)))]) if v else None
 
 
-def run_arm(browser, base, arm, shots=None):
-    fx = Fixture()
+def run_arm(browser, base, fx, arm, shots=None):
+    fx.requests.clear()
     ctx = browser.new_context(viewport={"width": 1400, "height": 860})
     ctx.add_init_script(CLOCK_JS % int(FAKE_NOW.timestamp() * 1000))
-    ctx.route("**/api/**", fx.handle)
     page = ctx.new_page()
     errs = []
     page.on("pageerror", lambda e: errs.append(str(e)[:200]))
@@ -266,14 +273,15 @@ def main():
     with open(os.path.join(dist, "blank.html"), "w", encoding="utf-8") as f:
         f.write("<!doctype html><title>blank</title>")
     port = free_port()
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), handler_for(dist))
+    fx = Fixture()
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), handler_for(dist, fx))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{port}"
     try:
         with sync_playwright() as p:
             b = p.chromium.launch()
             for arm in arms:
-                r = run_arm(b, base, arm, shots)
+                r = run_arm(b, base, fx, arm, shots)
                 r["label"] = label
                 rows = r.pop("rows")
                 print(json.dumps(r))

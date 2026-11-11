@@ -17,7 +17,8 @@ import { memHas as _memHasRaw, memPut as _memPutRaw, memPeek as _memPeekRaw, mem
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
 
 // ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
 // error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
@@ -470,7 +471,8 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
     }
     if (signal?.aborted) return 'error'
     const url = _url(sym, tf, false)
-    let req = _chartLaneInflight.get(url)
+    // A type-to-search warm of this exact URL already in flight is JOINED, never repeated.
+    let req = _chartLaneInflight.get(url) || _pendingBars.get(url) || null
     if (!req) {
       req = _chartLaneFetch(url, signal).finally(() => { _chartLaneInflight.delete(url) })
       _chartLaneInflight.set(url, req)
@@ -493,6 +495,69 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   } catch {
     return 'error'
   }
+}
+
+// ── TYPE-TO-SEARCH WARM (D/W/M) ──────────────────────────────────────────────
+// ⭐ (2026-11-11) THE SWITCH IS PREPARED WHILE THE MEMBER IS STILL TYPING.
+//   1. The symbol's cached set is promoted IndexedDB → memory, so on Enter the handoff
+//      finds it synchronously and commits in the same tick (no IDB read after Enter).
+//   2. When that cache could NOT be the first frame on its own — a daily chart paints
+//      its cache only if today's bar can be supplied locally (`_typedCachePaints`, the
+//      chart's paint authority restated) — the chart's own URL is fetched now: a name
+//      never opened, the today-pack aged past its 90 s seed ceiling after a pause, a
+//      tail sessions behind. By Enter the authoritative set is usually in memory
+//      (stamped NOW, which the paint authority accepts); an answer still in flight is
+//      JOINED by the handoff (`prepareDailyForDisplay`) and by the chart's SWR key.
+// ⚠️ COST. No request at all when the cache will paint; otherwise one shallow request
+// (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
+// while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
+const TYPED_FRESH_MS = 60_000
+
+/** Would the chart paint this cached set as its FIRST frame without the network? Asks the
+ *  chart's own authority (`dailyCachePaintVerdict`); the seed it can count on before Enter is
+ *  the today-pack (the live-store seed is per-symbol and usually absent for a typed name —
+ *  missing it only costs one unneeded request, never a wrong frame). */
+export function _typedCachePaints(sym, tf, lastT, savedAt) {
+  if (String(tf) !== 'D') return true                       // W/M paint their cache as is
+  if (typeof lastT !== 'string' || lastT.length < 10) return false
+  let hasSeed = false
+  try { hasSeed = todayPackUsable() && !!getTodayBar(sym) } catch { hasSeed = false }
+  return dailyCachePaintVerdict(lastT, savedAt, { hasSeed }) === 'ok'
+}
+
+export function warmTypedSymbol(sym, tf = 'D') {
+  if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+  const S = String(sym).trim().toUpperCase()
+  if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
+  const saved = memPeekSavedAt(S, tf)
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) return null
+  const url = _url(S, tf, false)
+  return (async () => {
+    let lastT = null
+    let savedAt = null
+    const inMem = memPeek(S, tf)
+    if (inMem?.length) {
+      lastT = inMem[inMem.length - 1]?.t ?? null
+      savedAt = memPeekSavedAt(S, tf)
+    } else {
+      const have = await idbGet(S, tf)
+      if (have?.bars?.length) {
+        // Promoted with its OWN stamp, so the paint gate still judges it by when it was written.
+        if (!memHas(S, tf)) memPut(S, tf, have.bars, { savedAt: have.savedAt ?? null })
+        lastT = have.bars[have.bars.length - 1]?.t ?? null
+        savedAt = have.savedAt ?? null
+      }
+    }
+    if (lastT != null && _typedCachePaints(S, tf, lastT, savedAt)) return 'cache'
+    const json = await _warmLoad(url)
+    if (!_isAuthoritativeAnswer(json, S, tf).ok || json.delta || !json.bars?.length) return false
+    // Keep any DEEPER history already in memory; the server wins every overlapping bar.
+    const cur = memPeek(S, tf)
+    const next = (cur?.length > json.bars.length && cur[0]?.t <= json.bars[0]?.t)
+      ? mergeDelta(cur, json.bars) : json.bars
+    memPut(S, tf, next)
+    return 'network'
+  })().catch(() => false)
 }
 
 /**

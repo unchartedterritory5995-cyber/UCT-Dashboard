@@ -442,18 +442,22 @@ describe('DAILY first-paint acceptance', () => {
     report(await runCase('NO-IDB cold', 'network'))
   }, 30000)
 
-  it('D1 FROM A DIFFERENTLY-PRICED SYMBOL — the seed is judged against THIS symbol, not the one left', async () => {
+  // ⭐ INVARIANT: the first frame of the symbol switched TO never depends on the price of the
+  // symbol switched FROM. Swept over price ratios on both sides of the 50% phantom guard.
+  it('INVARIANT — D1 paints from cache whatever the price of the symbol left (seed judged against THIS symbol)', async () => {
     // ⛔⛔ THE WEB "SOMETIMES ~0.5 s ON A LIQUID TICKER" (2026-11-11). The seed's phantom
     // guard compared the new symbol's today price with `lastServerCloseRef` — still the
     // PREVIOUS symbol's close in the render that first carries the new one. Any switch
     // between names >50% apart refused a perfectly good cache + fresh pack and waited a
-    // full /api/bars round trip. Same stimulus as D1, prior symbol priced 10x.
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    const r = report(await runCase('D1 idb-1 + pack, prior 10x', 'cache', 700, { priorScale: 10 }))
-    expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
-    expect(r.paintedSource).toBe('cache')
-  }, 30000)
+    // full /api/bars round trip. Same stimulus as D1, prior symbol priced 0.05x .. 25x.
+    for (const ratio of [0.05, 0.4, 1.6, 25]) {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      const r = report(await runCase(`D1 idb-1 + pack, prior ${ratio}x`, 'cache', 400, { priorScale: ratio }))
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+      expect(r.paintedSource).toBe('cache')
+    }
+  }, 60000)
 
   it('PACK-EXPIRED — IDB one session behind and no local current-session source', async () => {
     world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
@@ -600,7 +604,7 @@ describe('DAILY first-paint acceptance', () => {
         ].join(' | ')
     )).join('\n'))
     // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
-    // +1 (2026-11-11): D1 switched to from a differently-priced symbol
-    expect(RESULTS.length).toBe(19)
+    // +4 (2026-11-11): D1 switched to from symbols priced 0.05x .. 25x
+    expect(RESULTS.length).toBe(22)
   })
 })

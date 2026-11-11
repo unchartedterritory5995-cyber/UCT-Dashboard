@@ -85,3 +85,32 @@ test('without ariaLabel the trigger keeps its default name', () => {
   render(<SymbolSearch sym="AAPL" displayLabel="+ Compare" onSymbolChange={vi.fn()} />)
   expect(screen.getByRole('button', { name: 'AAPL — click to search a different ticker' })).toBeInTheDocument()
 })
+
+// ⭐ TYPE-TO-SEARCH WARM (2026-11-11): the host learns what is being typed BEFORE Enter so the
+// chart can start fetching that symbol while the member is still typing (warmTypedSymbol).
+test('typing tells the host the typed ticker before Enter (onTypedIntent)', async () => {
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'nvda' } })
+  await new Promise((r) => setTimeout(r, 120))
+  expect(onTypedIntent).toHaveBeenCalledWith('NVDA')
+  // Its own symbol is not re-warmed, and a cleared box says nothing.
+  onTypedIntent.mockClear()
+  fireEvent.change(input, { target: { value: 'aapl' } })
+  await new Promise((r) => setTimeout(r, 120))
+  fireEvent.change(input, { target: { value: '' } })
+  await new Promise((r) => setTimeout(r, 120))
+  expect(onTypedIntent).not.toHaveBeenCalled()
+})
+
+test('a burst of keys settles into ONE intent for the final text', async () => {
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  for (const v of ['G', 'GO', 'GOO', 'GOOG', 'GOOGL']) fireEvent.change(input, { target: { value: v } })
+  await new Promise((r) => setTimeout(r, 120))
+  expect(onTypedIntent.mock.calls).toEqual([['GOOGL']])
+})
