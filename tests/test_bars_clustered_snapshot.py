@@ -599,3 +599,18 @@ def test_checkpointer_waits_for_a_swap_and_reconnects_after_it(data_sync_at, tmp
     assert ck.last_status()["cycles"] == n0 + 1
     assert state["conn"] is not first, "a connection on the old inode checkpointed again"
     state["conn"].close()
+
+
+def test_adoption_voids_every_proof_and_moves_every_rev(adoption, tmp_path):
+    """Bar contract (#1098): the swapped-in store is a NEW store — its series_meta came
+    from the snapshot producer — so the adoption bumps the store floor: every proof /
+    seal taken before it is void and every served rev passes what a client holds."""
+    import time as _t
+    from api.services import bars_sqlite
+    ds, fake, local, snap = adoption
+    before_s, before_ms = _t.time(), int(_t.time() * 1000)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert bars_sqlite._mem_floors[bars_sqlite.PROOF_FLOOR_KEY] >= before_s
+    assert bars_sqlite.series_meta("T00", "5")["rev"] >= before_ms
+    bars_sqlite.record_verified("T00", "5", before_s - 1)       # a proof from before
+    assert bars_sqlite.series_meta("T00", "5")["verified_through"] is None

@@ -362,6 +362,7 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     concurrency bound + the daemon thread. Massive is authoritative, so a bar it
     omits (real no-trade) is never fabricated."""
     ticker_up = ticker.upper()
+    _t0 = _time.time()                    # this fetch's provider check instant
     raw = _fetch_intraday(ticker_up, tf, bars)
     fetched = [b for b in (raw or []) if isinstance(b.get("t"), (int, float))]
     if not fetched or _is_intraday_stale(raw):
@@ -370,7 +371,9 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, tf, oldest - 1)}
     missing = [b for b in fetched if int(b["t"]) not in stored_ts]
     if missing:
-        _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        with _provider_write(_t0):
+            _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
     return len(missing)
 
@@ -589,28 +592,6 @@ def _session_close_minutes(ymd: int) -> int:
     return _RTH_CLOSE_MINUTES
 
 
-def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
-    """True when an intraday tail reaches the FINAL bucket of its own session.
-
-    A post-market tail is complete by construction (it is past the close). A tail
-    that stops before the last regular bucket is an artifact of when we last
-    fetched, not of trading — which is the distinction the date compare cannot make.
-
-    ⚠️ ABSTAINS RATHER THAN GUESSING: an unparseable instant answers True, so a
-    shape surprise can never turn into a universe-wide refetch.
-    """
-    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
-        return True
-    try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        tail_minutes = dt.hour * 60 + dt.minute
-        close_minutes = _session_close_minutes(int(dt.strftime("%Y%m%d")))
-        return tail_minutes >= close_minutes - int(tf)
-    except Exception:                      # noqa: BLE001
-        return True
-
-
 # ── EXTENDED-HOURS TAIL (2026-11-11) ─────────────────────────────────────────
 # ⛔⛔ THE SERVED SERIES CARRIES EXTENDED HOURS (04:00-20:00 ET), BUT EVERY
 # "IS THIS TAIL DONE?" RULE MEASURED IT AGAINST THE 16:00 CLOSE. Measured on
@@ -635,6 +616,28 @@ def _is_trading_day_ymd(d) -> bool:
     return d.weekday() < 5 and not _is_nyse_holiday(int(d.strftime("%Y%m%d")))
 
 
+# ── THE ONE SESSION CLOCK (P1 bar contract, 2026-11-11) ──────────────────────
+# ⛔ FOUR "IS THIS TAIL DONE?" IMPLEMENTATIONS DISAGREED: `intraday_session_complete`
+# (RTH close, ZERO tolerance), `intraday_ext_session_complete` (20:00 close, ONE-bucket
+# tolerance — while its comment claimed "same tolerance as the RTH rule"), three copies
+# of the frontier walk (`expected_completed_bucket` / `_rth_bucket` / `_ext_bucket`)
+# and `_ext_session_verified` with its own session-end arithmetic. Every one of them is
+# now a reading of THREE primitives over ONE session window:
+#   `_session_window(day, session)`        (open, close) of a trading day's session
+#   `newest_closed_bucket(tf, session)`    the FRONTIER: newest bucket of the session
+#                                          that has closed (the previous session's
+#                                          final bucket when none of today's has)
+#   `tail_within_one_bucket(tf, tail, b)`  the ONE tolerance rule: a tail reaches bucket
+#                                          b when it is at b or at the bucket just
+#                                          before it (a thin name that did not print in
+#                                          the newest interval) — the rule
+#                                          `intraday_tail_status` always used.
+# session ∈ {"rth", "eth"}; buckets are the STORED grid (`_ext_bucket_start`: clock
+# floors on 1-30m, `SIXTY_MIN_GRID` on 60m). `bar_contract` (complete_through,
+# developing) is built on the same primitives.
+_SESSIONS = ("rth", "eth")
+
+
 def _ext_bucket_start(tf: str, t: int) -> int:
     if tf == "60":
         return bucket_60_et_unix_seconds(int(t))
@@ -642,65 +645,94 @@ def _ext_bucket_start(tf: str, t: int) -> int:
     return int(t) // step * step
 
 
-def expected_completed_ext_bucket(tf: str, now: float | None = None):
-    """Start (unix s) of the latest EXTENDED-session bucket (04:00-20:00 ET, early-close
-    aware) that has CLOSED — on today's session once its first bucket has closed, else
-    the FINAL bucket of the previous trading session. None only for a non-intraday tf
-    or an unreadable clock. During RTH this equals `expected_completed_bucket`."""
-    if tf not in ("1", "5", "15", "30", "60"):
+def _session_window(day, session: str) -> tuple[int, int]:
+    """(open_ts, close_ts) unix seconds of `session` on the ET calendar day of `day` (a
+    date/datetime already in ET). Half-day aware. The caller checks it is a trading day."""
+    et = _ZI("America/New_York")
+    midnight = int(datetime(day.year, day.month, day.day, tzinfo=et).timestamp())
+    ymd = day.year * 10000 + day.month * 100 + day.day
+    if session == "rth":
+        return (midnight + _RTH_OPEN_MINUTES_SERVER * 60,
+                midnight + _session_close_minutes(ymd) * 60)
+    return midnight + _EXT_OPEN_MINUTES_SERVER * 60, midnight + _ext_close_minutes(ymd) * 60
+
+
+def newest_closed_bucket(tf: str, session: str = "eth", now: float | None = None,
+                         today_only: bool = False):
+    """Start (unix s) of the newest `session` bucket that has CLOSED: today's once the
+    session's first bucket has closed, else (unless `today_only`) the FINAL bucket of
+    the previous trading session. None for a non-intraday tf, `today_only` with no
+    closed bucket today, or an unreadable clock (abstain, never guess)."""
+    if tf not in ("1", "5", "15", "30", "60") or session not in _SESSIONS:
         return None
     try:
         et = _ZI("America/New_York")
         now_ts = float(now if now is not None else _time.time())
         now_dt = datetime.fromtimestamp(now_ts, et)
-        day = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         if _is_trading_day_ymd(now_dt):
-            ymd = int(now_dt.strftime("%Y%m%d"))
-            ext_open = int(day.timestamp()) + _EXT_OPEN_MINUTES_SERVER * 60
-            ext_close = int(day.timestamp()) + _ext_close_minutes(ymd) * 60
-            if now_ts >= ext_close:
-                return _ext_bucket_start(tf, ext_close - 1)
-            cur = _ext_bucket_start(tf, int(now_ts))
-            prev = _ext_bucket_start(tf, cur - 1)
-            if prev >= ext_open:
-                return prev
-        d = day - timedelta(days=1)
+            open_ts, close_ts = _session_window(now_dt, session)
+            if now_ts >= close_ts:
+                return _ext_bucket_start(tf, close_ts - 1)
+            if now_ts >= open_ts:
+                prev = _ext_bucket_start(tf, _ext_bucket_start(tf, int(now_ts)) - 1)
+                if prev >= open_ts:
+                    return prev
+        if today_only:
+            return None
+        d = now_dt - timedelta(days=1)
         for _ in range(14):
             if _is_trading_day_ymd(d):
-                ymd = int(d.strftime("%Y%m%d"))
-                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
-                return _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+                return _ext_bucket_start(tf, _session_window(d, session)[1] - 1)
             d -= timedelta(days=1)
         return None
     except Exception:                      # noqa: BLE001 — abstain, never guess
         return None
 
 
-def intraday_ext_session_complete(tf: str, last_ts) -> bool:
-    """True when an intraday tail reaches the FINAL bucket of its EXTENDED session."""
+def expected_completed_ext_bucket(tf: str, now: float | None = None):
+    """The extended-session frontier: `newest_closed_bucket(tf, "eth")`."""
+    return newest_closed_bucket(tf, "eth", now)
+
+
+def tail_within_one_bucket(tf: str, tail, target) -> bool:
+    """THE tolerance rule: `tail` reaches bucket `target` (see the block above)."""
+    return int(tail) >= _ext_bucket_start(tf, int(target) - 1)
+
+
+def session_end_ts(last_ts, session: str = "eth") -> int | None:
+    """Close instant of `session` on `last_ts`'s ET day (None: unreadable instant)."""
+    try:
+        et = _ZI("America/New_York")
+        return _session_window(datetime.fromtimestamp(int(last_ts), et), session)[1]
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+def session_complete(tf: str, last_ts, session: str = "eth") -> bool:
+    """True when an intraday tail holds the FINAL bucket of its own day's `session`
+    (EXACTLY — review #1098 F5: after the close a missing final bucket, 15:55 5m / 15:59
+    1m / the 15:30 hour, is a hole to repair; the one-bucket tolerance is for intraday
+    CURRENTNESS against a moving frontier, `tail_within_one_bucket`). A tail past the session close is complete by construction; a
+    tail that stops earlier is an artifact of when we last fetched, not of trading —
+    the distinction a DATE compare cannot make (PLTR 5m ended 15:15, measured
+    2026-09-20). ⚠️ ABSTAINS RATHER THAN GUESSING: a non-intraday tf or an unparseable
+    instant answers True, so a shape surprise can never become a universe refetch."""
     if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
         return True
     try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        ymd = int(dt.strftime("%Y%m%d"))
-        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
-        final = _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
-        # same one-bucket tolerance as the RTH rule (`close - tf`)
-        return int(last_ts) >= _ext_bucket_start(tf, final - 1)
+        end = session_end_ts(last_ts, session)
+        if end is None:
+            return True
+        return int(last_ts) >= _ext_bucket_start(tf, end - 1)
     except Exception:                      # noqa: BLE001
         return True
 
 
-def _ext_session_end_ts(last_ts) -> int | None:
-    try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        ymd = int(dt.strftime("%Y%m%d"))
-        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
-        return midnight + _ext_close_minutes(ymd) * 60
-    except Exception:                      # noqa: BLE001
-        return None
+def session_verified(ticker: str, tf: str, last_ts, session: str = "eth") -> bool:
+    """The provider was asked after the tail's `session` ended (nothing newer exists)."""
+    vt = tail_verified_through(ticker, tf)
+    end = session_end_ts(last_ts, session) if last_ts is not None else None
+    return vt is not None and end is not None and vt >= end
 
 
 # ── TAIL CURRENTNESS: OBSERVED vs VERIFIED (2026-09-28) ──────────────────────
@@ -720,8 +752,14 @@ def _ext_session_end_ts(last_ts) -> int | None:
 # ⛔ `verified_through` IS NEVER DERIVED FROM THE STORED TAIL. It is written in exactly
 # one place (`_mark_tail_verified`), after a provider answer that did not raise AND
 # whose rows reached SQLite — so a failed write ("database is locked") verifies
-# nothing. It is per-process and in memory on purpose: a restart forgets it and the
-# next request re-verifies; it can never become a durable claim.
+# nothing.
+# ⭐ PERSISTED IN THE STORE (P1 bar contract, 2026-11-11 — supersedes "per-process, in
+# memory on purpose"). The proof lives beside the rows it proves (`bars_sqlite`
+# `series_meta`), so it survives a restart and reads the same from every process on
+# that store. It is still never a claim about rows the store does not hold: a DELETE
+# of the series' rows voids every proof taken before it (`proof_floor`), and a
+# wholesale change (snapshot install, bulk heal) voids them all (`bump_store_floor`).
+# `_tail_verified` is only this process's fallback for an unreadable store.
 _TAIL_VERIFIED_MAX_KEYS = 50000
 _tail_verified: dict = {}
 _tail_verified_lock = _threading.Lock()
@@ -735,11 +773,27 @@ def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
         prev = _tail_verified.get(key)
         if prev is None or checked_at > prev:
             _tail_verified[key] = checked_at
+    try:
+        _sqlite.record_verified(ticker, tf, checked_at)
+    except Exception:                      # noqa: BLE001 — the in-process copy still holds
+        pass
+
+
+def _stored_verified_through(ticker: str, tf: str):
+    """The store's proof (None = none); falls back to this process's copy only when
+    the store has no meta API (a stubbed store in tests)."""
+    fn = getattr(_sqlite, "series_meta", None)
+    if fn is not None:
+        try:
+            return fn(ticker, tf)["verified_through"]
+        except Exception:                  # noqa: BLE001
+            pass
+    with _tail_verified_lock:
+        return _tail_verified.get((ticker.upper(), tf))
 
 
 def tail_verified_through(ticker: str, tf: str):
-    with _tail_verified_lock:
-        vt = _tail_verified.get((ticker.upper(), tf))
+    vt = _stored_verified_through(ticker, tf)
     # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
     # through its newest delivered minute (review #1051 F1): a thin covered name never
     # takes the provider-heal path that writes `_tail_verified`, so without this its
@@ -753,6 +807,37 @@ def tail_verified_through(ticker: str, tf: str):
         except Exception:                  # noqa: BLE001
             pass
     return vt
+
+
+class _NullCheck:
+    """`provider_check` stand-in for a store double without one (tests)."""
+    def __init__(self, *_a):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
+def _provider_write(checked_at: float):
+    """`bars_sqlite.provider_check(checked_at)`: the writes inside persist a provider
+    answer taken at `checked_at` and cannot overwrite rows a NEWER check sealed. Every
+    provider fetch → persist site opens one with the instant taken BEFORE its fetch."""
+    return getattr(_sqlite, "provider_check", _NullCheck)(checked_at)
+
+
+def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None:
+    """A full / deep provider fetch re-supplied the series from its oldest row: deleted
+    rows from there are restored (bar contract `record_cover`, review #1098 F4)."""
+    try:
+        ts = [int(b["t"]) for b in (rows or []) if isinstance(b.get("t"), (int, float))]
+        fn = getattr(_sqlite, "record_cover", None)
+        if ts and fn is not None:
+            fn(ticker_up, tf, min(ts), checked_at)
+    except Exception:                      # noqa: BLE001 — a cover only widens what may seal
+        pass
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -776,11 +861,24 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             last_ts = _lt[0]              # provider fetches only what is still missing
     checked_at = _time.time()
     status: dict = {}
-    new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
-    if new and not _is_intraday_stale(new):
-        _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+    # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
+    # it can never overwrite rows a NEWER check has sealed (`bars_sqlite.provider_check`).
+    with _provider_write(checked_at):
+        new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
+        persisted = not new
+        if new and not _is_intraday_stale(new):
+            _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+            persisted = True
     if status.get("ok"):
         _mark_tail_verified(ticker_up, tf, checked_at)
+        # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
+        # through `checked_at`, and those rows are in the store — so every bucket that
+        # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
+        if persisted and status.get("window_start") is not None:
+            from api.services.bar_contract import SEAL_LAG_S
+            _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
+                                  status["window_start"], checked_at,
+                                  covers_from=status.get("fill_from"))
     return new
 
 
@@ -928,6 +1026,12 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
     are exactly as proven as the rows they were built from — and only after the write
     reached SQLite (a failed write verifies nothing)."""
     try:
+        # Bar contract (review #1098 F4): the base's seal is read BEFORE the derived rows
+        # are built from the base, so the rows can only be as final as (or more than) it.
+        try:
+            _bm = _sqlite.series_meta(ticker_up, _DERIVED_BASE_TF)
+        except Exception:                 # noqa: BLE001
+            _bm = {}
         d = _local_derived_tail(ticker_up, tf, last_ts)
         if not d:
             return None
@@ -938,6 +1042,17 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
         vt = tail_verified_through(ticker_up, d["src"]) if d.get("complete") else None
         if vt is not None:
             _mark_tail_verified(ticker_up, tf, vt)
+        if d.get("complete"):
+            # Bar contract seal, inherited the same way: a derived bucket that ended by
+            # the base's seal is built only from final base buckets. The derived window
+            # starts where the derivation started reading the base — the bucket of the
+            # target's stored tail — not at the first row it kept; its check instant is
+            # the base seal's own (`record_sealed` contiguity + check-instant rules).
+            _base_seal = _bm.get("sealed_through")
+            if _base_seal is not None and d.get("src") == _DERIVED_BASE_TF:
+                _sqlite.record_sealed(ticker_up, tf, _base_seal,
+                                      _derived_bucket_start(tf, int(last_ts)),
+                                      _bm.get("sealed_checked_at") or _time.time())
         new_last = max(int(b["t"]) for b in d["rows"])
         current = (not _needs_fresh(new_last, tf)
                    and intraday_tail_status(ticker_up, tf, new_last)["tail_status"] != "unverified")
@@ -953,67 +1068,16 @@ def expected_completed_bucket(tf: str, now: float | None = None):
     """Start (unix seconds) of the latest REGULAR-session bucket that has CLOSED, or
     None when no bucket of today's session is expected (weekend, holiday, before the
     first bucket closes). The server twin of the client's
-    `marketSession.expectedLatestCompletedBar(tf, now, {session:'rth'})` — same
-    bucket-start convention, same irregular 09:30 opening hour on tf=60, same early
-    closes (`_session_close_minutes`)."""
-    if tf not in ("1", "5", "15", "30", "60"):
-        return None
-    try:
-        et = _ZI("America/New_York")
-        now_ts = float(now if now is not None else _time.time())
-        now_dt = datetime.fromtimestamp(now_ts, et)
-        ymd = int(now_dt.strftime("%Y%m%d"))
-        if now_dt.weekday() >= 5 or _is_nyse_holiday(ymd):
-            return None
-        midnight = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        open_ts = int(midnight.timestamp()) + _RTH_OPEN_MINUTES_SERVER * 60
-        close_ts = int(midnight.timestamp()) + _session_close_minutes(ymd) * 60
-        if now_ts < open_ts:
-            return None
-
-        def _bstart(t: int) -> int:
-            if tf == "60":
-                return bucket_60_et_unix_seconds(int(t))
-            step = int(tf) * 60
-            return int(t) // step * step
-
-        if now_ts >= close_ts:
-            return _bstart(close_ts - 1)
-        cur = _bstart(int(now_ts))
-        prev = _bstart(cur - 1)
-        if prev < open_ts:
-            return None
-        return prev
-    except Exception:                      # noqa: BLE001 — abstain, never guess
-        return None
+    `marketSession.expectedLatestCompletedBar(tf, now, {session:'rth'})`; one reading
+    of `newest_closed_bucket` (the session clock above)."""
+    return newest_closed_bucket(tf, "rth", now, today_only=True)
 
 
 def expected_completed_rth_bucket(tf: str, now: float | None = None):
-    """Start (unix s) of the latest REGULAR-session bucket that has CLOSED: today's once
-    its first RTH bucket has closed, else the FINAL RTH bucket of the previous trading
-    session (half-day aware). The RTH twin of `expected_completed_ext_bucket` and the
-    frontier an RTH-only chart (`session=rth`) is judged against (review #1051 F2: a
-    thin name with no post-market prints is complete at its close for a chart that
-    never shows post-market). None for a non-intraday tf or an unreadable clock."""
-    if tf not in ("1", "5", "15", "30", "60"):
-        return None
-    today = expected_completed_bucket(tf, now)
-    if today is not None:
-        return today
-    try:
-        et = _ZI("America/New_York")
-        now_ts = float(now if now is not None else _time.time())
-        d = datetime.fromtimestamp(now_ts, et).replace(hour=0, minute=0, second=0, microsecond=0)
-        d -= timedelta(days=1)
-        for _ in range(14):
-            if _is_trading_day_ymd(d):
-                ymd = int(d.strftime("%Y%m%d"))
-                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
-                return _ext_bucket_start(tf, midnight + _session_close_minutes(ymd) * 60 - 1)
-            d -= timedelta(days=1)
-        return None
-    except Exception:                      # noqa: BLE001 — abstain, never guess
-        return None
+    """The REGULAR-session frontier: today's newest closed RTH bucket, else the previous
+    session's final one — what an RTH-only chart (`session=rth`) is judged against
+    (review #1051 F2). `newest_closed_bucket(tf, "rth")`."""
+    return newest_closed_bucket(tf, "rth", now)
 
 
 def normalize_session(session) -> str | None:
@@ -1027,8 +1091,11 @@ def normalize_session(session) -> str | None:
     return None
 
 
+_VT_UNSET = object()
+
+
 def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None,
-                         session: str | None = None) -> dict:
+                         session: str | None = None, verified_through=_VT_UNSET) -> dict:
     """Machine-readable currentness for an intraday response.
 
     Returns {"tail_status": "current" | "verified" | "unverified",
@@ -1039,7 +1106,9 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
                    bucket closed and had nothing newer (`verified_through` says when).
       unverified — outside the tolerance and nobody has proven there is nothing newer:
                    the repair was shed, failed, or is still running. NOT current."""
-    vt = tail_verified_through(ticker, tf)
+    # `verified_through` given = judge THAT proof (the bar contract passes the one it
+    # attached to the payload, read before the payload's rows — never a newer one).
+    vt = tail_verified_through(ticker, tf) if verified_through is _VT_UNSET else verified_through
     out = {"tail_status": "unverified", "verified_through": vt}
     try:
         tail = int(tail_ts) if tail_ts is not None else None
@@ -1055,13 +1124,10 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
     # (`session=rth`) never shows post/pre-market, so its tail is judged against the
     # REGULAR frontier — a thin name with no after-hours prints is current at its
     # close, not `unverified` + fast polls all evening. Absent/eth = extended frontier.
-    if normalize_session(session) == "rth":
-        ext_frontier = expected_completed_rth_bucket(tf, now)
-    else:
-        ext_frontier = expected_completed_ext_bucket(tf, now)
+    ext_frontier = newest_closed_bucket(
+        tf, "rth" if normalize_session(session) == "rth" else "eth", now)
     if ext_frontier is not None:
-        tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
-        if tail is not None and tail >= tolerance_floor:
+        if tail is not None and tail_within_one_bucket(tf, tail, ext_frontier):
             out["tail_status"] = "current"
         elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
@@ -1138,13 +1204,6 @@ def _ext_completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
             _ext_completeness_attempt.clear()
         _ext_completeness_attempt[key] = now
     return True
-
-
-def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
-    """The provider was asked after the tail's EXTENDED session ended (nothing newer)."""
-    vt = tail_verified_through(ticker, tf)
-    end = _ext_session_end_ts(last_ts)
-    return vt is not None and end is not None and vt >= end
 
 
 #: Seconds after a 5m boundary during which the live stream's proof may trail the new
@@ -1304,11 +1363,11 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     if tf in ("1", "5", "15", "30", "60") and not _is_cold_stale_intraday(tf, last_ts):
         # The date matches the latest session — but a date is not a session. A tail
         # that stops before its own close is TRUNCATED, and off-market nothing else
-        # will ever notice (see `intraday_session_complete`). Escalate once per
+        # will ever notice (see `session_complete`). Escalate once per
         # truncated tail per cooldown, and only when the caller named the symbol.
         if (ticker
                 and _os.environ.get("BARS_SESSION_COMPLETENESS", "1") == "1"
-                and not intraday_session_complete(tf, last_ts)
+                and not session_complete(tf, last_ts, "rth")
                 and _completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         # ⭐ EXTENDED completeness (2026-11-11): a tail that reaches the 16:00 close but
@@ -1320,8 +1379,8 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
         # most once per tail instant per `_EXT_COMPLETENESS_COOLDOWN` (short, so a
         # failed attempt is retried on the client's catch-up poll, not hours later).
         if (ticker and _request_is_interactive()
-                and not intraday_ext_session_complete(tf, last_ts)
-                and not _ext_session_verified(ticker, tf, last_ts)
+                and not session_complete(tf, last_ts, "eth")
+                and not session_verified(ticker, tf, last_ts, "eth")
                 and _ext_completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         return False
@@ -2674,6 +2733,22 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     if gapfill_on:
         from_date = min(from_date, _prior_session_iso())
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    if status is not None:
+        # The REWRITTEN window starts here: every fetched row at/after it is re-emitted
+        # (bar contract seal, `_heal_intraday_tail`). ET midnight of `from_date` is the
+        # later (conservative) reading of the provider's date bound.
+        try:
+            _fd = datetime.strptime(from_date, "%Y-%m-%d")
+            _fd_start = int(datetime(_fd.year, _fd.month, _fd.day,
+                                     tzinfo=_ZI("America/New_York")).timestamp())
+            status["window_start"] = max(heal_floor, _fd_start)
+            if gapfill_on:
+                # The gap-fill restores every MISSING row from `from_date` on (rows the
+                # store lacks are re-emitted below the heal floor too): deleted rows
+                # from there are back, so a seal may reach past an old delete point.
+                status["fill_from"] = _fd_start
+        except Exception:                 # noqa: BLE001 — no window, no seal
+            status.pop("window_start", None)
 
     # Timestamps already stored in (roughly) the fetched window. A re-fetched bar
     # NOT in this set is a genuine hole to restore. One indexed, lock-free read.
@@ -3397,11 +3472,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
+                            _t0 = _time.time()    # this fetch's provider check instant
                             deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
                                     if int(b.get("t", 0)) <= to_key]
                             if deep:
                                 try:
-                                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                                    with _provider_write(_t0):
+                                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
                                 except Exception:
                                     pass
                         except Exception:     # noqa: BLE001 — background
@@ -3743,6 +3820,7 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     _lg = _log.getLogger(__name__)
     try:
         _deep = _is_deep_request(bars)
+        _t0 = _time.time()                # this fetch's provider check instant
         with _provider_fault_scope.scope() as _faults:
             if tf in ("1", "5", "15", "30", "60"):
                 raw = _fetch_intraday(ticker_up, tf, bars)
@@ -3756,7 +3834,9 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             if date_tf:
                 _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
             else:
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
             if _deep:
                 _mark_history_complete(ticker_up, tf)
         elif not raw and _faults.clean:
@@ -4140,9 +4220,12 @@ def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
 
     def _job():
         try:
+            _t0 = _time.time()            # this fetch's provider check instant
             raw = _fetch_intraday(ticker_up, tf, bars)
             if raw and not _is_intraday_stale(raw):
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
                 _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
@@ -4815,6 +4898,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             # A deep backfill (bars above the first-paint window)
                             # pulls the yfinance pre-2003 IPO tail for D/W/M.
                             _deep = _is_deep_request(_bars)
+                            _fetch_t0 = _time.time()      # this fetch's check instant
                             if _tf in ("1", "5", "15", "30", "60"):
                                 new = _fetch_intraday(_sym, _tf, _bars)
                             elif _tf == "W":
@@ -4830,7 +4914,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 if _dtf:
                                     _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                                 else:
-                                    _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    with _provider_write(_fetch_t0):
+                                        _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    _record_full_cover(_sym, _tf, new, _fetch_t0)
                                 # Mark full history loaded so a request larger
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).
