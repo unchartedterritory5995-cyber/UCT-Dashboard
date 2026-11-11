@@ -57,14 +57,14 @@ Merged with origin/master `7e9d52d318` (the golden and parity json regenerated: 
 ```
 M	app/src/agent/agentOperatorLive.test.jsx            the guarded-actions list + drawing.deleteBoard
 A	app/src/agent/agentDrawingBoards.test.jsx           runtime rails (17)
-M	app/src/agent/agentRouting.test.jsx                 action count 157 → 161
+M	app/src/agent/agentRouting.test.jsx                 action count 157 → 161 (on 1208aa0085: master 164 + 4 = 168)
 M	app/src/agent/builtins.js                           registers the module
 A	app/src/agent/capabilities/drawingBoards.js         target kind, context, 4 capabilities, phrases
 M	app/src/agent/contract/manifest.golden.json         regenerated (UPDATE_AGENT_GOLDEN=1)
 M	app/src/agent/host.js                               buildDrawingBoardSource + host.drawingBoards
 A	app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx   real panel (11)
 M	app/src/agent/useAgent.js                           freshCardOnDrift: a drifted delete approval shows a fresh card (opt-in)
-M	app/src/agent/routing.js                            the drawings group: title + a board-verb word (add-only)
+M	app/src/agent/routing.js                            (on 1208aa0085) its own words-only group drawingBoards; drawings = master
 M	docs/agent/CHARTS_EXECUTION_STATUS.md               C1-167..170 VERIFIED (SIMULATED); counts recounted at merge
 A	docs/agent/program/PR-exec-drawing-boards.md        this file
 M	tests/fixtures/nl1_assemble_parity.json             regenerated (UPDATE_NL1_PARITY=1)
@@ -105,3 +105,15 @@ Earlier, at ff7eacc221:
 - Four capreg intents, one per action, on the real drawings store through `host.drawingBoards` (the panel's writers): `drawing.setActiveBoard` ("switch to my Swing board", Undo switches back), `drawing.createBoard` ("create a new drawing board called Earnings", Undo removes it), `drawing.renameBoard` ("rename Board 2 to Breakouts", Undo restores "Board 2"), and `drawing.deleteBoard` ("delete the Breakouts board"). The delete intent asserts the CONFIRMATION card first (it names the board, "2 drawings" and "can't be undone"), with no receipt and both boards still there. Only Apply deletes it.
 - Harness: `seed.boards` ({ names, active, drawings }) seeds the boards in the real store, and the stubbed server copy (`tracings_doc`) now also carries the boards list, as exportTracings() pushes it, so `confirm()` reads them back. Runner: a `boards` expectation (labels and the active board) and `proposalSays` (the waiting card's own text).
 - Regenerated: capreg `coverage/*` (UPDATE_CAPREG=1, additive contract) and `baseline.lock.json` (`--update`, additive).
+
+## Re-merged onto 1208aa0085 (2026-11-11)
+
+Merged origin/master `1208aa0085` (after #988, #1072, #1077, #1027, #1084, #1073, #1088, #1091). Merge commit `102c9a52c6`; SAT-1 in its own commit `20501e4110`.
+
+- **Approval path (useAgent).** #988 was already in this branch's base; master's later useAgent changes (#1027's widget `refuse` / list-view targeting, the watchlist-widget screen) are in the pre-execution resolver and the model path, not in the approval binding block. Auto-merged, no semantic conflict: the binding drift check runs first and refuses as before; only a drift on an all-`freshCardOnDrift` plan (drawing.deleteBoard) continues as `propose` and then passes through every #988 / #1027 targeting check like any new card. Rails green: agentTargetTruth, agentRelativeChart, agentDiagonalChart (+HeldOut), agentNegatedClickAct, agentTickerAnchors, agentLineAbsolute, agentApprovalBinding, agentApprovalF6, agentNoopApproval, agentDrawingBoards, drawingBoards.outcome.
+- **Routing: own words-only group.** On master the unrecognised-request fill sits at its 55-action budget, so the four actions in `drawings` moved 80 v2 first calls (in→out still 0). They are now in their own group `drawingBoards` (`wordsOnly`, `fillLast`, `actions:` by name), selected only by a switch / draw-on / rename / delete / new verb governing the board noun within two words, or "drawing board". `drawings` is character-identical to master. nlm1Routing OWN_WORDS has 4 phrases for it, plus 5 negative controls (a bare workspace "board").
+- **Routing v1 and v2 vs master, 3650 requests:** in→out **0** on both; 3 requests differ on each (held-out ids only, each adds `drawingBoards` and nothing leaves: they name a layout whose name ends in "board"). Table: [evidence/exec-drawing-boards/routing-first-calls-1070-on-1208aa0085.md](evidence/exec-drawing-boards/routing-first-calls-1070-on-1208aa0085.md).
+- **Pins:** agentRouting `FULL.length` 168 = master 164 + 4. The guarded lists (agentOperatorLive L3, tests/test_uct_agent_autoapply.py) = master's list + drawing.deleteBoard (auto-merged).
+- **Generated files** reset to master, then regenerated one per run: manifest.golden.json (UPDATE_AGENT_GOLDEN=1, +119 lines, as before), nl1_assemble_parity.json (UPDATE_NL1_PARITY=1: the 4 actions → drawingBoards, the new group named), baseline.lock.json (`--update`: 175 intents, the 4 drawing.*Board intents present), capreg coverage/* (UPDATE_CAPREG=1). SAT-1 section_b_requests.json (UPDATE_SAT1_REQUESTS=1): every hunk is the `drawingBoards` name added to a request's `routing.groups` (30 requests); no request's selected groups change; scan/eval untouched.
+- **CHARTS_EXECUTION_STATUS:** master's sections and rows plus this PR's C1-167..170 rows and section.
+- **Tests (LOCAL, vitest, no lock, ≤25 files per run):** 19 files 2440 passed (count pins, agentNl1SelectionCoverage, agentExecReach incl. v2 list 8/8, routeReachability, agentNoLookbehindEquivalence (0 frozen rows changed, no re-record), noRegexLookbehind, agentNoLookbehind988/Strings, capreg routing / routingV2 / inventory / golden / collision ×2, agentContracts, agentNl1Selection, nlm1Routing); 15 files 1890 passed (SAT-1 requests, the #988 rails, the approval tests, agentDrawingBoards, drawingBoards.outcome, agentDrawings, capreg deterministic). pytest (capreg baseline, autoapply, nl1_selection, scan_sat_section_b): 87 passed, 1 failed — `test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first`, ONLY because the new group makes 25 groups and turn.py MAX_GROUPS is 24 (#1089 raises it to 32; turn.py not touched here).
