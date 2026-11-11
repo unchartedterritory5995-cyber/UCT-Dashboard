@@ -27,6 +27,7 @@
 import { toChartTime, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
+import { unixToDateLabel } from './types'
 import { toHeikinAshi } from '../../components/chart/indicators'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -58,11 +59,11 @@ export function viewTransformId(view = {}) {
 // 'YYYY-MM-DD'. The store (P2a types.js TIME UNIT) holds a D/W/M t as UNIX SECONDS at
 // 00:00 UTC of the server's label date (D session date, W Friday, M the 1st), so the
 // label is the UTC date of t — NOT the ET date (00:00 UTC is the previous ET evening).
-// ⚠ Same rule as types.unixToDateLabel (P2a, not on master yet): at integration import
-// it from './types' so there is one owner. A date-string t passes through untouched.
+// types.unixToDateLabel owns that rule (one owner). A date-string t passes through untouched.
+// (barTime.etWeekCloseLabel labels a raw TICK time; a store W t already IS the label date.)
 function legacyT(t, tf) {
   if (typeof t !== 'number' || !DWM.has(tf)) return t
-  return new Date(t * 1000).toISOString().slice(0, 10)
+  return unixToDateLabel(t)
 }
 function toLegacyBar(b, tf) {
   const t = legacyT(b.t, tf)
