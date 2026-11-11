@@ -112,3 +112,19 @@ The defect phrasing on head uses 48 of 55, so boardEdit can grow by 7 before tha
 ## Files (git diff --stat origin/master...HEAD)
 
 ```
+app/src/agent/nlm1/routingV2.js
+app/src/agent/qa/capabilityRegression/baseline/corpus.json
+app/src/agent/qa/capabilityRegression/baseline/reachPhrasings.json
+app/src/agent/qa/capabilityRegression/corpus.routingV2.test.js
+app/src/agent/qa/capabilityRegression/coverage/COVERAGE.md
+app/src/agent/qa/capabilityRegression/coverage/coverage.json
+app/src/agent/qa/capabilityRegression/routeReachability.test.js
+app/src/agent/qa/capabilityRegression/testing/route.js
+app/src/agent/routing.js
+docs/agent/program/PR-route-budget-fix.md
+docs/agent/program/PR-route-reachability.md
+```
+
+(includes the merged reachability rail branch 8b8a67f75d; this PR's own files: routingV2.js, corpus.json, corpus.routingV2.test.js, coverage.json, COVERAGE.md, routeReachability.test.js, this doc)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
