@@ -124,9 +124,11 @@ describe('makeLiveSane: the chart call resolves the symbol OWN close itself', ()
 // previous symbol's close.
 describe('StockChart wiring', () => {
   const src = readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+  // P3-S0: StockChart's bar data region (with some _liveSane call sites) lives in useLegacyChartBars.js.
+  const legacyBars = readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/useLegacyChartBars.js'), 'utf8')
   it('has no direct isSaneLivePrice( call — every site uses _liveSane(sym, ...)', () => {
-    expect(src).not.toMatch(/\bisSaneLivePrice\(/)
-    expect((src.match(/_liveSane\(/g) || []).length).toBeGreaterThanOrEqual(10)
+    expect(src + legacyBars).not.toMatch(/\bisSaneLivePrice\(/)
+    expect(((src + legacyBars).match(/_liveSane\(/g) || []).length).toBeGreaterThanOrEqual(10)
   })
   it('reads the server-close baseline only inside _liveSane (plus its one stamped write)', () => {
     const reads = src.split('\n').filter((l) => /lastServerCloseRef\.current/.test(l) && !/^\s*\/\//.test(l))
