@@ -370,7 +370,7 @@ export function registerChartSetupCapabilities() {
     ...chartCommon,
     name: 'chartSetup.zoom',
     summary: `Zoom ONE chart's time axis in (fewer, wider bars) or out (more, narrower bars), like pressing + or - on the chart, 1 to ${MAX_ZOOM_STEPS} presses at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.`,
-    hints: `direction = in | out; steps = key presses, 1 to ${MAX_ZOOM_STEPS} (1 when they don't say; "a lot" = 3). For a named span (3M, 1Y…) use chartSetup.setRange; the price axis is chartSetup.autoScale.`,
+    hints: `direction = in | out; steps = key presses, 1 to ${MAX_ZOOM_STEPS} (1 when they don't say; "a lot" = 3). For a named span (3M, 1Y…) use chartSetup.setRange; "zoom out to weekly / monthly bars" is a timeframe (chart.setTimeframe); the price axis is chartSetup.autoScale.`,
     args: { type: 'object', properties: { direction: { type: 'string', enum: ['in', 'out'] }, steps: { type: 'integer' } }, required: ['direction', 'steps'], additionalProperties: false },
     undoNote: ZOOM_NO_UNDO,
     check(st, { direction, steps }) {
