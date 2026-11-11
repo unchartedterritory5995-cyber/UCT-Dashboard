@@ -533,3 +533,44 @@ describe("⭐⭐ OZ r3 (B1) — a withhold is the clock's only when the clock le
     expect(r.withheldBy).toEqual({ 'objects:not-computable': ['label', 'box'] })
   })
 })
+
+// ⭐⭐ OZ r3 (delta review N-3) — PART (a) OF THE CAUSE RULE CARRIES WEIGHT ON ITS OWN.
+// `taintCause = taintClockSeen && !taintOtherSeen && !unknownOtherSeen ? 'clock' : 'other'`.
+// `unknownOtherSeen` (part b) misses a CARRIED crossing: `observeCrossings` runs before
+// every skip, so an unknown operand on a bar a last-bar-only op does not run sets
+// `crossTaintUntil = bar + 1` and lands nothing. On the next bar `tainted({v:'cross'})`
+// answers true and sets neither flag. Only `taintClockSeen` (no clock withhold happened)
+// then keeps the withhold 'other', so the box family is named. Drop it (mutant MBa) and
+// the box is withheld with NOTHING said: the silent zero again. Witness: reviewer's
+// `rev-oz-private/zzRevOzCross.test.js`, validator-legal.
+describe("⭐⭐ OZ r3 (N-3) — a carried crossing taint with no clock anywhere: the family is named", () => {
+  const crossProg = () => ({ programVersion: 1, regs: [{ id: 'r0', family: 'label' }], colls: [],
+    ops: [
+      { k: 'create', family: 'label', site: 's0', into: 'r0', once: true, when: null,
+        props: { x: { v: 'bar' }, y: { v: 'const', value: 1 } } },
+      { k: 'create', family: 'box', site: 's1', into: null, lastBarOnly: true,
+        when: { v: 'cross', dir: 'over', args: [{ v: 'graph', node: 0 }, { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y' }] },
+        props: { left: { v: 'bar' }, top: { v: 'const', value: 2 }, right: { v: 'bar' }, bottom: { v: 'const', value: 1 } } },
+    ] })
+  const BOX_NOT_COMPUTABLE = notShownSentence(['box'], NOT_SHOWN.NOT_COMPUTABLE)
+
+  it('⭐ a non-clock curtain on bar 5 carried into the last bar: the box is withheld AND named', () => {
+    expect(() => assertObjectProgram(crossProg())).not.toThrow()
+    // graph node 0 is 0 until bar 5 (unknown there, not through the clock), 2 from bar 6
+    const r = evaluateObjects(crossProg(), { barCount: 7, readNode: (n, bar) => (bar >= 6 ? 2 : 0),
+      readTime: (b) => b, readUnknown: (n, bar) => n === 0 && bar === 5 })
+    expect(r.live.filter((o) => o.family === 'box')).toEqual([])
+    expect(r.live.filter((o) => o.family === 'label').length).toBe(1)
+    expect(r.withheldBy).toEqual({ 'objects:not-computable': ['box'] })
+    expect(r.withheldWhy).toEqual({ box: BOX_NOT_COMPUTABLE })
+    expect(withRenderDrops(null, { dropped: 0, held: 0, why: r.withheldWhy }).note).toBe(BOX_NOT_COMPUTABLE)
+  })
+
+  it('⛔ CONTROL — the same program with no unknown bar: the box draws and nothing is said', () => {
+    const r = evaluateObjects(crossProg(), { barCount: 7, readNode: (n, bar) => (bar >= 6 ? 2 : 0),
+      readTime: (b) => b, readUnknown: () => false })
+    expect(r.live.filter((o) => o.family === 'box').length).toBe(1)
+    expect(r.withheldBy).toBeUndefined()
+    expect(r.withheldWhy).toBeUndefined()
+  })
+})
