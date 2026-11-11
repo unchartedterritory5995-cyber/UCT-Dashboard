@@ -180,7 +180,7 @@
   },
   {
    "id": "boardEdit",
-   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
   },
   {
    "id": "workspace",
@@ -319,7 +319,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -476,7 +476,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -647,7 +647,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -828,7 +828,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -981,7 +981,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",

@@ -470,6 +470,19 @@
    ],
    "fast": false
   },
+  "chartSetup.autoScale": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartSetup.compareDisplay": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -590,6 +603,19 @@
   "chartSetup.setRange": {
    "domain": "chartSetup",
    "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.stepBars": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
    "target": "chart",
    "risk": "local",
    "reversible": true,
