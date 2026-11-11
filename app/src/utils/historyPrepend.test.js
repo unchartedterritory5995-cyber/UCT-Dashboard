@@ -120,9 +120,11 @@ describe('H3 loader', () => {
   })
   it('warming 503 and `filling` are retried, not treated as the floor', async () => {
     const w = new Error('HTTP 503'); w.warming = true; w.retryAfterMs = 3000
-    const L = createHistoryLoader({ urlFor, fetchJson: vi.fn().mockRejectedValueOnce(w).mockResolvedValueOnce({ bars: [], filling: true }) })
+    let now = 0
+    const L = createHistoryLoader({ urlFor, now: () => now, fetchJson: vi.fn().mockRejectedValueOnce(w).mockResolvedValueOnce({ bars: [], filling: true }) })
     const o = { sym: 'X', tf: '60', oldestT: 1_800_000_000 }
     expect(await L.loadOlder('K', o)).toMatchObject({ exhausted: false, retryAfterMs: 3000 })
+    now = 3000                                               // the Retry-After has passed
     expect(await L.loadOlder('K', o)).toMatchObject({ exhausted: false, retryAfterMs: 3000 })
     expect(L.isExhausted('K', o.oldestT)).toBe(false)
   })
