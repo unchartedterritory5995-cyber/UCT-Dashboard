@@ -1237,3 +1237,16 @@ The command palette (`components/CommandPalette.jsx`, 15 KB of the entry chunk) 
 ## The original line is back: 2,260,793 B (owner approval, 2026-11-09)
 
 `notebook_first_open.max` returns to the rule's value, floor(2,153,137 × 1.05) = **2,260,793 B**. Neither of the day's two hand raises was approved by the owner. The growth behind them has since left first open: #996 put the command palette on idle, and `da9d1ea845` took the desk reload code and usage reporting off first load. CI measured master at **2,252,214 B** (runs on `46f28be66c`, `3724976afd` and `fdd4d73bd1`), which is 8,579 B under the original line. AUDIT confirmed the numbers from CI's own logs. The owner approved this restoration only, not further changes. From now on, any raise needs a measured diff in its PR and a named owner approval recorded in that PR.
+
+## The document preview and the captured-passage sheet left first open (2026-11-10)
+
+Master went red on the `notebook bytes` gate after PR #1037 (intraday time buckets) added about 4 KB to code the Notebook's first open already loads: CI read 2,258,741 B at `e477cddce5` and 2,262,712 B at `98070494be`, over the 2,260,793 B line. The budget is unchanged. Instead, two sheets the editor draws only after a press moved off first open:
+
+| Moved | How | Rail |
+|---|---|---|
+| The document preview (`DocumentPreviewSheet`, with `ImageDocumentViewer`, `TextPagesViewer`, `documentKind` and `PdfViewerBoundary`) | `lazyChunk` through `sourceSheetLoaders` in `NoteEditorPage`; mounted on its first open, then stays mounted (the Tier 1a history idiom: a closed Sheet renders nothing either way) | `NoteEditorPage.sourceSheetsLazy.test.js` |
+| The captured-passage sheet (`CapturedSourceSheet`) | the same | the same |
+
+The editor warms both chunks once idle, like the widget palette, so a press opens without a wait and still opens offline once the warm has landed. ResearchHome and TickerResearchWorkspace still import both statically; they are lazy views, off first open. The rail was mutation-checked: an eager import put back turns it red.
+
+**Local measurement** (`vite build`, then `tools/notebook_perf_budgets.py --dist app/dist`, tree of `220ee36545`): **2,263,106 B** before, **2,251,636 B** after, −11,470 B, so 9,157 B under the 2,260,793 B line.

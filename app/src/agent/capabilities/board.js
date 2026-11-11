@@ -179,7 +179,7 @@ const valueOf = (f, w, doors) => {
 /** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
 const choicesOf = (f, door) => {
   const raw = f.from === 'door' ? door?.options?.()?.[f.key] : f.options
-  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: String(o) }))
+  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: f.shown?.[o] ?? String(o) }))
 }
 const says = (f, v, choices) => {
   if (Array.isArray(v)) return v.length ? v.join(', ') : (f.all ? 'all' : 'none')
@@ -1306,7 +1306,16 @@ export function registerBoardCapabilities() {
       // a preset scan, 300 s for a period ranking), so a request never asks the server for it more than once
       if (f.type === 'action' && (st.acts || []).some(x => x.id === t.id && x.key === f.key)) return `The ${label(t.type)}'s ${f.key} is already being pressed once in this request.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
-      return coerced(st, t, f, value, env).why || null
+      const c = coerced(st, t, f, value, env)
+      if (c.why) return c.why
+      // ONE choice per single-select control in one request, as the widget's own chips allow ("calls and puts only" is refused
+      // with the control's own choices, never one of the two quietly winning)
+      const was = f.type === 'enum' ? st.chose?.[`${t.id}\u0000${f.key}`] : undefined
+      if (was !== undefined && !same(was, c.value)) {
+        const ch = choicesOf(f, door)
+        return `${f.key} on the ${label(t.type)} is one choice: ${listed(ch)} — not ${says(f, was, ch)} and ${says(f, c.value, ch)} together. Nothing changed.`
+      }
+      return null
     },
     apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
@@ -1314,6 +1323,9 @@ export function registerBoardCapabilities() {
       const f = controlFor(t, key)
       const next = coerced(st, t, f, value, env).value
       if (f.type === 'action') return { ...st, acts: [...(st.acts || []), { id: t.id, key: f.key, label: label(t.type) }] }
+      // what this request chose for a single-select control (check refuses a second, different one). Kept on the plan's own
+      // state object, so an op that changes nothing stays the same state (the executor's no-op test is identity)
+      if (f.type === 'enum') { st.chose ||= {}; st.chose[`${t.id}\u0000${f.key}`] = next }
       if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
       const opts = f.write ? f.write(t.opts, next) : withPath(t.opts, f, next)
       if (same(next, atPath(t.opts, f)) || same(opts, t.opts)) return st

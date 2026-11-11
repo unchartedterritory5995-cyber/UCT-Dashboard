@@ -7,6 +7,7 @@
 
 const FEATURE_METHODS = {
   'window-state': ['onWindowState'],
+  'desk-visibility': ['onDeskVisibility'],
   'before-quit': ['onBeforeQuit', 'ackBeforeQuit'],
 }
 
@@ -50,6 +51,8 @@ function subscribe(feature, call) {
 }
 
 export function onWindowState(cb) { return subscribe('window-state', (b) => b.onWindowState(cb)) }
+/** 'visible' | 'hidden' for the WHOLE desk: hidden only when every app window is hidden or minimized. */
+export function onDeskVisibility(cb) { return subscribe('desk-visibility', (b) => b.onDeskVisibility(cb)) }
 
 export function onBeforeQuit(cb) { return subscribe('before-quit', (b) => b.onBeforeQuit(cb)) }
 

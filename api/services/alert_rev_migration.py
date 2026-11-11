@@ -98,6 +98,12 @@ ADDRESS_REVS: dict[str, int] = {
     # (`tests/test_rs_rating_view.py` pins both byte-identical), so no migration
     # is owed and none is run.
     "rsLine": 5,
+    # 2026-11-10 (RS split, lane S2): the two split definitions' alert addresses
+    # (`rs_phases.*`, `rs_vs_ema.*`). Rev 1 = DEFAULT_REV, spelled out so the
+    # table names every RS definition an alert can bind to; the JS registry
+    # carries the same `rev: 1`, so the rail (non-default entries only) is unmoved.
+    "rsPhases": 1,
+    "rsVsEma": 1,
 }
 
 # ⭐ AN ALERT BASE THAT IS NOT THE DEFINITION ID (found by unit 2b-05, fixed at
@@ -112,6 +118,8 @@ ADDRESS_REVS: dict[str, int] = {
 # definition id (`vwap.vwap` → `vwap`), so the map is short on purpose.
 ADDRESS_BASE_DEFINITION: dict[str, str] = {
     "rs_line": "rsLine",
+    "rs_phases": "rsPhases",
+    "rs_vs_ema": "rsVsEma",
 }
 
 

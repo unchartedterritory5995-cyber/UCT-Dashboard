@@ -1011,3 +1011,176 @@ def vars_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
             state[i] = 3 if v > m else 4
     out["vars"], out["varsMa"], out["varsState"] = vars_col, ma, state
     return out
+
+
+# ── RS split, unit U4 (2026-11-09): UCT RS Phases and UCT RS vs 21 EMA ──────
+#
+# Two more pure readings for the two new server rows (`registry_defs`
+# `rsPhases` / `rsVsEma`; engineering map docs at
+# projects/rs-split-handoff-2026-11-09/engineering-map.md §(d)). Same contract
+# as everything above: aligned to ``bars``, no I/O, ``None`` (never 0) in the
+# warm-up and on any bar the benchmark does not carry. Nothing here touches a
+# Phase 1 / 2a / 3 function, so every earlier rail holds.
+#
+# * The EMAs are `rs_moving_average`'s: `indicator_compute.compute_ema` seeded
+#   with the SMA of the first n valid values, nulls before the seed, GAPS
+#   SKIPPED (a benchmark bar missing for this time is left out of the
+#   recursion and stays None in the output). Both the ratio's and the
+#   benchmark's trends use it, so the two sides are smoothed identically.
+# * `dist` is `legend_scalars`'s ``pctFromMa`` at every bar, so the RS vs 21
+#   EMA histogram and the RS line readout's "above its 21 EMA by X%" can never
+#   disagree: one formula, ``100 · (R / EMA_21(R) − 1)``.
+# * The divergence z-score reads the spread's population standard deviation
+#   over its last `PHASES_SIGMA_WINDOW` VALID values (gap-skipping, like the
+#   EMAs that feed it); a window of zero variance has no z-score (None, never
+#   0 or infinity), the frozen-tape ruling `clenow_columns` applies.
+
+DEFAULT_PHASES_SHORT = 3        # Deepvue's "short-term trend smoothing"
+DEFAULT_PHASES_LONG = 10        # Deepvue's "long-term trend smoothing"
+PHASES_SHORT_RANGE = (2, 20)
+PHASES_LONG_RANGE = (3, 60)
+PHASES_SIGMA_WINDOW = 63        # a quarter of sessions: the z-score's own scale
+PHASES_Z_CLAMP = 3.0            # |z| is capped so one wild day cannot own the pane
+
+DEFAULT_VS_EMA_LENGTH = DEFAULT_MA_LENGTH   # the RS line's own 21 EMA, by construction
+DEFAULT_VS_EMA_FAST = 3         # Deepvue's "Webby RS Line" EMA 3 of the distance
+DEFAULT_VS_EMA_SLOW = 13        # ... and its EMA 13
+
+#: Every column `compute_rs_phases_columns` returns. The wire carries `phase`
+#: and `divergence` (`registry_defs.RS_PHASES_WIRE_COLUMNS`); the two trend
+#: series stay here for the readout and for tests.
+RS_PHASES_COLUMNS = ("phase", "divergence", "rsTrend", "benchTrend")
+RS_VS_EMA_COLUMNS = ("dist", "fast", "slow")
+
+
+def ema_ratio_trend(series: Column, short: int, long: int) -> Column:
+    """``EMA_short(x) / EMA_long(x) − 1`` per bar: positive while the short
+    average leads the long one (the series is trending up). Scale-free, so a
+    stock's ratio and the benchmark's price read on one scale. None until both
+    averages exist and on any gap bar; None where the long average is 0."""
+    s = rs_moving_average(series, int(short), "EMA")
+    l = rs_moving_average(series, int(long), "EMA")
+    out: Column = [None] * len(series)
+    for i, (a, b) in enumerate(zip(s, l)):
+        if _is_num(a) and _is_num(b) and b != 0:
+            out[i] = a / b - 1.0
+    return out
+
+
+def rolling_zscore_clamped(series: Column, window: int = PHASES_SIGMA_WINDOW,
+                           clamp: float = PHASES_Z_CLAMP) -> Column:
+    """``clamp(x_t / σ_window(x)_t, −clamp, +clamp)``: the value against the
+    population standard deviation of the last ``window`` VALID values ending
+    at t (inclusive). None until ``window`` valid values exist, on gap bars,
+    and when σ is 0."""
+    n = len(series)
+    out: Column = [None] * n
+    w = int(window)
+    if w < 1:
+        return out
+    idx = [i for i, v in enumerate(series) if _is_num(v)]
+    vals = [float(series[i]) for i in idx]
+    for j in range(w - 1, len(vals)):
+        seg = vals[j - w + 1:j + 1]
+        mean = sum(seg) / w
+        var = sum((v - mean) ** 2 for v in seg) / w
+        sd = math.sqrt(var)
+        if sd <= 0:
+            continue
+        out[idx[j]] = max(-float(clamp), min(float(clamp), vals[j] / sd))
+    return out
+
+
+def compute_rs_phases_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                              short: int = DEFAULT_PHASES_SHORT,
+                              long: int = DEFAULT_PHASES_LONG) -> Dict[str, Column]:
+    """UCT RS Phases (map §(d)), aligned to ``bars``::
+
+        rsTrend_t    = EMA_short(R)_t / EMA_long(R)_t − 1
+        benchTrend_t = EMA_short(B)_t / EMA_long(B)_t − 1
+        phase_t      = 1 if rsTrend > 0 and benchTrend < 0   (RS up, market down)
+                     = 0 if rsTrend < 0 and benchTrend > 0   (RS down, market up)
+                     = None otherwise                        (no shading)
+        divergence_t = clamp((rsTrend − benchTrend) / σ63(spread), −3, +3)
+
+    ``B`` is the benchmark close on the stock's own calendar
+    (`benchmark_closes_aligned`), so a bar the benchmark lacks is None in every
+    column. The two lengths are taken as given: `registry_defs.resolve_inputs`
+    clamps them to `PHASES_SHORT_RANGE` / `PHASES_LONG_RANGE` first."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_PHASES_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    bench = benchmark_closes_aligned(bars, benchmark_bars)
+    rs_trend = ema_ratio_trend(rs, short, long)
+    bench_trend = ema_ratio_trend(bench, short, long)
+    phase: Column = [None] * n
+    spread: Column = [None] * n
+    for i in range(n):
+        a, b = rs_trend[i], bench_trend[i]
+        if not (_is_num(a) and _is_num(b)):
+            continue
+        spread[i] = a - b
+        if a > 0 and b < 0:
+            phase[i] = 1.0
+        elif a < 0 and b > 0:
+            phase[i] = 0.0
+    return {
+        "phase": phase,
+        "divergence": rolling_zscore_clamped(spread),
+        "rsTrend": rs_trend,
+        "benchTrend": bench_trend,
+    }
+
+
+def rs_phase_flip_columns(cols: Dict[str, Column]) -> Dict[str, Column]:
+    """RS Phases flip events (alert lane, RS split lane S2), over the columns
+    `compute_rs_phases_columns` returns::
+
+        flipBlue[t] = 1 if phase[t] == 1 and phase[t-1] != 1     (RS turned blue)
+        flipRed[t]  = 1 if phase[t] == 0 and phase[t-1] != 0     (RS turned red)
+
+    ``phase[t-1] != x`` includes the neutral (None) bar before it: neutral to blue
+    is a flip. {0, 1, None}: None where either bar cannot be judged, i.e. a bar
+    whose ``rsTrend`` or ``benchTrend`` is None (warm-up, a gap bar) -- so the
+    first judged bar never reads as a flip out of nothing. Same convention as
+    `cross_columns`: a flip is an edge, a held phase is 0 after its first bar."""
+    phase, rs_t, b_t = cols["phase"], cols["rsTrend"], cols["benchTrend"]
+    n = len(phase)
+    blue: Column = [None] * n
+    red: Column = [None] * n
+    for i in range(1, n):
+        if not (_is_num(rs_t[i]) and _is_num(b_t[i]) and _is_num(rs_t[i - 1]) and _is_num(b_t[i - 1])):
+            continue
+        blue[i] = 1.0 if (phase[i] == 1.0 and phase[i - 1] != 1.0) else 0.0
+        red[i] = 1.0 if (phase[i] == 0.0 and phase[i - 1] != 0.0) else 0.0
+    return {"flipBlue": blue, "flipRed": red}
+
+
+def compute_rs_vs_ema_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                              ema: int = DEFAULT_VS_EMA_LENGTH,
+                              fast: int = DEFAULT_VS_EMA_FAST,
+                              slow: int = DEFAULT_VS_EMA_SLOW) -> Dict[str, Column]:
+    """UCT RS vs 21 EMA (map §(d)), aligned to ``bars``::
+
+        dist_t = 100 · (R_t / EMA_ema(R)_t − 1)    # percent above (+) / below (−)
+        fast_t = EMA_fast(dist)_t
+        slow_t = EMA_slow(dist)_t
+
+    ``dist`` at the last bar with a ratio IS `legend_scalars(...)["pctFromMa"]`
+    for the RS line's default average (the rail in tests/test_rs_vs_ema_math.py
+    holds the two equal), so the histogram and the readout never disagree."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_VS_EMA_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    ma = rs_moving_average(rs, int(ema), "EMA")
+    dist: Column = [None] * n
+    for i, (v, m) in enumerate(zip(rs, ma)):
+        if _is_num(v) and _is_num(m) and m != 0:
+            dist[i] = (v / m - 1.0) * 100.0
+    return {
+        "dist": dist,
+        "fast": rs_moving_average(dist, int(fast), "EMA"),
+        "slow": rs_moving_average(dist, int(slow), "EMA"),
+    }

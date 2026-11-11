@@ -85,6 +85,7 @@ from api.routers import journal_two as journal_two_router
 # note id. Pinned by tests/test_main_router_order.py.
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
+from api.routers import desktop_events as desktop_events_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -10271,6 +10272,23 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
         except Exception as e:
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
+        # Desktop plan 5.1 -- desktop telemetry alerts: each new halt trigger (same crash or
+        # update error on 2+ machines, or a launch-failure loop) posts once to OPS, plus one
+        # digest a day after 07:00 ET. Never raises past the job; claims dedupe across pods.
+        try:
+            from api.services import desktop_events as _desktop_events
+            def _desktop_events_tick():
+                try:
+                    _desktop_events.alert_tick()
+                except Exception as _e:  # noqa: BLE001
+                    print(f"[desktop-event] alert tick failed: {_e}")
+            _scheduler.add_job(_desktop_events_tick,
+                               trigger=CronTrigger(minute=23, timezone=_ET),
+                               id="desktop_events_alerts", max_instances=1, coalesce=True,
+                               misfire_grace_time=1800, replace_existing=True)
+            print("[startup] desktop telemetry alerts registered (hourly at :23)")
+        except Exception as e:
+            print(f"[startup] desktop telemetry alerts registration failed (non-fatal): {e}")
         # Wave 13 lane 13G-1 -- the passed-setups nightly refresh: every member with a row has
         # new saves collected and open rows scored from the stored daily bars (no vendor call).
         # Never raises. 17:40 ET weekdays,
@@ -10960,6 +10978,8 @@ app.include_router(alerts_router.router)
 # (lane F's report; rail tests/test_main_router_order.py).
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
+# Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
+app.include_router(desktop_events_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)

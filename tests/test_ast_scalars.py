@@ -360,7 +360,9 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # ⭐ (149, 111) → (149, 115) on 2026-11-10: the four `live_base_*` columns (the session-shifted
     # levels the live tier restates the 5-day/1-month/1-year change and MINV3.1 from) joined COLUMNS.
     # They are not member columns at all, so they are EXCLUDED with their own dated reason.
-    assert (len(declared), len(excluded)) == (149, 115)
+    # 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, a rating-history column excluded like its siblings (R8).
+    # => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
+    assert (len(declared), len(excluded)) == (149, 116)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

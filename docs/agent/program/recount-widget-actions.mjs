@@ -118,7 +118,7 @@ const sec = [
   'One widget-action layer: every row is data in `widgets/widgetControls.js` / `agent/widgetNames.js`, run by `widget.setOption` through the widget\'s own door (`pages/charts/widgetDoors.js`). New row types: `action` (a widget\'s own button, `act(key)`; done only once it resolves, nothing to undo) and `color` (#rrggbb). New capability: `watchlist.arrangeColumns` (the header drag\'s and the gridline\'s own results, now shared with the drag). Tests: real Agent panel beside the REAL widgets (Alerts, News, Market Context, AI Search, Fundamentals, Scanner, Period Sort, Watchlist), scripted model, jsdom, SIMULATED. Held-out phrasings were committed before each change and failed before it (48 of 48). PR doc: `docs/agent/program/PR-exec-widget-actions.md`.', '',
   `- VERIFIED (${v.length}): ${v.join(', ')}; ${was(v)}.`,
   `- PARTIAL (SIMULATED) (${p.length}): ${p.join(', ')}; ${was(p)}. C3-103: no gradient, fonts, grid or tint colours. C3-180: the Journal half only.`,
-  '- Known gap, pinned both ways: "narrow the price column to 50" (C3-086) is answered by the quote fast path before the model. Owner-gated, unchanged: C3-166 sweeps (F-16; only "Calls Only" is approved, PR #872). Deferred: C3-071, C3-072, C3-097 (see the PR doc).',
+  '- Known gap, pinned both ways: "narrow the price column to 50" (C3-086) is answered by the quote fast path before the model. Not this PR: C3-166 (the Options Flow chips, F-16 widened) is #1029's row, VERIFIED there. Deferred: C3-071, C3-072, C3-097 (see the PR doc).',
   '- Recounted from the "All actions" table by `recount-widget-actions.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).', '',
 ].map((t) => ({ t, e: eol }))
 L.splice(up, 0, ...sec)

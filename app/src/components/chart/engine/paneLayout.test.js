@@ -635,7 +635,7 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
   // LABEL. There is no legacy geometry for it to match.
   // ⭐ 2026-10-01 — the Technical library's thirty own-pane Tier 1 studies: new
   // panes, never a shipped band, and each declares its height like every pane.
-  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume',
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'dollarVolume',
     ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
@@ -697,6 +697,60 @@ describe('validateDefinition guards placement.pane.height', () => {
   it('the error names the field and the offending value', () => {
     expect(errorsFor({ height: 0 })[0]).toContain('placement.pane.height')
     expect(errorsFor({ height: 0 })[0]).toContain('0')
+  })
+})
+
+// ⭐ RS split U3 — `placement.pane.minPx`, the pane's MINIMUM height in pixels,
+// applied after the member's own sizes. Pixels, so any positive finite number.
+describe('validateDefinition guards placement.pane.minPx', () => {
+  const withPane = (pane) => ({
+    schemaVersion: 1, id: 'x', version: 1,
+    compute: { kind: 'native', fn: 'x', rev: 1 }, meta: { name: 'X' },
+    placement: { target: 'pane', pane },
+    inputs: [], plots: [{ key: 'x', style: 'line' }],
+  })
+  const errorsFor = (pane) => {
+    const r = validateDefinition(withPane(pane))
+    return r.ok ? [] : r.errors.filter(e => e.startsWith('placement.pane.minPx'))
+  }
+
+  it.each([
+    ['0 — no floor is spelled by omitting the field', { minPx: 0 }],
+    ['a negative count', { minPx: -64 }],
+    ['a numeric STRING', { minPx: '64' }],
+    ['NaN', { minPx: NaN }],
+    ['Infinity', { minPx: Infinity }],
+    ['a boolean', { minPx: true }],
+  ])('rejects %s', (_label, pane) => {
+    expect(errorsFor(pane)).toHaveLength(1)
+  })
+
+  it.each([
+    ['a pixel count', { minPx: 64 }],
+    ['a fractional pixel count', { minPx: 48.5 }],
+    ['with a height beside it — the two are independent', { height: 0.2, minPx: 64 }],
+    ['no minPx at all — it is optional', { height: 0.2 }],
+    ['an empty pane object', {}],
+  ])('accepts %s', (_label, pane) => {
+    expect(errorsFor(pane)).toEqual([])
+  })
+
+  it('a bad height and a bad minPx are BOTH reported — one does not mask the other', () => {
+    const r = validateDefinition(withPane({ height: 0, minPx: 0 }))
+    expect(r.ok).toBe(false)
+    expect(r.errors.some(e => e.startsWith('placement.pane.height'))).toBe(true)
+    expect(r.errors.some(e => e.startsWith('placement.pane.minPx'))).toBe(true)
+  })
+
+  it('the error names the field and the offending value', () => {
+    expect(errorsFor({ minPx: '64' })[0]).toContain('placement.pane.minPx')
+    expect(errorsFor({ minPx: '64' })[0]).toContain('64')
+  })
+
+  it('⭐ the shipped UCT RS Line declares 64 and still validates', () => {
+    const rs = getDefinition('rsLine')
+    expect(rs.placement.pane.minPx).toBe(64)
+    expect(validateDefinition(rs).ok).toBe(true)
   })
 })
 
