@@ -5246,6 +5246,7 @@ export default function StockChart({
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const heldPushRef = useRef(null)      // { key: `${sym}|${tf}`, frames: Map<bar.t, frame> } — push frames held during a tf-switch hold
   const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
   const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
   const _onScreenSrcRef = useRef(null)   // { sym, tf, ext, bars } — the intraday series last on screen
@@ -12204,6 +12205,21 @@ export default function StockChart({
     // here too (belt-and-suspenders against any future pool regression).
     if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
     if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
+    // ⛔ A TIMEFRAME-SWITCH HOLD OWNS THE CANVAS. The series on screen is still the OUTGOING
+    // tf's, and the developing-bar refs were reset for the new one — a push frame (the new
+    // tf's subscribe seed often lands before REST) would be planted as a "new" bar on the
+    // held old series (a 5m candle beside the 60m bar). Buffer the latest frame per bucket
+    // for THIS series and fold it once the new tf's real paint lands (effect after updateChart).
+    if (tfSwitchHoldRef.current) {
+      if (data?.bar && Number.isFinite(data.bar.t)) {
+        const k = `${sym}|${resolvedTf}`
+        if (!heldPushRef.current || heldPushRef.current.key !== k) heldPushRef.current = { key: k, frames: new Map() }
+        const fr = heldPushRef.current.frames
+        fr.delete(data.bar.t); fr.set(data.bar.t, data)
+        while (fr.size > 4) fr.delete(fr.keys().next().value)
+      }
+      return
+    }
     // Writer B of the single-writer invariant (index @ barsPushActiveRef decl) — B IS the
     // push writer, so it paints ONLY when push is AUTHORITATIVE (delivering). In the transient
     // connected-but-not-yet-delivering window (the first bar; a flap near the recency boundary)
@@ -16136,6 +16152,19 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+  // Fold push frames buffered during a timeframe-switch hold (see onRealtimeBar) onto the new
+  // tf's first real paint — the subscribe seed is never lost. Runs after the updateChart effect
+  // above (same commit), so the developing-bar refs are already seeded from the painted series.
+  useEffect(() => {
+    if (_tfSwitchHold) return
+    const h = heldPushRef.current
+    if (!h) return
+    heldPushRef.current = null
+    if (h.key !== `${sym}|${resolvedTf}` || !filteredBars?.length) return
+    for (const d of [...h.frames.values()].sort((a, b) => a.bar.t - b.bar.t)) {
+      try { onRealtimeBar(d) } catch { /* a refused frame — the next push / poll carries it */ }
+    }
+  }, [updateChart, _tfSwitchHold])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // A priceFormat can arrive AFTER the price series exists: ChartRender decides a breadth
   // count's whole-number format only once its bars land, and the chart was already built on

@@ -17,7 +17,7 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 //      from the series already in memory), equal to the final one.
 // All prices are synthetic.
 
-const T = vi.hoisted(() => ({ ts: null, series: [] }))
+const T = vi.hoisted(() => ({ ts: null, series: [], onBar: null, push: null }))
 vi.mock('lightweight-charts', async (importOriginal) => {
   const real = await importOriginal()
   const W = 600
@@ -123,7 +123,8 @@ vi.mock('../utils/barsIDB', async (orig) => {
   return { ...real, idbGet: async () => null, idbPut: async () => {} }
 })
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {}, status: 'idle' }) }))
-vi.mock('../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
+// The push stream is NOT mocked away: tests drive Writer B through the captured onBar.
+vi.mock('../hooks/useRealtimeBars', () => ({ default: ({ onBar }) => { T.onBar = onBar; return T.push || {} } }))
 vi.mock('../hooks/useRealtimeBarPrices', () => ({ default: () => ({}), pickFreshPrice: () => null }))
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: null, plan: 'free', isPaid: false, loading: false }),
@@ -228,6 +229,7 @@ beforeEach(async () => {
   // that drifts past the minute would make the synthetic "now" stale.
   clock.retarget(NOW_ISO)
   cleanup(); memClear(); reqs = []
+  T.push = null; T.onBar = null
   T.series.length = 0
   _real = await vi.importActual('lightweight-charts')
   try { localStorage.setItem('barspack.version', '2026-11-10') } catch { /* */ }
@@ -368,5 +370,30 @@ describe('review F1/F1b: a switch never blanks, and a COMPLETE finer cache still
     await wait(150)
     const dev = devBar('1')
     expect(frame()).toEqual({ time: dev.time, x: before.x, sp: before.sp, o: dev.o, h: dev.h, l: dev.l, c: dev.c })
+  })
+})
+
+describe('review: Writer B (push) during a tf-switch hold', () => {
+  it('60m → 5m, push delivering, the 5m subscribe seed lands BEFORE REST: nothing is planted on the held 60m series, and the seed is folded on the real paint', async () => {
+    T.push = { connected: true, healthy: true, delivering: true, lastBarT: { current: null } }
+    const view = await mountAt('60')
+    const before = frame()
+    serve({ latency: 400 })
+    const rec = recorder()
+    view.rerender(<StockChart sym="SYN" tf="5" backgroundWarm={false} forceExtendedHours={false} />)
+    await wait(60)
+    const dev = devBar('5')
+    const devUnix = agg(truth1m(), '5').at(-1).t
+    // the seed: the bucket to date, one print newer than REST will be
+    const seedC = Math.round((dev.c + 0.01) * 100) / 100
+    act(() => { T.onBar({ sym: 'SYN', tf: '5', bar: { t: devUnix * 1000, o: dev.o, h: Math.max(dev.h, seedC), l: dev.l, c: seedC, v: 999 } }) })
+    await wait(900)
+    rec.stop()
+    expect(rec.frames.filter(f => f.blank)).toEqual([])
+    while (rec.frames.length && JSON.stringify(rec.frames[0]) === JSON.stringify(before)) rec.frames.shift()
+    // every frame after the old one is the new tf's developing bar at the pinned slot
+    for (const f of rec.frames) expect({ time: f.time, x: f.x, sp: f.sp }).toEqual({ time: dev.time, x: before.x, sp: before.sp })
+    // …and the seed was not lost: the final developing bar carries its close
+    expect(frame()).toMatchObject({ time: dev.time, x: before.x, o: dev.o, l: dev.l, c: seedC, h: Math.max(dev.h, seedC) })
   })
 })
