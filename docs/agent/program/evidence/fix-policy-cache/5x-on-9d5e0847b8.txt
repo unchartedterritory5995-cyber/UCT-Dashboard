@@ -1,0 +1,19 @@
+fix-policy-cache: branch 57fe5969de merged with origin/master 9d5e0847b8 (LOCAL, real pytest, Python 3.12 venv)
+Set (3 files): tests/test_uct_agent_policy_cache.py tests/test_uct_agent_knowledge.py (holds test_r751_*) tests/test_uct_agent_knowledge_reply.py
+Command: python -m pytest -q -p no:cacheprovider <set>, 5 consecutive runs
+
+== Branch (merged head) ==
+run 1: 231 passed, 1 warning in 6.93s
+run 2: 231 passed, 1 warning in 6.62s
+run 3: 231 passed, 1 warning in 6.37s
+run 4: 231 passed, 1 warning in 6.26s
+run 5: 231 passed, 1 warning in 7.04s
+Result: 5/5 green, 231 passed each
+
+== Contrast: plain master 9d5e0847b8 (detached temp worktree, removed after; policy_cache rail absent on master, so 2 files) ==
+run 1: 1 failed, 225 passed, 1 warning in 6.49s FAILED tests/test_uct_agent_knowledge.py::test_r751_mentions_mode_only_serve_flagged_re_admits 
+run 2: 226 passed, 1 warning in 5.68s 
+run 3: 1 failed, 225 passed, 1 warning in 5.64s FAILED tests/test_uct_agent_knowledge.py::test_r751_mentions_mode_only_serve_flagged_re_admits 
+run 4: 226 passed, 1 warning in 5.72s 
+run 5: 226 passed, 1 warning in 5.64s 
+Result: 2/5 runs red, each time test_r751_mentions_mode_only_serve_flagged_re_admits (flake rate 40% on master, 0% on branch)
