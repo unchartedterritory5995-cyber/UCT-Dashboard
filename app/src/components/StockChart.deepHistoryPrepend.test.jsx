@@ -107,7 +107,9 @@ function serve() {
     const n = Number((u.match(/[?&]bars=(\d+)/) || [])[1] || 600)
     const since = (u.match(/[?&]since=(\d+)/) || [])[1]
     const to = (u.match(/[?&]to=(\d{4}-\d{2}-\d{2})/) || [])[1]
-    reqs.push({ url: u, n, to: to || null, since: since ? Number(since) : null })
+    const tfq = (u.match(/[?&]tf=([^&]+)/) || [])[1]
+    reqs.push({ url: u, n, tf: tfq, to: to || null, since: since ? Number(since) : null })
+    if (tfq !== '15') return new Promise(() => {})      // other-tf warms: never answer, never counted
     let bars
     if (since) bars = FULL.filter(b => b.t > Number(since))
     else if (to) { const upto = FULL.filter(b => etDateOf(b.t) <= to); bars = upto.slice(Math.max(0, upto.length - n)) }
@@ -131,12 +133,13 @@ const fireRange = (from, to) => act(async () => {
 describe('intraday deep history: left windows', { timeout: 60000 }, () => {
   it('prefetches older windows in the background after the dwell — `to=` only, never a deep `bars=`', async () => {
     serve()
-    render(<StockChart sym="DEEPA" tf="15" backgroundWarm={false} />)
+    render(<StockChart sym="DEEPA" tf="15" />)
     await settle(6000)
     const left = reqs.filter(r => r.to)
+    expect(left.length).toBeLessThanOrEqual(2)                       // PREFETCH_WINDOWS, not one more
     expect(left.length).toBeGreaterThan(0)
     // every non-window request stays under the deep threshold (no whole-series re-download)
-    expect(reqs.filter(r => !r.to && !r.since).every(r => r.n < 1200)).toBe(true)
+    expect(reqs.filter(r => r.tf === '15' && !r.to && !r.since).every(r => r.n < 1200)).toBe(true)
     const drawn = draws.list.filter(d => d.n > 0)
     const last = drawn[drawn.length - 1]
     expect(last.n).toBeGreaterThanOrEqual(Math.min(HISTORY_PREFETCH_TARGET_BARS, FULL.length) * 0.35) // RTH-visible share
@@ -145,7 +148,7 @@ describe('intraday deep history: left windows', { timeout: 60000 }, () => {
 
   it('scrolling toward the oldest bar loads the next window; right edge fixed, count never shrinks', async () => {
     serve()
-    render(<StockChart sym="DEEPB" tf="15" backgroundWarm={false} />)
+    render(<StockChart sym="DEEPB" tf="15" />)
     await settle(6000)
     const before = reqs.filter(r => r.to).length
     const drawnBefore = draws.list.filter(d => d.n > 0)
@@ -165,5 +168,19 @@ describe('intraday deep history: left windows', { timeout: 60000 }, () => {
     await fireRange(5000, 5200)
     await wait(200)
     expect(reqs.filter(r => r.to).length).toBe(n)
+  })
+})
+
+describe('grid cells (backgroundWarm=false): no background herd', { timeout: 60000 }, () => {
+  it('a grid cell fires NO background `to=` window; a scroll still loads one', async () => {
+    serve()
+    render(<StockChart sym="GRIDA" tf="15" backgroundWarm={false} />)
+    await settle(4000)
+    expect(reqs.filter(r => r.to).length).toBe(0)
+    await fireRange(5, 205)
+    await settle(1500)
+    expect(reqs.filter(r => r.to).length).toBe(1)
+    const drawn = draws.list.filter(d => d.n > 0)
+    expect(drawn[drawn.length - 1].lastT).toBe(drawn[0].lastT)
   })
 })

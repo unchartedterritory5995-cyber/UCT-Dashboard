@@ -14,7 +14,7 @@ import { barsBeforeUrl as urlFor } from './prefetchBars'
 import {
   historyReachesTail, historyLagsTail, TAIL_ENTRY_MAX_BARS,
   prependOlder, wantsOlder, etDateOf, historyWindowUrl, createHistoryLoader,
-  HISTORY_WINDOW_BARS, EXHAUSTED_TTL_MS,
+  HISTORY_WINDOW_BARS, EXHAUSTED_TTL_MS, ERROR_BACKOFF_BASE_MS, ERROR_BACKOFF_MAX_MS,
 } from './historyPrepend'
 
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32) }
@@ -126,6 +126,54 @@ describe('H3 loader', () => {
     expect(await L.loadOlder('K', o)).toMatchObject({ exhausted: false, retryAfterMs: 3000 })
     expect(L.isExhausted('K', o.oldestT)).toBe(false)
   })
+  it('a failing key backs off exponentially (capped); a success resets it', async () => {
+    let now = 0
+    const fetchJson = vi.fn(async () => { throw new Error('HTTP 500') })
+    const L = createHistoryLoader({ urlFor, fetchJson, now: () => now })
+    const o = { sym: 'X', tf: '5', oldestT: 1_800_000_000 }
+    const waits = []
+    for (let i = 0; i < 8; i++) {
+      const r = await L.loadOlder('K', o)
+      waits.push(r.retryAfterMs)
+      expect((await L.loadOlder('K', o)).backoff).toBe(true)       // panning again: no request
+      now += r.retryAfterMs
+    }
+    expect(fetchJson).toHaveBeenCalledTimes(8)
+    expect(waits.slice(0, 3)).toEqual([ERROR_BACKOFF_BASE_MS, 2 * ERROR_BACKOFF_BASE_MS, 4 * ERROR_BACKOFF_BASE_MS])
+    expect(Math.max(...waits)).toBe(ERROR_BACKOFF_MAX_MS)
+    fetchJson.mockImplementation(async () => ({ bars: [{ t: 1 }] }))
+    expect((await L.loadOlder('K', o)).bars.length).toBe(1)
+    fetchJson.mockImplementation(async () => { throw new Error('HTTP 500') })
+    expect((await L.loadOlder('K', o)).retryAfterMs).toBe(ERROR_BACKOFF_BASE_MS)   // reset
+  })
+  it('a warming answer honours Retry-After before the next request', async () => {
+    let now = 0
+    const w = new Error('HTTP 503'); w.warming = true; w.retryAfterMs = 5000
+    const fetchJson = vi.fn().mockRejectedValueOnce(w).mockResolvedValue({ bars: [{ t: 1 }] })
+    const L = createHistoryLoader({ urlFor, fetchJson, now: () => now })
+    const o = { sym: 'X', tf: '5', oldestT: 1_800_000_000 }
+    expect((await L.loadOlder('K', o)).retryAfterMs).toBe(5000)
+    now = 4999
+    expect((await L.loadOlder('K', o)).backoff).toBe(true)
+    now = 5000
+    expect((await L.loadOlder('K', o)).bars.length).toBe(1)
+    expect(fetchJson).toHaveBeenCalledTimes(2)
+  })
+  it('the caller\'s AbortSignal reaches the fetch; an abort is "canceled", not an error to back off from', async () => {
+    const ctl = new AbortController()
+    let seen = null
+    const fetchJson = vi.fn((url, { signal }) => new Promise((res, rej) => {
+      seen = signal
+      signal.addEventListener('abort', () => { const e = new Error('switch-aborted'); e.canceled = true; rej(e) })
+    }))
+    const L = createHistoryLoader({ urlFor, fetchJson })
+    const o = { sym: 'X', tf: '5', oldestT: 1_800_000_000, signal: ctl.signal }
+    const p = L.loadOlder('K', o)
+    expect(seen).toBe(ctl.signal)
+    ctl.abort()
+    expect(await p).toMatchObject({ canceled: true })
+    expect(L._state()).toMatchObject({ inflight: 0, backoff: 0 })
+  })
   it('the floor expires after EXHAUSTED_TTL_MS', async () => {
     let now = 0
     const fetchJson = vi.fn(async () => ({ bars: [] }))
@@ -227,6 +275,23 @@ describe('H4 IDB deep-history segment', () => {
     await idb.idbDelete('POI', '30')
     expect(rows.has('POI_30@hist')).toBe(false)
     expect(await idb.idbPutHistory('DLY', 'D', history(200))).toBeNull()
+  })
+  it('the segment expires HISTORY_SEGMENT_MAX_AGE_MS after it was CREATED — merging into it does not renew it', async () => {
+    const rows = installFakeIDB()
+    const idb = await import('./barsIDB')
+    const s = history(200)
+    const DAY = 86400000
+    rows.set('OLD_15@hist', { key: 'OLD_15@hist', bars: s, lastT: s.at(-1).t, savedAt: Date.now() - DAY, createdAt: Date.now() - 6 * DAY, v: idb._CACHE_LOGIC_VERSION })
+    expect(await idb.idbGetHistory('OLD', '15')).not.toBeNull()
+    await idb.idbPutHistory('OLD', '15', s.slice(s.length - 4000))
+    expect(rows.get('OLD_15@hist').createdAt).toBeLessThan(Date.now() - 5 * DAY)   // carried, not renewed
+    rows.get('OLD_15@hist').createdAt = Date.now() - 8 * DAY
+    expect(await idb.idbGetHistory('OLD', '15')).toBeNull()                       // expired
+    // an expired record is not a merge base: a new write replaces it whole and starts a new clock
+    const fresh = s.slice(s.length - 3500)
+    await idb.idbPutHistory('OLD', '15', fresh)
+    expect(rows.get('OLD_15@hist').bars.length).toBe(fresh.length)
+    expect(rows.get('OLD_15@hist').createdAt).toBeGreaterThan(Date.now() - DAY)
   })
   it('the restated tail cap never drifts from barsIDB', async () => {
     const idb = await import('./barsIDB')

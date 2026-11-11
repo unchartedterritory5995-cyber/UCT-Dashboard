@@ -1784,7 +1784,7 @@ export const WARMING_GIVE_UP_MS = 75000
 // take BACKGROUND fetch slots, so they never queue the chart a member is looking at.
 export const _historyLoader = createHistoryLoader({
   urlFor: barsBeforeUrl,
-  fetchJson: (url, { background = false } = {}) => fetcher(url, undefined, { background }),
+  fetchJson: (url, { background = false, signal } = {}) => fetcher(url, signal, { background }),
 })
 // Background prefetch stops at HISTORY_PREFETCH_TARGET_BARS (historyPrepend); anything
 // deeper loads as the member scrolls toward it (LOOKAHEAD_SCREENS ahead).
@@ -9010,6 +9010,14 @@ export default function StockChart({
     && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive && !!sym
   const _histLoadRef = useRef(null)
   _histLoadRef.current = { on: _histPrependOn, key: _depthKey, sym, tf: resolvedTf, ck: _barsTf, sessQ: _sessQ }
+  // A window belongs to THIS chart's (sym, tf): leaving it (or unmounting) aborts the
+  // request, which frees its connection and fetch slot at once.
+  const _histAbortRef = useRef(null)
+  useEffect(() => {
+    const ctl = new AbortController()
+    _histAbortRef.current = ctl
+    return () => { try { ctl.abort() } catch { /* ignore */ } }
+  }, [sym, _barsTf])
   // Merge one window into THIS chart's series (same cross-ticker guard as every bars merge).
   const _applyOlderRef = useRef(null)
   _applyOlderRef.current = (key, win, { persist = true } = {}) => {
@@ -9028,12 +9036,12 @@ export default function StockChart({
     if (!r?.on || idbReadyForRef.current !== r.key) return Promise.resolve(null)
     const oldestT = idbBarsRef.current?.[0]?.t
     if (typeof oldestT !== 'number') return Promise.resolve(null)
-    return _historyLoader.loadOlder(r.key, { sym: r.sym, tf: r.tf, sessQ: r.sessQ, oldestT, background })
+    return _historyLoader.loadOlder(r.key, { sym: r.sym, tf: r.tf, sessQ: r.sessQ, oldestT, background, signal: _histAbortRef.current?.signal })
       .then((res) => {
         if (!res || _histLoadRef.current?.key !== r.key) return null
         const added = res.bars?.length ? _applyOlderRef.current(r.key, res.bars) : false
         // `filling` / warming: the server is fetching the older stretch — ask again once it lands.
-        if (res.retryAfterMs && attempt < 3) {
+        if (res.retryAfterMs && !res.canceled && attempt < 3) {
           setTimeout(() => { if (_histLoadRef.current?.key === r.key) _loadOlder(background, attempt + 1) }, res.retryAfterMs)
         }
         return { ...res, added }
@@ -9239,14 +9247,19 @@ export default function StockChart({
         _applyOlderRef.current(key, hist, { persist: false })
         if (historyLagsTail(hist[hist.length - 1]?.t, idbBarsRef.current)) _persistHistorySoon(sym, _barsTf, idbBarsRef.current)
       }
-      for (let i = 0; i <= PREFETCH_WINDOWS && !cancelled; i++) {
+      // ⛔ NETWORK prefetch only on a chart that warms in the background (the focused /
+      // standalone chart). Grid cells (`backgroundWarm=false`) still hydrate their persisted
+      // segment above and load windows when SCROLLED, but a 16-cell open must not fire
+      // 16 × PREFETCH_WINDOWS provider-backed `to=` asks (the 2026-05-24 herd class).
+      if (!backgroundWarm) return
+      for (let i = 0; i < PREFETCH_WINDOWS && !cancelled; i++) {
         if ((idbBarsRef.current?.length || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
         const res = await _loadOlder(true)
         if (!res || !res.added || res.exhausted || res.retryAfterMs) break
       }
     })()
     return () => { cancelled = true }
-  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching

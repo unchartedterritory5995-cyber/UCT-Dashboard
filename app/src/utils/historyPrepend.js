@@ -38,6 +38,11 @@ export const LOOKAHEAD_SCREENS = 2
 /** A key whose window came back with nothing older is not re-asked for this long. */
 export const EXHAUSTED_TTL_MS = 15 * 60 * 1000
 
+/** Per-key backoff after a failed window: 2 s, 4 s, 8 s … capped; a warming / `filling`
+ *  answer waits its Retry-After. Panning at the oldest bar re-asks only after it. */
+export const ERROR_BACKOFF_BASE_MS = 2000
+export const ERROR_BACKOFF_MAX_MS = 60000
+
 const _NATIVE_INTRADAY = new Set(['1', '5', '15', '30', '60'])
 export function isHistoryPrependTf(tf) { return _NATIVE_INTRADAY.has(String(tf)) }
 
@@ -125,6 +130,7 @@ export function wantsOlder({ fromIndex, toIndex, loadedCount }, screens = LOOKAH
 export function createHistoryLoader({ fetchJson, urlFor, now = () => Date.now() }) {
   const inflight = new Map()     // key -> { oldestT, promise }
   const exhausted = new Map()    // key -> { atT, until }
+  const backoff = new Map()      // key -> { until, errors }
 
   function isExhausted(key, oldestT) {
     const e = exhausted.get(key)
@@ -133,27 +139,40 @@ export function createHistoryLoader({ fetchJson, urlFor, now = () => Date.now() 
     return typeof oldestT === 'number' ? oldestT >= e.atT : true
   }
 
-  function loadOlder(key, { sym, tf, sessQ = '', oldestT, background = false, bars = HISTORY_WINDOW_BARS }) {
+  function _waitFor(key, ms, isError) {
+    const prev = backoff.get(key)
+    const errors = isError ? (prev?.errors || 0) + 1 : 0
+    const wait = isError ? Math.min(ERROR_BACKOFF_MAX_MS, ERROR_BACKOFF_BASE_MS * 2 ** (errors - 1)) : ms
+    backoff.set(key, { until: now() + wait, errors })
+    return wait
+  }
+
+  function loadOlder(key, { sym, tf, sessQ = '', oldestT, background = false, bars = HISTORY_WINDOW_BARS, signal }) {
     if (isExhausted(key, oldestT)) return Promise.resolve({ bars: [], exhausted: true })
     const cur = inflight.get(key)
     if (cur) return cur.promise
+    const bo = backoff.get(key)
+    if (bo && now() < bo.until) return Promise.resolve({ bars: [], exhausted: false, backoff: true, retryAfterMs: bo.until - now() })
     const url = historyWindowUrl(urlFor, sym, tf, oldestT, sessQ, bars)
     if (!url) return Promise.resolve({ bars: [], exhausted: false })
     const promise = (async () => {
       try {
-        const json = await fetchJson(url, { background })
+        const json = await fetchJson(url, { background, signal })
         const rows = Array.isArray(json?.bars) ? json.bars : []
         const anyOlder = rows.some(b => typeof b?.t === 'number' && b.t < oldestT)
         const filling = json?.filling === true
         if (!anyOlder && !filling) {
+          backoff.delete(key)
           exhausted.set(key, { atT: oldestT, until: now() + EXHAUSTED_TTL_MS })
           return { bars: rows, exhausted: true }
         }
-        return { bars: rows, exhausted: false, retryAfterMs: filling ? 3000 : null }
+        if (filling) return { bars: rows, exhausted: false, retryAfterMs: _waitFor(key, 3000, false) }
+        backoff.delete(key)
+        return { bars: rows, exhausted: false, retryAfterMs: null }
       } catch (e) {
-        if (e?.canceled) return { bars: [], exhausted: false, canceled: true }
-        if (e?.warming) return { bars: [], exhausted: false, retryAfterMs: e.retryAfterMs || 3000 }
-        return { bars: [], exhausted: false, error: e }
+        if (e?.canceled || e?.name === 'AbortError') return { bars: [], exhausted: false, canceled: true }
+        if (e?.warming) return { bars: [], exhausted: false, retryAfterMs: _waitFor(key, e.retryAfterMs || 3000, false) }
+        return { bars: [], exhausted: false, error: e, retryAfterMs: _waitFor(key, 0, true) }
       } finally {
         inflight.delete(key)
       }
@@ -166,8 +185,8 @@ export function createHistoryLoader({ fetchJson, urlFor, now = () => Date.now() 
     loadOlder,
     isExhausted,
     inFlight: (key) => inflight.has(key),
-    reset: (key) => { exhausted.delete(key) },
-    _state: () => ({ inflight: inflight.size, exhausted: exhausted.size }),
+    reset: (key) => { exhausted.delete(key); backoff.delete(key) },
+    _state: () => ({ inflight: inflight.size, exhausted: exhausted.size, backoff: backoff.size }),
   }
 }
 

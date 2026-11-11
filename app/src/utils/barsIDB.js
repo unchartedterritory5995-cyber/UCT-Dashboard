@@ -243,7 +243,13 @@ export function _entryReadable(entry, tf, nowMs = Date.now(), { history = false 
   const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
   // A deep-history SEGMENT (`@hist`) is old by definition: tail currentness is the tail
   // entry's question, not its. Version + grid rules still apply.
-  if (history) return isIntraday && !_hasOldSixtyMinGrid(entry.bars, tf)
+  // It EXPIRES HISTORY_SEGMENT_MAX_AGE_MS after the record was CREATED (merges carry
+  // `createdAt` forward), so rows a server-side purge removed (the #1062 off-grid class)
+  // can never be kept alive by being merged into forever.
+  if (history) {
+    const born = Number.isFinite(entry.createdAt) ? entry.createdAt : (entry.savedAt || 0)
+    return isIntraday && (nowMs - born) <= HISTORY_SEGMENT_MAX_AGE_MS && !_hasOldSixtyMinGrid(entry.bars, tf)
+  }
   if (isIntraday) {
     // Only a GAPPED tail is discarded (a BEHIND one is a sound repair base — see idbGet).
     if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return false
@@ -420,7 +426,8 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt 
         const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
         if (!next?.length || next === cur) { out = cur; return }
         const capped = history ? _capHistoryForWrite(next) : _capForWrite(tf, next)
-        store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION })
+        const born = history ? { createdAt: (cur && Number.isFinite(e.createdAt)) ? e.createdAt : (cur ? (e.savedAt || Date.now()) : Date.now()) } : {}
+        store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION, ...born })
         out = capped
       }
       tx.oncomplete = () => resolve(out)
@@ -469,6 +476,7 @@ export async function idbDelete(sym, tf) {
 // it reaches the tail (`historyReachesTail`) — a gap between the two is never drawn as if
 // contiguous, the segment is just ignored and re-fetched.
 export const HISTORY_SEGMENT_MAX = 20000
+export const HISTORY_SEGMENT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 function _histKey(sym, tf) { return `${_key(sym, tf)}@hist` }
 
 /** The bars idbPutHistory persists: the newest HISTORY_SEGMENT_MAX of `bars`. */
