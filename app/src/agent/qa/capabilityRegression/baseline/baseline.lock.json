@@ -2357,6 +2357,66 @@
     }
    }
   },
+  "layout.pinToBar": {
+   "digest": "18d1777c1ce27d93",
+   "phrasings": {
+    "pin my Breadth layout to the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the Breadth layout to the dock": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout on the layout bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.moveOnBar": {
+   "digest": "5b2de85e1344a543",
+   "phrasings": {
+    "move Breadth to the front of the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout first on the layouts bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the Breadth layout to spot 1 on the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.unpinFromBar": {
+   "digest": "8b5193f315f73691",
+   "phrasings": {
+    "take Main Trading off the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unpin my Main Trading layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove Main Trading from the layout bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "layout.duplicate": {
    "digest": "b57cbb8ad820e8c1",
    "phrasings": {

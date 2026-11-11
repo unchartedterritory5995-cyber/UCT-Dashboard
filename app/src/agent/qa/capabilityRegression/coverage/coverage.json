@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 176,
-  "withProductionKinds": 167,
+  "all": 179,
+  "withProductionKinds": 170,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 176,
-  "withAnyRegressionCase": 124,
+  "capabilities": 179,
+  "withAnyRegressionCase": 127,
   "perProtection": {
    "nl": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 127,
+    "applicable": 179
    },
    "routing": {
-    "covered": 121,
-    "applicable": 176
+    "covered": 124,
+    "applicable": 179
    },
    "args": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 127,
+    "applicable": 179
    },
    "execution": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 127,
+    "applicable": 179
    },
    "receipt": {
-    "covered": 96,
-    "applicable": 176
+    "covered": 99,
+    "applicable": 179
    },
    "refusal": {
     "covered": 31,
-    "applicable": 176
+    "applicable": 179
    },
    "permission": {
-    "covered": 169,
-    "applicable": 176
+    "covered": 172,
+    "applicable": 179
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 59,
+    "applicable": 114
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 176
+    "applicable": 179
    },
    "phrasings": {
-    "covered": 120,
-    "applicable": 176
+    "covered": 123,
+    "applicable": 179
    }
   }
  },
@@ -5965,6 +5965,60 @@
     "phrasings": []
    }
   },
+  "layout.moveOnBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "layout.moveOnBar: \"move Breadth to the front of the bar\"",
+     "layout.moveOnBar: \"put my Breadth layout first on the layouts bar\"",
+     "layout.moveOnBar: \"move the Breadth layout to spot 1 on the bar\""
+    ],
+    "routing": [
+     "layout.moveOnBar: \"move Breadth to the front of the bar\"",
+     "layout.moveOnBar: \"put my Breadth layout first on the layouts bar\"",
+     "layout.moveOnBar: \"move the Breadth layout to spot 1 on the bar\""
+    ],
+    "args": [
+     "corpus layout.moveOnBar"
+    ],
+    "execution": [
+     "layout.moveOnBar (c)"
+    ],
+    "receipt": [
+     "layout.moveOnBar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "layout.moveOnBar: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "layout.open": {
    "domain": "layout",
    "group": "layouts",
@@ -6017,6 +6071,60 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.pinToBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "layout.pinToBar: \"pin my Breadth layout to the bar\"",
+     "layout.pinToBar: \"pin the Breadth layout to the dock\"",
+     "layout.pinToBar: \"put my Breadth layout on the layout bar\""
+    ],
+    "routing": [
+     "layout.pinToBar: \"pin my Breadth layout to the bar\"",
+     "layout.pinToBar: \"pin the Breadth layout to the dock\"",
+     "layout.pinToBar: \"put my Breadth layout on the layout bar\""
+    ],
+    "args": [
+     "corpus layout.pinToBar"
+    ],
+    "execution": [
+     "layout.pinToBar (c)"
+    ],
+    "receipt": [
+     "layout.pinToBar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "layout.pinToBar: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6170,6 +6278,60 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.unpinFromBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "layout.unpinFromBar: \"take Main Trading off the bar\"",
+     "layout.unpinFromBar: \"unpin my Main Trading layout\"",
+     "layout.unpinFromBar: \"remove Main Trading from the layout bar\""
+    ],
+    "routing": [
+     "layout.unpinFromBar: \"take Main Trading off the bar\"",
+     "layout.unpinFromBar: \"unpin my Main Trading layout\"",
+     "layout.unpinFromBar: \"remove Main Trading from the layout bar\""
+    ],
+    "args": [
+     "corpus layout.unpinFromBar"
+    ],
+    "execution": [
+     "layout.unpinFromBar (c)"
+    ],
+    "receipt": [
+     "layout.unpinFromBar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "layout.unpinFromBar: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

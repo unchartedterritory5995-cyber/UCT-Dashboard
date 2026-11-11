@@ -83,3 +83,9 @@ M	tests/fixtures/nl1_assemble_parity.json                  regenerated (UPDATE_N
 - One bar change per request: "pin X and move it first" does the first change and asks for the next.
 - A hidden bar (`hidden: true` in the preference) is refused. No UI control sets it today.
 - Not covered: C3-040/041 version history (dark), and the phone, which has no dock.
+
+## Capability-regression corpus (follow-up)
+
+- Three capreg intents, one per action: `layout.pinToBar` (board LAYOUT_BAR, "pin my Breadth layout to the bar"), `layout.moveOnBar` and `layout.unpinFromBar` (board LAYOUT_BAR_FULL, "move Breadth to the front of the bar", "take Main Trading off the bar"). Each checks the `charts_layout_dock` preference after the change and after "undo", and that the open layout and the library are unchanged.
+- The capreg harness gets a dock door (`extra.layoutDock`) that mirrors LayoutDock's `agentRef`: the same `addPin` / `removePin` / `shiftPin` helpers over the preference, read through `buildLayoutDockSource`.
+- Regenerated: capreg `coverage/*` (UPDATE_CAPREG=1, additive contract) and `baseline.lock.json` (`tests/test_uct_agent_capreg_baseline.py --update`, additive only).

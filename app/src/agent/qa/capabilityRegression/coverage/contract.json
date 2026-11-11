@@ -1419,10 +1419,36 @@
    ],
    "fast": true
   },
+  "layout.moveOnBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "layout.open": {
    "domain": "layout",
    "group": "layouts",
    "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "layout.pinToBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -1465,6 +1491,19 @@
    "risk": "local",
    "reversible": false,
    "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "layout.unpinFromBar": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
    "query": false,
    "surfaces": [
     "charts"
