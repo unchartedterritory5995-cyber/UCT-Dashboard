@@ -52,7 +52,7 @@ All three are ordinary `chart.setSetting` rows: the chart is chosen by the exist
 chart, "every chart except X"); an excluded or ambiguous chart is not written. Undo restores the previous settings blob
 exactly (a key the chart never had is removed again).
 
-* **C1-058**: "align the watermark to the left" / "right-align the watermark text" / "center the watermark".
+* **C1-058**: "align the watermark to the left" / "right-align the watermark text" (tested); "center the watermark" uses the same row but has no test of its own.
   Limits: needs the watermark on; with it off the Agent says to turn it on first (same rule as watermark size/weight).
   Three positions only (left/center/right); no free x/y here (that is `watermark.x|y`).
 * **C1-067**: "make the header title gold", "green up days and orange down days in the header", "make the chart legend
@@ -60,7 +60,7 @@ exactly (a key the chart never had is removed again).
   Limits: the stored value is a hex colour (#rrggbb); a colour name is turned into hex by the model. Only keys the
   header catalog names are writable; any other `header.colors.*` key stays a KNOWN row (the Agent says where it lives).
   A colour shows only where its item is on screen (an Info-row field that is turned off shows nothing).
-  "Reset the header colours to default" is not covered (it would set a colour, not remove the key).
+  "Reset the header colours to default" is not tested and is not expected to work (no row removes a colour key).
 * **C1-078**: "switch this chart to the light palette" / "put this chart back on the dark palette".
   Limits: light/dark only (the Shift+T toggle); named gallery themes stay `chart.applyTheme` / `chart.applyThemeAll`.
 
