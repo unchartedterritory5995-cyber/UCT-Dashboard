@@ -28,7 +28,8 @@ import { RESET_FIB_STYLE, bandKey, bandsFor, bandState, defaultBandColor, hasFib
 import { alertKindFor, anchorsForDrawing, boundIdFor } from '../../components/chart/drawingAlertAnchors'
 import { measurementFor } from '../../components/chart/drawingMeasure'
 import { FONT_OPTIONS, fontLabelFor } from '../../components/chart/drawingText'
-import { ET_OFFSET } from '../../components/chart/barTime'
+import { fromChartTime, etDateOf } from '../../components/chart/barTime'
+import { pointUnixTime, toUnixTimeBase } from '../../components/chart/drawingTimeBase'
 import { isDateTf } from '../../components/chart/patternTime'
 import { isoDayMs, dayWord } from '../dateWords'
 import { normalizeColor, colorName } from './chart'
@@ -65,11 +66,13 @@ export const ADD_TOOLS = Object.freeze({
 // the same rules for the tools with their own add capability, so moving their anchors cannot make what adding refuses
 const RULES = { ...ADD_TOOLS, trendline: { order: true }, ray: { order: true }, fib: { order: true, prices: true } }
 
-const timeMs = (p) => (typeof p?.time === 'string' ? isoDayMs(p.time.slice(0, 10)) : Number.isFinite(p?.time) ? p.time * 1000 : null)
-/** A stored point's calendar day: a display epoch reads as ET wall time, so its UTC date IS the ET date. */
-export function pointDay(p) {
-  const ms = timeMs(p)
-  return ms == null ? null : new Date(ms).toISOString().slice(0, 10)
+const timeMs = (p) => (typeof p?.time === 'string' ? isoDayMs(p.time.slice(0, 10)) : Number.isFinite(p?.time) ? pointUnixTime(p.time) * 1000 : null)
+/** A stored point's calendar day: D/W/M dates as stored; an intraday point (raw unix, or a legacy
+ *  Agent chart time — drawingTimeBase.js) by its ET calendar date. */
+export function pointDay(p, drawing = null) {
+  if (typeof p?.time === 'string') return p.time.slice(0, 10)
+  if (!Number.isFinite(p?.time)) return null
+  return etDateOf(pointUnixTime(p.time, drawing))
 }
 const ordinal = (i) => ['first', 'second', 'third'][i] || `#${i + 1}`
 /** The sentence refusing points this tool cannot be drawn from, or null. */
@@ -343,7 +346,9 @@ export function registerDrawingFamily(common, h) {
     const pane = paneWhy(d)
     if (pane) return { why: pane }
     if (!Array.isArray(points) || !points.length) return { why: 'Say which point to move, and to what date or price.' }
-    const was = d.points || []
+    // An intraday Agent drawing being rewritten moves to the ONE time base (raw unix, `tb` stamp) whole,
+    // so a new raw point never sits beside a legacy chart-time one (drawingTimeBase.js).
+    const was = (toUnixTimeBase(d) || d).points || []
     // a new time is written in the form the drawing's other points use (one made on the daily stays in dates)
     const numeric = typeof was.find(p => p?.time != null)?.time === 'number'
     const tf = numeric ? (isDateTf(st.tf) ? '5' : st.tf) : 'D'
@@ -396,7 +401,8 @@ export function registerDrawingFamily(common, h) {
     apply(st, args) {
       const { d, placed } = movePlan(st, args)
       if (same(placed, d.points)) return st
-      return setOn(st, d.id, { points: placed, ...(d.type === 'advance' ? advanceFigures(placed) : {}) })
+      const tb = placed.some(p => typeof p?.time === 'number') ? { tb: 'unix' } : {}   // drawingTimeBase.js
+      return setOn(st, d.id, { points: placed, ...tb, ...(d.type === 'advance' ? advanceFigures(placed) : {}) })
     },
     describe(b, a, args, env) {
       const o = byId(b, args.drawing), n = byId(a, args.drawing)
@@ -488,7 +494,7 @@ export function registerDrawingFamily(common, h) {
       lv = fibLevel(d.type, level)
       if (lv == null) return { why: `Which level of the ${name}? Its levels are ${fibList(d.type)}.` }
     } else if (level != null) return { why: `That ${name} has no levels.` }
-    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: ET_OFFSET, level: lv })
+    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: fromChartTime, level: lv })
     if (!geom) return { why: `I can't read that ${name}'s position to set an alert on it.` }
     if (!boundIds(env)) return { why: 'I couldn\'t read your alerts, so I set nothing.' }
     const id = boundIdFor(d.id, lv)

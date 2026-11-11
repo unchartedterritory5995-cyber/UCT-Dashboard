@@ -2027,6 +2027,21 @@ export default function Admin() {
             </div>
           </div>
           <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>AI Spend</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/ai-spend"
+                className="btn btn-secondary btn-sm"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open AI Spend
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Every Claude call by feature · model · day · cache hit
+              </span>
+            </div>
+          </div>
+          <div className={styles.healthItem}>
             <span className={styles.healthLabel}>Wisdom Loop</span>
             <div className={styles.healthSyncRow}>
               <a

@@ -2,8 +2,8 @@
 // post-market (16:00–20:00 ET) regions BEHIND the series (bottom z-order), so
 // regular-hours price action stands out. Intraday timeframes only.
 //
-// Intraday bar timestamps are stored as ET-offset unix seconds (see _ET_OFFSET
-// in StockChart), so reading them via UTC getters yields the Eastern clock.
+// Intraday chart times are ET-offset unix seconds (barTime.toChartTime, offset
+// resolved per instant), so reading them via UTC getters yields the Eastern clock.
 
 const PRE_START = 4 * 60          // 04:00
 const RTH_START = 9 * 60 + 30     // 09:30
@@ -31,7 +31,7 @@ export function classifySession(tSec) {
 
 // Group consecutive shaded bars into bands. Each band: { from, to, type } where
 // from/to are CHART time values. `shift` maps a raw bar timestamp to the chart's
-// time value (adjustTime = raw + ET_OFFSET). It MUST be applied so that (a) the
+// time value (adjustTime = barTime.toChartTime). It MUST be applied so that (a) the
 // session is classified on Eastern clock time and (b) from/to match the series'
 // time scale — otherwise timeToCoordinate() misplaces the band and nothing draws.
 export function computeSessionBands(bars, shift) {

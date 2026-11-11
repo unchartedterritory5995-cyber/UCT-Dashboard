@@ -16,6 +16,7 @@ prompt FORBIDS prices, levels, and dated figures; live grounding owns all curren
 numbers.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import hashlib
 import json
@@ -51,7 +52,7 @@ def _enabled() -> bool:
 
 
 def _model() -> str:
-    return os.environ.get("AI_SEARCH_DOSSIER_MODEL", "claude-sonnet-4-6")
+    return os.environ.get("AI_SEARCH_DOSSIER_MODEL", llm_models.SONNET)
 
 
 def _min_q() -> int:
@@ -273,7 +274,7 @@ def _call_llm(system: str, prompt: str) -> str:
         timeout=float(os.environ.get("AI_SEARCH_DOSSIER_TIMEOUT", "60")))
     resp = client.messages.create(
         model=_model(), max_tokens=900,
-        thinking={"type": "disabled"},
+        **llm_models.plain(_model()),
         system=system,
         messages=[{"role": "user", "content": prompt}])
     return "".join(getattr(b, "text", "") for b in resp.content)

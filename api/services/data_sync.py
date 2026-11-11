@@ -1091,11 +1091,31 @@ def _merge_split_near(ticker: str, floor: int) -> bool:
     return any(str(s[0])[:10] >= lo for s in splits)
 
 
+#: 2026-11-10 60m grid move: a snapshot/delta from a not-yet-redeployed worker
+#: still carries the old clock-hour 60m layout. Adopting ANY of its 60m rows for a
+#: ticker (its 09:30 row has the right key but 30 minutes of content) would
+#: re-poison a rebuilt store and make deploy order matter — so a pair whose
+#: candidate rows include an old-grid bucket is skipped whole.
+_OLD_GRID_60_PROBE_SQL = (
+    "SELECT 1 FROM snap.ohlcv WHERE ticker=? AND tf='60' AND ts > ? AND old_grid60(ts) LIMIT 1"
+)
+
+
+def _ensure_old_grid_fn(conn) -> None:
+    from api.services.bars_sqlite import is_old_grid_60m_ts
+    conn.create_function("old_grid60", 1, lambda ts: 1 if is_old_grid_60m_ts(ts) else 0,
+                         deterministic=True)
+
+
 def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     """Merge ONE (ticker, tf). Returns (rows added, rows corrected). Runs inside the
     caller's transaction; every statement is a primary-key range seek."""
     mx = conn.execute("SELECT MAX(ts) FROM main.ohlcv WHERE ticker=? AND tf=?",
                       (ticker, tf)).fetchone()[0]
+    if tf == "60":
+        probe_floor = -(1 << 62) if mx is None else mx - _MERGE_HEAL_WINDOW_S
+        if conn.execute(_OLD_GRID_60_PROBE_SQL, (ticker, probe_floor)).fetchone():
+            return 0, 0
     before = conn.total_changes
     if mx is None:
         conn.execute(_MERGE_ADD_SQL, (ticker, tf, -(1 << 62)))
@@ -1130,6 +1150,7 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
     try:
         conn.execute("PRAGMA busy_timeout=30000")
         conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
+        _ensure_old_grid_fn(conn)
         try:
             pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
             t_start = time.monotonic()

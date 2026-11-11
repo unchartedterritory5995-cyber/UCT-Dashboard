@@ -11,6 +11,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { BoardFromList, usePanelList } from '../../../components/terminal'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { LIVE_REFRESH_MS } from '../hooks/liveRefresh'
 import { scanErrorText } from './scanErrorText'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
@@ -122,7 +123,7 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
   const scanSpec = useMemo(
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
-  const { result, isLoading, error } = useScreenerScan(scanSpec)
+  const { result, isLoading, error } = useScreenerScan(scanSpec, { refreshMs: LIVE_REFRESH_MS })
   const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
   // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
   // and faster preview count fed into FilterRail as a fast signal ahead of the

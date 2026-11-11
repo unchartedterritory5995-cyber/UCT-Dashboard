@@ -10,13 +10,17 @@
 // background prefetches, started only after a short idle delay so the visible
 // chart's own SWR fetch wins first.
 import { preload } from 'swr'
+import { SWRGlobalState, cache as _swrCache } from 'swr/_internal'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut, mergeDelta } from './barsIDB'
 import { memHas, memPut, memPeek, memPeekSavedAt } from './barsMemCache'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
+// error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
+// same tagged error StockChart's own fetcher throws (`status`, `warming`, `retryAfterMs`).
+const fetcher = url => _chartLaneFetch(url)
 
 // ── Cold-start flood guard ───────────────────────────────────────────────────
 // On a genuinely fresh browser the universe pack is still downloading + ingesting
@@ -89,9 +93,42 @@ function _holdJob(job) {
 // Warm fetcher: reports the HTTP status a plain `.json()` would hide, so a 503 shed
 // drives the backoff even though its body parses fine. Shares the URL with the
 // chart's own SWR key, so `preload` still dedupes one network request across both.
-const warmFetcher = url => fetch(url).then(r =>
-  r.status === 503 ? { bars: [], error: 'warming' } : r.json()
-)
+const warmFetcher = url => _chartLaneFetch(url)
+
+// ── ONE warm request per URL, and NOTHING LEFT BEHIND ───────────────────────
+// ⛔⛔ SWR's `preload` keeps its promise until a hook WITH THAT EXACT KEY consumes it,
+// and a second `preload` of the same key returns the FIRST promise. A `&warm=1` URL is
+// never a hook key, so its first answer was replayed to every later warm of that URL
+// for the whole session — a warm at 10:00 re-wrote 10:00's bars into mem/IDB at 15:00.
+// The intraday chart no longer consumes string-key preloads either (StockChart keys its
+// primary fetch per load), so every warm promise is dropped from the preload table as
+// soon as it settles; an IN-FLIGHT warm is still joinable through `joinPendingBars`.
+const _pendingBars = new Map()   // url -> raw promise (rejects on a non-OK answer)
+function _dropPreload(url, req) {
+  try {
+    const st = SWRGlobalState.get(_swrCache)
+    const P = st && st[3]
+    if (P && P[url] === req) delete P[url]
+  } catch { /* SWR internals unavailable → nothing to drop */ }
+}
+function _warmRaw(url, f = warmFetcher) {
+  const have = _pendingBars.get(url)
+  if (have) return have
+  const req = Promise.resolve(preload(url, f))
+  _pendingBars.set(url, req)
+  const done = () => { if (_pendingBars.get(url) === req) _pendingBars.delete(url); _dropPreload(url, req) }
+  req.then(done, done)
+  return req
+}
+/** The warm answer as a VALUE: data on success, an error SHAPE (never bars) on failure. */
+async function _warmLoad(url, f = warmFetcher) {
+  try { return await _warmRaw(url, f) } catch (e) {
+    if (e?.status === 503 || e?.warming) return { bars: [], error: 'warming' }
+    return { error: 'http', status: e?.status ?? null }
+  }
+}
+/** An in-flight warm of exactly `url`, or null. Never a settled (possibly old) answer. */
+export function joinPendingBars(url) { return _pendingBars.get(url) || null }
 
 // Viewport-first: prefetch only the shallow first-paint window. Deep history is
 // fetched lazily by StockChart's backfill when the user actually pans into it,
@@ -106,10 +143,16 @@ const warmFetcher = url => fetch(url).then(r =>
 // ⚠️ RTH mode (the default) is assumed: warming is speculative and has no user
 // session setting to read, and the RTH budget is the LARGER of the two, so an
 // extended-hours viewer reads a warm superset rather than a cold miss.
-const BAR_COUNTS = {
-  1: firstPaintBarsFor('1'), 5: firstPaintBarsFor('5'), 15: firstPaintBarsFor('15'),
-  30: firstPaintBarsFor('30'), 60: firstPaintBarsFor('60'),
-  D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS,
+// ⛔⛔ (2026-11-10) …AND "RTH IS ASSUMED" WAS THE MISMATCH. With EXT on the chart asks
+// `firstPaintBarsFor(tf, true)` (5m: bars=600) while this warmed bars=1152, so for an
+// extended-hours viewer every intraday warm filled a server key + URL the chart never
+// requested. The chart now TELLS the warmer its session (`setPrefetchShowExtended`).
+let _prefetchShowExtended = false
+export function setPrefetchShowExtended(on) { _prefetchShowExtended = !!on }
+const _INTRADAY_COUNT_TFS = new Set(['1', '5', '15', '30', '60'])
+function _barsFor(tf) {
+  if (_INTRADAY_COUNT_TFS.has(String(tf))) return firstPaintBarsFor(String(tf), _prefetchShowExtended)
+  return ({ D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS })[tf] ?? 5000
 }
 // Common TFs first (Daily, 5min) so those switches warm first; 5min was last-ish
 // before, making "click 5min" a cold fetch while other TFs were already warm.
@@ -139,7 +182,7 @@ function _startFetch(url) {
   _urgent.delete(url)
   const running = meta ? `${meta.sym}_${meta.tf}` : null
   if (running) _urgentRunning.add(running)
-  const job = meta ? _fillUrgent(url, meta.sym, meta.tf) : Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult)
+  const job = meta ? _fillUrgent(url, meta.sym, meta.tf) : _warmLoad(url).then(_noteWarmResult)
   job.catch(() => { /* best-effort */ }).finally(() => {
     if (running) _urgentRunning.delete(running)
     _active--
@@ -151,7 +194,7 @@ async function _fillUrgent(url, sym, tf) {
   let have = null
   try { have = await idbGet(sym, tf) } catch { /* IDB unavailable: fetch instead */ }
   if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) { memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null }); return }
-  const json = _noteWarmResult(await preload(url, warmFetcher))
+  const json = _noteWarmResult(await _warmLoad(url))
   if (json?.bars?.length && !json.delta) {
     const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
     const next = (staleDaily && have.bars.length > json.bars.length) ? mergeDelta(have.bars, json.bars) : json.bars
@@ -235,7 +278,7 @@ export function _url(sym, tf, warm = true) {
   // IDB warming is keyed by (sym,tf), not the URL, so the extra param never breaks it.
   // The hover/focus intent-warm passes warm=false so it isn't shed AND its SWR-cache key
   // matches the visible chart's (no `&warm`), letting the imminent click paint from cache.
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}${warm ? '&warm=1' : ''}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${warm ? '&warm=1' : ''}`
 }
 
 // The native intraday codes. Declared ABOVE its first use on purpose: this file
@@ -279,7 +322,7 @@ export function _resetRepairCooldown() { _repairAt.clear() }
 // `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
 // still a background nicety and must never outrank the chart the member clicked.
 function _sinceUrl(sym, tf, lastT) {
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}`
        + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
 }
 
@@ -325,7 +368,7 @@ export async function prepareForDisplay(sym, tf) {
     const asked = (hasBars && typeof lastT === 'number'
       && classifyIntradayTail(lastT, tf) === 'behind')
     const url = asked ? _sinceUrl(sym, tf, lastT) : _url(sym, tf)
-    const json = _noteWarmResult(await preload(url, warmFetcher))
+    const json = _noteWarmResult(await _warmLoad(url))
 
     // ⛔⛔ VERIFY THAT WE ACTUALLY HEARD FROM THE AUTHORITY BEFORE BELIEVING
     // "there is nothing newer". `warmFetcher` maps a 503 SHED to
@@ -577,7 +620,7 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
       if (_holdJob({ visible })) return
       if (!_repairCooldownOk(sym, tf)) return
       const tail = _noteWarmResult(
-        await preload(_sinceUrl(sym, tf, have.lastT), warmFetcher))
+        await _warmLoad(_sinceUrl(sym, tf, have.lastT)))
       if (tail?.bars?.length) {
         const merged = mergeDelta(have.bars, tail.bars)
         await idbPut(sym, tf, merged)
@@ -595,7 +638,7 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // the bars in mem AND IDB: fetching them again under `&warm=1` downloads the same bars twice
     // (measured on production 2026-10-17: the first three rows of every screener open).
     if (_urgent.has(_url(sym, tf, false)) || _urgentRunning.has(`${sym}_${tf}`)) return
-    const json = _noteWarmResult(await preload(_url(sym, tf), warmFetcher))
+    const json = _noteWarmResult(await _warmLoad(_url(sym, tf)))
     if (json?.bars?.length && !json.delta) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
       // heal only the recent tail (fresh wins on overlap) — idbPut REPLACES, so a
@@ -693,6 +736,13 @@ function _dailyNeedsRefresh(lastT, savedAt) {
 // holds something: a refused daily entry must not make the warmers skip the repair.
 function _memUsable(sym, tf) {
   if (!memHas(sym, tf)) return false
+  // ⛔ (2026-11-10) An intraday mem entry is "usable" only if the chart would PAINT it.
+  // `true` here made the urgent/intent warm a no-op for exactly the stale entry that
+  // most needed repair, so the click then waited on the chart's own fetch.
+  if (_INTRADAY_TFS.has(String(tf))) {
+    const bars = memPeek(sym, tf)
+    return _memPromoteFresh(tf, bars?.[bars.length - 1]?.t)
+  }
   if (String(tf) !== 'D') return true
   const bars = memPeek(sym, tf)
   return !_dailyNeedsRefresh(bars?.[bars.length - 1]?.t, memPeekSavedAt(sym, tf))
@@ -717,8 +767,11 @@ function _memPromoteFresh(tf, lastT, savedAt = null) {
   if (String(tf) === 'D') return !_dailyNeedsRefresh(lastT, savedAt)
   if (!_INTRADAY_TFS.has(String(tf))) return true   // W/M always promote
   if (typeof lastT !== 'number') return false
-  const tfSec = Math.max(60, (Number(tf) || 5) * 60)
-  return (Date.now() / 1000 - lastT) <= Math.max(6 * tfSec, 20 * 60)
+  // ⭐ (2026-11-10) THE CHART'S OWN PAINT RULE, not a private 6x-tf/20-min window: a
+  // sound base (not gapped) that is within one expected bucket of the frontier. The
+  // old window promoted a 20-minute-old 1m tail (19 bars behind) that the chart then
+  // refused to paint — or, through the mem fallback, painted as current.
+  return classifyIntradayTail(lastT, tf) !== 'gapped' && isCurrentEnoughForPaint(lastT, tf)
 }
 
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
@@ -822,7 +875,7 @@ async function _deepWarmOne(sym, tf) {
     // stalls in the HAR — never race the pack with it, and never pile it onto a
     // shedding server. Holds during pack-ingest OR while backed off (_holdBackgroundWarm).
     if (_holdBackgroundWarm()) return
-    const json = _noteWarmResult(await preload(_deepUrl(sym, tf), warmFetcher)) // dedupes + warms SWR + server
+    const json = _noteWarmResult(await _warmLoad(_deepUrl(sym, tf))) // dedupes + warms SWR + server
     if (json?.bars?.length && !json.delta) {
       await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB
       memPut(sym, tf, json.bars)
@@ -895,7 +948,7 @@ async function _warmIntentNow(sym, tf) {
       memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
       return
     }
-    const json = await preload(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
+    const json = await _warmLoad(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
     if (json?.bars?.length && !json.delta) {
       // Preserve deeper history on a stale-daily refresh (see _idbWarmOne).
       const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
