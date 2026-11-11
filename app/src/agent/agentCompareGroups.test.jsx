@@ -9,7 +9,7 @@ import { buildContext, getCapability } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
-import { wordsSelect } from './routing'
+import { wordsSelect, groupOfAction, selectGroups } from './routing'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import CompareSymbolsPanel from '../pages/charts/CompareSymbolsPanel'
 import { matchGroup } from './capabilities/compareGroup'
@@ -195,7 +195,12 @@ describe('matching and routing', () => {
   it('the manifest carries it and the words reach it', () => {
     expect(getCapability('chartSetup.compareGroup')).toBeTruthy()
     for (const m of ['compare against the semis group', 'remove the semiconductors industry from the chart', 'put the semis overlay on its own scale']) {
-      expect(wordsSelect('chartSetup', m)).toBe(true)
+      expect(wordsSelect('compareGroups', m)).toBe(true)
     }
+    // its OWN words-only group (merge with #1072): chartSetup keeps master's 17, so a template message is never cut,
+    // and a message nothing recognised never gets it as filler
+    expect(groupOfAction('chartSetup.compareGroup')).toBe('compareGroups')
+    expect(wordsSelect('compareGroups', 'add the Swing Setup indicator template to this chart')).toBe(false)
+    expect(selectGroups('scratch that').priority).not.toContain('compareGroups')
   })
 })

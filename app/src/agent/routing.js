@@ -59,7 +59,7 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, compare a whole theme / sector / industry group (add, remove, its scale), Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
@@ -76,10 +76,6 @@ export const GROUPS = [
       /\btemplates?\b/, /\b(?:make|making|made)\b.*\blooks? (just )?like\b|\blooks? (just )?like (?:the|that|my|this) (?:\w+ )?(?:chart|one)\b/,/\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/,
-      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay").
-      // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
-      // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches chartSetup.
-      /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/,
       // chart range bar, Reset view, hide-all: chartSetup's own capabilities, by the words a member uses for the buttons
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
@@ -87,6 +83,16 @@ export const GROUPS = [
       /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
       // C1-127: OPENING a chart's own Chart Settings dialog (chartSetup.openSettings) — an open verb and the chart's settings
       /\b(?:open|show|bring up|pull up|pop up|pop open|launch|display)\b.*\b(?:chart'?s? settings|settings (?:dialog|panel|window|modal)|settings (?:for|of|on) (?:the |this |that |my )?(?:\w+ )?(?:\w+ )?chart)\b/] },
+  // C1-035 / C1-037 / C1-040: chartSetup.compareGroup in its OWN one-action group, WORDS-ONLY (as #1027's watchlistShow), so the chartSetup group keeps
+  // master's size: a 19th chartSetup action made it outsize the lists group, and the per-request budget then cut chartSetup
+  // for a template message ("add the Swing Setup indicator template to this chart", corpus indicatorTemplate.apply).
+  { id: 'compareGroups', title: 'Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.compareGroup'],
+    words: [
+      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay").
+      // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
+      // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
+      /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -437,7 +443,10 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
+  // `wordsOnly` (Lead 2026-11-09, as #1027): a NICHE group is sent only when the words name it — never as filler for a message nothing
+  // recognised (or a knowledge-only one), so adding one never displaces what such a request packs
+  const filler = GROUPS.filter(g => !g.wordsOnly || hits.has(g.id)).map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...filler]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }

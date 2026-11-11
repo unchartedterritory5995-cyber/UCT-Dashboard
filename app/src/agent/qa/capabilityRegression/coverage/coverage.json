@@ -2149,7 +2149,7 @@
   },
   "chartSetup.compareGroup": {
    "domain": "chartSetup",
-   "group": "chartSetup",
+   "group": "compareGroups",
    "target": "chart",
    "risk": "local",
    "reversible": true,

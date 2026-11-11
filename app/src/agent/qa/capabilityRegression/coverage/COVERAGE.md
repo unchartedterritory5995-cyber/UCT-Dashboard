@@ -69,7 +69,7 @@ Catalog: **178** capabilities (every server-gated kind on; 169 with production's
 | chart.setType | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | chartGrid.set | chartGrid | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | chartSetup.compareDisplay | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| chartSetup.compareGroup | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| chartSetup.compareGroup | compareGroups | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chartSetup.copyLook | chartSetup | confirm | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | chartSetup.deleteTemplate | chartSetup | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | chartSetup.favoriteTimeframe | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
