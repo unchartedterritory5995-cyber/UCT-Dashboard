@@ -24,7 +24,7 @@
 // The store bumps baseRev on every change to sealed bars, so a stale entry can never be
 // served; the LRU bound (BASE_MEMO_MAX) only limits memory. Tested in adapter.test.js.
 
-import { toChartTime, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from '../../components/chart/barTime'
+import { toChartTime, isRthBar } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
@@ -193,13 +193,10 @@ function haContinue(bars, prev) {
   return out
 }
 
-// The regular-hours view: 09:30 to the DAY's close (13:00 on an NYSE half-day; barTime owns
-// the calendar). ⚠ When charts/rth-halfday-filter lands this becomes barTime.isRthBar —
-// the one RTH test StockChart's sessionBars filter then uses too (it uses a fixed 16:00 today).
+// The regular-hours view: barTime.isRthBar — the one RTH test (half-day aware), the same one
+// StockChart's sessionBars filter uses.
 function rthKeep(b) {
-  if (typeof b.t !== 'number') return true
-  const m = etMinuteOfDay(b.t)
-  return m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(b.t)
+  return typeof b.t !== 'number' || isRthBar(b.t)
 }
 function cutoffKeep(cutoff) {
   return (b) => (typeof b.t === 'number'
