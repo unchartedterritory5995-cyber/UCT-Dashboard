@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { reduce, initialState, isSealedRow } from './reducer'
 import { createRegistry } from './registry'
-import { createPersist, toCacheRows, encodeMeta, decodeEntry, rowHash, PERSIST_DEBOUNCE_MS } from './persist'
+import { createPersist, toCacheRows, encodeMeta, decodeEntry, rowHash, histStamp, PERSIST_DEBOUNCE_MS } from './persist'
 import { forSeeds, simulateIntraday, rng, etUnix } from './__fixtures__/seededSeries'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { memClear, memPeekEntry, memPutMonotonic } from '../../utils/barsMemCache'
@@ -36,7 +36,7 @@ const sealedOf = (s) => s.bars.filter((b) => isSealedRow(s, b)).map((b) => [b.t,
 function checkRoundTrip(s, h) {
   check(JSON.stringify(rowsOf(h)) === JSON.stringify(rowsOf(s)), 'S8 rows differ after hydrate')
   check(JSON.stringify(sealedOf(h)) === JSON.stringify(sealedOf(s)), () => `S8 seals lost: ${sealedOf(h).length}/${sealedOf(s).length}`)
-  check(h.cacheKey === s.cacheKey && h.historyRev === s.historyRev && h.seriesRev === s.seriesRev, 'S8 identity differs')
+  check(h.cacheKey === s.cacheKey && h.historyRev === s.historyRev && h.seriesRev === s.seriesRev && h.adjBasis === s.adjBasis, 'S8 identity differs')
   check(h.completeThrough == null ? s.completeThrough == null || !sealedOf(s).length : h.completeThrough <= s.completeThrough, 'S8 completeThrough claims more than persisted')
   if (sealedOf(s).length) {
     check(h.needsFull === false, 'S8 restored seals must allow a delta')
@@ -282,13 +282,13 @@ describe('persist.js — the real write path (barsMemCache + barsIDB on a fake I
     expect(memPeekEntry('SIM', '5')?.meta ?? null).toBe(null)
   })
 
-  it('the envelope never goes on the #1116 @hist segment record', async () => {
+  it('the @hist segment record carries its own STAMP (identity only), never the seal envelope', async () => {
     const t0 = Date.UTC(2026, 10, 10, 14, 30) / 1000
     const rows = Array.from({ length: 5 }, (_, i) => ({ t: t0 + i * 300, o: 1, h: 1, l: 1, c: 1, v: 1 }))
-    await idbPutMonotonic('HSEG', '5', rows, { segment: 'history', meta: { v: 1, key: 'HSEG_5' } })
-    const hist = fakeDb._rows().get('HSEG_5@hist')
-    expect(hist).toBeTruthy()
-    expect(hist.meta).toBeUndefined()
+    const stamp = histStamp({ key: 'HSEG_5', cacheKey: 'b1:HSEG:5:eth-clock', historyRev: 7, adjBasis: 's0', sealedSpans: [[1, 2]] })
+    expect(Object.keys(stamp).sort()).toEqual(['adjBasis', 'cacheKey', 'historyRev', 'key', 'v'])
+    await idbPutMonotonic('HSEG', '5', rows, { segment: 'history', meta: stamp })
+    expect(fakeDb._rows().get('HSEG_5@hist').meta).toEqual(stamp)
     await idbPutMonotonic('HSEG', '5', rows, { meta: { v: 1, key: 'HSEG_5' } })
     expect(fakeDb._rows().get('HSEG_5').meta).toEqual({ v: 1, key: 'HSEG_5' })
   })
@@ -428,5 +428,99 @@ describe('review fix 6: deep history, holes, basis', () => {
     // CONTROL: the same answer on the SAME basis keeps the deeper local history.
     const same = reduce(local, { type: 'rest-full', payload: { ticker: 'DEEP', tf: '5', bars: all.slice(-500) } }, ctx)
     expect(same.bars[0].t).toBe(all[all.length - 3000].t)
+  })
+})
+
+
+// ⭐ P4 — every persisted record carries the server's identity stamp (adj_basis + history_rev +
+// cache_key), the tail record AND the `@hist` segment; hydrate hands it to the reducer, which
+// refuses a record whose stamp is not the held one (S8). Real write path on the fake IDB.
+//   • hydrate ∘ persist keeps adj_basis (tail + @hist), and the local rows carry it;
+//   • a @hist segment written under history_rev H is refused once the tail is on H' ≠ H, and
+//     the next write REPLACES it (a stamped write never merges rows of another stamp);
+//   • an interior hole in @hist is cut on hydrate: only the run reaching the tail comes back.
+describe('P4: stamped records (adj_basis / history_rev / cache_key)', () => {
+  function sessions(days, px = (i) => 50 + (i % 37) * 0.01) {
+    const dates = []
+    for (let d = new Date(Date.UTC(2026, 10, 10)); dates.length < days; d = new Date(d.getTime() - 86400000)) {
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.unshift(d.toISOString().slice(0, 10))
+    }
+    const out = []
+    for (const iso of dates) for (let m = 570; m < 960; m += 5) { const i = out.length; const c = px(i); out.push({ t: etUnix(iso, m), o: c, h: c + 0.05, l: c - 0.05, c, v: 100 + i }) }
+    return out
+  }
+  const key = keyOf({ sym: 'STMP', tf: '5' })
+  const all = sessions(70)
+  const NOW_MS = (all[all.length - 1].t + 120) * 1000
+  const ans = (bars, extra = {}) => ({ ticker: 'STMP', tf: '5', bars, contract: 1, grid: 'eth-clock',
+    cache_key: 'b1:STMP:5:eth-clock', series_rev: 10, history_rev: 7, adj_basis: 's1:aaaaaaaaaaaa', ...extra })
+
+  async function persistedDeep(extra = {}) {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW_MS)
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    registry.dispatch(key, { type: 'rest-full', key, payload: ans(all.slice(-2000), extra) })
+    registry.dispatch(key, { type: 'scroll-back', key, payload: ans(all.slice(-4000, -1999), extra) })
+    const s = registry.peek(key)
+    expect(s.depth).toBeGreaterThan(3000)
+    await createPersist({ registry }).writeOnce(key)
+    return s
+  }
+  async function reload() {
+    memClear()
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    await createPersist({ registry }).hydrate(key)
+    return registry.peek(key)
+  }
+
+  it('INVARIANT: hydrate ∘ persist keeps the basis stamp on the tail and the @hist segment', async () => {
+    const s = await persistedDeep()
+    expect(fakeDb._rows().get('STMP_5').meta.adjBasis).toBe('s1:aaaaaaaaaaaa')
+    expect(fakeDb._rows().get('STMP_5@hist').meta).toMatchObject({ historyRev: 7, adjBasis: 's1:aaaaaaaaaaaa', cacheKey: 'b1:STMP:5:eth-clock' })
+    const h = await reload()
+    expect([h.depth + (h.developing ? 1 : 0), h.adjBasis, h.historyRev]).toEqual([s.depth + (s.developing ? 1 : 0), 's1:aaaaaaaaaaaa', 7])
+    expect(h.bars.every((b) => b.ab === 's1:aaaaaaaaaaaa')).toBe(true)
+    // the server's next answer on ANOTHER basis drops every hydrated row (no value test needed)
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    const p = createPersist({ registry })
+    memClear()
+    await p.hydrate(key)
+    registry.dispatch(key, { type: 'rest-full', key, payload: ans(all.slice(-500), { adj_basis: 's1:bbbbbbbbbbbb', history_rev: 8 }) })
+    expect(registry.peek(key).bars.every((b) => b.src === 'rest')).toBe(true)
+  })
+
+  it('INVARIANT: a history_rev change invalidates the @hist segment (refused on hydrate, replaced on write)', async () => {
+    await persistedDeep()
+    // The store corrected history (history_rev 7 → 8): the tail record is re-written under 8.
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    registry.dispatch(key, { type: 'rest-full', key, payload: ans(all.slice(-2000), { history_rev: 8 }) })
+    await createPersist({ registry }).writeOnce(key)
+    expect(fakeDb._rows().get('STMP_5@hist').meta.historyRev).toBe(7)       // untouched (shallow write)
+    const h = await reload()
+    expect(h.historyRev).toBe(8)
+    expect(h.depth, 'the H7 segment is not prepended to the H8 tail').toBeLessThanOrEqual(3000)
+    // a deep write under H8 REPLACES the segment (never merges H7 rows under the H8 stamp)
+    const deep = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    deep.dispatch(key, { type: 'rest-full', key, payload: ans(all.slice(-2000), { history_rev: 8 }) })
+    deep.dispatch(key, { type: 'scroll-back', key, payload: ans(all.slice(-3500, -1999), { history_rev: 8 }) })
+    await createPersist({ registry: deep }).writeOnce(key)
+    const seg = fakeDb._rows().get('STMP_5@hist')
+    expect(seg.meta.historyRev).toBe(8)
+    expect(seg.bars[0].t, 'no H7 row kept under the H8 stamp').toBe(all[all.length - 3500].t)
+  })
+
+  it('INVARIANT: an interior hole in @hist is cut on hydrate (only the run reaching the tail)', async () => {
+    await persistedDeep()
+    const rec = fakeDb._rows().get('STMP_5@hist')
+    // a same-session hole 300 rows into the segment (rows a merge never had)
+    const holeAt = 300
+    const holed = rec.bars.filter((_, i) => i < holeAt || i >= holeAt + 6)
+    fakeDb._rows().set('STMP_5@hist', { ...rec, bars: holed })
+    const h = await reload()
+    expect(h.bars[0].t, 'nothing older than the hole is drawn across it').toBe(holed[holeAt].t)
+    for (let i = 1; i < h.bars.length; i++) {
+      const gap = h.bars[i].t - h.bars[i - 1].t
+      const sameDay = new Date(h.bars[i].t * 1000).toISOString().slice(0, 10) === new Date(h.bars[i - 1].t * 1000).toISOString().slice(0, 10)
+      if (sameDay) expect(gap).toBeLessThanOrEqual(600)
+    }
   })
 })
