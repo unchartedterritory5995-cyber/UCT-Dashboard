@@ -1694,3 +1694,19 @@ def test_guard_withholds_the_layout_bar_action_names_bare(name):
 ])
 def test_guard_still_passes_ordinary_prose_about_pinning(text):
     assert guard.suspicious(text) is False
+
+
+# ── #1082 Custom-Period Sort: its action names are withheld when a passage names them bare ──────────────────────────
+@pytest.mark.parametrize("name", ["periodSort.run", "periodSort.dock"])
+def test_guard_withholds_the_period_sort_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Dock your watchlist on the left so it stays visible while you scan.",
+    "Run a period sort on the leaders from the March low to see who held up.",
+    "I sort my themes by the period since the last FOMC meeting.",
+    "Once the ranking looks right, dock it next to the chart.",
+])
+def test_guard_still_passes_ordinary_prose_about_period_sorts_and_docking(text):
+    assert guard.suspicious(text) is False

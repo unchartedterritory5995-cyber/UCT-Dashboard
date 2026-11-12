@@ -180,6 +180,8 @@
   "guide.explain": "guide",
   "guide.show": "guide",
   "calendar.day": "calendar",
+  "periodSort.run": "periodSort",
+  "periodSort.dock": "periodSort",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
  },
@@ -295,6 +297,10 @@
   {
    "id": "guide",
    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+  },
+  {
+   "id": "periodSort",
+   "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
   }
  ],
  "cases": [
@@ -458,6 +464,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -639,6 +649,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -834,6 +848,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -1039,6 +1057,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -1216,6 +1238,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -1257,7 +1283,8 @@
     "agent",
     "undo",
     "watchlistShow",
-    "guide"
+    "guide",
+    "periodSort"
    ],
    "names": [
     "chart.setType",
@@ -1433,6 +1460,8 @@
     "guide.explain",
     "guide.show",
     "calendar.day",
+    "periodSort.run",
+    "periodSort.dock",
     "multiChart.set",
     "multiChart.cell"
    ],

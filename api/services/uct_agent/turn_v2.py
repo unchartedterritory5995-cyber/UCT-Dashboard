@@ -71,6 +71,7 @@ DOMAIN_TOOLS = ("chart", "board", "watchlist", "layout", "indicator", "drawing",
 _DOMAIN_OF = {
     "chart": "chart", "chartSetup": "chart", "chartGrid": "chart", "volume": "chart", "pane": "chart",
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
+    "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",

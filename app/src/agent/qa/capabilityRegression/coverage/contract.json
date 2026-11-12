@@ -1718,6 +1718,32 @@
    ],
    "fast": true
   },
+  "periodSort.dock": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "periodSort.run": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "playbook.explain": {
    "domain": "playbook",
    "group": "playbook",

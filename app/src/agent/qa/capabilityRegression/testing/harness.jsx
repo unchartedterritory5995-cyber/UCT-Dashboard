@@ -454,6 +454,35 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       setReplay: (iso) => { st.replay = iso ?? null; return true },
       openSettings: (ref) => { st.settingsOpen[ref] = true; return true } }
     st.views = views
+    // Tools → Custom-Period Sort (ChartsWorkspace runPeriodSort / handleDockPeriodSort), sharing the ONE Replay cutoff above
+    const iso = (ymd) => { const s = String(ymd); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` }
+    st.periodSort = { panel: null, marker: null, markerStyle: 'line' }
+    const ps = st.periodSort
+    let psN = 0
+    mounted.h.periodSort = {
+      read: () => ({ panel: ps.panel, cutoff: st.replay, marker: ps.marker, markerStyle: ps.markerStyle }),
+      run: (a) => {
+        ps.panel = { start: a.start, end: a.end, group: a.group || null }
+        st.replay = a.replay ? iso(a.end) : null
+        ps.marker = a.markStart && a.markStart !== 'off' ? iso(a.start) : null
+        if (a.markStart === 'line' || a.markStart === 'candle') ps.markerStyle = a.markStart
+        return true
+      },
+      restore: (was) => { ps.panel = was.panel ? { ...was.panel } : null; st.replay = was.cutoff ?? null; ps.marker = was.marker ?? null; if (was.markerStyle) ps.markerStyle = was.markerStyle; return true },
+      dock: () => {
+        if (!ps.panel) return null
+        const id = `w-periodsort-${++psN}`
+        mounted.board.state.widgets = [...mounted.board.state.widgets, { id, type: 'periodsort', color: 'A', x: 0, y: 20, w: 8, h: 10, opts: { ...ps.panel } }]
+        ps.panel = null
+        return id
+      },
+      undock: ({ remove, set, panel }) => {
+        mounted.board.state.widgets = mounted.board.state.widgets.filter(w => w.id !== remove).map(w => (set?.[w.id] ? { ...w, ...set[w.id] } : w))
+        ps.panel = panel ? { ...panel } : null
+        return true
+      },
+      widgets: () => mounted.board.state.widgets,
+    }
   }
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty

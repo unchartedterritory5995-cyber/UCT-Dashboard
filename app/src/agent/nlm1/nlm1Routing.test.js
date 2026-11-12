@@ -149,6 +149,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
+    periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
     // #1070: the Drawing Boards actions' own words — a switch / rename / delete / new verb governing the board noun, or "drawing board"
     drawingBoards: ['switch to my Earnings board', 'rename Board 3 to Gaps', 'delete the current drawing board', 'make me a new board called Breakouts'],
     // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's entry / stop / target alerts
@@ -173,6 +175,12 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     const sent = sentOf(msg)
     expect(sent.size).toBeGreaterThan(1)
     for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
+  })
+  // #1082 negative controls: a bare sort / rank / dock (a list column, a scan, a widget) never names the Custom-Period Sort
+  it.each(['sort my watchlist by change', 'rank these by relative strength', 'sort the list from highest to lowest', 'dock the chart on the left', 'show the top gainers since the open', 'what period does this cover'])
+  ('"%s": not the Custom-Period Sort', (msg) => {
+    expect(wordsSelect('periodSort', msg)).toBe(false)
+    expect(sentOf(msg).has('periodSort')).toBe(false)
   })
   it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
     expect(wordsSelect(id, msg)).toBe(true)
