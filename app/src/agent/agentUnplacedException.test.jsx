@@ -93,3 +93,5 @@ describe('control: a non-chart possessive is never read as a chart exception', (
     expect(ex(t)).toContain(UNPLACED)
   })
 })
+
+// agent-ci-required validation 5a (non-agent branch, Agent path): expect pending, then success via the PR-event run. Close unmerged.
