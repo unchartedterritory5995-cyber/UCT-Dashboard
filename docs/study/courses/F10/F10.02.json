@@ -130,6 +130,14 @@
    "title": "Study: the trade plan for every setup (the Trail column the app's detectors compute)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -522,6 +530,60 @@
    "source": "s16",
    "quote": "under the rising 21-day average, or under each higher low",
    "claim": "Our Launchpad plan trails the stop under the rising 21-day average, or under each higher low."
+  },
+  {
+   "id": "h05",
+   "source": "s17",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: our stop sits a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "h06",
+   "source": "s17",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position carries a real stop order with the broker."
+  },
+  {
+   "id": "h07",
+   "source": "s17",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: our stop only moves up, never down or wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h08",
+   "source": "s17",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the whole position goes on at one price with one stop, and we never add to it."
+  },
+  {
+   "id": "h09",
+   "source": "s17",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: our trail is the 10-day for fast movers or the 21-day for steadier ones, selling on a close below it."
+  },
+  {
+   "id": "h10",
+   "source": "s17",
+   "quote": "Entries are market orders.",
+   "claim": "E57: our entries are market orders."
+  },
+  {
+   "id": "h11",
+   "source": "s17",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: we never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "s17",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A7: a tight stop never justifies a bigger position, because a gap can jump the stop."
+  },
+  {
+   "id": "h13",
+   "source": "s17",
+   "quote": "Sell some into strength and trail the rest under the rising averages.",
+   "claim": "A11: we sell some into strength and trail the rest under the rising averages."
   }
  ],
  "walkthroughs": [
@@ -599,20 +661,30 @@
     "Sells right now at the market price"
    ],
    "answer": "Sells at market when the stop is hit",
-   "why": "It sells at market once the price reaches your stop. The stop price is the trigger. The fill is the next available bid.",
+   "why": "It sells at market once the price reaches your stop. A sell stop sits below the current price. The stop price is only the trigger: once reached, the order becomes a market order. The fill is the next available bid, so it can land below the stop.",
    "lesson_line": "A sell stop is a trigger for a market sale. It puts the exit first, not the price.",
    "facts": [
     "f1",
     "f3",
     "f29",
     "f31",
-    "f4"
+    "f4",
+    "f7"
    ],
    "wrong": {
     "Sells only at your stop or better": "That's closer to a stop-limit. A plain stop becomes a market order, and the fill can be below the stop.",
     "Sells if the stock rises to your price": "That's a sell limit, which sells at your price or higher. A sell stop sits below the price.",
     "Sells right now at the market price": "That's a plain market order. A stop waits until the price falls to your stop."
-   }
+   },
+   "simple": "It waits below the price, then sells at market once the price falls to your stop.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -621,13 +693,20 @@
    "format": "tf",
    "q": "A buy stop order goes in below the stock's current price.",
    "answer": "False",
-   "why": "False. A buy stop goes above the current price. It buys only if the stock rises to it.",
+   "why": "False. A buy stop goes in above the current price. It places a market buy only when the price rises to it. The sell stop is the one that sits below the price.",
    "lesson_line": "Buy stops sit above the price. Sell stops sit below it.",
    "facts": [
     "f2",
     "f3",
     "f28"
-   ]
+   ],
+   "simple": "False, because a buy stop sits above the price and buys only if the stock rises to it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -644,12 +723,23 @@
     "stop"
    ],
    "answer": "limit",
-   "why": "Limit. After the trigger, it can fill only at your limit price or better.",
+   "why": "Limit. The stop price triggers it, and then it becomes a limit order. It fills only at the limit price or better. If the price moves away from the limit, it may not fill at all. A plain stop is the one that becomes a market order.",
    "lesson_line": "Stop-limit: the stop triggers it, the limit is the worst price you'll take.",
    "facts": [
     "f7",
-    "f64"
-   ]
+    "f64",
+    "f8",
+    "f1"
+   ],
+   "simple": "Limit, because after the stop is hit the order can only fill at your limit price or better.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -665,7 +755,7 @@
     "A stop that moves down on dips"
    ],
    "answer": "A stop that follows the price up",
-   "why": "It follows the price up. It sits a set dollar amount or percent under the price and rises as the stock rises. When the stock falls, it stays put.",
+   "why": "It follows the price up. A trailing stop sits a set percent or dollar amount under the price. As the stock rises, the stop rises with it. When the stock falls, the stop stays fixed and triggers if the price reaches it. Once triggered, the fill can differ from the stop price, as with a plain stop.",
    "lesson_line": "A trailing stop climbs with the stock and never steps back down.",
    "facts": [
     "f11",
@@ -677,7 +767,16 @@
     "A stop that can't fill below its price": "That's not what makes it trailing. Once triggered, a trailing stop can fill away from its stop price, like a plain stop.",
     "A stop that only counts the close": "It triggers when the price reaches it, during the session. It doesn't wait for the close.",
     "A stop that moves down on dips": "The other way round. When the stock falls, the trailing stop stays fixed."
-   }
+   },
+   "simple": "It follows the price up by a set amount and stays put when the stock falls.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -686,55 +785,91 @@
    "format": "tf",
    "q": "Once your sell stop triggers, you get your stop price or better.",
    "answer": "False",
-   "why": "False. The stop price only triggers the sale. The fill can come in above, at or below it, and well below in a fast market.",
+   "why": "False. The stop price is a trigger, not a promised price. Once reached, the stop becomes a market order. The fill can come in above, at or below the stop, and well below it in a fast market. If price matters most, a stop-limit caps it, but it may never fill.",
    "lesson_line": "Your stop is where you want out. It is not the price you're promised.",
    "facts": [
     "f4",
     "f30",
     "f23",
-    "f5"
-   ]
+    "f5",
+    "f25",
+    "f26"
+   ],
+   "simple": "False, because the stop price only starts the sale and the fill can come in below it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
    "skill": "orders.stops",
    "rung": 3,
    "format": "mcq",
-   "q": "What does entering your stop as a real order add over keeping it in your head?",
+   "q": "What does a plain sell stop order add over a stop kept in your head?",
    "choices": [
-    "It works while you're away",
+    "It works while you're not watching",
     "It locks in your exact exit price",
-    "It protects you from overnight gaps"
+    "It protects you from overnight gaps",
+    "It rises on its own as you gain"
    ],
-   "answer": "It works while you're away",
-   "why": "It works while you're away. The order sits in the market on its own, so the plan holds even when you can't watch the screen.",
+   "answer": "It works while you're not watching",
+   "why": "It works while you're not watching. The order rests with the broker and triggers on its own, so the plan holds when you can't watch. That is our rule too: every position has a real stop order with the broker. It does not lock in a price or stop a gap. A plain stop stays where you put it; a trailing stop is the one that moves.",
    "lesson_line": "Put the stop in as an order. It keeps your plan when you're not there.",
    "facts": [
     "f27",
+    "f28",
     "f4",
     "f34",
-    "f38"
+    "f38",
+    "h06",
+    "f43",
+    "f11"
    ],
    "wrong": {
     "It locks in your exact exit price": "It doesn't. Once triggered it's a market order, and the fill can be away from your stop.",
-    "It protects you from overnight gaps": "Stop orders are open to gaps. If the stock opens below your stop, it sells around where it opens."
-   }
+    "It protects you from overnight gaps": "Stop orders are open to gaps. If the stock opens below your stop, it sells around where it opens.",
+    "It rises on its own as you gain": "A plain stop stays where you put it. Moving it up on its own is what a trailing stop adds."
+   },
+   "simple": "It sells for you even when you are not watching the screen.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (D41)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
    "skill": "orders.stops",
    "rung": 3,
    "format": "tf",
-   "q": "Your sell stop only triggers if the stock closes below it.",
-   "answer": "False",
-   "why": "False. A stop triggers when the price reaches it, at any point in the session. A brief drop can set it off even if the stock closes higher.",
+   "q": "A sell stop doesn't wait for the close. A brief intraday dip to your stop price triggers it.",
+   "answer": "True",
+   "why": "True. A stop triggers when the price reaches it, at any point in the session. It does not wait for the close. A brief intraday drop can set it off and fill well below where the stock closes. The stock can then bounce right back to its prior level.",
    "lesson_line": "A resting stop doesn't wait for the close. A quick intraday flush can trip it.",
    "facts": [
     "f1",
     "f6",
     "f24",
     "f29"
-   ]
+   ],
+   "simple": "True, because a stop fires when the price reaches it during the session, whatever the close.",
+   "deeper": {
+    "trap": "This is the cost of a resting stop. FINRA warns that a quick, sharp move can trigger a stop. The stock may then rebound and trade at its prior level. You are out, and the bounce happens without you. The SEC adds that the fill can be far worse than that day's close."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -746,70 +881,114 @@
    "choices": [
     "Sell partials, trail rising averages",
     "Leave the first stop where it is",
-    "Sell all of it at the first gain"
+    "Sell all of it at the first gain",
+    "Add to the position as it keeps rising"
    ],
    "answer": "Sell partials, trail rising averages",
-   "why": "Sell partials into strength and trail the rising moving averages. That's our rule: take some off as it runs, and let the stop follow the trend up.",
+   "why": "Sell partials into strength and trail the rising moving averages. That is our rule, in the owner's words. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser.",
    "lesson_line": "We hold winners by selling partials into strength and trailing the rising moving averages.",
    "facts": [
     "h02",
-    "f54"
+    "h13",
+    "f54",
+    "h08"
    ],
    "wrong": {
     "Leave the first stop where it is": "Then a winner can turn into a loser. The stop has to move up as the trade works.",
-    "Sell all of it at the first gain": "That cuts the winner short. We take some off into strength and let the rest ride the trend."
-   }
+    "Sell all of it at the first gain": "That cuts the winner short. We take some off into strength and let the rest ride the trend.",
+    "Add to the position as it keeps rising": "Not our way. We buy the full size at one price with one stop, and we never add to it."
+   },
+   "simple": "We take some profit as it runs and let the stop follow the rising averages up.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (A11, A5)",
+     "key rests on the owner's words (h02, h13)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
    "skill": "orders.stops",
    "rung": 4,
    "format": "scenario",
-   "story": "You own a stock trading at $49.60. Your plan's stop is today's low, $47.80.",
+   "story": "You own a stock trading at $49.60. Your plan's stop is $47.80, a few cents under today's low.",
    "q": "Which order puts that stop in the market?",
    "choices": [
     "A sell stop at $47.80",
     "A sell limit at $47.80",
-    "A buy stop at $47.80"
+    "A buy stop at $47.80",
+    "A buy limit at $47.80"
    ],
    "answer": "A sell stop at $47.80",
-   "why": "A sell stop at $47.80. It sits below the price and turns into a market sell only if the price falls to it.",
+   "why": "A sell stop at $47.80. It sits below the current price and waits. If the price falls to $47.80, it becomes a market sell. A sell limit at $47.80 would sell right away, since the stock is above it. We set the stop a few cents under the day's low, not exactly on it.",
    "lesson_line": "Read the stop off the chart, then enter it as a sell stop under the price.",
    "facts": [
     "f3",
     "f1",
     "f19",
-    "f32"
+    "f32",
+    "h05",
+    "h08"
    ],
    "wrong": {
     "A sell limit at $47.80": "A sell limit fills at $47.80 or higher. With the stock at $49.60, it would sell right away.",
-    "A buy stop at $47.80": "A buy stop buys, and it goes above the price. You own the stock, so you need a sell order."
-   }
+    "A buy stop at $47.80": "A buy stop buys, and it goes above the price. You own the stock, so you need a sell order.",
+    "A buy limit at $47.80": "That buys more shares if it dips to $47.80, the reverse of an exit. We never add to a trade, and a stop must sell."
+   },
+   "simple": "A sell stop at $47.80, because it waits below the price and sells only if the stock falls to it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F62, in the story)",
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
    "skill": "orders.stops",
    "rung": 4,
    "format": "scenario",
-   "story": "A stock trades at $48.50. It has stalled under $50 for weeks. You want in only if it trades up through $50.",
-   "q": "Which order gets you in on the break?",
+   "story": "A stock trades at $48.50. It has stalled under $50 for weeks. A trader wants in only if it trades up through $50.",
+   "q": "Which order gets the trader in on the break?",
    "choices": [
     "A buy stop at $50",
     "A buy limit at $50",
-    "A market order right now"
+    "A market buy right now",
+    "A sell stop at $50"
    ],
    "answer": "A buy stop at $50",
-   "why": "A buy stop at $50. It sits above the price and becomes a market buy only if the price rises to $50.",
-   "lesson_line": "To buy a breakout, put a buy stop above the price. A buy limit is for buying lower.",
+   "why": "A buy stop at $50. It sits above the current price and becomes a market buy only if the price rises to $50. A buy limit at $50 would fill now, since $48.50 is already below it. A market buy now fills before any break.",
+   "lesson_line": "A buy stop sits above the price and buys on a rise. A buy limit is for buying lower.",
    "facts": [
     "f2",
     "f28",
     "f36",
-    "f19"
+    "f19",
+    "f3",
+    "h10"
    ],
    "wrong": {
     "A buy limit at $50": "A buy limit fills at $50 or lower. With the stock at $48.50, it would buy now, before any break.",
-    "A market order right now": "That buys today at about $48.50, under the level. You wanted the move through $50 first."
+    "A market buy right now": "That buys now at about $48.50, under the level. The trader wanted the move through $50 first.",
+    "A sell stop at $50": "A sell stop sells, and it goes below the price. Buying the break takes a buy order."
+   },
+   "simple": "A buy stop at $50, because it waits above the price and buys only if the stock rises through $50.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6",
+   "deeper": {
+    "counter": "This is how the order works, not how UCT enters. Our entries are market orders."
    }
   },
   {
@@ -828,14 +1007,23 @@
      "trail": 1.5
     }
    },
-   "why": "$29.70. The stop trails the high by $1.50: $31.20 less $1.50. When the stock slips, the stop stays put.",
+   "why": "$29.70. A dollar trailing stop sits a set amount under the price and moves up as the stock rises. At the $31.20 high it sits $1.50 lower, at $29.70. When the stock slips, the stop stays put. It triggers only if the price falls to $29.70.",
    "lesson_line": "A dollar trail sits a fixed amount under the best price since you set it.",
    "facts": [
     "f14",
     "f15",
     "f12",
     "f13"
-   ]
+   ],
+   "simple": "Your stop is $29.70, because it sits $1.50 under the $31.20 high and does not drop when the stock slips.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -854,40 +1042,66 @@
      "entry": 40
     }
    },
-   "why": "35%. The stop trailed 10% under the $60 peak, well above your $40 entry. Fill at the stop, and you keep a 35% gain.",
+   "why": "35%. The 10% trail is measured from the $60 peak, not your $40 entry. So the stop rose with the stock, far above where you bought. Filled right at that stop, you keep a 35% gain. A triggered trailing stop can fill away from its price, so the real gain can differ.",
    "lesson_line": "A trailing stop turns open profit into a floor, as long as the fill comes near the stop.",
    "facts": [
     "f11",
     "f12",
     "f53",
     "f16"
-   ]
+   ],
+   "simple": "You keep a 35% gain, because the stop rose to 10% under the $60 peak, far above your $40 buy.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
    "skill": "orders.stops",
    "rung": 5,
    "format": "scenario",
-   "story": "You buy on Monday and place a sell stop, leaving the time in force on Day. You don't look again. On Thursday the stock trades down through your stop price.",
-   "q": "What happens to your shares?",
+   "story": "On Monday you buy and place a sell stop, with time in force left on Day. You don't look again. The stock holds above your stop until Thursday, then trades down through it.",
+   "q": "Where does your stop stand by Thursday?",
    "choices": [
-    "Nothing sells; it canceled Monday",
-    "They sell near your stop on Thursday",
-    "They sell at exactly your stop price"
+    "Gone; it canceled at Monday's close",
+    "Gone; it sold at Monday's close",
+    "Live; it triggers, sells near the stop",
+    "Live; it fills at exactly the stop"
    ],
-   "answer": "Nothing sells; it canceled Monday",
-   "why": "Nothing sells. A day order that hasn't triggered generally cancels at the end of the day it was entered. For a swing trade, make the stop good-'til-canceled.",
+   "answer": "Gone; it canceled at Monday's close",
+   "why": "Gone. You set the stop as a day order. A day order that hasn't triggered generally cancels at the end of the day it was entered. It does not carry over, so by Thursday there is no stop at all, and you still own the shares. For a swing trade, make the stop good-'til-canceled. Our rule is a real stop order with the broker on every position.",
    "lesson_line": "A day stop dies at the close. If you hold for days, make it good-'til-canceled.",
    "facts": [
     "f20",
     "f21",
     "f33",
-    "f22"
+    "f22",
+    "f4",
+    "h06"
    ],
    "wrong": {
-    "They sell near your stop on Thursday": "Only a working stop can trigger. Yours canceled at Monday's close.",
-    "They sell at exactly your stop price": "A working stop doesn't promise its price either. And this one canceled on Monday."
-   }
+    "Gone; it sold at Monday's close": "Gone, but it never sold. An unfilled day order generally just cancels, so you still own the shares.",
+    "Live; it triggers, sells near the stop": "Only a working stop can trigger. Yours was a day order, and it generally canceled at Monday's close.",
+    "Live; it fills at exactly the stop": "It isn't live after Monday. And even a working stop doesn't promise its price: it becomes a market order."
+   },
+   "simple": "It is gone, because a day stop that has not fired cancels at the close of the day you placed it.",
+   "deeper": {
+    "trap": "Unless you pick a time frame, the SEC says an order is a day order. So a stop placed on Monday and then forgotten is generally gone after Monday's close. Check the time in force on every stop you will hold overnight."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D41)",
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -902,19 +1116,27 @@
     "Only exactly $2.50"
    ],
    "answer": "$2.70",
-   "why": "$2.70. Once triggered, it's a limit order to sell at $2.50 or better, and better for a seller means higher.",
+   "why": "$2.70. The $3.00 stop only triggers the order. After that it is a limit order to sell at $2.50 or better, and better for a seller means higher. So $2.70 can fill and $2.40 cannot. It is not tied to one exact price. It may also not fill at all if the price stays under $2.50.",
    "lesson_line": "A sell limit sets a floor. It can fill at the limit or above, never below.",
    "facts": [
     "f9",
     "f10",
     "f7",
-    "f19"
+    "f19",
+    "f8"
    ],
    "wrong": {
     "$2.40": "That's below the $2.50 limit. A sell limit never fills under its limit.",
     "Only exactly $3.00": "$3.00 is just the trigger. After that, the limit is what counts.",
     "Only exactly $2.50": "$2.50 is the worst price, not the only one. It fills at $2.50 or better."
-   }
+   },
+   "simple": "$2.70, because once it triggers it can sell at $2.50 or higher, never lower.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -930,7 +1152,7 @@
     "The gap canceled the order"
    ],
    "answer": "Triggered, but nothing sold",
-   "why": "Triggered, but nothing sold. The open at $44 set off the stop, and the order became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill.",
+   "why": "Triggered, but nothing sold. The $44 open is below the $48 stop, so the stop triggered. The order then became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill. It stays working and fills only if the stock trades back up to $47.50. Meanwhile you still own a falling stock.",
    "lesson_line": "On an exit, a stop-limit can leave you holding the stock all the way down.",
    "facts": [
     "f7",
@@ -943,7 +1165,16 @@
     "It sold at the $47.50 limit": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
     "It sold near the $44 open": "That's what a plain stop does. A stop-limit won't sell below its limit.",
     "The gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
-   }
+   },
+   "simple": "It triggered but nothing sold, because the stock opened under your $47.50 limit and a sell limit will not fill below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -962,14 +1193,28 @@
      "stop": 48
     }
    },
-   "why": "3 times. You planned to risk the move from $50 to $48. The gap sold you at $44, three times as far down.",
+   "why": "3 times. You planned to risk the drop from $50 to $48. The stock gapped open at $44, so the stop became a market order and sold there. That loss is three times as deep as the plan. A stop can't stop a gap. It sells around where the stock opens.",
    "lesson_line": "A stop sets the plan. A gap can blow straight through it.",
    "facts": [
     "f38",
     "f37",
     "f34",
-    "f5"
-   ]
+    "f5",
+    "h12"
+   ],
+   "simple": "3 times your plan, because you meant to sell at $48 but the gap sold you at $44.",
+   "deeper": {
+    "trap": "A tight stop does not cap a gap. Schwab's example: a stock closed above $34 and opened around $32, and a $34 sell stop sold at $32. That is why our rule says a tight stop never justifies a bigger position: a gap can jump the stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "deeper rests on the owner's rulebook (A7)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -980,10 +1225,11 @@
    "choices": [
     "The 10-day",
     "The 50-day",
-    "The 200-day"
+    "The 200-day",
+    "The 21-day"
    ],
    "answer": "The 10-day",
-   "why": "The 10-day. A short average hugs price closely and turns soon after price turns. The longer the average, the more it lags.",
+   "why": "The 10-day. A short average hugs price closely and turns soon after price turns. The longer the average, the more it lags, so the 21-day, 50-day and 200-day take you out later. The 10-day is also our default trail for fast movers. Steadier stocks get the 21-day.",
    "lesson_line": "Shorter averages get you out sooner. Longer ones give more room, and give back more.",
    "facts": [
     "f58",
@@ -991,12 +1237,23 @@
     "f61",
     "f62",
     "f63",
-    "f52"
+    "f52",
+    "h09"
    ],
    "wrong": {
     "The 50-day": "It tracks the intermediate trend and lags more. It keeps you in longer, through bigger pullbacks.",
-    "The 200-day": "That's the long-term trend line. It lags the most, so it's the last to take you out."
-   }
+    "The 200-day": "That's the long-term trend line. It lags the most, so it's the last to take you out.",
+    "The 21-day": "It lags the 10-day, so it takes you out later. We trail the 21-day on steadier stocks, not fast movers."
+   },
+   "simple": "The 10-day, because a short average stays close to price and turns soon after price turns.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E52)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -1006,92 +1263,153 @@
    "story": "A stock you hold sits at $12.40 and is breaking down hard on heavy volume. Your plan's stop is $12. Getting out matters more than a few cents.",
    "q": "Which order fits this exit?",
    "choices": [
-    "A sell stop at $12",
+    "A plain sell stop order at $12",
     "A sell stop-limit, $12 and $11.95",
-    "A sell limit at $12.50"
+    "A sell limit order at $12.50",
+    "A plain sell stop order at $11"
    ],
-   "answer": "A sell stop at $12",
-   "why": "A sell stop at $12. When getting out is the goal, you want the order that becomes a market order. In a fast drop, a stop-limit can be skipped right over.",
-   "lesson_line": "For exits I want the fill. A plain stop gets me out; a stop-limit might not.",
+   "answer": "A plain sell stop order at $12",
+   "why": "A sell stop at $12. When getting out matters most, use the order that becomes a market order. FINRA and Schwab both say a plain stop fits when execution comes first. In a hard drop, the price can skip past a stop-limit's limit, and then nothing sells. The fill may land below $12. That is the trade-off you accept.",
+   "lesson_line": "When getting out comes first, use a plain stop. A stop-limit might not fill.",
    "facts": [
     "f35",
     "f25",
     "f8",
-    "f46"
+    "f46",
+    "f5",
+    "h07"
    ],
    "wrong": {
     "A sell stop-limit, $12 and $11.95": "In a hard drop the stock can trade straight through $11.95, and then nothing sells. You wanted out.",
-    "A sell limit at $12.50": "That only sells if the stock rises to $12.50. It's falling, so it may never fill."
-   }
+    "A sell limit order at $12.50": "That only sells if the stock rises to $12.50. It's falling, so it may never fill.",
+    "A plain sell stop order at $11": "That's under your $12 stop. Lowering the stop here breaks our stop rule, and it means a bigger loss."
+   },
+   "simple": "A sell stop at $12, because it turns into a market sell and gets you out even in a fast drop.",
+   "deeper": {
+    "trap": "The stop-limit looks safer because it caps the price. On an exit, that cap is the danger. If the stock trades straight through $11.95, the order sits unfilled and you still own a falling stock. A stop-limit fits when the price matters most, not when getting out does."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a wrong note rests on the owner's rulebook (A4)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
    "skill": "orders.stops",
    "rung": 7,
    "format": "tf",
-   "q": "Every broker decides your stop was hit using the last trade price.",
-   "answer": "False",
-   "why": "False. Some firms trigger stops off the last sale, others off the quotes. Ask your broker which one it uses.",
+   "q": "Brokers differ on what sets off a stop: the last trade or the quotes.",
+   "answer": "True",
+   "why": "True. Brokers differ. Some trigger a stop only off last-sale prices. Others use quotation prices. Ask your broker which one it uses before you rely on a stop.",
    "lesson_line": "Know what your broker uses to trigger a stop before you rely on it.",
    "facts": [
     "f18"
-   ]
+   ],
+   "simple": "True, because brokers differ: some trigger a stop off the last trade, others off the quotes.",
+   "deeper": {
+    "counter": "This is why the lesson says a stop fires when the price reaches it, not when the stock trades there. At a broker that uses quotes, the quote decides, not the last trade."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "key rests on one fact (f18)",
+     "broker practice can change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
    "skill": "orders.stops",
    "rung": 8,
    "format": "scenario",
-   "story": "A stock closed at $49.20, just under a $50 ceiling. You want to buy a break over $50, but not chase more than 50 cents past it.",
-   "q": "Which entry order fits?",
+   "story": "A stock closed at $49.20, just under a $50 ceiling. A trader wants to buy a break over $50, but pay no more than $50.50.",
+   "q": "Which order does exactly that?",
    "choices": [
     "Buy stop-limit: stop $50, limit $50.50",
-    "Buy stop at $50",
-    "Buy limit at $50.50",
+    "Plain buy stop at $50, no limit",
+    "Plain buy limit at $50.50, no stop",
     "Buy stop-limit: stop $50.50, limit $50"
    ],
    "answer": "Buy stop-limit: stop $50, limit $50.50",
-   "why": "Stop $50, limit $50.50. The stop waits for the break, and the limit caps what you'll pay. If it gaps past $50.50, you don't chase.",
-   "lesson_line": "On an entry, the stop finds the break and the limit stops the chase.",
+   "why": "Stop $50, limit $50.50. The stop waits above the price for the break through $50. Once triggered, the limit caps the price at $50.50 or lower. A plain buy stop becomes a market order and can pay any gap. The reversed order triggers late and then only buys on a pullback.",
+   "lesson_line": "A buy stop-limit finds the break, and its limit caps the price paid.",
    "facts": [
     "f41",
-    "f42",
     "f7",
-    "f19"
+    "f19",
+    "f2",
+    "f1",
+    "f34",
+    "h10",
+    "h11"
    ],
    "wrong": {
-    "Buy stop at $50": "That gets you in on the break, but as a market order. If it gaps well past $50, you pay the gap.",
-    "Buy limit at $50.50": "A buy limit fills at $50.50 or lower. With the stock at $49.20, it buys right away, before any break.",
-    "Buy stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run."
-   }
+    "Buy stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run.",
+    "Plain buy stop at $50, no limit": "That gets you in on the break, but as a market order. If it gaps well past $50, you pay the gap.",
+    "Plain buy limit at $50.50, no stop": "A buy limit fills at $50.50 or lower. With the stock at $49.20, it buys right away, before any break."
+   },
+   "simple": "A buy stop-limit with a $50 stop and a $50.50 limit, because it buys the break but caps the price paid.",
+   "deeper": {
+    "counter": "This is how the order works, not how UCT enters. Our entries are market orders, and our chase line is the rule: never buy more than 4% above the buy point."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "touches the owner's rulebook (E57, C28), flagged",
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q21",
    "skill": "orders.stops",
    "rung": 8,
    "format": "scenario",
-   "story": "Your buy stop-limit is in: stop $50, limit $50.50. News hits overnight, and the stock opens at $52.40.",
-   "q": "What happens to your order?",
+   "story": "A trader's buy stop-limit is in: stop $75, limit $76. News hits overnight, and the stock opens at $79.",
+   "q": "What happens to the order?",
    "choices": [
-    "No fill unless it dips to $50.50",
-    "You buy at the $52.40 open price",
-    "You buy at your $50.50 limit price",
+    "No fill unless it dips to $76",
+    "It buys at the $79 open price",
+    "It buys at the $76 limit price",
     "It cancels at the open on the gap"
    ],
-   "answer": "No fill unless it dips to $50.50",
-   "why": "No fill unless it trades back down to $50.50. The gap triggered the stop, but the limit won't pay $52.40. On an entry, that's the order doing its job.",
+   "answer": "No fill unless it dips to $76",
+   "why": "No fill unless it trades back down to $76. The $79 open is above the $75 stop, so the stop triggered. The order then became a buy limit at $76 or lower. At $79 it can't fill. It keeps working for as long as its time in force allows. On an entry, that is the order doing its job.",
    "lesson_line": "A gap past your limit means no fill. Fine on an entry, dangerous on an exit.",
    "facts": [
     "f42",
     "f41",
     "f7",
-    "f8"
+    "f8",
+    "f19",
+    "f40",
+    "f33"
    ],
    "wrong": {
-    "You buy at the $52.40 open price": "That's what a plain buy stop does. The limit says $50.50 at most.",
-    "You buy at your $50.50 limit price": "Only if someone sells at $50.50 or lower. At the open the stock is at $52.40.",
-    "It cancels at the open on the gap": "It's still working as a buy limit at $50.50, for as long as its time in force allows."
-   }
+    "It cancels at the open on the gap": "It's still working as a buy limit at $76, for as long as its time in force allows.",
+    "It buys at the $79 open price": "That's what a plain buy stop does. The limit says $76 at most.",
+    "It buys at the $76 limit price": "Only if someone sells at $76 or lower. At the open the stock is at $79."
+   },
+   "simple": "Nothing fills unless the price comes back to $76, because the limit will not pay $79.",
+   "deeper": {
+    "trap": "The same no-fill that protects an entry is the danger on an exit. A sell stop-limit that gaps through its limit does not sell, and you keep holding a stock that may keep falling."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q22",
@@ -1102,7 +1420,8 @@
    "choices": [
     "Near $64",
     "Near $40",
-    "Near $74"
+    "Near $74",
+    "Near $70"
    ],
    "answer": "Near $64",
    "calc": {
@@ -1113,43 +1432,75 @@
      "trail_pct": 20
     }
    },
-   "why": "Near $64. The 20% is measured from the $80 peak, so the stop rose with the stock. You keep the move from $50 to about $64.",
+   "why": "Near $64. A percent trail is figured from the highest price since you set it, here $80. 20% under $80 is $64, so the stop rose well above your $50 entry. It triggers near there, and the fill can differ.",
    "lesson_line": "Know what your trail keeps. A wide trail on a big winner can give back a lot.",
    "facts": [
     "f11",
     "f12",
     "f53",
-    "f49"
+    "f49",
+    "f50"
    ],
    "wrong": {
     "Near $40": "That's 20% under your entry. A trailing stop rises with the stock, so it's far above that now.",
-    "Near $74": "That takes 20% of the gain, not of the price. The trail is a percent of the high."
-   }
+    "Near $74": "That takes 20% of the gain, not of the price. The trail is a percent of the high.",
+    "Near $70": "That trails by 20% of your $50 entry, not of the high. A percent trail is figured from the high, so it is 20% of $80."
+   },
+   "simple": "Near $64, because the 20% is taken from the $80 high, so the stop rose as the stock rose.",
+   "deeper": {
+    "trap": "A percent trail grows in dollars as the stock climbs, so the gap under the price is widest at the peak. Investopedia's warning applies: too loose a trail can give back most of a big win."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q23",
    "skill": "orders.stops",
    "rung": 9,
    "format": "scenario",
-   "story": "You're up 60% on a strong stock. On normal days it swings 4% to 6%. You want a trailing stop that lets it keep running.",
-   "q": "Which trail makes the most sense?",
+   "story": "A trader is up 60% on a strong stock and trails it with a percent trailing stop. On a typical day it moves 4% to 6%.",
+   "q": "Which trail width fits best?",
    "choices": [
+    "10%, beyond its usual swing",
     "2%, to keep nearly every cent",
-    "10%, wider than a normal day's swing",
-    "30%, so nothing shakes you out"
+    "30%, so no dip ever trips it",
+    "10%, but set from the entry"
    ],
-   "answer": "10%, wider than a normal day's swing",
-   "why": "10%. It's wider than a normal day's swing, so one ordinary down day won't trip it. And it still keeps most of the gain if the trend breaks.",
+   "answer": "10%, beyond its usual swing",
+   "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so 10% clears one ordinary down day. It still keeps most of the 60% gain if the trend breaks. Too tight gets shaken out. Too loose gives back most of the win.",
    "lesson_line": "Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
    "facts": [
     "f50",
     "f51",
-    "f17"
+    "f17",
+    "f12",
+    "f54",
+    "h09"
    ],
    "wrong": {
-    "2%, to keep nearly every cent": "A normal 4% to 6% day goes right through a 2% trail. Noise would shake you out of a good trend.",
-    "30%, so nothing shakes you out": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win."
-   }
+    "2%, to keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
+    "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
+    "10%, but set from the entry": "A trail follows the price up as it rises. Fixed under the entry, it hands back the whole 60% gain."
+   },
+   "simple": "10%, because it clears a typical 4% to 6% day but still keeps most of the gain.",
+   "deeper": {
+    "trap": "The 30% trail feels safe because nothing trips it. But 30% off the high of a 60% winner hands back most of the gain. Where to set a trail depends on your time frame and how much the stock swings. Our own default trail is not a percent: it is the 10-day or 21-day average, sold on a close below it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "percent trail is order mechanics, not our default trail (E52, in the deeper)",
+     "edited by a checker before (fixed: true)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q24",
@@ -1159,26 +1510,40 @@
    "story": "Your plan says trail under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
    "q": "How do you keep your stop trailing it?",
    "choices": [
-    "Raise your stop yourself as it rises",
+    "Raise the stop by hand under the line",
     "Enter a 10% trailing stop order",
     "Set it at $58.90 once and leave it",
-    "Lower it if the stock dips"
+    "Lower it to give the stock room on dips"
    ],
-   "answer": "Raise your stop yourself as it rises",
-   "why": "Raise it yourself. A standard trailing stop order follows the price by a set percent or dollar amount, not an average. So you move your stop up under the 10-day as it climbs.",
-   "lesson_line": "Trailing an average is your job. Move the stop up under it, never down.",
+   "answer": "Raise the stop by hand under the line",
+   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So you move your stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
+   "lesson_line": "Trailing an average is your job. Move the stop up under it as it climbs.",
    "facts": [
     "f11",
     "f43",
     "f44",
     "f52",
-    "f45"
+    "f45",
+    "h07",
+    "h09"
    ],
    "wrong": {
     "Enter a 10% trailing stop order": "That trails 10% under the high. It's a different line from the 10-day average.",
     "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and your stop falls behind.",
-    "Lower it if the stock dips": "Trailing stops only move up. Lowering it hands back the gain you're protecting."
-   }
+    "Lower it to give the stock room on dips": "Lowering the stop on a dip breaks our stop rule. It hands back the gain you're protecting."
+   },
+   "simple": "Move the stop up by hand, because a trailing stop order follows a set percent or dollar amount, not an average.",
+   "deeper": {
+    "trap": "Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead. Know which one your plan means before you set the order."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, E52)"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1213,147 +1578,147 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key confirmed by f1, f3 (SEC) and f29, f31 (Schwab), live. Each wrong choice is a real other order (stop-limit, sell limit, market). Changed the lesson line 'It promises the exit' to 'It puts the exit first': Schwab says a triggered stop generally executes 'unless trading is halted or closed', so the exit is not promised. Track audit 2026-11-09: the why and one wrong note said the stop acts when the stock 'trades' at the stop; q19 in this unit teaches that some brokers trigger on quotes. Now 'once the price reaches your stop' / 'until the price falls to your stop', the SEC's wording in f1 (cited, Tier 1, quote found live). Key unchanged. Shortened the longest wrong choice. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer before key: a sell stop becomes a market sell once the price reaches the stop (f1, f3, f31). Matches. Choices 33-38 chars, key not longest; every wrong note grounded (f7, f19). Why no longer pre-answers q05."
   },
   "q02": {
    "status": "pass",
-   "notes": "f2 (SEC: buy stop 'above the current market price') and f28 (FINRA) confirmed live. False is right; no condition hidden.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f7 (SEC) confirmed: a triggered stop-limit 'becomes a limit order'. Bank distractors are plausible ('market' is what a plain stop becomes). Swapped f55 (Investopedia, unreachable to plain client and WebFetch) for f64 (FINRA, live), which supports the lesson line's 'worst price you'll take'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "f11-f13, f16 confirmed on the SEC bulletin. Added 'You own a stock.' to the question: on a short, a buy trailing stop follows the price down, so 'moves down on dips' was right for a short. Rewrote the wrong note 'No stop promises that': a stop-limit, and per the SEC a trailing stop limit, does not fill below its limit.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f4, f5 (SEC), f30 (Schwab: fill 'may be above, at, or below the stop price') and f23 (FINRA) confirmed live. False is right.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "f27 (FINRA, live): investors like stop orders because they 'don't have to continually monitor price movements'. Wrong choices really wrong: f4 (no guaranteed price), f34, f38 (gaps). The cost of a resting stop, an intraday flush, is taught in q07.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer: it works without you watching (f27). Matches. No second reading: 'plain' closes the trailing reading, gaps (f34, f38) and exact price (f4) are wrong. Key 34 vs longest 35, no tell. D41 (h06) taught correctly."
   },
   "q07": {
    "status": "pass",
-   "notes": "f6 (SEC), f24 (FINRA) and f29 (Schwab: 'traded at or through') confirmed live: a stop triggers intraday, not on the close. Not leading; a believable misconception. Track audit 2026-11-09: the why said a stop triggers 'when the stock trades at or through it', which q19 contradicts for brokers that trigger on quotes. Now 'when the price reaches it', and f1 (SEC: 'When the stop price is reached, a stop order becomes a market order', found live) is cited. Key unchanged: a stop triggers intraday, not on the close (f6, f24).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key True is right (f1, f6, f24). Fix: 'simple' said a stop fires 'at any time in the day', which overreaches the file's own conflicts note (Schwab stops trigger only in the standard session) and disagrees with the why ('at any point in the session'). Simple now says 'during the session'."
   },
   "q08": {
    "status": "pass",
-   "notes": "House: h02 is the owner's quoted line in sizing_rule.md section 6 (2026-06-14); the dossier trail line after it is not used. f54 (Investopedia trailing stop, live) supports the 'leave the first stop' wrong note.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer from h02 and h13 (A11): sell some into strength, trail the rest under the rising averages. Matches. Key 36, longest choice is a distractor (38). Adding is wrong by A5 (h08); leaving the first stop by f54. No unsupported number. h13 quote verified verbatim in sizing_rule.md section 9 A11."
   },
   "q09": {
    "status": "pass",
-   "notes": "f3, f1, f19 (SEC) and f32 (Schwab: a sell stop goes below the bid or it triggers at once) confirmed. A $47.80 sell limit with the stock at $49.60 is marketable and sells now, so the wrong note is right. Track audit 2026-11-09: 'only if the stock trades down to it' is now 'only if the price falls to it', the same trigger wording as q01, q07 and the SEC (f1, cited), so the unit never states a last-sale trigger as universal (q19).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "f2, f28, f36 confirmed live. A $50 buy limit with the stock at $48.50 is marketable and buys now, so the wrong note is right; a market order buys under the level. Track audit 2026-11-09: 'only if the stock trades up to $50' is now 'only if the price rises to $50', matching FINRA's 'when the stock price hits your threshold' (f28, cited) and q19.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key (buy stop at $50, f2, f28, f36) is right as order mechanics, but the question asked what 'you' should do and the lesson_line told the member 'To buy a breakout, put a buy stop above the price'. E57 (h10): our entries are market orders. That teaches a web view the rulebook replaced, the same defect the resolver fixed in q20 and q21 but left here. Reframed to a trader, lesson_line made descriptive, deeper counter added from h10."
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed $31.20 - $1.50 = $29.70; calc agrees. Method is the SEC example (f14, f15: $1 trail, peak $24, stop $23), confirmed live.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "Recomputed: 10% under the $60 peak is $54; ($54 - $40) / $40 = 35%; calc agrees. Investopedia's 10% example (f53: $120 price, $108 stop) uses the same method, live. The lesson line keeps the f16 caveat (fill near the stop).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "f20, f21 (SEC Understanding Order Types, updated 2026-08-18, live): unexecuted day orders 'generally cancel at the end of regular trading hours' of the day entered; f33 (Schwab) agrees. Key right; GTC advice sound; no GTC length stated. Track audit 2026-11-09: 'time in force' unhyphenated as a noun (as F10.03 and V.07 write it); 'generally' added to the why because the SEC's own line (f21, cited) says day orders 'generally cancel', as F10.03 and F10.04 phrase it. Kept as the track's one day-stop-expiry scenario; F10.03#q13 is cut as its duplicate. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key is right (f20, f21, f33: an untriggered day stop cancels at that day's close). Fix: TELL. The key was the lone 'Nothing sells' against three 'They sell ...' choices, so the odd one out gave it away. Choices rebuilt as two 'Gone' and two 'Live' states, each wrong for its own grounded reason (f21, f4). Question reworded to fit; key 35 chars, longest 38."
   },
   "q14": {
    "status": "pass",
-   "notes": "f9, f10 (SEC example: $3.00 stop, $2.50 limit, fills at $2.50 or better) confirmed live. $2.70 is possible, $2.40 is not, and the two 'only exactly' choices are wrong.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "Checked: a $44 open is through the $48 stop, so it triggers; the $47.50 sell limit cannot fill with the stock under it (f7, f8 SEC; f39, f40 Schwab; f48 IBKR; all live). Removed f57 (Investopedia stop-limit page, unreachable live); support stands on the SEC. flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "notes": "Recomputed (50 - 44) / (50 - 48) = 6 / 2 = 3; calc agrees. f37, f38 (Schwab gap example), f34, f5 confirmed live.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q17": {
    "status": "pass",
-   "notes": "f58, f59 (ChartSchool) and f61-f63 (Fidelity) confirmed live: the 10-day hugs price and turns soonest; the longer the average, the more the lag.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "f25 (FINRA) and f35 (Schwab) confirmed live: a plain stop when execution is the priority; f46 (Schwab) and f8 (SEC): a stop-limit can miss the market. The $12.50 sell limit sits above the $12.40 price, so it fills only on a rise; wrong note right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer: when getting out comes first, a plain sell stop at the plan's $12 (f25, f35). Matches. Choices 28-33, key not longest. Stop-limit risk (f8, f46), sell limit above price (f19), lowering the stop against A4 (h07) without the absolute. No gap in the story, so B20 does not apply."
   },
   "q19": {
    "status": "pass",
-   "notes": "f18 (SEC, live): some firms trigger on last-sale prices, others on quotation prices. False is right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer True from f18 (SEC: some brokers use last-sale prices, others quotes). Matches. No hedge or absolute in the statement. Deeper counter consistent with w1 step 3 ('when the price reaches it')."
   },
   "q20": {
    "status": "pass",
-   "notes": "Key rests on SEC definitions (f7, f19) and Schwab's buy stop-limit (f41, f42: buy at $125, not above $130; a gap past $130 does not fill), live. Wrong choices checked: a $50.50 buy limit with the stock at $49.20 is marketable; the reversed stop-limit only fills on a pullback after $50.50. Removed f56 (Investopedia stop-limit page, unreachable live).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: buy stop-limit, stop $50, limit $50.50 (f41, f7, f19). Matches. Tied longest with its reversal (both 38), so length carries no signal. Third-person story plus h10/h11 deeper counter keep it clear of E57. Its lesson_line sets up q21 but does not hand over q21's gap case (teach then test)."
   },
   "q21": {
    "status": "pass",
-   "notes": "f42 (Schwab, live): a gap beyond the limit is not filled unless the price falls back. The $52.40 open triggers the $50 stop; the $50.50 buy limit cannot pay $52.40; still working per its time-in-force. Removed f57 (unreachable Investopedia page); support stands on SEC f7, f8. Track audit 2026-11-09: 'time in force' unhyphenated as a noun in the wrong note, as elsewhere in the track. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer from f42: a gap past the buy limit means no fill unless the price returns to the limit or below. Matches. New numbers $75/$76/$79 do not reuse q20's. Key 29 chars, not longest; the 'cancels' choice means the key is not a lone no-buy. Wrong notes grounded (f19, f33, f28)."
   },
   "q22": {
    "status": "pass",
-   "notes": "Recomputed $80 x 0.80 = $64; calc agrees. $40 is 20% under the $50 entry; $74 is $80 less 20% of the $30 gain. f11, f12 (SEC) and f49 (IBKR) confirmed live: the trail rises with the price. Same method as q12 but a different test (where the 20% is measured from).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer: 20% under the $80 peak = $64 (calc; f12, f13, f53). Matches. Each distractor is a real misreading (20% of entry, 20% of gain, 20% of entry taken off the high). Keyed on mechanics, not a recommendation, so the E52 framing issue fixed in q23 does not bite here."
   },
   "q23": {
    "status": "pass",
-   "notes": "f50, f51 (Investopedia trailing stop, updated 2025-10-29, live) and f17 (SEC) confirmed: too tight is hit by normal swings, too loose gives back most of the win, distance depends on volatility. Checked: 30% off a +60% high leaves +12%, giving back 80% of the gain. Changed the key from 'outside its normal swings' to 'wider than a normal day's swing' (a normal multi-day pullback can still reach 10%) and split a 26-word sentence in the why.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key (10%) holds from f17, f50, f51: wider than a 4% to 6% day, far tighter than a 30% give-back; deeper teaches our default trail (h09). Fix: the story is third person ('A trader') but a choice and its note said 'your entry', a voice slip that also makes the choice read oddly. Now 'the entry'. Nothing else changed."
   },
   "q24": {
    "status": "pass",
-   "notes": "f11 (SEC): a trailing stop order trails by a percent or a dollar amount, so a moving-average trail is moved by hand; f43-f45 (Schwab) and f52 (Investopedia) confirmed live. 'A standard trailing stop order' leaves room for brokers with study-based conditional orders. Close versus intraday is not keyed, as the conflicts note says.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key (raise the stop by hand under the rising 10-day) holds from f11, f43 and A4 (h07). Fix: the lesson_line still said 'Move the stop up under it, never down', the same A4 absolute the resolver removed from q18 and q24's notes because A4 carries the B20 gap exception this lesson does not teach. Lesson_line no longer states the absolute."
   }
  }
 }

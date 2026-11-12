@@ -235,6 +235,14 @@
    "url": "https://www.ksl.com/article/50548249/sp-500-closes-out-dismal-year-with-worst-loss-since-2008",
    "accessed": "2026-11-09",
    "why_reliable": "An Associated Press wire story (AP byline on the page) as republished in full by KSL.com, a Deseret Media news site; F7.06 cites the same page as its s27. Used only for AP's line that the S&P 500's 2022 loss was 19.4%, or 18.1% including dividends."
+  },
+  {
+   "id": "s28",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -927,6 +935,12 @@
    "source": "s06",
    "quote": "Average Annual Total Returns (for periods ending 12/31/22)",
    "claim": "The prospectus table gives total returns for calendar 2022."
+  },
+  {
+   "id": "h01",
+   "source": "s28",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups",
+   "claim": "Our rule C31: buy leaders, in one of the strongest groups."
   }
  ],
  "walkthroughs": [
@@ -1021,7 +1035,7 @@
     "163"
    ],
    "answer": "11",
-   "why": "11. GICS has four levels: 11 sectors, then 25 industry groups, 74 industries and 163 sub-industries.",
+   "why": "11. GICS has four levels. The top level holds 11 sectors. Below them sit 25 industry groups, 74 industries and 163 sub-industries. The eleven sector indexes behind the sector funds together hold every S&P 500 company. The list can change: Real Estate was carved out of Financials as a new sector, and telecom became Communication Services.",
    "lesson_line": "Eleven sectors on top. Every S&P 500 stock sits in exactly one of them.",
    "facts": [
     "f01",
@@ -1035,7 +1049,17 @@
     "9": "Nine was the number of sector SPDR funds around 2007. Today there are 11 sectors and a fund for each.",
     "25": "That's the industry groups, the level just below the sectors.",
     "163": "That's the sub-industries, the most detailed level."
-   }
+   },
+   "simple": "GICS has 11 sectors, the top level above its smaller groups and industries.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the sector count is a rule that can change (MSCI methodology, April 2026)",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -1044,14 +1068,23 @@
    "format": "tf",
    "q": "A company can sit in two GICS sectors at once if it runs two big businesses.",
    "answer": "False",
-   "why": "False. GICS gives each company one spot at each level, set by its main business. The first test is the activity that brings in more than 60% of revenue.",
+   "why": "False. GICS is strictly hierarchical: a company belongs to only one grouping at each of its four levels. Its main business sets the spot. The first test is the activity that brings in more than 60% of revenue. Revenue is a key factor. A company with two big businesses still gets one sector.",
    "lesson_line": "One company, one sector, set mainly by where its revenue comes from.",
    "facts": [
     "f07",
     "f04",
     "f03",
     "f08"
-   ]
+   ],
+   "simple": "False, because GICS puts each company in just one sector, set by its main business.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "MSCI (Tier 1) methodology, re-read 2026-11-12; stable"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -1063,10 +1096,11 @@
    "choices": [
     "Demand holds up when the economy slows",
     "It rises whenever the market falls",
-    "Its companies carry little debt"
+    "Its companies carry little debt",
+    "It does best when the economy is strong"
    ],
    "answer": "Demand holds up when the economy slows",
-   "why": "Demand holds up when the economy slows. People are less likely to cut back on toothpaste, electricity and prescription drugs in a recession, so those profits tend to be steadier.",
+   "why": "Demand holds up when the economy slows. Defensive companies make things people keep buying in a recession, like toothpaste, electricity and prescription drugs. So their profits tend to be steadier. Defensive does not mean the stock rises in a selloff. With dividends, staples still lost 0.70% in 2022, when the S&P 500 lost 18.11%. Nor is it about debt: many utilities borrow heavily.",
    "lesson_line": "Defensive means steady demand. It doesn't mean the stock goes up in a selloff.",
    "facts": [
     "f86",
@@ -1078,12 +1112,24 @@
     "f26",
     "f35",
     "f56",
-    "g02"
+    "g02",
+    "f97",
+    "g16"
    ],
    "wrong": {
-    "It rises whenever the market falls": "No. Defensive means it holds up better, not that it rises. Staples still lost 0.70% in 2022, the year the S&P 500 lost 18.11%.",
-    "Its companies carry little debt": "That's not the test. Utilities are defensive, yet many borrow heavily to maintain and upgrade their networks."
-   }
+    "It rises whenever the market falls": "No. Defensive means it holds up better, not that it rises. With dividends, staples still lost 0.70% in 2022, the year the S&P 500 lost 18.11%.",
+    "Its companies carry little debt": "That's not the test. Utilities are defensive, yet many borrow heavily to maintain and upgrade their networks.",
+    "It does best when the economy is strong": "That describes a cyclical group, like consumer discretionary. Defensive groups do better when growth contracts."
+   },
+   "simple": "Demand holds up when times are hard, because people keep buying things like toothpaste and power in a slump.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers (Fidelity, Schwab) agree; stable definition"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -1099,7 +1145,7 @@
     "value"
    ],
    "answer": "strength",
-   "why": "Strength. The ratio rises when the sector gains more than the S&P 500, or falls less. That's relative strength.",
+   "why": "Strength. Dividing the sector fund by the S&P 500 gives a ratio, the price relative. The ratio rises when the sector gains more than the S&P 500, or falls less. A rising line means relative strength.",
    "lesson_line": "Sector divided by the market. A rising line means the sector is leading.",
    "facts": [
     "f74",
@@ -1108,21 +1154,31 @@
     "f90",
     "f91",
     "f92"
-   ]
+   ],
+   "simple": "Strength, because a rising line means the sector is doing better than the S&P 500.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers (ChartSchool, Fidelity) agree; ChartSchool re-read 2026-11-12"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
    "skill": "history.sectors",
    "rung": 3,
    "format": "mcq",
-   "q": "XLY and XLP are both consumer sector funds. Which one holds the consumer staples?",
+   "q": "Which Select Sector SPDR fund holds the consumer staples stocks?",
    "choices": [
     "XLP",
     "XLY",
-    "XLV"
+    "XLV",
+    "XLU"
    ],
    "answer": "XLP",
-   "why": "XLP. XLP is consumer staples and XLY is consumer discretionary. XLV is health care.",
+   "why": "XLP. In the Select Sector SPDR lineup, XLP is consumer staples and XLY is consumer discretionary. Staples are needs like soap, toothpaste and groceries. Discretionary goods are optional, like cars and consumer electronics. XLV is health care and XLU is utilities: both defensive, but each its own sector.",
    "lesson_line": "XLP is staples, XLY is discretionary. Comparing the two gives you clues about the economy.",
    "facts": [
     "f40",
@@ -1131,12 +1187,25 @@
     "f79",
     "f66",
     "f96",
-    "g03"
+    "g03",
+    "f43",
+    "f67",
+    "g01"
    ],
    "wrong": {
     "XLY": "XLY is consumer discretionary: optional buys like cars and consumer electronics.",
-    "XLV": "XLV is health care. It's another defensive group, but it isn't staples."
-   }
+    "XLV": "XLV is health care. It's another defensive group, but it isn't staples.",
+    "XLU": "XLU is the utilities fund. Electricity is a need too, but utilities are their own sector, not staples."
+   },
+   "simple": "XLP holds the staples, the things people need, while XLY holds the things people can skip.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the sponsor's own lineup (SSGA, Tier 1); stable tickers"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -1145,14 +1214,24 @@
    "format": "tf",
    "q": "Under GICS, Amazon is classed as a technology stock.",
    "answer": "False",
-   "why": "False. Amazon is consumer discretionary. That sector includes broadline retail: online retailers and marketplaces selling mostly discretionary goods.",
+   "why": "False. Amazon is consumer discretionary. GICS puts online retailers and marketplaces that sell mostly discretionary goods in Broadline Retail, a Consumer Discretionary industry. The sector fund's own holdings list Amazon there. A company's tech image does not set its sector. Its main business does.",
    "lesson_line": "Don't guess a sector from a company's image. Amazon is consumer discretionary.",
    "facts": [
     "f95",
     "g10",
     "f05",
     "f10"
-   ]
+   ],
+   "simple": "False, because Amazon sells goods online, so GICS counts it as a retailer, not a tech company.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a company's GICS class can be changed in a review",
+     "fixed before (checker added g10, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -1163,10 +1242,11 @@
    "choices": [
     "Communication Services",
     "Information Technology",
-    "Consumer Discretionary"
+    "Consumer Discretionary",
+    "Telecommunication Services"
    ],
    "answer": "Communication Services",
-   "why": "Communication Services. Its 2018 makeover added interactive media, the home of search engines and social media.",
+   "why": "Communication Services. In September 2018 the old telecom sector became Communication Services and added interactive media and services. That is the home of search engines and social media platforms. The sector fund's holdings list Alphabet and Meta under Interactive Media & Services. Neither sits in Information Technology.",
    "lesson_line": "Google's and Facebook's parents are communication services. Know where the giants sit before you read a sector chart.",
    "facts": [
     "f93",
@@ -1178,8 +1258,19 @@
    ],
    "wrong": {
     "Information Technology": "No. The 2018 change put search and social media companies in Communication Services.",
-    "Consumer Discretionary": "That's Amazon's sector. Search engines and social media are interactive media, in Communication Services."
-   }
+    "Consumer Discretionary": "That's Amazon's sector. Search engines and social media are interactive media, in Communication Services.",
+    "Telecommunication Services": "That was the old sector's name. In 2018 it was turned into Communication Services, which added search and social media."
+   },
+   "simple": "It is Communication Services, which since 2018 is the home of search and social media sites.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "GICS classes can change in a review",
+     "fixed before (checker added g11, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -1194,7 +1285,7 @@
     "Consumer Staples"
    ],
    "answer": "Energy",
-   "why": "Energy, by a mile. With dividends, the energy index gained 64.56%. The next best, utilities, gained 1.57%.",
+   "why": "Energy, by a mile. With dividends, the energy index gained 64.56% in 2022. Utilities came second at 1.57%. Staples lost 0.70%, and tech lost 27.64% as fast rate hikes battered growth and tech stocks. These are total returns. On price alone, the S&P 500 fell 19.4%.",
    "lesson_line": "Even in a bad year, some group leads. In 2022 it was energy.",
    "facts": [
     "f24",
@@ -1217,43 +1308,62 @@
     "Utilities": "Utilities came second, up 1.57%. Energy gained 64.56%.",
     "Technology": "Tech's index lost 27.64%, as fast rate hikes battered growth and tech stocks.",
     "Consumer Staples": "Staples held up, down only 0.70%. Energy was up 64.56%."
-   }
+   },
+   "simple": "Energy did best by far, up 64.56% in a year the market fell.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (track audit, total-return label, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
    "skill": "history.sectors",
    "rung": 4,
    "format": "tf",
-   "q": "In 2022 the S&P 500 lost 18.11%. The utilities, staples and health care indexes each finished within 3% of flat.",
+   "q": "In 2022 the S&P 500 lost 18.11% with dividends. The health care sector index finished within 3% of flat.",
    "answer": "True",
-   "why": "True. Utilities gained 1.57%, staples lost 0.70% and health care lost 1.95%. The defensive groups held up while the market fell.",
+   "why": "True. With dividends, the health care index lost 1.95% in 2022, while the S&P 500 lost 18.11%. Health care is a defensive group, and the defensive groups held up. Utilities gained 1.57% and staples lost 0.70%. Held up means fell less, not rose: health care still lost money.",
    "lesson_line": "When the market falls, note which groups hold up. In 2022, energy and the defensive groups did.",
    "facts": [
+    "f27",
     "f25",
     "f26",
-    "f27",
     "f35",
-    "g01",
     "g03",
+    "g01",
     "f98",
-    "f24"
-   ]
+    "f24",
+    "g16"
+   ],
+   "simple": "True, because health care lost just 1.95% in 2022 while the market lost 18.11%.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker moved the line to 3%, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
    "skill": "history.sectors",
    "rung": 4,
    "format": "mcq",
-   "q": "In the textbook rotation model, which sector tends to lead as the economy comes out of a recession?",
+   "q": "In the textbook rotation model, which fund's sector tends to lead as the economy comes out of a recession?",
    "choices": [
-    "Consumer Discretionary",
-    "Consumer Staples",
-    "Utilities",
-    "Energy"
+    "XLY",
+    "XLP",
+    "XLU",
+    "XLE"
    ],
-   "answer": "Consumer Discretionary",
-   "why": "Consumer discretionary. Fidelity finds it beat the market in every early cycle since 1962. Low rates and rising consumer confidence have tended to help it.",
-   "lesson_line": "Out of a recession, the textbook favors consumer discretionary. Then check that it's really leading.",
+   "answer": "XLY",
+   "why": "XLY, the consumer discretionary fund. Fidelity finds that sector beat the broader market in every early cycle since 1962. Low rates, job growth and rising confidence have tended to help it. Staples (XLP) and utilities (XLU) are defensive: they do better when growth contracts. Energy (XLE) tends to be strong late in the cycle. This is a textbook pattern, not a timer: no investment has behaved the same way in every cycle.",
+   "lesson_line": "Out of a recession, the textbook favors consumer discretionary, XLY. Then check that it's really leading.",
    "facts": [
     "f82",
     "f83",
@@ -1265,13 +1375,26 @@
     "f88",
     "f63",
     "f84",
-    "f64"
+    "f64",
+    "f81",
+    "f40",
+    "f43",
+    "g01"
    ],
    "wrong": {
-    "Consumer Staples": "Staples tend to hold up when growth contracts. In the model, leadership moving to staples is a late-cycle warning.",
-    "Utilities": "Utilities are defensive. Their dividends have helped in recessions, but they aren't the textbook leader out of one.",
-    "Energy": "In the model, energy shows strength late, near the top of the cycle."
-   }
+    "XLP": "XLP is consumer staples. Staples tend to hold up when growth contracts. In the model, leadership moving to staples is a late-cycle warning.",
+    "XLU": "XLU is utilities, a defensive group. Their dividends have helped in recessions, but they aren't the textbook leader out of one.",
+    "XLE": "XLE is energy. In the model, energy shows strength late, near the top of the cycle."
+   },
+   "simple": "XLY, the consumer discretionary fund, because people spend more on extras as jobs and confidence come back.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "Fidelity's 'every early cycle since 1962' record can change with the next cycle"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -1290,13 +1413,26 @@
     "round": 2
    },
    "suffix": "points",
-   "why": "82.67 points. Energy gained 64.56% while the market lost 18.11%, so you add the two. That gap is energy's performance relative to the market.",
+   "why": "82.67 points. Here you measure the gap between the two returns, in percentage points. Energy gained 64.56% and the market lost 18.11%, so the gap is 64.56 plus 18.11. Taking away a loss adds it. Both are total returns with dividends. The gap shows how far energy beat the market, not what anyone earned.",
    "lesson_line": "Judge a group against the market, not on its own. Measure the gap.",
    "facts": [
     "f24",
     "f35",
-    "f90"
-   ]
+    "f90",
+    "g16"
+   ],
+   "simple": "82.67 points, because you add energy's 64.56% gain to the market's 18.11% loss.",
+   "deeper": {
+    "trap": "An easy slip is to subtract 18.11 from 64.56 as if the market had gained. The S&P 500 lost money, so its return is a minus number. Taking away a minus adds it: 64.56 plus 18.11 is 82.67."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -1308,10 +1444,11 @@
    "choices": [
     "It was the best sector that year",
     "It fell again and kept lagging",
-    "It roughly matched the S&P 500"
+    "It roughly matched the S&P 500",
+    "It came second, just behind real estate"
    ],
    "answer": "It was the best sector that year",
-   "why": "It was the best sector that year. The energy index gained 53.43% against 28.71% for the S&P 500. Real estate came next at 46.19%.",
+   "why": "It was the best sector that year. The energy index gained 53.43% in 2021, against 28.71% for the S&P 500. Real estate came next at 46.19%. Cyclical stocks, energy among them, beat the broad indexes early in the year. One bad year says nothing certain about the next. Leadership rotates.",
    "lesson_line": "Last year's ranking isn't this year's. Judge a group by what it's doing now.",
    "facts": [
     "f19",
@@ -1321,12 +1458,26 @@
     "f23",
     "f52",
     "f47",
-    "f80"
+    "f80",
+    "f24"
    ],
    "wrong": {
     "It fell again and kept lagging": "The opposite. Cyclical stocks, energy among them, beat the broad indexes in early 2021, and energy finished the year up 53.43%.",
-    "It roughly matched the S&P 500": "It beat it by far: 53.43% against 28.71%."
-   }
+    "It roughly matched the S&P 500": "It beat it by far: 53.43% against 28.71%.",
+    "It came second, just behind real estate": "Close, but the other way round. Energy's index gained 53.43% and real estate's 46.19%. Energy came first."
+   },
+   "simple": "Energy was the best sector in 2021, so last year's loser can turn into this year's leader.",
+   "deeper": {
+    "example": "Energy went from a big loser to the leader. Its index lost 32.84% in 2020, gained 53.43% in 2021, the best sector that year, and gained 64.56% the year after. Writing a group off after one bad year would have missed both runs. Judge a group by what it is doing now."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker removed a number tell from the key, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -1337,10 +1488,11 @@
    "choices": [
     "It's falling less than the market",
     "It's falling more than the market",
-    "Nothing, both are down"
+    "Nothing useful, since both are down",
+    "The sector's price is now going up"
    ],
    "answer": "It's falling less than the market",
-   "why": "It's falling less than the market. The ratio rises when the sector gains more or falls less than the S&P 500. Names that hold up best in a decline are often the leaders when the market turns.",
+   "why": "It's falling less than the market. The ratio rises when the sector gains more than the S&P 500, or falls less. Both fell, so the sector fell less. That is relative strength in a decline. Names that hold up best in a decline are often, not always, the leaders when the market turns.",
    "lesson_line": "In a selloff, the groups that fall least are showing strength. Put them on your list.",
    "facts": [
     "f76",
@@ -1351,8 +1503,18 @@
    ],
    "wrong": {
     "It's falling more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
-    "Nothing, both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing."
-   }
+    "Nothing useful, since both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing.",
+    "The sector's price is now going up": "No. The fund fell this week. The ratio can rise while both prices fall, as long as the sector falls less."
+   },
+   "simple": "It is falling less than the market, because the line rises when the sector holds up better.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers (ChartSchool, Fidelity) agree; re-read 2026-11-12"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -1364,22 +1526,34 @@
    "choices": [
     "The one in the leading group",
     "The one in the lagging group",
-    "The one with the lower share price"
+    "The one with the lower share price",
+    "Either, the market lifts them both"
    ],
    "answer": "The one in the leading group",
-   "why": "The one in the leading group. Find the group with relative strength first, then the strongest stocks in it. Similar companies tend to get pushed by the same forces.",
+   "why": "The one in the leading group. Find the group with relative strength first, then the strongest stocks inside it. Business and economic forces can hit similar companies the same way, so the group's trend matters. It is our rule too: buy leaders, in one of the strongest groups. Buy relative strength and avoid relative weakness.",
    "lesson_line": "Group first, then the stock. A good chart in a lagging group is swimming upstream.",
    "facts": [
     "f70",
     "f71",
     "g08",
     "f78",
-    "f73"
+    "f73",
+    "h01"
    ],
    "wrong": {
     "The one in the lagging group": "Waiting for a laggard to catch up is a hope, not a plan. Buy relative strength, avoid relative weakness.",
-    "The one with the lower share price": "Share price says nothing about strength. Start with the group that's leading."
-   }
+    "The one with the lower share price": "Share price says nothing about strength. Start with the group that's leading.",
+    "Either, the market lifts them both": "The market sets the general trend, but some groups lead it and some lag it. Find the leading group first."
+   },
+   "simple": "Start with the stock in the leading group, because we buy leaders in one of the strongest groups.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "teaches the owner's rule C31 (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -1390,10 +1564,11 @@
    "choices": [
     "High interest rates",
     "Falling oil prices",
-    "Weak consumer spending"
+    "Weak consumer spending",
+    "Falling power demand"
    ],
    "answer": "High interest rates",
-   "why": "High interest rates. Many utilities borrow heavily, and their stocks tend to move opposite to rates. CNBC said rates that stayed high plagued the traditionally rate-sensitive sector.",
+   "why": "High interest rates. Many utilities borrow heavily to maintain and upgrade their networks, which leaves them exposed to rising rates. Their fund's prospectus warns that regulated utility stocks may tend to move opposite to rates. CNBC said rates that stayed high plagued this traditionally rate-sensitive sector in 2023. Defensive means steady demand, not protection from rates.",
    "lesson_line": "Defensive isn't rate-proof. When rates stay high, utilities can lag even in a strong market.",
    "facts": [
     "f37",
@@ -1405,12 +1580,28 @@
     "f38",
     "f99",
     "g01",
-    "f97"
+    "f97",
+    "f25",
+    "f35",
+    "g16"
    ],
    "wrong": {
     "Falling oil prices": "Oil drives energy stocks, not utilities. Energy's own index was down just 0.59% that year.",
-    "Weak consumer spending": "That hits consumer discretionary. People pay their utility bills even when they cut other spending."
-   }
+    "Weak consumer spending": "That hits consumer discretionary. People pay their utility bills even when they cut other spending.",
+    "Falling power demand": "CNBC pointed to rates that stayed high. And utilities are defensive because people keep paying their utility bills."
+   },
+   "simple": "High interest rates hurt them, because many utilities borrow heavily and their stocks tend to move against rates.",
+   "deeper": {
+    "counter": "The year before, with dividends, utilities gained 1.57% while the S&P 500 lost 18.11%. In 2023 they lost 7.08% while the S&P 500 gained 26.29%. Same sector, opposite result. Defensive helps in a selloff, but it does not protect against rates that stay high."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 risk text (XLU prospectus) plus Schwab and CNBC; historical numbers fixed"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -1420,12 +1611,13 @@
    "story": "Q1 2020. COVID hits and stocks fall across every sector. You check the sector funds to see where the damage is worst.",
    "q": "Which groups fell the most?",
    "choices": [
-    "Energy and banks",
+    "Energy and banking",
     "Staples and utilities",
-    "Tech and consumer discretionary"
+    "Tech and discretionary",
+    "Health care and tech"
    ],
-   "answer": "Energy and banks",
-   "why": "Energy and banks. The Fed said every sector fell, with the largest declines in energy and banking. That quarter XLE fell 50.72%, and the financials fund XLF 31.94%.",
+   "answer": "Energy and banking",
+   "why": "Energy and banking. The Fed said the drop was widespread across all sectors, with the largest declines in energy and banking. That quarter the energy fund XLE fell 50.72% and the financials fund XLF 31.94%. Defensive funds fell too, but far less: XLP 12.99% and XLU 13.53%.",
    "lesson_line": "A crash hits every group, but not equally. Note who breaks and who holds up.",
    "facts": [
     "f46",
@@ -1437,12 +1629,27 @@
     "g14",
     "f40",
     "f41",
-    "f43"
+    "f43",
+    "f16",
+    "f42"
    ],
    "wrong": {
     "Staples and utilities": "Those held up far better. XLP fell 12.99% that quarter and XLU 13.53%.",
-    "Tech and consumer discretionary": "They fell less. XLK's and XLY's worst quarters of the decade both came in 2022, and were smaller drops than XLF's 31.94%."
-   }
+    "Tech and discretionary": "They fell less. XLK's and XLY's worst quarters of the decade both came in 2022, and were smaller drops than XLF's 31.94%.",
+    "Health care and tech": "It was a health crisis, yet health care held up. The health care fund XLV fell 12.69% that quarter, against 50.72% for XLE."
+   },
+   "simple": "Energy and banking fell the most, though every group fell in that crash.",
+   "deeper": {
+    "trap": "Defensive is not the same as safe. In that quarter every sector fell, and even the staples fund lost 12.99%. Holding up in a crash means falling less, not rising. The useful read is which groups break hardest and which fall least."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker swapped a distractor, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1451,15 +1658,26 @@
    "format": "tf",
    "q": "XLE, the energy sector fund, tends to swing about as much as the S&P 500.",
    "answer": "False",
-   "why": "False. XLE fell 50.72% in Q1 2020 and gained 38.97% in Q1 2022. Its sponsor warns that sector funds generally fluctuate more than the overall market.",
-   "lesson_line": "XLE is a concentrated bet on one sector. Size it for the swings it really has.",
+   "why": "False. XLE fell 50.72% in Q1 2020 and gained 38.97% in Q1 2022. Its sponsor warns that sector funds generally swing more than the overall market, since they hold one sector. Energy is also very sensitive to oil prices.",
+   "lesson_line": "XLE is a bet on one sector. Expect bigger swings than the S&P 500.",
    "facts": [
     "f13",
     "f44",
     "f40",
-    "g04",
     "f99"
-   ]
+   ],
+   "simple": "False, because a one-sector fund like XLE swings more than the market, like its 50.72% drop in one quarter.",
+   "deeper": {
+    "trap": "Big swings cut both ways. The same fund that lost 50.72% in Q1 2020 gained 38.97% in Q1 2022. A fund that can rise that fast can fall that fast, so a strong run is no sign it has turned calm."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the fund's own prospectus and sponsor page (Tier 1); historical numbers fixed"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -1471,10 +1689,11 @@
    "choices": [
     "Wait for energy to show strength first",
     "Buy energy now, the cycle says so",
-    "Drop sectors and trade the stock alone"
+    "Drop sectors and trade the stock alone",
+    "Buy the cheapest energy stocks now"
    ],
    "answer": "Wait for energy to show strength first",
-   "why": "Wait for energy to show strength first. The cycle model is a guide, not a timer. No investment has behaved the same in every cycle, and a cycle is easier to spot after it's over.",
+   "why": "Wait for energy to show strength first. The cycle model is an ideal, and no investment has behaved the same way in every cycle. Phases have varied widely in length. A cycle is easy to spot after it ends and hard to call while it runs. Use the model to know where to look. Act when the group shows relative strength. Our rule is to buy leaders in one of the strongest groups.",
    "lesson_line": "The cycle model tells you where to look. Relative strength tells you when.",
    "facts": [
     "f84",
@@ -1485,12 +1704,28 @@
     "f65",
     "f89",
     "f70",
-    "f71"
+    "f71",
+    "f73",
+    "h01"
    ],
    "wrong": {
     "Buy energy now, the cycle says so": "The model is an ideal cycle. Phases have varied widely in length, and calling one in real time is hard.",
-    "Drop sectors and trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm."
-   }
+    "Drop sectors and trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm.",
+    "Buy the cheapest energy stocks now": "Cheap is not strength. Buy relative strength and avoid relative weakness, and energy is still lagging."
+   },
+   "simple": "Wait until energy starts beating the market, because the cycle model says where to look, not when to buy.",
+   "deeper": {
+    "trap": "A cycle story sounds like a reason to buy. But 'late in the cycle' is a guess made in real time. The textbook calls its own cycle the ideal one for an inflationary environment. If the call is wrong, energy can keep lagging while other groups lead. Relative strength is the check."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "teaches the owner's rule C31 (sizing_rule.md section 9)",
+     "fixed before (checker fixed f65's claim, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
@@ -1502,10 +1737,11 @@
    "choices": [
     "Look for leaders inside leading groups",
     "The group doesn't matter, only the chart",
-    "Spread buys evenly across all sectors"
+    "Spread buys evenly across all sectors",
+    "Buy the laggards that have not moved yet"
    ],
    "answer": "Look for leaders inside leading groups",
-   "why": "Look for leaders inside leading groups. Energy's index gained 53.43% that year, and the top stock came from it. Find the strong group first, then its strongest stocks.",
+   "why": "Look for leaders inside leading groups. Energy's index gained 53.43% in 2021, and the S&P 500's top stock, Devon Energy, was an oil and gas producer. First find the group with relative strength, then the strongest stocks in it. That is our rule too: buy leaders, in one of the strongest groups. One year's top stock is an example, not a promise.",
    "lesson_line": "Hunt for leaders where the strength already is: inside the leading group.",
    "facts": [
     "f53",
@@ -1516,12 +1752,28 @@
     "g08",
     "f71",
     "f78",
-    "g12"
+    "g12",
+    "f73",
+    "h01"
    ],
    "wrong": {
     "The group doesn't matter, only the chart": "It does. Some groups lead and some lag, and similar companies can get hit by the same forces. A great chart in a lagging group fights the tide.",
-    "Spread buys evenly across all sectors": "That spreads risk, but it's not how you find leaders. The top stock came from the leading group."
-   }
+    "Spread buys evenly across all sectors": "That's not how you find leaders. The top stock came from a leading group, not from an even spread.",
+    "Buy the laggards that have not moved yet": "Laggards are where the strength is missing. Buy relative strength and avoid relative weakness."
+   },
+   "simple": "Hunt for the strongest stocks inside the strongest groups, because that is where the top stock came from.",
+   "deeper": {
+    "trap": "Hindsight makes this look easy. Devon's 178.6% gain was known only after the year ended. In real time you see a group starting to lead, then the strongest stocks inside it. The method finds candidates. It does not pick the single best stock for you."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "teaches the owner's rule C31 (sizing_rule.md section 9)",
+     "fixed before (checker added g12, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
@@ -1531,12 +1783,13 @@
    "story": "March 2023. Bank stocks are plunging as the banking sector comes under stress. A bank on your watchlist is down hard and looks cheap.",
    "q": "What do you do?",
    "choices": [
-    "Pass while the group is under stress",
+    "Pass until the group is strong",
     "Buy it, cheap stocks bounce back",
-    "Buy it, the Fed will rescue banks"
+    "Buy it, the Fed will rescue banks",
+    "Sell everything and go to cash"
    ],
-   "answer": "Pass while the group is under stress",
-   "why": "Pass while the group is under stress. The Fed says bank stocks plummeted and were still below their January levels months later. Cheap can get cheaper.",
+   "answer": "Pass until the group is strong",
+   "why": "Pass until the group is strong. In March 2023 bank stocks fell sharply as the banking sector came under stress. They fell sharply despite official support for the banks, and stayed below where the year began. Cheap can get cheaper. Buy relative strength and avoid relative weakness, and this group was breaking.",
    "lesson_line": "Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
    "facts": [
     "g09",
@@ -1544,12 +1797,26 @@
     "f49",
     "f73",
     "f78",
-    "f72"
+    "f72",
+    "f71"
    ],
    "wrong": {
-    "Buy it, cheap stocks bounce back": "Not on your schedule. Bank stocks stayed depressed for months.",
-    "Buy it, the Fed will rescue banks": "Officials did step in to support the banks, and bank stocks still fell sharply."
-   }
+    "Buy it, cheap stocks bounce back": "Not on your schedule. Bank stocks stayed below where the year began.",
+    "Buy it, the Fed will rescue banks": "Officials did step in to support the banks, and bank stocks still fell sharply.",
+    "Sell everything and go to cash": "That goes too far. The stress here is in one group, and some groups lead while others lag. Pass on the bank."
+   },
+   "simple": "Pass for now, because a cheap stock in a group that is breaking down can keep falling.",
+   "deeper": {
+    "trap": "Cheap is a feeling, not a signal. A stock that is down hard looks like a bargain. But in March 2023 bank stocks fell sharply even though officials stepped in to support the banks. Wait for the group to show strength again before you look at its stocks."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "teaches the owner's rule C31 (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q21",
@@ -1561,21 +1828,58 @@
    "choices": [
     "One sector hit can drop all five",
     "None, each one has its own stop",
-    "Five stocks is too few to profit"
+    "Low, they are five different companies",
+    "Low, energy is leading the market"
    ],
    "answer": "One sector hit can drop all five",
-   "why": "One sector hit can drop all five. Similar companies can get hit by the same forces, and energy stocks are very sensitive to oil prices. Five names in one sector is a concentrated bet.",
-   "lesson_line": "Ride the leading group, but count five names in one sector as one big bet.",
+   "why": "One sector hit can drop all five. Many business and economic forces can hit similar companies the same way, and energy stocks are very sensitive to oil prices. So one bad day for the group can hit all five, and five stops can trigger at once. Owning them is a choice. Just know they can move as one.",
+   "lesson_line": "Five stocks in one sector can fall together. Know that before the group has a bad day.",
    "facts": [
     "f78",
-    "f99",
-    "g04",
-    "f44"
+    "f99"
    ],
    "wrong": {
     "None, each one has its own stop": "Five stops can all trigger on the same bad day for the group. Stops don't make it diversified.",
-    "Five stocks is too few to profit": "The count isn't the problem. All five sit in one sector."
-   }
+    "Low, they are five different companies": "Different names, same forces. Business and economic factors can hit similar companies the same way.",
+    "Low, energy is leading the market": "Leading now doesn't make it safe. Energy stocks are very sensitive to oil prices, so the group can fall together."
+   },
+   "simple": "All five can fall together, because stocks in one sector can get hit by the same news, like oil prices.",
+   "deeper": {
+    "trap": "Five stops feel like five separate safety nets. But a stop is only a trigger. If oil drops and the whole group falls, all five can trigger on the same day. Then you take five losses at once, not one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "near the owner's struck correlation rule (sizing_rule.md section 5, '19 is wrong essentially'); see owner_flags",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q22",
+   "skill": "history.sectors",
+   "rung": 2,
+   "format": "tf",
+   "q": "Each Select Sector index behind the sector funds holds only stocks that are in the S&P 500.",
+   "answer": "True",
+   "why": "True. Each of the eleven Select Sector indexes is built from S&P 500 stocks only. Together they hold every S&P 500 company. GICS gives each company one sector, but a sector fund tracks only its sector's S&P 500 stocks.",
+   "lesson_line": "A sector fund holds only its sector's S&P 500 stocks.",
+   "facts": [
+    "f11",
+    "f45",
+    "f07"
+   ],
+   "simple": "True, because each sector index is built only from stocks in the S&P 500.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the funds' own prospectus and sponsor text (Tier 1); index rules can change"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1608,129 +1912,135 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f01 on the April 2026 MSCI methodology: 11 sectors, 25 industry groups, 74 industries, 163 sub-industries. Distractors are the real lower levels and the old nine-fund count (f69, read in context: nine funds around 2007). The question called GICS 'the standard system'; it is one of several, so it now reads 'GICS sorts stocks into sectors.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Re-derived 11 from f01 (MSCI Tier 1). Why: 25/74/163 from f01, eleven indexes hold every S&P 500 company from f45 (re-read live on SSGA XLE page), Real Estate and telecom change from f02. No tell (numeric choices). Does not answer q22: 'together hold every company' is not 'hold only S&P 500 stocks'."
   },
   "q02": {
    "status": "pass",
-   "notes": "f04 ('strictly hierarchical... only one grouping at each of the four levels') and f03 read in context on the MSCI PDF. A company with two businesses is placed by the largest share, still in one sector, so False holds. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f86, f87 (Fidelity) and f98, g01 (Schwab) agree, two Tier 2 publishers. Wrong notes check out: staples -0.70% in 2022 against the S&P 500's -18.11% (January 2023 prospectus); many utilities borrow heavily (g02). The 38-character answer fits a Word Match tile. Not leading. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Re-derived 'demand holds up when the economy slows' from f86, f87, f98. Key 38 chars, not longest (39). 0.70% / 18.11% from f26, f35, labeled with dividends via g16. Debt note from g02, cyclical note from f97, f85. Mild hint toward q15 (utilities borrow heavily) is teaching then applying, not a giveaway."
   },
   "q04": {
    "status": "pass",
-   "notes": "f74-f76 (ChartSchool price relative) and f90-f92 (Fidelity) confirmed: the ratio rises when the security gains more or falls less than the index. Only 'strength' fits; the bank words are real mix-ups. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Strength from f91 (Fidelity) and f76 (ChartSchool), two publishers. Why no longer gives away q13's both-falling case. Bank distractors are real words with no second right answer."
   },
   "q05": {
    "status": "pass",
-   "notes": "f40, f42 confirmed on the SSGA lineup page (XLY discretionary, XLP staples, XLV health care). f68 (ChartSchool, compare discretionary with staples) supports the lesson line. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "XLP from f40 (SSGA Tier 1). New stem names no sector pair, so XLV and XLU are live options; notes grounded in f42, f43, g03, g01, f86. Teaching XLY here is what q10 later needs, not an answer leak."
   },
   "q06": {
    "status": "pass",
-   "notes": "Key False is right. Schwab lists Amazon first among consumer discretionary stocks (FactSet, Feb 20, 2026), and GICS puts online retailers and marketplaces in Broadline Retail (f05). Added Tier 1 g10 (XLY's Sept 30, 2025 schedule lists Amazon under Broadline Retail); SSGA's live XLY page also shows Amazon as its top holding (Nov 6, 2026).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q07": {
    "status": "pass",
-   "notes": "Schwab f93, f94 and GICS f06, f09 confirmed. Added Tier 1 g11 (XLC's Sept 30, 2025 schedule lists Alphabet and Meta under Interactive Media & Services); SSGA's live XLC page shows Meta and Alphabet as its top holdings. Wrong notes are fair and match f94 (the 2018 change added search and social media to Communication Services) and f95 (Amazon is discretionary).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "The whole 2022 table re-read with signs (January 2023 prospectus): energy +64.56%, utilities +1.57%, staples -0.70%, health care -1.95%, down to communication services -37.66%; S&P 500 -18.11%. Energy first, utilities second. f55 (CNBC) confirmed for the tech note. No change. Track audit 2026-11-09: F7.06 q19 (AP, price changes) says the S&P 500 fell 19.4% and energy stocks rose 59% in 2022. This item's figures are total returns, so the question and why now say 'with dividends' (g16: the prospectus table is 'Average Annual Total Returns'; g15: AP's '18.1%, including dividends' matches the table's -18.11%). That is also why utilities show +1.57% here while AP and CNBC called energy the only sector up on price. Key unchanged.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q09": {
    "status": "pass",
-   "notes": "Numbers right: utilities +1.57%, staples -0.70%, health care -1.95%. A 2% line left health care a hair inside the cut, a precision trap, so the bar is now 3% (still True). The lesson line credited only the defensive groups; energy rose 64.56%, so it now names energy too (f24 added).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True re-derived from f27 (-1.95%, inside 3 points of zero). Health care is the one 2022 figure q08 and q03 do not reveal. Defensive label from g03; 1.57% and -0.70% from f25, f26; with-dividends label from g16. 'Held up means fell less' is correct and stops overreach."
   },
   "q10": {
    "status": "pass",
-   "notes": "f82, f83 (Fidelity early cycle), g06 (Schwab expansion) and f61, f62 (ChartSchool) read in context; all put consumer discretionary early. Tech is rightly not a choice, since the sources place it differently (conflicts). Wrong notes match f63, f64, f84, f85, f88. The lesson line asks the member to confirm real leadership, which is sound. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Re-derived XLY: f82 (Fidelity, every early cycle since 1962), f61/f62 (ChartSchool: tech first, discretionary close behind; XLK is not offered), g06 (Schwab). Three publishers agree. All choices 3-char tickers, tell removed; tickers taught in w1 and q05. Wrong notes grounded (f64, f88, f84, f63). f81 caveat keeps it from being a timer."
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed by hand: 64.56 - (-18.11) = 82.67 points, both inputs from the January 2023 prospectus with signs checked. The calc matches. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 64.56 - (-18.11) = 82.67, recomputed by the validator. Why and trap only restate the calc and f24/f35/g16; no unsourced definition. 'An easy slip' is not a sourced claim of what most people do. Fine."
   },
   "q12": {
    "status": "pass",
-   "notes": "Confirmed: energy 53.43% vs S&P 500 28.71% (January 2022 prospectus), ahead of real estate's 46.19%; CNBC (f52) agrees energy and real estate were best. f47 (Fed July 2021 report) read in context. The key was the only choice with a number, a giveaway, so it now reads 'It was the best sector that year' and the why carries the numbers.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Deeper.example now states only f19 (-32.84%), f21 (53.43%) and f24 (64.56%); 'best sector that year' rests on f52 (energy and real estate best) plus f21 > f22. No longer claims energy was 2020's worst. Key not longest (32 vs 39)."
   },
   "q13": {
    "status": "pass",
-   "notes": "f76 (the ratio rises when the stock gains more or declines less), f91 (Fidelity) and f77 ('often the leaders', hedge kept) confirmed in context. Different angle from q04 (both falling). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "f70, f71, f73 (ChartSchool Wyckoff), f78 (Fidelity) and g08 (IBD) confirmed; two Tier 2 publishers agree on group first. The story sets an uptrend, which matches Wyckoff's long-side condition. An experienced trader would agree. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f70, f73 (ChartSchool) and g08 (IBD): two publishers. Simple matches C31's group half (h01, sizing_rule.md section 9). Minor: the question invokes our rule but carries no \"house\": true; the key does not need it for support. Owner flag on naming only half of C31 stands. Overlaps q19 in idea; accepted as practise vs real case."
   },
   "q15": {
    "status": "pass",
-   "notes": "Utilities -7.08% and S&P 500 +26.29% (January 2024 prospectus). f58 confirmed in CNBC's 2023 sector entry (Han and Hayes, Dec 29, 2023, 1:13 PM ET per the page data); the rate link is backed by the XLU prospectus risk text (f12, Tier 1) and Schwab (g02). Energy -0.59% checked. Distractors are real alternatives. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Re-derived high rates: f12 (Tier 1 prospectus, inverse to rates), f58 (CNBC 2023), g02 (Schwab). Key 19 chars, not longest. 'Falling power demand' note no longer claims CNBC ruled demand out. Deeper counter numbers f25, f35 (with dividends, g16), f37, f39."
   },
   "q16": {
    "status": "pass",
-   "notes": "Fed June 2020 report (f46) read in context: a March drop across all sectors, worst in energy and banking. Every quarterly line in the January 2026 prospectus was matched to its fund by the page headers: XLE -50.72% and XLF -31.94% are the two worst in Q1 2020. Both distractors were defensive pairs, which made the key easy to spot, so 'Health care and staples' became 'Tech and consumer discretionary' (g13, g14: their worst quarters, -19.70% and -25.51% in Q2 2022, were still smaller drops than XLF's).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Re-derived from f46 (Fed MPR June 2020, re-read live: 'largest declines in the energy and banking sectors'). Key 18 chars, not longest. Tech/discretionary note is a valid inference: XLK and XLY's worst quarters (g13 -19.70%, g14 -25.51%) were in 2022, so their Q1 2020 drops were smaller than XLF's 31.94% (f15). XLE 50.72%, XLP 12.99%, XLU 13.53%, XLV 12.69% all quoted. 'banking' is the Fed's own word; mild odd-word risk only."
   },
   "q17": {
    "status": "pass",
-   "notes": "f13 matched to XLE in the prospectus (worst Q1 2020 -50.72%, best Q1 2022 +38.97%). f44 is on XLE's own fund page: sector ETFs 'generally result in greater price fluctuations than the overall market'. The sizing lesson line is sound risk advice. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False from f44 (SSGA Tier 1, re-read live: sector funds generally fluctuate more than the overall market). Simple says 'more', not 'far more'. g04 dropped from facts. 50.72% from f13."
   },
   "q18": {
    "status": "pass",
-   "notes": "f84, f81, f89 (Fidelity), g05 (Schwab), f63 and f65 (ChartSchool) read in context. Waiting for relative strength before acting on a cycle call is what a profitable trader does. Question text unchanged; cited fact f65's claim said 'not a schedule', which its quote does not say, so the claim now matches the quote (the ideal cycle in an inflationary environment).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f73/f70 (ChartSchool), f81/f89 (Fidelity), g05 (Schwab), f65; agrees with C31. Sentences now under 22 words. Note: key and 'Drop sectors and trade the stock alone' are both 38 chars (tie, not a lone longest). Its 'cheap is not strength' note foreshadows q20, acceptable as a progression."
   },
   "q19": {
    "status": "pass",
-   "notes": "f52, f53 (CNBC, Dec 31, 2021) confirmed: energy and real estate best, Devon +178.6% the top S&P 500 stock. Added Tier 1 g12 (the energy index holds oil and gas companies) so 'the top stock came from it' rests on Tier 1 with f50 (SEC SIC 1311); Devon is also in XLE's Sept 30, 2021 holdings. A wrong note said similar companies 'get hit by the same forces'; now 'can get hit', matching Fidelity's 'could impact'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Wrong notes no longer push diversification (g04 dropped); laggard note rests on f73. Key from f70, f73, f52, f53, g08. Overlap: the story restates w3 step 4 and q14's reveal teaches the same idea, so this rung-8 item is easy; kept as the real-world rung."
   },
   "q20": {
    "status": "pass",
-   "notes": "Fed June 2023 report (g09, f48, f49) read in context: bank stocks fell sharply despite the official support and stayed depressed relative to the start of the year. Passing on a cheap name in a breaking group is sound risk sense. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Re-derived 'pass' from f73 (avoid relative weakness) and f48/f49/g09 (Fed MPR June 2023, all three quotes re-read live: banks plummeted, fell sharply despite intervention, stayed depressed). Key 30 chars, no longer echoes the story; h01 no longer cited. Owner flag must stand: C31 exempts mean-reversion trades, and 'Buy it, cheap stocks bounce back' reads close to a mean-reversion thesis. The story gives no setup, so pass is consistent with C31's core and D44, but the owner should rule."
   },
   "q21": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Teaches the view the owner struck on 2026-11-09 (sizing_rule.md section 5: 'five positions in one theme count as one trade', '19 is wrong essentially'). The story ('you feel well diversified'), the stem ('What's the real risk?'), the stop note ('Stops don't make it diversified') and deeper.trap ('you take five losses at once, not one') together teach that five stocks in one leading group are one big bet. That is the struck rule in different words, and it pulls against C31 (buy leaders in the strongest groups). f78 is already taught in q14 and q19, so cutting loses no fact. Revive only if the o"
+  },
+  "q22": {
    "status": "pass",
-   "notes": "f78 (Fidelity), g04 and f99 (Schwab) confirmed. The why said energy stocks 'move with oil prices' and similar companies 'get hit by the same forces'; now 'are very sensitive to oil prices' and 'can get hit', matching the sources. Key and wrong notes are sound risk advice.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key True is right: f11 (s03 prospectus, re-read live: 'each of the component securities in the Index is a constituent of the S&P 500 Index') and f45. Two fixes. (1) Why says 'GICS gives every company a sector'; the w1 checker already removed that overreach ('each company': GICS skips shells and funds), and f07 says 'Each company'. (2) Lesson_line 'not every stock in that sector' asserts GICS sectors hold stocks outside the S&P 500; no cited quote says so."
   }
  }
 }

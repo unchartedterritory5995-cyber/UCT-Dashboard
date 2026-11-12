@@ -198,6 +198,14 @@
    "title": "The house sizing rule, section 2: Stop first (owner's answer)",
    "url": "repo:docs/study/sizing_rule.md#2-stop-first",
    "accessed": "2026-11-08"
+  },
+  {
+   "id": "s24",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -710,6 +718,30 @@
    "source": "s23",
    "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
    "claim": "Our default stop is the low of the day or the prior day's low."
+  },
+  {
+   "id": "h2",
+   "source": "s24",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it."
+  },
+  {
+   "id": "h3",
+   "source": "s24",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "Our stop is the exit: it only moves up, never down or wider, except under our gap rule."
+  },
+  {
+   "id": "h4",
+   "source": "s24",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "We buy the full size at one price with one stop, and never add to it."
+  },
+  {
+   "id": "h5",
+   "source": "s24",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "We skip a long that is more than 10% above its 10-day average."
   }
  ],
  "walkthroughs": [
@@ -785,7 +817,7 @@
     "Today's volume is well above average"
    ],
    "answer": "Today's low is above yesterday's high",
-   "why": "Today's low is above yesterday's high. Nothing traded between the two bars, so the chart shows an empty space. That space is the gap.",
+   "why": "Today's low is above yesterday's high. That is how StockCharts and Bulkowski both define an up gap. Nothing traded between the two bars, so the chart shows a blank space. An up day alone is not a gap, because the two bars can still overlap. A new high or heavy volume can come with a gap, but neither one makes it.",
    "lesson_line": "A gap is a price range nobody traded through. Look between yesterday's high and today's low.",
    "facts": [
     "f9",
@@ -796,7 +828,16 @@
     "Today's close is above yesterday's close": "That's just an up day. The two bars can still overlap.",
     "Today's high is a new 52-week high": "That's a new high. It can happen without any gap.",
     "Today's volume is well above average": "Volume says how many shares traded, not whether price jumped over a range."
-   }
+   },
+   "simple": "A gap up means today's low stays above yesterday's high, so no shares traded in the space between them.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, two Tier 2 publishers agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -807,21 +848,33 @@
    "choices": [
     "Buy orders pile up overnight",
     "The exchange resets the price",
-    "Short sellers must cover at the open"
+    "Short sellers must cover at open",
+    "Thin trading pushes the price up"
    ],
    "answer": "Buy orders pile up overnight",
-   "why": "Buy orders pile up overnight. The news lands when the regular session is shut, so demand outweighs supply by the open.",
+   "why": "Buy orders pile up overnight. The report lands after the close, when the regular session is shut. A strong surprise builds buying interest overnight, so demand outweighs supply at the next open. That imbalance is the gap. Thin after-hours trading means wider spreads, the SEC says. The lift comes from the news and the buyers it drew.",
    "lesson_line": "Earnings land while the regular market is shut. Demand piles up, and the open jumps to meet it.",
    "facts": [
     "f10",
     "f1",
     "f2",
-    "f51"
+    "f51",
+    "f4"
    ],
    "wrong": {
     "The exchange resets the price": "No one resets it by rule. Price rises at the open because buyers outnumber sellers.",
-    "Short sellers must cover at the open": "Covering can add fuel, but the cause here is the news and the demand it built overnight."
-   }
+    "Short sellers must cover at open": "The sources name the news and the demand it built overnight as the cause, not forced covering.",
+    "Thin trading pushes the price up": "Thin trading means wider spreads, the SEC says. The lift comes from the buying interest the report built."
+   },
+   "simple": "The news lands while the regular session is shut, so buy orders build up overnight and the open jumps to meet them.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable mechanism, Tier 1 and Tier 2 facts"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -839,29 +892,47 @@
     "held"
    ],
    "answer": "filled",
-   "why": "Filled. Price came back to where it was before the gap, so the empty space on the chart is covered.",
+   "why": "Filled. A gap is filled when price returns to its pre-gap level. Sources draw the exact line a little differently. Investopedia says the pre-gap level, one StockCharts author the prior close, ChartSchool the last day before the gap. This sentence uses the pre-gap level, so it fits all three.",
    "lesson_line": "A filled gap means price went all the way back. The overnight jump is gone.",
    "facts": [
     "f53",
     "f14",
     "f24"
-   ]
+   ],
+   "simple": "Filled means price came all the way back to where it was before the gap.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; sources differ only on the exact price, handled in the conflicts line"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
    "skill": "fund.post_earnings",
    "rung": 2,
    "format": "tf",
-   "q": "An exhaustion gap tends to show up near the end of a long move.",
+   "q": "An exhaustion gap comes near the end of a long move, not at its start.",
    "answer": "True",
-   "why": "True. Exhaustion gaps come late in a trend and often fill within days as the move ends.",
+   "why": "True. Exhaustion gaps happen near the end of a good up or down trend, StockCharts says. They are often the first signal that the move is over. Bulkowski adds that new highs usually do not follow, and that they usually close within a week. It does not mean every late gap is the last one.",
    "lesson_line": "The later a gap comes in a run, the more I respect the chance it's the last one.",
    "facts": [
     "f17",
     "f32",
     "f52",
     "f34"
-   ]
+   ],
+   "simple": "True, exhaustion gaps come late in a long move, often right as it ends.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable pattern description, three publishers agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -877,18 +948,28 @@
     "Estimates creep up before the report"
    ],
    "answer": "Price keeps moving the surprise's way",
-   "why": "Price keeps moving the surprise's way. After a beat, prices have tended to keep rising, and after a miss, to keep falling. It's a tendency, not a promise.",
+   "why": "Price keeps moving the surprise's way. When earnings beat expectations, prices have tended to rise for over 60 trading days. When earnings miss, they have tended to keep falling. Ball and Brown first documented it in 1968. It is a tendency, not a promise, and several recent studies argue it has shrunk to the point of disappearance.",
    "lesson_line": "Drift means the reaction keeps going for a while. It was measured as an average, not a sure thing.",
    "facts": [
     "f60",
     "f61",
-    "f67"
+    "f67",
+    "f62"
    ],
    "wrong": {
     "Price snaps back to pre-report levels": "That's a reversal. The drift research found the move tended to continue.",
     "Volume stays high for weeks after": "Volume can stay high, but the drift is about price.",
     "Estimates creep up before the report": "That's about forecasts before the report. The drift comes after it."
-   }
+   },
+   "simple": "Drift means that after a surprise, the price has tended to keep moving the same way for a while.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a research finding that is debated and has shrunk (lesson conflicts line on drift length)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -897,14 +978,23 @@
    "format": "tf",
    "q": "Researchers commonly explain the drift by investors reacting too little to the news at first.",
    "answer": "True",
-   "why": "True. The drift is commonly put down to underreaction. NBER research found Friday reports, when attention is low, get more of their reaction later.",
+   "why": "True. The drift is commonly put down to investor underreaction, among other factors. NBER research found that Friday reports, when attention is low, get less of their reaction at once and more of it later. That supports the limited-attention story. It is the common explanation, not the only one.",
    "lesson_line": "Markets can take time to price big news. That lag is what the drift measures.",
    "facts": [
     "f61",
     "f66",
     "f65",
     "f68"
-   ]
+   ],
+   "simple": "True, the drift is commonly put down to investors reacting too little to the news at first.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Philadelphia Fed and NBER papers agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -946,20 +1036,30 @@
     "Gap down that recovers by noon"
    ],
    "answer": "Earnings gap, big volume, strong close",
-   "why": "Earnings gap, big volume, strong close. One manager who trades it asks for volume at least 3-5x the daily average, best with a close near the highs. Bulkowski also wants heavy report-day volume.",
+   "why": "Earnings gap, big volume, strong close. One manager who trades it describes a gap up on strong earnings that closes strong, best near the highs. The volume bar differs by author: that manager wants at least 3-5x the daily average, Bulkowski above the 30-day average. A gap that reverses to close weak or red is not the setup.",
    "lesson_line": "Three marks on day one: the earnings gap, the volume behind it, and where it closes.",
    "facts": [
     "f71",
     "f72",
     "f38",
     "f40",
-    "f26"
+    "f26",
+    "f73"
    ],
    "wrong": {
     "Earnings gap that fills before the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
     "Small earnings gap on very light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap.",
     "Gap down that recovers by noon": "Wrong direction. This setup is a gap up on strong earnings."
-   }
+   },
+   "simple": "It gaps up on strong earnings, trades heavy volume, and closes strong, best near the day's high.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a traders' label with no official definition; volume bars differ by author (conflicts line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
@@ -968,14 +1068,24 @@
    "format": "tf",
    "q": "A breakaway gap on light volume has a greater chance of failing.",
    "answer": "True",
-   "why": "True. Low volume raises the odds the gap fails and slips back into the old range. Gaps count most on above-average volume.",
+   "why": "True. A breakaway gap on low volume has a greater chance of failure, while above-average volume shows conviction. A failed gap falls back into the prior trading range. StockCharts counts gaps as significant when volume is above average. It also warns that a breakaway gap on good volume may not fill soon. Light volume raises the odds of failure. It does not guarantee it.",
    "lesson_line": "Volume is the proof behind the gap. Light volume, light conviction.",
    "facts": [
     "f49",
     "f50",
     "f12",
-    "f48"
-   ]
+    "f48",
+    "f16"
+   ],
+   "simple": "True, a breakaway gap on light volume is more likely to fail and slip back into the old range.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the failure claim itself rests on one publisher (Investopedia, unreachable to re-check on 2026-11-12); StockCharts agrees on volume"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -1014,14 +1124,26 @@
     }
    },
    "suffix": "x",
-   "why": "4x. Divide the day's volume by the average. Bars differ: Bulkowski wants above the 30-day average, one manager 3-5x.",
+   "why": "4x. Divide the day's volume by the average volume: 3,200,000 divided by 800,000 is 4. Whether that is enough depends on whose bar you use. Bulkowski wants above the 30-day average. Kacher and Morales, as Bulkowski reads them, want at least 1.5 times the 50-day average. One manager wants 3-5x. Know which bar is yours.",
    "lesson_line": "Divide the day's volume by the average. Traders use different bars, so know which one is yours.",
    "facts": [
     "f40",
     "f44",
     "f72",
     "f12"
-   ]
+   ],
+   "simple": "It is 4 times the average, because you divide the day's volume by the average volume.",
+   "deeper": {
+    "trap": "Average volume can mean a 30-day or a 50-day average, and the same day can pass one bar and miss another. Check which average your scanner uses before you compare it with a rule."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -1032,20 +1154,34 @@
    "choices": [
     "A gap up: the low held above $41.20",
     "No gap: it traded below its open",
-    "A filled gap: it pulled back"
+    "A filled gap: it pulled back from $43",
+    "No gap until volume is above average"
    ],
    "answer": "A gap up: the low held above $41.20",
-   "why": "A gap up. Today's low of $42.10 stayed above yesterday's $41.20 high, so nothing traded between them.",
+   "why": "A gap up. Today's low, $42.10, stayed above yesterday's high, $41.20, so no shares traded between them and the chart shows a blank space. Trading below the open does not matter, and a fill would need price back at the pre-gap level. Volume decides how much a gap matters, not whether it exists. The gap stands while price stays above $41.20.",
    "lesson_line": "Check today's low against yesterday's high. If the low held above, the gap is still open.",
    "facts": [
     "f9",
     "f29",
-    "f11"
+    "f11",
+    "f12",
+    "f14",
+    "f53"
    ],
    "wrong": {
     "No gap: it traded below its open": "Trading under the open doesn't matter. What counts is whether the low stayed above yesterday's high.",
-    "A filled gap: it pulled back": "A fill means getting back to the pre-gap level. $42.10 never reached $41.20."
-   }
+    "A filled gap: it pulled back from $43": "A fill means getting back to the pre-gap level. $42.10 never reached $41.20.",
+    "No gap until volume is above average": "Volume decides how much a gap matters, not whether there is one. The low above yesterday's high makes the gap."
+   },
+   "simple": "It is a gap up, because today's low of $42.10 stayed above yesterday's high of $41.20.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition applied to given prices"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -1056,24 +1192,33 @@
    "q": "What did the day tell you?",
    "choices": [
     "It faded: buyers didn't hold the gap",
-    "It's a breakaway gap: buy tomorrow open",
+    "It's a breakaway gap: buy the next open",
     "It still counts as a gap up today",
     "Buy it: it's cheaper than the open"
    ],
    "answer": "It faded: buyers didn't hold the gap",
-   "why": "It faded. The gap filled the same day, so the buying wasn't strong enough to hold it. On the chart, no gap is left.",
+   "why": "It faded. A gap that fills within the same trading day is called fading. Without enough buying to sustain the rise, a gap up levels off or drops below its opening price. By the close, no gap is left on the chart. A gap up that closes weak or red is not the strong-gap setup.",
    "lesson_line": "A gap that fills the same day is a fade. I don't buy what the buyers couldn't hold.",
    "facts": [
     "f54",
     "f22",
-    "f13",
+    "f11",
     "f73"
    ],
    "wrong": {
-    "It's a breakaway gap: buy tomorrow open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap.",
-    "It still counts as a gap up today": "It didn't last to the close. A gap that vanishes intraday is treated as normal volatility.",
-    "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day."
-   }
+    "It still counts as a gap up today": "It didn't last to the close. A gap stands only while price stays above yesterday's high all day.",
+    "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day.",
+    "It's a breakaway gap: buy the next open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap."
+   },
+   "simple": "It faded, because the gap filled the same day, so the buyers could not hold it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definitions, three publishers"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -1083,23 +1228,35 @@
    "story": "Two stocks gap up 8% on earnings. A closes at the day's high. B closes near its low, still above yesterday's high.",
    "q": "Which day showed buyers in charge all session?",
    "choices": [
-    "A, closing at the high",
-    "B, because it held the gap",
-    "Both: the gap is what counts"
+    "A: where it closed is what counts",
+    "B: holding the gap is what counts",
+    "Both: an 8% gap is what counts",
+    "Neither: volume has to decide it"
    ],
-   "answer": "A, closing at the high",
-   "why": "A. A close at the high means demand lasted right up to the bell, not just a burst at the open. B held the gap, but sellers pushed it down into the close.",
+   "answer": "A: where it closed is what counts",
+   "why": "A. A close at the day's high means demand lasted all session, not just a burst at the open that faded. B held its gap, so the gap still stands, but sellers pushed it down into the close. The story gives no volume. The close alone shows who finished in charge.",
    "lesson_line": "Same gap, different day. Where it closes tells me who won.",
    "facts": [
     "f26",
     "f27",
     "f71",
-    "f11"
+    "f11",
+    "f48"
    ],
    "wrong": {
-    "B, because it held the gap": "B kept the gap, but sellers ran the session after the open.",
-    "Both: the gap is what counts": "The gaps match. Where each one closed tells you who won the day."
-   }
+    "B: holding the gap is what counts": "B kept the gap, but sellers pushed it down into the close. A close near the low is not buyers in charge.",
+    "Both: an 8% gap is what counts": "The gaps match. Where each one closed tells you who won the day.",
+    "Neither: volume has to decide it": "Volume can show conviction, but the story gives none. A close at the high shows buyers kept coming to the bell."
+   },
+   "simple": "Stock A, because a close at the high means buyers kept buying right up to the closing bell.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree on reading the close"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -1110,23 +1267,32 @@
    "choices": [
     "The open can fade; wait for proof",
     "A filled gap is a much safer entry",
-    "The open is usually the day's low"
+    "The open is usually the day's low",
+    "Rules bar buying in the first hour"
    ],
    "answer": "The open can fade; wait for proof",
-   "why": "The open can fade. One gap method gives it an hour to set a range. Bulkowski waits for a close above the report-day high to confirm.",
+   "why": "The open can fade, so wait for proof. A gap up without enough buying can level off or drop below its opening price. One StockCharts gap method lets the first hour set the range. Bulkowski waits for a close above the report-day high, because sellers may push price down instead. These are published methods, not a market rule. Waiting for a full fill instead can mean missing the move.",
    "lesson_line": "Let the gap show you it holds before you pay up for it.",
    "facts": [
     "f23",
     "f41",
     "f22",
-    "f35",
-    "f39",
     "f19"
    ],
    "wrong": {
     "A filled gap is a much safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
-    "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price."
-   }
+    "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price.",
+    "Rules bar buying in the first hour": "No rule bars it. Waiting an hour is one gap method's choice, so the day's range can form first."
+   },
+   "simple": "Waiting lets the gap show it can hold, because a gap up without enough buying can drop below its open.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the owner's rulebook C30 (no time-of-day rule) may bear on teaching a wait; see owner_flags"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -1134,29 +1300,44 @@
    "rung": 6,
    "format": "scenario",
    "house": true,
-   "story": "You buy an earnings gap late on day one at $63.50. The day's low was $58.90 and its high $64.20.",
+   "story": "You buy an earnings gap late on day one at $47.60. The day's low was $46.30 and its high $47.90.",
    "q": "Where does our default stop go?",
    "choices": [
-    "Just under $58.90, the day's low",
-    "Just under $63.50, your entry",
+    "Just under $46.30, the day's low",
+    "Just under $47.60, your entry",
     "Wherever it fits the size you want",
     "No stop: the drift will carry it"
    ],
-   "answer": "Just under $58.90, the day's low",
-   "why": "Just under $58.90. Our default stop is the low of the day, the line the buyers defended. Bulkowski's reading of the Kacher and Morales rules also sells on a close below it.",
+   "answer": "Just under $46.30, the day's low",
+   "why": "Just under $46.30. Our default stop goes a few cents under the low of the day or the prior day's low. On a gap-up day the day-one low is the nearer of the two. A stop right under your entry can trip on a quick dip that bounces back. The stop comes first and the size comes from it, never the reverse. Bulkowski's reading of the Kacher and Morales rules also sells on a close below the gap-day low.",
    "lesson_line": "Day one, I risk against the day-one low. If that breaks, the buyers lost.",
    "facts": [
     "h1",
+    "h2",
     "f45",
     "f7",
     "f59",
-    "f62"
+    "f62",
+    "f9",
+    "f75"
    ],
    "wrong": {
-    "Just under $63.50, your entry": "Earnings days swing hard. A stop right under your entry can trip on a quick dip that bounces back.",
     "Wherever it fits the size you want": "That's backwards. The stop comes from the chart, and the size comes from the stop.",
-    "No stop: the drift will carry it": "The drift is an average, and it has shrunk. Every trade needs its exit line."
-   }
+    "No stop: the drift will carry it": "The drift is an average, and it has shrunk. Every trade needs its exit line.",
+    "Just under $47.60, your entry": "Earnings days swing hard. A stop right under your entry can trip on a quick dip that bounces back."
+   },
+   "simple": "Just under $46.30, because our default stop sits a few cents under the day's low.",
+   "deeper": {
+    "trap": "A stop under your entry feels safer, but it is the wrong line. Earnings days swing hard, and a quick dip can trigger a stop and then bounce right back. The day's low is where buyers stepped in. If it sits far below your entry, buy fewer shares. Do not move the stop closer to fit a bigger size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (default stop, sizing_rule.md section 2 and A3)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1174,13 +1355,23 @@
      "stop": 58.8
     }
    },
-   "why": "42 shares. Divide the $200 by the risk per share, $63.50 minus $58.80, and round down. A wide earnings day means a far stop and fewer shares.",
+   "why": "42 shares. The risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that, then round down to whole shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same.",
    "lesson_line": "A far stop means fewer shares. The dollars at risk stay the same.",
    "facts": [
     "f58",
     "f56",
     "f39"
-   ]
+   ],
+   "simple": "You can buy 42 shares, because $200 divided by the risk per share, $63.50 minus $58.80, rounds down to 42.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A5: shares from the stop, rounded down)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -1213,29 +1404,53 @@
     "partial"
    ],
    "answer": "breakaway",
-   "why": "Breakaway. It breaks out of a range, usually on high volume, and can start a new trend.",
+   "why": "Breakaway. A breakaway gap breaks out of a trading range or congestion area, usually on high volume, and can start a new trend. An exhaustion gap is different: it comes near the end of a long trend. A breakaway gap on good volume may not fill for a long time.",
    "lesson_line": "Breakaway gaps leave a base behind. Don't count on them filling soon.",
    "facts": [
     "f15",
     "f16",
     "f31",
-    "f47"
-   ]
+    "f47",
+    "f17"
+   ],
+   "simple": "Breakaway, because the gap breaks price out of a trading range, usually on heavy volume.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, three publishers agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
    "skill": "fund.post_earnings",
    "rung": 7,
    "format": "tf",
-   "q": "On the gap day itself, you can reliably tell a breakaway gap from an exhaustion gap.",
+   "q": "You can name a gap's type, breakaway or exhaustion, on the gap day itself.",
    "answer": "False",
-   "why": "False. The labels come after the fact, once the stock has moved on. Exhaustion gaps are easy to mistake for runaway gaps.",
+   "why": "False. StockCharts says gap labels are applied after the chart pattern is established, once the stock moves on. It also says exhaustion gaps come on high volume and are easy to mistake for runaway gaps. Bulkowski adds that by the time you can name a gap properly, the move is nearly over. So you set the stop on day one without knowing the gap's type.",
    "lesson_line": "You trade the gap before you know its name. That's why the stop goes in on day one.",
    "facts": [
     "f21",
     "f30",
-    "f18"
-   ]
+    "f18",
+    "f31",
+    "f32"
+   ],
+   "simple": "False, you can only tell the gap's type later, after the stock has moved on.",
+   "deeper": {
+    "trap": "Volume will not settle it on the day. Bulkowski says breakaway gaps usually come on high volume, and that exhaustion gaps do too. The same heavy day can turn out to be either one. That is why the plan, and the stop, cannot wait for the label."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q21",
@@ -1245,12 +1460,13 @@
    "story": "Two stocks gap up on earnings, same size and volume. A breaks out of a three-month base near its highs. B has already doubled in eight weeks.",
    "q": "Which gap carries more risk of being an exhaustion gap?",
    "choices": [
-    "B, after the long run",
+    "B, since it follows a long run",
     "A, because bases often fail",
-    "Same risk: size and volume match"
+    "Same risk: size and volume match",
+    "A, since it sits near its highs"
    ],
-   "answer": "B, after the long run",
-   "why": "B. Exhaustion gaps come near the end of a long move. A's gap out of a base fits the breakaway kind, which Bulkowski found did best in bull markets near the yearly high.",
+   "answer": "B, since it follows a long run",
+   "why": "B. Exhaustion gaps happen near the end of a good trend. B's gap comes after a double in eight weeks, a long run. A's gap out of a three-month base fits the breakaway kind, which starts a new trend. Bulkowski found breakaway gaps did best in a bull market near the yearly high. This is about the odds, not a sure call.",
    "lesson_line": "Where the gap sits matters. Out of a base, I'm interested. After a double, I'm careful.",
    "facts": [
     "f17",
@@ -1264,8 +1480,21 @@
    ],
    "wrong": {
     "A, because bases often fail": "Bases can fail, but a failed breakout isn't an exhaustion gap. Exhaustion comes after a long move.",
-    "Same risk: size and volume match": "They match, but they sit in different places in the trend. Late in a run is where exhaustion gaps show up."
-   }
+    "Same risk: size and volume match": "They match, but they sit in different places in the trend. Late in a run is where exhaustion gaps show up.",
+    "A, since it sits near its highs": "Near the highs is not the warning. Bulkowski found breakaway gaps did best in a bull market near the yearly high."
+   },
+   "simple": "Stock B, because exhaustion gaps tend to come after a long run, not right out of a base.",
+   "deeper": {
+    "counter": "A gap out of a base can still fail. A failed breakout gaps above resistance but cannot hold, and falls back into the old range. That is a failed breakaway, not an exhaustion gap, and the stop under the day-one low is what handles it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "judgment from agreeing pattern descriptions"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q22",
@@ -1281,7 +1510,7 @@
     "Buy the dip: the drift is coming"
    ],
    "answer": "A fade: sellers took the beat",
-   "why": "A fade. The beat was real, but sellers took over and it closed red. Fortune reported it was down another 3% by midmorning the next day.",
+   "why": "A fade. The report and forecast beat expectations, and the stock rose 5% early. Then sellers took over and it closed down 3.2%. Fortune reported it was down another 3% by midmorning the next day. The beat was the news, and the close was the market's verdict. A Power Earnings Gap needs a strong close, which this day did not give.",
    "lesson_line": "The report is the news. The close is the verdict.",
    "facts": [
     "f76",
@@ -1295,7 +1524,19 @@
     "A Power Earnings Gap to buy": "That setup wants a strong close. Reversing to close red is what it rules out.",
     "Noise: the beat is what counts": "The beat is the news. The close is the market's answer, and here it was a loss.",
     "Buy the dip: the drift is coming": "The drift is an average, not a promise. A stock that just reversed on a beat isn't owed one."
-   }
+   },
+   "simple": "It was a fade, because the stock gave back its early gain and closed red despite the beat.",
+   "deeper": {
+    "counter": "The 3.2% is AP's figure, and Fortune printed 3.15%. Both tell the same story: a beat that closed red. One red day does not prove the company is weak. It shows buyers did not hold the news that day, and that is what a day-one trade is built on."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "dated news numbers; AP says 3.2% and Fortune 3.15% (conflicts line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q23",
@@ -1306,12 +1547,12 @@
    "q": "What's the lesson for the day after a beat?",
    "choices": [
     "Trade the reaction, not the headline",
-    "A beat always gaps and goes",
-    "Big names never fade on earnings",
-    "Buy any beat at the open"
+    "Buy the beat; the drift will carry it",
+    "Stay out until the earnings news settles",
+    "Big names hold up better after beats"
    ],
    "answer": "Trade the reaction, not the headline",
-   "why": "Trade the reaction. Same company, two beats: one kept going, one reversed the same day. What matters is how the stock trades after the news.",
+   "why": "Trade the reaction, not the headline. Same company, two beats. In May 2023 the shares jumped more than 24% and kept soaring into the next week. In November 2025 they rose 5% early and closed down 3.2%. The report tells you what happened. How the stock trades after it tells you what buyers think, and that is what you trade.",
    "lesson_line": "Same company, two beats, two outcomes. I trade what the stock does with the news.",
    "facts": [
     "f81",
@@ -1320,13 +1561,27 @@
     "f76",
     "f77",
     "f79",
-    "f25"
+    "f25",
+    "f60",
+    "f62"
    ],
    "wrong": {
-    "A beat always gaps and goes": "November 2025 says otherwise: up 5% early, down 3.2% at the close.",
-    "Big names never fade on earnings": "Nvidia was the biggest US company by value, and it still faded.",
-    "Buy any beat at the open": "Buying blind at the open skips the one thing that matters: whether buyers hold it."
-   }
+    "Buy the beat; the drift will carry it": "The drift is an average, not a promise. In November 2025 a beat closed down 3.2% the same day.",
+    "Stay out until the earnings news settles": "That throws out the good ones too. In May 2023 the beat kept soaring into the next week.",
+    "Big names hold up better after beats": "Same big name both times. One beat soared, the other closed down 3.2%, so size did not decide the day."
+   },
+   "simple": "Watch what the stock does after the news, because the same company beat twice and moved two different ways.",
+   "deeper": {
+    "trap": "Two good reports can lead to opposite days. The May 2023 report beat on both profit and revenue, and the stock kept running. The November 2025 report also beat, and the stock closed down 3.2%. Buy each on the headline alone, and you get one winner and one red close."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "dated news numbers from two events"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q24",
@@ -1336,12 +1591,12 @@
    "q": "What does recent research say about the classic post-earnings drift?",
    "choices": [
     "It's shrunk; studies split on size",
-    "It has grown stronger each decade",
-    "It works on every stock that beats",
-    "It only shows up in large stocks"
+    "It has grown stronger in recent years",
+    "It is now mostly a large-stock effect",
+    "It's settled at about 60 trading days"
    ],
    "answer": "It's shrunk; studies split on size",
-   "why": "It's shrunk, and studies split on how much. One finds no drift in large stocks since 2006. Others find it still persists.",
+   "why": "It has shrunk, and studies split on how much is left. Several studies argue it has shrunk to the point of disappearance. Martineau finds none in large stocks since 2006. Others, like Ali and co-authors and Cox (2020), find it persists. The Philadelphia Fed paper finds the classic drift close to zero in recent years. Treat it as a maybe, never a plan.",
    "lesson_line": "I treat the drift as a maybe, not a plan. The stop and the chart come first.",
    "facts": [
     "f62",
@@ -1352,10 +1607,22 @@
     "f60"
    ],
    "wrong": {
-    "It has grown stronger each decade": "The recent debate runs the other way. Several studies say it has shrunk.",
-    "It works on every stock that beats": "It was measured as an average across many stocks. Prices tended to rise, never on every name.",
-    "It only shows up in large stocks": "The reverse. Martineau finds none in large stocks since 2006; microcaps lost it only recently."
-   }
+    "It has grown stronger in recent years": "The recent debate runs the other way. Several studies argue it has shrunk to the point of disappearance.",
+    "It is now mostly a large-stock effect": "The reverse. Martineau finds no drift in large stocks since 2006, and microcaps lost it only recently.",
+    "It's settled at about 60 trading days": "Over 60 trading days was the classic finding. Newer work says it has shrunk, and studies still disagree."
+   },
+   "simple": "Recent research says the drift has shrunk, and studies disagree on how much is left.",
+   "deeper": {
+    "trap": "The classic result, prices rising for over 60 trading days after a beat, describes past averages across many stocks. It is not a holding period for your trade. Newer data says the classic drift is close to zero in recent years."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "research that changes over time; studies disagree (conflicts line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q25",
@@ -1364,14 +1631,26 @@
    "format": "tf",
    "q": "A strong earnings gap means the stock will keep drifting higher for months.",
    "answer": "False",
-   "why": "False. The drift is an average, and it has shrunk. Bulkowski found almost half of good earnings surprises rose just 10% and tumbled within 2 weeks.",
+   "why": "False. The drift is an average across many stocks, not a promise for one, and recent studies argue it has shrunk. Bulkowski found almost half (48%) of good earnings surprises rose just 10% and then tumbled in less than 2 weeks. A strong gap is a reason to watch, not proof of months of gains.",
    "lesson_line": "Plan the exit before you count on the drift. Plenty of good gaps give it back fast.",
    "facts": [
     "f42",
     "f62",
     "f70",
     "f60"
-   ]
+   ],
+   "simple": "False, the drift is only an average, and in one study almost half of good earnings surprises tumbled within 2 weeks.",
+   "deeper": {
+    "trap": "Over 60 trading days is the classic research average, not a forecast for one stock. In Bulkowski's numbers, almost half of good surprises failed inside 2 weeks. Plan the exit before you count on the drift."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "research statistics that can change; drift is debated"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q26",
@@ -1388,10 +1667,13 @@
     "Lower the stop to give it room"
    ],
    "answer": "Let the stop work if it's hit",
-   "why": "Let the stop work. Our default stop is the day-one low, the line the buyers defended. If it breaks, the trade is wrong and you're out.",
+   "why": "Let the stop work. Our default stop sits just under the day-one low, the line the buyers defended. If price breaks it, the trade is wrong and you are out with the planned loss. Do not cancel it, lower it or add shares: each one turns a planned loss into a bigger one. Nobody knows which earnings gap will work, which is why the stop stays in place. Kacher and Morales, as Bulkowski reads them, sell on a close below the gap-day low instead.",
    "lesson_line": "When the day-one low breaks, the trade is over. Take the planned loss.",
    "facts": [
     "h1",
+    "h2",
+    "h3",
+    "h4",
     "f45",
     "f28",
     "f58",
@@ -1399,9 +1681,62 @@
    ],
    "wrong": {
     "Cancel the stop and wait for drift": "The drift is an average, and it has shrunk. It's not a rescue plan for a trade that is breaking.",
-    "Buy more at the lower price": "That's adding to a loser. The stop caps the loss; it doesn't mark a new entry.",
-    "Lower the stop to give it room": "That's widening the stop. The same shares now risk more dollars than you planned."
-   }
+    "Buy more at the lower price": "That's adding to a loser. We buy the full size at one price with one stop, and never add.",
+    "Lower the stop to give it room": "Our stop only moves up, never down or wider. Lower it, and the same shares risk more dollars."
+   },
+   "simple": "Let the stop work, because the day-one low was your line, and if it breaks the trade is wrong.",
+   "deeper": {
+    "trap": "Sliding toward the stop is not a reason to act early or to change the plan. The plan already says where you are wrong. Moving the stop down means the same shares now risk more dollars than you sized for. Hoping for drift does not help: it is an average, and recent studies say it has shrunk."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (default stop; A4 the stop never moves down)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q27",
+   "skill": "fund.post_earnings",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 10-day average.",
+   "q": "What do you do?",
+   "choices": [
+    "Skip it: it's too stretched to buy",
+    "Buy it: the close and volume are strong",
+    "Buy half now, add on a pullback",
+    "Buy it, but set a tighter stop"
+   ],
+   "answer": "Skip it: it's too stretched to buy",
+   "wrong": {
+    "Buy half now, add on a pullback": "We buy the full size at one price with one stop, and never add. And this one is too stretched to buy.",
+    "Buy it, but set a tighter stop": "Our stop goes a few cents under the day's low or the prior day's low. A tighter stop does not fix the stretch.",
+    "Buy it: the close and volume are strong": "A strong close and big volume do not change the distance. We skip a long more than 10% above its 10-day average."
+   },
+   "simple": "Skip it, because we skip a long more than 10% above its 10-day average, and this one is 14% above.",
+   "why": "Skip it. Our rule is to skip a long that is more than 10% above its 10-day average, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule.",
+   "lesson_line": "A great earnings gap can still be too stretched to buy. Check the distance from the 10-day average first.",
+   "deeper": {
+    "trap": "A strong close and heavy volume make a gap feel safe to buy. They say nothing about how far price has run from its 10-day average. Our rule checks that distance first."
+   },
+   "facts": [
+    "h5",
+    "h4",
+    "h2"
+   ],
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (C29 too stretched, A5 no adding, A3 stop)",
+     "the 14% is an invented drill number; whether earnings gaps are an exception is flagged for the owner"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1437,39 +1772,39 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f9 (ChartSchool) and f29 (Bulkowski) confirmed live and agree: an up gap is a low above the prior high. Close-to-open gaps (s4) are in conflicts and the question says 'daily chart'. All three wrong choices are really wrong. variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q02": {
    "status": "pass",
-   "notes": "f10 (ChartSchool, earnings after the close builds overnight demand), f1, f2 (SEC), f51 (Investopedia) confirmed live. Changed the key 'while it's closed' to 'overnight', since the stock does trade after hours (SEC); why and lesson now say the regular session/market is shut.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: buy orders pile up overnight (f10). Key matches. f4 now backs the thin-trading note (wider spreads). Choices 28-32 chars, key shortest, no tell. Simple is 22 words."
   },
   "q03": {
    "status": "pass",
-   "notes": "f53 (Investopedia, s11 (Investopedia gap trading) shows 'unreachable' in the quote check (its cached refusal); the same honest client fetched the live page 2026-11-09 (Hayes, updated 2026-09-25) and the quote is there; WebFetch is refused; also on the 2025-12-09 archive copy.), f14 (ChartSchool), f24 (Bowley) confirmed; all agree a return to the pre-gap level fills the gap. Bank words are plausible and wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Filled is the only bank word that fits. f53, f14, f24 support the three wordings; all three are pre-gap levels. Sentences within 22 words."
   },
   "q04": {
    "status": "pass",
-   "notes": "f17 (ChartSchool), f32, f34 (Bulkowski), f52 (Investopedia) confirmed live; exhaustion gaps come near a trend's end and usually fill within a week / often within days. Key True.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True by f17 (ChartSchool) and f32 (Bulkowski); f34 and f32 re-checked live on thepatternsite.com 2026-11-12. Firm statement, no hedge tell. Caveat line present."
   },
   "q05": {
    "status": "pass",
-   "notes": "f60, f61 (Philadelphia Fed WP 21-07, rev. Aug 2022; published JFQA 58(6), 2023, checked) and f67 (NBER) confirmed. Definition taught as a tendency; wrong choices are real confusions.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f60, 1968 from f61, shrink caveat from f62. Balanced choices. Reveal overlaps q24's topic, but as teaching after the answer, not a give-away in a stem."
   },
   "q06": {
    "status": "pass",
-   "notes": "f61, f66, f65, f68 confirmed. The paper says 'commonly attributed to investor underreaction, among other factors'; the quote now includes 'among other factors' and the statement says 'commonly' instead of 'usually'. Key True, two publishers (Philadelphia Fed, NBER).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Simple uses f61's 'commonly'. True is right."
   },
   "q07": {
    "status": "cut",
@@ -1479,15 +1814,15 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f71, f72 (Tramondo, FINMA-authorised manager; its own page credits the name to a trader), f38, f40 (Bulkowski), f26 (Bowley) confirmed live. The key holds only the three features the sources share. Changed the why: Tramondo says 'best is a close near highs', so 'best with', not 'asks for'. Owner may want to confirm the name matches his setup 28. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key is the three day-one marks (f71, f72 re-checked live on tramondo.ch; f38, f40 re-checked on thepatternsite.com). Key not the longest. Overclaim gone from the why. Integrator: the conflicts line still says q08 'keys only the three features every source shares'; update it to match the new why."
   },
   "q09": {
    "status": "pass",
-   "notes": "f49, f48, f50 (Investopedia, Mitchell CMT) and f12 (ChartSchool) confirmed live. Key True.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True by f49 (Investopedia, not re-checkable today) with f12 (ChartSchool, re-checked live) and f48 agreeing on volume. 'Only' dropped; no guarantee claimed."
   },
   "q10": {
    "status": "cut",
@@ -1497,45 +1832,45 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed 3,200,000 / 800,000 = 4. Changed the why: it said 4x clears every author's bar, but those bars use different averages (30-day, 50-day) and 'at least 3-5x'; it now just names Bulkowski's 30-day bar and one manager's 3-5x.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 3,200,000 / 800,000 = 4. Every bar (30-day, 1.5x 50-day, 3-5x) is in f40, f44, f72. The deeper no longer says 4x clears all bars."
   },
   "q12": {
    "status": "pass",
-   "notes": "$42.10 low > $41.20 prior high, so an up gap per f9 and f29 (confirmed live); $42.10 never reached $41.20, so no fill. Changed 'its low' to 'the day's low' so the bar is plainly the whole day (f11).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Gap up by f9/f29: low $42.10 above prior high $41.20. Distractor now carries a price too, so the key is not the lone numbered choice. Fill note correct."
   },
   "q13": {
    "status": "pass",
-   "notes": "f54 (Investopedia), f22 (StockCharts), f13 (ChartSchool), f73 (Tramondo) confirmed. Changed the why's last line 'A gap that doesn't last the session means little': a failed earnings gap does mean something; now 'the buying wasn't strong enough... no gap is left'. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key, why and the f11 note are right (f54, f22 re-checked live). One distractor reads 'buy tomorrow open', which is broken English; reworded to 'buy the next open' (39 chars) and its wrong-note key moved with it."
   },
   "q14": {
    "status": "pass",
-   "notes": "f26, f27 (Bowley: closing near the high means demand continued all day), f71, f11 confirmed live. Changed 'B ... sold off all day' (not in the story) to 'sellers pushed it down into the close'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key A is right (f26, f27 re-checked live on the Bowley article). The B wrong-note said 'sellers ran the session after the open', but the story only gives B's close near its low, not its path through the day. Now it matches the why: sellers pushed it down into the close."
   },
   "q15": {
    "status": "pass",
-   "notes": "f23 (one-hour rule), f41 (Bulkowski confirmation), f22, f35, f19 confirmed live. Changed the wrong note for 'The open is usually the day's low': it said earnings days are 'often 2 or 3 times the normal range', but f39 is Bulkowski's selection rule, not a frequency; now it uses f22. Lesson line no longer claims the first hour 'tells you more than the headline'. Wrong note for the filled-gap choice rewritten: the 20% support figure (f35) did not rebut it; now f19. Why split into two sentences. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Why now rests only on f23, f41, f22, f19 (f23 and f22 re-checked live). It names the wait as published methods, not a rule, which matches C30. The owner flag on C30 and E57 stands for the lesson_line's mentor voice."
   },
   "q16": {
    "status": "pass",
-   "notes": "h1 (owner: default stop is the day's low or the prior day's low) supports the key; the prior day's low is not a choice. f45, f7, f59, f62 confirmed live. Changed: the Kacher-Morales rule is Bulkowski's interpretation ('here are my interpretations of their trading rules'), so the why and the f44/f45 claims now say so.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "The key matches A3 and h1. But q17 (same rung 6) uses the same $63.50 entry with a $58.80 stop, which gives away 'just under $58.90' whenever q17 comes first, and same-rung order is not guaranteed. New story numbers break the link. The stop now sits within about 3% of the buy, so q16 also fits A13 (q17's wide stop stays an owner flag). The wrong-note 'Earnings days swing hard' had no cited fact, so f75 is added. 'The line the buyers defended' is dropped from simple because no fact says it."
   },
   "q17": {
    "status": "pass",
-   "notes": "Recomputed: 0.5% of $40,000 = $200; $63.50 - $58.80 = $4.70; 200 / 4.70 = 42.55, rounded down 42. f58 (StockCharts) and f56 (Investopedia) confirmed live.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q18": {
    "status": "cut",
@@ -1545,51 +1880,57 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "f15 (ChartSchool), f31 (Bulkowski), f47 (Investopedia) confirmed live; a gap out of a range on heavy volume is breakaway. Exhaustion, runaway, common and partial are real gap names that do not fit.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "f21 (StockCharts: types only distinguishable after the stock moves on), f30 (Bulkowski), f18 (ChartSchool) confirmed live. Key False.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False by f21 (re-checked live on StockCharts gap strategies) and f30 (re-checked on thepatternsite.com). Volume attributed to StockCharts (f18) and Bulkowski (f31, f32). No absolute tell. Integrator: the conflicts line 'No question asks about exhaustion-gap volume' is now stale."
   },
   "q21": {
    "status": "pass",
-   "notes": "f17, f32, f52 (exhaustion gaps near the end of a long move), f15, f33, f74 confirmed live. Changed the why: 'A gap out of a base is the breakaway kind' contradicted q20; now 'fits the breakaway kind', and f33's 'in bull markets' restored. Wrong note for 'bases often fail' rewritten: a failed breakout is not an exhaustion gap.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "B is right (f17, f32, f52). But the key and why said B 'is late in its run', which f21 says no one can know on the gap day. The story only shows a long run behind it. Key reworded to 'follows a long run' (30 chars, same length band), and the why and simple to match. Wrong notes unchanged."
   },
   "q22": {
    "status": "pass",
-   "notes": "f76, f77 (AP, Thursday Nov. 20, 2025: early gain of 5%, then a loss of 3.2%), f78, f79 (Fortune: declined 3.15%, down another 3% by midmorning next day) confirmed live; 3.15% rounds to 3.2%. 'A fade' fits Investopedia's same-day-fill sense (f54). Not a guarantee either way.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q23": {
    "status": "pass",
-   "notes": "f81, f82 (AP May 25, 2023: up more than 24% after a beat), f83 (Fortune May 30: soaring since the May 24 report), f76, f77, f79, f25 confirmed live. Removed f69 (Martineau) from the citations: it was not used and reads against the May 2023 run. Distractors are absolutes, but each is a real beginner belief.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key is f25 applied to two dated Nvidia beats (f81-f83, f76-f79). Each wrong note is backed by those facts. The longest choice is a distractor (40 chars). AP 3.2% vs Fortune 3.15% is in conflicts."
   },
   "q24": {
    "status": "pass",
-   "notes": "f62, f63, f64 (Philadelphia Fed) and f70 (Martineau, Critical Finance Review abstract on RePEc) confirmed live. Replaced the silly distractor 'No study has ever found it' with 'It only shows up in large stocks', which f70 shows is the reverse. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q25": {
    "status": "pass",
-   "notes": "f42 (Bulkowski: almost half (48%) rise just 10% before tumbling, in under 2 weeks), f62, f70, f60 confirmed live. Key False; no guarantee taught.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Simple matches f42 (re-checked live: 'Almost half (48%) rise just 10% before tumbling and that occurs in less than 2 weeks'). The 'will' in the statement keeps False from being arguable under the classic 60-day average."
   },
   "q26": {
    "status": "pass",
-   "notes": "h1 (house stop) and f45, f28, f58, f62 confirmed. Restructured: the story had the price already trade through the stop, so the stop had filled and 'Cancel the stop' was not a real option; now it slides toward the stop. Replaced 'Wait to see if the gap fills' with the named mistake 'Lower the stop to give it room' (widening raises the dollars at risk, f58). Lesson says 'planned loss', since a gap can make it bigger (q18).",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key follows A4 (h3: stop only moves up) and A5 (h4: no adding). On day two the prior day's low is the day-one low, so A3 agrees. A slide is not a gap, so B20 does not apply. House facts h2-h4 match sizing_rule.md section 9 word for word."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key follows C29 (h5 matches section 9 word for word). One choice was silly: the stem asked 'What does our rule say to do?' and the choice said 'the strong gap beats the rule', which cannot be what a rule says. Stem changed to 'What do you do?' and that choice replaced with the real temptation in the story (strong close and volume). The tighter-stop note said 'not where it fits', which is unclear, so it now names both default stops from h2. The 14% comes from the question and the 10% from h5."
   }
  }
 }

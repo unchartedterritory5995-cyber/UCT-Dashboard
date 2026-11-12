@@ -178,6 +178,14 @@
    "title": "Why Is Volume Important? (Erin Swenlin, ChartWatchers, March 2018)",
    "url": "https://articles.stockcharts.com/article/articles-chartwatchers-2018-03-why-is-volume-important/",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -528,6 +536,18 @@
    "source": "s7",
    "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
    "claim": "The last trade is not the price your market order is promised."
+  },
+  {
+   "id": "h1",
+   "source": "s22",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "h2",
+   "source": "s22",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks."
   }
  ],
  "walkthroughs": [
@@ -593,7 +613,7 @@
     "How far the price moved"
    ],
    "answer": "Shares traded that day",
-   "why": "Shares traded that day. Volume is the daily number of shares that change hands between buyers and sellers.",
+   "why": "Shares traded that day. Volume is the daily number of shares that change hands between a buyer and a seller. It counts shares, not trades, so one big trade can add a lot of shares. It says how much traded, not how far the price moved or how many shares the company has.",
    "lesson_line": "Volume counts the shares that changed hands. On a daily chart, each volume bar is one day.",
    "facts": [
     "f1",
@@ -605,7 +625,16 @@
     "Number of trades placed": "Volume counts shares, not trades. One big trade can add a lot of shares.",
     "Shares the company has issued": "That's the company's share count, not its trading. Volume is only the shares that traded.",
     "How far the price moved": "That's the day's range or change. Volume says how much traded, not how far price went."
-   }
+   },
+   "simple": "Volume is the number of shares that changed hands that day, not the number of trades.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (q01 wrong-note on issued shares)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -614,13 +643,20 @@
    "format": "tf",
    "q": "When one investor sells 100 shares to another, the day's volume goes up by 200 shares.",
    "answer": "False",
-   "why": "False. Volume counts each share once. If A sells 100 shares to B, the volume is 100 shares.",
+   "why": "False. Volume counts each traded share once. If A sells 100 shares to B, the volume is 100 shares, not 200. Nasdaq's glossary says it another way. With a seller for every buyer, volume is half the shares counted on both sides.",
    "lesson_line": "Every share traded has a buyer and a seller. Volume counts it once.",
    "facts": [
     "f2",
     "f3",
     "f4"
-   ]
+   ],
+   "simple": "False, because each share sold to a buyer counts once, so 100 shares sold adds 100 to volume.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -637,13 +673,20 @@
     "relative"
    ],
    "answer": "average",
-   "why": "Average. The total volume for the period, divided by the number of bars in it, is the average volume.",
+   "why": "Average. The total volume for a period, divided by the number of bars in it, is the average volume. The period is a choice: the SEC's buyback rule, for example, uses the prior four calendar weeks. Total is the sum before you divide.",
    "lesson_line": "The average tells you what a normal day looks like for this stock.",
    "facts": [
     "f8",
     "f11",
     "f10"
-   ]
+   ],
+   "simple": "It is the average volume, because you add up the days and divide by how many days there are.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -654,21 +697,34 @@
    "choices": [
     "A large-cap stock",
     "A small-cap stock",
-    "A micro-cap stock"
+    "A micro-cap stock",
+    "A low-priced stock"
    ],
    "answer": "A large-cap stock",
-   "why": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps.",
+   "why": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps. Well-known stocks with heavy daily volume are generally more liquid than low-priced, low-volume or obscure ones. Usually is the key word: stocks with higher trading volume are generally more liquid, so check the volume itself.",
    "lesson_line": "Big, heavily traded names are usually the easiest to get in and out of.",
    "facts": [
     "f25",
     "f26",
     "f34",
-    "f35"
+    "f35",
+    "f29",
+    "f23"
    ],
    "wrong": {
     "A small-cap stock": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder.",
-    "A micro-cap stock": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard."
-   }
+    "A micro-cap stock": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
+    "A low-priced stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them."
+   },
+   "simple": "A large-cap stock, because FINRA says large caps are usually more liquid than small or micro caps.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (adjective tell removed)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -679,12 +735,12 @@
    "q": "When we call a stock liquid, what do we mean?",
    "choices": [
     "Easy to trade without moving the price",
-    "The company has plenty of cash",
-    "Its price barely moves day to day",
-    "It has a low share price"
+    "The company holds plenty of cash on hand",
+    "Its price barely moves from day to day",
+    "Its shares cost only a few dollars"
    ],
    "answer": "Easy to trade without moving the price",
-   "why": "Easy to trade without moving the price. A stock's liquidity is how fast its shares can be bought or sold without a big hit to the price.",
+   "why": "Easy to trade without moving the price. A stock's liquidity is how fast its shares can be bought or sold without a big hit to the price. FINRA adds: at a fair price, when you want to. It is about the shares trading, not the company's cash, a calm price or a cheap one.",
    "lesson_line": "Liquid means you can get in and out fast, at a fair price.",
    "facts": [
     "f17",
@@ -693,25 +749,39 @@
     "f26"
    ],
    "wrong": {
-    "The company has plenty of cash": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade.",
-    "Its price barely moves day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
-    "It has a low share price": "Cheap doesn't mean liquid. Low-priced, low-volume stocks are generally less liquid."
-   }
+    "The company holds plenty of cash on hand": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade.",
+    "Its price barely moves from day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
+    "Its shares cost only a few dollars": "Cheap doesn't mean liquid. Low-priced, low-volume stocks are generally less liquid."
+   },
+   "simple": "Liquid means you can buy or sell the shares quickly without moving the price much.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
    "skill": "basics.volume",
    "rung": 3,
    "format": "tf",
-   "q": "On a heavy-volume day, more shares get bought than sold.",
+   "q": "On a heavy-volume day, more shares usually get bought than sold.",
    "answer": "False",
-   "why": "False. There is a seller for every buyer, so shares bought always equal shares sold. Volume shows how much traded, not which side pushed.",
+   "why": "False. There is a seller for every buyer, so shares bought always equal shares sold, on any day. Heavy volume means more shares changed hands. It shows how much traded, not which side pushed, and average volume does not predict direction.",
    "lesson_line": "Volume tells you how much traded. It doesn't tell you which way the stock goes.",
    "facts": [
     "f2",
     "f4",
     "f16"
-   ]
+   ],
+   "simple": "False, because every share bought is a share sold, so buys and sells always match.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -723,20 +793,33 @@
    "choices": [
     "Shares traded times the price",
     "Shares outstanding times the price",
-    "The day's price change in dollars"
+    "The day's price change in dollars",
+    "Buys plus sells, times the price"
    ],
    "answer": "Shares traded times the price",
-   "why": "Shares traded times the price. S&P Dow Jones Indices works out dollar value traded the same way: the average closing price times the volume.",
+   "why": "Shares traded times the price. S&P Dow Jones Indices works out dollar value traded the same way: the average closing price times the volume. Each traded share counts once. Shares outstanding times the price is market cap, the value of the whole company, not its trading.",
    "lesson_line": "Dollar volume is roughly the money that changes hands in a day.",
    "facts": [
     "f43",
     "f41",
-    "f57"
+    "f57",
+    "f2",
+    "f3"
    ],
    "wrong": {
     "Shares outstanding times the price": "That's market cap, the value of the whole company. Dollar volume uses only the shares that traded.",
-    "The day's price change in dollars": "That's the day's change. It says how far price moved, not how much money traded."
-   }
+    "The day's price change in dollars": "That's the day's change. It says how far price moved, not how much money traded.",
+    "Buys plus sells, times the price": "That counts each share twice. Every share has a buyer and a seller, and volume counts it once."
+   },
+   "simple": "Dollar volume is the shares traded times the price, roughly the money that changed hands that day.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line hedged)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -755,12 +838,21 @@
    },
    "prefix": "$",
    "suffix": " million",
-   "why": "$100 million. Multiply the shares by the price: 2,500,000 shares at $40.",
+   "why": "$100 million. Dollar volume is shares times price: 2,500,000 shares at $40 is $100 million a day on average. S&P Dow Jones Indices measures dollar value traded the same way, price times volume.",
    "lesson_line": "I read volume in dollars. It puts cheap and pricey stocks on the same scale.",
    "facts": [
     "f43",
     "f41"
-   ]
+   ],
+   "simple": "It is $100 million, because 2,500,000 shares times $40 a share is $100 million.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
@@ -778,13 +870,23 @@
     }
    },
    "suffix": "x",
-   "why": "4x. Divide today's volume by the average: 4.8 million over 1.2 million.",
+   "why": "4x. Divide today's volume by the average: 4.8 million over 1.2 million is 4. Measured against the stock's own average, today is clearly heavy. Knowing volume is above average gives a sense of how much conviction a move might have.",
    "lesson_line": "Heavy or light is relative. Measure today against the stock's own average.",
    "facts": [
     "f9",
     "f6",
     "f53"
-   ]
+   ],
+   "simple": "It is 4 times the average, because 4.8 million divided by 1.2 million is 4.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (lesson line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -800,8 +902,8 @@
     "Thursday"
    ],
    "answer": "Wednesday",
-   "why": "Wednesday. Measure each day against the 800,000 average. Wednesday is far above it, and the other days sit close to normal.",
-   "lesson_line": "A heavy day stands out against the average, not against yesterday.",
+   "why": "Wednesday. Judge each day against the 800,000 average. Wednesday's 2,400,000 is far above it. Monday's 760,000, Tuesday's 840,000 and Thursday's 910,000 all sit close to normal. Volume spikes usually come on earnings, a report or news.",
+   "lesson_line": "A heavy day stands out against the stock's own average.",
    "facts": [
     "f9",
     "f6",
@@ -813,7 +915,20 @@
     "Monday": "760,000 is a touch under the 800,000 average. That's a normal day.",
     "Tuesday": "840,000 is only a touch over the average. Nothing stands out.",
     "Thursday": "910,000 is a little above average, but nowhere near Wednesday."
-   }
+   },
+   "simple": "Wednesday, because its 2,400,000 shares are far above the 800,000 average, while the other days sit near it.",
+   "deeper": {
+    "counter": "Thursday's 910,000 is the highest of the three normal days. Against the 800,000 average it is only a little above, an ordinary day. Wednesday's 2,400,000 is the one far above the average."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (support widened)"
+    ]
+   },
+   "order": "fixed",
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -831,13 +946,24 @@
     }
    },
    "suffix": "%",
-   "why": "25%. Your order is a quarter of a normal day's volume. A large order in a low-volume stock can be hard to fill quickly without moving the price.",
+   "why": "25%. Divide your order by the average day: 20,000 over 80,000 is a quarter of a normal day's volume. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill quickly without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it.",
    "lesson_line": "Size your order against the average volume. A big slice of the day can move the price on you.",
    "facts": [
     "f14",
     "f48",
-    "f23"
-   ]
+    "f23",
+    "h2"
+   ],
+   "simple": "It is 25%, because 20,000 shares is a quarter of the 80,000 shares a normal day trades.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (hedges)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -847,12 +973,13 @@
    "story": "Two stocks both quote a one-cent spread. Stock A trades about 10 million shares a day. Stock B trades about 5,000 shares a day.",
    "q": "You want to buy 5,000 shares. Which stock takes your order more easily?",
    "choices": [
-    "Stock A",
-    "Stock B",
-    "Same, the spreads match"
+    "Stock A, it trades far more",
+    "Stock B, the order is small",
+    "Same, the spreads match",
+    "Can't tell without the prices"
    ],
-   "answer": "Stock A",
-   "why": "Stock A. Matching spreads don't make two stocks equally liquid. Your 5,000 shares barely register in A, but they're a full normal day in B.",
+   "answer": "Stock A, it trades far more",
+   "why": "Stock A. Matching spreads don't make two stocks equally liquid, because a narrow spread is not the complete picture. Your 5,000 shares barely register in A's 10 million a day, but they are a full normal day in B. You do better with high volume and a tight spread together.",
    "lesson_line": "The spread says what it costs to cross. The volume says how much the stock can take.",
    "facts": [
     "f24",
@@ -862,9 +989,22 @@
     "f47"
    ],
    "wrong": {
-    "Stock B": "Your order is as big as a whole normal day in B. You'll likely move the price getting filled.",
-    "Same, the spreads match": "Spreads can be tight on both, which fools people into thinking both are equally liquid."
-   }
+    "Same, the spreads match": "Spreads can be tight on both, which fools people into thinking both are equally liquid.",
+    "Stock B, the order is small": "5,000 shares is not small here. It is a whole normal day in B, so you'll likely move the price getting filled.",
+    "Can't tell without the prices": "Your order is counted in shares, so compare shares. 5,000 barely registers against 10 million but is a full day in B."
+   },
+   "simple": "Stock A, because 5,000 shares is tiny next to its 10 million a day but a full day in B.",
+   "deeper": {
+    "trap": "The spread shows only the gap between the best bid and ask right now. It says nothing about how many shares the stock trades in a day. Two names can both quote a one-cent spread while one trades millions of shares and the other a handful. Check both before you size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (anchor fact added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -874,11 +1014,12 @@
    "story": "Stock A trades 3,000,000 shares a day at $2. Stock B trades 400,000 shares a day at $150.",
    "q": "Which one trades more dollars each day?",
    "choices": [
-    "B, $60 million a day",
+    "B, at $60 million a day",
     "A, 3 million shares a day",
-    "Same, about $6 million each"
+    "Same, about $6 million each",
+    "Need market cap to tell"
    ],
-   "answer": "B, $60 million a day",
+   "answer": "B, at $60 million a day",
    "calc": {
     "fn": "arith",
     "args": {
@@ -887,16 +1028,28 @@
      "b_price": 150
     }
    },
-   "why": "B, at $60 million a day. A trades more shares, but each one costs $2, so far fewer dollars change hands.",
+   "why": "B, at $60 million a day. Dollar volume is shares traded times the price. B's 400,000 shares at $150 is $60 million. A trades more shares, but at $2 each they come to far fewer dollars. Compare stocks in dollars traded, not shares.",
    "lesson_line": "Compare stocks in dollars traded, not shares. A share count hides the price.",
    "facts": [
     "f43",
-    "f41"
+    "f41",
+    "f57"
    ],
    "wrong": {
     "A, 3 million shares a day": "More shares, but cheap ones. At $2 a share, A trades far fewer dollars than B.",
-    "Same, about $6 million each": "A trades about $6 million a day, but B trades ten times that. Check the zeros."
-   }
+    "Same, about $6 million each": "Not the same. Work out each one: A's cheap shares come to far fewer dollars than B's $60 million.",
+    "Need market cap to tell": "Market cap uses shares outstanding. Dollars traded uses only the shares that trade: price times volume."
+   },
+   "simple": "B trades more dollars, because 400,000 shares at $150 is $60 million a day, while A's cheap shares come to far less.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (key was the only dollar choice)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -908,22 +1061,40 @@
    "choices": [
     "Taking a lower price to get out",
     "Getting out at the last price",
-    "Someone has to buy all 6,000"
+    "Filling all 6,000 at one price",
+    "A better price for selling in bulk"
    ],
    "answer": "Taking a lower price to get out",
-   "why": "Taking a lower price to get out. In a thin stock, selling quickly can mean accepting a lower price. Sometimes nobody will buy at a price you'd accept.",
+   "why": "Taking a lower price to get out. Your 6,000 shares are a big slice of a 15,000-share day. In a thin stock, selling quickly can mean accepting a lower price, and any size trade can move the price a lot. Sometimes nobody will buy at a price you'd accept. The last trade is not a promised price.",
    "lesson_line": "In a thin stock, the exit is the hard part. Plan it before you buy.",
    "facts": [
     "f20",
     "f21",
     "f18",
     "f34",
-    "f58"
+    "f58",
+    "f35",
+    "f36",
+    "f30",
+    "h2"
    ],
    "wrong": {
-    "Getting out at the last price": "The last price is a trade that already happened. Your sale has to find a buyer now.",
-    "Someone has to buy all 6,000": "Nobody has to buy. In an illiquid stock there may be no buyer at a price you'd accept."
-   }
+    "Getting out at the last price": "The last price is a trade that already happened. It is not the price your order is promised.",
+    "Filling all 6,000 at one price": "Not in a thin stock. When one price lacks enough shares, parts of a big market order can fill at other prices.",
+    "A better price for selling in bulk": "There is no bulk bonus. In a low-volume stock any size trade can move the price a lot, and selling fast can mean a lower price."
+   },
+   "simple": "Expect a lower price, because a thin stock may lack the buyers to take 6,000 shares fast.",
+   "deeper": {
+    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. That is why we never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (choice reworded)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -935,21 +1106,37 @@
    "choices": [
     "The $2,800 stock",
     "The $5 stock",
-    "Same bar for both"
+    "Same bar for both",
+    "The bigger company"
    ],
    "answer": "The $2,800 stock",
-   "why": "The $2,800 stock. The same share count is far more money at a high price, so the share test was tougher on pricey names. Nasdaq's current rule uses dollars: at least $5 million a day, on a three-month average.",
+   "why": "The $2,800 stock. The old rule counted shares: an average of 200,000 a day. Nasdaq said that, in dollar terms, this was more stringent on high-priced stocks and less on cheap ones. The same share count is far more money at $2,800 than at $5. Nasdaq's current rule uses dollars: at least $5 million a day, on a three-month average.",
    "lesson_line": "Same shares, different dollars. That's why I check dollar volume, not just the share count.",
    "facts": [
     "f40",
     "f41",
     "f42",
-    "f39"
+    "f39",
+    "h1"
    ],
    "wrong": {
     "The $5 stock": "At $5, 200,000 shares is little money. That was the easy bar to clear.",
-    "Same bar for both": "Same share count, very different dollars. Nasdaq pointed to exactly that gap."
-   }
+    "Same bar for both": "Same share count, very different dollars. Nasdaq pointed to exactly that gap.",
+    "The bigger company": "The test counted shares traded, not company size. At the same share count, a higher price means more dollars."
+   },
+   "simple": "The $2,800 stock, because 200,000 shares at that price is far more money than 200,000 shares at $5.",
+   "deeper": {
+    "trap": "The trap is reading a share count as a size. 200,000 shares a day sounds the same for every stock. But at $5 it is a small sum, and at $2,800 a huge one. That gap is why Nasdaq's current test is in dollars. It is an index entry rule, not ours: we trade only stocks that trade at least $20 million a day."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rule changed over time (Nasdaq-100 liquidity test, re-read 2026-11-12)",
+     "fixed before (stem tightened)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -958,42 +1145,71 @@
    "format": "tf",
    "q": "Thin, low-priced stocks are easier for bad actors to push around.",
    "answer": "True",
-   "why": "True. FINRA warns that bad actors target low-volume, low-priced stocks, even listed ones. In thin stocks, even small trades can move the price.",
+   "why": "True. FINRA warns that bad actors target stocks with low trading volume and a price of $5 or less. Little public information plus low volume can make an OTC stock's price easier to manipulate. In thin stocks, even fairly small trades can move the price. That does not make every cheap stock a scheme. It means treat sharp spikes there with caution.",
    "lesson_line": "Thin, cheap stocks are easier to push around. Treat sudden spikes there with caution.",
    "facts": [
     "f31",
     "f29",
     "f35",
-    "f33"
-   ]
+    "f33",
+    "f32"
+   ],
+   "simple": "True, because in a thin, cheap stock even small trades can move the price, which makes it easier to push around.",
+   "deeper": {
+    "trap": "The trap is reading a sudden spike in a thin, cheap stock as real demand. Even fairly small trades can move these stocks a lot. FINRA says to treat small caps and sharp price spikes and drops with particular caution."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (quote extended for low-priced)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
    "skill": "basics.volume",
    "rung": 8,
    "format": "scenario",
-   "story": "A small stock usually trades about 30,000 shares a day. News hits, and today it trades 900,000. You plan to build a position over the next week.",
-   "q": "Which volume should you size the position around?",
+   "story": "A stock usually trades about 2 million shares a day. News hits, and today it trades 14 million. You plan to buy it tomorrow.",
+   "q": "Which volume should cap the size of your buy?",
    "choices": [
-    "The usual 30,000 a day",
-    "Today's 900,000",
-    "Neither, volume doesn't matter"
+    "The usual 2 million a day",
+    "Today's 14 million shares",
+    "Neither, volume doesn't cap it",
+    "A short average with today"
    ],
-   "answer": "The usual 30,000 a day",
-   "why": "The usual 30,000 a day. Traders use average volume as the benchmark for trade size, not one day. A news day can run far above the average and may not last.",
-   "lesson_line": "Size for the normal day, not the news day.",
+   "answer": "The usual 2 million a day",
+   "why": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the normal day, not the news day.",
+   "lesson_line": "Cap your size by the normal day, not the news day.",
    "facts": [
+    "h2",
+    "f14",
     "f15",
     "f55",
     "f6",
-    "f10",
-    "f14",
-    "f34"
+    "f8",
+    "f11"
    ],
    "wrong": {
-    "Today's 900,000": "That's one news day. A single day can sit far above the stock's average.",
-    "Neither, volume doesn't matter": "It matters a lot here. Low volume can make it hard to sell when you want to."
-   }
+    "Today's 14 million shares": "That's one news day. A single day can trade far above the stock's average.",
+    "A short average with today": "One news day drags a short average far above normal. Cap your size by the usual day, not an average the spike inflated.",
+    "Neither, volume doesn't cap it": "It does. Our rule: never own more than 1% of a stock's average daily volume."
+   },
+   "simple": "The usual 2 million a day, because our cap is 1% of a normal day, and one news day runs far above normal.",
+   "deeper": {
+    "trap": "The quiet trap is a short average that includes the news day. One 14 million day among a few 2 million days drags that average far above normal. Take the cap from a normal stretch of days, so one spike does not raise it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (unsourced prediction removed)",
+     "the owner's rulebook speaks here (B23, D42: thin stocks are not traded)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -1002,12 +1218,25 @@
    "format": "tf",
    "q": "When markets get rough, thin stocks can get even harder to sell.",
    "answer": "True",
-   "why": "True. FINRA notes that in a crisis, money moves to the most liquid securities, and illiquid ones can become even less liquid.",
+   "why": "True. FINRA notes that in a crisis or a volatile market, investors often seek lower-risk assets. That might draw interest to the most liquid securities, while illiquid ones might become even less liquid. Thin stocks can be hard to sell in calm times too, so a selloff can make a hard exit harder.",
    "lesson_line": "Liquidity can dry up when you need it most. Thin names can get thinner in a selloff.",
    "facts": [
     "f27",
     "f18"
-   ]
+   ],
+   "simple": "True, because in rough markets interest can shift to the most liquid stocks, and thin ones can become even less liquid.",
+   "deeper": {
+    "trap": "The trap is judging an exit by a calm day. A thin stock you could sell on a quiet afternoon can become even less liquid when the whole market is under stress. Plan the exit for the bad day, not the good one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "key rests on one fact (f27)",
+     "fixed before (lesson line hedged)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
@@ -1017,23 +1246,41 @@
    "story": "You want a $60,000 position. Stock X is $12 and averages 25,000 shares a day. Stock Y is $45 and averages 2,000,000 shares a day.",
    "q": "Which one can take your size and still let you out cleanly?",
    "choices": [
-    "Stock Y",
+    "Stock Y, despite the price",
     "Stock X, it's cheaper",
-    "Either one at this size"
+    "Either one at this size",
+    "Neither, $60,000 is too big"
    ],
-   "answer": "Stock Y",
-   "why": "Stock Y. Multiply price by volume. X trades so few dollars a day that your order is a big piece of it. Y trades millions of shares, so yours barely shows.",
+   "answer": "Stock Y, despite the price",
+   "why": "Stock Y. Multiply price by average volume to see the dollars a stock trades each day. X at $12 on 25,000 shares trades so few dollars that your $60,000 would be a big piece of its day. Y at $45 on 2,000,000 shares trades so much that yours barely shows. A lower share price does not make a stock easier to trade. Our own rule agrees: we trade only stocks that trade at least $20 million a day, and X falls far short.",
    "lesson_line": "Before I size up, I check dollar volume. My order should be a small part of a normal day.",
    "facts": [
     "f23",
     "f14",
     "f13",
-    "f43"
+    "f43",
+    "f26",
+    "f12",
+    "h1"
    ],
    "wrong": {
     "Stock X, it's cheaper": "A lower price doesn't make it liquid. X's dollar volume is small, so your order would be a big part of its day.",
-    "Either one at this size": "Not here. In X, an order this big against the day's volume can be hard to fill fast without moving the price."
-   }
+    "Either one at this size": "Not here. In X, an order this big against the day's volume can be hard to fill fast without moving the price.",
+    "Neither, $60,000 is too big": "Not for Y. It trades millions of shares a day, so your order barely shows there."
+   },
+   "simple": "Stock Y, because it trades far more dollars a day, so your $60,000 is a tiny part of its normal day.",
+   "deeper": {
+    "trap": "The trap is thinking the cheaper stock is easier because you get more shares for the money. Price does not decide liquidity; how much trades each day says far more. Before you size up, check what part of a normal day your order would be."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (wrong-note hedged)",
+     "the owner's rulebook speaks here (B23, D42)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
@@ -1066,14 +1313,104 @@
    "skill": "basics.volume",
    "rung": 9,
    "format": "tf",
-   "q": "If a stock is listed on a major exchange, it trades plenty of shares.",
+   "q": "A major-exchange listing tells you a stock trades plenty of shares.",
    "answer": "False",
-   "why": "False. Exchange-listed stocks can have low trading volume too, and FINRA warns that bad actors target them. Check the volume yourself.",
+   "why": "False. A listing on a major exchange does not promise volume. FINRA warns that bad actors exploit the sense of safety a listing gives. They particularly target listed stocks with low trading volume and a price of $5 or less. Check the average volume yourself before you trust a name.",
    "lesson_line": "A listing is not liquidity. Check the average volume before you trust a name.",
    "facts": [
     "f32",
     "f33"
-   ]
+   ],
+   "simple": "False, because listed stocks can trade thinly too, so check the volume yourself.",
+   "deeper": {
+    "trap": "A big-exchange ticker can feel safe. FINRA's warning is about exactly that feeling: bad actors target listed stocks with low trading volume. The listing tells you where a stock trades, not how much it trades."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "key rests on one fact (f32)",
+     "fixed before (why hedged to FINRA's wording)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q22",
+   "skill": "basics.volume",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "Our rule: trade only stocks at $10 or more that trade at least $20 million a day. A $15 stock averages 500,000 shares a day.",
+   "q": "What does our rule say about this stock?",
+   "choices": [
+    "We skip it: too few dollars a day",
+    "We trade it: the price is over $10",
+    "We trade it, but with a small size",
+    "We skip it until the price is $20"
+   ],
+   "answer": "We skip it: too few dollars a day",
+   "why": "We skip it. Our rule needs both lines: a price of $10 or more and at least $20 million traded a day. Price times volume here, $15 times 500,000 shares, is far under $20 million. The price passes; the dollars traded do not.",
+   "simple": "We skip it, because $15 times 500,000 shares is far less than the $20 million a day our rule needs.",
+   "lesson_line": "We trade only stocks that clear both lines: $10 a share and $20 million a day.",
+   "deeper": {
+    "trap": "The trap is checking only the price. A stock can clear $10 a share and still trade too few dollars a day. Multiply the price by the average volume before a name goes on your list."
+   },
+   "facts": [
+    "h1",
+    "h2",
+    "f43"
+   ],
+   "wrong": {
+    "We trade it: the price is over $10": "The price passes, but our rule needs both lines. At $15, 500,000 shares a day is far under $20 million.",
+    "We trade it, but with a small size": "Size can't fix it. The $20 million line decides which stocks we trade at all, and illiquid stocks are not even watched.",
+    "We skip it until the price is $20": "The $20 million is dollars traded a day, not the share price. Our price line is $10, and $15 already clears it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a rule from the owner's rulebook (B23)",
+     "new question"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q23",
+   "skill": "basics.volume",
+   "rung": 5,
+   "format": "numeric",
+   "house": true,
+   "q": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares a day. What is the most we'd own?",
+   "answer": 6000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * pct / 100",
+     "adv": 600000,
+     "pct": 1
+    }
+   },
+   "suffix": " shares",
+   "why": "6,000 shares. One percent of 600,000 is 6,000. Our rule: never own more than 1% of a stock's average daily volume. That keeps our position a tiny part of a normal day, and illiquid stocks are not even watched.",
+   "simple": "6,000 shares, because 1% of the 600,000 shares it trades on an average day is 6,000.",
+   "lesson_line": "We never own more than 1% of a stock's average daily volume.",
+   "facts": [
+    "h2",
+    "f14",
+    "f13"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a rule from the owner's rulebook (D42)",
+     "computed key",
+     "new question"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1107,117 +1444,117 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key = f1 (Nasdaq, Tier 1); f5, f44, f49 agree. The note for 'Shares the company has issued' equated issued with outstanding (they differ by treasury stock); now 'That's the company's share count, not its trading.' Answer fits a Word Match tile.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q02": {
    "status": "pass",
-   "notes": "f3 (Nasdaq glossary): 'if A sells 100 shares to B, the volume is 100 shares'. f2's 'half of the number of shares transacted' read in context says the same thing. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold: False (f3: A sells 100 to B, volume is 100). Why grounded on f2/f3, sentences under 22 words. No tell."
   },
   "q03": {
    "status": "pass",
-   "notes": "f8 (Fidelity: total volume for a period divided by the number of bars), f11 (Investopedia), f10 (SEC Rule 10b-18 ADTV, current eCFR). Only 'average' fits; 'total', 'relative', 'dollar', 'peak' are real mix-ups. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "Key = f25 (FINRA: 'Large-cap stocks are usually more liquid than small- or micro-cap stocks'). The old choices 'A well-known large-cap' vs 'An obscure small-cap' gave the key away through the adjectives. Now plain large-cap / small-cap / micro-cap, notes from f25, f34, f35. Cap sizes are taught in F1.06; these are plain words, not house shorthand.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "Key = f17 (SEC Investor.gov), with f19 (FINRA) and f50 (Schwab AM). Each wrong choice is a real mix-up: company cash, a quiet stock, a cheap stock. Answer is 38 characters. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "f2 (Nasdaq: a seller for every buyer) makes shares bought equal shares sold by definition, so 'always' is right. f16 (Investopedia, read in context): ADTV does not predict direction. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold: False (f2/f4 seller for every buyer; f16 no direction). The hedged 'usually' balances q18's hedged True. Does not answer q02 or q21."
   },
   "q07": {
    "status": "pass",
-   "notes": "Key = f43 (S&P DJI, Dec 2024: average closing price times volume). Wrong notes right (f57: market cap). Lesson line said 'the money that really changes hands'; price times volume is an estimate, so now 'roughly the money that changes hands'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "Recomputed by hand: 2,500,000 x $40 = $100,000,000 = 100 million; calc matches. Lesson line supported by f41 (Nasdaq: a share-count test treats cheap and pricey stocks differently). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q09": {
    "status": "pass",
-   "notes": "Recomputed 4.8 / 1.2 = 4. Lesson line said heavy or light 'only means something next to the stock's own average'; f6 (Fidelity) also allows past periods or another benchmark, so now 'Heavy or light is relative. Measure today against the stock's own average.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "Recomputed: Wednesday 2,400,000 is 3x the 800,000 average; Monday 0.95x, Tuesday 1.05x, Thursday 1.14x. Key on f9, f6 (Fidelity) and f53 (Schwab Workplace); added f15 (Investopedia) so two Tier 2 publishers hold without the Schwab page, which refused fresh fetches today.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: Wednesday (2,400,000 vs 800,000 average, f9/f6). Every number comes from the story; spike line is f55. Weekday choices with fixed order, so key length is not a tell. Counter note is accurate."
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed 20,000 / 80,000 x 100 = 25. f23 (FINRA) says a large order in a low-volume security 'can be difficult'; the why and lesson line said 'is hard' and 'moves the price', now 'can be hard' and 'can move'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 20000/80000*100 = 25. Our-rule line is h2 quoted near word for word; 'far past it' is right (1% of 80,000 is 800 shares). Sentences under 22 words."
   },
   "q12": {
    "status": "pass",
-   "notes": "f24 (FINRA: a narrow spread is not the complete picture) and f45-f47 (Fidelity/ETF.com: tight spreads on both can mislead) confirmed. Added f23 (FINRA: higher volume is more liquid) as the Tier 1 anchor. 5,000 shares = one full day in B checked. 'Expect to move the price' now 'You'll likely move the price'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "Recomputed: B 400,000 x $150 = $60M, A 3,000,000 x $2 = $6M; calc matches the key. The key was the only choice with a dollar figure, a tell. Choices now 'B, $60 million a day' / 'A, 3 million shares a day' / 'Same, about $6 million each' (a dropped-zero slip), with notes.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key B is correct by the calc (60). The 'Same' wrong-note states 'A trades about $6 million a day' and 'ten times that'. No calc or quote gives either number (the calc covers only B). Reworded the note so it has no ungrounded number. Everything else passes."
   },
   "q14": {
    "status": "pass",
-   "notes": "Key = f20 (FINRA: 'You might have to accept a lower price if you need to sell quickly'); f21 and f58 (SEC: the last price is not the fill) confirmed. 6,000 is 40% of a 15,000-share day. The awkward choice 'A buyer having to take your shares' is now 'Someone has to buy all 6,000', same misconception, plainer.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Solved cold: a lower price (f20), backed by f21/f35/f58/f36. Choices are balanced and the longest one is a distractor. Deeper sentence 2 reads wrong: 'A position ... is the hard part on the way out' makes the position the hard part. Rewrote it. The h2 line is fine."
   },
   "q15": {
    "status": "pass",
-   "notes": "f40-f42 read in Nasdaq's Nov 2023 consultation; f39 in the current NDX methodology PDF (dated 2026-04-30): $5M three-month ADVT, no 200,000-share rule, so 'once required' is right. 200,000 x $2,800 = $560M vs 200,000 x $5 = $1M. 'found that bar harder to clear' read as an outcome; Nasdaq says the share test 'imposes a more stringent requirement', so now 'faced the higher bar under that rule'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only facts and deeper changed. The deeper's share-vs-dollar point rests on f41/f39. The h1 line is clearly marked as ours, not the index's. No number is used beyond the story and the quotes."
   },
   "q16": {
    "status": "pass",
-   "notes": "f31 is about OTC stocks with little information; f32 (FINRA, Jan 2024) about listed ones. The why dropped f31's 'minimal information' condition. f32's quote now runs on to 'and trade at a lower price ($5 or less)' (on the page, 37 words) so 'low-priced' is sourced; why restated as FINRA's claim, lesson line hedged.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: True (f31, f29, f32). The exchange-listed wording is gone, so it no longer answers q21. The hedge 'does not make every cheap stock a scheme' needs no fact. f33 caution is quoted faithfully."
   },
   "q17": {
    "status": "pass",
-   "notes": "Key = f14 (Investopedia: traders use ADTV as a benchmark for trade size) with f6 (Fidelity) and f15. The why said 'the normal day you'll likely be selling into', an unsourced prediction; now 'A news day can run far above the average and may not last.' Sizing off the usual day, not the news day, is the sound risk call.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Two defects. (1) Rulebook: the stem 'Which volume should you size the position around?' teaches the web view that volume sets size. Our rulebook sets size from the stop (A3/A5). Volume only CAPS size (D42, h2). The stem now asks what caps the size, and the key now rests on h2 as ours, so house:true is added. (2) Silly choice: 'Neither, it doesn't matter' breaks README rule 10. It is replaced by 'Neither, volume doesn't cap it', which is refuted by h2. Lengths: 25/25/30/26."
   },
   "q18": {
    "status": "pass",
-   "notes": "Key = f27 (FINRA: illiquid investments 'might become even less liquid' in a crisis). The lesson line was absolute ('dries up', 'get thinner'); now 'can dry up' and 'can get thinner'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: True (f27, hedged 'can' matches 'might'). The calm-times line is f18. No tell."
   },
   "q19": {
    "status": "pass",
-   "notes": "Recomputed: X $12 x 25,000 = $300,000 a day, so $60,000 is 20% of it; Y $45 x 2,000,000 = $90M, under 0.1%. Key on f23 (FINRA). Wrong note 'is hard to fill' now 'can be hard to fill', as f23 says 'can be difficult'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: Y. X is about $300K a day; Y about $90M. Under D42, 1% of Y's ADV is 20,000 shares vs about 1,333 shares wanted, so Y fits and X fails both B23 and D42. The key agrees with the rulebook. No computed figure is stated, only 'far short' or 'big piece'. Choice lengths are balanced. The 'Neither' wrong-note is correct."
   },
   "q20": {
    "status": "cut",
@@ -1227,9 +1564,21 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "Key = f32 (FINRA: bad actors target exchange-listed stocks with low trading volume). The why said FINRA names 'exactly those'; FINRA says 'particularly', so now 'FINRA warns that bad actors target them'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only the statement changed. 'tells you ... plenty of shares' is False on f32, with no absolute tell. q16 no longer gives it away."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: skip ($15 x 500,000 = $7.5M < $20M; price passes). h1 is quoted exactly from sizing_rule.md B23, and the story teaches the rule. Choices are 2 skip and 2 trade at 33-34 chars, with no silly one. Wrong-notes rest on h1/h2. 'Far under' states no number. B23 is read as AVERAGE dollar volume (owner_flag already raised)."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 600000*1/100 = 6000, and h2 is quoted exactly from D42. Question is about 128 chars. It does not answer q11 or q17 (those state the rule but ask other things)."
   }
  }
 }

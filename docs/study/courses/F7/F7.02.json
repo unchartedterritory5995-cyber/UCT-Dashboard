@@ -627,41 +627,61 @@
     "22.6%",
     "4.6%",
     "12.9%",
-    "34%"
+    "44%"
    ],
    "answer": "22.6%",
-   "why": "22.6%. The Dow crashed at the opening bell and finished down 508 points. That's one day, not a month.",
+   "why": "22.6%. On Black Monday, October 19, 1987, the Dow crashed at the opening bell. It finished down 508 points, or 22.6%. That was one session. The Dow's worst day of March 2020 was smaller, at 12.9%.",
    "lesson_line": "Black Monday: the Dow fell 22.6% in a single session.",
    "facts": [
     "f01",
     "f02",
     "f04",
     "f59",
-    "f32",
-    "f34"
+    "f42",
+    "f03"
    ],
    "wrong": {
     "4.6%": "That's what the Dow had lost by the close on Friday, October 16, the session before.",
     "12.9%": "That's the Dow's drop on March 16, 2020, its biggest one-day loss since 1987.",
-    "34%": "That's about how far stocks fell from peak to trough in 2020, over weeks, not in one day."
-   }
+    "44%": "That's what the Dow had gained in about seven months before the crash, to late August 1987."
+   },
+   "simple": "The Dow fell 22.6% in that one day, and it crashed right from the opening bell.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 1 Fed History facts give the same 22.6%",
+     "a historical number that does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q02",
    "rung": 1,
    "format": "tf",
-   "q": "From its February 2020 record, the S&P 500 took about a year to reach its low.",
-   "answer": "False",
-   "why": "False. About a month. The record close was February 19, and the closing low came March 23.",
+   "q": "The S&P 500 fell from its February 2020 record to its closing low in about a month.",
+   "answer": "True",
+   "why": "True. The S&P 500 closed at a record 3,386.15 on February 19, 2020. Its closing low was 2,237.40 on March 23. That speed is what makes it a fast crash.",
    "lesson_line": "A fast crash is fast. In 2020, record to low took about a month.",
    "facts": [
     "f41",
     "f53",
     "f44",
-    "f57",
-    "f34"
-   ]
+    "f54",
+    "f57"
+   ],
+   "simple": "True, the S&P 500 went from its February record to its March 23 closing low in about a month.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "dates from FRED and CNBC, which agree",
+     "historical, does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -670,12 +690,21 @@
    "format": "tf",
    "q": "Before the 1987 crash, the Dow had been stuck in a long slump.",
    "answer": "False",
-   "why": "False. It had been racing higher. By late August 1987, the Dow was up 44% in seven months.",
+   "why": "False. The Dow had been climbing fast. By late August 1987 it had gained 44% in seven months, which stoked fears of a bubble. The crash came after that run, not after a slump.",
    "lesson_line": "The 1987 crash came after a big run, not a slump.",
    "facts": [
     "f03",
     "f01"
-   ]
+   ],
+   "simple": "False, the Dow had risen 44% in seven months before the crash, so it came after a big run.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the key rests on one cited fact (f03)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -686,10 +715,11 @@
    "choices": [
     "About 34%",
     "About 12%",
-    "About 50%"
+    "About 50%",
+    "About 20%"
    ],
    "answer": "About 34%",
-   "why": "About 34%. Stocks tumbled in March, down as much as 34% from peak to trough. The S&P 500 fell more than 30% from its February record.",
+   "why": "About 34%. The Fed says stock prices tumbled in March 2020, down as much as 34% from peak to trough. CNBC says the S&P 500 fell more than 30% from its February record. That fall took weeks, not one day.",
    "lesson_line": "2020: about 34% gone, from a February record to a March low.",
    "facts": [
     "f34",
@@ -699,8 +729,19 @@
    ],
    "wrong": {
     "About 12%": "That's the S&P 500's drop on one day, March 16. The whole fall was far bigger.",
-    "About 50%": "Too far. The Fed puts the drop at as much as 34%, peak to trough."
-   }
+    "About 50%": "Too far. The Fed puts the drop at as much as 34%, peak to trough.",
+    "About 20%": "Too small. The Fed puts the 2020 fall at as much as 34%, peak to trough."
+   },
+   "simple": "About 34%, because stocks fell that far from the February top to the March low in 2020.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 Fed figure, a Tier 2 CNBC figure agrees",
+     "historical, does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -713,15 +754,24 @@
     "liquidity",
     "stocks",
     "gold",
-    "halts"
+    "bailouts"
    ],
    "answer": "liquidity",
-   "why": "Liquidity. On October 20, 1987, the Fed said it was ready to be a source of liquidity, and it encouraged banks to keep lending.",
+   "why": "Liquidity. On October 20, 1987, the day after Black Monday, the Fed affirmed its readiness to serve as a source of liquidity. Behind the scenes, it encouraged banks to keep lending on their usual terms.",
    "lesson_line": "In 1987 the Fed's answer was liquidity: keep cash and credit flowing.",
    "facts": [
     "f11",
     "f12"
-   ]
+   ],
+   "simple": "Liquidity, because the Fed said it stood ready to supply it, and it urged banks to keep lending.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the key rests on one cited fact (f11)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -734,22 +784,32 @@
     "A halt in trading across all stocks",
     "A five-minute pause in one stock",
     "A Fed tool that cuts interest rates",
-    "A broker selling your shares for you"
+    "A trading halt on one exchange only"
    ],
    "answer": "A halt in trading across all stocks",
-   "why": "A halt in trading across all stocks. It trips on a big one-day drop in the S&P 500, measured from the prior day's close.",
+   "why": "A halt in trading across all stocks. It trips on a severe one-day drop in the S&P 500, measured from the prior day's close. The levels are 7%, 13% and 20%. The exchanges run it, not the Fed. It is not the single-stock pause, which stops one stock for five minutes.",
    "lesson_line": "A market-wide circuit breaker stops the whole market, not one stock.",
    "facts": [
     "f23",
     "f24",
+    "f25",
     "f26",
     "f29"
    ],
    "wrong": {
     "A five-minute pause in one stock": "That's the single-stock breaker, Limit Up-Limit Down. It pauses one stock for five minutes.",
     "A Fed tool that cuts interest rates": "The Fed doesn't run it. The exchanges do, and it stops trading, not rates.",
-    "A broker selling your shares for you": "That's a forced sale in one account. A circuit breaker stops trading for everyone."
-   }
+    "A trading halt on one exchange only": "No. The halt is cross-market: the exchanges stop trading together, not one at a time."
+   },
+   "simple": "It halts trading in every stock at once when the S&P 500 falls hard in one day.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 a market rule that can change (re-checked on investor.gov 2026-11-12)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -759,12 +819,12 @@
    "q": "In March 2020, how many times did a market-wide circuit breaker halt all US stock trading?",
    "choices": [
     "Four times",
-    "Twice",
-    "Once",
-    "Never"
+    "Two times",
+    "One time",
+    "Not once"
    ],
    "answer": "Four times",
-   "why": "Four times: March 9, 12, 16 and 18. Each time the S&P 500 fell 7%, and trading stopped for 15 minutes.",
+   "why": "Four times: March 9, 12, 16 and 18, 2020. Each was a Level 1 halt on a 7% drop in the S&P 500. Each time, trading stayed stopped for the full 15 minutes before it restarted.",
    "lesson_line": "Four 7% halts in one month. That's what a fast crash looks like.",
    "facts": [
     "f32",
@@ -772,10 +832,20 @@
     "f23"
    ],
    "wrong": {
-    "Twice": "There were four Level 1 halts, on March 9, 12, 16 and 18.",
-    "Once": "It happened four times that month, not once.",
-    "Never": "The breaker fired four times, each on a 7% drop in the S&P 500."
-   }
+    "Two times": "There were four Level 1 halts, on March 9, 12, 16 and 18.",
+    "One time": "It happened four times that month, each on a 7% drop.",
+    "Not once": "The breaker fired four times, each on a 7% drop in the S&P 500."
+   },
+   "simple": "Four times, each time the S&P 500 fell 7% in a day and trading stopped for 15 minutes.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "one Tier 1 SEC release, two facts from it",
+     "historical count, does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -791,40 +861,61 @@
     "twenty"
    ],
    "answer": "two",
-   "why": "Two. Stocks won back most of the Black Monday loss quickly, and passed their old highs in less than two years.",
+   "why": "Two. The Fed says that less than two years after the 1987 crash, US stocks surpassed their pre-crash highs. Most of the Black Monday loss came back quickly.",
    "lesson_line": "1987 hurt fast and healed in under two years.",
    "facts": [
     "f15",
     "f14"
-   ]
+   ],
+   "simple": "Two, because US stocks passed their old highs less than two years after the 1987 crash.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the key rests on one cited fact (f15)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q09",
    "rung": 4,
    "format": "tf",
-   "q": "On Black Monday 1987, markets in Asia held steady until New York opened.",
-   "answer": "False",
-   "why": "False. Markets in and around Asia were already plunging before US markets opened that Monday.",
-   "lesson_line": "Crashes travel. In 1987 the trouble showed up overseas before New York opened.",
+   "q": "On Black Monday 1987, markets in Asia were already falling before New York opened.",
+   "answer": "True",
+   "why": "True. The Fed says markets in and around Asia began plunging before US markets opened that Monday. Then New York crashed at the opening bell.",
+   "lesson_line": "Black Monday was global. Asia was already falling before New York opened.",
    "facts": [
     "f06",
+    "f02",
     "f01"
-   ]
+   ],
+   "simple": "True, markets in and around Asia were already plunging before New York opened that Monday.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+3 the key rests on one cited fact (f06)",
+     "+1 the statement was fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q10",
    "rung": 4,
    "format": "mcq",
-   "q": "1987 and 2020 both crashed fast. Which one got back to its old high sooner?",
+   "q": "1987 and 2020 both crashed fast. Which one got back to a record high sooner?",
    "choices": [
     "2020",
     "1987",
-    "About the same"
+    "About the same",
+    "Both took years"
    ],
    "answer": "2020",
-   "why": "2020. The S&P 500 was back at a record on August 18, 2020, the same year it crashed. After 1987, the Dow's first new high came on August 24, 1989.",
+   "why": "2020. The S&P 500 closed at a record 3,389.78 on August 18, 2020, the same year it crashed. After 1987, the Dow's first new high came on August 24, 1989. Its old record was from August 25, 1987.",
    "lesson_line": "2020 was back at a record within months. After 1987, it took almost two years.",
    "facts": [
     "f46",
@@ -837,8 +928,18 @@
    ],
    "wrong": {
     "1987": "1987 took longer. The Dow didn't top its August 1987 high until August 24, 1989.",
-    "About the same": "No. 2020 got back within the same year. After 1987, the Dow's first new high took almost two years."
-   }
+    "About the same": "No. 2020 got back within the same year. After 1987, the Dow's first new high took almost two years.",
+    "Both took years": "2020 didn't. The S&P 500 was back at a record on August 18, 2020, the same year it crashed."
+   },
+   "simple": "2020, because stocks hit a new record within months, while after 1987 it took about two years.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (the 1987 recovery date was added from two Tier 2 publishers)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -856,15 +957,27 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "51.3%. From 2,237.40 back up to 3,386.15. A 34% drop took a gain of over 51% just to get back to even.",
-   "lesson_line": "A drop of about a third needs a gain of about half to get back. Protect the downside.",
+   "why": "51.3%. Take the gap, 3,386.15 minus 2,237.40, and divide it by the low. The fall was about 34%, but the climb back is 51.3%. The gain is measured from the lower price, so it is bigger.",
+   "lesson_line": "A drop of about a third needs a gain of about half to get back.",
    "facts": [
     "f44",
     "f41",
     "f54",
     "f53",
     "f34"
-   ]
+   ],
+   "simple": "51.3%, because a gain back is measured from the lower price, so it must be bigger than the fall.",
+   "deeper": {
+    "trap": "The trap is thinking a 34% fall needs a 34% gain to get back. The gain is measured from the low, a smaller base, so the same points are a bigger percent: 51.3% here. That is why the size of a loss matters more than it looks."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 a computed key (calc pct_change)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -873,18 +986,28 @@
    "format": "tf",
    "q": "The 1987 stock market crash was followed by a recession.",
    "answer": "False",
-   "why": "False. The Black Monday losses were not followed by a recession or a banking crisis.",
+   "why": "False. The Fed says the Black Monday losses were not followed by an economic recession or a banking crisis. That does not make the crash mild: the Dow still fell 22.6% in one day.",
    "lesson_line": "A crash in stocks isn't always a crash in the economy.",
    "facts": [
-    "f13"
-   ]
+    "f13",
+    "f01"
+   ],
+   "simple": "False, the Fed says no recession or banking crisis came after the 1987 crash.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the key rests on one cited fact (f13)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q13",
    "rung": 5,
    "format": "scenario",
-   "story": "It's a crash day. At 10:15 a.m., the S&P 500 is down 7% from yesterday's close. You want out of a position.",
+   "story": "It's a crash day. At 10:15 a.m., the S&P 500 first falls 7% from yesterday's close. You want out of a position.",
    "q": "What happens next?",
    "choices": [
     "All trading halts for 15 minutes",
@@ -893,10 +1016,11 @@
     "Nothing until it's down 10%"
    ],
    "answer": "All trading halts for 15 minutes",
-   "why": "All trading halts for 15 minutes. A 7% drop before 3:25 p.m. trips Level 1, and every stock stops. You can't sell until trading resumes.",
+   "why": "All trading halts for 15 minutes. A 7% drop from the prior close, before 3:25 p.m., trips Level 1 and every stock stops. You can't sell until trading resumes. Only a 20% drop closes the market for the rest of the day.",
    "lesson_line": "Down 7% before 3:25 p.m., the whole market stops for 15 minutes. Know that before it happens.",
    "facts": [
     "f25",
+    "f26",
     "f27",
     "f28",
     "f29",
@@ -906,7 +1030,20 @@
     "Trading stops for the rest of the day": "That's Level 3, at a 20% drop.",
     "Only the worst stocks get paused": "That's the single-stock breaker. A 7% drop in the S&P 500 halts every stock.",
     "Nothing until it's down 10%": "The first trigger is 7%, not 10%."
-   }
+   },
+   "simple": "All trading stops for 15 minutes, because a 7% fall before 3:25 p.m. trips the first market-wide breaker.",
+   "deeper": {
+    "trap": "The trap is planning to sell into the drop. Once the market-wide halt trips, every stock stops at once. You cannot trade until it resumes 15 minutes later."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 a market rule that can change (re-checked on investor.gov 2026-11-12)",
+     "+1 the story was fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -915,20 +1052,29 @@
    "format": "tf",
    "q": "If the S&P 500 first falls 7% at 3:40 p.m., trading halts for 15 minutes.",
    "answer": "False",
-   "why": "False. A 7% or 13% drop at or after 3:25 p.m. doesn't halt trading. Only a 20% drop does, and that closes the market for the rest of the day.",
+   "why": "False. A 7% or 13% drop at or after 3:25 p.m. does not halt market-wide trading. A 20% drop, at any time of day, halts trading for the rest of the day. Before 3:25 p.m., the same 7% drop would halt trading for 15 minutes.",
    "lesson_line": "Late in the day, the 7% and 13% breakers are off. Only 20% stops the market.",
    "facts": [
     "f27",
     "f28",
     "f25"
-   ]
+   ],
+   "simple": "False, after 3:25 p.m. a 7% drop no longer halts trading, and only a 20% drop stops the market.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 a market rule that can change (investor.gov re-checked 2026-11-12; FINRA's December 6, 2026 change rewords Level 3 only)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q15",
    "rung": 6,
    "format": "mcq",
-   "q": "Portfolio insurance was popular in 1987. What did it do as prices fell?",
+   "q": "Big investors used portfolio insurance in 1987. What did it do as prices fell?",
    "choices": [
     "Sold more, adding to the drop",
     "Paid investors back for losses",
@@ -936,7 +1082,7 @@
     "Halted trading during the drop"
    ],
    "answer": "Sold more, adding to the drop",
-   "why": "It sold more, adding to the drop. A first drop made portfolio insurers sell, which pushed prices lower, which made them sell again.",
+   "why": "It sold more, adding to the drop. Portfolio insurance was a hedging method that used futures and options. A first drop made insurers sell, which pushed prices lower, which made them sell again. The Fed says it sped up the crash. It was not a policy that paid out losses.",
    "lesson_line": "Selling set off by falling prices feeds on itself. That's how a bad day becomes a crash.",
    "facts": [
     "f08",
@@ -949,14 +1095,24 @@
     "Paid investors back for losses": "Despite the name, it wasn't a policy that pays claims. It was a hedging method using futures and options.",
     "Bought dips to prop up prices": "The opposite. It sold into the decline, and that sped the crash up.",
     "Halted trading during the drop": "It didn't, and in 1987 the exchanges had no market-wide halt. Those rules were first adopted in 1988."
-   }
+   },
+   "simple": "It sold more as prices fell, which pushed prices lower and set off still more selling.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "three Tier 1 Fed History facts agree",
+     "historical, does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q16",
    "rung": 7,
    "format": "numeric",
-   "q": "March 16, 2020: the VIX hits a record. The S&P 500 closes at 2,386.13. The March 23 close is 2,237.40. How much lower, in %? One decimal.",
+   "q": "March 16, 2020: the VIX closes at a record. The S&P 500 closes at 2,386.13, and at 2,237.40 on March 23. How much lower, in %? One decimal.",
    "answer": 6.2,
    "calc": {
     "fn": "drawdown_pct",
@@ -967,14 +1123,27 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "6.2%. The VIX, the market's fear gauge, closed at a record 82.69 on March 16. The S&P 500's closing low still came a week later, at 2,237.40.",
+   "why": "6.2%. The S&P 500 closed at 2,386.13 on March 16, 2020, the day the VIX closed at a record 82.69. The closing low came a week later, at 2,237.40 on March 23. The VIX is the market's fear gauge. Its record showed stress, but it did not mark the low.",
    "lesson_line": "Record fear doesn't mark the low on its own. Let price show you the selling is done.",
    "facts": [
     "f60",
     "f42",
     "f44",
     "f57"
-   ]
+   ],
+   "simple": "6.2% lower, because the low came a week after the record fear reading, not on the same day.",
+   "deeper": {
+    "trap": "The trap is buying the day fear hits a record because it must be the bottom. On March 16, 2020 the VIX closed at a record 82.69, yet the S&P 500 closed 6.2% lower a week later. A record fear reading is a sign of stress, not a timing signal."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 a computed key (calc drawdown_pct)",
+     "+1 fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -984,11 +1153,12 @@
    "story": "March 23, 2020, before the open. The Fed says it will buy bonds in whatever amounts are needed.",
    "q": "How did the S&P 500 close that day?",
    "choices": [
-    "Down 2.9%",
+    "Down 2.9% on the day",
     "Up big on the Fed news",
-    "About unchanged"
+    "About flat on the day",
+    "Down 7%, trading halted"
    ],
-   "answer": "Down 2.9%",
+   "answer": "Down 2.9% on the day",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -997,7 +1167,7 @@
     },
     "round": 1
    },
-   "why": "Down 2.9%, to 2,237.40. Stocks fell even after the Fed's open-ended buying news. That close turned out to be the low.",
+   "why": "Down 2.9%, to 2,237.40. The Fed's news came out at 8:00 a.m., before the 9:30 a.m. open. Stocks still fell, as failed votes in the Senate weighed on Wall Street. That close was the low. The next day the S&P 500 closed at 2,447.33.",
    "lesson_line": "The low looked like just another bad day. You only see it later.",
    "facts": [
     "f38",
@@ -1008,12 +1178,27 @@
     "f43",
     "f44",
     "f45",
-    "f57"
+    "f57",
+    "f32"
    ],
    "wrong": {
     "Up big on the Fed news": "Stocks fell even after the announcement. The big jump came the next day.",
-    "About unchanged": "It wasn't quiet. The S&P 500 slid 2.9% to a new closing low."
-   }
+    "About flat on the day": "It wasn't quiet. The S&P 500 slid 2.9% to a new closing low.",
+    "Down 7%, trading halted": "No halt that day. The four March 2020 halts came on March 9, 12, 16 and 18. On March 23 the S&P 500 slid 2.9%."
+   },
+   "simple": "Down 2.9%, because stocks kept falling that day even after the Fed's big bond buying news.",
+   "deeper": {
+    "trap": "The trap is expecting big news to turn the market the same day. On March 23, 2020 the Fed's open-ended buying came out before the open, and the S&P 500 still slid 2.9% to 2,237.40. The turn showed up in price the next day, at 2,447.33. You only know a low was the low after the fact."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 a computed key (calc drawdown_pct, matches CNBC's 2.9%)",
+     "+1 the story was fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -1025,10 +1210,11 @@
    "choices": [
     "Well above its March low",
     "Still making new lows",
-    "Back at its February record"
+    "Back at its February record",
+    "Flat since the March low"
    ],
    "answer": "Well above its March low",
-   "why": "Well above its March low. It closed at 2,929.80 that day, against a closing low of 2,237.40 on March 23. Price turned weeks before the jobs news did.",
+   "why": "Well above its March low. On May 8, 2020 the S&P 500 closed at 2,929.80. Its closing low was 2,237.40 on March 23. It was still below the 3,386.15 February record, which it passed on August 18. Price turned weeks before that jobs report came out.",
    "lesson_line": "In 2020, price bottomed weeks before the worst jobs report. Don't wait for the news to turn.",
    "facts": [
     "f35",
@@ -1043,35 +1229,66 @@
    ],
    "wrong": {
     "Still making new lows": "No. The closing low was 2,237.40 on March 23. On May 8 the S&P 500 closed at 2,929.80.",
-    "Back at its February record": "Not yet. 2,929.80 was still below the 3,386.15 record. The new record came on August 18."
-   }
+    "Back at its February record": "Not yet. 2,929.80 was still below the 3,386.15 record. The new record came on August 18.",
+    "Flat since the March low": "It wasn't flat. It closed at 2,929.80 on May 8, far above the 2,237.40 closing low on March 23."
+   },
+   "simple": "Well above its March low, because prices had already climbed for weeks before the worst jobs news came out.",
+   "deeper": {
+    "trap": "The trap is waiting for the news to improve before you buy. The April 2020 jobs report showed unemployment at 14.7%, the highest since the Great Depression. Yet the S&P 500 already stood at 2,929.80, well above its 2,237.40 low. Price turned weeks before that report came out."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 the 14.7% has since been revised (FRED now 14.8%); the story says 'as first reported'",
+     "+1 fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
    "key": "q19",
    "rung": 8,
    "format": "scenario",
-   "story": "Friday, October 16, 1987. The Dow just fell 108.35 points, its biggest point drop ever at the time. You're fully invested, with stops below every position.",
-   "q": "What do you do before the weekend?",
+   "story": "Friday, October 16, 1987. The Dow just fell 108.35 points, its biggest point drop ever at the time. You hold stocks, each with a sell-stop order under it.",
+   "q": "Monday, the Dow crashes at the opening bell and your stocks open below your stops. How do the stops fill?",
    "choices": [
-    "Cut your size before the close",
-    "Hold, your stops cap the loss",
-    "Buy more, it's oversold"
+    "As market orders, at the going price",
+    "At exactly the stop prices you set",
+    "As limit orders, at your stop or better",
+    "Only after a market-wide halt ends"
    ],
-   "answer": "Cut your size before the close",
-   "why": "Cut your size. A stop is a trigger, not a price, and it can't fill over a weekend. On Monday the Dow crashed at the opening bell and closed down 22.6%.",
-   "lesson_line": "A stop can't catch a gap. Into a weekend like that, your size is the protection.",
+   "answer": "As market orders, at the going price",
+   "why": "As market orders, at the going price. A stop price is a trigger, not a guaranteed price. Once hit, the stop becomes a market order. In a fast market it can fill far from your stop. That Monday the Dow crashed at the opening bell and closed down 22.6%.",
+   "lesson_line": "A stop is a trigger, not a price. A gap can jump right past it.",
    "facts": [
     "f05",
     "f02",
     "f51",
     "f52",
-    "f07"
+    "f16",
+    "f31"
    ],
    "wrong": {
-    "Hold, your stops cap the loss": "They don't. A triggered stop becomes a market order, and in a fast market it can fill far below your stop.",
-    "Buy more, it's oversold": "On Monday, sell orders swamped the buyers. The Dow crashed at the open and lost 22.6% on the day."
-   }
+    "At exactly the stop prices you set": "The stop price is a trigger, not a guaranteed price. In a fast market the fill can land far from it.",
+    "As limit orders, at your stop or better": "A triggered stop becomes a market order, not a limit order. It sells at the going price.",
+    "Only after a market-wide halt ends": "There was no market-wide halt in 1987. Those rules were first adopted in 1988."
+   },
+   "simple": "As market orders at the going price, because a stop is only a trigger and the open was already below it.",
+   "deeper": {
+    "trap": "The trap is thinking a stop sets your exit price. It only sets the trigger. When a stock opens below your stop, the stop fires and sells at the going price. In 1987 the Dow crashed at the opening bell and closed down 22.6%."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rewritten by the checker (new key)",
+     "+1 the story was fixed before",
+     "+1 sits next to the owner's rulebook (A4, A7, B20); the new key states only the SEC/FINRA order mechanics"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -1083,11 +1300,12 @@
    "choices": [
     "1929 took until 1954 to come back",
     "None, fast crashes always come back",
-    "He should wait for the Fed to act"
+    "The Fed won't step in next time",
+    "None, breakers now stop crashes"
    ],
    "answer": "1929 took until 1954 to come back",
-   "why": "1929 took until 1954 to come back. It started as a fast crash, and by 1932 the Dow was 89% below its peak. Two quick recoveries don't make a rule.",
-   "lesson_line": "Two quick recoveries don't make a rule. Size for the crash that doesn't come back.",
+   "why": "1929 took until 1954 to come back. It began as a fast crash too: the Dow fell nearly 13% on October 28, 1929. By mid-November it had lost almost half. The slide ran to the summer of 1932, 89% below the peak. Two quick recoveries are not a rule.",
+   "lesson_line": "Two quick recoveries don't make a rule. After 1929, the Dow took until 1954 to get back.",
    "facts": [
     "f18",
     "f19",
@@ -1096,12 +1314,27 @@
     "f22",
     "f62",
     "f15",
-    "f46"
+    "f46",
+    "f32",
+    "f34"
    ],
    "wrong": {
     "None, fast crashes always come back": "1929 didn't. The Dow fell 89% from its peak and didn't get back until November 1954.",
-    "He should wait for the Fed to act": "Waiting on the Fed doesn't protect his stocks. In 1929 the New York Fed acted fast and kept the banks open, but the stock market still collapsed."
-   }
+    "The Fed won't step in next time": "Not the hole. After 1929 the New York Fed did act fast and kept the banks open, but stocks still collapsed.",
+    "None, breakers now stop crashes": "Breakers only pause trading. In March 2020 they halted trading four times, and stocks still fell as much as 34% peak to trough."
+   },
+   "simple": "1929 started fast too but took until 1954 to come back, so two quick comebacks don't promise a third.",
+   "deeper": {
+    "trap": "The trap is learning only from the crashes you studied. 1987 and 2020 made new highs fast. 1929 started the same way, nearly 13% in a day, then fell 89% and took until November 1954 to get back. A plan that works only if the market comes back fast is a bet, not a plan."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 a wrong note was fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "skill": "history.fast_crash",
@@ -1113,10 +1346,11 @@
    "choices": [
     "No, the S&P 500 hit a record in August",
     "Yes, stocks waited for the economy",
-    "Yes, new highs took until 2022"
+    "Yes, new highs took until 2022",
+    "No, the jobs market had healed by August"
    ],
    "answer": "No, the S&P 500 hit a record in August",
-   "why": "No. The S&P 500 closed at a record 3,389.78 on August 18, 2020. Unemployment that month was still 8.4%, up from 3.5% in February.",
+   "why": "No. The S&P 500 closed at a record 3,389.78 on August 18, 2020. Unemployment that month was still 8.4%, against 3.5% in February. By November the Fed noted record highs while earnings stayed uncertain. Stocks did not wait for the economy.",
    "lesson_line": "In 2020 stocks hit records long before the economy healed. Don't wait for the all-clear.",
    "facts": [
     "f36",
@@ -1124,12 +1358,27 @@
     "f46",
     "f49",
     "f50",
-    "f40"
+    "f40",
+    "f01",
+    "f13"
    ],
    "wrong": {
     "Yes, stocks waited for the economy": "They didn't. The record came with unemployment at 8.4%, far above February's 3.5%.",
-    "Yes, new highs took until 2022": "The S&P 500 closed at a record on August 18, 2020."
-   }
+    "Yes, new highs took until 2022": "The S&P 500 closed at a record on August 18, 2020.",
+    "No, the jobs market had healed by August": "The No is right, but not the reason. Unemployment was still 8.4% in August 2020, up from 3.5% in February."
+   },
+   "simple": "No, the S&P 500 hit a record in August 2020 while jobs were still far from healed.",
+   "deeper": {
+    "counter": "It works the other way too: a crash does not mean the economy breaks. In 1987 the Dow fell 22.6% in one day, yet no recession or banking crisis followed. Stocks and the economy do not move in step."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 unemployment figures are FRED's current vintage and can be revised"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1163,129 +1412,129 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "22.6% is Tier 1 (Fed History). Each wrong number is real and fairly placed: 4.6% is Friday October 16 (108.35 points from about 2,355), 12.9% is the Dow on March 16, 2020 (CNBC), 34% is the Fed's 2020 peak to trough.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer 22.6% (f01, f02). Distractors are real 1987/2020 mix-ups (f04, f59, f03), lengths 3-5 chars, no tell. 12.9% as the Dow's worst March 2020 day follows from f59 'biggest one-day losses since 1987'. No cross-answer: 34% is gone from the notes."
   },
   "q02": {
    "status": "pass",
-   "notes": "FRED: record close 3,386.15 on February 19, lowest close 2,237.40 on March 23 (33 calendar days); CNBC confirms the March 23 low. 'About a month' is fair; 'about a year' is plainly false.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer True: record 3,386.15 on Feb 19 (f41, f53), closing low 2,237.40 on Mar 23 (f44, f54, f57), 33 days = about a month. tf keys now 2 True, 3 False. No number leaks into q04 or q11."
   },
   "q03": {
    "status": "pass",
-   "notes": "Fed History: 'Stock markets raced upward during the first half of 1987' and 44% in seven months by late August.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "Fed MPR June 2020: 'as much as 34 percent from peak to trough'; FRED closes give 33.9%; CNBC 'more than 30%'. 12% is the March 16 one-day drop (CNBC); 50% is wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer About 34% (f34 Tier 1, f58 agrees). All choices 9 chars. 'About 20%' no longer echoes q01's 22.6%; its note rests on f34. 'Weeks, not one day' rests on f34 (March) vs f59 (one day)."
   },
   "q05": {
    "status": "pass",
-   "notes": "Greenspan's October 20, 1987 statement quoted on the Fed History page; bank-lending line in the next sentence. Bank words are believable and only 'liquidity' fits.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer liquidity (f11 verbatim). 'bailouts' is a plausible wrong word and not the Fed's word; no second answer. 'stocks' and 'gold' are weak but were not changed and are not silly enough to give it away."
   },
   "q06": {
    "status": "pass",
-   "notes": "investor.gov definitions: market-wide halt on a one-day S&P 500 drop from the prior close; LULD pauses one stock for five minutes; the exchanges run the halts. Answer is 35 characters, fits Word Match.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer the cross-market halt (f23, f24). New choice 'A trading halt on one exchange only' is a real confusion, wrong on f23/f24 'cross-market'. Lengths 32-35. The walkthrough w2 teaches it first, which is fine."
   },
   "q07": {
    "status": "pass",
-   "notes": "SEC Release 34-94705: 'four MWCB Level 1 halts on March 9, 12, 16, and 18, 2020', each on a 7% SPX drop with the full 15-minute halt.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "Fed History: 'Less than two years later, US stock markets surpassed their pre-crash highs'; CNBC (s18) dates the Dow's first new high to August 24, 1989, which agrees.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer two (f15). Why now states only f15 and f14; the line that handed over q20's 1929 key is gone. q20's story ('within two years') sits later and does not leak backward."
   },
   "q09": {
    "status": "pass",
-   "notes": "Changed the statement. 'The selling started in New York and spread overseas' was arguable: US stocks fell hard October 14 to 16, before Asia's Monday plunge. Now: 'markets in Asia held steady until New York opened', which the Fed quote (Asia 'began plunging' before the US open) plainly contradicts.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key True is right (f06, re-read on the live Fed page 2026-11-12). Lesson_line still opens with the general claim 'Crashes travel.', which one case does not support. Fix keeps it to Black Monday, using f01's 'global financial crisis'."
   },
   "q10": {
    "status": "pass",
-   "notes": "The key needs 1987 to have taken longer than 2020, but the only 1987 fact said 'less than two years' (an upper bound). Added CNBC 2012 (s18: first new Dow high August 24, 1989) and the Christian Science Monitor of August 14, 1989 (s19: Dow still below the 1987 high). Two publishers agree, consistent with the Fed. Rewrote the why, the lesson and both wrong notes from those facts; dropped 'Both healed fast'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer 2020: record Aug 18, 2020 (f46, f56) vs the Dow's first new high Aug 24, 1989 (f63, f64; two Tier 2 publishers agree, f15 Tier 1 'less than two years'). Holds for either 1987 index (conflicts note). 'Almost two years' agrees with f15 and f63."
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed 3,386.15 / 2,237.40 - 1 = 51.34%, so 51.3. 'A 34% drop took over 51%' holds (1 / 0.66 - 1 = 51.5%). Closes on FRED and CNBC.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc re-run: (3386.15-2237.40)/2237.40 = 51.3%. New lesson_line 'about a third ... about half' matches 33.9% (conflicts, f34) and the 51.3% calc. No advice left in it."
   },
   "q12": {
    "status": "pass",
-   "notes": "Fed History: 'not followed by an economic recession or a banking crisis'; the Kohn quote that follows agrees.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "The story said 'It's March 2020. At 10:15 a.m. ... down 7%', an invented halt inside a real month (the real halts were at other times). Now a plain crash day. Rule is current: investor.gov, and FINRA SR-FINRA-2026-025 restates 7% before 3:25 p.m. = 15-minute halt. Every wrong choice is a real misread (Level 3, LULD, the old 10%). Lesson line now keeps the 'before 3:25 p.m.' condition (q14 is the exception).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer 15-minute halt (f25, f27; 10:15 a.m. is before 3:25 p.m.). 'First falls' rules out an earlier Level 1 that day. Trap states only f27/f33 mechanics. 'Resumes 15 minutes later' slightly simplifies f33 ('did not start the process to resume ... until the 15-minute halt period ended'), fine at this level."
   },
   "q14": {
    "status": "pass",
-   "notes": "investor.gov and FINRA's November 2026 filing: a 7% or 13% drop at or after 3:25 p.m. does not halt trading; 20% halts for the rest of the day. 'First falls' rules out an earlier Level 1 that day.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "Fed History: portfolio insurance was 'very popular', 'accelerated the crash's pace'; Shiller's vicious circle; endnote defines it as hedging with futures and options. Wrong notes rest on f09, f16 and f31 (rules adopted 1988).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer sold more (f08, f10). 'Big investors' follows f09 'institutional investors'. Every wrong choice is a real confusion (the name 'insurance', dip-buying, circuit breakers) and each note is grounded (f09, f08, f16/f31). Lengths 29-30."
   },
   "q16": {
    "status": "pass",
-   "notes": "Recomputed (2,386.13 - 2,237.40) / 2,386.13 = 6.23%, so 6.2. The VIX was never explained: the why now says what it is (the market's fear gauge) and gives its 82.69 record close (CNBC); the stem reads as plain sentences and keeps 'One decimal.' (the scorer accepts only 6.2 / 6.20). Lesson is a mentor line, not a keyed fact.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc re-run: (2386.13-2237.40)/2386.13 = 6.2%. Stem 139 chars. VIX 'closes at a record' matches f60. Minor, not blocking: 'Let price show you the selling is done' (lesson_line) and 'not a timing signal' (deeper) are mentor judgment drawn from one case; neither goes against the rulebook."
   },
   "q17": {
    "status": "pass",
-   "notes": "The story said 'this is the day of the closing low', which gives the answer away (a closing low must close down). Removed; the why now reveals the low. Recomputed 2,237.40 / 2,304.92 - 1 = -2.93%, matches CNBC's 2.9%. Fed release 8:00 a.m. vs the 9:30 a.m. open (f30 added). Next day 2,447.33 backs 'the big jump came the next day'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer Down 2.9% (f54; calc 2304.92 to 2237.40 = 2.9%). Choices rebalanced to 20-23 chars, no tell. Halt note grounded by f32. Earlier items (q02 why, q11 stem, w2) show Mar 23 as the closing low, which narrows it to a down day; the 2.9% vs 7%-halt choice still needs q07/f32, so the item still tests something."
   },
   "q18": {
    "status": "pass",
-   "notes": "The key 'The low came before the worst news' restated the two dates the story gave, so it led. Re-asked as where the S&P 500 stood on May 8: 2,929.80 vs the 2,237.40 low (FRED), still below the 3,386.15 record, new record August 18. 14.7% as first reported (BLS; FRED now shows 14.8%, noted in conflicts).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer Well above its March low (f61 2,929.80 vs f44 2,237.40). 'Weeks before that jobs report' = Mar 23 to May 8 (f44, f48). 'Don't wait for the news to turn' agrees with the rulebook (D40 'the chart comes first'; C32 no news-day rule)."
   },
   "q19": {
    "status": "pass",
-   "notes": "108.35 points was the biggest point drop at the time (Fed endnote); SEC: a stop becomes a market order; FINRA: it can fill far from the stop. The key stands on gap risk with full exposure, not on hindsight, and echoes the owner's VOICE.md line 'A stop cannot catch an overnight gap'.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right: f51 (SEC) says a triggered stop becomes a market order; f52 (FINRA) says the fill can be far off. That is how a stop order works by definition, so the 1987 setting is acceptable. Defect: the wrong note on 'Only after a market-wide halt ends' says 'Exchanges had no way to pause'. f16 says only that exchanges were 'powerless to intervene', and on Black Monday the NYSE did delay and halt single stocks (search 2026-11-12, uncited). Fix keeps only what f31 supports. The owner's B20/D41 question stays open in owner_flags."
   },
   "q20": {
    "status": "pass",
-   "notes": "Key from Fed History (1929 essay): nearly 13% on October 28, almost half by mid-November, 89% by 1932, back only in November 1954. The 'wait for the Fed' wrong note said the New York Fed's 1929 action showed 'Fed action is no guarantee', but the same essay says it 'helped to contain the crisis'. Now: the Fed kept the banks open, stocks still collapsed (new f62). f22's claim trimmed to what its quote says.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f18 to f21). The new Fed choice is a real hole-shaped wrong answer, grounded by f22/f62. Two 'None,' choices against two others is no tell. Defect: lesson_line 'Size for the crash that doesn't come back' is advice no cited fact or rulebook line states. Fix keeps the grounded history (f21)."
   },
   "q21": {
    "status": "pass",
-   "notes": "Fed MPR June 2020 quote in context; record close 3,389.78 on August 18 (FRED, CNBC); UNRATE current vintage: 8.4% August, 3.5% February. 'New highs took until 2022' is a real misbelief and is wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "The new counter states only f01 and f13. 'A crash does not mean the economy breaks' means 'does not imply', not 'never', so it is still true next to 1929. The counter repeats q12's f13 fact after q12 has been answered; it is not a test, so it is not a cross-answer. Key 38 chars is not the longest (40); 2 Yes, 2 No."
   }
  }
 }

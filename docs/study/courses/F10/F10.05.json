@@ -674,17 +674,30 @@
     "Scaling out"
    ],
    "answer": "Averaging up",
-   "why": "Averaging up. You're buying more of a stock you already own, at a higher price than your earlier buy.",
+   "why": "Averaging up. It means buying more shares of a stock you already own, at a higher price than before. That raises your average cost per share. Averaging down is the reverse: buying more after the price falls. We do neither. Our rule puts the full size on at one price, with one stop.",
    "lesson_line": "Buying more of a winner at a higher price is averaging up.",
    "facts": [
     "f23",
-    "f42"
+    "f42",
+    "f25",
+    "f50",
+    "f21",
+    "h11"
    ],
    "wrong": {
     "Averaging down": "That's buying more after the price falls below what you paid.",
     "Dollar-cost averaging": "That's investing equal amounts on a schedule, whatever the price does.",
     "Scaling out": "That's selling part of a position, not buying more."
-   }
+   },
+   "simple": "Averaging up. You buy more of a stock you already own, at a higher price than your first buy.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (term case)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -693,13 +706,23 @@
    "format": "tf",
    "q": "Pyramiding means buying more of a stock as it falls below your first buy.",
    "answer": "False",
-   "why": "False. Pyramiding adds to a position that is working, usually in smaller and smaller pieces. Buying more as it falls is averaging down.",
+   "why": "False. Pyramiding adds to a position as it performs well, usually in smaller and smaller pieces. Buying more as a stock falls below your first buy is averaging down. That lowers your average cost instead. We do neither: the full size goes on at one price, with one stop.",
    "lesson_line": "Pyramiding means adding to a winner. Adding to a loser has another name: averaging down.",
    "facts": [
     "f29",
     "f30",
-    "f25"
-   ]
+    "f25",
+    "h11"
+   ],
+   "simple": "False. Pyramiding means adding to a stock that is working, while buying more as it falls is averaging down.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -708,12 +731,21 @@
    "format": "tf",
    "q": "Averaging down on a losing trade is the same thing as dollar-cost averaging.",
    "answer": "False",
-   "why": "False. Dollar-cost averaging puts equal amounts in at regular intervals, whatever the price does. Averaging down buys more because the stock fell below your price.",
+   "why": "False. Dollar-cost averaging puts equal amounts in at regular intervals, whatever the price does. Averaging down buys more of a stock because it fell below your price, which lowers your average cost. One is a schedule set in advance. The other is a reaction to a loss. A schedule can still buy on a dip, but that does not make them the same.",
    "lesson_line": "A schedule is a plan. Averaging down is a reaction to a loss.",
    "facts": [
     "f50",
     "f25"
-   ]
+   ],
+   "simple": "False. Dollar-cost averaging buys on a set schedule, while averaging down buys more because the price fell below yours.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definitions, a Tier 1 SEC fact plus Investopedia"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -729,7 +761,7 @@
     "daily"
    ],
    "answer": "up",
-   "why": "Up. O'Neil's advice on averaging down was don't do it: it's throwing good money after bad. Our own rule goes further: the full size at one price, and no adding either way.",
+   "why": "Up. O'Neil's advice on averaging down was simple: don't do it, because it is throwing good money after bad. The only averaging he accepted was averaging up. Hirsch lists averaging down into losing positions among the deadly sins of managing positions. Our own rule goes further. The full size goes on at one price with one stop, and we add in neither direction.",
    "lesson_line": "O'Neil's rule: average up, never down.",
    "facts": [
     "f08",
@@ -737,7 +769,16 @@
     "f12",
     "f40",
     "h11"
-   ]
+   ],
+   "simple": "Up. O'Neil said never average down, and the only averaging that makes sense to him is averaging up.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why adds the owner's rule A5 (no adding)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -767,17 +808,30 @@
     "Pyramiding"
    ],
    "answer": "Scaling out",
-   "why": "Scaling out. You close the trade in pieces instead of all at once, and the rest of the shares keep riding.",
+   "why": "Scaling out. You close a trade in pieces instead of all at once, so the shares you keep can ride the move further. Pyramiding goes the other way: it adds shares. Stopping out is your stop being hit, not a planned sale. Our ladder scales out in thirds: a third at 3R, a third at 5R, and the last third trails.",
    "lesson_line": "Scaling out: sell some, let the rest ride.",
    "facts": [
     "f21",
-    "f31"
+    "f31",
+    "h04",
+    "f29",
+    "f25",
+    "f49"
    ],
    "wrong": {
     "Stopping out": "That's your stop getting hit, not a planned sale into a gain.",
     "Averaging down": "That's buying more after a drop, not selling.",
     "Pyramiding": "That's adding shares to a winner. It goes the other way."
-   }
+   },
+   "simple": "Scaling out. You sell part of a winner and let the rest of the shares keep riding.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (term case)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -794,13 +848,22 @@
     "earnings"
    ],
    "answer": "strength",
-   "why": "Strength. You sell part while the stock is rising and looks strong, not after it rolls over. O'Neil said the same: sell while it's still advancing.",
+   "why": "Strength. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. You sell part while the stock is still rising and looks strong, not after it rolls over. IBD and O'Neil teach the same timing: sell while it is advancing and still looks strong. IBD says this runs contrary to human nature.",
    "lesson_line": "Sell partials into strength. The rest rides on a rising stop.",
    "facts": [
     "h01",
     "f06",
     "f10"
-   ]
+   ],
+   "simple": "Strength. We sell part while the stock is still rising and looks strong, not after it turns down.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rule (sizing_rule.md section 6, A11)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -842,23 +905,35 @@
    "choices": [
     "A third at 3R",
     "Half at 2R",
-    "A third at 20% to 25%",
-    "Some, where it feels extended"
+    "Half on a double",
+    "Some once up 20%"
    ],
    "answer": "A third at 3R",
-   "why": "A third at 3R: three times your entry-to-stop risk, above the entry. That's the hard rule, and the stop moves to breakeven there.",
+   "why": "A third at 3R. One R is your entry minus your stop, so 3R sits three of those above the entry. That is our hard rule for the first trim, and the stop moves up to breakeven there. Ideally the first trim sits anywhere from 3R to 6R, but the hard rule is 3R. The level is set in R from your own stop, not in percent.",
    "lesson_line": "First trim: a third at 3R. Know that price before you buy.",
    "facts": [
     "h02",
     "h03",
+    "h04",
     "f17",
-    "f07"
+    "f07",
+    "f14"
    ],
    "wrong": {
-    "Half at 2R": "2R is inside the window where the stop goes to breakeven, but the first trim waits for 3R, and it's a third.",
-    "A third at 20% to 25%": "That's IBD's profit-taking zone, a percent gain. Ours is measured in R, from your own stop.",
-    "Some, where it feels extended": "A feeling isn't a level, and 'some' isn't a size. The plan marks a third at 3R before you buy."
-   }
+    "Half at 2R": "Wrong size and wrong level. 2R is inside the window where the stop can go to breakeven. But the first trim waits for 3R, and it's a third.",
+    "Half on a double": "That's Hirsch's rule for a stock that doubles. Ours is set in R from your own stop: a third at 3R.",
+    "Some once up 20%": "That echoes IBD's profit-taking zone, a 20% to 25% gain. Ours is a set size, a third, measured in R from your stop."
+   },
+   "simple": "A third at 3R. Our hard rule takes a third off when the gain is three times your risk.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "fixed before (rewritten 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -915,19 +990,35 @@
     "Buy more right at the stop"
    ],
    "answer": "Stick to the stop, add nothing",
-   "why": "Stick to the stop. Buying here puts more money behind a trade that is proving you wrong. O'Neil called averaging down throwing good money after bad.",
+   "why": "Stick to the stop and add nothing. Buying here puts more money behind a trade that is proving you wrong. O'Neil called averaging down throwing good money after bad. A lower average also means a bigger position in a falling stock. Our rule is plain: we never add, and the stop only moves up, never down. If $47 hits, you're out.",
    "lesson_line": "Never add to a loser. The stop is the plan.",
    "facts": [
     "f08",
     "f09",
     "f13",
-    "f27"
+    "f27",
+    "f28",
+    "f39",
+    "h11",
+    "h13"
    ],
    "wrong": {
     "Buy more, it's cheaper now": "Cheaper isn't better. Most of us can't tell a dip from the start of a much bigger drop.",
-    "Hold, but lower the stop to $45": "That widens the loss you planned before the trade. The stop was your line.",
+    "Hold, but lower the stop to $45": "That widens the loss you planned. Our stop only moves up, never down or wider.",
     "Buy more right at the stop": "If $47 hits, you're out anyway, now with more shares and a bigger loss."
-   }
+   },
+   "simple": "Stick to the stop and add nothing. Buying more puts more money into a trade that is proving you wrong.",
+   "deeper": {
+    "trap": "The friend's math is right: more shares at $47.50 do lower your average. That is the trap. A lower average only helps if the stock turns back up. Most people can't tell a temporary dip from the start of a much bigger drop. The extra shares make that bigger drop cost more."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (choice variety rewrite)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -952,20 +1043,30 @@
     }
    },
    "prefix": "$",
-   "why": "$45, your new average cost. The bar to break even came down, but now twice the shares ride on a stock that has been falling.",
+   "why": "$45. That is your new average cost: 100 shares at $50 and 100 at $40 average out to $45. The bar to break even came down. But now twice the shares ride on a stock that has been falling. Averaging down only helps if the price turns back up. We don't do it: the full size goes on once, with one stop.",
    "lesson_line": "Averaging down lowers the bar and raises the bet. The stock still has to turn.",
    "facts": [
     "f26",
     "f28",
-    "f39"
-   ]
+    "f39",
+    "h11"
+   ],
+   "simple": "$45. That is your new average cost, so the stock only has to climb back to $45 to break even.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (avg_price)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
    "skill": "orders.scaling",
    "rung": 5,
    "format": "mcq",
-   "q": "You just sold part of a winner into strength. What's the plan for the shares you kept?",
+   "q": "You just sold part of a winner. What's the plan for the shares you kept?",
    "choices": [
     "Let them ride on a trailing stop",
     "Keep the original stop under them",
@@ -973,20 +1074,32 @@
     "Hold them with no stop at all"
    ],
    "answer": "Let them ride on a trailing stop",
-   "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops.",
+   "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops. Ours: the stop goes to breakeven at the first trim, and the last third trails the 10-day or 21-day average. The stop rises as the stock does.",
    "lesson_line": "Sell some, then trail the rest. The stop rises as the stock does.",
    "facts": [
     "f18",
     "f16",
     "f21",
     "f51",
-    "h11"
+    "h11",
+    "h03",
+    "h05",
+    "h01"
    ],
    "wrong": {
-    "Keep the original stop under them": "On a winner, that stop sits well below. Leave it there and a reversal hands back the gain on the rest.",
+    "Keep the original stop under them": "On a winner, that stop sits well below. Our stop moves up to breakeven at the first trim, so a reversal costs far less.",
     "Buy more on the next dip": "We don't add to a position. The shares you kept have one job: ride the trail.",
     "Hold them with no stop at all": "A winner can still reverse. The rest needs a stop that rises with it."
-   }
+   },
+   "simple": "Let them ride on a trailing stop. The sale banks some gain, and the rest stays on for more of the move.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (note rewritten to A5)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -1005,11 +1118,22 @@
     }
    },
    "suffix": "shares",
-   "why": "50 shares. At $60, half the position brings back everything you paid. Hirsch's rule: sell half on a double and let the rest ride.",
+   "why": "50 shares. At $60, each share is worth twice the $30 you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. We sell a third at 3R, a third at 5R, and trail the last third.",
    "lesson_line": "Half on a double gets your cost back. The rest rides on the gain.",
    "facts": [
-    "f14"
-   ]
+    "f14",
+    "h04"
+   ],
+   "simple": "50 shares. At $60 each share is worth twice what you paid, so selling half gets your cost back.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited source only (Hirsch, f14)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -1018,12 +1142,24 @@
    "format": "tf",
    "q": "A stop moved up to your breakeven can still lose you money on the shares you kept.",
    "answer": "True",
-   "why": "True. A stop becomes a market order when it's hit, and the fill can come well below the stop. A gap through breakeven is a loss.",
+   "why": "True. A stop order becomes a market order once its price is reached. The fill can be markedly different from the stop price. So a breakeven stop order can fill below your entry when a stock gaps down through it. Even Investopedia calls the rest only almost risk-free.",
    "lesson_line": "Breakeven on paper isn't breakeven in a gap.",
    "facts": [
     "f49",
     "f22"
-   ]
+   ],
+   "simple": "True. A stop order turns into a market order, so a gap down can fill it below breakeven.",
+   "deeper": {
+    "trap": "Breakeven on paper is not breakeven in a gap. A stop order at your entry only names the price that starts the sale. If the stock opens below it, the market order fills at whatever the market pays at that moment."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 FINRA quote reconfirmed on its page 2026-11-12"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1085,8 +1221,8 @@
    "q": "Leaving out commissions, who made more?",
    "choices": [
     "Your friend, by $250",
-    "You, by $250",
-    "Same profit for both",
+    "You did, by selling early",
+    "The same profit for both",
     "Your friend, by $500"
    ],
    "answer": "Your friend, by $250",
@@ -1101,7 +1237,7 @@
      "top": 15
     }
    },
-   "why": "Your friend, by $250. Your first 100 shares stopped earning at $12.50. When a stock runs all the way to the target, scaling out makes less. Bulkowski's test found the same.",
+   "why": "Your friend, by $250. Your first 100 shares stopped earning at $12.50. Your friend's kept earning all the way to $15. When a stock runs all the way to the target, scaling out makes less. Bulkowski's first test found the same. That is the cost of a gain in hand.",
    "lesson_line": "Scaling out gives up some of a big run. That's the price of a gain in hand.",
    "facts": [
     "f33",
@@ -1109,10 +1245,23 @@
     "f32"
    ],
    "wrong": {
-    "You, by $250": "Backwards. Selling early capped the gain on half your shares.",
-    "Same profit for both": "Only if you'd sold both halves at $15. You sold one at $12.50.",
-    "Your friend, by $500": "That's double the gap. Only your first 100 shares sold early, at $12.50."
-   }
+    "Your friend, by $500": "That's double the gap. Only your first 100 shares sold early, at $12.50.",
+    "You did, by selling early": "Backwards. Selling early capped the gain on half your shares.",
+    "The same profit for both": "Only if you'd sold both halves at $15. You sold one at $12.50."
+   },
+   "simple": "Your friend made $250 more. Your first 100 shares stopped earning at $12.50 while the friend's kept going to $15.",
+   "deeper": {
+    "trap": "The trap is judging scaling out by this one ending. Here the stock ran all the way to the target, so the partial cost you. A trade that turns back before the target is a different story, so scaling out is a trade-off, not free profit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one publisher only (Bulkowski)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
@@ -1190,7 +1339,7 @@
    "choices": [
     "Made you $250 more",
     "Made no difference",
-    "Cost you $250",
+    "Left you worse off",
     "Made you $500 more"
    ],
    "answer": "Made you $250 more",
@@ -1205,17 +1354,31 @@
      "s": 200
     }
    },
-   "why": "Made you $250 more. Held as one lot, all 200 shares round-trip to nothing at $10. The partial banked a gain before the stock came back.",
+   "why": "Made you $250 more. Held as one lot, all 200 shares round-trip to nothing at $10. The partial sold 100 shares at $12.50 before the stock came back. That is the only profit in the trade. Bulkowski's third test found the same: scaling out works better when price falls back to the stop.",
    "lesson_line": "Partials pay when the stock comes back. That's what you buy with the upside you give up.",
    "facts": [
     "f35",
-    "f36"
+    "f36",
+    "f49"
    ],
    "wrong": {
     "Made no difference": "Holding all 200 made nothing. Your partial at $12.50 was real profit.",
-    "Cost you $250": "Backwards. The partial is the only profit in this trade.",
-    "Made you $500 more": "Only 100 shares sold at $12.50, not all 200."
-   }
+    "Made you $500 more": "Only 100 shares sold at $12.50, not all 200.",
+    "Left you worse off": "Backwards. The partial is the only profit in this trade."
+   },
+   "simple": "It made you $250 more. Holding all 200 to the $10 stop made nothing, while the partial banked a gain.",
+   "deeper": {
+    "trap": "Two things hide here. Bulkowski's own numbers include commissions, which is why his gain is $220. And a breakeven stop order is not a promise. Once triggered it fills at market, so a gap through $10 could turn the last 100 shares into a loss."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one publisher only (Bulkowski)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q23",
@@ -1267,20 +1430,35 @@
     "Buy more, half size this time"
    ],
    "answer": "Take the loss and move on",
-   "why": "Take the loss. Bulkowski's line for swing traders: if you want to average down a second time, sell the loser instead. Your first add already made this position bigger than you planned.",
+   "why": "Take the loss and move on. Bulkowski's line for swing traders: if you want to average down a second time, sell the loser instead. O'Neil and Hirsch say don't average down at all. Our plan never adds, and the stop only moves up. Your first add already made this position bigger than you planned.",
    "lesson_line": "Admit the mistake, take the loss, move on. Liking the company doesn't change the chart.",
    "facts": [
     "f38",
     "f37",
     "f08",
     "f12",
-    "f28"
+    "f28",
+    "h11",
+    "h13"
    ],
    "wrong": {
     "Average down one more time": "That's the second average down Bulkowski says to swap for a sale. If it keeps falling, the loss gets bigger.",
-    "Lower the stop, give it room": "Moving the stop down widens the loss you planned. The stop was your line.",
+    "Lower the stop, give it room": "Our stop only moves up, never down or wider. Lowering it widens the loss you planned.",
     "Buy more, half size this time": "Smaller is still adding to a loser. The size doesn't fix the direction."
-   }
+   },
+   "simple": "Take the loss and move on. A second buy on the way down only makes a losing trade bigger.",
+   "deeper": {
+    "trap": "Under our rule this trade went wrong at the first add, because we never add. Selling now, or letting the stop take it, both end the trade. The two moves our rule forbids are the ones that feel kindest: buying again and giving the stop room."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "asks what fits our plan (A4, A5)",
+     "fixed before (story)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q25",
@@ -1296,19 +1474,36 @@
     "Sell it all, it can't go higher"
    ],
    "answer": "Sell a portion, trail the rest",
-   "why": "Sell a portion, trail the rest. You lock in some of the run while it's strong and keep shares on for more. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term.",
+   "why": "Sell a portion, trail the rest. You lock in some of the run while it's strong and keep shares on for more. Our rule: sell some into strength and trail the rest under the rising averages. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term. Schwab's version: sell a portion and let the remainder ride.",
    "lesson_line": "When it's stretched, sell some into strength. Let the rest show how far it can go.",
    "facts": [
     "f15",
     "f18",
     "f16",
-    "f11"
+    "f11",
+    "h01",
+    "h04",
+    "h11",
+    "h13"
    ],
    "wrong": {
-    "Add more while it's running": "Buying extended is chasing. O'Neil warns those buys get shaken out on normal pullbacks.",
-    "Lower the stop to give it room": "That hands back more of the gain. On a winner the stop moves up, not down.",
-    "Sell it all, it can't go higher": "Nobody knows the top. Selling some into strength protects you without betting on one."
-   }
+    "Add more while it's running": "We never add to a position. And buying an extended stock is chasing: O'Neil warns those buys get shaken out on normal pullbacks.",
+    "Lower the stop to give it room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
+    "Sell it all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
+   },
+   "simple": "Sell part of it and trail the rest. You bank some of the run and keep shares on for more.",
+   "deeper": {
+    "trap": "The trap is reading 'extended' as a signal to buy more or to sell everything. For us it is neither. A stretched stock is a place to sell some into strength. Our trims also have set levels: a third at 3R and a third at 5R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rule (A11)",
+     "fixed before (Hirsch wording)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q26",
@@ -1318,12 +1513,21 @@
    "house": true,
    "q": "Our rule is to buy the full position at one price, with one stop.",
    "answer": "True",
-   "why": "True. The whole size goes on at one price with one stop. We don't build it in pieces and we don't add to it.",
+   "why": "True. The whole size goes on at one price, with one stop. We don't start with a small piece, and we don't add as it works. What we scale is the exit, never the entry.",
    "lesson_line": "Full size, one price, one stop. No adding.",
    "facts": [
     "h11",
     "h12"
-   ]
+   ],
+   "simple": "True. We put the whole position on at one price with one stop, and we never add to it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A5)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q27",
@@ -1333,25 +1537,35 @@
    "house": true,
    "q": "When does our stop move up to breakeven?",
    "choices": [
-    "At the first trim, 3R",
+    "Once it's 2R to 5R up",
     "The day after you buy",
-    "Never, the stop never moves",
+    "Never, it never moves",
     "As soon as it's 1R up"
    ],
-   "answer": "At the first trim, 3R",
-   "why": "At the first trim. Our rule puts the breakeven move at 2R to 5R, and we teach it at the first trim, 3R. From there the rest rides with no planned loss.",
-   "lesson_line": "Stop to breakeven at the first trim. The rest rides with no planned loss.",
+   "answer": "Once it's 2R to 5R up",
+   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop sits at your entry and only moves up. It is not a promise of no loss: a gap can still fill you below it.",
+   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up.",
    "facts": [
     "h03",
-    "h02",
     "h13",
-    "f22"
+    "f22",
+    "f49"
    ],
    "wrong": {
-    "The day after you buy": "Too early. The stop moves to breakeven once the trade is well ahead, 2R to 5R, not on the calendar.",
-    "Never, the stop never moves": "The stop only moves up, never down. At the first trim it moves up to breakeven.",
-    "As soon as it's 1R up": "Too early for us. Our window is 2R to 5R. At 1R a normal pullback can still tag your entry and knock you out of a trade that was working."
-   }
+    "The day after you buy": "Too early. The move comes once the trade is 2R to 5R ahead, not on a date.",
+    "As soon as it's 1R up": "Too early for us. Our rule waits until the trade is 2R to 5R ahead.",
+    "Never, it never moves": "Our stop never moves down or wider, but it does move up. At 2R to 5R it goes to breakeven."
+   },
+   "simple": "Once it's 2R to 5R up. That is when our rule moves the stop to your entry.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "fixed in final check: key is B19's own window, not the 3R course convention"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q28",
@@ -1368,13 +1582,23 @@
     "tenth"
    ],
    "answer": "third",
-   "why": "A third. The hard rule is a third at 3R, another third at 5R, and the last third trails.",
+   "why": "A third. Our hard rule is a third at 3R, another third at 5R, and the last third trails a rising average. Ideally the first trim sits anywhere from 3R to 6R. The rule we teach is the hard one: a third at 3R.",
    "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
    "facts": [
     "h02",
     "h04",
-    "h16"
-   ]
+    "h16",
+    "h05"
+   ],
+   "simple": "A third. At 3R we sell one third, at 5R another third, and the last third trails.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q35",
@@ -1382,14 +1606,23 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "We enter with a limit order a few cents under the trigger, to get a better price.",
+   "q": "We enter with a limit order, to control the price we pay.",
    "answer": "False",
-   "why": "False. Our entries are market orders. The trigger fires, the order goes in at market, and the stop order sits with the broker.",
+   "why": "False. Our entries are market orders, not limit orders. When the setup triggers, the buy goes in at market. The order that waits is the stop: a real stop order with the broker, not one kept in your head.",
    "lesson_line": "Entries at market. The stop is the order that waits.",
    "facts": [
     "h10",
     "h14"
-   ]
+   ],
+   "simple": "False. Our entries are market orders, and the stop order is the one that waits with the broker.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E57, D41)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q29",
@@ -1408,13 +1641,23 @@
     }
    },
    "prefix": "$",
-   "why": "$57.50. One R is the $50 to $47.50 distance. Three of those above the entry is the first trim, where a third comes off and the stop goes to breakeven.",
+   "why": "$57.50. One R is the distance from the $50 entry to the $47.50 stop. Three of those above the entry is 3R, our first trim. A third comes off there, and the stop goes to breakeven.",
    "lesson_line": "Know the 3R price before you buy. That's where the first third comes off.",
    "facts": [
     "h02",
     "h03",
     "f17"
-   ]
+   ],
+   "simple": "$57.50. Three times the gap between your $50 entry and $47.50 stop, added to the entry, is the first trim.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q30",
@@ -1422,23 +1665,33 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Entry $50, stop $47.50. Where is 5R, our second trim?",
-   "answer": 62.5,
+   "q": "Entry $80, stop $77. Where is 5R, our second trim?",
+   "answer": 95,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "entry + 5 * (entry - stop)",
-     "entry": 50,
-     "stop": 47.5
+     "entry": 80,
+     "stop": 77
     }
    },
    "prefix": "$",
-   "why": "$62.50. Five times the entry-to-stop risk above the $50 entry. Another third comes off here, and the last third trails.",
+   "why": "$95. One R is the distance from the $80 entry to the $77 stop. Five of those above the entry is 5R, our second trim. Another third comes off there, and the last third trails.",
    "lesson_line": "5R: the second third comes off. The last third trails.",
    "facts": [
     "h04",
     "h02"
-   ]
+   ],
+   "simple": "$95. Five times the gap between your $80 entry and $77 stop, added to the entry, is the second trim.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (E51)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q31",
@@ -1448,13 +1701,13 @@
    "house": true,
    "q": "Your last third is trailing. Which line do we trail under, and what makes us sell?",
    "choices": [
-    "The 10 or 21-day; a close below it",
+    "The 10 or 21-day; close below it",
     "The 50-day; any dip below it",
     "The 200-day; a close below it",
-    "No line; sell when it feels tired"
+    "A 10% trailing stop from the high"
    ],
-   "answer": "The 10 or 21-day; a close below it",
-   "why": "The 10-day or 21-day average, and a close below it. The 10-day for fast movers, the 21-day for steadier ones. An intraday dip under the line is not a sale.",
+   "answer": "The 10 or 21-day; close below it",
+   "why": "The 10-day or 21-day average, and a close below it. The 10-day suits fast movers, the 21-day steadier ones. An intraday dip under the line is not a sale; a close below it is. The trail follows a moving average, not a fixed percent.",
    "lesson_line": "Trail the 10-day or 21-day. A close below it sells the last third.",
    "facts": [
     "h05",
@@ -1463,9 +1716,19 @@
    ],
    "wrong": {
     "The 50-day; any dip below it": "Our default lines are the 10-day and 21-day. And a dip isn't a close.",
-    "The 200-day; a close below it": "Our default lines are the 10-day and the 21-day. The 200-day runs far below a stock in a strong uptrend, so it isn't the line we trail the last third under.",
-    "No line; sell when it feels tired": "A feeling isn't a rule. The line is picked before the trade, and a close below it decides."
-   }
+    "The 200-day; a close below it": "Our default lines are the 10-day for fast movers and the 21-day for steadier ones, not the 200-day.",
+    "A 10% trailing stop from the high": "That's a percent trail. Ours follows a moving average, the 10-day or 21-day, and a close below it sells."
+   },
+   "simple": "The 10-day or 21-day average. A close below that line sells the last third.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E52)",
+     "fixed before (200-day note)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q32",
@@ -1476,13 +1739,13 @@
    "story": "You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news.",
    "q": "What do you do with the first third?",
    "choices": [
-    "Sell it at the open",
+    "Sell it right at the open",
     "Wait for a pullback to $23",
     "Hold all of it, it's running",
     "Sell everything at the open"
    ],
-   "answer": "Sell it at the open",
-   "why": "Sell it at the open. The stock opened above the trim level, so the trim is taken at the open. The stop on the rest goes to breakeven.",
+   "answer": "Sell it right at the open",
+   "why": "Sell it right at the open. The stock opened at $24.10, above the $23 trim level. Our rule: if a stock opens above a trim level, take that trim at the open. Waiting for $23 is not part of the rule. The stop on the other two thirds moves to breakeven, $20.",
    "lesson_line": "When the stock opens above a trim level, take that trim at the open.",
    "facts": [
     "h06",
@@ -1491,10 +1754,20 @@
     "h04"
    ],
    "wrong": {
-    "Wait for a pullback to $23": "The level is already behind you. A pullback may never come, and the rule says take it at the open.",
+    "Wait for a pullback to $23": "The level is already behind you. Our rule takes the trim at the open, not on a pullback.",
     "Hold all of it, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
     "Sell everything at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail."
-   }
+   },
+   "simple": "Sell the first third at the open. The stock opened above the 3R trim, so our rule takes it there.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F63, B19)",
+     "fixed before (facts)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q33",
@@ -1502,26 +1775,40 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You bought a setup 10 trading days ago. It never hit the stop, but it's only up about half an R and going nowhere.",
+   "story": "You bought a setup 11 trading days ago. It never hit the stop, but it's only up about half an R and going nowhere.",
    "q": "What does our rule say?",
    "choices": [
     "Sell it, the time stop hit",
     "Hold until the stop or 3R",
-    "Add shares to wake it up",
+    "Move the stop up to breakeven",
     "Widen the stop and wait"
    ],
    "answer": "Sell it, the time stop hit",
-   "why": "Sell it. Under 1R after 10 trading days is our time stop. The money goes back to work on a setup that is moving.",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold: that is our time stop. This one is about half an R up after 11 trading days, so it goes. The money goes back to work on a setup that is moving. Dead money has a cost even when it never hits the stop.",
    "lesson_line": "Under 1R after 10 trading days: sell. Dead money has a cost.",
    "facts": [
     "h07",
-    "h11"
+    "h11",
+    "h03",
+    "h13"
    ],
    "wrong": {
     "Hold until the stop or 3R": "That's the plan for a trade that moves. After 10 trading days under 1R, the time stop ends it.",
-    "Add shares to wake it up": "We never add to a position, and more shares don't make a stock move.",
-    "Widen the stop and wait": "The stop never moves down or wider. And waiting is the problem, not the fix."
-   }
+    "Widen the stop and wait": "The stop never moves down or wider. And waiting is the problem here, not the fix.",
+    "Move the stop up to breakeven": "Our breakeven move comes at 2R to 5R, and this trade is under 1R. The time stop sells it instead."
+   },
+   "simple": "Sell it. Our time stop sells any trade still under 1R after 10 trading days.",
+   "deeper": {
+    "trap": "The trap is that nothing looks wrong. The stop never hit and the trade is green. But our time stop measures progress, not losses. A trade still under 1R after 10 trading days is sold, so the money can go to a setup that is moving."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q34",
@@ -1531,13 +1818,23 @@
    "house": true,
    "q": "A stock gaps down through your stop at the open. Our rule: the low of the first 30-minute bar becomes the new stop.",
    "answer": "True",
-   "why": "True. The first 30 minutes of the gap-down day decide. The first 30-minute low is the new stop, and if the loss is already past 2R, you get out.",
+   "why": "True. On a gap down through your stop, the first 30 minutes of the day decide. The low of the first 30-minute bar becomes the new stop. There is a ceiling: if the first 30 minutes already take the loss past 2R, you get out. This is the one exception to our rule that the stop only moves up.",
    "lesson_line": "Gap through the stop: the first 30-minute low is the new stop. Past 2R, you're out.",
    "facts": [
     "h08",
     "h09",
     "h13"
-   ]
+   ],
+   "simple": "True. When a stock gaps down through your stop, the low of the first 30 minutes becomes the new stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B20, G70)",
+     "open question for the owner: how the broker stop order (D41) meets the gap rule"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q36",
@@ -1554,20 +1851,33 @@
     "Sell it all and rebuy bigger"
    ],
    "answer": "Add nothing, manage the trade",
-   "why": "Add nothing. The whole size went on at $30 with one stop, and we don't add. Manage the trade: the first third comes off at 3R, where the stop goes to breakeven.",
+   "why": "Add nothing. The whole size went on at $30 with one stop, and we never add. Manage the trade instead. The first third comes off at 3R, where the stop moves up to breakeven. More shares bought higher would only raise what a reversal costs.",
    "lesson_line": "Full size at one price. An add is not our trade.",
    "facts": [
     "h11",
     "h12",
     "h02",
     "h03",
-    "f24"
+    "f24",
+    "f02"
    ],
    "wrong": {
     "Add half, it's proving you right": "Averaging up is a real method and other traders use it. It isn't ours: the full size went on at one price, with one stop.",
     "Add half, raise the stop on all": "Raising the stop is fine on its own. Adding isn't, and more shares bought higher raise what a reversal costs.",
     "Sell it all and rebuy bigger": "That's an add with extra steps. Our size was set from the stop at the entry."
-   }
+   },
+   "simple": "Add nothing. We buy the full size once, at one price with one stop, and then only manage it.",
+   "deeper": {
+    "counter": "Averaging up is a real method. IBD uses later buy points to add to a position it already holds. It isn't ours. Our size is set once, from the stop at the entry, so the risk you planned is the risk you carry."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A5, B19)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q37",
@@ -1579,9 +1889,9 @@
    "q": "In order, what does our plan do?",
    "choices": [
     "100 at $46, 100 at $50, trail 100",
-    "All 300 at $46",
-    "150 at $46, 150 at $50",
-    "Trail all 300 from the start"
+    "All 300 at $46, the first trim",
+    "150 at $46, 150 at $50, trail none",
+    "Trail all 300 from the very start"
    ],
    "answer": "100 at $46, 100 at $50, trail 100",
    "calc": {
@@ -1592,20 +1902,34 @@
      "stop": 38
     }
    },
-   "why": "100 at $46, 100 at $50, trail 100. $46 is 3R: a third off and the stop to breakeven. $50 is 5R: another third. The last 100 ride the 10-day and sell on a close below it.",
+   "why": "100 at $46, 100 at $50, trail 100. On a $40 entry with a $38 stop, $46 is 3R. A third comes off there and the stop goes to breakeven, $40. $50 is 5R: another third. The last 100 ride the rising 10-day and sell on a close below it.",
    "lesson_line": "Entry, stop, a third at 3R, a third at 5R, trail the rest. That's the whole ladder.",
    "facts": [
     "h02",
     "h03",
     "h04",
     "h05",
+    "h06",
     "h11"
    ],
    "wrong": {
-    "All 300 at $46": "3R is a trim, not the exit. Two thirds stay on for 5R and the trail.",
-    "150 at $46, 150 at $50": "Halves leave nothing to trail. The rule is thirds, and the last third rides the average.",
-    "Trail all 300 from the start": "That banks nothing into strength. We take a third at 3R and a third at 5R, then trail what's left."
-   }
+    "All 300 at $46, the first trim": "3R is a trim, not the exit. Only a third comes off there. Two thirds stay on for 5R and the trail.",
+    "150 at $46, 150 at $50, trail none": "Halves leave nothing to trail. The rule is thirds, and the last third rides the average.",
+    "Trail all 300 from the very start": "That banks nothing into strength. We take a third at 3R and a third at 5R, then trail what's left."
+   },
+   "simple": "Sell 100 at $46, sell 100 at $50, then trail the last 100 under the 10-day average.",
+   "deeper": {
+    "example": "Count it in R. The first 100 sell at 3R and the next 100 at 5R. The last 100 has no target: it rides the 10-day until a close below it. And if the stock opens above a trim level, that trim is taken at the open."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51, E52)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1642,27 +1966,27 @@
   },
   "q01": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "f23 (Investopedia) and f42 (Bulkowski) agree: buying more of a stock you own at a higher price is averaging up. term = answer is right for a 'which word is this' item. Each wrong choice names a real, different idea and its note is accurate. Track audit 2026-11-09: the term is now lower case ('averaging up'), as every term in F10.01 to F10.04 is written. The term is not shown to members; nothing else changed."
+   "fixed": false,
+   "notes": "Own answer before key: averaging up (f23 Investopedia + f42 Bulkowski, two Tier 2 publishers agree). Choices balanced, key not longest; each wrong note has a fact (f25, f50, f21). Why's 'we do neither' rests on h11. Bulkowski reliance is the open owner flag, not a defect here."
   },
   "q02": {
    "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Checker 2026-11-09: Definition only (f29/f30/f25 unchanged). The lesson line 'You pyramid on a winner' read as an instruction in a unit that now teaches no adding (A5); it now says 'Pyramiding means adding to a winner'. Key False unchanged. Earlier note: f29 (Investopedia: adds 'when the asset performs well') and f30 (IBKR: 'successively smaller increments') both define pyramiding as adding to a winner, so False is right. Both pages tie it to margin; the item never mentions margin, and 'usually' matches IBKR's 'typically'."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "f50 (SEC Investor.gov glossary, Tier 1) confirmed live; f25 (Investopedia) confirmed. Investopedia notes averaging down can be used inside a DCA plan, which does not make them the same thing, so False stands."
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: O'Neil facts unchanged; the added sentence is A5 (h11, verbatim). Key 'up' still follows from f09, and the why keeps O'Neil's rule as his. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5); awaiting cold check. The why said 'You add to stocks that are proving you right', which teaches adding; now says our rule is no adding either way. Key unchanged"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q05": {
    "status": "cut",
@@ -1672,15 +1996,15 @@
   },
   "q06": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "f21 (Investopedia Scale In, 'partially close the trade in increments') and f31 (Bulkowski, 'selling only a portion of your holdings each time') agree. Wrong choices are real, distinct terms; notes accurate. Track audit 2026-11-09: the term is now lower case ('scaling out'), as every term in F10.01 to F10.04 is written. The term is not shown to members; nothing else changed."
+   "fixed": false,
+   "notes": "Own answer: scaling out (f21 + f31). Lengths 10-14, no tell. Pyramiding note f29, averaging down f25; 'Stopping out' is a stop being hit (f49), and a stop sells the whole position, so no second answer. Ladder line rests on h04."
   },
   "q07": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "House item. h01 is verbatim in docs/study/sizing_rule.md section 6, marked as the owner's words (2026-06-14), an allowed Tier 3 source. f06 (IBD) and f10 (O'Neil, AAII) confirmed in context and agree. Bank words are plausible."
+   "fixed": false,
+   "notes": "Own answer: strength (h01 verbatim, A11). IBD f06 and O'Neil f10 agree; 'contrary to human nature' is f06's own words. No other bank word fits the rule. No stem elsewhere carries the fill word now that q14's stem was changed."
   },
   "q08": {
    "status": "cut",
@@ -1692,7 +2016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Key 'A third at 3R' is B19 (h02). 'Half at 2R' (2R is in B19's breakeven window, not the trim), IBD's 20-25% (f07) and a feeling are real wrong picks. Choices 40 chars or under. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Was 'At 2R and 3R' with no fraction (old TRADE_PLANS wording); now a third at 3R with the stop to breakeven"
+   "notes": "Own answer: a third at 3R (h02, B19 hard rule). Hirsch (f14) and IBD (f07) lures are real web views, each named as theirs; 2R note rests on h03. Before this check, q27's key choice ('At the first trim, 3R', rung 2) and q28's sentence ('At 3R we sell a ___', same rung) each handed q09 its key, because only the key contains '3R'. Both fixed here (q27 rekeyed to B19's window, q28 cut). Residual: q29 and q32 stems name 3R as the first trim, but they sit at higher rungs. 'One R is your entry minus your stop' has no quote in this unit (only f17 and the calcs); R is assumed from earlier units."
   },
   "q10": {
    "status": "cut",
@@ -1706,30 +2030,35 @@
    "fixed": false,
    "notes": "cut 2026-11-09: taught building a position in pieces or adding to one, which is not our method. Account rulebook A5 (sizing_rule.md section 9): 'The full size at one price with one stop; no adding.' Owner, sizing_rule.md section 5 (2026-11-09): 'I do not scale into trade i buy full at one spot with one stop.' Earlier checker note, kept for the record: f44 (StockCharts: an add 'isn't free upside. It's a whole new setup') and f24 (Investopedia: increased losses if you buy just before a sharp fall) agree; False is right. Changed the lesson line, which repeated q23's and w1's 'own stop and own size', to 'A profit on your first shares doesn't protect the new ones.'"
   },
-  "q12": {"status": "pass", "fixed": true, "by": "checker", "notes": "O'Neil (f08/f09), Hirsch (f12/f13) and Investopedia (f27) agree: don't average down here; Bulkowski's one allowed average down needs a rising market and industry, which a stock sliding into its stop is not. Three of four choices began 'Buy more', which pointed at the key; replaced 'Buy more and lower the stop' with 'Hold, but lower the stop to $45' (a real named mistake, widening the stop) and rewrote its wrong note. variety rewrite checked 2026-11-10"},
+  "q12": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
   "q13": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "Recomputed: (100 x 50 + 100 x 40) / 200 = $45, the exact Investopedia example (f26, quote confirmed). The why balances the lower bar with the doubled exposure (f28) and that the stock still has to turn (f39, Bulkowski)."
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Only the 'Buy more on the next dip' note changed, now A5 (h11). Key and the other notes rest on f16, f18, f21, f51 as before. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5); awaiting cold check. The 'Buy more on the next dip' note called an add 'a new trade, only on a real setup'; we do not add, so the note now says so. Key unchanged"
+   "notes": "Own answer: trail the kept shares (f16 Hirsch + f18 Schwab + h01, h05). The breakeven move at the first trim is the course's teaching point inside B19's 2R-5R window (owner flag 3). The 'a reversal costs far less' note is reasoning from the story, not a fact; acceptable. Overlaps q25 (A11) at a lower rung but asks a different decision."
   },
   "q15": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "Recomputed: 100 x $30 = $3,000 cost; $3,000 / $60 = 50 shares (calc). Hirsch's 'sell half on a double' (f14) confirmed in context and attributed to him, not taught as our rule. His '125%' example next to it is unclear and is not used (conflicts)."
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "FINRA (f49, Tier 1, 2025-03-26, current): a triggered stop becomes a market order and can fill 'markedly different' from the stop. Investopedia's own 'almost risk-free' (f22) agrees it is not risk-free. True is right."
+   "fixed": false,
+   "notes": "Own answer: True (f49 Tier 1 FINRA: a triggered stop is a market order, the fill can be markedly different). True under the B20 gap rule too, so the D41/B20 tension (owner flag 1) cannot flip it. f22 'almost risk-free' quoted fairly."
   },
   "q17": {
    "status": "cut",
@@ -1745,9 +2074,9 @@
   },
   "q19": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "Bulkowski test 1 read in context: 200 shares 10 to 15 = $1,000; half sold at 12.50 = $250 + $500 = $750; gap $250 before commissions (his $980 vs $720 after $20 and $30 of commissions). The question says 'leaving out commissions', so $250 is exact. Wrong notes recomputed."
+   "fixed": false,
+   "notes": "Own answer: you 100x2.50 + 100x5 = $750, friend 200x5 = $1,000, friend by $250; calc matches. Lengths 20-25, '$250' appears only in the key, no convergence. Bulkowski test f33/f34 has the same shape. Deeper no longer states q22's answer."
   },
   "q20": {
    "status": "cut",
@@ -1763,9 +2092,9 @@
   },
   "q22": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "Bulkowski test 3 read in context: half at 12.50, rest stopped at 10 = $250 before costs vs $0 holding all 200 ($220 vs -$20 with his commissions). The key is the pre-commission $250, so added 'Leaving out commissions' (as q19 does) and 'at $10' for the stop fill."
+   "fixed": false,
+   "notes": "Own answer: partial 100x2.50 = $250, holding all to the $10 stop = $0, so $250 more; calc matches. All four choices 18 characters. Story fixes the fill at $10, so no gap ambiguity. $220 is in the f36 quote; the gap line rests on f49."
   },
   "q23": {
    "status": "cut",
@@ -1773,12 +2102,17 @@
    "fixed": false,
    "notes": "cut 2026-11-09: taught building a position in pieces or adding to one, which is not our method. Account rulebook A5 (sizing_rule.md section 9): 'The full size at one price with one stop; no adding.' Owner, sizing_rule.md section 5 (2026-11-09): 'I do not scale into trade i buy full at one spot with one stop.' Earlier checker note, kept for the record: Recomputed: $300 / ($50 - $47) = 100 shares (calc); 200 shares would risk $600, 300 shares $900, as the wrong notes say. StockCharts (f45, f47) and IBD (f02: a new buy point can add to a position) confirmed. 100 is also fewer than the first buy, matching IBD's add rule."
   },
-  "q24": {"status": "pass", "fixed": true, "by": "checker", "notes": "Bulkowski's swing-trader line read in full: 'If you want to average down a second time, sell the loser instead... take the loss, and move on.' The story did not say you wanted to buy again, so the key rested on a wish the story never stated; added 'and want to buy more' and the question now reads 'What do you do?'. O'Neil and Hirsch agree; the first add made the position bigger (f28). variety rewrite checked 2026-11-10"},
+  "q24": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave6: see the resolver's notes"
+  },
   "q25": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "Hirsch (f15: 'extended in the short term... a two-thirds or even one-third position'), Schwab (f18) and Hirsch f16 confirmed; O'Neil f11 backs the 'chasing' note. The why said Hirsch trims 'to a two-thirds position'; corrected to his actual 'two-thirds or even one-third position when a stock is extended short term'. 'Sell it all' is wrong for its stated reason ('it can't go higher'), which the note addresses."
+   "fixed": false,
+   "notes": "Own answer: sell a portion, trail the rest (A11, h01; Hirsch f15 and Schwab f18 agree, attributed). Every wrong note grounded (h11, f11, h13). Minor: the story gives no R level, so the item rests on A11 rather than the 3R/5R ladder; the deeper names the set levels. 'Sell it all, it can't go higher' is a lone absolute in a wrong choice, a weak tell, kept because it is a real misconception."
   },
   "w4": {
    "status": "pass",
@@ -1788,75 +2122,75 @@
   },
   "q26": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h11 (A5) and h12 (owner, section 5) verbatim. True follows directly. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5); awaiting cold check. new house question"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Checker 2026-11-09: Key 'At the first trim, 3R' sits inside B19's 2R to 5R window (h03) and the courses teach the move there. Replaced the wrong choice 'Once it's 10R up' (too silly to tempt) with 'As soon as it's 1R up', the common textbook move, wrong for us because the window starts at 2R; note rewritten. Other notes hold (h13: only up). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, A4); awaiting cold check. new house question"
+   "notes": "Two defects. (1) The key 'At the first trim, 3R' keys a course convention, not the owner's words: B19 says 'Move the stop to breakeven at 2R to 5R, ideally' (h03), and the resolver's own owner flag 3 says the 3R point is unconfirmed. A key must teach the rulebook, so it now keys B19's window. (2) As a rung 2 choice shown before q09 (rung 3), 'the first trim, 3R' handed q09 its key, since only q09's key contains 3R. The new key names no trim level."
   },
   "q28": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h02, h04, h16 verbatim. Fill 'third' follows; the bank's half, quarter, tenth are real wrong picks. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. new house question"
+   "notes": "Duplicate of q09 at the same rung: both test 'a third at 3R' (h02). The sentence 'At 3R we sell a ___' gives the level half of q09's key, and since q09's distractors were rebuilt so only the key contains '3R', it picks q09's answer outright; q09's key in turn gives q28's fill. The resolver's note that the fill 'gives no part of q09's two-part key' is wrong. Cutting it also eases the Learn tier (11 of 28 items at rungs 1-3)."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: E57 (h10) and D41 (h14) verbatim. A limit under the trigger is a real habit and wrong for us, so False follows. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, E57, D41); awaiting cold check. new house question"
+   "notes": "Own answer: False (h10, E57: 'Entries are market orders'). The stop clause rests on h14 (D41). The statement is a real belief, not silly."
   },
   "q29": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Recomputed 50 + 3 x (50 - 47.50) = 57.50; calc agrees. B19 (h02) and the breakeven move (h03) verbatim. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. new house question"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Recomputed 50 + 5 x 2.50 = 62.50; calc agrees. E51 (h04) verbatim. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, E51); awaiting cold check. new house question"
+   "notes": "Own answer: 1R = 80 - 77 = 3, 5R = 80 + 15 = $95; calc matches. h04 gives 5R as the second trim. New numbers no longer share q29's R. Stem names 5R, which only higher-rung q37 needs."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Checker 2026-11-09: Key matches E52 (h05) verbatim: 10-day fast movers, 21-day steadier, sell on a close below. The 200-day note said 'hands back most of the move', which no fact gives; now it says the 200-day runs far below a strong uptrend and isn't the line we trail. 50-day and 'feels tired' notes hold. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, E52); awaiting cold check. new house question"
+   "fixed": false,
+   "notes": "Own answer: 10-day or 21-day, sell on a close below (h05, E52). Key 32 characters, longest is the 33-character percent trail; no convergence. The absolute 'only a close sells' is gone, so no clash with the broker stop (D41). 50-day and 200-day notes rest on h05."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Checker 2026-11-09: F63 (h06) verbatim; 3R on $20 / $19 is $23, given in the story. Added h04 to the facts since the 'Sell everything' note names the 5R third and the trail. Key follows; a pullback to $23 may never come, so that choice is really wrong. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, F63, B19); awaiting cold check. new house question"
+   "fixed": false,
+   "notes": "Own answer: take the trim at the open (h06, F63 verbatim). Key is the shortest choice. Story gives $23 as 3R ($20 + 3 x $1), and the why states only story numbers. Lesson-level gap stands: F63 is in no walk-through (the resolver's proposed w5 is for the integrator). 'Hold all of it' is not defensible: B19's 'mostly waits for 5R' is his practice, and F63 is the rule."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: C33 (h07) verbatim: under 1R after 10 trading days, sold. The story gives 10 trading days and about half an R, so the key follows. 'Add' note rests on A5 (h11); 'widen' on A4. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, C33); awaiting cold check. new house question"
+   "notes": "Own answer: sell, under 1R after 10 trading days (h07, C33 verbatim); story now says 11 trading days. Breakeven note rests on h03, widen note on h13. Same lesson-level gap as q32: the time stop is in no walk-through, and the key is the only choice naming a rule."
   },
   "q34": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: B20 (h08, h09) verbatim; the statement is the rule word for word and the why adds the 2R ceiling (G70). For the owner, not blocking: D41 keeps a real stop order with the broker, which fills at the open on a gap through it, so B20 only works if the stop order is pulled before the open on a gap day; no course says which yet. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B20, A4); awaiting cold check. new house question"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q36": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: A5 (h11), the owner's words (h12), B19 (h02) and the breakeven move (h03) verbatim; f24 backs the add note. Key 'Add nothing' follows; the averaging-up note keeps it as other traders' method, not a sin. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5, B19); awaiting cold check. new house question"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q37": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Recomputed on $40 / $38: R = 2, 3R = $46 (calc), 5R = $50 (given), 100 shares a third of 300. Order matches B19, E51, E52. Wrong choices are real misreadings of the ladder. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51, E52, A5); awaiting cold check. new house question"
+   "notes": "upgraded wave6; awaiting cold re-read"
   }
  }
 }

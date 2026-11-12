@@ -620,13 +620,13 @@
    "format": "mcq",
    "q": "Since 2000, which fall cut the S&P 500 the most from peak to low?",
    "choices": [
-    "The 2007-09 financial crisis",
-    "The 2000-02 dot-com bust",
-    "The 2020 COVID shutdown crash",
-    "The 2022 inflation bear market"
+    "The 2007-09 fall",
+    "The 2000-02 fall",
+    "The 2020 fall",
+    "The 2022 fall"
    ],
-   "answer": "The 2007-09 financial crisis",
-   "why": "The 2007-09 financial crisis. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough, the deepest of the four.",
+   "answer": "The 2007-09 fall",
+   "why": "The 2007-09 fall. The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough, per Federal Reserve History. S&P Dow Jones Indices puts it at 56.8%, from 1,565.15 to 676.53. The 2000-02 fall was 49.1% and the 2020 fall was 33.9%. In 2022 the index went from a 4,796.56 close to 3,577.03. This ranks only these four falls. It does not mean a deeper fall cannot come.",
    "lesson_line": "The worst of these falls took 57% off the index. Never assume a drop can't go that deep.",
    "facts": [
     "f02",
@@ -638,10 +638,19 @@
     "f38"
    ],
    "wrong": {
-    "The 2000-02 dot-com bust": "Close, but not the deepest. The S&P 500 fell 49.1% from March 2000 to October 2002.",
-    "The 2020 COVID shutdown crash": "It was the fastest, not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
-    "The 2022 inflation bear market": "A smaller fall. The S&P 500 went from 4,796.56 in January 2022 to 3,577.03 in October."
-   }
+    "The 2000-02 fall": "Close, but not the deepest. The S&P 500 fell 49.1% from March 2000 to October 2002.",
+    "The 2020 fall": "Not the deepest. The S&P 500 fell 33.9% from February 19 to March 23, 2020.",
+    "The 2022 fall": "A smaller fall. The S&P 500 went from a 4,796.56 close to 3,577.03 in 2022."
+   },
+   "simple": "The 2007-09 fall, because the S&P 500 fell 57% from its 2007 peak to its 2009 low.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -658,7 +667,7 @@
     "food"
    ],
    "answer": "home",
-   "why": "Home. Falling home prices helped spark the financial crisis of 2007-08. On average they fell about 30% from mid-2006 to mid-2009.",
+   "why": "Home. Falling home prices helped spark the financial crisis of 2007-08. Markets faced considerable uncertainty about losses on mortgage-related assets. US home prices fell about 30% on average from mid-2006 to mid-2009. The crisis then reached the big firms: Lehman Brothers filed for bankruptcy, and the next day the Fed supported AIG. Oil, tech, gold and food prices were not the trigger here.",
    "lesson_line": "2007-09 started in housing, then spread through the banks to the whole market.",
    "facts": [
     "f04",
@@ -666,7 +675,14 @@
     "f05",
     "f50",
     "f57"
-   ]
+   ],
+   "simple": "Home, because falling home prices helped set off the 2007-08 financial crisis behind the 2007-09 fall.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -675,11 +691,20 @@
    "format": "tf",
    "q": "After the September 11, 2001 attacks, the New York Stock Exchange stayed shut until the following Monday.",
    "answer": "True",
-   "why": "True. NYSE trading did not resume until Monday, September 17. For days there was no NYSE trading at all.",
-   "lesson_line": "A market can close for days. Size every position so you can live with not getting out.",
+   "why": "True. After the September 11, 2001 attacks, NYSE trading did not resume until Monday, September 17. Repairs to infrastructure were not done until early the following week. For the rest of that week there was no NYSE trading at all. You could not sell on the NYSE until it reopened.",
+   "lesson_line": "An exchange can stay shut for days. While it is closed, no order can fill there.",
    "facts": [
     "f06"
-   ]
+   ],
+   "simple": "True, because the NYSE did not trade again until Monday, September 17, after the attacks on September 11.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -694,9 +719,10 @@
     "The US losing its AAA rating"
    ],
    "answer": "The dot-com bubble bursting",
-   "why": "The dot-com bubble bursting. Investors grew worried about lofty valuations, and the tech-heavy Nasdaq fell hardest. The S&P 500 lost 49.1%.",
+   "why": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002.",
    "lesson_line": "When the market's leaders trade at lofty prices, their fall can drag the whole market down for years.",
    "facts": [
+    "f13",
     "f14",
     "f49",
     "f56",
@@ -710,7 +736,14 @@
     "A collapse in home prices": "That was 2007-09. Falling home prices helped spark that crisis.",
     "A pandemic shutting the economy": "That was 2020, a fall that took weeks, not years.",
     "The US losing its AAA rating": "That came in 2011, when Standard & Poor's cut the US credit rating from AAA to AA+."
-   }
+   },
+   "simple": "The dot-com bubble bursting, because tech stocks had climbed to lofty prices and then fell hard, dragging the market down.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -719,7 +752,7 @@
    "format": "tf",
    "q": "When the index made this low, the recession had already ended.",
    "answer": "False",
-   "why": "False. The S&P 500 hit its trough in March 2009, but the recession ran until June 2009. Stocks turned months before the economy did.",
+   "why": "False. The S&P 500 hit its trough in March 2009. The recession, by the NBER's dating, ran until June 2009. So stocks turned while the recession was still on. The low came months before the recession's end, not after it.",
    "lesson_line": "In 2009 stocks turned while the recession was still on. Bad news alone doesn't tell you where the low is.",
    "facts": [
     "f02",
@@ -732,7 +765,14 @@
     "asof": "2009-03-09",
     "window": 250,
     "forward": 120
-   }
+   },
+   "simple": "False, because stocks hit their low in March 2009 while the recession went on until June 2009.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -742,12 +782,12 @@
    "q": "What drove the 2022 bear market in US stocks?",
    "choices": [
     "Hot inflation and Fed rate hikes",
-    "A collapse in home prices",
-    "The dot-com bubble finally bursting",
+    "A collapse in US home prices",
+    "The bursting of the dot-com bubble",
     "A US credit rating downgrade"
    ],
    "answer": "Hot inflation and Fed rate hikes",
-   "why": "Hot inflation and Fed rate hikes. Stocks fell amid sustained inflation and expected Fed tightening, and Russia's invasion of Ukraine added to the uncertainty.",
+   "why": "Hot inflation and Fed rate hikes. The Fed's June 2022 report says stocks declined sharply amid sustained inflation pressures and expected monetary policy tightening. Russia's invasion of Ukraine added to the uncertainty. CNBC put it the same way: the Fed raising rates to fight the fastest inflation in 40 years. It was not a housing bust, the dot-com bust or a credit downgrade.",
    "lesson_line": "When the Fed raises rates to fight inflation, it can pull the whole market lower, not just a few stocks.",
    "facts": [
     "f58",
@@ -759,10 +799,17 @@
     "f45"
    ],
    "wrong": {
-    "A collapse in home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
-    "The dot-com bubble finally bursting": "That was the 2000-2002 bear market.",
-    "A US credit rating downgrade": "That was 2011, when Standard & Poor's cut the US credit rating from AAA to AA+."
-   }
+    "A US credit rating downgrade": "That was 2011, when Standard & Poor's cut the US credit rating from AAA to AA+.",
+    "A collapse in US home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
+    "The bursting of the dot-com bubble": "That was the 2000-2002 bear market."
+   },
+   "simple": "Hot inflation and Fed rate hikes, because the Fed moved to fight fast-rising prices and stocks fell hard.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -771,13 +818,13 @@
    "format": "mcq",
    "q": "Since 2000, which big S&P 500 fall reached its low the fastest?",
    "choices": [
-    "The 2020 COVID crash",
-    "The 2007-09 financial crisis",
-    "The 2000-02 dot-com bust",
-    "The 2022 inflation bear"
+    "The 2020 fall",
+    "The 2007-09 fall",
+    "The 2000-02 fall",
+    "The 2022 fall"
    ],
-   "answer": "The 2020 COVID crash",
-   "why": "The 2020 COVID crash. It took 33 days, from February 19 to March 23. The 2007-09 fall took 17 months, and 2000-02 took 30.5 months.",
+   "answer": "The 2020 fall",
+   "why": "The 2020 fall. The S&P 500 fell from its February 19 high to its March 23 trough in 33 days. S&P Dow Jones Indices lists that fall as 1.1 months. The 2007-09 fall took 17 months and 2000-02 took 30.5 months. The 2022 slide ran far longer than 33 days.",
    "lesson_line": "Some falls take years, one took 33 days. Your risk plan has to handle both.",
    "facts": [
     "f54",
@@ -788,10 +835,17 @@
     "f38"
    ],
    "wrong": {
-    "The 2007-09 financial crisis": "That one took 17 months, from October 2007 to March 2009.",
-    "The 2000-02 dot-com bust": "The slowest of the group: 30.5 months, from March 2000 to October 2002.",
-    "The 2022 inflation bear": "It ran from January 3 to October 12, 2022, about nine months."
-   }
+    "The 2007-09 fall": "That one took 17 months, from October 2007 to March 2009.",
+    "The 2000-02 fall": "The slowest of the group: 30.5 months, from March 2000 to October 2002.",
+    "The 2022 fall": "Far slower. The 2022 slide ground lower for months, not over 33 days."
+   },
+   "simple": "The 2020 fall, because it went from its high to its low in just 33 days.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -809,14 +863,26 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "19.8%. From 2,930.75 down to 2,351.10, on worries about earnings, global growth, trade and the Fed. It stopped just short of the 20% fall that generally marks a bear market.",
+   "why": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line.",
    "lesson_line": "Measure from the closing peak. Late 2018 came within a hair of 20%, then turned.",
    "facts": [
     "f32",
     "f33",
     "f31",
     "f59"
-   ]
+   ],
+   "simple": "19.8%, because the index dropped from 2,930.75 to 2,351.10, just short of a 20% fall.",
+   "deeper": {
+    "trap": "Measure from the closing peak to the closing low. Here that is 2,930.75 down to 2,351.10, a 19.8% fall. Calling it a 20% bear market adds a label the closes do not support. The yardstick matters: Investor.gov says a bear market is generally 20% or more, so 19.8% sits just under the line."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
@@ -825,7 +891,7 @@
    "format": "tf",
    "q": "After this low, the index took years to close back above its old peak.",
    "answer": "False",
-   "why": "False. The S&P 500 closed at 2,933.68 on April 23, 2019, above its 2,930.75 peak, about four months after its 2,351.10 low.",
+   "why": "False. The S&P 500 closed at 2,351.10 on December 24, 2018. On April 23, 2019 it closed at 2,933.68, above its 2,930.75 peak of September 20, 2018. That was about four months after the low, not years. FRED's daily series shows no close above the old peak in between.",
    "lesson_line": "Not every deep drop becomes a long bear. Some heal in months.",
    "facts": [
     "f34",
@@ -838,7 +904,16 @@
     "asof": "2018-12-24",
     "window": 120,
     "forward": 120
-   }
+   },
+   "simple": "False, because the index closed above its old peak on April 23, 2019, about four months after the low.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "first close above the peak is read across one FRED series that rolls off around 2028"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -848,12 +923,12 @@
    "q": "What drove the sharp drop at the end of this chart?",
    "choices": [
     "Debt-limit fight and Europe's crisis",
-    "A collapse in US home prices",
-    "A pandemic shutting the economy",
-    "The dot-com bubble bursting"
+    "The US housing market's collapse",
+    "A pandemic shutting down the economy",
+    "The dot-com tech bubble bursting"
    ],
    "answer": "Debt-limit fight and Europe's crisis",
-   "why": "The debt-limit fight and Europe's crisis. Stocks fell sharply on Europe's debt crisis, the US debt-ceiling fight and fears of slower growth. Standard & Poor's also cut the US credit rating to AA+.",
+   "why": "The debt-limit fight and Europe's crisis. The Fed's report says stocks fell sharply in late July and early August 2011. The causes it names are Europe's crisis, the US debt-ceiling debate and a possible global slowdown. Standard & Poor's also cut the US long-term credit rating from AAA to AA+. Stocks roughly won back those losses by early 2012.",
    "lesson_line": "This scare healed. Stocks roughly won back those losses by early 2012.",
    "facts": [
     "f19",
@@ -862,19 +937,29 @@
     "f04",
     "f45",
     "f46",
-    "f49"
+    "f49",
+    "f54"
    ],
    "wrong": {
-    "A collapse in US home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
-    "A pandemic shutting the economy": "That was 2020.",
-    "The dot-com bubble bursting": "That was the 2000-2002 bear market."
+    "The US housing market's collapse": "That was 2007-09, when falling home prices helped spark the financial crisis.",
+    "A pandemic shutting down the economy": "That was early 2020, when the S&P 500's pandemic-fueled fall ran from February 19 to March 23.",
+    "The dot-com tech bubble bursting": "That was the 2000-2002 bear market."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2011-08-08",
     "window": 120,
     "forward": 120
-   }
+   },
+   "simple": "The debt-limit fight and Europe's crisis, because both scared investors in the summer of 2011.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one cited fact (f19)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -883,13 +968,14 @@
    "format": "mcq",
    "q": "From its March 2000 peak, how long did the Nasdaq Composite take to close above that level again?",
    "choices": [
-    "About five months",
-    "About two years",
-    "About 15 years"
+    "About 5 months",
+    "About 2 years",
+    "About 15 years",
+    "About 7 years"
    ],
    "answer": "About 15 years",
-   "why": "About 15 years. It closed at 5,048.62 on March 10, 2000 and didn't close higher until April 23, 2015, at 5,056.06.",
-   "lesson_line": "After a bubble, the old leaders can take a decade or more to come back. Don't marry them.",
+   "why": "About 15 years. The Nasdaq Composite closed at 5,048.62 on March 10, 2000. Its first close above that came on April 23, 2015, at 5,056.06. Along the way it fell to 1,114.11 on October 9, 2002. FRED's daily series shows every close in between. These are index closes, not any one stock's path.",
+   "lesson_line": "After a bubble, a whole index can take about 15 years to regain its peak. Don't count on a quick return.",
    "facts": [
     "f40",
     "f42",
@@ -897,9 +983,19 @@
     "f13"
    ],
    "wrong": {
-    "About five months": "Far too fast. The index didn't even hit its low until October 9, 2002, at 1,114.11.",
-    "About two years": "Two years in, it was still falling. It closed at 1,114.11 on October 9, 2002."
-   }
+    "About 5 months": "Far too fast. The index didn't even hit its low until October 9, 2002, at 1,114.11.",
+    "About 2 years": "Two years in, it was still falling. It closed at 1,114.11 on October 9, 2002.",
+    "About 7 years": "Seven years on it was still below that peak. Its first higher close came on April 23, 2015."
+   },
+   "simple": "About 15 years, because the Nasdaq did not close above its March 2000 peak until April 2015.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "first close above the peak is read across one FRED series"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -914,8 +1010,8 @@
     "A pandemic shutting the economy"
    ],
    "answer": "China worries and falling oil",
-   "why": "China worries and falling oil. Worries about the economy abroad hit stocks, China's currency moves stirred global turmoil, and energy stocks fell with oil.",
-   "lesson_line": "Trouble abroad and a falling oil price can drag on US stocks for months.",
+   "why": "China worries and falling oil. The Fed's report says US stocks fell notably, on net. Worries about the economy abroad appeared to weigh on sentiment and the earnings outlook. Uncertainty about China's currency policy and its economy set off bouts of global market turbulence. Energy and materials stocks dropped sharply as oil and other commodity prices kept falling.",
+   "lesson_line": "Trouble abroad can weigh on US stocks, and falling oil can hit energy stocks hard.",
    "facts": [
     "f22",
     "f24",
@@ -924,19 +1020,27 @@
     "f45",
     "f20",
     "f21",
-    "f46"
+    "f46",
+    "f54"
    ],
    "wrong": {
     "A collapse in US home prices": "That was 2007-09, when falling home prices helped spark the financial crisis.",
     "The US losing its AAA rating": "That was 2011, when Standard & Poor's cut the US credit rating from AAA to AA+.",
-    "A pandemic shutting the economy": "That was 2020."
+    "A pandemic shutting the economy": "That was early 2020, when the S&P 500's pandemic-fueled fall ran from February 19 to March 23."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2016-02-11",
     "window": 200,
     "forward": 60
-   }
+   },
+   "simple": "China worries and falling oil, because trouble abroad weighed on US stocks and falling oil hit energy stocks.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -971,14 +1075,14 @@
    "format": "mcq",
    "q": "How long did this fall take, from the peak close to the last close shown?",
    "choices": [
-    "About five weeks",
-    "About nine months",
-    "About seventeen months",
-    "About thirty months"
+    "About 5 weeks",
+    "About 9 months",
+    "About 17 months",
+    "About 30 months"
    ],
-   "answer": "About nine months",
-   "why": "About nine months. The S&P 500 closed at its 4,796.56 peak on January 3, 2022, and at 3,577.03 on October 12.",
-   "lesson_line": "A slow bear grinds you down. I cut size early instead of waiting for one big flush.",
+   "answer": "About 9 months",
+   "why": "About nine months. The S&P 500 closed at its 4,796.56 peak on January 3, 2022. It closed at 3,577.03 on October 12, the lowest close of the slide. That is nine months and nine days. Five weeks fits 2020's 33-day fall. Seventeen months fits 2007-09, and thirty months fits 2000-02.",
+   "lesson_line": "Bears move at different speeds. This one ground lower for about nine months, not in one fast crash.",
    "facts": [
     "f35",
     "f38",
@@ -990,16 +1094,25 @@
     "f44"
    ],
    "wrong": {
-    "About five weeks": "That was the 2020 pace: 33 days from February 19 to March 23.",
-    "About seventeen months": "That was 2007-09, from October 2007 to March 2009.",
-    "About thirty months": "That was 2000-02, which ran 30.5 months."
+    "About 5 weeks": "That was the 2020 pace: 33 days from February 19 to March 23.",
+    "About 17 months": "That was 2007-09, from October 2007 to March 2009.",
+    "About 30 months": "That was 2000-02, which ran 30.5 months."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2022-10-12",
     "window": 250,
     "forward": 60
-   }
+   },
+   "simple": "About nine months, because the index peaked on January 3, 2022 and hit its low close on October 12.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "length computed from two FRED closes"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -1012,10 +1125,10 @@
     "It becomes a market order and sells",
     "It fills at exactly your stop price",
     "It waits for the price to recover",
-    "It cancels when trading turns wild"
+    "It cancels when trading gets too wild"
    ],
    "answer": "It becomes a market order and sells",
-   "why": "It becomes a market order and sells. A stop price is a trigger, not a promised fill. Your stop hit at 6% down, yet this fund closed down only 4.2%.",
+   "why": "It becomes a market order and sells. A stop price is a trigger, not a promised fill. Once the price trades through 6% down, the order becomes a market order. In a fast market it can fill far from the stop price. This fund was down as much as 7.8% by 9:35. By 9:40 it was back above its open, and it closed down only 4.2%.",
    "lesson_line": "A stop is a trigger, not a price. In a wild open it can sell you near the low.",
    "facts": [
     "f25",
@@ -1028,14 +1141,27 @@
    "wrong": {
     "It fills at exactly your stop price": "No. The stop price is not a guaranteed fill. Once it triggers, it's a market order and takes the next prices available.",
     "It waits for the price to recover": "A stop doesn't wait. A short, sharp drop can trigger it, even if the price rebounds later.",
-    "It cancels when trading turns wild": "A fast market doesn't cancel it. That's exactly when a stop can fill far from its price."
+    "It cancels when trading gets too wild": "A fast market doesn't cancel it. That's exactly when a stop can fill far from its price."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2015-08-24",
     "window": 120,
     "forward": 40
-   }
+   },
+   "simple": "It turns into a market order and sells at the next price, which can be well below your stop.",
+   "deeper": {
+    "trap": "The trap is thinking your stop sells at 6% down. It only starts the sale. The market order then takes the next prices, and this fund was down as much as 7.8% by 9:35. By 9:40 it was back above its open, and it closed down 4.2%. FINRA warns that a short, sharp move can trigger a stop, and the price may rebound afterwards."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before",
+     "owner flag raised: the gap rule B20 sits close to this case (not scored)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -1045,12 +1171,13 @@
    "story": "The index fell hard for months. Then it bounced for two straight months off its low, a big rally.",
    "q": "What did the index do next?",
    "choices": [
-    "Fell to a new low within two months",
+    "Gave it all back and made a new low",
     "Went on to make a new record that year",
-    "Held its gains and went sideways"
+    "Held its gains and went sideways",
+    "Dipped back but held above its low"
    ],
-   "answer": "Fell to a new low within two months",
-   "why": "It fell to a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16. Then it closed at 3,577.03 on October 12, below the June low.",
+   "answer": "Gave it all back and made a new low",
+   "why": "It gave the whole rally back and made a new low. The S&P 500 rose from 3,666.77 on June 16 to 4,305.20 on August 16, 2022. Then it closed at 3,577.03 on October 12, below the June low, within two months. Its January 2022 record of 4,796.56 was not topped until January 19, 2024. A big bounce is not proof of a bottom. That is only known in hindsight.",
    "lesson_line": "A big bounce inside a bear is not proof of a bottom. That only shows up in hindsight.",
    "facts": [
     "f36",
@@ -1064,14 +1191,27 @@
    ],
    "wrong": {
     "Went on to make a new record that year": "No. The S&P 500's 4,796.56 record from January 2022 wasn't topped until January 2024.",
-    "Held its gains and went sideways": "The S&P 500 gave the whole rally back and more, closing at 3,577.03 on October 12."
+    "Held its gains and went sideways": "The S&P 500 gave the whole rally back and more, closing at 3,577.03 on October 12.",
+    "Dipped back but held above its low": "It didn't hold. It closed at 3,577.03 on October 12, below the June 16 close of 3,666.77."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2022-08-16",
     "window": 160,
     "forward": 60
-   }
+   },
+   "simple": "It made a new low, because the rally faded and the index closed below its June low by October.",
+   "deeper": {
+    "trap": "The trap is reading a two-month rally off the low as proof the bottom is in. In 2022 it was not. The rally from 3,666.77 to 4,305.20 gave way to a close of 3,577.03 on October 12. S&P Dow Jones Indices marks a bear market's end at the low only once the index later rises 20%. So the bottom is known only in hindsight."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "key read across one FRED series that rolls off around 2032"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1089,13 +1229,25 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "131%. From 676.53 back up to 1,565.15. A 56.8% loss needs a 131% gain just to get back to even.",
+   "why": "131%. From 676.53 back up to 1,565.15 is a gain of 131%. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes.",
    "lesson_line": "Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
    "facts": [
     "f45",
     "f02",
     "f43"
-   ]
+   ],
+   "simple": "131%, because after a 56.8% loss what is left must more than double to get back to the old peak.",
+   "deeper": {
+    "trap": "The trap is thinking a 56.8% loss needs only a 56.8% gain to repair. Gains start from the smaller base that is left. So the climb back from 676.53 to 1,565.15 is 131%, more than twice the loss."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -1104,7 +1256,7 @@
    "format": "tf",
    "q": "The official end date of a US recession is announced the same month the recession ends.",
    "answer": "False",
-   "why": "False. The NBER named the November 2001 trough on July 17, 2003, June 2009 on September 20, 2010, and April 2020 on July 19, 2021.",
+   "why": "False. The NBER names a recession's end long after it happens. It announced the November 2001 trough on July 17, 2003. It announced the June 2009 trough on September 20, 2010. It announced the April 2020 trough on July 19, 2021. Each time it came more than a year late. The official date is history, not a live signal.",
    "lesson_line": "In 2001, 2009 and 2020 the official end date came over a year late. Trade what price is doing now.",
    "facts": [
     "f07",
@@ -1112,8 +1264,21 @@
     "f09",
     "f10",
     "f11",
-    "f12"
-   ]
+    "f12",
+    "f54"
+   ],
+   "simple": "False, because the official end date comes out much later, more than a year late in 2001, 2009 and 2020.",
+   "deeper": {
+    "trap": "The trap is waiting for the official all-clear. The S&P 500's 2020 fall ended on March 23, 2020. The NBER named April 2020 as the recession's end only on July 19, 2021. By then price had moved for more than a year."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
@@ -1124,11 +1289,12 @@
    "q": "What does the record since 2000 say?",
    "choices": [
     "Falls vary a lot in speed and depth",
-    "He's right, they all look like 2008",
-    "Every fall stops near a 20% drop"
+    "Most falls are over within weeks",
+    "Every fall stops near a 20% drop",
+    "The slow slides turn out the mildest"
    ],
    "answer": "Falls vary a lot in speed and depth",
-   "why": "They vary a lot. 2020 took 33 days and fell 33.9%. 2000-02 took 30.5 months and fell 49.1%. 2007-09 fell 56.8% in 17 months.",
+   "why": "Falls vary a lot in speed and depth. The 2020 fall took 33 days and cut the S&P 500 by 33.9%. The 2000-02 fall took 30.5 months and cut it by 49.1%. The 2007-09 fall took 17 months and cut it by 56.8%. So 2008 is one shape among several, not the template.",
    "lesson_line": "Don't plan for one kind of fall. Plan for fast and slow, shallow and deep.",
    "facts": [
     "f54",
@@ -1138,9 +1304,22 @@
     "f43"
    ],
    "wrong": {
-    "He's right, they all look like 2008": "2000-02 and 2007-09 fit that. But the 2020 fall was over in 33 days.",
-    "Every fall stops near a 20% drop": "Some stop near there. 2007-09 went on to 56.8%."
-   }
+    "Every fall stops near a 20% drop": "Not so. 2020 fell 33.9%, and 2007-09 went on to 56.8%.",
+    "The slow slides turn out the mildest": "The reverse here. 2000-02 took 30.5 months and fell 49.1%, more than 2020's 33.9% in 33 days.",
+    "Most falls are over within weeks": "Not most. 2000-02 took 30.5 months and 2007-09 took 17 months."
+   },
+   "simple": "Falls vary a lot, because 2020 dropped 33.9% in 33 days while 2000-02 took 30.5 months to drop 49.1%.",
+   "deeper": {
+    "trap": "The trap is planning only for the last crash you remember. The 2007-09 fall took 17 months. The 2020 fall took 33 days. The 2000-02 fall ground on for 30.5 months. One plan has to handle every speed."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
@@ -1150,12 +1329,13 @@
    "story": "The economy has been growing for most of a year. Accounting scandals and profit warnings keep hitting stocks. The index sits at a new low.",
    "q": "What does this low teach you?",
    "choices": [
-    "Stocks can fall once a recession ends",
+    "Stocks can slide as the economy grows",
     "Stocks bottom before the economy does",
-    "A growing economy stops a stock slide"
+    "A growing economy stops a stock slide",
+    "A new low means a recession is here"
    ],
-   "answer": "Stocks can fall once a recession ends",
-   "why": "Stocks can fall once a recession ends. The recession ended in November 2001, yet by early October 2002 stocks were at their lowest since 1997.",
+   "answer": "Stocks can slide as the economy grows",
+   "why": "Stocks can slide as the economy grows. The NBER dates the 2001 recession from March to November 2001. The economy then grew through 2002. Yet accounting scandals, profit warnings and geopolitical tension deepened the slide. By early October 2002, stock indexes were at their lowest since spring 1997. Stocks turned up in late October, when third-quarter earnings beat fears.",
    "lesson_line": "The economy and the market keep different clocks. Trade the chart, not the GDP headlines.",
    "facts": [
     "f07",
@@ -1163,18 +1343,32 @@
     "f16",
     "f17",
     "f18",
-    "f02"
+    "f02",
+    "f01"
    ],
    "wrong": {
     "Stocks bottom before the economy does": "Not always. In 2009 they did, but here the low came almost a year after the recession ended.",
-    "A growing economy stops a stock slide": "It didn't here. The economy grew in 2002 while scandals and profit warnings drove stocks lower."
+    "A growing economy stops a stock slide": "It didn't here. The economy grew in 2002 while scandals and profit warnings drove stocks lower.",
+    "A new low means a recession is here": "Not here. The economy kept growing through 2002, after the upturn that began in late 2001."
    },
    "chart": {
     "sym": "SPY",
     "asof": "2002-10-09",
     "window": 250,
     "forward": 120
-   }
+   },
+   "simple": "Stocks can slide as the economy grows, because in 2002 they hit new lows during an economic upturn.",
+   "deeper": {
+    "trap": "The trap is reading the economy to call the market. In 2002 the economy was growing, yet scandals and profit warnings kept pushing stocks lower until early October. The turn came in late October, when third-quarter earnings came in better than feared."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1212,75 +1406,75 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key right: 57% (f02, Tier 1) and 56.8% (f45) beat 49.1% (f44, f56 agree), 33.9% (f46) and 25.4% (FRED 4,796.56 to 3,577.03). Wrong notes right. The why and lesson called it 'the deepest fall since 2000', a claim no cited fact reaches past 2022; now 'the deepest of the four' and 'the worst of these falls'. (Checked FRED SP500 to 2026-11-05: no deeper fall since.) variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f02 57%, f45 56.8%). Cross-question tell: the choice label 'The 2022 inflation bear market' names q06's key (what drove 2022: hot inflation), and 'The 2000-02 dot-com bust' names q04's key (what set off 2000-02). Both are visible in the question text, not only in feedback. Also the 2020 wrong note 'It was the fastest' states q07's key. Fix: cause-neutral year labels (13-16 chars, key not the lone longest), 2020 note trimmed to depth only. Every number unchanged and from f02, f45, f44, f46, f35, f38."
   },
   "q02": {
    "status": "pass",
-   "notes": "f04 (Fed History: falling home prices helped spark the 2007-08 crisis) and f03 (about 30%, mid-2006 to mid-2009) in context; f50 CNBC and f57 Fox agree on housing. Only 'home' fits; oil, tech, gold, food are real other price stories. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Home, decided from f04/f50/f57 before reading the key; matches. Why sentences all trace to f04, f03, f05; Lehman/AIG sentence 20 words. Bank of 5, no tell. Closing negative about oil/tech/gold/food follows from the cited trigger facts."
   },
   "q03": {
    "status": "pass",
-   "notes": "f06 (Fed History, Sept 11 essay): NYSE trading 'did not resume until Monday, September 17'; the attacks were on Tuesday the 11th, so True. The sizing lesson is sound risk advice. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True from f06 (NYSE did not resume until Monday, September 17; the next Monday after September 11 by date arithmetic). Why narrowed to the NYSE and matches the quote; lesson_line is fact-only and does not teach a sizing rule against section 9."
   },
   "q04": {
    "status": "pass",
-   "notes": "Key backed by two Tier 2 publishers (f49 CNBC 'bursting of the Tech Bubble led directly', f56 Fox/Ned Davis 'dot-com bubble burst was the main trigger') plus the Fed's own f14 (lofty valuations, steep Nasdaq drop). 49.1% from f44. Each wrong choice is another era's cause with a correct note (f04, f20, f46). No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f49, f56). One overreach: why says the Nasdaq fell 'most steeply'; f14 says only 'a particularly steep drop in the Nasdaq'. Reworded to the quote. The giveaway of this key by q01/q07's 'dot-com bust' label is fixed under q01 and q07."
   },
   "q05": {
    "status": "pass",
-   "notes": "f02/f45 (S&P trough March 2009) and f01/f10 (recession ended June 2009, NBER) confirmed. Chart SPY asof 2009-03-09 is the S&P DJI low date; the question names no date or ticker; forward bars only after the answer (api/routers/study.py). False is right. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False from f02 (trough March 2009) and f01/f10 (recession ended June 2009). The stem and the chart do not give the date away. Overlap with w2 and with q20's wrong note is teaching repetition, not a giveaway in a question's own text."
   },
   "q06": {
    "status": "pass",
-   "notes": "f58 (Fed MPR June 2022: 'sustained inflation pressures and expectations of monetary policy tightening' plus Russia's invasion) is Tier 1; f51 CNBC agrees. Distractors are other eras' causes; no US downgrade happened in 2022. No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key right (f58, f51); choices 28-34 chars, key not the longest; wrong notes each tie to a cited fact. Passes ON CONDITION that the q01 and q07 fixes are applied: their current label 'The 2022 inflation bear market' hands this key away in question text."
   },
   "q07": {
    "status": "pass",
-   "notes": "33 days (f54 Schwab) and 1.1 months (f46 S&P DJI via CNBC) agree; 17 and 30.5 months from f45, f44; 2022 Jan 3 to Oct 12 (FRED f35, f38) is 9 months 9 days, 'about nine months' is right. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f54 33 days, f46 1.1 months). Same cross-question tell as q01: the labels 'The 2022 inflation bear market' and 'The 2000-02 dot-com bust' state q06's and q04's keys in the choice text. Fix: cause-neutral year labels, matching q01; numbers unchanged (f54, f46, f45, f44, f35, f38). The key is tied shortest, not longest."
   },
   "q08": {
    "status": "pass",
-   "notes": "Recomputed by hand: (2,930.75 - 2,351.10) / 2,930.75 = 19.78%, so 19.8; calc agrees. FRED rows re-read: 2,930.75 is the highest close in the series and 2,351.10 the lowest. Cause from f59 (Fed MPR Feb 2019), 20% line from f31 (Investor.gov 'Generally'). No chart, by design. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed (2,930.75 - 2,351.10) / 2,930.75 = 19.78%, so 19.8; calc matches. Both closes are in the question and in f32/f33. Bear-market line from f31 is hedged ('generally'), consistent with the conflicts note. Method text has no ungrounded number."
   },
   "q09": {
    "status": "pass",
-   "notes": "FRED: first close above 2,930.75 after 2018-09-20 is 2,933.68 on 2019-04-23, about four months after the Dec 24 low. False is right for the index and for SPY on the chart (no close is 'years' away either way). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "f19 (Fed MPR Feb 2012: equities 'fell sharply in late July and early August' on Europe, the debt ceiling debate and slower global growth) read in context; f20 downgrade followed the early-August act; f21 'roughly retraced' by Q4 2011 and early 2012. Chart asof 2011-08-08 sits in that drop. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key right from f19 (Europe's crisis, debt-ceiling debate, global slowdown); f20/f21 support the rest of the why. Choices 32-36 chars, key tied longest, not lone. Lesson-level minor carried, not a defect of this question: the distractor pool reuses the other units' causes, so the key is the one cause not used elsewhere."
   },
   "q11": {
    "status": "pass",
-   "notes": "FRED NASDAQCOM re-scanned: 5,048.62 on 2000-03-10 is the high, 1,114.11 on 2002-10-09 the low, and the first close at or above 5,048.62 is 5,056.06 on 2015-04-23, about 15 years. Wrong notes right. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "About 15 years from f40 (March 10, 2000) and f42 (first close above, April 23, 2015). Choices all in digits, 13-14 chars, no tell. Each wrong note rests on f41 or f42. Lesson_line 21 words and about the index, not a stock."
   },
   "q12": {
    "status": "pass",
-   "notes": "f22, f23, f24 (Fed MPR Feb 2016) read in context: stocks down notably since mid-2015 on the foreign outlook, energy and materials hit by the oil fall, China's currency policy fostering global turbulence (page also cites 'turbulence in Chinese financial markets'). Key fair. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f22, f24, f23). Two overreaches: simple says a falling oil price weighed on US stocks broadly, but f23 ties falling oil to energy and materials stocks; lesson_line says 'for months', which no cited quote gives (f22's quote has no time span). Both reworded to what f22 and f23 say."
   },
   "q13": {
    "status": "cut",
@@ -1296,45 +1490,45 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "FRED: 4,796.56 on 2022-01-03 is the series high and 3,577.03 on 2022-10-12 the low: 9 months 9 days. Distractors match 2020 (33 days), 2007-09 (17 months), 2000-02 (30.5 months). Window 250 bars before 2022-10-12 includes the January peak. No change. Edited: the \"or so\" hedges on two wrong choices removed (they marked the decoys); numbers spelled out so lengths vary naturally. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "About 9 months from f35 (January 3, 2022) and f38 (October 12, 2022); the question chart stops at asof, so the last close shown is October 12. Distractors map to f54/f46, f45 and f44. Choices 13-15 chars, key not longest. The neutral lesson_line does not contradict B17. With the q01/q07 fixes nothing in another question states nine months."
   },
   "q15": {
    "status": "pass",
-   "notes": "SEC staff note (Dec 2015) fetched via WebFetch (plain curl got 403) and read with pypdf: E-Mini at its 5% limit down, paused 9:25 to 9:30; SPY opened -5.2%, -7.8% by 9:35, closed -4.2%. Stop facts f28 (Investor.gov) and f29, f30 (FINRA) in context. Wrong note 'Nothing cancels it' was an unsourced absolute; now 'A fast market doesn't cancel it.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "notes": "FRED: 3,666.77 (6/16) to 4,305.20 (8/16), then 3,577.03 on 10/12, 57 days later, below the June low: 'within two months' holds. Record not topped until 2024-01-19 (f39, f52). Forward bars are served only after the answer. Lesson hedged with f48. No change. Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f36, f37, f38: 4,305.20 on August 16 to 3,577.03 on October 12, below the June 16 close). Choices 32-38 chars, key not longest, story no longer echoes the key. One unsupported claim in deeper: 'Many traders read a two-month rally ... as proof' has no source. Reworded as the trap itself. Minor, no change: w3 narrates this same 2022 case before the questions."
   },
   "q17": {
    "status": "pass",
-   "notes": "Recomputed: 1,565.15 / 676.53 - 1 = 131.35%, so 131; calc agrees. 56.8% is f45's own figure (1 - 676.53/1,565.15 = 56.78%). Sound risk lesson. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "NBER pages read: Nov 2001 trough announced July 17, 2003 (20 months), June 2009 on Sept 20, 2010 (15 months), April 2020 on July 19, 2021 (15 months). False is right. The lesson turned three cases into a rule ('come a year or more late'); it now names the three years: 'In 2001, 2009 and 2020 the official end date came over a year late.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q19": {
    "status": "pass",
-   "notes": "Numbers from f54, f46, f44, f45 confirmed. Key right. The wrong note 'Two came close, 2000-02 and 2007-09' read oddly (2007-09 is the 2008 case); now '2000-02 and 2007-09 fit that. But the 2020 fall was over in 33 days.'",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f54, f46, f44, f45). Three defects: (1) the choice 'Most falls end in weeks, like 2020' names q07's key (2020 was the fast one) in question text; (2) the wrong note 'Some stop near there' rests on no cited fact; (3) 'Only 2020 was that fast' overreaches, since the lesson's own f19 has 2011 falling sharply over weeks. Fixed: neutral choice wording (32 chars, key 35, longest is a distractor at 36), wrong notes use only cited numbers."
   },
   "q20": {
    "status": "pass",
-   "notes": "f07 (recession ended Nov 2001), f15 (economy grew in 2002), f16 (scandals, profit warnings), f17 (lowest since spring 1997 by early October) read in context. The wrong choice 'Stocks always bottom before the economy' gave the key away through 'always'; now 'Stocks bottom before the economy does', the real textbook belief, with the note reworded to match. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key decided from f07, f15, f16, f17: the economy grew through 2002 while stocks made new lows. 'Stocks bottom before the economy does' is wrong for this story, because the economy turned in late 2001, about 11 months before the low. All four choices 35-37 chars; the 'growing' echo appears in two choices, so it is no tell. Wrong notes grounded (f01/f02 for 2009). The lesson_line does not conflict with section 9."
   }
  }
 }

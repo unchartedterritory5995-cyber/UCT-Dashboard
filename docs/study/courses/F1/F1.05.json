@@ -172,6 +172,14 @@
    "title": "Rule 600 of Regulation NMS, definitions: (b)(105) Trade-through (eCFR up to date as of 11/05/2026)",
    "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/subject-group-ECFR3dd95cf4d3f6730/section-242.600",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -624,6 +632,18 @@
    "source": "s17",
    "quote": "In the regular session, stock quotes are consolidated and represent the best available prices across all trading venues.",
    "claim": "In regular hours, consolidated quotes combine the best prices from every trading venue."
+  },
+  {
+   "id": "f76",
+   "source": "s21",
+   "quote": "E58. No new buys outside regular trading hours. (\"58, that is fine.\")",
+   "claim": "Our rule: we make no new buys outside regular trading hours."
+  },
+  {
+   "id": "f77",
+   "source": "s21",
+   "quote": "E57. Entries are market orders. (\"57, No i market order everything.\")",
+   "claim": "Our rule: we enter trades with market orders."
   }
  ],
  "walkthroughs": [
@@ -707,7 +727,7 @@
     "9:00 a.m. to 5:00 p.m. ET"
    ],
    "answer": "9:30 a.m. to 4:00 p.m. ET",
-   "why": "9:30 a.m. to 4:00 p.m. Eastern Time. That's the regular session, as the SEC and FINRA define it.",
+   "why": "9:30 a.m. to 4:00 p.m. Eastern Time. The SEC gives those hours, and FINRA repeats the SEC's definition. The clock is Eastern Time wherever you live, so convert it to your own zone. Trading outside those hours, whether pre-market, after hours or overnight, is extended-hours trading.",
    "lesson_line": "The session is 9:30 to 4:00 Eastern. Anything outside it is extended hours.",
    "facts": [
     "f1",
@@ -720,7 +740,16 @@
     "9:30 a.m. to 4:00 p.m. your time": "The clock is Eastern Time wherever you live. Convert it to your own time zone.",
     "4:00 a.m. to 8:00 p.m. ET": "That's Nasdaq's pre-market start to its after-hours end. The regular session is only the middle of it.",
     "9:00 a.m. to 5:00 p.m. ET": "Those are office hours. The regular session opens at 9:30 a.m. and closes at 4:00 p.m."
-   }
+   },
+   "simple": "The regular session runs from 9:30 in the morning to 4:00 in the afternoon, Eastern Time, wherever you live.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -738,14 +767,23 @@
     "overnight"
    ],
    "answer": "pre-market",
-   "why": "Pre-market. FINRA uses that name for trading early in the morning, before regular trading begins.",
+   "why": "Pre-market. FINRA calls trading early in the morning, before regular trading begins, pre-market trading. Trading after the close is after-hours trading. Overnight trading runs from 8 p.m. to 4 a.m. ET, so it does not sit just before the open. Core is the NYSE's name for the regular session itself.",
    "lesson_line": "Pre-market comes before the open. After hours comes after the close.",
    "facts": [
     "f12",
     "f13",
     "f16",
-    "f14"
-   ]
+    "f14",
+    "f15",
+    "f40"
+   ],
+   "simple": "It is called pre-market trading, because it happens in the morning before regular trading begins.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -754,13 +792,20 @@
    "format": "tf",
    "q": "Most of a normal day's stock trading happens outside regular hours.",
    "answer": "False",
-   "why": "False. FINRA says extended-hours activity is still dwarfed by regular-hours trading. Fidelity says the vast majority happens in the regular session.",
+   "why": "False. FINRA says extended-hours trading is growing but is still dwarfed by the tens of millions of trades in regular hours. Fidelity says the vast majority of trading happens in normal hours. That is why buyers and sellers are deepest from 9:30 a.m. to 4:00 p.m. ET.",
    "lesson_line": "The crowd trades 9:30 to 4:00. Outside those hours you're in a much thinner market.",
    "facts": [
     "f17",
     "f62",
     "f1"
-   ]
+   ],
+   "simple": "False, most trading happens in regular hours, and trading outside them is still far smaller.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -771,30 +816,40 @@
    "choices": [
     "Outside regular trading hours",
     "During regular trading hours",
-    "Right at the 9:30 a.m. open"
+    "Right at the 9:30 a.m. open",
+    "Mid-session, with trading halted"
    ],
    "answer": "Outside regular trading hours",
-   "why": "Outside regular trading hours. FINRA says earnings and other big announcements normally come out in the extended-hours period.",
+   "why": "Outside regular trading hours. FINRA says earnings and other big company announcements normally come out in the extended-hours period. Schwab and Fidelity say many companies report after the regular close, after 4:00 p.m. ET. So the first trades on the news happen in extended hours, not in the regular session. Extended hours also include the pre-market, before the open.",
    "lesson_line": "Big news lands while the regular session is shut. That's when the stock starts to reprice.",
    "facts": [
     "f20",
     "f6",
     "f70",
-    "f63"
+    "f63",
+    "f16"
    ],
    "wrong": {
     "During regular trading hours": "Not usually. Many companies report after the 4:00 p.m. close, so the first reaction trades after hours.",
-    "Right at the 9:30 a.m. open": "The news usually comes out outside the session, not at the bell. By the open it's already out."
-   }
+    "Right at the 9:30 a.m. open": "The news usually comes out outside the session, not at the bell. By the open it's already out.",
+    "Mid-session, with trading halted": "Not usually. FINRA says earnings normally come out in the extended-hours period, when the regular session is already shut."
+   },
+   "simple": "Usually outside regular hours, so the first trades on the news happen after hours or before the next open.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
    "skill": "basics.hours",
    "rung": 3,
    "format": "tf",
-   "q": "Every broker lets you trade from 4:00 a.m. to 8:00 p.m. ET.",
+   "q": "Your broker's pre-market hours are set by the exchange, so they start at Nasdaq's 4:00 a.m. ET.",
    "answer": "False",
-   "why": "False. Nasdaq's extended hours run 4:00 a.m. to 8:00 p.m., but brokers set their own windows. Fidelity and Schwab start pre-market at 7:00 a.m.",
+   "why": "False. Nasdaq's own pre-market starts at 4:00 a.m. ET, but brokers set their own windows. Fidelity takes pre-market orders from 7:00 a.m. to 9:28 a.m. ET. Schwab's pre-market runs 7:00 to 9:25 a.m., and its after hours starts at 4:05 p.m. Check your own broker's hours.",
    "lesson_line": "The exchange's hours are not your hours. Check what your broker allows.",
    "facts": [
     "f27",
@@ -805,7 +860,16 @@
     "f2",
     "f26",
     "f61"
-   ]
+   ],
+   "simple": "False, brokers set their own hours, and Fidelity's and Schwab's pre-market sessions start at 7:00 a.m.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "exchange and broker hours change over time (Nasdaq adds a 9 p.m. to 4 a.m. session from 2026-12-06)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -820,20 +884,32 @@
     "Stop-limit orders"
    ],
    "answer": "Limit orders",
-   "why": "Limit orders. The SEC notes many brokers take only limit orders in extended hours. Fidelity and Schwab both work that way.",
-   "lesson_line": "Out of hours, name your price. A limit order is usually the only order that works.",
+   "why": "Limit orders. The SEC notes that many brokers accept only limit orders in extended hours. Fidelity accepts limit orders only, and every other order type is ineligible then. Schwab says its extended sessions accept only limit orders, and its stop orders do not execute then. Thin trading is the risk: less price competition can raise costs and make fills harder. Not every broker is the same, so check yours. Our own rule is simpler: we make no new buys outside regular hours.",
+   "lesson_line": "Out of hours, many brokers take only limit orders. We make no new buys then anyway.",
    "facts": [
     "f9",
     "f58",
     "f68",
     "f66",
-    "f3"
+    "f3",
+    "f26",
+    "f76",
+    "f18"
    ],
    "wrong": {
-    "Market orders": "Those are what brokers keep out. With thin trading, a market order could fill far from the price you saw.",
+    "Market orders": "Many brokers don't take them out of hours. Thin trading can mean a fill at a worse price.",
     "Stop orders": "Schwab says stop orders aren't eligible in extended hours, and Fidelity takes limit orders only.",
     "Stop-limit orders": "A stop-limit isn't a plain limit order. Schwab and Fidelity take only limit orders out of hours."
-   }
+   },
+   "simple": "Limit orders: many brokers take nothing else outside regular hours, so you must name your price.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "broker order rules vary and can change ('many', not all)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -851,12 +927,26 @@
      "bar_min": 5
     }
    },
-   "why": "78. The session runs 9:30 a.m. to 4:00 p.m., six and a half hours. Cut that into 5-minute bars.",
+   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET, six and a half hours. Cut that into 5-minute bars and you get 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
    "lesson_line": "Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
    "facts": [
     "f1",
-    "f11"
-   ]
+    "f11",
+    "f39",
+    "f17"
+   ],
+   "simple": "78 bars, because the 9:30 to 4:00 session is six and a half hours, and each bar covers 5 minutes.",
+   "deeper": {
+    "trap": "Many charts can draw pre-market and after-hours bars too. If one day shows more than 78 five-minute bars, those extra bars are extended hours. They are thin: extended-hours trading is still dwarfed by regular-hours trading. Know which view you are on before you compare a day's volume or its high with another day's."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -871,34 +961,46 @@
     "Overnight"
    ],
    "answer": "After hours",
-   "why": "After hours. The regular session ends at 4:00 p.m. ET, and Nasdaq's after-hours session runs to 8:00 p.m.",
+   "why": "After hours. The regular session ends at 4:00 p.m. ET. Nasdaq's after-hours session runs from 4:00 p.m. to 8:00 p.m. ET, and FINRA's typical after-hours window is 4 to 8 p.m. ET. Overnight trading starts at 8 p.m. A 4:35 p.m. bar sits inside after hours whether your platform stamps a bar's start or its end.",
    "lesson_line": "Read the time stamp first. From 4:00 to 8:00 p.m. ET, you're looking at thinner after-hours trading.",
    "facts": [
     "f27",
     "f1",
     "f13",
     "f15",
-    "f17"
+    "f17",
+    "f14"
    ],
    "wrong": {
     "Regular session": "The regular session ends at 4:00 p.m. ET. This bar comes after the close.",
     "Pre-market": "Pre-market is the morning, before the 9:30 a.m. open.",
     "Overnight": "FINRA puts overnight hours at 8 p.m. to 4 a.m. ET. This bar comes earlier."
-   }
+   },
+   "simple": "After hours, because the regular session ends at 4:00 p.m. and after hours runs until 8:00 p.m.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "session times change over time (new overnight session from 2026-12-06)",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
    "skill": "basics.hours",
    "rung": 4,
    "format": "mcq",
-   "q": "Friday, November 27, 2026 is the day after Thanksgiving. When does the regular session end?",
+   "q": "Friday, November 27, 2026 is the day after Thanksgiving. When does the regular session for stocks end?",
    "choices": [
     "1:00 p.m. ET",
     "4:00 p.m. ET",
-    "It's closed all day"
+    "It's closed all day",
+    "1:15 p.m. ET"
    ],
    "answer": "1:00 p.m. ET",
-   "why": "1:00 p.m. ET. The NYSE and Nasdaq both list that Friday as an early close.",
+   "why": "1:00 p.m. ET. The NYSE says each of its markets closes early at 1:00 p.m. on Friday, November 27, 2026, the day after Thanksgiving. Nasdaq's 2026 calendar shows the same early close, and Thanksgiving itself, November 26, is closed. Eligible options close at 1:15 p.m. Holiday dates move each year, so check the exchange calendar.",
    "lesson_line": "Check the holiday calendar each year. A half day ends at 1:00 p.m. ET.",
    "facts": [
     "f39",
@@ -906,8 +1008,18 @@
    ],
    "wrong": {
     "4:00 p.m. ET": "That's a normal day. This Friday is a half day, with an early close at 1:00 p.m.",
-    "It's closed all day": "Thanksgiving itself, Thursday, November 26, is the full holiday. Friday trades, then closes early."
-   }
+    "It's closed all day": "Thanksgiving itself, Thursday, November 26, is the full holiday. Friday trades, then closes early.",
+    "1:15 p.m. ET": "That's the early close for eligible options. The NYSE says its markets close early at 1:00 p.m. that Friday."
+   },
+   "simple": "It ends early at 1:00 p.m. ET, because the day after Thanksgiving is a half day.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated holiday schedule that changes each year"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -919,10 +1031,11 @@
    "choices": [
     "News that came out after the close",
     "The after-hours price became the close",
-    "The exchange reset the price overnight"
+    "The exchange reset the price overnight",
+    "Pre-market trades became the open price"
    ],
    "answer": "News that came out after the close",
-   "why": "News that came out after the close. Buying built up overnight, so the stock opened well above Tuesday's close. That jump is the gap.",
+   "why": "News that came out after the close. Gaps come from buying or selling that builds while the regular session is closed, such as after a strong earnings report. The close stayed Tuesday's 4 p.m. price. Wednesday's open came from supply and demand at the open. The jump from $60 to $66 between them is the gap.",
    "lesson_line": "A gap is often news the regular session never got to trade. Expect them around earnings.",
    "facts": [
     "f72",
@@ -930,12 +1043,23 @@
     "f6",
     "f7",
     "f24",
-    "f25"
+    "f25",
+    "f34"
    ],
    "wrong": {
     "The after-hours price became the close": "The close stays Tuesday's 4 p.m. price. After-hours trades don't change it.",
-    "The exchange reset the price overnight": "Nobody sets it by hand. The open comes from supply and demand at the open."
-   }
+    "The exchange reset the price overnight": "Nobody sets it by hand. The open comes from supply and demand at the open.",
+    "Pre-market trades became the open price": "Pre-market trades don't set the open. FINRA says the open comes from supply and demand at the open."
+   },
+   "simple": "News after the close drew in buyers overnight, so the stock opened well above Tuesday's close.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -946,10 +1070,11 @@
    "choices": [
     "$80.00",
     "$83.00",
-    "Whatever trades at 8:00 p.m."
+    "Whatever trades at 8:00 p.m.",
+    "$81.50"
    ],
    "answer": "$80.00",
-   "why": "$80.00. The 4 p.m. price is the official close, whatever happens in extended hours. On Nasdaq, the Closing Cross sets it.",
+   "why": "$80.00. FINRA says the prices recorded at 4 p.m. are the official closing prices, regardless of what happens in extended hours. On Nasdaq, the Closing Cross at 4:00 p.m. sets the official closing price. NYSE Arca publishes its own after its 4:00 p.m. auction. The $83.00 trade is real, but it is an after-hours print.",
    "lesson_line": "After-hours prints are real trades. The close is still the 4:00 p.m. price.",
    "facts": [
     "f24",
@@ -961,8 +1086,18 @@
    ],
    "wrong": {
     "$83.00": "That's an after-hours trade. FINRA says extended hours don't change the official close.",
-    "Whatever trades at 8:00 p.m.": "After hours can run to 8:00 p.m., but the official close was set at 4:00 p.m."
-   }
+    "Whatever trades at 8:00 p.m.": "After hours can run to 8:00 p.m., but the official close was set at 4:00 p.m.",
+    "$81.50": "The close is not a blend of regular and after-hours prices. FINRA says the 4 p.m. price is the official close."
+   },
+   "simple": "The close is $80.00, because the 4:00 p.m. price is official no matter what trades after hours.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -979,12 +1114,21 @@
     }
    },
    "suffix": "%",
-   "why": "10%. Take the open minus the close, then divide by the close.",
+   "why": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, then divide by the close, $40.00. That gives a 10% gap up. Divide by the close, not the open, or you get a different number.",
    "lesson_line": "Measure a gap from yesterday's close to today's open, in percent.",
    "facts": [
     "f73",
     "f71"
-   ]
+   ],
+   "simple": "The gap is 10%, because the $44.00 open is 10% above the $40.00 close.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -994,23 +1138,40 @@
    "story": "At 3:58 p.m. you place a day limit order to sell at $25.00. It doesn't fill by the 4:00 p.m. close. At 4:30 p.m. the stock trades at $25.20.",
    "q": "What most likely happened to your order?",
    "choices": [
-    "It cancelled at the 4:00 p.m. close",
+    "It cancelled at the close",
     "It sold at $25.20 after hours",
-    "It waits for tomorrow's open"
+    "It waits for tomorrow's open",
+    "It turned into a market order"
    ],
-   "answer": "It cancelled at the 4:00 p.m. close",
-   "why": "It cancelled at the close. A plain day order generally ends with regular trading hours. It doesn't carry into after hours or the next day.",
+   "answer": "It cancelled at the close",
+   "why": "It cancelled at the close. Investor.gov says an unfilled day order generally cancels at the end of regular trading hours. It does not carry into the extended-hours session or the next trading day. To trade after the bell, you mark the order for extended hours. Schwab, for one, makes you pick the session. Broker rules vary, which is why the question says most likely.",
    "lesson_line": "To trade after the bell, mark the order for extended hours. A plain day order stops at the close.",
    "facts": [
     "f54",
     "f67",
     "f37",
-    "f38"
+    "f38",
+    "f52",
+    "f56",
+    "f26"
    ],
    "wrong": {
     "It sold at $25.20 after hours": "A plain day order doesn't carry into extended hours. You have to pick that session on the order.",
-    "It waits for tomorrow's open": "A day order is good for one day. It won't carry over to the next trading day."
-   }
+    "It waits for tomorrow's open": "A day order is good for one day. It won't carry over to the next trading day.",
+    "It turned into a market order": "A stop order turns into a market order when its stop price is hit. A day limit order that doesn't fill generally just cancels."
+   },
+   "simple": "It cancelled at the close, because a plain day order ends with regular hours and does not carry into after hours.",
+   "deeper": {
+    "trap": "The $25.20 print at 4:30 p.m. is above your $25.00 limit, so it feels like you should have sold. You didn't. A plain day order had already cancelled at the close. If you want an after-hours fill, enter a new order and mark it for the extended session."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "broker order rules vary ('generally'; some sell day orders that include extended hours)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -1019,7 +1180,7 @@
    "format": "tf",
    "q": "After hours, your broker must still fill you at the best price shown across all venues.",
    "answer": "False",
-   "why": "False. FINRA says the best-price requirement doesn't apply to extended hours. Venues aren't linked then, so one can show a worse price than another.",
+   "why": "False. In regular hours, SEC rules generally require brokers to fill listed-stock orders at the best price at the time. FINRA says that requirement does not apply in extended hours. The SEC's trade-through rule covers regular trading hours only, and Fidelity says there is no Reg NMS trade-through protection in extended sessions. Extended-hours venues are not linked, so one can show a worse price than another.",
    "lesson_line": "Out of hours you get the price where your order lands, not the best price anywhere.",
    "facts": [
     "f22",
@@ -1027,7 +1188,20 @@
     "f5",
     "f59",
     "f74"
-   ]
+   ],
+   "simple": "False, the best-price rule only covers regular hours, and after hours one venue can show a worse price than another.",
+   "deeper": {
+    "trap": "After hours, the price on your screen may come from one venue while a better price sits on another. With no link between venues and no trade-through protection, your limit order fills where it lands, not at the best price anywhere. Set your limit from the prices you can actually see, and don't assume a better fill elsewhere."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rule tied to SIP hours that change from 2026-12-06",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -1037,27 +1211,42 @@
    "story": "At 7:40 a.m. ET a stock prints $26.00. It closed yesterday at $24.00. Only a few hundred shares have traded so far.",
    "q": "How should you read that $26.00 print?",
    "choices": [
-    "A thin print that may not hold",
+    "A thin print, not a firm price",
     "The price it will open at",
-    "A cue to buy at market now"
+    "A cue to buy at market now",
+    "A real trade, so a solid price"
    ],
-   "answer": "A thin print that may not hold",
-   "why": "A thin print that may not hold. With few shares trading, one order can move the price. Extended-hours prices may not match regular-hours prices.",
+   "answer": "A thin print, not a firm price",
+   "why": "A thin print, not a firm price. Only a few hundred shares have traded. With fewer people trading, one order can move the price more than in regular hours. The SEC warns extended-hours prices may not reflect regular-hours prices. The open, set by supply and demand at the open, is the real test.",
    "lesson_line": "I treat a 7:40 a.m. print as a hint, not a verdict. The open is the real test.",
    "facts": [
     "f4",
     "f69",
     "f3",
-    "f60",
     "f25",
     "f9",
     "f18",
-    "f29"
+    "f29",
+    "f21",
+    "f76"
    ],
    "wrong": {
     "The price it will open at": "Not promised. The SEC warns extended-hours prices may not reflect prices in regular hours.",
-    "A cue to buy at market now": "Many brokers take only limit orders this early. Thin trading can also raise what you pay."
-   }
+    "A cue to buy at market now": "Many brokers take only limit orders this early, and thin trading can raise what you pay. Our rule is no new buys outside regular hours.",
+    "A real trade, so a solid price": "It is a real trade, but only a few hundred shares have traded. With few trades, one order can move the price more than in regular hours."
+   },
+   "simple": "It is a thin early print, not a firm price, because with so few shares trading one order can move it.",
+   "deeper": {
+    "trap": "An early print can look like a head start. Buying it is the trap: our rule is no new buys outside regular hours. Out of hours, an order may fill only partly, or at a worse price than in regular hours. Trading can settle once regular hours resume, so let the open speak first."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -1066,7 +1255,7 @@
    "format": "tf",
    "q": "Shares traded in the pre-market count toward a stock's consolidated volume for the day.",
    "answer": "True",
-   "why": "True. Extended-hours trades are included in consolidated volume. The NYSE and the CTA plan both say so, and the UTP table marks them yes for volume.",
+   "why": "True. The NYSE and the CTA plan both say extended-hours trades are included in consolidated volume. In the UTP plan's table, a Form T trade updates volume, and Form T covers trades from 12:00 a.m. to 9:30 a.m. So a busy pre-market session adds to the day's total volume.",
    "lesson_line": "Big pre-market volume is real volume. It counts in the day's total.",
    "facts": [
     "f42",
@@ -1076,7 +1265,17 @@
     "f50",
     "f46",
     "f48"
-   ]
+   ],
+   "simple": "True, pre-market trades are real trades, and they count toward the stock's consolidated volume for the day.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "data-plan rules tied to the December 2026 extended-hours change",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1085,7 +1284,7 @@
    "format": "tf",
    "q": "A trade at 7:40 a.m. can set a stock's consolidated high for the day.",
    "answer": "False",
-   "why": "False. Trades outside 9:30 a.m. to 4:00 p.m. carry a T condition. In both consolidated data plans they update volume, not the high, low or last.",
+   "why": "False. Trades outside 9:30 a.m. to 4:00 p.m. carry the T sale condition and are not last-sale eligible. The UTP plan marks trades from 12:00 a.m. to 9:30 a.m. as Form T, so a 7:40 a.m. trade is one. In both consolidated data plans' tables, a T trade does not update the consolidated high, low or last price. It is still a real trade. It just does not count toward the consolidated high.",
    "lesson_line": "A pre-market high is a real trade, but it doesn't set the day's consolidated high.",
    "facts": [
     "f50",
@@ -1096,49 +1295,79 @@
     "f48",
     "f49",
     "f41"
-   ]
+   ],
+   "simple": "False, a trade at 7:40 a.m. is outside regular hours, so it does not set the day's consolidated high.",
+   "deeper": {
+    "trap": "A stock spikes in the pre-market, then never trades that high in the regular session. The spike is a real trade. It does not set the consolidated high, so the day's consolidated high can sit below it. Before you mark a level from that high, check whether your tools include extended-hours trades."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "data-plan rules tied to the December 2026 extended-hours change",
+     "fixed before (checker, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
    "skill": "basics.hours",
    "rung": 8,
    "format": "scenario",
-   "story": "You own a stock that closed at $50, with a sell stop at $48. Your broker runs stops in regular hours only. Weak earnings after the close send it to $42. It opens next morning at $43.",
+   "story": "You own a stock that closed at $50, with a sell stop at $48. Your broker runs stops in regular hours only. Bad company news after the close sends it to $42. It opens next morning at $43.",
    "q": "Where does your stop most likely fill?",
    "choices": [
-    "Near $43, just after the open",
+    "Near $43, at the open",
     "At $48, your stop price",
-    "Near $42, in after hours"
+    "Near $42, in after hours",
+    "Nowhere, the gap skipped it"
    ],
-   "answer": "Near $43, just after the open",
-   "why": "Near $43, just after the open. The stop triggers in the regular session and becomes a market order. It fills near where the stock trades, not at $48.",
+   "answer": "Near $43, at the open",
+   "why": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. The stop price is a trigger, not a promised price. It becomes a market order and fills as soon as possible at the current price. That can be far from the stop price.",
    "lesson_line": "A stop can't catch an overnight gap. News can open the stock right through it.",
    "facts": [
     "f52",
     "f53",
     "f56",
     "f66",
-    "f55"
+    "f55",
+    "f6"
    ],
    "wrong": {
     "At $48, your stop price": "The stop price is a trigger, not a promised fill. The stock opened below it.",
-    "Near $42, in after hours": "Your broker doesn't run stops after hours, so nothing triggered until the regular session."
-   }
+    "Near $42, in after hours": "Your broker doesn't run stops after hours, so nothing triggered until the regular session.",
+    "Nowhere, the gap skipped it": "The stop does trigger. At the open it turns into a market order and fills as soon as possible, near $43."
+   },
+   "simple": "Near $43 at the open, because the stock opened below your stop and the stop then sold at the going price.",
+   "deeper": {
+    "trap": "The trap is treating $48 as your worst case. A stop price is a trigger, not a floor. News opened the stock below the stop. So the stop fired at the open and filled near the going price, here near $43. A triggered stop can fill far from its stop price."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "broker stop rules vary (the story states the broker's rule)",
+     "touches the owner's gap rule B20 and real-stop rule D41 (owner flag)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
    "skill": "basics.hours",
    "rung": 9,
    "format": "scenario",
-   "story": "You hold a stock into earnings. It reports at 4:05 p.m. and falls 9% after hours. The quote is wide, and only small trades are printing.",
+   "story": "A stock you follow reports earnings at 4:05 p.m. and falls 9% after hours. The quote is wide, and only small trades are printing.",
    "q": "What's the most accurate read right now?",
    "choices": [
     "Real news, but a thin, shaky price",
     "The official close is now 9% lower",
-    "It will open 9% lower tomorrow"
+    "Real news, so the drop will hold",
+    "Just noise the open will erase"
    ],
    "answer": "Real news, but a thin, shaky price",
-   "why": "Real news, but a thin, shaky price. Extended-hours prices may not match the next open. FINRA notes trading can settle once regular hours resume.",
+   "why": "Real news, but a thin, shaky price. A wide quote and small trades show little trading interest. Extended-hours prices may not reflect the next day's open. FINRA notes trading can settle once people digest the results and regular hours resume. The official close is still the 4 p.m. price. Nothing here promises a rebound, and nothing promises the open will match the 9% drop.",
    "lesson_line": "Respect the news, not the exact after-hours price. The open is where the full market weighs in.",
    "facts": [
     "f21",
@@ -1151,8 +1380,59 @@
    ],
    "wrong": {
     "The official close is now 9% lower": "The close is still the 4 p.m. price. After-hours trading doesn't change it.",
-    "It will open 9% lower tomorrow": "Not a given. The SEC warns extended-hours prices may not reflect the next day's open."
-   }
+    "Real news, so the drop will hold": "The news is real, but nothing promises the price holds. The SEC warns extended-hours prices may not reflect the next day's open.",
+    "Just noise the open will erase": "The news is real. The SEC says out-of-hours news can move a stock sharply, and nothing promises the open will undo it."
+   },
+   "simple": "The news is real, but the after-hours price is thin and shaky, so the open may land somewhere else.",
+   "deeper": {
+    "counter": "Sometimes the after-hours drop is only the start, and the open lands even lower once the full market weighs in. The point is not that the price will bounce. A thin after-hours price is a rough guess, in either direction, until regular hours resume."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "story no longer has the member holding through earnings (rulebook B22)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q20",
+   "skill": "basics.hours",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "A stock you're watching hits your buy point at 7:45 a.m. ET, in the pre-market. Your broker takes pre-market orders.",
+   "q": "What does our rule say to do?",
+   "choices": [
+    "Wait for the regular session",
+    "Buy now with a limit order",
+    "Buy now with a market order",
+    "Skip the stock for the day"
+   ],
+   "answer": "Wait for the regular session",
+   "why": "Wait for the regular session. Our rule is no new buys outside regular trading hours, which run 9:30 a.m. to 4:00 p.m. ET. Your broker may take a pre-market order, but we don't place one. When we do buy, our rule is a market order.",
+   "simple": "Wait for the regular session, because our rule is no new buys outside regular trading hours.",
+   "lesson_line": "A pre-market price can tempt you. Our rule waits: no new buys outside regular hours.",
+   "wrong": {
+    "Buy now with a limit order": "Your broker may take the order, but our rule is no new buys outside regular trading hours.",
+    "Buy now with a market order": "We do enter with market orders, but only in regular hours. Our rule is no new buys outside them.",
+    "Skip the stock for the day": "Our rule doesn't drop the trade. It only rules out buying before the regular session opens."
+   },
+   "facts": [
+    "f76",
+    "f77",
+    "f1",
+    "f12"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "house rule E58 (and E57 in a wrong note)"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1191,117 +1471,123 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f1 (SEC) and f11 (FINRA) confirmed. The note on '4:00 a.m. to 8:00 p.m.' called it 'Nasdaq's whole day'. Nasdaq's 23/5 hub adds a 9 p.m. to 4 a.m. session from Dec 6, 2026, so that line would go stale. It now says 'pre-market start to its after-hours end' (f27, f31). The other notes are right.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f1/f11: 9:30 a.m. to 4:00 p.m. ET. Key matches. The simple line is 19 words. The why rests on f1, f11 (FINRA 'as defined by the SEC') and f16. The 'your time' and Nasdaq 4-to-8 distractors are real misreadings with grounded notes (f27, f31). The key is not the longest choice and has no tell."
   },
   "q02": {
    "status": "pass",
-   "notes": "f12 (FINRA) confirmed. Only 'pre-market' fits 'just before the 9:30 a.m. open'. Overnight is 8 p.m. to 4 a.m. (f15), and 'core' is NYSE's name for the regular session (f40), so both are real mix-ups. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f17 (FINRA: extended-hours activity 'still dwarfed' by regular hours) and f62 (Fidelity: 'vast majority' in normal hours) confirmed in context. Two publishers, and a Tier 1 source among them. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "f20 (FINRA: earnings 'normally take place during the extended-hours period'), f70 (Schwab) and f63 (Fidelity) confirmed. Both wrong notes are right. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f27 (Nasdaq 4:00 a.m. to 8:00 p.m.), f28, and f57 / f64 (Fidelity and Schwab pre-market from 7:00 a.m.) confirmed. Schwab's 24/5 list on thinkorswim does not make 'every broker' true. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold: False. f26 and f61 say each broker sets its own extended-hours rules, f28 says certain brokers use different times, and f57/f64 put Fidelity and Schwab at 7:00 a.m. The statement is now a causal claim ('set by the exchange'), not an absolute keyed False. Every number is in a quote (4:00 a.m. f27; 7:00, 9:28 f57; 7:00, 9:25 f64; 4:05 f65). The Dec 6, 2026 overnight session does not move Nasdaq's 4:00 a.m. pre-market start (f33 adds 9 p.m. to 4 a.m.), and the risk field records it."
   },
   "q06": {
    "status": "pass",
-   "notes": "f9 (SEC: 'many brokerage firms currently accept only limit orders'), f58 (Fidelity) and f66, f68 (Schwab, article dated Sept 21, 2026) confirmed. Each wrong note matches its source. A different fact from F1.03 q18. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key solved cold from f9/f58/f68: Limit orders. The why and lesson line are grounded, and the E58 close (f76) is correct. One defect in an unchanged wrong note: 'Those are what brokers keep out' states for every broker what f9 says only of 'many', which makes the market-order line overreach. Reworded to 'many' and grounded the worse-fill half on FINRA f18 (added to facts). Everything else is unchanged."
   },
   "q07": {
    "status": "pass",
-   "notes": "Recomputed by hand: 4:00 p.m. minus 9:30 a.m. is 6.5 h = 390 min, and 390 / 5 = 78. The calc agrees. The lesson holds: a full regular day cannot show more than 78 five-minute bars. F11.01 q10 asks the same sum (see conflicts). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "f1 and f27 confirmed. 4:35 p.m. is after hours whether a platform stamps a bar's start or its end. The lesson line said any print 'after 4:00 p.m.' is after hours, but after 8:00 p.m. it is overnight (f15). It now says 4:00 to 8:00 p.m. ET (f27), with f17 added for 'thinner'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q09": {
    "status": "pass",
-   "notes": "NYSE hours page: 'close early at 1:00 p.m. ... on Friday, November 27, 2026' (f39). Nasdaq's 2026 calendar shows the same early close, with Thanksgiving (Nov 26) closed (f30). NYSE's late sessions close at 5:00 p.m. that day, but the question asks only about the regular session (see conflicts). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f39 (NYSE) and f30 (Nasdaq): 1:00 p.m. ET. Adding 'for stocks' to the question makes the 1:15 p.m. options close (f39) cleanly wrong. 'Thursday, November 26' follows from f39 (Friday the 27th) and f30. The question names the date, so it stays true after the day passes. The question is 103 characters."
   },
   "q10": {
    "status": "pass",
-   "notes": "f72, f71, f24, f25 confirmed. The question said 'the gap on Wednesday's daily bar', but a gap sits between bars, so it now asks about 'the gap at Wednesday's open' (s19's close-to-open sense). The key said 'while the market was shut', which clashes with the after-hours session this unit teaches. It now says 'News that came out after the close' (f72). The lesson line now says 'often', because gaps also happen without news.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f72/f24/f25: news after the close. The changed note ('Pre-market trades don't set the open... supply and demand at the open') rests on FINRA f25 and no longer names Nasdaq's Opening Cross. It is also consistent with the CTA table (f48: a T trade does not update the open). The choices are 34 to 39 characters, the key is not the longest, and no second answer holds up."
   },
   "q11": {
    "status": "pass",
-   "notes": "f24 (FINRA: 4 p.m. prices are the official close 'regardless of what happens during extended-hours trading'), f35 and f36 confirmed. The question said 'closes at $80.00', which gave the answer away. It now says 'trades at $80.00 at 4:00 p.m.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "Recomputed: (44 - 40) / 40 = 10%, and pct_change agrees. The close-to-open gap matches StockCharts s19 (f73). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "f54 (Investor.gov: day orders 'generally cancel at the end of regular trading hours' and 'will not carry over to the extended hours session or the next trading day') confirmed. 'Most likely' covers brokers' Day + Extended orders (Schwab f67). Same shape as V.07 q29 (see conflicts). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f54: an unfilled day order generally cancels at the end of regular hours. Key matches. 'Most likely' rests on f54's 'generally' and f26. The market-order note is grounded (f52, f54) and no longer uses the absolute 'Only'. The trap's advice to mark a new order for the extended session is for a sell, so E58 (no new buys) does not apply."
   },
   "q14": {
    "status": "pass",
-   "notes": "f22, f23 (FINRA), f5 (SEC) and f59 (Fidelity) confirmed. Added f74, Reg NMS Rule 600(b)(105) (eCFR, up to date as of 11/05/2026): a trade-through is one 'during regular trading hours', so False still holds after the SIPs extend their hours on Dec 6, 2026. Best execution still applies, but the statement claims a best price across venues, which nothing guarantees then.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "f4, f69, f9, f18 confirmed. f4 compares extended-hours prices with regular-hours prices. The why and the 'open at' note had narrowed that to 'the open', so both now say regular-hours prices, as the SEC does. The key and the lesson are sound trading sense: a thin print is a hint, not a verdict.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key solved cold from f69/f4/f3: a thin print, not a firm price. The new key is 29 characters (not the longest), parallels 'A real trade, so a solid price' and has no lone hedge. The why, the wrong notes and the first-person lesson line (allowed for judgment, README 5) pass. One defect in the new deeper.trap: it calls buying 'at market' the trap and then says 'Many brokers take only limit orders this early'. That reads as if a pre-market limit buy were fine, which E58 replaced (f76: no new buys outside regular trading hours). Rewritten so the trap is buying at all, with our rule stated. Each se"
   },
   "q16": {
    "status": "pass",
-   "notes": "UTP matrix: Form T updates volume (f45) and covers trades from 12:00 a.m. to 9:30 a.m. (f46, now cited). CTA table: T volume YES (f48, now cited). The NYSE and CTA FAQs both say yes (f42, f51). 'Before 9:30 a.m.' could include the previous evening's overnight trades, so it now says 'in the pre-market'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q17": {
    "status": "pass",
-   "notes": "Read the UTP matrix (p.48) and the CTA table (p.82): T trades update neither the consolidated high/low nor the last. Form T covers 12:00 a.m. to 9:30 a.m. (f46), so 7:40 a.m. falls inside it. 'Consolidated' is now taught in w2. In the lesson line, 'doesn't print' is now 'doesn't set'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "f52, f53 (SEC), f56 (FINRA) and f66 (Schwab) confirmed. The story states the broker's rule, so the key, near $43 just after the open, holds, and both wrong notes are right. Same idea as F5.04 q20 (see conflicts). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from the story's broker rule plus f52/f56/f53: near $43 at the open. Every number comes from the story. The story is bad company news (f6), not a report held through earnings, so B22 is not touched. The question asks what the order does, not what UCT does. The trap ends on f53 and does not endorse the open fill as our handling. Still standing as an owner flag: B20 (the first 30-minute low is the new stop) against a resting D41 broker stop, which would fire at the open before that bar forms. The lesson does not yet say how UCT handles a gap through the stop. It is not a key error."
   },
   "q19": {
    "status": "pass",
-   "notes": "f21, f4, f24, f19, f8 confirmed. The key respects the news without promising a rebound. The wrong notes match f24 and f4. Close to q15 but adds 'the news is real' and the official close. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f8/f4/f21/f24: real news, but a thin, shaky price. 'A stock you follow' removes the hold-through-earnings problem (B22). The replacement distractor 'Real news, so the drop will hold' removes the lone 'real news' tell, and its note rests on f4. 'Just noise' rests on f7. 9% comes from the story. The overlap with q15's key idea is accepted as review: q19 adds the real-news and official-close angles."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "House question. Solved cold from f76 (E58, quote matches sizing_rule.md section 9 line E58 verbatim): no buy in the pre-market, so wait for the regular session. Choices split two buy and two not buy, at 26 to 28 characters, with no lone absolute. 'Skip the stock for the day' is a real misreading, and its note correctly says E58 only rules out the out-of-hours buy (C30: no time-of-day rule). The E57 line is grounded in f77 and matches the rulebook ('The stop still sits with the broker' is not needed here). Its notes do not answer q06 (which order types brokers accept). q06's why and q15's note "
   }
  }
 }

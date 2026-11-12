@@ -165,6 +165,14 @@
    "title": "May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
    "url": "https://www.optionseducation.org/news/may-keytakeaways",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -503,6 +511,12 @@
    "source": "s10",
    "quote": "Generally, these single stock options price in moves slightly below historical averages, suggesting traders are not expecting any major impact to the stock price based on earnings results.",
    "claim": "Cboe found the Mag 7 options generally priced moves slightly below their historical averages ahead of earnings."
+  },
+  {
+   "id": "f57",
+   "source": "s20",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Rule B22: no new buys in the 3 days before earnings, and hold through a report only if the trade is up 5R."
   }
  ],
  "walkthroughs": [
@@ -578,24 +592,38 @@
    "q": "Before a report, what does the stock's implied move tell you?",
    "choices": [
     "How far options price it to move",
-    "Which way it should move",
-    "How far it moved last time",
-    "Where analysts see the price"
+    "Which way it is most likely to move",
+    "How far it moved after its last report",
+    "Where analysts expect the price to go"
    ],
    "answer": "How far options price it to move",
-   "why": "How far options price it to move. Right before a report, short-dated option prices show how big a reaction the market expects.",
+   "why": "How far options price it to move. The implied move is the size of the reaction the options market expects. Right before a report, short-dated option prices show it, Cboe says. OIC defines implied volatility as how much the market expects the price to move, read from option prices. It is not a direction. It is not last quarter's reaction, and it is not an analyst's price target.",
    "lesson_line": "The implied move is the options market's estimate of the reaction's size.",
    "facts": [
     "f17",
     "f34",
     "f26",
-    "f1"
+    "f1",
+    "f19",
+    "f52",
+    "f18",
+    "f20"
    ],
    "wrong": {
-    "Which way it should move": "Options price a size, not a side. Up or down looks the same to the implied move.",
-    "How far it moved last time": "That's history. You compare it with the implied move, but it isn't the implied move.",
-    "Where analysts see the price": "Price targets come from analysts. The implied move comes from option prices."
-   }
+    "Which way it is most likely to move": "Options price a size, not a side. Up or down looks the same to the implied move.",
+    "How far it moved after its last report": "That's history. You compare it with the implied move, but it isn't the implied move.",
+    "Where analysts expect the price to go": "The implied move isn't anyone's price target. It comes from option prices, as a size either way."
+   },
+   "simple": "How far options price the stock to move, since option prices carry the market's guess of the reaction's size.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "four agreeing facts, one Tier 1 (OIC f1)",
+     "stable definition"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -604,7 +632,7 @@
    "format": "tf",
    "q": "The implied move tells you which way the stock should go after the report.",
    "answer": "False",
-   "why": "False. Option prices generally don't imply a direction, just how much the stock may move either way.",
+   "why": "False. The implied move is a size, not a direction. Cboe notes that option pricing generally does not imply which way a stock will react. It shows how much it may move either way. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down.",
    "lesson_line": "The implied move is a size. It says nothing about up or down.",
    "facts": [
     "f19",
@@ -612,7 +640,16 @@
     "f6",
     "f40",
     "f52"
-   ]
+   ],
+   "simple": "False, because option prices show how big a move may be, not which way the stock will go.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (f52 added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
@@ -630,15 +667,25 @@
     "target"
    ],
    "answer": "realized",
-   "why": "Realized. It's the move that actually happened. The implied move was the forecast made before it.",
+   "why": "Realized. The realized move is what the stock actually did after the report, measured from real prices. OIC calls historical volatility a measure of actual price changes, and Fidelity calls it realized volatility. The implied move is the forecast read from option prices before the report. Expected is another name for the implied move, not the realized one.",
    "lesson_line": "Implied is the forecast. Realized is what the stock really did.",
    "facts": [
     "f2",
     "f29",
     "f3",
     "f27",
-    "f53"
-   ]
+    "f53",
+    "f26"
+   ],
+   "simple": "Realized is the move the stock really made after the report, while implied was the guess made before it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (realised to realized)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -653,19 +700,31 @@
     "The call with the most volume"
    ],
    "answer": "Nearest at-the-money straddle",
-   "why": "The at-the-money straddle in the nearest expiry that covers the report. Add the call and the put at the strike nearest the stock price.",
+   "why": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number.",
    "lesson_line": "Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
    "facts": [
     "f35",
     "f7",
     "f26",
-    "f17"
+    "f17",
+    "f36",
+    "f21"
    ],
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
     "The longest-dated puts listed": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report.",
     "The call with the most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle."
-   }
+   },
+   "simple": "The nearest at-the-money straddle, because a call plus a put at the strike nearest the price shows the move priced.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (expiry that covers the report)",
+     "key rests on two Tier 2 publishers plus Cboe"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -674,13 +733,24 @@
    "format": "tf",
    "q": "A straddle buyer makes money at expiry as long as the stock moves.",
    "answer": "False",
-   "why": "False. At expiry the buyer only breaks even when the stock ends the full premium away from the strike. A smaller move loses money.",
+   "why": "False. A straddle buyer owns a call and a put at one strike. OIC says it only breaks even at expiry when the stock ends the full premium above or below the strike. A smaller move, either way, loses money. The most the buyer can lose is the two premiums paid.",
    "lesson_line": "The straddle price is the hurdle. The move has to clear it.",
    "facts": [
     "f8",
     "f22",
-    "f9"
-   ]
+    "f9",
+    "f7"
+   ],
+   "simple": "False, because at expiry the stock must move more than the full price paid for the straddle before the buyer makes money.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "OIC Tier 1 rule, Cboe agrees",
+     "stable"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -689,13 +759,23 @@
    "format": "tf",
    "q": "Implied volatility tends to rise ahead of known news like an earnings report.",
    "answer": "True",
-   "why": "True. Implied volatility tends to climb into uncertainty or expected news, and single-stock options into earnings often carry high implied volatility.",
+   "why": "True. OIC says implied volatility tends to increase when there is uncertainty or anticipated news, and to decrease in calm times. Cboe adds that single-stock options heading into earnings often carry high implied volatility, which inflates the premium on calls and puts. The word tends matters: it is a pattern, not a rule. And it often falls sharply after the report.",
    "lesson_line": "Into the report, options tend to get pricier. That's the market paying up for the unknown.",
    "facts": [
     "f4",
     "f23",
-    "f6"
-   ]
+    "f6",
+    "f12"
+   ],
+   "simple": "True, because implied volatility tends to rise when news like an earnings report is coming.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (hedge added to lesson line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -729,7 +809,7 @@
    "rung": 3,
    "format": "fill",
    "q": "Fill the blank with the right word.",
-   "sentence": "A straddle buyer needs the stock's move to beat the ___ paid.",
+   "sentence": "A straddle seller can make at most the ___ collected.",
    "bank": [
     "premium",
     "strike",
@@ -738,13 +818,24 @@
     "dividend"
    ],
    "answer": "premium",
-   "why": "Premium. A straddle profits only if the move beats the total premium paid for the call and the put.",
-   "lesson_line": "Whatever the straddle costs, that's the move the buyer has to beat.",
+   "why": "Premium. OIC says the straddle seller's maximum gain is limited to the premiums received at the outset. The seller generally profits when the stock and volatility stay steady. A move past the premium, either way, is a loss for the seller instead. The strike is where the move is measured from, not what the seller keeps.",
+   "lesson_line": "The seller's best case is keeping the premium. The buyer's hurdle is that same premium.",
    "facts": [
-    "f22",
+    "f11",
+    "f10",
     "f8",
-    "f9"
-   ]
+    "f22"
+   ],
+   "simple": "Premium, because the most a straddle seller can make is the premium collected up front.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "OIC Tier 1 plus Cboe agree",
+     "stable"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
@@ -762,14 +853,24 @@
     }
    },
    "suffix": "%",
-   "why": "5.5%. The straddle divided by the stock price: $4.40 over $80.",
+   "why": "5.5%. Divide the straddle price by the stock price: $4.40 divided by $80 is 5.5%. The strike equals the stock price, so neither option has intrinsic value. That makes the full-straddle read and the read that subtracts intrinsic value give the same answer. It is an estimate of the move's size, either way, not a promise or a limit.",
    "lesson_line": "Straddle divided by price gives the implied move in percent. It's an estimate, not a promise.",
    "facts": [
     "f26",
     "f36",
     "f37",
     "f28"
-   ]
+   ],
+   "simple": "About 5.5%, because $4.40 for the straddle divided by the $80 stock price gives the move options price.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (strike set to the stock price)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -786,13 +887,23 @@
     }
    },
    "suffix": "%",
-   "why": "8.5%. The close after, minus the close before, divided by the close before.",
+   "why": "8.5%. Measure from the last close before the report to the first close after it: $86.80 minus $80, divided by $80, is 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced.",
    "lesson_line": "Measure the realized move from the last close before the report. Then hold it up against what was priced.",
    "facts": [
     "f2",
     "f29",
     "f27"
-   ]
+   ],
+   "simple": "It was 8.5%, found by taking the rise from $80 to $86.80 and dividing it by the $80 start.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (stem made self-contained)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -810,7 +921,7 @@
     }
    },
    "suffix": "x",
-   "why": "2.5. The stock moved two and a half times what options priced. That's a real surprise.",
+   "why": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced.",
    "lesson_line": "Realized over implied: under one is smaller than priced, over one is bigger.",
    "facts": [
     "f18",
@@ -818,7 +929,17 @@
     "f17",
     "f53",
     "f54"
-   ]
+   ],
+   "simple": "It is 2.5, because a 10% move is two and a half times the 4% move options priced.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (OIC f53 and f54 added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -827,14 +948,24 @@
    "format": "tf",
    "q": "The implied move is the most a stock can move after the report.",
    "answer": "False",
-   "why": "False. It's an estimate, and stocks can move more. AMD options once priced about 7%, and the next morning the stock was about 10% lower.",
-   "lesson_line": "The implied move is a guide, not a ceiling. Plan for a bigger one.",
+   "why": "False. The implied move is an estimate of size, not a limit. Fidelity's presenter says the stock then moves by the expected move, or more, or it doesn't. It is not accurate 100 percent of the time. AMD options once priced about 7%, and the next morning the stock was about 10% lower. Treat it as a guide, not a ceiling.",
+   "lesson_line": "The implied move is a guide, not a ceiling. The real move can be bigger.",
    "facts": [
     "f27",
     "f28",
     "f39",
     "f41"
-   ]
+   ],
+   "simple": "False, because the implied move is only an estimate, and a stock can move well past it.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Fidelity and IBKR agree (two Tier 2 publishers)",
+     "historic example, does not change"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -844,23 +975,37 @@
    "story": "Options price a 5% move into the report. The stock gaps 12% and holds there into expiry.",
    "q": "On the at-the-money straddle, who came out ahead?",
    "choices": [
-    "The straddle buyers",
-    "The straddle sellers",
-    "Neither side, it's even"
+    "The buyers of the straddle",
+    "The sellers of the straddle",
+    "Neither side, it's about even",
+    "Depends on implied volatility"
    ],
-   "answer": "The straddle buyers",
-   "why": "The straddle buyers. The move went well past the premium they paid, so the straddle is worth more than it cost.",
+   "answer": "The buyers of the straddle",
+   "why": "The buyers of the straddle. At expiry a straddle buyer breaks even when the stock ends the full premium away from the strike, either way, OIC says. Options priced about 5% and the stock held 12% away, so the straddle is worth far more than it cost. A move this far past the premium is a loss for the sellers. Falling implied volatility can shave value before expiry, but at expiry only the move counts.",
    "lesson_line": "A move past the straddle price by expiry pays the buyers. A smaller one pays the sellers.",
    "facts": [
     "f8",
     "f22",
     "f10",
-    "f11"
+    "f11",
+    "f12",
+    "f9",
+    "f5"
    ],
    "wrong": {
-    "The straddle sellers": "Sellers do well when the move stays inside the premium. A move far past it costs them.",
-    "Neither side, it's even": "Even would need the move to land right at the premium paid. It went well past it."
-   }
+    "The sellers of the straddle": "Sellers do well when the move stays inside the premium. A move far past it costs them.",
+    "Neither side, it's about even": "Even would need the move to land right at the premium paid. It went well past it.",
+    "Depends on implied volatility": "Falling volatility hurts buyers before expiry. At expiry only the move counts, and 12% is far past the 5% priced."
+   },
+   "simple": "The buyers won, because the stock moved 12% and held there, far past the 5% move the straddle priced.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line made expiry-specific)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -870,24 +1015,37 @@
    "story": "From a Fidelity options webinar: before a report, the at-the-money straddle cost $3.69. After the report it was worth $2.81.",
    "q": "Who came out ahead on that straddle?",
    "choices": [
-    "The seller",
-    "The buyer",
-    "Both, since the stock moved"
+    "The seller of the straddle",
+    "The buyer of the straddle",
+    "Both, since the stock moved",
+    "No way to tell without the move"
    ],
-   "answer": "The seller",
-   "why": "The seller. The move didn't cover what the buyer paid, and implied volatility fell after the report. In Fidelity's example the buyer lost $88 a straddle and the seller made $54.",
+   "answer": "The seller of the straddle",
+   "why": "The seller of the straddle. It cost $3.69 before the report and was worth $2.81 after, so whoever bought it lost and whoever sold it gained. In Fidelity's example the buyer lost $88 on one straddle and the seller made $54. Whatever the stock did, it was not enough to cover what was paid. Cboe warns that even a big earnings move may not cover the high cost of the options.",
    "lesson_line": "A stock can move and the straddle still lose. The move has to beat what was paid.",
    "facts": [
     "f30",
     "f31",
-    "f32",
     "f9",
     "f24"
    ],
    "wrong": {
-    "The buyer": "The straddle was worth less after the report than it cost. That's a loss for the buyer.",
-    "Both, since the stock moved": "A move smaller than the premium hands the win to the seller. The buyer lost."
-   }
+    "Both, since the stock moved": "A move smaller than the premium hands the win to the seller. The buyer lost.",
+    "The buyer of the straddle": "The straddle was worth less after the report than it cost. That's a loss for the buyer.",
+    "No way to tell without the move": "The straddle's own prices settle it. It cost $3.69 and was worth $2.81 after, so the buyer lost and the seller gained."
+   },
+   "simple": "The seller came out ahead, because the straddle was worth less after the report than the buyer paid for it.",
+   "deeper": {
+    "example": "Fidelity's numbers: after the report the call was worth $0.04 and the put $2.77, $2.81 in all. Against $3.69 paid, that is $0.88 a share, or $88 on one straddle of 100 shares. The seller's prices were different: the seller collected $3.54 and paid $3.04 to close, a $54 gain. The two sides do not mirror exactly, but the verdict is the same."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (class to webinar)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -898,11 +1056,11 @@
    "choices": [
     "Options priced a smaller move than usual",
     "Options priced a bigger move than usual",
-    "The stock will rise after the report",
-    "The options are mispriced"
+    "The stock will likely rise on the report",
+    "The options are mispriced and too cheap"
    ],
    "answer": "Options priced a smaller move than usual",
-   "why": "A smaller move than usual. About 6% priced against a 7.39% average for the last six reports. The market expected a calmer reaction than its history.",
+   "why": "Options priced a smaller move than usual. In August 2025, NVDA's at-the-money near-term options implied about 6%, below the 7.39% average of its past six post-earnings moves, Sosnick wrote. That says the market expected a calmer reaction than its history, nothing more. It gives no direction. Below average alone does not show mispricing. Cboe found the big tech options it studied generally priced moves slightly below their historical averages.",
    "lesson_line": "Hold the implied move up against the stock's past reactions. That tells you if options expect a big one.",
    "facts": [
     "f46",
@@ -913,9 +1071,18 @@
    ],
    "wrong": {
     "Options priced a bigger move than usual": "6% is below the 7.39% average, so it's smaller, not bigger.",
-    "The stock will rise after the report": "The implied move has no direction. It can't tell you up or down.",
-    "The options are mispriced": "Below average isn't wrong. The market can expect a quieter report than usual."
-   }
+    "The stock will likely rise on the report": "The implied move has no direction. It can't tell you up or down.",
+    "The options are mispriced and too cheap": "Below average alone doesn't make them wrong. Cboe found big tech options generally price moves slightly below their history."
+   },
+   "simple": "Options priced a smaller move than usual, because about 6% is below the 7.39% average of its last six reactions.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (Cboe f56 and OIC f52 added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -926,21 +1093,36 @@
    "choices": [
     "Took value out of them",
     "Added value to them",
-    "Nothing, only the stock matters"
+    "Nothing, the stock decides",
+    "Shifted value to the puts"
    ],
    "answer": "Took value out of them",
-   "why": "Took value out of them. Lower implied volatility means lower premiums, all else equal. In Fidelity's example, that drop cost the call about $0.83 of premium.",
+   "why": "Took value out of them. All else equal, lower implied volatility means a lower premium. OIC's own example shows an option losing value when implied volatility drops. In Fidelity's example, the fall from 92.88% to 49.69% cost each call about $0.83. Higher volatility lifts puts and calls alike, so a fall cuts both. It happens even if the stock holds still.",
    "lesson_line": "After a report, the volatility you paid for often drains out. That's the volatility crush.",
    "facts": [
     "f32",
     "f5",
     "f12",
-    "f13"
+    "f13",
+    "f6"
    ],
    "wrong": {
     "Added value to them": "That's what rising implied volatility does. A fall does the opposite.",
-    "Nothing, only the stock matters": "Implied volatility drives a big part of an option's price. A drop like this cuts the premium even if the stock holds still."
-   }
+    "Nothing, the stock decides": "Implied volatility is part of an option's price. All else equal, a drop like this cuts the premium even if the stock holds still.",
+    "Shifted value to the puts": "Implied volatility has no side. OIC: higher volatility raises puts and calls alike, so a fall cuts both."
+   },
+   "simple": "It took value out of the calls, because lower implied volatility makes options cheaper even when nothing else changes.",
+   "deeper": {
+    "trap": "The trap is buying calls into a report because you are sure the stock will rise. Even if it does, the drop in implied volatility after the news can eat the gain. OIC shows how an option can lose value even when the stock moves in your favor."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (hedge added to lesson line)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -952,7 +1134,8 @@
    "choices": [
     "About 0.46x, smaller than priced",
     "About 1x, right on the price",
-    "About 2x, far bigger than priced"
+    "About 2x, far bigger than priced",
+    "Can't tell without the strike"
    ],
    "answer": "About 0.46x, smaller than priced",
    "calc": {
@@ -963,18 +1146,33 @@
      "implied": 7
     }
    },
-   "why": "About 0.46x, smaller than priced. 3.25% against about 7% is less than half the move the market priced.",
+   "why": "About 0.46x, smaller than priced. Divide the realized move by the implied move: 3.25 divided by 7 is about 0.46. Options priced about 7% for NVDA's May 28, 2025 report, and the stock rose 3.25%, Sosnick wrote. Under one means a smaller move than priced. OIC says the options are then sometimes called underperforming expectations. The rise itself is not the point: options price size, not direction.",
    "lesson_line": "A reaction well under the priced move tells you something too. The market braced for more than it got.",
    "facts": [
     "f42",
     "f43",
     "f45",
-    "f18"
+    "f18",
+    "f54",
+    "f20"
    ],
    "wrong": {
     "About 1x, right on the price": "Right on would need a move near 7%. The stock moved 3.25%.",
-    "About 2x, far bigger than priced": "That's backwards. The move was smaller than priced, not bigger."
-   }
+    "About 2x, far bigger than priced": "That's backwards. The move was smaller than priced, not bigger.",
+    "Can't tell without the strike": "The size comparison needs only the priced move and the real move. The strike does not change it."
+   },
+   "simple": "About 0.46x, because the 3.25% rise was less than half of the 7% move options priced.",
+   "deeper": {
+    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Put the realized move on top. Then read it: under one is smaller than priced, over one is bigger."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
@@ -986,10 +1184,11 @@
    "choices": [
     "Yes, the size was about as priced",
     "No, it went down instead of up",
-    "No, it moved twice the priced move"
+    "No, a drop that big is a surprise",
+    "Yes, options priced a drop of 8.4%"
    ],
    "answer": "Yes, the size was about as priced",
-   "why": "Yes, the size was about as priced. 8.48% against about 8.4% is almost exactly the move options expected. Direction was never part of the price.",
+   "why": "Yes, the size was about as priced. Options priced about 8.4% for NVDA's February 2025 report, and the stock fell 8.48%, Sosnick wrote. That is almost exactly the expected size. Direction was never part of the price: Cboe and OIC both say option prices describe how big, not which way. A big drop that matches the priced move is the market getting it right.",
    "lesson_line": "Judge the implied move on size. A big drop that matches the priced move is the market getting it right.",
    "facts": [
     "f42",
@@ -1001,8 +1200,21 @@
    ],
    "wrong": {
     "No, it went down instead of up": "Options didn't price a direction. A fall of the priced size is right on.",
-    "No, it moved twice the priced move": "Twice would be far more than 8.48%. It landed right about on 8.4%."
-   }
+    "Yes, options priced a drop of 8.4%": "Options priced about 8.4% either way, not a drop. They got the size right; a direction was never priced.",
+    "No, a drop that big is a surprise": "Big is relative. Options priced about 8.4%, and the stock fell 8.48%. That is the priced size."
+   },
+   "simple": "Yes, because the 8.48% drop was almost exactly the 8.4% move options priced, and options price size, not direction.",
+   "deeper": {
+    "trap": "The trap is grading options on direction. A trader who expected a rise calls this a miss. But the options priced only size: about 8.4% either way. A fall of 8.48% is the forecast working, and the same move up would be judged the same."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (OIC f52 added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
@@ -1011,13 +1223,28 @@
    "format": "tf",
    "q": "Two websites can show different implied moves for the same report without either one being wrong.",
    "answer": "True",
-   "why": "True. Some use the full straddle, some subtract intrinsic value, and Cboe's note scaled by a two-thirds rule of thumb. Know which method your tool uses.",
+   "why": "True. There is more than one method. Fidelity's presenter uses the full straddle price as the expected move. Sosnick at Interactive Brokers subtracts any intrinsic value from the straddle's midpoint. Cboe's note turned the implied standard deviation into an expected move with a 2/3 rule of thumb. Each is an estimate, so two sites can show different numbers for one report. Know which method your tool uses before you compare.",
    "lesson_line": "Check how your tool works out the implied move before you compare numbers across sites.",
    "facts": [
     "f21",
     "f26",
-    "f36"
-   ]
+    "f36",
+    "f37",
+    "f33"
+   ],
+   "simple": "True, because tools work out the implied move in different ways, so their numbers can differ and both be fair.",
+   "deeper": {
+    "example": "Sosnick's MSFT read, July 2020: the two 210 options cost 4.75 and 5.15, with the stock at 209.58. With the strike above the stock, the put had intrinsic value. He took it out and got $9.48, about 4.5%. Fidelity's full-straddle read would come out a little higher on the same options. Same options, two fair numbers."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "three Tier 2 publishers show three methods",
+     "statement says can"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
@@ -1029,7 +1256,8 @@
    "choices": [
     "About 1.4x, bigger than priced",
     "About 0.7x, smaller than priced",
-    "About 1x, right on the price"
+    "About 1x, right on the price",
+    "About -1.4x, opposite to priced"
    ],
    "answer": "About 1.4x, bigger than priced",
    "calc": {
@@ -1041,19 +1269,34 @@
     },
     "round": 1
    },
-   "why": "About 1.4x, bigger than priced. About 10% against about 7%. Bigger than the market expected, but well short of double.",
+   "why": "About 1.4x, bigger than priced. Divide the realized move by the implied move: about 10 divided by about 7 is about 1.4. AMD options priced about 7% for its late October 2024 report. The next morning the stock was about 10% lower, Sosnick wrote. Bigger than the market expected, but well short of twice. Sosnick's own read: the market wasn't too far off. Both figures are approximate, and the 10% was a morning price, not a close.",
    "lesson_line": "Read the ratio, not the headline. Bigger than priced, but not a shock.",
    "facts": [
     "f39",
     "f41",
     "f40",
     "f18",
-    "f55"
+    "f55",
+    "f20"
    ],
    "wrong": {
     "About 0.7x, smaller than priced": "That flips the ratio. Divide the realized move by the implied move, not the other way round.",
-    "About 1x, right on the price": "Right on would be close to 7%. About 10% is clearly bigger."
-   }
+    "About 1x, right on the price": "Right on would be close to 7%. About 10% is clearly bigger.",
+    "About -1.4x, opposite to priced": "Options priced about 7% either way, with no direction. Use the size of the drop, not its sign."
+   },
+   "simple": "About 1.4x, because a drop of about 10% is bigger than the 7% options priced, but well short of double.",
+   "deeper": {
+    "trap": "A headline that says a stock fell 10% sounds like options missed. Against about 7% priced it is about 1.4x: bigger than expected, not a shock. Check the basis too. Sosnick's 10% was a morning-after price, not the day's close, so the ratio could shift by the close."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (f55 added)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q21",
@@ -1072,13 +1315,26 @@
     "round": 1
    },
    "suffix": "x",
-   "why": "2.3. More than double the priced move. Reuters reported it as Meta's biggest one-day percentage gain in a year.",
+   "why": "2.3. Divide 20.3 by 9: about 2.3. Before Meta's February 2024 report, its at-the-money front-week options had an implied volatility of about 9%, Sosnick wrote. The stock closed up 20.3% for the session, Reuters reported, its biggest one-day percentage gain in a year. More than double the priced move means the news landed far outside what the market expected.",
    "lesson_line": "Twice the priced move or more means the news landed far outside what the market priced.",
    "facts": [
     "f47",
     "f48",
     "f18"
-   ]
+   ],
+   "simple": "About 2.3, because Meta's 20.3% jump was more than twice the 9% move its options implied.",
+   "deeper": {
+    "trap": "Mixing bases. The 9% came from front-week implied volatility before the report. The 20.3% is Reuters' session close. Different methods and times can shift a ratio, so read it as about 2.3, not exact. More than double either way says the report landed far outside what options priced."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "pairs two writers' figures (IBKR priced, Reuters close)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q22",
@@ -1138,13 +1394,13 @@
    "format": "mcq",
    "q": "A stock moves twice its implied move after the report. What does that tell you?",
    "choices": [
-    "The news was far outside what was priced",
+    "The report surprised the market",
     "The options were priced too high",
     "The move will reverse the next day",
     "Implied volatility will now rise"
    ],
-   "answer": "The news was far outside what was priced",
-   "why": "The news was far outside what was priced. Options price the reaction the market expects. Twice that means the report surprised the market.",
+   "answer": "The report surprised the market",
+   "why": "The report surprised the market. Options price the reaction the market expects before a report. A move twice that size means the news landed far outside that expectation. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
    "lesson_line": "Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
    "facts": [
     "f17",
@@ -1154,10 +1410,51 @@
     "f54"
    ],
    "wrong": {
-    "The options were priced too high": "Backwards. A move bigger than priced means the options were cheap for what happened.",
+    "The options were priced too high": "Backwards. The move beat what options priced. OIC says such options are sometimes called outperforming expectations.",
     "The move will reverse the next day": "Nothing in the implied move predicts tomorrow. Judge what happens next on its own.",
     "Implied volatility will now rise": "After a report, implied volatility often falls sharply. The event it was pricing is over."
-   }
+   },
+   "simple": "The report surprised the market, because the stock moved twice as far as options had priced for it.",
+   "deeper": {
+    "trap": "The trap is reading the ratio as a forecast. Twice the priced move says the news surprised the market. It does not say the move will reverse or run on, or that options were too dear. Judge what comes next from the chart and your plan."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before",
+     "key text reworded to remove a longest-answer tell"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q25",
+   "skill": "fund.expected_move",
+   "rung": 9,
+   "format": "tf",
+   "house": true,
+   "q": "Under our rule, a trade up 2R is sold before the report, even if options price a small move.",
+   "answer": "True",
+   "why": "True. We hold through a report only if the trade is up 5R, and 2R is short of that. The size of the priced move does not change the rule. It is an estimate, and the stock can move more than priced.",
+   "lesson_line": "A small priced move is no reason to hold. We hold through a report only when up 5R.",
+   "simple": "True, because we hold through a report only when the trade is up 5R, whatever move options price.",
+   "deeper": {
+    "trap": "The trap is reading a small implied move as a safe report. The stock can move by the expected move, or more. Our rule looks at your gain so far, not the forecast."
+   },
+   "facts": [
+    "f57",
+    "f27",
+    "f28"
+   ],
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "rests on the owner's rulebook (B22, f57)"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -1190,39 +1487,39 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "All 19 sources re-fetched 2026-11-09 with the quote checker's plain client (56/56 found) and every quote read in context; OIC, FINRA, Cboe and Globe and Mail pages also opened with WebFetch (IBKR answers WebFetch with 403, Fidelity PDFs are image/compressed for WebFetch, so those were read from the plain-client text and pypdf). Key = f1 (OIC Tier 1) in plain words; f17/f34/f26 (Cboe, IBKR, Fidelity) agree. Distractors are real confusions (direction, history, analyst targets), each explained correctly. Term answer 32 chars.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer: size, not direction (f17, f1, f52). Key matches. Key is the shortest choice; distractors are real misreadings, each note grounded (f19/f52, f53, f1/f20). Simple 20 words. f1, f52, f53, f54 re-fetched on OIC with WebFetch and found verbatim."
   },
   "q02": {
    "status": "pass",
-   "notes": "False is right: f19/f20 (Cboe), f40 (IBKR), f6 (OIC) and added f52 (OIC Tier 1: 'not direction'). Why keeps Cboe's 'generally'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "Track audit 2026-11-09: 'realised' is now 'realized' (term, bank, answer, why, lesson line), as in the unit's own sources (Fidelity f29 'realized volatility', OIC f53 'realized price moves') and the rest of the courses; the same change runs through F5.05's title and text. Realised = actual: f2 (OIC 'actual asset price changes'), f29 (Fidelity 'realized volatility'); added f53 (OIC Tier 1: 'realized price moves relative to what option prices were implying'). Bank words all wrong for a reason.",
-   "fixed": true,
-   "by": "checker; track auditor"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only facts changed (f26 added). Realized is the only defensible bank word; 'expected' is correctly ruled out via f26 and w1. Fidelity f26 found in the transcript PDF text."
   },
   "q04": {
    "status": "pass",
-   "notes": "Key from f35 (IBKR 'nearest term, at-money straddle'), f26 (Fidelity), f17 (Cboe short-dated). Why now says the nearest expiry 'that covers the report', matching the wrong-choice note; dropped 'That total is the quick read' (IBKR subtracts intrinsic value, so 'total' overstated it). flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: nearest at-the-money straddle (f35 IBKR, f26 Fidelity: two Tier 2 publishers agree; Cboe f18 also uses the straddle). Choices similar lengths, key not longest. Why no longer overreaches on 'scale'; f21 Cboe re-fetched verbatim. Longest sentence exactly 22 words."
   },
   "q05": {
    "status": "pass",
-   "notes": "False: f8 (OIC Tier 1) breakeven at expiry is strike +/- premium; f22 (Cboe) agrees. Statement says 'at expiry', so the key holds as asked.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer False (f8 OIC long straddle, re-fetched verbatim). Before-expiry IV clause gone, f7 cited for the call+put. Does not give away q08 or q13."
   },
   "q06": {
    "status": "pass",
-   "notes": "True: f4 (OIC Tier 1 'tends to increase when there is ... anticipated news'), f23 (Cboe). Lesson line said options 'get pricier'; now 'tend to get pricier', matching the sources' hedge.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True on OIC f4 (Tier 1, re-fetched verbatim) plus Cboe f23 (re-fetched). Hedge kept ('tends'); 'often falls sharply after' rests on f12."
   },
   "q07": {
    "status": "cut",
@@ -1232,87 +1529,87 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f22 (Cboe: move must surpass 'the total premium paid'), f8 (OIC Tier 1). Bank alternatives (strike, spread, volume, dividend) are each wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer premium (f11 OIC short straddle, re-fetched verbatim). No other bank word is defensible. No longer restates q05's key. Lesson line's buyer-hurdle half rests on f8/f22 and is reveal-only."
   },
   "q09": {
    "status": "pass",
-   "notes": "Recomputed 4.40 / 80 x 100 = 5.5. Question said 'at-the-money call and put'; now 'The $80 call and put in the nearest expiry' so intrinsic value is zero and Fidelity's full-straddle read (f26) and IBKR's minus-intrinsic read (f36) give the same 5.5%. Lesson line keeps 'an estimate, not a promise' (f28).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "Recomputed (86.80 - 80) / 80 x 100 = 8.5. Question opened 'Its last close...' with nothing for 'its' to refer to (questions are shuffled); now 'A stock's last close before its report was $80.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed 10 / 4 = 2.5. Added f53/f54 (OIC Tier 1: realised judged against implied; less = underperforming, more = outperforming expectations) as the method's source.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key 2.5 is right (calc). But the why's last clause 'so the report was a real surprise' states q24's key in q24's own words, and q11 (rung 5) plays before q24 (rung 9), so q11 answers q24. Dropped the clause; the f54 sentence already says what over one means."
   },
   "q12": {
    "status": "pass",
-   "notes": "False: f27/f28 (Fidelity: moves by the expected move 'or more or it doesn't', not 100 percent accurate) and f39 (IBKR: AMD ~7% priced, ~10% lower). Lesson 'plan for a bigger one' is sound risk advice.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer False (f27, f28 found in the Fidelity transcript text). AMD example f39/f41 (IBKR answers WebFetch with 403; earlier plain-client check recorded in verify). Unsupported advice removed."
   },
   "q13": {
    "status": "pass",
-   "notes": "12% at expiry vs ~5% straddle: buyers win (f8, f22 OIC/Cboe); holds even if the 5% came from a scaled method (straddle then ~6%). Lesson line said 'bigger than priced pays the buyers', true only at expiry vs the full premium; now 'A move past the straddle price by expiry pays the buyers. A smaller one pays the sellers.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: buyers (12% held into expiry vs about 5% priced; f8, f22). New fourth choice 'Depends on implied volatility' is a real IV-crush misconception, not the key, with a grounded note (f9, f5, f12). Choice lengths 26-29. Seller max gain no longer given away to q08."
   },
   "q14": {
    "status": "pass",
-   "notes": "Fidelity 2016 slides (s13) re-read: slides 12-13 label the $65 call and put 'ATM'; straddle 1.81 + 1.88 = 3.69, after 0.04 + 2.77 = 2.81, loss $88; short 3.54 - 3.04 = $54; call IV 92.88% -> 49.69% (f32). Story said 'class'; the source is webinar slides, so now 'webinar'. No ticker or date given (slides never tie the 2/25/16 date to the trade).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: seller ($3.69 paid, $2.81 after). f30/f31 found verbatim in the Fidelity slides PDF text; f24 Cboe re-fetched. 'The stock did move' removed. Minor: 'Both, since the stock moved' leans weak for a zero-sum trade, but it is a beginner misconception and its note teaches the hurdle."
   },
   "q15": {
    "status": "pass",
-   "notes": "f46 (IBKR, Aug 27 2025): ~6% vs 7.39% average; recomputed (3.25+8.48+0.53+6.38+9.32+16.4)/6 = 7.39. Cboe (s10) added as f56: Mag 7 options 'generally' priced slightly below historical averages, so 'mispriced' is rightly wrong. Added f52.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: smaller move than usual (6% vs 7.39%, f46). Cboe f56 re-fetched verbatim and the why now says 'alone'. Choices 39-40 chars, balanced; longest sentence 22 words. IBKR s16 unreachable by WebFetch (403)."
   },
   "q16": {
    "status": "pass",
-   "notes": "f32 (Fidelity) recomputed: 43.19 x 0.0193 = 0.834, 'about $0.83'; f5 (OIC Tier 1) gives the direction. Lesson line said the volatility 'drains out' flatly; now 'often drains out' (OIC: 'often falls sharply').",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: took value out (f5 OIC re-fetched, f32 found in Fidelity slides text: 92.88% to 49.69%, about $0.83). Bare $.75 removed. Puts distractor taught by f6."
   },
   "q17": {
    "status": "pass",
-   "notes": "f43/f45 (IBKR): May 28 2025 report, +3.25% vs 7% expected (linked May 28 post: 'daily volatility of 7%'). 3.25 / 7 = 0.464 -> 0.46x; the '2x' distractor is the flipped ratio (7 / 3.25 = 2.15), a real mistake.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (3.25/7 = 0.46, calc). TELL: 0.46x appears in two of four choices, so a member who picks the repeated number gets the key without the skill, and then 'under one is smaller' decides it. Cut the duplicate-number choice (3 choices are allowed); the wrong-way 2x divide stays as the real trap and the deeper trap still teaches the reading. Also the why said 'OIC calls that options underperforming expectations'; f54 says the options are 'sometimes referred to' that way, the same misattribution fixed in q11/q24."
   },
   "q18": {
    "status": "pass",
-   "notes": "f44/f45 (IBKR): Feb 2025 report -8.48% vs 8.4% priced (linked Feb 25 2025 post: '8.4% daily at-money volatility'). Ratio ~1.01, 'about as priced' is right; direction point backed by f19/f20 and added f52 (OIC).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (8.48% vs about 8.4%, f44/f45; size not direction f19/f52). SILLY CHOICE: 'No, it moved twice the priced move' against 8.4% and 8.48% in the story fools nobody. Replaced with the real misconception the deeper trap and q20 describe: judging a big drop as a miss without comparing it to the priced move. Numbers only from the story. Yes/No still two and two; lengths 30-34, key not longest."
   },
   "q19": {
    "status": "pass",
-   "notes": "True: three Tier 2 publishers use three methods, Fidelity full straddle (f26), IBKR minus intrinsic (f36), Cboe IV standard deviation with a 2/3 rule of thumb (f21). Statement says 'can', so True holds.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Deeper no longer assigns 4.75/5.15 to a leg; put intrinsic value follows from strike 210 above 209.58 (f37). 'A little higher' is qualitative and follows from 4.75 + 5.15 being above 9.48. True statement, three methods (f26, f36, f21)."
   },
   "q20": {
    "status": "pass",
-   "notes": "f39 (IBKR): ~7% priced, ~10% lower next morning (intraday, 1:00 pm post). 10 / 7 = 1.43 -> 1.4x; '0.7x' is the flipped ratio. Added f55 (IBKR: 'wasn't too far off on the other') so the lesson 'not a shock' is the source's own read.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer 1.4x (calc, round 1). 'approximate' fixed. '-1.4x, opposite to priced' kept: f39 itself reads '-10% lower' and the note teaches 'either way' (f20). f55 for 'not too far off'. IBKR s15 unreachable by WebFetch (403)."
   },
   "q21": {
    "status": "pass",
-   "notes": "20.3 / 9 = 2.26 -> 2.3. f47 (IBKR Feb 1 2024, 11:30 am): 'implied volatility of about 9%' is Sosnick's daily IV read of the priced move (same post calls AAPL's 'daily implied volatility' and compares it with past moves); f48 Reuters 20.3% session close. A straddle figure would be lower, raising the ratio; 'more than double' holds. Conflicts note corrected: q21 pairs IBKR's figure with Reuters' close (it had said every ratio uses one writer's pair).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q22": {
    "status": "cut",
@@ -1328,9 +1625,15 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "Key follows from f17/f34 (options price the expected reaction) and added f54 (OIC Tier 1: more movement than implied = 'outperforming expectations'). Wrong note said IV falls 'even after a big move' (not sourced); now 'often falls sharply. The event it was pricing is over.' (f12). Lesson 'the story changed' was unsourced; now 'the report caught the market off guard', then judge the chart on its own.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f17/f34 plus f54). The why's f54 attribution is fixed, but the wrong note for 'The options were priced too high' still says 'OIC says the options outperformed expectations', dropping OIC's 'sometimes referred to', and 'not that they were too dear' is no OIC claim. Rewritten to f54's words. Lesson-level: q21's lesson line ('Twice the priced move or more means the news landed far outside...') previews this key; q21 is not in this check's scope, so flagged only."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer True: B22 (sizing_rule.md section 9, line 149, quote f57 verbatim) holds through a report only at 5R, so a 2R trade is out before the report whatever the priced move. Key teaches the rulebook, not a web view. f27/f28 back 'can move more than priced'. Watch: it uses R (2R, 5R) that F5.05 never defines; R is taught in F9, so check the unit order puts F9's R lesson first or the reveal assumes it. Also a lead outside this unit: F5.06 q08 teaches a pre-report trim as 'the middle answer' and has no 5R rule; under B22 any shares held through a report need the trade up 5R."
   }
  }
 }

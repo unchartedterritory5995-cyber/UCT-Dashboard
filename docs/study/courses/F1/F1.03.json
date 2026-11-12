@@ -98,6 +98,14 @@
    "title": "Trade execution glossary",
    "url": "https://www.schwab.com/execution-quality/glossary",
    "accessed": "2026-11-08"
+  },
+  {
+   "id": "s12",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -328,6 +336,12 @@
    "source": "s4",
    "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders",
    "claim": "In extended hours, many brokers accept only limit orders."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "E58. No new buys outside regular trading hours.",
+   "claim": "Our rule: no new buys outside regular trading hours."
   }
  ],
  "walkthroughs": [
@@ -395,18 +409,29 @@
     "The quote's midpoint price"
    ],
    "answer": "The most a buyer will pay now",
-   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering, for a stated number of shares.",
+   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering at this moment, for a stated number of shares. It sits below the ask, the least a seller will take. It is not the last trade, which already happened, and not the midpoint, which is only a reference for value.",
    "lesson_line": "The bid is the buyer's side of the quote.",
    "facts": [
     "f1",
     "f2",
+    "f3",
+    "f8",
     "f31"
    ],
    "wrong": {
     "The least a seller will take now": "That's the ask, the seller's side of the quote.",
     "The price of the last trade": "That's the last. It already happened, and nobody has to repeat it.",
     "The quote's midpoint price": "That's the midpoint, halfway between bid and ask. It's a reference, not anyone's order."
-   }
+   },
+   "simple": "The bid is the highest price a buyer is offering right now, the buyer's side of the quote.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (distractor replaced by the checker)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q02",
@@ -424,26 +449,47 @@
     "close"
    ],
    "answer": "ask",
-   "why": "Ask. It's the seller's price, and it sits above the bid.",
-   "lesson_line": "Buyers bid, sellers ask. A market buy pays at or near the ask.",
+   "why": "Ask. The ask is the lowest price a seller will take right now. It sits above the bid, the most a buyer will pay. The last is a trade that already happened, and the spread is the gap between bid and ask.",
+   "lesson_line": "Buyers bid, sellers ask. The ask is the seller's side of the quote.",
    "facts": [
     "f2",
     "f3",
-    "f7"
-   ]
+    "f1",
+    "f31"
+   ],
+   "simple": "The ask is the lowest price a seller will take, and it sits above the bid.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, Tier 1 sources"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q03",
    "skill": "basics.spread",
    "rung": 2,
    "format": "tf",
-   "q": "On a normal quote, the bid is lower than the ask.",
+   "q": "On a stock quote, the bid is lower than the ask.",
    "answer": "True",
-   "why": "True. The bid sits below the ask, and the gap between them is the spread.",
+   "why": "True. The bid is the most a buyer will pay and the ask is the least a seller will take. The bid sits below the ask, and the gap between them is the spread.",
    "lesson_line": "Bid below, ask above, spread in between.",
    "facts": [
-    "f3"
-   ]
+    "f3",
+    "f1",
+    "f2"
+   ],
+   "simple": "True, the bid sits below the ask, and the gap between them is the spread.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one quote (f3)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q04",
@@ -453,20 +499,35 @@
    "term": "spread",
    "q": "On a stock quote, what is the spread?",
    "choices": [
-    "Ask minus bid",
+    "The ask minus the bid",
     "The day's high minus low",
-    "Today's change from yesterday"
+    "Today's price change",
+    "The bid and ask averaged"
    ],
-   "answer": "Ask minus bid",
-   "why": "Ask minus bid. It's the gap between what sellers want and what buyers offer.",
+   "answer": "The ask minus the bid",
+   "why": "The ask minus the bid. The spread is the gap between the lowest price a seller will take and the highest price a buyer will pay. It is a hidden cost of trading right now. It is not the day's range, the day's change, or the midpoint halfway between bid and ask.",
    "lesson_line": "Spread is ask minus bid. Read it before you place the order.",
    "facts": [
-    "f3"
+    "f3",
+    "f1",
+    "f2",
+    "f6",
+    "f31"
    ],
    "wrong": {
     "The day's high minus low": "That's the day's range, how far price traveled today. It isn't a cost to trade.",
-    "Today's change from yesterday": "That's the day's change. It says nothing about what it costs to trade right now."
-   }
+    "Today's price change": "That's the day's change. It says nothing about what it costs to trade right now.",
+    "The bid and ask averaged": "That's the midpoint, a reference for what a share is worth. The spread is the gap, not the middle."
+   },
+   "simple": "The spread is the ask minus the bid, the gap between what sellers want and what buyers offer.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one quote (f3)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q05",
@@ -475,12 +536,22 @@
    "format": "tf",
    "q": "The last price is the price your market order will get.",
    "answer": "False",
-   "why": "False. The last is a trade that already happened. A market buy fills at or near the ask, a market sell at or near the bid.",
+   "why": "False. The SEC says the last-traded price is not necessarily the price a market order gets. A market order generally fills at or near the current bid or ask, which can differ from the last trade. In a fast market, even those can move before your order fills.",
    "lesson_line": "Last is history. Bid and ask are what you can trade at now.",
    "facts": [
     "f8",
-    "f7"
-   ]
+    "f7",
+    "f20"
+   ],
+   "simple": "False, the last price is a trade that already happened, and a market order usually fills near the bid or the ask.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule, two Tier 1 sources"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q06",
@@ -495,17 +566,29 @@
     "At the midpoint"
    ],
    "answer": "Near the ask",
-   "why": "Near the ask. A market buy takes the sellers' price, so you pay at or near the ask to get in now.",
+   "why": "Near the ask. A market buy takes the sellers' price, so it fills at or near the ask. You get speed, not a set price: the price is not guaranteed. The last trade and the midpoint are not prices you can count on.",
    "lesson_line": "A market buy pays at or near the ask. That's the price of getting in right now.",
    "facts": [
     "f7",
-    "f33"
+    "f33",
+    "f2",
+    "f9",
+    "f18"
    ],
    "wrong": {
     "Near the bid": "That's roughly what you'd get selling. A market buy doesn't wait for a seller to come down.",
     "At the last trade": "The last trade already happened. Your fill comes from the quote as it stands now.",
     "At the midpoint": "The midpoint is a reference. You might get a better fill, but expect the ask."
-   }
+   },
+   "simple": "A market buy pays about the ask, because that is the lowest price a seller will take right now.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule, Tier 1 and Tier 2 sources agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q07",
@@ -514,12 +597,23 @@
    "format": "tf",
    "q": "The spread is a cost of trading, even when the commission is zero.",
    "answer": "True",
-   "why": "True. Buy at the ask, sell at the bid, and the gap comes out of your pocket. The SEC's investor bulletin calls it a hidden cost.",
+   "why": "True. The SEC calls the spread a hidden cost, because it cuts into your return. Buy at the ask and sell at the bid, and you give up the gap on every share. A zero commission removes the fee, not the spread. The wider the spread, the more a trade costs.",
    "lesson_line": "No commission doesn't mean free. Crossing the spread costs you.",
    "facts": [
     "f6",
-    "f26"
-   ]
+    "f26",
+    "f4",
+    "f7"
+   ],
+   "simple": "True, buying at the ask and selling at the bid gives up the gap, even with no commission.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable, Tier 1 and Tier 2 sources agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q08",
@@ -536,11 +630,22 @@
     }
    },
    "prefix": "$",
-   "why": "$0.04. Ask minus bid: $25.02 less $24.98.",
+   "why": "$0.04. The spread is the ask minus the bid: $25.02 minus $24.98. That is what each share costs you if you buy at the ask and sell straight back at the bid.",
    "lesson_line": "Spread equals ask minus bid. Work it out before every order.",
    "facts": [
-    "f3"
-   ]
+    "f3",
+    "f4"
+   ],
+   "simple": "The spread is $0.04, because the ask of $25.02 minus the bid of $24.98 leaves four cents.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one quote (f3)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q09",
@@ -557,13 +662,23 @@
     }
    },
    "suffix": "%",
-   "why": "0.5%. Take ask minus bid, divide by the midpoint between them, and write it as a percent. The SEC's ETF rule measures spreads this way.",
+   "why": "0.5%. The gap is $20.05 minus $19.95. Divide it by the midpoint, the price halfway between bid and ask, and write the result as a percent. The SEC's ETF rule measures spreads this way, rounded to the nearest hundredth. A percent lets you compare a cheap stock with a pricey one.",
    "lesson_line": "Percent lets you compare spreads on cheap stocks and pricey ones.",
    "facts": [
     "f23",
     "f22",
     "f31"
-   ]
+   ],
+   "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "sources differ on the divisor (midpoint vs ask); the question names the midpoint, see conflicts"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q10",
@@ -582,11 +697,21 @@
     }
    },
    "prefix": "$",
-   "why": "$200. You paid the ask and sold at the bid, so you gave up the full spread on all 500 shares.",
+   "why": "$200. You paid the $10.20 ask and sold at the $9.80 bid. You gave up the full spread on each of the 500 shares. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread.",
    "lesson_line": "Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
    "facts": [
     "f4"
-   ]
+   ],
+   "simple": "You lose $200, because you paid the ask and sold at the bid on all 500 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one quote (f4)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -598,20 +723,32 @@
    "choices": [
     "Near $41.90",
     "Near $42.05",
-    "Exactly $42.00"
+    "Exactly $42.00",
+    "$42.00 or more"
    ],
    "answer": "Near $41.90",
-   "why": "Near $41.90. A triggered stop becomes a market sell, and a market sell fills at or near the bid.",
+   "why": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order, and a market sell fills at or near the bid. The price is not guaranteed: in a fast market the fill can come in below the bid you saw. It is never a promise of $42.00.",
    "lesson_line": "Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
    "facts": [
     "f13",
     "f7",
+    "f9",
     "f20"
    ],
    "wrong": {
     "Near $42.05": "That's the ask, the price buyers pay. You're the seller here.",
-    "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price."
-   }
+    "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price.",
+    "$42.00 or more": "That treats the stop as a floor. Once it triggers it's a market sell, and the bid is already below $42.00."
+   },
+   "simple": "Expect about $41.90, because a triggered stop becomes a market sell, and a market sell fills near the bid.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule, Tier 1 sources"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q12",
@@ -621,25 +758,38 @@
    "story": "The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
    "q": "What should you expect from the fill?",
    "choices": [
-    "All 1,000 at $12.40",
-    "Some at $12.40, the rest higher",
+    "All 1,000 shares at $12.40",
+    "Some at $12.40, rest higher",
     "It waits until $12.40 has size",
-    "All 1,000 below $12.40"
+    "Some at $12.40, rest cancelled"
    ],
-   "answer": "Some at $12.40, the rest higher",
-   "why": "Some at $12.40, the rest higher. Only 300 shares show at the ask, so expect the rest to fill against the sellers above it.",
+   "answer": "Some at $12.40, rest higher",
+   "why": "Some at $12.40, rest higher. Only 300 shares show at the $12.40 ask, and a market order generally fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. A better fill is possible, but it is never promised. The SEC's own example works the same way: 500 of 1,000 shares could fill at the quote, the rest higher.",
    "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
    "facts": [
     "f10",
     "f11",
     "f9",
-    "f18"
+    "f18",
+    "f20"
    ],
    "wrong": {
-    "All 1,000 at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
     "It waits until $12.40 has size": "A market order doesn't wait. It generally executes right away. A limit order is the one that waits.",
-    "All 1,000 below $12.40": "A better fill can happen, but it isn't promised. Plan on the ask or worse."
-   }
+    "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
+    "Some at $12.40, rest cancelled": "A market order doesn't drop the rest. In the SEC's example, the other 500 shares could execute at a higher price."
+   },
+   "simple": "Only 300 shares sit at $12.40, so expect some to fill there and the rest at the higher prices above it.",
+   "deeper": {
+    "trap": "The size on screen is a snapshot. By the time a big market order lands, those 300 shares may be gone and the next sellers may sit higher. FINRA warns you might not get the price you saw, especially in a fast market. A market order buys speed, not price."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (absolute wording softened by the checker)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q13",
@@ -664,11 +814,21 @@
     }
    },
    "prefix": "$",
-   "why": "$30.13. Shares times price for each fill, added up, then divided by the 1,000 shares.",
+   "why": "$30.13. Multiply each fill's shares by its price, add them up, and divide by the 1,000 shares. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost.",
    "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
    "facts": [
     "f11"
-   ]
+   ],
+   "simple": "Your average is $30.13, because more of the shares, 600 of 1,000, filled at the higher price.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one quote (f11)",
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -686,13 +846,22 @@
     "last"
    ],
    "answer": "size",
-   "why": "Size. A bid size of 300 means 300 shares wanted at that bid price.",
+   "why": "Size. The size is the number of shares waiting at a quoted price. A bid size of 300 means 300 shares wanted at that bid price. Price tells you where buyers and sellers stand; size tells you how many shares are there. At the best bid or ask, the size is often small.",
    "lesson_line": "Price tells you where. Size tells you how many.",
    "facts": [
     "f35",
     "f1",
     "f28"
-   ]
+   ],
+   "simple": "The size is how many shares wait at that price, like 300 shares wanted at the bid.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (moved from rung 4 to rung 3)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q15",
@@ -701,12 +870,22 @@
    "format": "tf",
    "q": "A buy limit order at the bid will fill as long as the stock keeps trading.",
    "answer": "False",
-   "why": "False. If the stock trades up and away from your price, your order just sits there unfilled. A limit order is not guaranteed to execute.",
+   "why": "False. A limit order fills only if the market reaches your price. FINRA says that if the market price fails to match or better your limit, it will not be executed. Buy at the bid and the stock can trade up and away, leaving you unfilled. You get price control, not a promise of a fill.",
    "lesson_line": "A limit order protects your price and gives up the promise of a fill.",
    "facts": [
     "f12",
-    "f21"
-   ]
+    "f21",
+    "f14"
+   ],
+   "simple": "False, if the price moves up and away, your limit at the bid just sits there and may never fill.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (statement reworded by the checker)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q16",
@@ -719,10 +898,10 @@
     "50.00 / 50.02, sizes 3,000 / 2,500",
     "49.70 / 50.30, sizes 2,000 / 2,500",
     "50.01 / 50.02, sizes 100 / 100",
-    "49.95 / 50.05, sizes 200 / 300"
+    "49.95 / 50.05, sizes 1,500 / 1,800"
    ],
    "answer": "50.00 / 50.02, sizes 3,000 / 2,500",
-   "why": "50.00 / 50.02 with 2,500 at the ask. A tight spread, and enough shares at the ask to cover your whole order.",
+   "why": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it.",
    "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
    "facts": [
     "f26",
@@ -734,8 +913,20 @@
    "wrong": {
     "49.70 / 50.30, sizes 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
     "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices.",
-    "49.95 / 50.05, sizes 200 / 300": "Wider than the best quote, and only 300 shares at the ask."
-   }
+    "49.95 / 50.05, sizes 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher."
+   },
+   "simple": "Pick the tight quote with 2,500 shares at the ask, because it is cheap to cross and covers your 2,000 shares.",
+   "deeper": {
+    "trap": "The tightest spread on the board, 50.01 / 50.02, is the trap. Only 100 shares sit at the ask. Send 2,000 at market and the rest reaches into higher sellers. Your average can end up worse than a wider quote with real size. Read spread and size together, never one alone."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (story clarified by the checker)"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -747,7 +938,8 @@
    "choices": [
     "A costs about 20x more",
     "B costs about 2x more",
-    "They cost about the same"
+    "They cost about the same",
+    "Can't tell without the size"
    ],
    "answer": "A costs about 20x more",
    "calc": {
@@ -761,98 +953,202 @@
     },
     "round": 0
    },
-   "why": "A, by about 20 times. Divide each spread by its midpoint. A's small spread sits on a small price, so it eats far more of every dollar.",
+   "why": "A, by about 20 times. Divide each spread by its midpoint, the way the SEC's ETF rule states spreads. B's spread is bigger in cents, but B's price is far bigger still. So B's spread is a tiny slice of its price. A's spread is a big slice of a small price. With the same dollars in either, A costs far more to cross.",
    "lesson_line": "Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
    "facts": [
     "f23",
-    "f22"
+    "f22",
+    "f26",
+    "f10"
    ],
    "wrong": {
     "B costs about 2x more": "That's comparing cents. B's spread is bigger in cents, but its price is far bigger still.",
-    "They cost about the same": "Same dollars in, very different cost. Work each spread out as a percent of its midpoint."
-   }
+    "They cost about the same": "Same dollars in, very different cost. Work each spread out as a percent of its midpoint.",
+    "Can't tell without the size": "Size matters for a big order, but this asks the spread as a percent of its midpoint. The two quotes give you all you need."
+   },
+   "simple": "A costs more, about 20 times, because its small spread sits on a small price, so it eats more of each dollar.",
+   "deeper": {
+    "trap": "The cents trap. B's spread looks worse because it is more cents. But you pay the spread on every share, and the same dollars buy far more shares of the cheap stock. So the cheap stock's spread is paid many more times over. Compare spreads as a percent of price, never in cents."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "sources differ on the divisor; 'about 20x' holds either way, see conflicts"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q18",
    "skill": "basics.spread",
    "rung": 8,
    "format": "scenario",
-   "story": "A stock reports earnings after the close and jumps in after-hours trading. The quote is far wider than it was during the day. Few shares show at the ask.",
-   "q": "You want in now. Which order makes sense?",
+   "story": "A stock reports earnings after the close. It jumps in after-hours trading. You pull up its quote.",
+   "q": "Compared with the regular session, what should you expect from the quote?",
    "choices": [
-    "A limit order at your price",
-    "A market order right now",
-    "A buy stop above the ask"
+    "A wider spread than in the day",
+    "A tighter spread, with all the news",
+    "The same spread as in the day",
+    "Fills right at the quote you see"
    ],
-   "answer": "A limit order at your price",
-   "why": "A limit order at your price. After hours there is less trading interest and spreads run wider. A limit order caps what you pay, though it may not fill.",
-   "lesson_line": "Thin market, wide spread: name your price or stay out.",
+   "answer": "A wider spread than in the day",
+   "why": "A wider spread than in the day. The SEC says less trading interest after hours generally means wider spreads, or no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Many brokers accept only limit orders after hours. Our own rule adds one more: no new buys outside regular trading hours.",
+   "lesson_line": "After hours, spreads widen and fills get harder. Our rule: no new buys outside regular hours.",
    "facts": [
     "f15",
     "f16",
-    "f14",
-    "f13",
-    "f32",
-    "f38"
+    "f20",
+    "f38",
+    "f39"
    ],
    "wrong": {
-    "A market order right now": "With a wide quote and little size, a market order can fill far from what you saw. Many brokers take only limit orders after hours anyway.",
-    "A buy stop above the ask": "A buy stop turns into a market order when it triggers, so you're back to paying whatever is there."
-   }
+    "A tighter spread, with all the news": "News can feel like it brings buyers. But the SEC says lower trading interest after hours generally means wider spreads.",
+    "The same spread as in the day": "The SEC says less trading interest after hours generally means wider spreads. Expect the quote to be wider than in the day.",
+    "Fills right at the quote you see": "The SEC says after-hours orders can be harder to fill, at worse prices. The quote you see is not a promise."
+   },
+   "simple": "Fewer people trade after hours, so expect a wider spread, and our rule is no new buys then.",
+   "deeper": {
+    "trap": "The news makes the stock feel busy, so the quote feels solid. But fewer traders work the after-hours session. The spread runs wider, and the price you see may not be one you get."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "touches the owner's rulebook (E58 no new buys outside regular hours, taught in the why)",
+     "question text changed in wave6 (lineage entry needed)",
+     "broker practice in extended hours can change (f38 says 'currently')"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q19",
    "skill": "basics.spread",
    "rung": 7,
    "format": "tf",
-   "q": "A market order to buy can sometimes fill below the quoted ask.",
+   "q": "When a market buy fills below the quoted ask, that is price improvement.",
    "answer": "True",
-   "why": "True. That's price improvement: a fill better than the quote. It can happen, but nobody promises it.",
+   "why": "True. A buy filled below the quoted offer is price improvement: a fill better than the quote. The SEC calls it an opportunity, not a guarantee. Plan your trade on the ask, and treat a better fill as a bonus.",
    "lesson_line": "Hope for price improvement. Plan for the ask.",
    "facts": [
     "f18",
-    "f37"
-   ]
+    "f37",
+    "f20",
+    "f10"
+   ],
+   "simple": "True, a buy filled below the ask is called price improvement, but nobody promises it.",
+   "deeper": {
+    "counter": "The flip side: a market buy can also fill above the ask you saw. That happens when the quote moves fast or the size at the ask runs out. Both happen. Only the better fill is a bonus, so plan for the ask or worse."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable, Tier 1 and Tier 2 sources agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q20",
    "skill": "basics.spread",
    "rung": 9,
    "format": "tf",
-   "q": "A tight spread on its own proves a stock is liquid enough for your size.",
+   "q": "A tight spread shows a stock is liquid enough for your size.",
    "answer": "False",
-   "why": "False. A thinly traded stock can show a tight spread with very little behind it. Check the size at the price and how much it trades.",
+   "why": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you about liquidity. The spread shows the best prices, not how many shares sit there. Check the size at the price and how much the stock trades before you send size.",
    "lesson_line": "A tight spread is a start. Size and volume finish the check.",
    "facts": [
     "f27",
     "f10",
     "f28",
-    "f17"
-   ]
+    "f17",
+    "f5"
+   ],
+   "simple": "False, a thin stock can show a tight spread with few shares behind it, so check size and volume too.",
+   "deeper": {
+    "example": "Picture two stocks, both quoted with the same tight spread. One trades heavily every day. The other barely trades. On the screen they look the same. Send a big market order into the thin one and it can fill at price after price. The spread was tight, but the market behind it was not deep."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable, Tier 1 and Tier 2 sources agree"
+    ]
+   },
+   "batch": "wave6"
   },
   {
    "key": "q21",
    "skill": "basics.spread",
    "rung": 9,
    "format": "numeric",
-   "q": "You buy at the $8.60 ask. The bid is $8.00. Your stop is $0.80 under your fill. What percent of that $0.80 is the spread?",
+   "q": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?",
    "answer": 75,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(ask - bid) / stop_distance * 100",
-     "ask": 8.6,
-     "bid": 8.0,
-     "stop_distance": 0.8
+     "ask": 20.3,
+     "bid": 20.0,
+     "stop_distance": 0.4
     }
    },
    "suffix": "%",
-   "why": "75%. Sell right after you buy and you'd get about the bid, already most of the way to your stop. I'd skip a name this wide.",
+   "why": "75%. The spread is $20.30 minus $20.00. Divide it by the $0.40 stop distance. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide.",
    "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
    "facts": [
     "f4",
     "f7"
-   ]
+   ],
+   "simple": "The spread is 75% of your stop room, so you start most of the way to your stop.",
+   "deeper": {
+    "trap": "On the chart the stop sits $0.40 below your fill. But your real exit is the bid, and it already sits most of that distance below what you paid. One small dip and the stop fills. The wider the spread, the less room your stop really has."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q22",
+   "skill": "basics.spread",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Once the price hits your stop, what happens to a stop order?",
+   "choices": [
+    "It becomes a market order",
+    "It becomes a limit order",
+    "It fills at exactly the stop",
+    "It only sends you an alert"
+   ],
+   "answer": "It becomes a market order",
+   "why": "It becomes a market order. The SEC says the stop price is a trigger, not a guaranteed fill price. Once it is hit, the stop order becomes a market order. A market order generally executes right away, but its price is not guaranteed.",
+   "simple": "The stop price is only a trigger: once it is hit, the stop becomes a market order with no set price.",
+   "lesson_line": "A stop price is a trigger, not a promise. Once hit, you get a market order.",
+   "facts": [
+    "f13",
+    "f9"
+   ],
+   "wrong": {
+    "It becomes a limit order": "The SEC says a triggered stop becomes a market order, not a limit order. Nothing sets the price you get.",
+    "It fills at exactly the stop": "The stop price is not a guaranteed fill price. It only triggers the order.",
+    "It only sends you an alert": "That's a price alert. A stop order acts on its own: once triggered, it becomes a market order that generally executes right away."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule, Tier 1 source (SEC Understanding Order Types)"
+    ]
+   },
+   "batch": "wave6"
   }
  ],
  "conflicts": [
@@ -882,129 +1178,135 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key matches f1 (SEC ETF bulletin). The distractor 'Halfway between bid and ask' named the bid inside a question about the bid, so it was a giveaway. Replaced it with 'The quote's midpoint price' (f31), and its wrong note now says what the midpoint is. The other wrong notes are right. The 29-character answer fits a Word Match tile.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Derived 'the most a buyer will pay now' from f1 before reading the key; matches. Key not the longest (29 vs 32). Every claim in the why and wrong notes rests on f1, f2, f3, f8, f31. The ask choice teaches what w1 already teaches, so it does not give away q02 in any new way."
   },
   "q02": {
    "status": "pass",
-   "notes": "f2, f3, f7 (SEC) confirmed. Only 'ask' fits the sentence. 'bid', 'last', 'spread' and 'close' are real mix-ups, not silly ones. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key 'ask' is right (f2). The resolver removed q06's key from the why, but the lesson_line still says 'A market buy pays at or near the ask'. That is q06's key and almost word for word q06's own lesson_line, at the same rung. Fix: a lesson_line about q02's own term, and f7 is dropped because nothing cites it any more."
   },
   "q03": {
    "status": "pass",
-   "notes": "f3 (SEC): 'The bid price will be lower than the ask price'. 'On a normal quote' covers the rare locked or crossed quote. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True on f3 ('The bid price will be lower than the ask price'). The new statement is flat, with no hedge leaning True. Locked or crossed quotes are not in any fact, so they stay out. The why and simple only claim what f1 to f3 say. Note: q01 and q02's whys also say the bid sits below the ask. That is Learn-rung recall of w1, so it is not a defect."
   },
   "q04": {
    "status": "pass",
-   "notes": "f3 (SEC). The day's range and the day's change are real beginner confusions, and neither is a cost to trade. The 13-character answer fits Word Match. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f8 (SEC Types of Orders: the last-traded price is 'not necessarily' the fill) and f7 confirmed. False is right. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "False is right (f8). The why says flat out 'A market order fills at or near the current bid or ask, not the last trade'. f7 hedges ('generally will execute'), and the plan says to state the hedge where the source hedges. 'not the last trade' also overreaches: the fill can match the last trade by chance. The simple has the same flat claim. Fix adds 'generally' and says the fill 'can differ from' the last trade."
   },
   "q06": {
    "status": "pass",
-   "notes": "f7 (SEC) and f33 (Fidelity) confirmed. The midpoint note allows for a better fill without promising one, which matches f18. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived 'near the ask' from f7 and f33; matches. Choices are similar lengths, and the key is not the longest. The flat 'fills at or near the ask' is backed by Fidelity f33 ('you get the prevailing market bid or ask price'). The why no longer answers q19: the midpoint wrong note says 'You might get a better fill' and does not name price improvement."
   },
   "q07": {
    "status": "pass",
-   "notes": "f6 (SEC: the spread is 'a hidden cost') and f26 (Fidelity). It is true at zero commission, and an experienced trader would agree. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True on f6 and f4. The commission is the question's own premise, and 'a zero commission removes the fee, not the spread' follows from f4: the round-trip loss is the spread itself. The new simple is conditional and matches the why."
   },
   "q08": {
    "status": "pass",
-   "notes": "Recomputed by hand: 25.02 - 24.98 = 0.04, and the spread calc agrees. f3. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q09": {
    "status": "pass",
-   "notes": "Recomputed: 0.10 / 20.00 x 100 = 0.5%. The midpoint method is Rule 6c-11(c)(1)(v)(B) on the current eCFR (up to date as of 11/05/2026), quoted in f23. Dividing by the ask instead gives 0.4988%, which still rounds to 0.50% (see conflicts). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "Recomputed: (10.20 - 9.80) x 500 = $200. This has the same shape as the SEC's own example (f4: 200 shares x $0.50 = $100). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "f13 (SEC: the stop price is a trigger that turns the order into a market order), f7 (a market sell fills at or near the bid) and f20 (FINRA: fast markets) confirmed. The key, near $41.90, is right, and both wrong notes are right. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "The key matches the SEC's own split-fill example (f10, f11). Hidden or reserve orders can fill more than the 300 shown at $12.40, so 'have to come from higher prices' and 'fills against the sellers above it' were too absolute. Both now say 'expect' or 'can't count on'. Key unchanged.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key 'Some at $12.40, rest higher' derived from f10 and f11; it matches and is not the longest choice. 'Some at $12.40, rest cancelled' pairs with the key, but it is a real belief that fails for a different reason, so it is kept. Defect: the why says that in the SEC's example 500 of 1,000 shares 'filled' at the quote. f11 is hypothetical ('The order could have 500 shares execute at $3.00'), and the wrong note has the same overstatement. Fix uses 'could'. Every number is from the story or from f11."
   },
   "q13": {
    "status": "pass",
-   "notes": "Recomputed: (400 x 30.10 + 600 x 30.15) / 1000 = 30,130 / 1000 = 30.13, and the avg_price calc agrees. f11 is the SEC's split-fill example. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "f35 (Schwab: '300 in the bid size column means that there are 300 shares') confirmed. 'volume' is the real confusion in the bank. This is a definition, so it moved from rung 4 (Practise) to rung 3 (Learn). Levels are now 8 / 7 / 6.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "The old wording, 'is sure to fill', gave the False away. It is now a real beginner misconception: 'will fill as long as the stock keeps trading'. That is false per f21 (FINRA: if the market price fails to match or better your limit, it will not be executed) and f12 (SEC). The why was rewritten to match.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "notes": "Recomputed the spreads: A is 0.02 with 2,500 at the ask (enough for 2,000), B is 0.60, C is 0.01 but only 100 at the ask, D is 0.10 with 300. Key A is right on f26, f10 (SEC) and f28, and an experienced trader would pick it. The story now says these are four stocks. C's note says 'likely fills at higher prices', since hidden size can exist.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Before reading the key, picked 50.00 / 50.02 with 2,500 at the ask: the only quote that is both tight and covers 2,000 shares. It matches. Key length ties with two other choices (34), so no longest tell. The why names quotes only by their printed prices. Every wrong note is grounded (f26, f10, f28, f29). It fits E57 (market entries) and B23 ($10 or more)."
   },
   "q17": {
    "status": "pass",
-   "notes": "Recomputed: A is 0.10 / 5.00 = 2.0% and B is 0.20 / 200.00 = 0.10%, a ratio of 20.0 (19.8 if you divide by the ask). The calc rounds to 20. The wrong choice 'B 2x' is the cents ratio (0.20 / 0.10), a real mistake. f22 and f23 are on the current eCFR. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed the ratio: (0.10/5.00)/(0.20/200.00) = 20, so 'A costs about 20x more' is right, and it holds by the ask divisor too (see conflicts). Key not the longest. 'Can't tell without the size' fails because the stem asks for percent of the midpoint, and f10 supports its note. The $5 stock is a hypothetical comparison, and the lesson_line lines up with B23's $10 floor. It does not recommend a trade."
   },
   "q18": {
    "status": "pass",
-   "notes": "f15 and f16 (SEC extended-hours bulletin), f14 and f13 (SEC order types) and f32 (Fidelity) confirmed. The key is right. Added f38 from the same bulletin ('many brokerage firms currently accept only limit orders') to the market-order note. s4 now points at the bulletin's live investor.gov address, because sec.gov answers 403 to a plain client and 301-redirects there. The lesson line's 'or stay out' matches how an experienced trader treats chasing after hours.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Three defects. (1) Thin story: 'which order type caps the price you pay?' is answered by f14's definition alone, and the after-hours story has no effect on the key at rung 8. (2) It is answered earlier: q15 (rung 5) already teaches 'A limit order protects your price' in its why and lesson_line. (3) 'A buy at today's closing price' is not an order type, so it is close to silly, and 'If you did buy here' invites a buy that E58 forbids. Rewritten so the story decides the key: what the after-hours quote does (f15, f16), with f38 and our E58 (f39) taught in the why. Only facts already in the file a"
   },
   "q19": {
    "status": "pass",
-   "notes": "f18 (SEC Executing an Order: price improvement is 'the opportunity, but not the guarantee') and f37 (Schwab: a buy filled below the quoted offer) confirmed. True is right. 'can sometimes' hints at True a little, but the statement is exact, so I kept it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True by definition on f37 (Schwab) and f18 (SEC, Tier 1: 'a better price than the current quote'). The flat statement has no hedge tell, and the lesson stays 3 True / 3 False. The deeper counter is grounded in f20 and f10. Minor: a definition sits low for rung 7, but that is not an accuracy defect."
   },
   "q20": {
    "status": "pass",
-   "notes": "f27 (Fidelity: a 10-million-share stock and a 100-share stock can both show tight spreads and mislead you), plus f10 and f17 (SEC). False is right, and it is good trading sense. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "False is right: f10 (SEC, Tier 1) plus f27 and f28. Two defects. (1) Tell: 'on its own' flags insufficiency, so the statement leans False. The flat 'A tight spread shows ...' still reads clearly False on f10, f27 and f28, and other flat statements in the set are True (q03, q19). (2) The deeper uses numbers no fact, calc or question gives ('a penny wide', 'millions of shares a day'). They are replaced with words grounded in f27 and f10. Overlap with q16's lesson_line is noted; the formats differ and the support differs (f27), so it is kept, as the resolver decided. Text changed: the integrator "
   },
   "q21": {
    "status": "pass",
-   "notes": "Recomputed: (8.60 - 8.00) / 0.80 x 100 = 75%. The stop is at 7.80, so the 8.00 bid is 0.60 of the 0.80 already gone. 'I'd skip a name this wide' (a spread of about 7%) is sound judgment. f4, f7. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed (20.30 - 20.00) / 0.40 * 100 = 75. Every number comes from the question or the calc. The numbers fit B23 ($10 or more) and A13 (stop within about 3%: 0.40 / 20.30 is about 2%). The bid as the real exit rests on f7, and the round-trip loss on f4. 'I'd skip a name this wide' is first-person judgment, which the voice rule allows."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Derived 'It becomes a market order' from f13 before reading the key; matches. Not the longest choice. 'It becomes a limit order' pairs with the key, but it is the real stop-limit confusion, so it is kept. 'It waits for a better price' is close to silly: no one holds the belief that a triggered stop waits for a better price. It is replaced with a real one, mixing up a stop order with a price alert, which also ties to D41 (a real stop with the broker). It fails against f13 and f9 for a different reason than the other two wrong choices. It does not answer q11; it teaches the trigger rule q11 then"
   }
  }
 }
