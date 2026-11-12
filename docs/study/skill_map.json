@@ -852,7 +852,7 @@
                 "F9"
               ],
               "supply": "authored",
-              "est_questions": 27,
+              "est_questions": 28,
               "course_file": "docs/study/courses/F9/F9.02.json"
             },
             {
@@ -1886,7 +1886,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 74,
+              "est_questions": 69,
               "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {

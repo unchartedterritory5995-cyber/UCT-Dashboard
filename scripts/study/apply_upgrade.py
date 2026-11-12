@@ -28,7 +28,7 @@ from scripts.study import courses_lib as cl
 
 #: the fields a Writer or a checker's `fix` may set. Never `key`, `skill`, `rung`, `format`.
 FIELDS = ("simple", "why", "lesson_line", "deeper", "tier", "risk", "depends_on", "choices", "wrong", "q", "story",
-          "facts", "answer", "sentence", "bank", "prefix", "suffix", "order")
+          "facts", "answer", "sentence", "bank", "prefix", "suffix", "order", "calc", "chart")
 
 
 def _set_fields(q: dict, up: dict) -> list[str]:
@@ -66,11 +66,6 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
             have.add(nq["key"])
     by_key = {q["key"]: q for q in doc["questions"]}
     verify = doc.setdefault("verify", {})
-    for key in extra.get("cut") or []:
-        if key in by_key:
-            verify[key] = {"status": "cut", "by": "writer", "fixed": False, "notes": f"cut in {batch}: see the resolver's notes"}
-        else:
-            notes.append(f"{key}: cut but not in the lesson, skipped")
     for key, up in upgrades.items():
         q = by_key.get(key)
         if q is None:
@@ -96,6 +91,12 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
             verify[key] = {"status": "pass", "by": "checker", "fixed": False, "notes": text}
         else:
             notes.append(f"{key}: unknown check status {status!r}")
+    # cuts are applied LAST: a question that is cut stays cut even when an earlier layer upgraded or passed it
+    for key in extra.get("cut") or []:
+        if key in by_key:
+            verify[key] = {"status": "cut", "by": "writer", "fixed": False, "notes": f"cut in {batch}: see the resolver's notes"}
+        else:
+            notes.append(f"{key}: cut but not in the lesson, skipped")
     return notes
 
 

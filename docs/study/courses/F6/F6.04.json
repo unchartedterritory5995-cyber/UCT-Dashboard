@@ -497,12 +497,12 @@
    "choices": [
     "Price change for a $1 stock move",
     "Value the option loses each day",
-    "Change when implied volatility moves",
+    "Change for a 1% move in volatility",
     "The option's price per share"
    ],
    "answer": "Price change for a $1 stock move",
    "term": "Delta",
-   "why": "Price change for a $1 stock move. Delta is a theoretical estimate of how much the premium may change when the stock moves $1.",
+   "why": "Price change for a $1 stock move. Delta is a theoretical estimate of how much an option's price may change when the stock moves $1. A 0.50 delta, for example, means about $0.50 for each one-point stock move, all else equal. It is not the option's price. It is not theta, the price change from one day passing. It is not vega, the price change for a 1% change in volatility. Source: the Options Industry Council.",
    "lesson_line": "Delta tells you roughly how much your option moves when the stock moves a dollar.",
    "facts": [
     "f1",
@@ -512,9 +512,18 @@
    ],
    "wrong": {
     "Value the option loses each day": "That's theta, the daily cost of time. Delta is about the stock's price.",
-    "Change when implied volatility moves": "That's vega. Delta measures the option's sensitivity to the stock price.",
-    "The option's price per share": "That's the premium itself. Delta tells you how the premium reacts, not what it is."
-   }
+    "The option's price per share": "That's the premium itself. Delta tells you how the premium reacts, not what it is.",
+    "Change for a 1% move in volatility": "That's vega. Delta measures the option's sensitivity to the stock price."
+   },
+   "simple": "Delta tells you how much an option's price may change when the stock moves one dollar.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q02",
@@ -523,12 +532,19 @@
    "format": "tf",
    "q": "A put you buy has a positive delta.",
    "answer": "False",
-   "why": "False. A bought put's delta runs from 0 to -1.00. The put gains when the stock falls, so its delta is negative.",
+   "why": "False. A put you buy has a negative delta, from 0 down to -1.00. The put gains when the stock falls, so its delta points the opposite way from the stock.",
    "lesson_line": "Long calls carry positive delta. Long puts carry negative delta.",
    "facts": [
     "f3",
     "f5"
-   ]
+   ],
+   "simple": "False, because a put you buy gains when the stock falls, so its delta is negative.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q03",
@@ -540,31 +556,47 @@
    "bank": [
     "0.50",
     "1.00",
-    "0",
-    "0.25"
+    "0.00",
+    "0.75"
    ],
    "answer": "0.50",
-   "why": "0.50. At the money, a call typically carries a delta around 0.50, so it moves about half as much as the stock.",
+   "why": "0.50. An at-the-money call typically has a delta around .50, so it moves about $0.50 for each one-point stock move. That is a rough figure, not a promise.",
    "lesson_line": "At the money, figure on about half the stock's move.",
    "facts": [
     "f45",
-    "f10",
     "f17",
-    "f13"
-   ]
+    "f2"
+   ],
+   "simple": "A call at the money has a delta near 0.50, so it moves about half as much as the stock.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q04",
    "skill": "options.delta",
    "rung": 2,
    "format": "tf",
-   "q": "Each share of stock you own has a delta of 1.00.",
+   "q": "A share of stock you own always has a delta of 1.00.",
    "answer": "True",
-   "why": "True. Long stock always carries a delta of 1.00 a share, and it never changes. Short stock carries -1.00.",
+   "why": "True. A share of stock has a delta of 1.00 when you own it and -1.00 when you are short. It stays that way and never changes. A share of stock is the yardstick, and an option's delta is read against it.",
    "lesson_line": "Stock is the yardstick. Every option's delta is measured against that 1.00.",
    "facts": [
-    "f25"
-   ]
+    "f25",
+    "f7"
+   ],
+   "simple": "True, because a share you own always has a delta of 1.00, and that number never changes.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the statement uses 'always'"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q05",
@@ -573,25 +605,30 @@
    "format": "mcq",
    "q": "A call goes deeper and deeper into the money. What happens to its delta?",
    "choices": [
-    "It moves toward 1.00",
-    "It moves toward 0",
-    "It stays near 0.50",
-    "It climbs past 1.00"
+    "It climbs toward 1.00",
+    "It falls back toward 0",
+    "It stays put near 0.50",
+    "It hits 1.00 at the strike"
    ],
-   "answer": "It moves toward 1.00",
-   "why": "It moves toward 1.00. Deep in the money, the call moves very close to dollar for dollar with the stock.",
+   "answer": "It climbs toward 1.00",
+   "why": "It climbs toward 1.00. As a call goes deeper in the money, delta typically approaches 1.00. The call is more likely to finish in the money. Near 1.00 it moves close to 1:1 with the stock.",
    "lesson_line": "The deeper in the money, the more the option trades like the stock itself.",
    "facts": [
     "f6",
-    "f23",
-    "f3",
-    "f25"
+    "f23"
    ],
    "wrong": {
-    "It moves toward 0": "That's the path of a call going further out of the money.",
-    "It stays near 0.50": "Near 0.50 is where at-the-money calls sit. Delta changes as the stock moves.",
-    "It climbs past 1.00": "A call's delta tops out at 1.00, the same as a share of stock."
-   }
+    "It falls back toward 0": "That's the path of a call going further out of the money.",
+    "It stays put near 0.50": "Near 0.50 is where at-the-money calls sit. Delta changes as the stock moves.",
+    "It hits 1.00 at the strike": "Delta climbs toward 1.00 gradually as the call goes deeper in the money. At the strike it sits near 0.50."
+   },
+   "simple": "As a call goes deeper into the money, its delta rises toward 1.00, so it moves almost like the stock.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q06",
@@ -604,15 +641,24 @@
     "positive",
     "negative",
     "zero",
-    "fixed"
+    "unchanged"
    ],
    "answer": "positive",
-   "why": "Positive. A bought put has negative delta, and a short put flips the sign. A short put gains when the stock rises, all else equal.",
-   "lesson_line": "Selling flips the sign. Short puts carry positive delta, short calls negative.",
+   "why": "Positive. Selling flips the sign, so a short put has a positive delta. A short put gains when the stock rises, all else equal. Source: the Options Industry Council.",
+   "lesson_line": "Selling flips the sign. A short put carries positive delta.",
    "facts": [
     "f4",
     "f5"
-   ]
+   ],
+   "simple": "Selling a put flips its sign, so a short put has a positive delta and gains when the stock rises.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q07",
@@ -621,29 +667,39 @@
    "format": "tf",
    "q": "Delta tells you exactly how much your option's price will change.",
    "answer": "False",
-   "why": "False. Delta is a theoretical estimate that holds everything else still. It keeps changing during the day and usually won't match the exact move.",
+   "why": "False. Delta is a theoretical estimate, not an exact figure. It assumes everything else holds still. It keeps changing during market hours, and it will typically not predict the exact change in the option's price. Treat it as a guide and check it again as the trade moves.",
    "lesson_line": "Delta is a guide to the next move, not a quote of it.",
    "facts": [
     "f14",
     "f27",
     "f39",
     "f50"
-   ]
+   ],
+   "simple": "False, because delta is only an estimate that keeps changing, so it usually won't match the exact price change.",
+   "deeper": {
+    "trap": "Trap: reading delta like a price quote. It holds every other factor still. In real markets those factors move too. Delta itself changes all day, so even a one dollar stock move usually won't give the exact estimate."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q08",
    "skill": "options.delta",
    "rung": 3,
    "format": "mcq",
-   "q": "A call shows a 0.20 delta. As a rough guide, how do some traders read that?",
+   "q": "A call shows a 0.20 delta. Which reading do some traders take from that?",
    "choices": [
-    "Roughly 20% odds it ends in the money",
-    "It gains 20% if the stock gains 1%",
-    "It loses $0.20 a share each day",
-    "Its premium is $0.20 a share"
+    "A 20% chance it ends in the money",
+    "A 20% gain when the stock gains 1%",
+    "A loss of $0.20 a share each day",
+    "A premium of $0.20 a share today"
    ],
-   "answer": "Roughly 20% odds it ends in the money",
-   "why": "Roughly 20% odds it ends in the money. Some traders read delta as a rough probability of finishing in the money. It's approximate, and it shifts as time passes and the stock moves.",
+   "answer": "A 20% chance it ends in the money",
+   "why": "A 20% chance it ends in the money. Some traders read delta as a rough chance of finishing in the money, so a 0.20 delta means about 20%. It is only approximate. The reading keeps moving as time passes and the stock moves. It is not a promise.",
    "lesson_line": "Low delta, low odds. Treat the number as a rough gauge, not a promise.",
    "facts": [
     "f10",
@@ -654,17 +710,24 @@
     "f31"
    ],
    "wrong": {
-    "It gains 20% if the stock gains 1%": "Delta works in dollars, not percent. It's about $0.20 per $1 stock move.",
-    "It loses $0.20 a share each day": "That's theta, time decay. Delta is about the stock's price.",
-    "Its premium is $0.20 a share": "Delta isn't the price. It describes how the price reacts to the stock."
-   }
+    "A 20% gain when the stock gains 1%": "Delta works in dollars, not percent. It's about $0.20 per $1 stock move.",
+    "A loss of $0.20 a share each day": "That's theta, time decay. Delta is about the stock's price.",
+    "A premium of $0.20 a share today": "Delta isn't the price. It describes how the price reacts to the stock."
+   },
+   "simple": "Some traders read a 0.20 delta as about a 20% chance the call finishes in the money.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q09",
    "skill": "options.delta",
    "rung": 4,
    "format": "numeric",
-   "q": "Your call has a 0.45 delta. The stock rises $2. About how much should the call gain, per share?",
+   "q": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share?",
    "answer": 0.9,
    "calc": {
     "fn": "arith",
@@ -675,14 +738,23 @@
     }
    },
    "prefix": "$",
-   "why": "$0.90. Delta times the stock's move: 0.45 times $2, with everything else held still.",
+   "why": "$0.90. Multiply the delta by the stock's move: 0.45 times $2 is $0.90 a share. This holds everything else still. It is an estimate, not a promise.",
    "lesson_line": "Option move is roughly delta times stock move. Run it before you buy.",
    "facts": [
     "f1",
     "f17",
     "f28",
     "f15"
-   ]
+   ],
+   "simple": "Multiply the delta by the stock's move, so 0.45 times $2 is about $0.90 a share.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key is computed"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q10",
@@ -694,7 +766,7 @@
    "choices": [
     "Lose about $0.40 a share",
     "Gain about $0.40 a share",
-    "Lose about $1 a share",
+    "Lose about $0.60 a share",
     "Gain about $0.60 a share"
    ],
    "answer": "Lose about $0.40 a share",
@@ -706,7 +778,7 @@
      "move": 1
     }
    },
-   "why": "Lose about $0.40 a share. A negative delta means the put moves against the stock. Stock up $1, put down about 0.40.",
+   "why": "Lose about $0.40 a share. A put's delta is negative, so the put moves against the stock. The stock rises $1 and the delta is -0.40, so the put loses about $0.40 a share, with everything else held still. A delta of -0.40 is smaller in size than 1.00, so the put moves less than the stock.",
    "lesson_line": "Put deltas are negative. Stock up, put down, by about the delta.",
    "facts": [
     "f3",
@@ -716,9 +788,18 @@
    ],
    "wrong": {
     "Gain about $0.40 a share": "That drops the minus sign. A put gains when the stock falls, not when it rises.",
-    "Lose about $1 a share": "That would take a delta of -1.00. At -0.40 the put moves less than the stock.",
-    "Gain about $0.60 a share": "That's 1 minus 0.40, and in the wrong direction. The put loses, by about the delta, 0.40."
-   }
+    "Gain about $0.60 a share": "That's 1 minus 0.40, and in the wrong direction. The put loses, by about the delta, 0.40.",
+    "Lose about $0.60 a share": "That's 1 minus 0.40. The put loses by about the delta, 0.40, not by what is left over."
+   },
+   "simple": "The put loses about $0.40 a share, because a negative delta moves against the stock.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key is computed"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q11",
@@ -728,7 +809,7 @@
    "q": "A call has a 0.40 delta, and the contract covers 100 shares. About how many shares does it act like?",
    "choices": [
     "About 40 shares",
-    "100 shares",
+    "About 100 shares",
     "About 4 shares",
     "About 60 shares"
    ],
@@ -741,7 +822,7 @@
      "shares": 100
     }
    },
-   "why": "About 40 shares. Delta times the 100 shares the contract covers. For the next $1 move, it acts like 40 shares of stock.",
+   "why": "About 40 shares. Delta times the 100 shares a contract covers: 0.40 times 100 is 40. For the next $1 move, the call acts like being long about 40 shares. It is a rough guide, not shares you own.",
    "lesson_line": "Delta times 100 tells you how many shares one contract acts like.",
    "facts": [
     "f41",
@@ -750,10 +831,20 @@
     "f18"
    ],
    "wrong": {
-    "100 shares": "That's what you'd get if you exercised. Before that, the call moves like delta times 100 shares.",
     "About 4 shares": "That skips the 100-share contract. It's 0.40 times 100.",
-    "About 60 shares": "That's 1 minus the delta. The call acts like the delta's share of the 100."
-   }
+    "About 60 shares": "That's 1 minus the delta. The call acts like the delta's share of the 100.",
+    "About 100 shares": "That's what you'd get if you exercised. Before that, the call moves like delta times 100 shares."
+   },
+   "simple": "A 0.40 delta call acts like about 40 shares, because delta times the 100 shares in the contract is 40.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key is computed",
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q12",
@@ -761,14 +852,14 @@
    "rung": 5,
    "format": "scenario",
    "story": "You sold a call with a 0.35 delta. The stock rises $2. Nothing else changes.",
-   "q": "About what happens to your short call, per share?",
+   "q": "Looking at the call alone, what happens to your short call, per share?",
    "choices": [
-    "You lose about $0.70 a share",
-    "You gain about $0.70 a share",
-    "You lose about $2 a share",
-    "You lose about $0.35 a share"
+    "You lose about $0.70 on the call",
+    "You gain about $0.70 on the call",
+    "You lose about $0.35 on the call",
+    "You gain about $0.35 on the call"
    ],
-   "answer": "You lose about $0.70 a share",
+   "answer": "You lose about $0.70 on the call",
    "calc": {
     "fn": "arith",
     "args": {
@@ -777,7 +868,7 @@
      "move": 2
     }
    },
-   "why": "You lose about $0.70 a share. Selling the call gives you negative delta, so a $2 rise costs about 0.35 times $2.",
+   "why": "You lose about $0.70 on the call. Selling the call gives you a negative delta, so a rising stock costs you. Take 0.35 times the $2 rise, which is about $0.70. A 0.35 delta moves about a third as much as the stock.",
    "lesson_line": "Short a call and every dollar up costs you about the delta.",
    "facts": [
     "f4",
@@ -786,25 +877,44 @@
     "f28"
    ],
    "wrong": {
-    "You gain about $0.70 a share": "That's the buyer's side of the trade. You sold the call, so the sign flips.",
-    "You lose about $2 a share": "That treats the call like stock. At 0.35 delta it moves about a third as much.",
-    "You lose about $0.35 a share": "That's one dollar's worth. The stock rose $2, so it's twice that."
-   }
+    "You gain about $0.70 on the call": "That's the buyer's side of the trade. You sold the call, so the sign flips.",
+    "You lose about $0.35 on the call": "That's one dollar's worth. The stock rose $2, so it's twice that.",
+    "You gain about $0.35 on the call": "That has the sign wrong and counts only one dollar's worth. You sold the call, and the stock rose $2."
+   },
+   "simple": "You sold the call, so a rising stock costs you about 0.35 times the $2 rise, or $0.70 a share.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key is computed"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q13",
    "skill": "options.delta",
    "rung": 5,
    "format": "tf",
-   "q": "Unless it's deep in the money or near expiry, a call usually moves fewer dollars than its stock.",
-   "answer": "True",
-   "why": "True. In dollars, options typically don't move as much as the stock unless they're deep in the money or very close to expiry. Delta shows roughly how much of the move you get.",
+   "q": "Per share, a call usually moves more dollars than its stock does.",
+   "answer": "False",
+   "why": "False. Per share, options typically do not move as much as their stock. Delta shows roughly how much the option behaves like the stock. A 0.75 delta call, for example, gains about $0.75 for a $1 rise, not $1.",
    "lesson_line": "A call that lags the stock isn't broken. That's delta at work.",
    "facts": [
     "f16",
     "f18",
     "f24"
-   ]
+   ],
+   "simple": "False, because per share an option usually moves less than its stock. A 0.75 delta call gains about $0.75 when the stock rises $1.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "it was fixed before",
+     "the statement was reversed to remove a tell"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q14",
@@ -820,7 +930,7 @@
     "The 95 strike"
    ],
    "answer": "The 105 strike",
-   "why": "The 105 strike. A 0.31 delta means about $0.31 for each $1 the stock moves.",
+   "why": "The 105 strike. Its 0.31 delta means about $0.31 for each $1 the stock moves, the closest to your $0.30 target. The 100 strike at 0.53 and the 110 strike at 0.15 are both further off. The deeper in the money, the higher the delta, so the 95 strike at 0.75 is far above your target.",
    "lesson_line": "Read the delta column first. It tells you how hard each strike moves with the stock.",
    "facts": [
     "f1",
@@ -832,14 +942,21 @@
     "The 100 strike": "That's the at-the-money call at 0.53. It moves about $0.53 per $1, well above your target.",
     "The 110 strike": "At 0.15 it moves about $0.15 per $1, about half of what you want.",
     "The 95 strike": "Lower strike, more delta. At 0.75 it moves about $0.75 per $1, more than double your target."
-   }
+   },
+   "simple": "The 105 strike has a 0.31 delta, the closest to the 0.30 you want, so it moves about $0.31 per $1.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q15",
    "skill": "options.delta",
    "rung": 6,
    "format": "numeric",
-   "q": "You own 3 calls at a 0.55 delta. The stock rises $4. About how much should the position gain, in dollars?",
+   "q": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain?",
    "answer": 660,
    "calc": {
     "fn": "arith",
@@ -851,15 +968,27 @@
     }
    },
    "prefix": "$",
-   "why": "$660. That's 0.55 times $4 per share, times 100 shares, times 3 contracts. On a move this size it's a first estimate, since delta shifts along the way.",
+   "why": "$660. Take 0.55 times the $4 move, times 100 shares a contract, times 3 contracts. That is an estimate, not a promise.",
    "lesson_line": "Dollar estimate: delta times move times 100 times contracts. The bigger the move, the rougher it gets.",
    "facts": [
     "f1",
     "f36",
     "f37",
-    "f48",
-    "f14"
-   ]
+    "f14",
+    "f50"
+   ],
+   "simple": "Multiply delta by the move, then by 100 shares and by 3 contracts, to get about $660.",
+   "deeper": {
+    "trap": "Trap: treating $660 as exact. Delta is a theoretical estimate that keeps changing, so the real gain usually differs. The bigger the move, the rougher the number."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key is computed"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q16",
@@ -868,28 +997,38 @@
    "format": "tf",
    "q": "With the stock flat, an in-the-money call's delta tends to rise toward 1.00 as expiry nears.",
    "answer": "True",
-   "why": "True. As expiry nears, in-the-money call deltas rise toward 1.00 and out-of-the-money ones fall toward 0, other things equal.",
-   "lesson_line": "Near expiry, in-the-money call deltas head toward 1.00, out-of-the-money ones toward 0.",
+   "why": "True. As expiry nears, in-the-money call deltas rise toward 1.00, provided other inputs stay constant. Fidelity says the same: all else equal, an in-the-money call's delta moves toward 1 at expiration.",
+   "lesson_line": "Near expiry, an in-the-money call's delta heads toward 1.00.",
    "facts": [
     "f13",
     "f12",
     "f40"
-   ]
+   ],
+   "simple": "True, because as expiry nears and the stock stays flat, an in-the-money call's delta rises toward 1.00.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q17",
    "skill": "options.delta",
    "rung": 7,
    "format": "scenario",
-   "story": "You buy a call with a 0.50 delta. The next day the stock runs $5 higher. Implied volatility barely moves.",
+   "story": "You buy a call with a 0.50 delta. The next day the stock runs $5 higher. Implied volatility holds steady.",
    "q": "The call gained more than delta times the move. What's the main reason?",
    "choices": [
-    "Delta rose as the stock climbed",
-    "Time decay added to the value",
-    "Past the strike, calls move 1 for 1"
+    "The call became more stock-like",
+    "Time passing added to its value",
+    "Higher volatility lifted its price",
+    "Its delta shrank as the stock rose"
    ],
-   "answer": "Delta rose as the stock climbed",
-   "why": "Delta rose as the stock climbed. A long call's delta grows as it moves into the money, so each extra dollar paid a bit more than the last.",
+   "answer": "The call became more stock-like",
+   "why": "The call became more stock-like. A long call's delta grows toward 1.00 as the stock rises and the call moves into the money. So each extra dollar paid a bit more than the one before, and delta times the move understates the gain. It is not time passing, which works against buyers. Implied volatility held steady, so volatility is not the reason.",
    "lesson_line": "On a big move your way, a long call's delta grows. The simple estimate runs low.",
    "facts": [
     "f26",
@@ -899,9 +1038,20 @@
     "f49"
    ],
    "wrong": {
-    "Time decay added to the value": "Time decay works against the buyer. It took a little away, not added.",
-    "Past the strike, calls move 1 for 1": "Delta climbs toward 1.00 gradually. A call just past the strike still moves less than 1:1."
-   }
+    "Time passing added to its value": "Time decay works against the buyer. It took a little away, not added.",
+    "Higher volatility lifted its price": "The story says implied volatility held steady, so that was not the driver.",
+    "Its delta shrank as the stock rose": "Backwards. A long call's delta grows toward 1.00 as the stock rises."
+   },
+   "simple": "A long call's delta grows as the stock rises, so each extra dollar paid more than the one before.",
+   "deeper": {
+    "trap": "Trap: the 0.50 delta is only the starting rate. Over a $5 climb it keeps growing, so the average rate is higher than 0.50 and the gain beats 0.50 times $5. The same change works against you on the way down, where delta shrinks as the call moves out of the money."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q18",
@@ -933,14 +1083,15 @@
    "skill": "options.delta",
    "rung": 7,
    "format": "mcq",
-   "q": "You want an option that tracks the stock almost dollar for dollar. Which delta fits best?",
+   "q": "You want an option that tracks the stock as closely as possible. Which delta fits best?",
    "choices": [
     "About 0.90, deep in the money",
-    "About 0.50, at the money",
-    "About 0.15, far out of the money"
+    "About 0.50, right at the money",
+    "About 0.15, far out of the money",
+    "About 0.70, a bit in the money"
    ],
    "answer": "About 0.90, deep in the money",
-   "why": "About 0.90, deep in the money. With delta close to 1.00, an option moves very close to 1:1 with the stock.",
+   "why": "About 0.90, deep in the money. The closer delta is to 1.00, the more the option moves like the stock itself. At 0.90 and deep in the money, it moves close to 1:1. The cost is a higher price, because high-delta options tend to be more expensive.",
    "lesson_line": "For stock-like moves, pick a delta near 1.00. Expect to pay more premium for it.",
    "facts": [
     "f23",
@@ -949,9 +1100,20 @@
     "f17"
    ],
    "wrong": {
-    "About 0.50, at the money": "That moves about half as much as the stock. It won't track it dollar for dollar.",
-    "About 0.15, far out of the money": "That barely follows the stock. It's a long shot that needs a big move."
-   }
+    "About 0.15, far out of the money": "That barely follows the stock. It's a long shot that needs a big move.",
+    "About 0.50, right at the money": "That moves about half as much as the stock. It won't track it as closely.",
+    "About 0.70, a bit in the money": "That moves with the stock but well short of 1:1. 0.90 sits closer to 1.00, so it tracks better."
+   },
+   "simple": "Pick the delta closest to 1.00, because a deep in-the-money option moves very close to 1:1 with the stock.",
+   "deeper": {
+    "counter": "Counter: tracking the stock has a price. High-delta options tend to be more expensive. They also move close to 1:1 on the way down. A drop hurts almost as much as owning the shares."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q20",
@@ -967,7 +1129,7 @@
     "It drifts toward 0.50"
    ],
    "answer": "It falls toward 0",
-   "why": "It falls toward 0. With the stock stuck below the strike, an out-of-the-money call's delta shrinks as expiry nears.",
+   "why": "It falls toward 0. With the stock flat and implied volatility steady, an out-of-the-money call's delta falls toward 0 as expiry nears. In-the-money call deltas rise toward 1.00, and at-the-money ones stay around .50. Delta is not fixed. Time alone moves it, even when the stock sits still.",
    "lesson_line": "An out-of-the-money call needs the move soon. Every quiet day, it reacts less to the stock.",
    "facts": [
     "f13",
@@ -980,8 +1142,20 @@
    "wrong": {
     "It rises toward 1.00": "That's the path of an in-the-money call. This one sits below its strike.",
     "It stays near 0.31": "Delta isn't fixed. Time to expiry moves it even when the stock sits still.",
-    "It drifts toward 0.50": "Rising implied volatility pulls deltas toward 0.50. Time running out pushes this one the other way."
-   }
+    "It drifts toward 0.50": "Around 0.50 is where at-the-money calls sit. This call is out of the money, so it is not headed there."
+   },
+   "simple": "Time is running out and the stock is still below the strike, so the call's delta falls toward 0.",
+   "deeper": {
+    "example": "Example: the 105 call began near 0.31 delta with the stock at 100. After two quiet weeks the stock has not moved, but the call has less time left to get above the strike. Its delta slides toward 0, so it reacts less and less to each stock move."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q21",
@@ -991,25 +1165,37 @@
    "q": "Before earnings, implied volatility jumps while the stock sits still. What tends to happen to a far out-of-the-money call's delta?",
    "choices": [
     "It rises toward 0.50",
-    "It falls toward 0",
-    "It stays the same",
-    "It turns negative"
+    "It falls back toward 0",
+    "It stays about the same",
+    "It leaps toward 1.00"
    ],
    "answer": "It rises toward 0.50",
-   "why": "It rises toward 0.50. Higher implied volatility puts more strikes in play, so out-of-the-money deltas climb and deep in-the-money deltas drop.",
+   "why": "It rises toward 0.50. A jump in implied volatility pulls deltas toward .50, because more strikes now look like they could finish in the money. A far out-of-the-money call's delta climbs, and an in-the-money call's delta falls. Delta also depends on the stock price and the days left, not only on volatility.",
    "lesson_line": "Delta isn't only about price. Implied volatility moves it too.",
    "facts": [
     "f9",
     "f32",
     "f8",
     "f3",
-    "f5"
+    "f5",
+    "f20",
+    "f21"
    ],
    "wrong": {
-    "It falls toward 0": "That's what time does as expiry nears. Higher implied volatility pushes the other way.",
-    "It stays the same": "Delta depends on implied volatility as well as on price and time left.",
-    "It turns negative": "A call's delta never drops below 0. Puts and short calls carry negative delta."
-   }
+    "It falls back toward 0": "That's what time does as expiry nears. Higher implied volatility pushes the other way.",
+    "It stays about the same": "Delta depends on implied volatility as well as on price and time left.",
+    "It leaps toward 1.00": "Higher volatility pulls it toward 0.50, not up to 1.00. Only a deep in-the-money call sits near 1.00."
+   },
+   "simple": "Higher implied volatility pulls deltas toward 0.50, so a far out-of-the-money call's delta rises.",
+   "deeper": {
+    "example": "Example: ahead of earnings, the market often bids up implied volatility. A far out-of-the-money call that looked like a long shot now looks possible, so its delta rises. After the report, implied volatility often drops sharply, and that pull on delta can fade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q22",
@@ -1048,12 +1234,12 @@
    "story": "You buy the 105 call for $1.66. It shows a 0.31 delta. You read that as roughly a 31% chance it finishes in the money.",
    "q": "Is that also your rough chance of making money if you hold to expiry?",
    "choices": [
-    "No, lower: you need it above 106.66",
-    "Yes, in the money means profit",
-    "No, higher: the premium is a cushion",
-    "Yes, delta is the odds of profit"
+    "No, lower: it must clear 106.66",
+    "Yes, same: it must clear 105",
+    "No, higher: 1.66 is a cushion",
+    "Yes, same: delta says 31% to profit"
    ],
-   "answer": "No, lower: you need it above 106.66",
+   "answer": "No, lower: it must clear 106.66",
    "calc": {
     "fn": "option_breakeven",
     "args": {
@@ -1062,7 +1248,7 @@
      "premium": 1.66
     }
    },
-   "why": "No, lower. In the money only means above 105. To make money at expiry, the stock must clear strike plus premium, 106.66.",
+   "why": "No, lower. In the money only means the stock is above 105. To make money at expiry, the stock must clear the strike plus the premium, which is 106.66. Between 105 and 106.66 you finish in the money and still lose. So your chance of profit sits below the 31% some traders read from delta.",
    "lesson_line": "Read as odds, delta is about finishing in the money. Profit needs the stock past strike plus premium.",
    "facts": [
     "f10",
@@ -1072,10 +1258,23 @@
     "f42"
    ],
    "wrong": {
-    "Yes, in the money means profit": "In the money only means above the strike. Between 105 and 106.66 you finish in the money and still lose.",
-    "No, higher: the premium is a cushion": "The premium is your cost, not a cushion. It raises the bar the stock has to clear.",
-    "Yes, delta is the odds of profit": "Read as odds at all, delta is about finishing in the money. Profit needs the stock past break-even."
-   }
+    "Yes, same: it must clear 105": "In the money only means above 105. Between 105 and 106.66 you finish in the money and still lose.",
+    "No, higher: 1.66 is a cushion": "The premium is your cost, not a cushion. It raises the bar the stock has to clear.",
+    "Yes, same: delta says 31% to profit": "Read as odds at all, delta is about finishing in the money. Profit needs the stock past break-even."
+   },
+   "simple": "No, because you need the stock above 106.66 to profit, which is harder than just finishing above 105.",
+   "deeper": {
+    "trap": "Trap: delta, read as odds, speaks to finishing in the money, which only needs the stock above 105. Profit needs strike plus premium: 105 plus 1.66 is 106.66. A stock that ends between 105 and 106.66 finishes in the money and still loses you money. Even the in-the-money reading is rough, because it keeps moving."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key is computed",
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   },
   {
    "key": "q24",
@@ -1086,8 +1285,9 @@
    "q": "For the next $1 move, how does your exposure compare with 300 shares?",
    "choices": [
     "Like about 150 shares",
-    "The same as 300 shares",
-    "None until it's past the strike"
+    "Like about 300 shares",
+    "Like about 100 shares",
+    "Like about 50 shares"
    ],
    "answer": "Like about 150 shares",
    "calc": {
@@ -1098,7 +1298,7 @@
      "delta": 0.5
     }
    },
-   "why": "Like about 150 shares. Each contract covers 100 shares, but at 0.50 delta it moves like about 50. Three of them act like about 150.",
+   "why": "Like about 150 shares. Each contract covers 100 shares, but at 0.50 delta it moves like about 50 of them. Three contracts act like about 150 shares for the next $1 move. That is half of the 300 shares you would normally buy. It is a rough guide, not shares you own.",
    "lesson_line": "Count exposure by delta, not by contracts. Three at-the-money calls act like about 150 shares, not 300.",
    "facts": [
     "f36",
@@ -1107,9 +1307,23 @@
     "f45"
    ],
    "wrong": {
-    "The same as 300 shares": "That's what you'd hold after exercising. Before that, each call moves like delta times its 100 shares.",
-    "None until it's past the strike": "Delta works before the strike is reached. An at-the-money call already moves about half as much as the stock."
-   }
+    "Like about 300 shares": "That's what you'd hold after exercising. Before that, each call moves like delta times its 100 shares.",
+    "Like about 100 shares": "That's one contract's full 100 shares. At 0.50 delta each moves like about 50, and you hold 3.",
+    "Like about 50 shares": "That is one contract: 0.50 times 100. You hold 3 of them, so multiply by 3."
+   },
+   "simple": "Three calls at 0.50 delta act like about 150 shares, not 300, because each contract moves like half of its 100 shares.",
+   "deeper": {
+    "trap": "Trap: counting contracts instead of delta. Three contracts cover 300 shares only if you exercise. Before that, they move like about 150. The gap cuts both ways, so on a $1 drop you lose about half of what 300 shares would lose."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key is computed",
+     "it was fixed before"
+    ]
+   },
+   "batch": "pilot-1"
   }
  ],
  "conflicts": [
@@ -1142,105 +1356,105 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key is f1 (OIC) almost word for word. Distractors are theta (f31), vega (f30) and the premium itself, each really wrong and correctly named. Term answer 32 chars. Track audit 2026-11-09: fact f30's claim (shown in this item's reveal) now says 'a one-point (1%) change', the wording F6.06 teaches for vega; OIC's Volatility & the Greeks page re-read live (its example: vega .090 for IV up 1.0%) and OIC's Vega page says '1% (100 basis points)'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key matches f1/f17. Distractors are theta, vega, premium; each wrong note correct."
   },
   "q02": {
    "status": "pass",
-   "notes": "f3, f5 (OIC): bought puts run 0 to -1.00, long puts negative. False is right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Bought put delta is 0 to -1.00 (f3, f5). Unambiguous."
   },
   "q03": {
    "status": "pass",
-   "notes": "f13 (OIC): at-the-money call deltas 'remain around .50'; f10 and f45 agree. Bank words are real confusions (deep ITM 1.00, far OTM 0). Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "ATM call about 0.50 (f45, f2). Bank clean."
   },
   "q04": {
    "status": "pass",
-   "notes": "f25 (OIC Gamma page): stock's delta is always 1.00 long, -1.00 short, and does not change. True.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "f25 quote verified on the OIC Gamma page. 'always' is the source's own word and the key is True, so no absolute-means-false tell."
   },
   "q05": {
    "status": "pass",
-   "notes": "f6 (OIC) is the key; f3/f25 cap a call at 1.00; f26 backs the 'toward 0' note for a call going out of the money. Each wrong choice really wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "f6/f23. Single defensible answer; 'hits 1.00 at the strike' is plainly wrong."
   },
   "q06": {
    "status": "pass",
-   "notes": "Fixed: 'Sell a put' with 'zero' in the bank was ambiguous (selling a put you already own closes it, delta zero). Now 'Sell a put you don't own'; why now says 'a short put flips the sign'. f4, f5 (OIC) re-checked.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Short put is positive delta (f4). 'you don't own' removes the closing-a-long reading."
   },
   "q07": {
    "status": "pass",
-   "notes": "f14 (OIC Delta), f27 (OIC Greeks), f39 (Fidelity), f50 (Schwab): delta is an estimate, not exact. False is right. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "f14, f27, f39, f50 support False. Quotes verified."
   },
   "q08": {
    "status": "pass",
-   "notes": "Key hedged ('some traders', 'roughly') as f10 (OIC), f42, f44, f47 say; Schwab's firmer wording and delta running above the model's in-the-money odds are in conflicts. Distractors (percent, theta, premium) really wrong. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Hedged 'some traders' reading (f10, f42, f44, f47). Distractors include a 20% decoy so the key is not the only percent."
   },
   "q09": {
    "status": "pass",
-   "notes": "calc 0.45 x 2 = 0.90 recomputed by hand; f28 (OIC) shows the same delta x move method, f15 the 'all else constant' condition.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "0.45 x 2 = 0.90, recomputed."
   },
   "q10": {
    "status": "pass",
-   "notes": "calc 0 - (-0.40 x 1) = 0.40, the loss per share; recomputed. f3, f5 (OIC): put delta negative. Distractors are the sign slip, a -1.00 delta and 1 minus delta.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "-0.40 x +$1 = -$0.40 (put loses). Distractors cover sign and 1-minus-delta errors. Calc expr gives the loss size, matches the key."
   },
   "q11": {
    "status": "pass",
-   "notes": "Fixed: it reused the walk-through's exact 0.30 -> 30 shares example, so the Practise item was recall. Now 0.40 delta -> 40 shares (calc 0.40 x 100 = 40 recomputed), choices and wrong notes updated, cites Schwab f51 (.40 delta = $0.40 per $1) instead of f38. Share-equivalent from Fidelity f41 + OIC f18, f36. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.40 x 100 = 40 shares, recomputed."
   },
   "q12": {
    "status": "pass",
-   "notes": "calc 0.35 x 2 = 0.70 recomputed; selling the call gives negative delta per f4, f5 (OIC). 0.35 is about a third, as the wrong note says.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Short call, +$2: lose 0.35 x 2 = $0.70, recomputed. Sign and size traps balanced."
   },
   "q13": {
    "status": "pass",
-   "notes": "Fixed: 'moves less than its stock' is false in percent terms (an option usually moves more in percent). Now 'moves fewer dollars', and the why opens 'In dollars'. f16 (OIC FAQ) answers 'Why didn't my option move as much as the underlying stock?', a dollar question.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "final verification 2026-11-11: simple line now says per $1 stock rise"
   },
   "q14": {
    "status": "pass",
-   "notes": "Illustrative chain (no ticker or date) recomputed with Black-Scholes (S 100, 30 days, IV 30%, r 4%): 0.751 / 0.532 / 0.313 / 0.152. Key 105 is the strike nearest 0.30; f1, f38, f51 support. Owner note: the plan row asked for a real, dated frozen chain; this one is declared illustrative in conflicts. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "0.31 is closest to 0.30; the other deltas are 0.53, 0.15, 0.75. Wrong-note arithmetic checks out."
   },
   "q15": {
    "status": "pass",
-   "notes": "calc 3 x 0.55 x 4 x 100 = 660 recomputed; f1, f36, f37. The why rightly flags that a $4 move makes the estimate rough (f48, f14). Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "3 x 0.55 x 4 x 100 = 660, recomputed."
   },
   "q16": {
    "status": "pass",
-   "notes": "Key from f13 (OIC), whose 'other inputs remain constant' is matched by 'stock flat' and 'tends to'. Fixed the lesson line: 'deltas get pushed to the ends' ignored that at-the-money deltas stay near .50 (f13); it now names in-the-money and out-of-the-money calls only.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "f13 verified on the OIC page; f40 (Fidelity) agrees. 'Stock flat' supplies the all-else-equal condition."
   },
   "q17": {
    "status": "pass",
-   "notes": "Key is positive gamma, f26 (OIC Gamma page). Implied volatility held still rules out vega; time decay works against the buyer (f49). 'Past the strike, 1 for 1' is wrong per f24 (a 0.75 in-the-money call is not 1:1). Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Positive gamma (f26 verified) is the only choice that fits a flat IV and a $5 run. The time and volatility distractors are ruled out by the story."
   },
   "q18": {
    "status": "cut",
@@ -1256,21 +1470,21 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "f23 (OIC FAQ): delta near 1.00 moves close to 1:1 with the stock; f46: higher-delta options cost more (also follows from intrinsic value). Distractors really wrong. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused). variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Closest to 1.00 tracks best (f7, f23). Cost caveat (f46) is in the why."
   },
   "q20": {
    "status": "pass",
-   "notes": "Fixed: f13 (OIC) holds 'provided other inputs remain constant', so the story now adds 'Implied volatility holds steady'; before, the key rested on an unstated condition. Black-Scholes check: 0.313 -> 0.237 after 14 flat days.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "f13 verified: OTM call delta falls toward 0 as expiry nears with other inputs constant. The story fixes the stock and IV and is consistent with q14's 0.31."
   },
   "q21": {
    "status": "pass",
-   "notes": "f9 (OIC): higher implied volatility pulls deltas toward .50; f32 (OIC): the out-of-the-money call's delta 'increases dramatically'. 'Tends to' covers the time that also passes. Distractors really wrong.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "f9 verified and f32: higher IV pulls deltas toward .50, so a far OTM call's delta rises. 'Leaps toward 1.00' is clearly wrong."
   },
   "q22": {
    "status": "cut",
@@ -1286,15 +1500,15 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "Breakeven calc 105 + 1.66 = 106.66 recomputed (f33 OIC). Above 106.66 is always less likely than above 105, so 'lower' holds. Fixed the lesson line: 'Delta's odds' stated the reading as fact; now 'Read as odds, delta is about finishing in the money'. Fidelity's headline frames delta as odds of profit: added to conflicts. Schwab/Investopedia facts read in the quote checker's own HTTP 200 copy from today (WebFetch and plain curl refused).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Breakeven 105 + 1.66 = 106.66, recomputed. Profit chance is below the ITM chance. Consistent with f33, f35, f52. Choices are balanced two Yes and two No, with no length tell."
   },
   "q24": {
    "status": "pass",
-   "notes": "calc 3 x 0.50 x 100 = 150 recomputed; f36, f2 (OIC), f41. Fixed the lesson line: 'I size option trades by delta' claimed a sizing method for the owner with no house source (a buyer's risk is the premium paid); now 'Count exposure by delta, not by contracts.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "3 x 0.50 x 100 = 150, recomputed. Distractors map to specific errors."
   }
  }
 }
