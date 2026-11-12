@@ -931,26 +931,41 @@
    "criterion": "ss.line",
    "q": "In one line, what is a Slingshot?",
    "choices": [
-    "A pullback closing over a 4-day line",
+    "A pullback closing back over its line",
     "A breakout over a flat base ceiling",
-    "A one-day dip under the prior low",
-    "A gap up bought on the opening bar"
+    "A one-day dip under the prior day's low",
+    "A gap up that is bought at the open"
    ],
-   "answer": "A pullback closing over a 4-day line",
-   "why": "A pullback in a strong stock that closes back over the 4-day EMA of the highs. Scot1and: take a powerful stock, stretch it with a pullback, enter when momentum resumes.",
+   "answer": "A pullback closing back over its line",
+   "why": "A pullback in a strong stock that closes back over the 4-day EMA of the highs. Scot1and: take a powerful stock, stretch it with a pullback, then enter when momentum resumes. It is not a base breakout, a one-day dip or a gap buy.",
    "lesson_line": "A Slingshot is a strong stock catching its breath, then closing back over its 4-day line.",
    "facts": [
     "c01",
     "o04",
     "a03",
-    "v01"
+    "v01",
+    "c17",
+    "c18",
+    "t04"
    ],
    "wrong": {
-    "A breakout over a flat base ceiling": "That is a base breakout. A Slingshot is a short pullback inside a run, not a box.",
-    "A one-day dip under the prior low": "That is an Oops reversal, one session. A Slingshot needs closes under its line first.",
-    "A gap up bought on the opening bar": "The gap is the drive that comes before. It is never the Slingshot buy."
+    "A breakout over a flat base ceiling": "That is a base breakout. A Slingshot is a short pullback inside a run, and its stop is much tighter than a breakout's.",
+    "A one-day dip under the prior day's low": "That is closer to an Oops, one session. A Slingshot needs at least three closes under its line first.",
+    "A gap up that is bought at the open": "A gap day is at most the drive that comes before. It is never the Slingshot buy."
    },
-   "house": true
+   "house": true,
+   "simple": "A Slingshot is a strong stock that pulls back a few days, then closes back over its 4-day line.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: choices rewritten for variety 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q02",
@@ -960,23 +975,34 @@
    "criterion": "ss.line",
    "q": "Tap the number that fits the blank.",
    "answer": "4",
-   "why": "4. The line is the 4-period EMA of the daily highs. Scot1and: my Slingshot indicator is simply a 4EMA of the highs.",
+   "why": "4. The line is the 4-period EMA of the daily highs. Scot1and: my Slingshot indicator is simply a 4EMA of the highs. It is not a 5-period line. Deepvue describes a 5-day EMA, a dissent from the originator.",
    "lesson_line": "Four days, of the highs. Draw it on the chart before you look for the setup.",
    "facts": [
     "c01",
     "o02",
     "t01",
-    "v01"
+    "v01",
+    "v02"
    ],
    "house": true,
-   "sentence": "The Slingshot's line is the ___-period EMA of the daily highs.",
+   "sentence": "Our Slingshot line is the ___-period EMA of the daily highs.",
    "bank": [
     "4",
     "5",
     "9",
     "10",
     "20"
-   ]
+   ],
+   "simple": "The line is the 4-period EMA of the daily highs. The number is 4, not Deepvue's 5.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "settled criterion",
+     "four sources agree on the 4-period line"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q03",
@@ -986,14 +1012,25 @@
    "criterion": "ss.line",
    "q": "The Slingshot's line is an average of the daily closes.",
    "answer": "False",
-   "why": "False. It is the 4-period EMA of the daily HIGHS, not of closes. Analyzing Alpha: the indicator fires when the close crosses the 4-ema of the highs.",
+   "why": "False. The line is the 4-period EMA of the daily HIGHS, not of closes. The close is what has to finish over the line. A 4-day EMA of closes is a named wrong line on our card. Analyzing Alpha: the indicator fires when the current bar's close crosses the 4-ema of the highs.",
    "lesson_line": "Highs, not closes. The close is what crosses the line; the line itself is built from the highs.",
    "facts": [
     "c01",
     "t01",
-    "a02"
+    "a02",
+    "c21"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because the line is built from the daily highs. Only the close has to finish over it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "settled criterion",
+     "two Tier 2 sources agree"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q04",
@@ -1005,20 +1042,39 @@
    "choices": [
     "No; the gap day is not the trigger",
     "Yes; the close is over the line",
-    "Yes, if volume is heavy on the gap"
+    "Yes, if volume is heavy on the gap",
+    "No; the trigger is the first red day"
    ],
    "answer": "No; the gap day is not the trigger",
-   "why": "No. The drive day is never the trigger. The gap is the engine; the Slingshot comes later, after a pullback under the line.",
+   "why": "No. The drive day is never the trigger. If the only qualifying drive day is the trigger day itself, it is not a Slingshot. The trigger is the first daily close above the line after a pullback of at least 3 closes under it. An 18% gap or heavy volume does not change that order. Scot1and: take a powerful stock, stretch it with a pullback, then enter when momentum resumes.",
    "lesson_line": "The gap is the engine. The Slingshot is the pullback after it, never the gap day itself.",
    "facts": [
     "c02",
-    "c18"
+    "c18",
+    "c03",
+    "c11",
+    "o04",
+    "v01"
    ],
    "wrong": {
     "Yes; the close is over the line": "A close over the line on the drive day is the drive, not a trigger. Nothing has pulled back yet.",
-    "Yes, if volume is heavy on the gap": "Volume does not turn a gap day into a Slingshot. The order is drive, pullback, then the close back over."
+    "Yes, if volume is heavy on the gap": "Volume does not turn a gap day into a Slingshot. The order is drive, pullback, then the close back over.",
+    "No; the trigger is the first red day": "Buying the first red day of the pullback instead of waiting for the close back over the line is a named mistake. The trigger is the first daily close above the line after the pullback."
    },
-   "house": true
+   "house": true,
+   "simple": "No, because the gap day is the drive, and the trigger only comes after a pullback and a close back over the line.",
+   "deeper": {
+    "trap": "The gap day looks perfect: a big green bar and a close over the line. That is why it fools people. Before you call anything a trigger, count the closes under the line. With none, there was no pullback, so there is no Slingshot yet."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "settled criterion",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q05",
@@ -1028,7 +1084,7 @@
    "criterion": "ss.stop",
    "q": "On a Slingshot the stop goes a few cents under the drive day's low.",
    "answer": "False",
-   "why": "False. The stop goes a few cents under the trigger day's low, as a real stop order. Scot1and: I typically place my stop at the low of the slingshot day.",
+   "why": "False. The stop goes a few cents under the trigger day's low, as a real stop order. It is not under the drive day's low. Scot1and: I typically place my stop at the low of the slingshot day.",
    "lesson_line": "Stop first: a few cents under the trigger day's low.",
    "facts": [
     "c07",
@@ -1037,7 +1093,23 @@
     "a01",
     "v01"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The stop goes a few cents under the low of the trigger day, not the low of the drive day.",
+   "deeper": {
+    "trap": "Do not mix up the two days. The drive day starts the move. The trigger day is the first close back over the line, and its low is the one the stop goes under."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's stop rule (F62)",
+     "fixed before: statement rewritten 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q06",
@@ -1047,26 +1119,41 @@
    "criterion": "ss.drive",
    "q": "What has to happen before the pullback for a Slingshot to exist?",
    "choices": [
-    "A drive: a strong move up first",
+    "A strong move up first, the drive",
     "A long flat base under the highs",
-    "A close under the 200-day",
+    "A close under the 200-day average",
     "A low-volume drift down to the line"
    ],
-   "answer": "A drive: a strong move up first",
-   "why": "A drive. The drive comes first: a powerful stock that recently made a strong move. A pullback in a downtrend is merely an opportunity to sell into strength.",
+   "answer": "A strong move up first, the drive",
+   "why": "A strong move up first, the drive. Scot1and wants a stock that recently made a strong move. The pullback then stretches it, and momentum resumes.",
    "lesson_line": "No drive, no Slingshot. The pullback has to have something to sling from.",
    "facts": [
     "c44",
     "o04",
     "t05",
-    "t02"
+    "t02",
+    "v01"
    ],
    "wrong": {
     "A long flat base under the highs": "A base is a rest, not a drive. The Slingshot wants a fresh burst of strength first.",
-    "A close under the 200-day": "That is the opposite of strength. A pullback in a downtrend is a chance to sell, not to buy.",
-    "A low-volume drift down to the line": "A drift down is the pullback, not the drive. The drive is the move up before it."
+    "A low-volume drift down to the line": "A drift down is the pullback, not the drive. The drive is the move up before it.",
+    "A close under the 200-day average": "Not required. A Slingshot needs a strong move up first, not a close under a long average."
    },
-   "house": true
+   "house": true,
+   "simple": "A strong move up has to come first, because a pullback needs a strong stock to spring back from.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "size of a drive is a held decision (D-106)",
+     "fixed before: choices rewritten for variety 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-106",
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q07",
@@ -1076,7 +1163,7 @@
    "criterion": "ss.leadership",
    "q": "We buy Slingshots in leaders: an RS rating of 80 or more, in a strong group.",
    "answer": "True",
-   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups. Scot1and finds power with strength scans, including high RS against the S&P.",
+   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups. RS means relative strength against the S&P. Our Slingshot card asks for the same: a leader in a strong group. Scot1and also finds power with strength scans.",
    "lesson_line": "A Slingshot in a laggard is a bounce with a name. Buy the leaders.",
    "facts": [
     "h14",
@@ -1084,7 +1171,20 @@
     "o06",
     "v01"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. We buy leaders, which are stocks with a strong relative strength rating in a strong group.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a number in the owner's rulebook (C31)",
+     "rests on a rule that can change"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q08",
@@ -1092,24 +1192,39 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ss.trigger_volume",
-   "q": "Does a Slingshot trigger day need a volume surge?",
+   "q": "By our card, does a Slingshot trigger day need a volume surge?",
    "choices": [
     "No; ordinary volume is the picture",
     "Yes, at least double the average",
-    "Yes, the biggest day of the pullback"
+    "Yes, the biggest day of the pullback",
+    "No; it needs below-average volume"
    ],
    "answer": "No; ordinary volume is the picture",
-   "why": "No. No volume surge is needed on the trigger day; ordinary volume is the picture. The A+ row reads: no gap, ordinary volume.",
-   "lesson_line": "A Slingshot is not a breakout. Do not wait for a crowd on the trigger day.",
+   "why": "No. No volume surge is needed on the trigger day; ordinary volume is the picture. The A+ trigger day closes at 78% to 99% of its range, with no gap and ordinary volume. The test is the close back over the line, not a crowd.",
+   "lesson_line": "No crowd needed. The trigger is the close back over the line, on ordinary volume.",
    "facts": [
     "c05",
     "c23"
    ],
    "wrong": {
-    "Yes, at least double the average": "That is a breakout's demand. The Slingshot's trigger is a close back over the line, on ordinary volume.",
-    "Yes, the biggest day of the pullback": "The pullback's quiet days are the point. The trigger needs no volume surge at all."
+    "Yes, at least double the average": "The card asks for no surge at all, double or otherwise. The trigger is the close back over the line.",
+    "Yes, the biggest day of the pullback": "The card does not rank the trigger day's volume against the pullback. No surge is needed.",
+    "No; it needs below-average volume": "The card says ordinary volume, not a dry-up. It sets no low-volume test."
    },
-   "house": true
+   "house": true,
+   "simple": "No. The card says a volume surge is not needed, and ordinary volume is what a good trigger day looks like.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on our setup card alone (c05)",
+     "card statement is proposed, volume is a held decision (D-108)"
+    ]
+   },
+   "depends_on": [
+    "D-108"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q09",
@@ -1125,7 +1240,7 @@
     "No new longs until it turns Green"
    ],
    "answer": "Smaller size and fewer positions",
-   "why": "Smaller and fewer. Green is full size; Yellow smaller and fewer; Orange only A+ setups; Red mostly cash and shorts.",
+   "why": "Smaller size and fewer positions. The market reading is a guide. Green is full risk per grade and up to 10 positions. Yellow is smaller and fewer.",
    "lesson_line": "Read the market before the chart. Yellow means smaller and fewer, not none.",
    "facts": [
     "h26",
@@ -1133,10 +1248,20 @@
    ],
    "wrong": {
     "Nothing changes; Yellow is full risk": "Full risk is Green. Yellow trims the size and the count.",
-    "Only A+ setups, at full size": "That is Orange. Yellow still allows A and B setups, smaller.",
-    "No new longs until it turns Green": "That is closer to Red. Yellow still buys, just smaller and fewer."
+    "Only A+ setups, at full size": "That is Orange. Yellow is smaller and fewer, not limited to A+.",
+    "No new longs until it turns Green": "That is stricter than the guide. Yellow still buys, just smaller and fewer."
    },
-   "house": true
+   "house": true,
+   "simple": "Yellow means smaller size and fewer positions, but you can still buy.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's market reading guide (F65)",
+     "fixed before: choices rewritten for variety 2026-11-10"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q10",
@@ -1146,7 +1271,7 @@
    "criterion": "ss.no_chase",
    "q": "Tap the number that fits the blank.",
    "answer": "4",
-   "why": "4%. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays put, the distance grows, the shares shrink.",
+   "why": "4%. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Four percent over the buy point and I am done. I would rather miss it than chase it.",
    "facts": [
     "h11",
@@ -1161,7 +1286,17 @@
     "5",
     "8",
     "10"
-   ]
+   ],
+   "simple": "The limit is 4 percent. Chasing keeps the stop where it was, so the distance grows and the size shrinks.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a number in the owner's rulebook (C28)",
+     "rests on a rule that can change"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q11",
@@ -1172,21 +1307,33 @@
    "q": "Where does the Slingshot stop live once you are in?",
    "choices": [
     "With the broker, as a real order",
-    "In your head, acted on at the close",
-    "As an alert on the chart, no order"
+    "In your head, with a firm exit rule",
+    "As a price alert set on the chart",
+    "Written in the journal, read nightly"
    ],
    "answer": "With the broker, as a real order",
-   "why": "With the broker. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "why": "With the broker, as a real order. Every position has a real stop order with the broker, not a stop kept in your head. Our default level is a few cents under the trigger day's low.",
    "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
    "facts": [
     "h18",
     "c07"
    ],
    "wrong": {
-    "In your head, acted on at the close": "A stop you watch is a stop you argue with. The rule is a real order.",
-    "As an alert on the chart, no order": "An alert tells you; it does not sell. The stop order does."
+    "In your head, with a firm exit rule": "A stop you only watch is a stop you can argue with. The rule is a real order.",
+    "As a price alert set on the chart": "An alert tells you; it does not sell. The stop is a real order with the broker.",
+    "Written in the journal, read nightly": "A written level is a plan, not an order. Only a real order with the broker sells when price reaches it."
    },
-   "house": true
+   "house": true,
+   "simple": "The stop is a real order with the broker, not a level you keep in your head.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's stop rule (D41)",
+     "fixed before: choices rewritten for variety 2026-11-10"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q12",
@@ -1196,14 +1343,30 @@
    "criterion": "ss.inv_both_falling",
    "q": "A stock above its 200-day with the 50-day and the 200-day both falling can still be a Slingshot.",
    "answer": "False",
-   "why": "False. Both averages falling is a bounce in a downtrend, not a Slingshot. Scot1and: a pullback in a stock in a downtrend is merely an opportunity to sell into strength.",
+   "why": "False. With the 50-day and the 200-day both falling, it is a bounce in a downtrend, not a Slingshot. Scot1and: a pullback in a stock in a downtrend is merely an opportunity to sell into strength. Being above the 200-day is not enough.",
    "lesson_line": "Falling averages mean a downtrend. A Slingshot lives inside an uptrend.",
    "facts": [
     "c09",
     "t02",
     "v01"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. When both the 50-day and 200-day lines slope down, the stock is in a downtrend and the bounce is not a Slingshot.",
+   "deeper": {
+    "trap": "Being above the 200-day feels safe. Look at the slope of both lines. If the 50-day and the 200-day are both falling, the bounce sits in a downtrend, and the pullback is a chance to sell, not buy."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "card statement is proposed; whether the 200-day gates this setup is held (D-009)"
+    ]
+   },
+   "depends_on": [
+    "D-009",
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q13",
@@ -1211,26 +1374,39 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ss.stop",
-   "q": "What makes the Slingshot stop tight, in Scot1and's own words?",
+   "q": "In Scot1and's words, what lets a Slingshot use a stop very near the entry?",
    "choices": [
     "A tight range before the trigger",
-    "A heavy-volume trigger day",
-    "A stop set at the 50-day",
-    "A wide pullback, so the stop sits far"
+    "A heavy-volume day on the trigger",
+    "A high RS rating on the stock",
+    "A deep pullback that gives it room"
    ],
    "answer": "A tight range before the trigger",
-   "why": "Tight trading ranges before the trigger. They show the selling pressure waning and, more importantly, they permit very tight stops.",
+   "why": "A tight range before the trigger. Scot1and: tight trading ranges before the trigger show selling pressure waning and, perhaps, more importantly, they permit very tight stops. The stop sits at the low of the trigger day, so a tight range keeps that low close to the buy.",
    "lesson_line": "Tight before the trigger means a tight stop after it. That is the whole advantage.",
    "facts": [
     "t03",
     "t06",
-    "a01"
+    "a01",
+    "t04"
    ],
    "wrong": {
-    "A heavy-volume trigger day": "Volume does not set the stop's distance. The trigger day's low does, and a tight pullback keeps it close.",
-    "A stop set at the 50-day": "The stop is the trigger day's low, not an average that may sit far below.",
-    "A wide pullback, so the stop sits far": "The opposite. A wide pullback means a wide stop and a smaller size."
-   }
+    "A heavy-volume day on the trigger": "Volume does not set the stop's distance. The trigger day's low does, and a tight range before it keeps that low close.",
+    "A high RS rating on the stock": "Strength picks the stock. It does not set the stop's distance. The trigger day's low does.",
+    "A deep pullback that gives it room": "The opposite. Scot1and wants tight ranges before the trigger because they permit very tight stops."
+   },
+   "simple": "Tight trading ranges before the trigger keep the trigger day's low close to the buy, so the stop is close too.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two agreeing Tier 2 publishers"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q14",
@@ -1240,14 +1416,24 @@
    "criterion": "ss.liquidity",
    "q": "A clean Slingshot on an $8 stock that trades $3 million a day is still ours to buy.",
    "answer": "False",
-   "why": "False. Trade only stocks at $10 or more that trade at least $20 million a day. A clean shape in a thin stock is still a thin stock.",
-   "lesson_line": "Price and dollar volume come before the chart. Under the floor, we do not even watch it.",
+   "why": "False. Trade only stocks at $10 or more that trade at least $20 million a day. This stock is under both floors, so a clean shape does not change it.",
+   "lesson_line": "Price and dollar volume come before the chart. Under the floor, the shape does not matter.",
    "facts": [
     "h09",
     "c29",
     "c48"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We trade only stocks at $10 or more that trade at least $20 million a day, and this one is under both.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "numbers in the owner's rulebook (B23)",
+     "rests on a rule that can change"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q15",
@@ -1258,23 +1444,35 @@
    "q": "By our card, where does a decisive Slingshot trigger day close within its range?",
    "choices": [
     "In the top 30% of its range",
-    "Anywhere, once it is over the line",
-    "In the lower half, a shakeout",
-    "Exactly at the midpoint"
+    "Just over the line is enough",
+    "In the bottom 30%, a shakeout",
+    "Right at the middle, the 50% mark"
    ],
    "answer": "In the top 30% of its range",
-   "why": "In the top 30% of its range, 0.7 or more, and it opens less than 2% over the prior close. The A+ row: closes at 78% to 99% of its range.",
+   "why": "In the top 30% of its range, a close of 0.7 or more of the day's range. A decisive day also opens less than 2% over the prior close. Our A+ trigger days close at 78% to 99% of the range. Being over the line is only the first test. These are the card's numbers.",
    "lesson_line": "Decisive means near the high of the day. A mid-range close is a shrug, not a trigger.",
    "facts": [
     "c04",
     "c23"
    ],
    "wrong": {
-    "Anywhere, once it is over the line": "Over the line is the first test. Where it closes in its range is the second.",
-    "In the lower half, a shakeout": "A lower-half close is a weak day. The trigger wants buyers in charge at the bell.",
-    "Exactly at the midpoint": "The midpoint is indecision. The card wants the top 30%."
+    "Just over the line is enough": "Over the line is only the first test. Where the close lands in the range is the second.",
+    "In the bottom 30%, a shakeout": "A close that low is a weak one. The card asks for the top 30%.",
+    "Right at the middle, the 50% mark": "The middle is not the top 30%. The card asks for a close of 0.7 or more of the range."
    },
-   "house": true
+   "house": true,
+   "simple": "It closes in the top 30% of its range, a close of 0.7 or more.",
+   "deeper": {
+    "example": "Our A+ trigger days closed at 78% to 99% of their range, near the high of the bar. A close in the middle of the bar is the weaker picture, and the card asks for the top 30% before it calls a trigger decisive."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the criteria card's proposed 0.7 line"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q16",
@@ -1284,13 +1482,22 @@
    "criterion": "ss.trigger_decisive",
    "q": "A trigger day that opens 3% over the prior close still counts as decisive on our card.",
    "answer": "False",
-   "why": "False. A decisive trigger opens less than 2% over the prior close. Buying a trigger day that gaps up 2% or more is a named mistake.",
-   "lesson_line": "A gap on the trigger day is a chase in disguise. The close should come to you.",
+   "why": "False. A decisive trigger day opens less than 2% over the prior close and closes in the top 30% of its range. A 3% open fails the first test. Buying a trigger day that gaps up 2% or more is a named mistake on our card.",
+   "lesson_line": "A trigger day that opens 2% or more over the prior close is not decisive. Let the close come to you.",
    "facts": [
     "c04",
     "c19"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because a decisive trigger day opens less than 2% over the prior close, and this one opened 3% over.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the criteria card's proposed 2% line"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q17",
@@ -1302,22 +1509,40 @@
    "choices": [
     "Inside 1.6 ATR, small red bars",
     "One 5% red bar on heavy volume",
-    "A 3 ATR range with two gap days"
+    "A 3 ATR range with two gap days",
+    "Any pullback lasting three closes"
    ],
    "answer": "Inside 1.6 ATR, small red bars",
-   "why": "The whole pullback inside about 1.6 ATR, no red body over 3.5% of price, no down day on above-average volume. Scot1and: tight ranges before the trigger are ideal.",
+   "why": "Inside about 1.6 ATR with small red bars. Our card's orderly test has three parts. The whole pullback sits inside about 1.6 ATR. No single red body is over about 3.5% of price. No down day comes on volume above its 50-day average. Scot1and: tight ranges before the trigger are ideal.",
    "lesson_line": "An orderly pullback is small bars on quiet volume. A big red bar on volume is selling, not resting.",
    "facts": [
     "c06",
     "t03",
-    "c25",
+    "c17",
     "v01"
    ],
    "wrong": {
     "One 5% red bar on heavy volume": "A red body over 3.5% on above-average volume breaks the orderly test twice.",
-    "A 3 ATR range with two gap days": "Three ATR is nearly twice the card's range. That is choppy, like TCOM at 1.85 ATR."
+    "A 3 ATR range with two gap days": "Three ATR is far past the card's about 1.6, so the range alone fails it.",
+    "Any pullback lasting three closes": "Three closes is the minimum under the line, not the orderly test. Range, red bodies and volume decide."
    },
-   "house": true
+   "house": true,
+   "simple": "An orderly pullback is small and quiet, with a narrow range, small red bars and no heavy selling.",
+   "deeper": {
+    "trap": "Calling a pullback orderly because it is short. A short pullback can still swing too wide, so check the range, the red bodies and the volume."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "card numbers are proposed",
+     "fixed before: choices rewritten for variety 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q18",
@@ -1353,7 +1578,7 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "ss.stop",
-   "q": "You bought the trigger close at 93.86 with the stop at 91.69. What is the risk in percent?",
+   "q": "You bought the trigger close at 93.86 with the stop at 91.69. What is the risk, in percent of the buy price?",
    "answer": 2.31,
    "calc": {
     "fn": "arith",
@@ -1364,7 +1589,7 @@
     },
     "round": 2
    },
-   "why": "2.31%. The fill minus the stop, divided by the fill. Inside the 3% a stop usually sits within. That was URI's stop, 2.3%.",
+   "why": "2.31%. Risk is the buy price minus the stop, divided by the buy price: (93.86 minus 91.69) over 93.86. That sits inside the about 3% a stop usually stays within. It was URI's stop, 2.3%.",
    "lesson_line": "Know the risk in percent before the close prints. The stop sets the size.",
    "facts": [
     "h04",
@@ -1372,7 +1597,19 @@
     "d06"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "Subtract the stop from the buy price, then divide by the buy price, which gives 2.31 percent.",
+   "deeper": {
+    "example": "URI, November 2016, was this exact trade: buy 93.86, stop 91.69, a 2.3% stop. It reached 3R in 6 sessions and the trend ran two months."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q20",
@@ -1382,15 +1619,24 @@
    "criterion": "ss.trim_1",
    "q": "On a Slingshot winner the first trim is half at 3R, and the rest rides the trail.",
    "answer": "False",
-   "why": "False. The hard rule is a third at 3R, another third at 5R, then trail the last third.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest. Same plan as every swing setup.",
+   "why": "False. The first trim is a third at 3R, not half. The third at 3R is the hard rule.",
+   "lesson_line": "The first trim is a third at 3R, not half.",
    "facts": [
     "h05",
-    "h20",
-    "c33",
-    "c34"
+    "c33"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We take a third off at 3R, not half.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "numbers in the owner's rulebook (B19, E51)",
+     "rests on a rule that can change",
+     "fixed before: statement rewritten 2026-11-10"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q21",
@@ -1402,23 +1648,38 @@
    "choices": [
     "A Slingshot",
     "A 20 EMA pullback",
-    "A Remount"
+    "A Remount",
+    "An Oops reversal"
    ],
    "answer": "A Slingshot",
-   "why": "A Slingshot. Look at which line was lost: the 4-day line, not the 20-day EMA. A 20 EMA pullback touches the 20-day, holds it, and is bought on the intraday turn.",
+   "why": "A Slingshot. Look at which line was lost: the 4-day line, not the 20-day EMA. A 20 EMA pullback touches the 20-day EMA, holds it, and is bought on the intraday turn. Four closes under the 4-day line, then a close back over it, is the Slingshot.",
    "lesson_line": "Name the line that was lost. The 4-day line is the Slingshot; the 20-day is the other setup.",
    "facts": [
     "c13",
     "c14",
     "c01",
-    "c16"
+    "c16",
+    "c17"
    ],
    "wrong": {
     "A 20 EMA pullback": "It never touched the 20-day EMA. The line lost and taken back was the 4-day line.",
-    "A Remount": "A Remount takes back a slow line, the 50-day or 200-day, after weeks under it. Four sessions under a 4-day line is a Slingshot."
+    "A Remount": "A Remount is about a slow line, not the 4-day line. The line lost here was the 4-day line.",
+    "An Oops reversal": "An Oops is a one-day reversal. Here the stock spent four sessions under its line."
    },
    "house": true,
-   "story": "The stock closed under its 4-day EMA of highs for four sessions and never touched its 20-day EMA. Then it closed back over the 4-day line."
+   "story": "The stock closed under its 4-day EMA of highs for four sessions and never touched its 20-day EMA. Then it closed back over the 4-day line.",
+   "simple": "It is a Slingshot, because the stock lost and retook its 4-day line and never touched its 20-day EMA.",
+   "deeper": {
+    "counter": "Look-alikes share one move, a close back over a line. What differs is the line that was lost and for how long. The 4-day line lost for a few closes is a Slingshot. A 20-day EMA that is touched and held is a 20 EMA pullback."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the card's look-alike tells"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q22",
@@ -1426,7 +1687,7 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ss.after_entry_stop",
-   "q": "After entry, a Slingshot that trades under the stop is sold, and the stop is never widened.",
+   "q": "To stay in a losing Slingshot, we never move the stop wider by choice.",
    "answer": "True",
    "why": "True. A trade under the stop ends it; no widening. The stop only moves up, never down or wider.",
    "lesson_line": "My stop is my stop. Widening it is the mistake with a name.",
@@ -1435,7 +1696,16 @@
     "c42",
     "c22"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. If price trades under the stop you are out, and you never move the stop wider by choice to avoid the loss.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's stop rule (A4)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q23",
@@ -1477,15 +1747,29 @@
     },
     "round": 1
    },
-   "why": "8%. The drive leg's highest high minus the pullback's lowest low, divided by the high. Scot1and: the setup targets the reversal of a shallow pullback.",
-   "lesson_line": "Measure the depth from the drive's high. Shallow is the picture.",
+   "why": "8%. The drive leg's highest high minus the pullback's lowest low, divided by that high: (110.00 minus 101.20) over 110.00. Scot1and: the setup targets the reversal of a shallow pullback. This measures the depth; it does not say how deep is too deep.",
+   "lesson_line": "Measure the depth from the drive's high down to the pullback's low.",
    "facts": [
     "c45",
     "o03",
     "v01"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "Take the drive's high minus the pullback's low, divide by the high, and you get 8 percent.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "the allowed depth range is a held decision (D-107)"
+    ]
+   },
+   "depends_on": [
+    "D-107",
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q25",
@@ -1493,7 +1777,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ss.orderly",
-   "q": "The pullback's high is 68.40, its low 66.10, and the ATR is 1.50. How many ATR is the range?",
+   "q": "The pullback's high is 68.40, its low 66.10, and the 14-day ATR is 1.50. How many ATR is the range?",
    "answer": 1.53,
    "calc": {
     "fn": "arith",
@@ -1505,13 +1789,23 @@
     },
     "round": 2
    },
-   "why": "1.53 ATR. The range divided by the ATR, inside the card's about 1.6. An orderly pullback also has no red body over 3.5% and no down day on heavy volume.",
+   "why": "1.53 ATR. The pullback's high minus its low, divided by the ATR, comes to 1.53, inside the card's about 1.6. An orderly pullback also has no red body over 3.5% and no down day on heavy volume.",
    "lesson_line": "Range over ATR. Under about 1.6 and it is resting, not unwinding.",
    "facts": [
     "c06"
    ],
    "house": true,
-   "suffix": " ATR"
+   "suffix": " ATR",
+   "simple": "Divide the pullback's high-to-low range by the ATR to get 1.53, which is inside the card's limit of about 1.6.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "card numbers are proposed"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q26",
@@ -1519,7 +1813,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ss.trim_1",
-   "q": "You bought the trigger close at 20.46 with the stop at 19.96. Where is 3R?",
+   "q": "You bought the trigger close at 20.46 with the stop at 19.96. One R is the risk per share. Where is 3R?",
    "answer": 21.96,
    "calc": {
     "fn": "arith",
@@ -1530,7 +1824,7 @@
     },
     "round": 2
    },
-   "why": "21.96. One R is the fill minus the stop; add three of those to the fill. RELY, an earnings-gap Slingshot, got there and kept stair-stepping up the 10-day.",
+   "why": "21.96. One R is the fill minus the stop, 20.46 minus 19.96. Add three of those to the fill to get 3R. RELY, an earnings-gap Slingshot, ran on to 13.7R, stair-stepping up the 10-day.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1538,7 +1832,17 @@
     "d04"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "One R is the buy price minus the stop, so 3R is the buy price plus three times that gap.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "the 3R trim is the owner's rule (B19)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q27",
@@ -1548,25 +1852,35 @@
    "criterion": "ss.close_back_under_line",
    "q": "What now?",
    "choices": [
-    "Hold; the stop decides",
+    "Hold; the stop decides, not the line",
     "Sell at the close; the reclaim failed",
     "Widen the stop under the pullback low",
-    "Add; it is cheaper now"
+    "Add more shares; it is cheaper now"
    ],
-   "answer": "Hold; the stop decides",
-   "why": "Hold. A close back under the line on the next session is a warning, not an exit. The stop is the exit, and it is still below.",
+   "answer": "Hold; the stop decides, not the line",
+   "why": "Hold. A close back under the line on the next session is a warning, not an exit. The stop is the exit, and 20.30 is still above 19.96.",
    "lesson_line": "A close back under the line is a warning. The stop is the decision.",
    "facts": [
     "c10",
-    "h02"
+    "h02",
+    "h31"
    ],
    "wrong": {
     "Sell at the close; the reclaim failed": "One close back under the line is a warning. The stop is the exit, not the line.",
-    "Widen the stop under the pullback low": "The stop only moves up, never wider.",
-    "Add; it is cheaper now": "Full size at one price with one stop. No adding."
+    "Widen the stop under the pullback low": "The stop only moves up, never down or wider.",
+    "Add more shares; it is cheaper now": "Full size at one price with one stop. No adding."
    },
    "house": true,
-   "story": "You bought the trigger close at 20.46 with the stop at 19.96. The next day closes at 20.30, back under the line, above the stop."
+   "story": "You bought the trigger close at 20.46 with the stop at 19.96. The next day closes at 20.30, back under the line, above the stop.",
+   "simple": "Hold. One close under the line is only a warning, and the stop, not the line, is the exit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "card statement is proposed (c10)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q28",
@@ -1578,22 +1892,38 @@
    "choices": [
     "Pass; a gap and a weak close",
     "Buy; the close is over the line",
-    "Buy half size"
+    "Buy; a 3% gap shows strength",
+    "Pass; four closes is too long"
    ],
    "answer": "Pass; a gap and a weak close",
-   "why": "Pass. A decisive trigger opens less than 2% over the prior close and closes in the top 30% of its range. This day gapped 3% and closed mid-range.",
+   "why": "Pass. A decisive trigger opens less than 2% over the prior close and closes in the top 30% of its range. This day gapped 3% and closed at 0.54, so it fails both. Buying a trigger day that gaps up 2% or more is a named mistake.",
    "lesson_line": "A gap up into a mid-range close is news, not resumption. Let it set up again.",
    "facts": [
     "c04",
     "c19",
-    "c24"
+    "c11",
+    "d20"
    ],
    "wrong": {
     "Buy; the close is over the line": "Over the line is one test. The gap and the mid-range close fail the other two.",
-    "Buy half size": "Size does not fix a failed gate. A decisive trigger is a gate on our card."
+    "Pass; four closes is too long": "Three closes is the minimum, and this pullback is four tight closes. The gap and the mid-range close are the problem.",
+    "Buy; a 3% gap shows strength": "A gap up on the trigger day is a chase. Buying a trigger day that gaps up 2% or more is a named mistake."
    },
    "house": true,
-   "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line, mid-range."
+   "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line at 0.54 of its range, the middle of the bar.",
+   "simple": "Pass. A decisive trigger day opens less than 2% up and closes near its high, and this one did neither.",
+   "deeper": {
+    "trap": "A gap up feels like strength. Here it opens 3% up and closes at 0.54 of its range, well under the card's top-30% line, so the trigger is not decisive."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "card statement is proposed",
+     "fixed before: wrong note corrected by the checker"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q29",
@@ -1603,13 +1933,13 @@
    "criterion": "ss.stop_gap",
    "q": "Where is the stop now?",
    "choices": [
-    "49.10, the first 30-minute low",
-    "Sell at the open, 49.40",
-    "No stop until it reclaims 50.00",
-    "Get out; the gap is past 2R"
+    "49.10",
+    "49.40",
+    "50.00",
+    "48.00"
    ],
-   "answer": "49.10, the first 30-minute low",
-   "why": "49.10. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop.",
+   "answer": "49.10",
+   "why": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry, which is 48.00. The low of 49.10 is above that, so the ceiling has not been hit.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "facts": [
     "h06",
@@ -1617,12 +1947,25 @@
     "c41"
    ],
    "wrong": {
-    "Sell at the open, 49.40": "The gap rule gives it the first 30 minutes. The open is not the decision.",
-    "No stop until it reclaims 50.00": "There is always a stop. The new one is the 30-minute low.",
-    "Get out; the gap is past 2R": "One R is 2.00 here, so 49.10 is inside 2R. The ceiling has not been hit."
+    "49.40": "49.40 is only the open. The gap rule waits for the first 30 minutes and uses that bar's low.",
+    "50.00": "The old stop was gapped through. There is always a stop, and the new one is the first 30-minute low.",
+    "48.00": "48.00 is the 2R mark, where you would get out. The first 30 minutes ended at 49.10, so that mark was not reached."
    },
    "house": true,
-   "story": "You bought a Slingshot close at 52.00 with the stop at 50.00. It gaps open at 49.40. The first 30-minute bar's low is 49.10."
+   "story": "You bought a Slingshot close at 52.00 with the stop at 50.00. It gaps open at 49.40. The first 30-minute bar ends with a low of 49.10.",
+   "simple": "The gap rule makes the first 30-minute low the new stop, and 49.10 is a loss under 2R, so you stay in.",
+   "deeper": {
+    "trap": "Do not sell at the open just because it gapped. The gap rule gives the first 30 minutes to decide. But the 2R ceiling is real: if that first half hour takes the loss past 2R, you get out instead of keeping the new stop."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on rulebook B20 and its 2R ceiling",
+     "arithmetic check against the ceiling"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q30",
@@ -1634,10 +1977,11 @@
    "choices": [
     "No; a new run under the line first",
     "Yes; the trigger fired again",
-    "Yes, with a wider stop this time"
+    "Yes, but with a wider stop this time",
+    "No; the stock is out for the month"
    ],
    "answer": "No; a new run under the line first",
-   "why": "No. Re-entry only on a new Slingshot. That means a new run of at least 3 closes under the line, then a new close over it. Its own stop too.",
+   "why": "No. Re-entry needs a new Slingshot. That means a new run of at least 3 closes under the line. Then comes a new close over it, with its own stop. This stock has closed under the line only twice. A stop-out ends the trade, not the stock.",
    "lesson_line": "A stop-out is not a verdict on the setup. A new Slingshot is a new pullback first.",
    "facts": [
     "c11",
@@ -1646,10 +1990,21 @@
    ],
    "wrong": {
     "Yes; the trigger fired again": "Re-buying the same pullback again and again is a named mistake. The pullback has to form again first.",
-    "Yes, with a wider stop this time": "A wider stop to avoid a repeat is the mistake, not the fix. And the setup has not formed again."
+    "Yes, but with a wider stop this time": "A wider stop to avoid a repeat is the mistake, not the fix. And the setup has not formed again.",
+    "No; the stock is out for the month": "Nothing bars the stock after a stop-out. A new Slingshot is allowed, with its own stop."
    },
    "house": true,
-   "story": "Your Slingshot stopped out the day after the trigger. Two sessions later price closes back over the line again."
+   "story": "Your Slingshot stopped out the day after the trigger. That day and the next both closed under the line. Today it closes back over it.",
+   "simple": "No, because a new Slingshot needs a new run of at least 3 closes under the line, and this stock has only had two.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the settled re-entry statement and rulebook B21",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q31",
@@ -1659,13 +2014,22 @@
    "criterion": "ss.not_stretched",
    "q": "A Slingshot trigger more than 10% above its 10-day average is skipped as too stretched.",
    "answer": "True",
-   "why": "True. Skip a long that is more than 10% above its 10-day average. It rarely binds on a Slingshot, but it can after an explosive gap with a shallow pullback.",
-   "lesson_line": "A stretched trigger is a chase with a different name.",
+   "why": "True. Our rule: skip a long that is more than 10% above its 10-day average, because it is too stretched to buy. It is a separate test from the limit on chasing past the buy point. A stock above its 10-day is not skipped for that alone. Only one more than 10% above is.",
+   "lesson_line": "More than 10% over the 10-day average is too stretched. We skip it.",
    "facts": [
     "h13",
     "c36"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because a long more than 10% above its 10-day average is too stretched to buy, so we skip it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook C29"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q32",
@@ -1677,10 +2041,11 @@
    "choices": [
     "No; the report is inside 3 sessions",
     "Yes; the trigger is decisive",
-    "Yes; a huge drive protects it"
+    "Yes; a huge drive protects it",
+    "No; buy tomorrow, before the report"
    ],
    "answer": "No; the report is inside 3 sessions",
-   "why": "No. No new buys in the 3 days before a report. FSLR's reversal the next session was the earnings reaction, not a setup failure.",
+   "why": "No. We make no new buys within 3 sessions before an earnings report, and this report lands tomorrow. A decisive trigger and a huge drive do not override the calendar. FSLR in 2013 reversed the session after the buy, and that was the earnings reaction, not a failure of the setup. A rally Slingshot near a report is the case that binds.",
    "lesson_line": "A rally Slingshot near a report is the case that binds. Wait for the report.",
    "facts": [
     "h08",
@@ -1690,10 +2055,27 @@
    ],
    "wrong": {
     "Yes; the trigger is decisive": "The trigger is fine and the calendar still says no. The earnings rule is a hard line.",
-    "Yes; a huge drive protects it": "A giant drive does not make the trigger safer. The next session was the earnings reaction."
+    "Yes; a huge drive protects it": "A giant drive does not make the trigger safer. The next session was the earnings reaction.",
+    "No; buy tomorrow, before the report": "Tomorrow is inside the same 3 sessions, so waiting a day fixes nothing. The rule is no new buys within 3 sessions before a report."
    },
    "house": true,
-   "story": "The drive was a 45.5% day. The pullback is 3 closes and 7.1% deep, and the trigger closed at 0.94 of its range. The report lands tomorrow."
+   "story": "The drive was a 45.5% day. The pullback is 3 closes and 7.1% deep, and the trigger closed at 0.94 of its range. The report lands tomorrow.",
+   "simple": "No, because we make no new buys in the 3 days before an earnings report, and this report lands tomorrow.",
+   "deeper": {
+    "counter": "FSLR in 2013 looked perfect: a 45.5% drive, 3 closes, 7.1% deep, a 0.94 close. The earnings table puts the report reaction on 2013-05-07, the session after the buy. The next session opened lower and traded through the stop."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook B22",
+     "asks 'take the close' (D-003 wording)"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q33",
@@ -1703,13 +2085,22 @@
    "criterion": "ss.one_price",
    "q": "A Slingshot is bought at one price with one stop, full size; adding later on a 50-day reclaim is not our play.",
    "answer": "True",
-   "why": "True. The full size at one price with one stop; no adding. The add on the 50-day reclaim is not taught.",
+   "why": "True. The full size goes in at one price with one stop, with no adding. We do not add on a 50-day reclaim. A later add would mean a second price and a second stop, which breaks the one-stop plan.",
    "lesson_line": "One price, one stop, full size. Adds are a different trade.",
    "facts": [
     "h31",
     "c38"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we buy full size at one price with one stop, and we do not add later.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook A5"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q34",
@@ -1719,13 +2110,24 @@
    "criterion": "ss.breakeven",
    "q": "On a Slingshot the stop moves to breakeven as soon as the trade is 1R up.",
    "answer": "False",
-   "why": "False. Breakeven once the trade is 2R up; anywhere from 2R to 5R is allowed. The first trim at 3R is the natural moment.",
-   "lesson_line": "Breakeven somewhere from 2R to 5R. The first trim at 3R is the natural moment.",
+   "why": "False. Breakeven comes at 2R to 5R, not 1R. Our card says once the trade is 2R up, and anywhere from 2R to 5R is allowed.",
+   "lesson_line": "Breakeven comes somewhere from 2R to 5R. One R is too early.",
    "facts": [
     "h05",
     "c32"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. Breakeven waits until the trade is 2R up, and anywhere from 2R to 5R is allowed.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "numbers in the owner's rulebook (B19)",
+     "rests on a rule that can change",
+     "fixed before: lesson line reworded"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q35",
@@ -1737,24 +2139,39 @@
    "choices": [
     "Its job: a planned loss of 1R",
     "Cost you the trade; it needed room",
-    "Nothing; the pullback low was the exit"
+    "Nothing; the pullback low was the exit",
+    "Showed the setup was not valid"
    ],
    "answer": "Its job: a planned loss of 1R",
-   "why": "Its job. The next session traded through the trigger day's low, which is what the stop under it is placed to detect. The 3R level printed 4 sessions later without us; a second try needs a new run of closes under the line.",
+   "why": "Its job. The next session opened at 121.51 and fell to 115.90. That went through the trigger day's low, which is what the stop under it is placed to detect. The loss stayed near the planned 1R. The 3R level printed 4 sessions later without us. A second try needs a new run of closes under the line.",
    "lesson_line": "A loss taken at plan is the system working. The next try is a new Slingshot.",
    "facts": [
     "h02",
     "d12",
     "d13",
     "d21",
-    "c11"
+    "c11",
+    "d24"
    ],
    "wrong": {
     "Cost you the trade; it needed room": "Room is a wider loss, not a better trade. The edge is in the resumption, and this one did not resume on time.",
-    "Nothing; the pullback low was the exit": "The stop is the trigger day's low, not the pullback low. The pullback low was broken too."
+    "Nothing; the pullback low was the exit": "The stop is the trigger day's low, not the pullback low. The pullback low was broken too.",
+    "Showed the setup was not valid": "A stop-out does not make a setup invalid. The numbers in the story fit the card's picture, and the next session simply traded through the stop. A stopped trade is a planned loss."
    },
    "house": true,
-   "story": "Drive +8.2% on volume, three closes under the line, 6.6% deep. The trigger closed at 0.94 of its range; you bought 122.76, stop 119.10. The next session opens 121.51 and falls to 115.90."
+   "story": "Drive +8.2% on volume, three closes under the line, 6.6% deep. The trigger closed at 0.94 of its range; you bought 122.76, stop 119.10. The next session opens 121.51 and falls to 115.90.",
+   "simple": "The stop did its job: the next session traded under the trigger day's low and the loss stayed near the planned size.",
+   "deeper": {
+    "trap": "The 3R level printing 4 sessions later feels like proof the stop was wrong. It is not. The stop is placed to detect that the trigger day's low did not hold. The edge is in the resumption of the drive, not the first close over the line. Judge the plan, not one result."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "example numbers come from our own bars dossier"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q36",
@@ -1762,25 +2179,40 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ss.market_reading",
-   "q": "Your move?",
+   "q": "What does the guide say to do?",
    "choices": [
-    "No new longs; mostly cash, shorts",
-    "Buy; the chart beats the reading",
-    "Buy small, stop under the low"
+    "Stay mostly in cash, plus shorts",
+    "Take full risk; a leader earns it",
+    "Buy it; the chart beats the reading",
+    "Trade only the setups graded A+"
    ],
-   "answer": "No new longs; mostly cash, shorts",
-   "why": "No new longs. Red is mostly cash, plus shorts below the 200-day. The best Slingshot in a Red market is a chart to study, not a buy.",
-   "lesson_line": "The reading comes before the chart. Red means sit on your hands.",
+   "answer": "Stay mostly in cash, plus shorts",
+   "why": "Mostly cash, plus shorts below the 200-day. That is the guide's Red reading, so a clean Slingshot in a leader does not change it.",
+   "lesson_line": "The reading comes before the chart. Red means mostly cash.",
    "facts": [
     "h26",
     "c43"
    ],
    "wrong": {
-    "Buy; the chart beats the reading": "Orange still allows A+ setups. Red allows mostly cash and shorts.",
-    "Buy small, stop under the low": "Red is mostly cash and shorts. A small long still goes against the guide."
+    "Take full risk; a leader earns it": "That is Green. The guide's Red reading is mostly cash and shorts.",
+    "Trade only the setups graded A+": "That is Orange. Red goes further: mostly cash and shorts.",
+    "Buy it; the chart beats the reading": "The reading comes before the chart. In Red the guide is mostly cash and shorts."
    },
    "house": true,
-   "story": "The reading turned Red last week. Today a leader closes decisively back over its 4-day line after a quiet pullback."
+   "story": "The reading turned Red last week. Today a leader closes decisively back over its 4-day line after a quiet pullback.",
+   "simple": "In a Red market the guide is mostly cash and shorts, so a good Slingshot does not change the reading.",
+   "deeper": {
+    "trap": "The reading is a guide, and Red says mostly cash and shorts. Do not borrow the Orange rule, only A+ setups, and apply it to Red."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's market reading guide (F65)",
+     "fixed before: wrong note reworded"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q37",
@@ -1791,12 +2223,12 @@
    "q": "The last third of a Slingshot winner trails which line?",
    "choices": [
     "10-day if fast, 21-day if steadier",
-    "The 4-day line, on any close under",
-    "The 50-day, on a touch",
-    "No trail; sell it all at 5R"
+    "The 4-day line, on a close below it",
+    "21-day if fast, 50-day if steadier",
+    "No trail; sell all that is left at 5R"
    ],
    "answer": "10-day if fast, 21-day if steadier",
-   "why": "The 10-day for a fast mover, the 21-day for a steadier one, sold on a close below. Scot1and trails on the 4-day line itself; that is his, not ours.",
+   "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail starts after both trims and rides the last third. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
@@ -1805,11 +2237,24 @@
     "v01"
    ],
    "wrong": {
-    "The 4-day line, on any close under": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
-    "The 50-day, on a touch": "The 50-day is too far for a fast mover, and a touch is not a close below.",
-    "No trail; sell it all at 5R": "5R is the second third, not the exit. The last third rides the trail."
+    "The 4-day line, on a close below it": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
+    "21-day if fast, 50-day if steadier": "Our fast movers use the 10-day, and our steadier ones the 21-day. The 50-day is not our trail.",
+    "No trail; sell all that is left at 5R": "5R is the second third, not the exit. The last third rides the trail."
    },
-   "house": true
+   "house": true,
+   "simple": "Trail the last third on the 10-day average for fast movers or the 21-day for steadier ones, selling on a close below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook E52",
+     "held decision D-013 on Scot1and's own exits"
+    ]
+   },
+   "depends_on": [
+    "D-013"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q38",
@@ -1817,27 +2262,48 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ss.ma_rising_pref",
-   "q": "What is the lesson?",
+   "q": "Which part of the card's picture did this trade miss?",
    "choices": [
-    "Prefer a rising 50-day over the 200-day",
-    "Never buy a three-close pullback",
-    "Too tight; the pullback low was the stop"
+    "A 50-day rising above the 200-day",
+    "A drive before the pullback began",
+    "A close in the top 30% of its range",
+    "At least three closes under the line"
    ],
-   "answer": "Prefer a rising 50-day over the 200-day",
-   "why": "Prefer the 50-day over the 200-day and rising. Here the 50-day sat under the 200-day, the location our card prefers to avoid. The stop was the rule's stop and the loss was planned.",
+   "answer": "A 50-day rising above the 200-day",
+   "why": "A 50-day rising above the 200-day. Our card prefers the 50-day over the 200-day and rising. On the trigger day the 50-day sat under the 200-day, a location the card prefers to avoid. The other three were met. The stock then fell 12.6% under the buy within 20 sessions as the 2008 market broke. The stop did its job: a planned loss.",
    "lesson_line": "Location matters. Prefer a Slingshot over a rising 50-day that sits above the 200-day.",
    "facts": [
     "c12",
     "d14",
     "d15",
-    "h02"
+    "h02",
+    "c04",
+    "c17"
    ],
    "wrong": {
-    "Never buy a three-close pullback": "Three closes is the minimum, not a flaw. The location was the problem here.",
-    "Too tight; the pullback low was the stop": "The stop is a few cents under the trigger day's low. The stock fell 12.6% under the buy within 20 sessions; a wider stop would have lost more."
+    "A drive before the pullback began": "The story shows a drive, an 8.8% day on volume, before the pullback. This part was met.",
+    "A close in the top 30% of its range": "It closed at its high, well inside the top 30%. This part was met.",
+    "At least three closes under the line": "It had three closes under the line. The minimum was met."
    },
    "house": true,
-   "story": "Drive +8.8% on volume, three closes under the line, 6.9% deep, the trigger closed at its high. You bought 24.90, stop 24.53. On the trigger day the 50-day sat under the 200-day. Stopped the next session."
+   "story": "Drive +8.8% on volume, three closes under the line, 6.9% deep, the trigger closed at its high. You bought 24.90, stop 24.53. On the trigger day the 50-day sat under the 200-day. Stopped the next session.",
+   "simple": "Our card prefers a rising 50-day above the 200-day, and this stock's 50-day sat under the 200-day.",
+   "deeper": {
+    "counter": "LOW's trigger day closed at its high, a 1.0 range close, and still stopped out on day 1. A strong close does not guarantee the trade works; the stop is there for that."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "rests on one card line (c12)",
+     "preference is a held decision (D-009)",
+     "fixed before: lesson line and wrong note corrected"
+    ]
+   },
+   "depends_on": [
+    "D-009"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q39",
@@ -1883,7 +2349,7 @@
     },
     "round": 0
    },
-   "why": "28. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round. That was MELI's trade.",
+   "why": "28 shares. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round. Those were MELI's fill and stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -1891,7 +2357,20 @@
     "d09"
    ],
    "house": true,
-   "suffix": " shares"
+   "suffix": " shares",
+   "simple": "Multiply the account by the risk percent, divide by the buy price minus the stop, and round down to 28.",
+   "deeper": {
+    "example": "MELI, 2017-11-17, had this fill and stop: an earnings-gap drive, buy 269.73, stop 259.09, a 3.9% stop. It ran to 11.8R at best."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "sizing formula is the owner's rule (A5)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q41",
@@ -1902,24 +2381,38 @@
    "q": "Our card's wider stop choice for a Slingshot sits where?",
    "choices": [
     "Under the lower of two days' lows",
-    "Under the pullback low, always",
-    "Under the 50-day average",
+    "Well under the pullback low, for safety",
+    "Under the 50-day moving average",
     "A full ATR under the trigger low"
    ],
    "answer": "Under the lower of two days' lows",
-   "why": "A few cents under the lower of the trigger day's and the prior day's lows. Never wider than the bottom of the pullback; Scot1and: at most, the bottom of the consolidation period.",
-   "lesson_line": "Wider means the prior day's low at most. The pullback's bottom is the limit, never a rule.",
+   "why": "A few cents under the lower of the trigger day's and the prior day's lows. This is the card's wider choice. The default is a few cents under the trigger day's low. It is never wider than the bottom of the pullback. Scot1and: place the stop at the low of the slingshot day, or at most the bottom of the consolidation period.",
+   "lesson_line": "Wider means the lower of two days' lows. The pullback's bottom is the outer limit.",
    "facts": [
     "c08",
     "t04",
-    "v01"
+    "v01",
+    "h03",
+    "h01"
    ],
    "wrong": {
-    "Under the pullback low, always": "The pullback's bottom is the limit of the wider choice, not the default.",
-    "Under the 50-day average": "An average is not a low. The stop is a few cents under a day's low.",
-    "A full ATR under the trigger low": "An ATR is a distance, not a level. The stop sits a few cents under a low."
+    "A full ATR under the trigger low": "The card's wider choice is still a few cents under a low, not an ATR below one.",
+    "Well under the pullback low, for safety": "The wider choice is never wider than the bottom of the pullback. Going well under it is not on the card.",
+    "Under the 50-day moving average": "An average is not a low. The stop is a few cents under a day's low."
    },
-   "house": true
+   "house": true,
+   "simple": "The wider choice puts the stop a few cents under the lower of the trigger day's and the prior day's lows.",
+   "deeper": {
+    "trap": "Wider does not mean as wide as you like. The card's wider choice is the lower of two days' lows, and it is never wider than the bottom of the pullback. A wider stop costs size, because the shares come from account risk divided by the distance to the stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the criteria card's proposed wider stop"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q42",
@@ -1929,13 +2422,23 @@
    "criterion": "ss.climax",
    "q": "If a Slingshot winner turns into a climax run, we sell a big part into it.",
    "answer": "True",
-   "why": "True. A climax run on your own long, Bracco's parabolic burst: sell a big part into it, a judgment call.",
+   "why": "True. A climax run, Bracco's parabolic burst, on your own long is a time to sell a big part into it. It is a judgment call: no set size or price is given.",
    "lesson_line": "Sell into a climax. Nobody rings a bell at the top, but the burst is the bell.",
    "facts": [
     "h16",
     "c30"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, since our rule is to sell a big part of the position into a climax run, though how much is a judgment call.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook C34",
+     "a judgment call, no number"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q43",
@@ -1945,13 +2448,23 @@
    "criterion": "ss.trim_gap_open",
    "q": "A Slingshot that gaps open past 3R has its first third sold at the close, not at the open.",
    "answer": "False",
-   "why": "False. If a stock opens above a trim level, take that trim at the open.",
+   "why": "False. If a stock opens above a trim level, take that trim at the open. A gap past 3R means the first third is sold at the opening price. The same holds for the second trim at 5R.",
    "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
    "facts": [
     "h25",
     "c31"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because a stock that opens above a trim level has that trim sold at the open, not held to the close.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook F63",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q44",
@@ -1990,25 +2503,37 @@
    "q": "Was the second try allowed?",
    "choices": [
     "Yes; a new trigger with its own stop",
-    "No; one try per drive",
-    "No; the first stop-out ends the stock"
+    "No; only one try per drive is allowed",
+    "No; the first stop-out ends the stock",
+    "Yes; but only at half the size"
    ],
    "answer": "Yes; a new trigger with its own stop",
-   "why": "Yes. Re-entry only on a new Slingshot with its own stop, at most 3 tries a week. The second try was stopped on day 4; a first failure warns the pullback was no longer orderly.",
+   "why": "Yes. Re-entry is allowed only on a new Slingshot: a new run of at least 3 closes under the line, then a new close over it, with its own stop. This try reached 0.31R, then gapped under the stop on day 4. The dossier notes that a first failure says the pullback was no longer orderly. The rule still allows the try.",
    "lesson_line": "A second try is a new trade with every rule. The first failure is a warning you carry into it.",
    "facts": [
     "c11",
     "h28",
-    "h29",
     "d18",
-    "d19"
+    "d19",
+    "h30"
    ],
    "wrong": {
-    "No; one try per drive": "The limit is 3 tries in a week and 6 in a month, not one per drive.",
-    "No; the first stop-out ends the stock": "A stop-out ends the trade. A new run of closes under the line and a new close over it is a new setup."
+    "No; the first stop-out ends the stock": "A stop-out ends the trade. A new run of closes under the line and a new close over it is a new setup.",
+    "No; only one try per drive is allowed": "The rule does not cap a drive at one try. The test is a new Slingshot with its own stop.",
+    "Yes; but only at half the size": "No rule halves the size of a second try. It is a new trade with its own stop and every rule, so the size comes from its grade."
    },
    "house": true,
-   "story": "An earnings gap of 29.5%. A first Slingshot six sessions earlier stopped out. Now a new run of three closes under the line and a close over it. You bought 185.93, stop 177.98; it reached 0.31R, then gapped under the stop on day 4."
+   "story": "An earnings gap of 29.5%. A first Slingshot six sessions earlier stopped out. Now a new run of three closes under the line and a close over it. You bought 185.93, stop 177.98; it reached 0.31R, then gapped under the stop on day 4.",
+   "simple": "Yes, because the stock formed a new Slingshot with its own stop, and the rule allows a new trigger.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook B21 and E56",
+     "example numbers come from our own bars dossier"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q46",
@@ -2026,13 +2551,23 @@
     },
     "round": 0
    },
-   "why": "15,000. Never own more than 1% of a stock's average daily volume.",
+   "why": "15,000 shares. Never own more than 1% of a stock's average daily volume, and 1% of 1,500,000 is 15,000.",
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "facts": [
     "h19"
    ],
    "house": true,
-   "suffix": " shares"
+   "suffix": " shares",
+   "simple": "At most 1 percent of the average daily volume, which here is 15,000 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "a number in the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q47",
@@ -2044,22 +2579,38 @@
    "choices": [
     "No; a bounce in a downtrend",
     "Yes; above the 200-day is enough",
-    "Yes; the drive makes it ours"
+    "Yes; the drive makes it ours",
+    "No; the three closes are too few"
    ],
    "answer": "No; a bounce in a downtrend",
-   "why": "No. With the 50-day and the 200-day both falling it is a bounce in a downtrend, not a Slingshot. Scot1and: a pullback in a downtrend is an opportunity to sell into strength.",
+   "why": "No. A stock above its 200-day with the 50-day and the 200-day both falling is a bounce in a downtrend, not a Slingshot. Scot1and: a pullback in a stock in a downtrend is merely an opportunity to sell into strength. Being above the 200-day is not enough.",
    "lesson_line": "Above the 200-day is not enough when both lines point down. Trend first, then the pullback.",
    "facts": [
     "c09",
     "t02",
-    "v01"
+    "v01",
+    "c11"
    ],
    "wrong": {
     "Yes; above the 200-day is enough": "Above the line with both averages falling is a bounce. Our card calls it a downtrend.",
-    "Yes; the drive makes it ours": "A drive inside a downtrend is a rally to sell into, in Scot1and's own words."
+    "Yes; the drive makes it ours": "A drive inside a downtrend is a rally to sell into, in Scot1and's own words.",
+    "No; the three closes are too few": "Three closes under the line is the minimum, so the count is fine. The problem is the trend: both averages are falling."
    },
    "house": true,
-   "story": "The close is above the 200-day. The 50-day has been falling for weeks, and the 200-day too. A drive, three closes under the line, now a close back over it."
+   "story": "The close is above the 200-day. The 50-day has been falling for weeks, and the 200-day too. A drive, three closes under the line, now a close back over it.",
+   "simple": "No, because with the 50-day and the 200-day both falling it is a bounce in a downtrend, not a Slingshot.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on a proposed criterion and a held decision (D-009)",
+     "rulebook B26"
+    ]
+   },
+   "depends_on": [
+    "D-009"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q48",
@@ -2071,22 +2622,35 @@
    "choices": [
     "A Remount",
     "A Slingshot",
-    "An Oops reversal"
+    "An Oops reversal",
+    "A 20 EMA pullback"
    ],
    "answer": "A Remount",
-   "why": "A Remount. Count the closes under the line and name the line. It lost a slow line, the 50-day, for weeks and took it back. A Slingshot slips under the 4-day EMA of highs for a few sessions.",
+   "why": "A Remount. Count the closes under the line and name the line. This stock lost its 50-day, a slow line, for eleven sessions and took it back. A Remount has lost its 50-day or 200-day for 5 to 30 closes. A Slingshot slips under its 4-day EMA of highs for a few closes, at least 3.",
    "lesson_line": "Count the closes and name the line. Weeks under a slow line is a Remount.",
    "facts": [
     "c15",
     "c16",
-    "c01"
+    "c01",
+    "c11"
    ],
    "wrong": {
     "A Slingshot": "The line is wrong and the count is long. A Slingshot's line is the 4-day EMA of highs, lost for a few sessions.",
-    "An Oops reversal": "An Oops is one day: open under the prior close, reclaim it the same session. This took weeks."
+    "An Oops reversal": "An Oops is one day: open under the prior close, reclaim it the same session. This took weeks.",
+    "A 20 EMA pullback": "A 20 EMA pullback touches the 20-day EMA, holds it, and is bought on the intraday turn. This stock lost its 50-day, a slow line, and took it back."
    },
    "house": true,
-   "story": "The stock closed under its 50-day for eleven sessions. Then it closed back over it on volume."
+   "story": "The stock closed under its 50-day for eleven sessions. Then it closed back over it on volume.",
+   "simple": "It is a Remount, because the stock lost a slow line, the 50-day, for weeks and then took it back.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the card's look-alike tells",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q49",
@@ -2096,23 +2660,37 @@
    "criterion": "ss.pullback_length",
    "q": "Which is it?",
    "choices": [
-    "An Oops reversal, one session",
-    "A Slingshot off the 4-day line",
-    "A Remount over a slow line"
+    "An Oops reversal",
+    "A Slingshot",
+    "A Remount",
+    "A 20 EMA pullback"
    ],
-   "answer": "An Oops reversal, one session",
-   "why": "An Oops: one day. It opens under the prior close, trades under the prior low and reclaims the close the same session. A Slingshot needs at least three closes under its line first.",
+   "answer": "An Oops reversal",
+   "why": "An Oops: one day. It opens under the prior close, trades under the prior low and reclaims the close the same session. A Slingshot needs at least three closes under its line first. A Remount needs 5 to 30 closes under a slow line. One session is neither.",
    "lesson_line": "One session is an Oops. A Slingshot needs days under the line before the close back over.",
    "facts": [
     "c17",
-    "c01"
+    "c01",
+    "c16",
+    "c14"
    ],
    "wrong": {
-    "A Slingshot off the 4-day line": "No run of closes under the 4-day line came first. One session cannot be a Slingshot.",
-    "A Remount over a slow line": "A Remount takes back a slow line after weeks under it. This is one day around the prior close."
+    "A Slingshot": "No run of closes under the 4-day line came first. One session cannot be a Slingshot.",
+    "A Remount": "A Remount takes back a slow line after weeks under it. This is one day around the prior close.",
+    "A 20 EMA pullback": "A 20 EMA pullback touches the 20-day EMA, holds it, and is bought on the intraday turn. This day is defined by the prior close and the prior low, not by any average."
    },
    "house": true,
-   "story": "It opened under the prior close and traded under the prior day's low. Then it closed back over the prior close, all in one session."
+   "story": "It opened under the prior close and traded under the prior day's low. Then it closed back over the prior close, all in one session.",
+   "simple": "It is an Oops, because it dipped under the prior low and reclaimed the prior close all in one session.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the card's look-alike tells",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q50",
@@ -2138,25 +2716,42 @@
    "criterion": "ss.trigger",
    "q": "Buy now?",
    "choices": [
-    "No; wait for the close over the line",
+    "No; wait for a close over the line",
     "Yes; the first red day is the entry",
-    "Yes; add on the 50-day reclaim later"
+    "Yes; buy half now, half on the turn",
+    "No; wait for a gap up on volume"
    ],
-   "answer": "No; wait for the close over the line",
-   "why": "No. Buying the first red day of the pullback instead of waiting for the close back over the line is a named mistake. Scot1and: then when momentum resumes we enter.",
+   "answer": "No; wait for a close over the line",
+   "why": "No. Buying the first red day of the pullback instead of waiting for the close back over the line is a named mistake. Scot1and: the resumption of the momentum is triggered by the break of the 4EMA of the highs, and then we enter. Day one of a pullback is a small red bar under the line. Momentum has not resumed.",
    "lesson_line": "Feeling it coming is not a trigger. The close back over the line is.",
    "facts": [
     "c20",
     "o04",
     "o05",
-    "v01"
+    "v01",
+    "c19",
+    "c05"
    ],
    "wrong": {
     "Yes; the first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
-    "Yes; add on the 50-day reclaim later": "No adding; one price, one stop. And there is no entry yet to add to."
+    "Yes; buy half now, half on the turn": "We buy full size at one price with one stop, with no adding. And momentum has not resumed.",
+    "No; wait for a gap up on volume": "Buying a trigger day that gaps up 2% or more is a named mistake, and no volume surge is needed. Ordinary volume is the picture. The trigger is the close back over the line."
    },
    "house": true,
-   "story": "The drive was an earnings gap. Day one of the pullback is a small red bar closing under the 4-day line. You feel it coming."
+   "story": "The drive was an earnings gap. Day one of the pullback is a small red bar closing under the 4-day line. You feel it coming.",
+   "simple": "No, because the first red day only starts the pullback, and the buy comes on the close back over the line.",
+   "deeper": {
+    "trap": "Buying the first red day is a guess at the low. Our card buys the confirmed turn instead: the first close back over the line. By then momentum has resumed."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "settled named mistake",
+     "four facts agree"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q52",
@@ -2168,10 +2763,11 @@
    "choices": [
     "Hold until a close under the trail",
     "Sell; two months is long enough",
-    "Sell on the first red day"
+    "Sell as soon as it has a red day",
+    "Hold until it falls to its breakeven"
    ],
    "answer": "Hold until a close under the trail",
-   "why": "Hold it. The last third trails the 10-day for a fast mover, sold on a close below. A winner can be held longer while it keeps working; GRMN was 50% higher in two months.",
+   "why": "Hold it. The last third trails the 10-day average for a fast mover or the 21-day for a steadier one. It is sold on a close below. Nothing here is a close under the trail: the stock is still above its 10-day. We swing trade, and a winner can be held longer while it keeps working. Two months is a calendar, not a signal. GRMN was 50% higher in two months.",
    "lesson_line": "Two thirds banked, the last third on the trail. Time is not a reason to sell a working trade.",
    "facts": [
     "h21",
@@ -2182,10 +2778,24 @@
    ],
    "wrong": {
     "Sell; two months is long enough": "We swing trade, and a winner can be held longer while it keeps working. The trail decides, not the calendar.",
-    "Sell on the first red day": "A red day above the trail line is noise. The exit is a close below the line."
+    "Sell as soon as it has a red day": "A red day while the stock holds above the trail is not an exit. The exit is a close below the line.",
+    "Hold until it falls to its breakeven": "Breakeven is a floor, not the exit for a winner. The last third trails the 10-day or the 21-day, and a close below it is the exit."
    },
    "house": true,
-   "story": "You bought the trigger close at 66.08, stop 64.04. You trimmed at 3R and 5R. Two months on the stock is 50% higher and still above its 10-day."
+   "story": "You bought the trigger close at 66.08, stop 64.04. You trimmed at 3R and 5R. Two months on the stock is 50% higher and still above its 10-day.",
+   "simple": "Keep holding the last third. It is sold on a close under its trail, not after a set time.",
+   "deeper": {
+    "example": "GRMN, trigger 2007-06-11: a five-close rest in a rising leader, bought at 66.08 with the stop at 64.04. It was the steadiest trend of the ten examples, 50% higher in two months, with a best of 20.5R. A trend like that is the case for holding while it keeps working."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E52 and C35",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q53",
@@ -2193,16 +2803,32 @@
    "rung": 7,
    "format": "tf",
    "criterion": "ss.line",
-   "q": "Chris Moody's two-average SlingShot System on TradingView is the same setup as ours.",
+   "q": "Chris Moody's two-average SlingShot System is the same setup as ours.",
    "answer": "False",
-   "why": "False. Drawing the wrong line is a named mistake: a 4-day EMA of closes, or Chris Moody's two-average system. Ours is the 4-period EMA of the daily highs.",
+   "why": "False. Drawing the wrong line is a named mistake: a 4-day EMA of closes, or Chris Moody's two-average system. Ours is the 4-period EMA of the daily highs. Deepvue also describes a 5-day EMA, which is another line that is not ours.",
    "lesson_line": "Same name, different line. Ours is one line: the 4-day EMA of the highs.",
    "facts": [
     "c21",
     "c01",
     "v02"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because ours is one line, the 4-period EMA of the daily highs, and Moody's system uses two averages.",
+   "deeper": {
+    "trap": "Same name, different line. Chris Moody's system uses two averages and Deepvue draws a 5-day EMA. Before you trust a signal with this name, check the line. Ours is the 4-period EMA of the daily highs."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "held decision D-014 on the line",
+     "Deepvue's 5-day dissent"
+    ]
+   },
+   "depends_on": [
+    "D-014"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q54",
@@ -2212,12 +2838,13 @@
    "criterion": "ss.trigger_decisive",
    "q": "Hidden ticker, the day it closes back over its 4-day line after a news gap. Take the close or pass?",
    "choices": [
-    "Take it; a decisive close after the rest",
+    "Take it; decisive close after a rest",
     "Pass; the gap day was the trigger",
-    "Pass; three red days is too long"
+    "Pass; three red days is too long",
+    "Take it; a gap this big is the signal"
    ],
-   "answer": "Take it; a decisive close after the rest",
-   "why": "Take it. A huge news gap, then three tiny red days hugging the line. Then a decisive close back over it at 0.92 of its range. It reached 3R in 3 sessions.",
+   "answer": "Take it; decisive close after a rest",
+   "why": "Take it. A huge news gap, then three tiny red days hugging the line. Then a decisive close back over it at 0.92 of its range. A decisive close lands in the top 30% of its range, and 0.92 clears that. It reached 3R in 3 sessions. That is one case, not the rule.",
    "lesson_line": "Drive, tiny red days, a decisive close. That is the whole picture.",
    "facts": [
     "c04",
@@ -2227,7 +2854,8 @@
    ],
    "wrong": {
     "Pass; the gap day was the trigger": "The gap day is the drive, never the trigger. The trigger is today's close back over the line.",
-    "Pass; three red days is too long": "Three closes under the line is the minimum, not too long."
+    "Pass; three red days is too long": "Three closes under the line is the minimum, not too long.",
+    "Take it; a gap this big is the signal": "The gap is the drive, never the trigger. The trigger is the decisive close back over the line after the rest."
    },
    "house": true,
    "chart": {
@@ -2235,7 +2863,23 @@
     "asof": "2025-09-18",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Take it, because a news gap came first, three tiny red days followed, and the day closed near its high back over the line.",
+   "deeper": {
+    "example": "UTHR, trigger 2025-09-18: a 37.7% news gap on 2025-09-02 was the drive. Three tiny red days hugged the line, 9.3% deep and 0.45 ATR. The trigger closed at 0.92 of its range. Buy 409.87, stop 402.47. It reached 3R in 3 sessions."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the criteria card's proposed 0.7 line",
+     "asks 'take the close' (D-003)"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q55",
@@ -2247,18 +2891,23 @@
    "choices": [
     "Pass; the close sits mid-range",
     "Take it; the close is over the line",
-    "Take it; the pullback was short"
+    "Take it; the pullback was short",
+    "Pass; wait for heavy volume first"
    ],
    "answer": "Pass; the close sits mid-range",
-   "why": "Pass. The first close back over the line landed at 0.54 of its range, the middle of the bar. A decisive trigger closes at 0.7 or more. It stopped at 0R.",
+   "why": "Pass. The first close back over the line landed at 0.54 of its range, the middle of the bar. A decisive trigger closes at 0.7 or more, the top 30% of its range. That trade stopped at 0R. It is one case: the card, not the outcome, is the reason.",
    "lesson_line": "Look at where the trigger day closed in its own range before you look at the line.",
    "facts": [
     "c04",
-    "d20"
+    "d20",
+    "c05",
+    "d01",
+    "d02"
    ],
    "wrong": {
     "Take it; the close is over the line": "Over the line is the first test. A mid-range close fails the second.",
-    "Take it; the pullback was short": "The pullback is fine. The trigger day is the problem."
+    "Take it; the pullback was short": "The pullback is fine. The trigger day is the problem.",
+    "Pass; wait for heavy volume first": "No volume surge is needed on a trigger day. Ordinary volume is the picture. The close location is the problem."
    },
    "house": true,
    "chart": {
@@ -2266,7 +2915,23 @@
     "asof": "2025-10-23",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Pass, because the close landed in the middle of the day's range, at 0.54, and our trigger needs 0.7 or more.",
+   "deeper": {
+    "counter": "Compare GSK, a 0.54 close that stopped at 0R, with UTHR, a 0.92 close that reached 3R in 3 sessions. Both were a first close back over the line. One difference you can see on the day is where the close landed."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the criteria card's proposed 0.7 line",
+     "asks 'take the close' (D-003)"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q56",
@@ -2276,13 +2941,26 @@
    "criterion": "ss.reentry",
    "q": "On one stock we make at most 3 Slingshot tries in a week and 6 in a month.",
    "answer": "True",
-   "why": "True. The same stock: at most 3 tries in a week and 6 in a month. Each is a new Slingshot with its own stop.",
+   "why": "True. The same stock: at most 3 tries in a week and 6 in a month. Each try is a new Slingshot, with a new run of at least 3 closes under the line and its own stop.",
    "lesson_line": "Three tries a week, six a month. After that the stock has told you something.",
    "facts": [
     "h29",
-    "c11"
+    "c11",
+    "d19"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we allow at most 3 tries in a week and 6 in a month on one stock.",
+   "deeper": {
+    "trap": "The weekly cap is easy to forget, because each try looks like a fresh setup. Count your tries on the stock before you buy. A first failure says the pullback was no longer orderly, so a repeat deserves a harder look."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E56"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q57",
@@ -2292,23 +2970,40 @@
    "criterion": "ss.earnings_window",
    "q": "What now?",
    "choices": [
-    "Sell; hold through only if up 5R",
+    "Sell it before the report",
     "Hold; the trend is up, so it is fine",
-    "Sell half and hold the rest"
+    "Sell half and hold the rest",
+    "Hold; the stop covers a report gap"
    ],
-   "answer": "Sell; hold through only if up 5R",
-   "why": "Sell. We hold through a report only if the trade is up 5R. A rally Slingshot near a report is the case that binds; a PEG Slingshot is usually weeks from the next one.",
+   "answer": "Sell it before the report",
+   "why": "Sell before the report. We hold through a report only if the trade is up 5R, and this one is up 1.5R. A rally Slingshot near a report is the case that binds. A PEG Slingshot is usually weeks from the next one. A gap through the stop is handled by the gap rule, which has a 2R ceiling.",
    "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 1.5R does not.",
    "facts": [
     "h08",
-    "c37"
+    "c37",
+    "h06",
+    "h07"
    ],
    "wrong": {
-    "Hold; the trend is up, so it is fine": "The trend does not report earnings. The gap does, and 1.5R is no cushion.",
-    "Sell half and hold the rest": "Half of a 1.5R cushion is still under the 5R line."
+    "Hold; the trend is up, so it is fine": "The trend is not the test. The rule holds through a report only at 5R, and this trade is up 1.5R.",
+    "Sell half and hold the rest": "The rest would still be held through the report at 1.5R. The rule needs 5R for that.",
+    "Hold; the stop covers a report gap": "A stop does not cover a gap. Price can open through it, and then the gap rule takes over with its 2R ceiling."
    },
    "house": true,
-   "story": "Your rally Slingshot is up 1.5R. The report comes after the close in two sessions."
+   "story": "Your rally Slingshot is up 1.5R. The report comes after the close in two sessions.",
+   "simple": "Sell, because we hold through a report only if the trade is up 5R, and this one is up just 1.5R.",
+   "deeper": {
+    "trap": "Up 1.5R feels like a cushion, but the rule sets a high bar, 5R, to hold through a report. Even the gap rule has a ceiling: if the first 30 minutes take the loss past 2R, you get out. A report gap can be the case that tests it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook B22",
+     "fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q59",
@@ -2327,7 +3022,7 @@
     },
     "round": 1
    },
-   "why": "3R. The gain divided by the fill minus the stop. That is where the first third comes off; FRO got there in 7 sessions.",
+   "why": "3R. One R is the fill minus the stop. Divide the gain, the price minus the fill, by one R. That is where the first third comes off; FRO got there in 7 sessions.",
    "lesson_line": "Count in R, not dollars. 3R is the first trim.",
    "facts": [
     "h05",
@@ -2335,7 +3030,20 @@
     "d11"
    ],
    "house": true,
-   "suffix": "R"
+   "suffix": "R",
+   "simple": "Divide the gain by the risk per share, the buy price minus the stop, and you get 3R.",
+   "deeper": {
+    "trap": "Judging a gain by its percent. The same percent gain is more R when the stop is close and fewer R when it is wide. Count in R, because the trim rules are written in R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "the 3R trim is the owner's rule (B19)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q60",
@@ -2345,24 +3053,44 @@
    "criterion": "ss.ma_rising_pref",
    "q": "Which grades higher?",
    "choices": [
-    "The one over a rising 50 above the 200",
+    "The rising 50-day above the 200",
     "Equal; the line is what matters",
-    "The flat one; it is less stretched"
+    "The flat one; it is less stretched",
+    "The one under the 200; more upside"
    ],
-   "answer": "The one over a rising 50 above the 200",
-   "why": "The one over a rising 50-day that sits above the 200-day. Our card prefers that location; the other is the location it prefers to avoid.",
+   "answer": "The rising 50-day above the 200",
+   "why": "The one over a rising 50-day that sits above the 200-day. Our card prefers that location and prefers to avoid a 50-day under the 200-day. The grade then sets the size: A and B setups at normal size, A+ sized up, B- or lower sized down.",
    "lesson_line": "Same shape, two locations. Rising averages in the right order earn the better grade.",
    "facts": [
     "c12",
+    "d14",
     "d15",
     "h30"
    ],
    "wrong": {
     "Equal; the line is what matters": "The line is the trigger. Location grades the trade, and the grade sets the size.",
-    "The flat one; it is less stretched": "Less stretched is not a grade. A 50-day under the 200-day is the location we prefer to avoid."
+    "The flat one; it is less stretched": "Less stretched is not a grade. A 50-day under the 200-day is the location we prefer to avoid.",
+    "The one under the 200; more upside": "Cheaper is not stronger. Our card prefers a rising 50-day over the 200-day, and prefers to avoid the reverse."
    },
    "house": true,
-   "story": "Two Slingshots with the same drive and the same tidy pullback. One sits over a rising 50-day above the 200-day. The other sits over a flat 50-day that is under the 200-day."
+   "story": "Two Slingshots with the same drive and the same tidy pullback. One sits over a rising 50-day above the 200-day. The other sits over a flat 50-day that is under the 200-day.",
+   "simple": "The Slingshot over a rising 50-day above the 200-day grades higher, because that is the location our card prefers.",
+   "deeper": {
+    "trap": "The line is only the trigger. Two charts can share the same line and sit in very different places, and the place moves the grade, not the entry rule. LOW had its 50-day under its 200-day and was stopped on day 1."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "rests on one card line (c12)",
+     "preference is a held decision (D-009)",
+     "fixed before: lesson line reworded"
+    ]
+   },
+   "depends_on": [
+    "D-009"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q61",
@@ -2373,22 +3101,38 @@
    "q": "What do you do?",
    "choices": [
     "Sell; under 1R after 10 days",
-    "Hold; the stop has not hit",
-    "Add; it is still above the line"
+    "Hold; no stop hit in 10 days",
+    "Add; it is still above the line",
+    "Sell half and hold the rest"
    ],
    "answer": "Sell; under 1R after 10 days",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. A Slingshot is a resumption, and this one has not resumed.",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. At 0.6R after 10 days this one has not resumed, and an untouched stop does not change the time stop.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
     "h15",
-    "c39"
+    "c39",
+    "h31"
    ],
    "wrong": {
-    "Hold; the stop has not hit": "The stop is one exit. The time stop is another, and it fired.",
-    "Add; it is still above the line": "No adding. And a trade that has done nothing in 10 days is not asking for more money."
+    "Add; it is still above the line": "No adding. And a trade that has done nothing in 10 days is not asking for more money.",
+    "Hold; no stop hit in 10 days": "The stop is one exit. The time stop is another, and it fired.",
+    "Sell half and hold the rest": "The time stop sells the trade, not part of it, freeing the money."
    },
    "house": true,
-   "story": "Ten trading days after a Slingshot buy the trade sits at 0.6R, drifting sideways. The stop has not been touched."
+   "story": "Ten trading days after a Slingshot buy the trade sits at 0.6R, drifting sideways. The stop has not been touched.",
+   "simple": "Sell it, because a trade under 1R after 10 trading days is sold to free the money.",
+   "deeper": {
+    "trap": "Waiting because the stop has not hit. The stop and the time stop are two separate exits. Not being stopped out does not mean the trade is working."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a number in the owner's rulebook (C33)",
+     "rests on a rule that can change"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q67",
@@ -2396,16 +3140,33 @@
    "rung": 8,
    "format": "tf",
    "criterion": "ss.stop",
-   "q": "Three of our four rule-following Slingshot losses were stopped within two sessions, the stop doing its job.",
+   "q": "Three of the four failed Slingshots in our examples were stopped within two sessions, the stop doing its job.",
    "answer": "True",
-   "why": "True. Three of the four were stopped within two sessions. The trigger day's low did not hold, which is what the stop under it is placed to detect.",
+   "why": "True. Three of the four failed Slingshots in our examples were stopped within two sessions. SRPT and LOW were stopped on day 1, PSX on day 2. PLTR was stopped on day 4, by a gap under the stop. The trigger day's low did not hold, which is what the stop under it is placed to detect.",
    "lesson_line": "A Slingshot that fails usually fails fast. The tight stop is what makes that cheap.",
    "facts": [
     "d21",
     "h02",
-    "t06"
+    "t06",
+    "d12",
+    "d14",
+    "d16",
+    "d18"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because three of the four failures were stopped within two sessions, which is the stop doing its job.",
+   "deeper": {
+    "trap": "Four losses is a tiny sample. It shows how these failures looked, not how often a Slingshot fails, and this unit states no win rate. What it does show is the design: a stop a few cents under the trigger day's low gets you out fast, so a failure stays small."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one fact carries it, our own bars dossier",
+     "examples not yet reviewed by the owner"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q58",
@@ -2415,12 +3176,13 @@
    "criterion": "ss.orderly",
    "q": "Grade?",
    "choices": [
-    "Not orderly; pass",
+    "Not orderly; pass on it",
     "A+; the drive is huge",
-    "B; buy half"
+    "B; buy a half-size position",
+    "Orderly; under 2 ATR"
    ],
-   "answer": "Not orderly; pass",
-   "why": "Pass. Orderly means the whole pullback inside about 1.6 ATR, no red body over 3.5%, no down day on above-average volume. This one is choppy; TCOM at 1.85 ATR was left out of the gallery.",
+   "answer": "Not orderly; pass on it",
+   "why": "Pass. Orderly means three things. The whole pullback sits inside about 1.6 ATR. No red body is over 3.5% of price. No down day comes on volume above its 50-day average. This one fails all three: 1.85 ATR, a 4% red body, and above-average volume on that red day. Our card cut a choppy pullback like TCOM at 1.85 ATR. A huge drive does not excuse it.",
    "lesson_line": "A big drive does not excuse a messy pullback. Orderly is a gate.",
    "facts": [
     "c06",
@@ -2429,10 +3191,25 @@
    ],
    "wrong": {
     "A+; the drive is huge": "The drive is one row of the grade. The pullback fails the orderly test on every count.",
-    "B; buy half": "Half of a messy pullback is still a messy pullback. Orderly is a gate, not a grade."
+    "B; buy a half-size position": "Half of a messy pullback is still a messy pullback. Orderly is a gate, not a grade.",
+    "Orderly; under 2 ATR": "The card's limit is about 1.6 ATR, not 2. This pullback is 1.85 ATR, and the 4% red body on above-average volume fails as well."
    },
    "house": true,
-   "story": "A drive, then a pullback whose bars swing 1.85 ATR high to low, with one 4% red bar on heavy volume. Today it closes over the line."
+   "story": "A drive, then a pullback whose total range is 1.85 ATR, with one red candle body of 4% of price on above-average volume. Today it closes over the line.",
+   "simple": "Not orderly, so pass: the range is 1.85 ATR, over the 1.6 limit, and a 4% red body sits on above-average volume.",
+   "deeper": {
+    "trap": "A huge drive makes people forgive a messy pullback. The card treats orderly as a gate, not a grade: the whole pullback inside about 1.6 ATR, no red body over 3.5%, no down day on heavy volume. Count the three tests before you look at the drive."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the criteria card's proposed 1.6 ATR and 3.5%",
+     "card lists choppy as both a gate and a B- row",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q62",
@@ -2444,21 +3221,41 @@
    "choices": [
     "Sized down",
     "Normal size",
-    "Sized up"
+    "Sized up",
+    "No trade"
    ],
    "answer": "Sized down",
-   "why": "Sized down. A and B setups at normal size; A+ sized up; B- or lower sized down. Risk by grade puts B- at 0.25% to 0.5%.",
-   "lesson_line": "The grade sets the size. A B- gets the smallest risk, or no trade at all.",
+   "why": "Sized down. A and B setups at normal size; A+ sized up; B- or lower sized down. Risk by grade puts B- or lower at 0.25% to 0.5%. Green means full risk per grade, so it does not lift a B-.",
+   "lesson_line": "The grade sets the size. A B- gets the smallest risk, 0.25% to 0.5%.",
    "facts": [
     "h30",
-    "h33"
+    "h33",
+    "h26"
    ],
    "wrong": {
     "Normal size": "Normal size is for A and B setups. B- is sized down.",
-    "Sized up": "Sized up is A+ only."
+    "Sized up": "Sized up is A+ only.",
+    "No trade": "A B- is not a skip. Our rule sizes it down, to 0.25% to 0.5% risk."
    },
    "house": true,
-   "story": "Every gate passes, but on your read this Slingshot grades B-. The reading is Green."
+   "story": "Every gate passes, but on your read this Slingshot grades B-. The reading is Green.",
+   "simple": "A B- grade means a smaller size, even in a Green market, because the grade sets how much to risk.",
+   "deeper": {
+    "trap": "Green reads like permission to size up. It only means full risk per grade. A B- stays a B- in a Green market, so it stays sized down."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's grade and risk rules (D38, E49)",
+     "sizing by grade is a held decision (D-005)",
+     "fixed before: story corrected"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q63",
@@ -2468,26 +3265,43 @@
    "criterion": "ss.stop",
    "q": "You buy the trigger close. Entry, stop and first trim?",
    "choices": [
-    "93.86; stop 91.69; a third at 3R",
-    "93.86; stop 88.20; out at 2R",
-    "93.86; stop at the gap low; hold to 5R"
+    "62.40; stop 60.82; a third at 3R",
+    "62.40; stop 58.30; out at 2R",
+    "62.40; stop at the gap low; hold to 5R",
+    "62.40; stop 60.82; all out at 3R"
    ],
-   "answer": "93.86; stop 91.69; a third at 3R",
-   "why": "Market at the close, 93.86; the stop a few cents under the day's low, 91.69; a third at 3R. URI reached 3R in 6 sessions and the trend ran two months.",
+   "answer": "62.40; stop 60.82; a third at 3R",
+   "why": "Market at the close, 62.40. The stop goes a few cents under the day's low, 60.82. A third comes off at 3R, another third at 5R, and the last third trails.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the close prints; execute it without a debate.",
    "facts": [
     "h22",
     "h24",
     "h05",
-    "d05",
-    "d06"
+    "h20"
    ],
    "wrong": {
-    "93.86; stop 88.20; out at 2R": "A stop down at 88.20 is nowhere near the day's low, and 2R is breakeven's floor, not the trim.",
-    "93.86; stop at the gap low; hold to 5R": "The gap low is the drive's start, far below. And the first third comes off at 3R, not 5R."
+    "62.40; stop 58.30; out at 2R": "That stop is nowhere near the day's low. And the hard rule puts the first trim at 3R, not 2R.",
+    "62.40; stop at the gap low; hold to 5R": "The gap low is a different level. The stop goes a few cents under the day's low, not at the gap low.",
+    "62.40; stop 60.82; all out at 3R": "Entry and stop are right, the exit is not. The plan takes a third at 3R, another third at 5R, and trails the last third."
    },
    "house": true,
-   "story": "URI, November 2016: a 17.1% drive on a 9.3% gap, then three small red candles. Today it closes at 0.88 of its range, back over the line at 93.86. The day's low was a few cents over 91.69."
+   "story": "A stock gapped up 9%, then rested three small red candles. Today it closes back over its line at 62.40. The day's low was 60.85.",
+   "simple": "Buy the close at 62.40, put the stop a few cents under the day's low at 60.82, and take a third off at 3R.",
+   "deeper": {
+    "trap": "Write the whole plan before the close prints: entry, stop, first trim, trail. The stop sets the size, so the distance to the stop decides how many shares you can buy. Then carry the plan out without a debate."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "held decision D-003 (trigger order)",
+     "rests on rulebook E51, E57 and F62"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q64",
@@ -2499,25 +3313,43 @@
    "choices": [
     "No; no drive to sling from",
     "Yes; the shape is the setup",
-    "Yes; the close is decisive"
+    "Yes; the close is decisive",
+    "No; four closes is too few"
    ],
    "answer": "No; no drive to sling from",
-   "why": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup.",
-   "lesson_line": "The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
+   "why": "No. The drive comes first, and this stock never had one. Scot1and wants a stock that recently made a strong move. The shape and a decisive close cannot stand in for a drive.",
+   "lesson_line": "The shape without the drive is not a Slingshot. The drive comes first.",
    "facts": [
     "c44",
     "o04",
     "t05",
-    "d22",
-    "d23",
+    "t02",
+    "c17",
     "v01"
    ],
    "wrong": {
-    "Yes; the shape is the setup": "The shape is half the setup. The drive is the other half, and it is missing.",
-    "Yes; the close is decisive": "A decisive close is only the trigger. The drive has to come first."
+    "Yes; the shape is the setup": "The shape alone is not the setup. The drive comes first, and it is missing.",
+    "Yes; the close is decisive": "A decisive close is only the trigger. The drive has to come first.",
+    "No; four closes is too few": "Three closes is the minimum, and this pullback has four. The missing piece is the drive."
    },
    "house": true,
-   "story": "A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it."
+   "story": "A stock has gone sideways for four months: no gap, no strong move up, no big volume day. Then it closes four times under its 4-day line and closes decisively back over it.",
+   "simple": "No. The stock only went sideways, and a strong move up has to come before the pullback.",
+   "deeper": {
+    "trap": "Calling it a Slingshot because the shape looks right. The line, the closes and the decisive close are all there. With no drive first, it is only a wobble in a sideways stock."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the drive-first line of our card (c44)",
+     "story has no strong move under any option of the held drive decision (D-106)"
+    ]
+   },
+   "depends_on": [
+    "D-016"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q65",
@@ -2527,14 +3359,27 @@
    "criterion": "ss.stop_gap",
    "q": "The only time a Slingshot stop moves against you is the gap rule: the first 30-minute low on a gap-down day.",
    "answer": "True",
-   "why": "True. The stop only moves up, never down or wider. The one exception is the gap rule: the low of the first 30-minute bar is the new stop.",
+   "why": "True. The stop only moves up, never down or wider. The one exception is the gap rule: after a gap through the stop, the low of the first 30-minute bar is the new stop. It has a ceiling: if those 30 minutes take the loss past 2R, get out. The gap makes that call, not you.",
    "lesson_line": "One exception, and it is not yours to choose. The gap decides, in 30 minutes.",
    "facts": [
     "h02",
     "h06",
-    "c41"
+    "c41",
+    "h07"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because the stop only moves up, except on a gap through it, where the first 30-minute low is the new stop.",
+   "deeper": {
+    "trap": "Widening a stop by hand is a named mistake. The gap rule is different: it replaces a stop the market already traded through with a defined one, and it still has a ceiling. Do not stretch it to excuse an ordinary dip under your stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook A4 and B20"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q66",
@@ -2544,23 +3389,40 @@
    "criterion": "ss.trigger_decisive",
    "q": "What do you do?",
    "choices": [
-    "Nothing; no setup, no trade",
-    "Buy the near one; Green is full risk",
-    "Buy it small"
+    "Buy nothing; no setup, no trade",
+    "Buy the near one; Green allows it",
+    "Buy it small, with a tight stop",
+    "Buy a weaker name that triggers"
    ],
-   "answer": "Nothing; no setup, no trade",
-   "why": "Nothing. No setup, no trade; cash is a position. A mid-range close is not a decisive trigger, and a near-miss is a miss.",
+   "answer": "Buy nothing; no setup, no trade",
+   "why": "Buy nothing. No setup, no trade; cash is a position. A mid-range close is not a decisive trigger, and a near-miss is a miss. Green is full risk per grade for a setup that passes; it does not create one.",
    "lesson_line": "Green is permission, not an order. Wait for the one that passes every gate.",
    "facts": [
     "h32",
-    "c04"
+    "c04",
+    "h26",
+    "h14"
    ],
    "wrong": {
-    "Buy it small": "Small is a size, not a setup. Never force a trade to have something on.",
-    "Buy the near one; Green is full risk": "Green sets the size for a setup that passes. It does not create one."
+    "Buy it small, with a tight stop": "Small is a size, not a setup. Never force a trade to have something on.",
+    "Buy the near one; Green allows it": "Green sets the size for a setup that passes. It does not create one.",
+    "Buy a weaker name that triggers": "We buy leaders, and a weaker name is still forcing a trade. Never force a trade to have something on."
    },
    "house": true,
-   "story": "Earnings season, and the reading is Green. Your list shows no Slingshot that passes every gate. One is close, but its trigger closed mid-range."
+   "story": "Earnings season, and the reading is Green. Your list shows no Slingshot that passes every gate. One is close, but its trigger closed mid-range.",
+   "simple": "Do nothing, because no Slingshot passes every gate and a near-miss is still a miss.",
+   "deeper": {
+    "trap": "A Green market feels like permission to act. It only sets the risk for setups that pass. Never force a trade to have something on."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's no-setup rule (D44)",
+     "fixed before: choice reworded"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q68",
@@ -2570,7 +3432,7 @@
    "criterion": "ss.trim_2",
    "q": "You bought the trigger close at 66.08 with the stop at 64.04. Where is 5R?",
    "answer": 76.28,
-   "why": "76.28. One R is the fill minus the stop; add five of those to the fill. The second third comes off there.",
+   "why": "76.28. One R is the fill minus the stop, 66.08 minus 64.04. Add five of those to the fill to get 5R. The second third comes off there, and the last third trails.",
    "lesson_line": "Know your 5R before the open. The second third comes off there.",
    "facts": [
     "c34",
@@ -2587,7 +3449,17 @@
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "One R is the buy price minus the stop, so 5R is the buy price plus five times that gap.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "the 5R trim is the owner's rule (E51)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q69",
@@ -2603,11 +3475,13 @@
     "Nothing; wait for the 21-day"
    ],
    "answer": "Another 30; trail the last 30",
-   "why": "Another 30, a third of the position. The first third came off at 3R, the second comes off at 5R, and you trail the last third.",
+   "why": "Another 30, a third of the position. The first third came off at 3R, the second comes off at 5R, and you trail the last third. The trail is the 10-day for a fast mover or the 21-day for a steadier one.",
    "lesson_line": "A third at 3R, a third at 5R, then trail the rest.",
    "facts": [
     "c34",
-    "h20"
+    "h20",
+    "h21",
+    "c40"
    ],
    "wrong": {
     "Another 45; trail the last 15": "A third of 90 is 30, not 45. The last third, 30 shares, trails.",
@@ -2615,7 +3489,16 @@
     "Nothing; wait for the 21-day": "The trail starts after both trims. At 5R the second third comes off."
    },
    "house": true,
-   "story": "You bought 90 shares of a Slingshot at the trigger close. You sold 30 at 3R. Today the stock reaches 5R."
+   "story": "You bought 90 shares of a Slingshot at the trigger close. You sold a third at 3R. Today the stock reaches 5R.",
+   "simple": "Sell another 30 shares, a third of the 90, and trail the last 30 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E51, adjustable"
+    ]
+   },
+   "batch": "wave3"
   }
  ],
  "conflicts": [
@@ -2658,105 +3541,105 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "c01 (ss.line, settled), o04, a03, v01 found. Three Tier 2 publishers agree on the idea; wrong notes true (Oops and gap tells are the card lookalikes). variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from c01/o04/a03; wrong notes supported by t04, c17, c18. No number in the key. Not the longest choice."
   },
   "q02": {
    "status": "pass",
-   "notes": "c01, o02, t01 found. Fill bank fine.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "4 grounded in c01/o02/t01; 5 named as Deepvue dissent (v02). Every other stem says 4-day line, so the blank is guessable from neighbours, but it tests the core criterion; accepted."
   },
   "q03": {
    "status": "pass",
-   "notes": "c01, t01, a02 found. Key right.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q04": {
-   "status": "pass",
-   "notes": "c02 (ss.drive_not_trigger, settled), c18. Kept over q18, which asks the same fact as a story. variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
-   "notes": "c07 (settled), h24 (F62), t04, a01 found. Kept; q11 asks where the stop lives (D41), a different fact. variety rewrite checked 2026-11-10: the old statement (pullback's low) was not plainly false: Scot1and (t04) allows 'at most, the bottom of the consolidation period'. The drive day's low is plainly not the stop (trigger day's low, c07).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c07, h24, t04. False is clean; drive day's low is in no source as a stop."
   },
   "q06": {
    "status": "pass",
-   "notes": "c44, o04, t05, t02 found. Keys only that a strong move comes first, which Scot1and's own words (t05) and every D-106 option keep. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c44, o04, t05. Key echoes no story. 200-day note takes no position on D-009."
   },
   "q07": {
    "status": "pass",
-   "notes": "h14 (C31), c28 (settled), o06 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h14 and c28 verbatim; Slingshot is not a parabolic or mean-reversion trade so the exception does not bite. o06 supports the RS line."
   },
   "q08": {
    "status": "pass",
-   "notes": "c05 (ss.trigger_volume, proposed), c23 verbatim. Kept over q50 (the same fact as true/false). D-108 is about the size of the day, not volume.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c05 and c23 verbatim; stem says 'By our card'. House flag D-108 stays."
   },
   "q09": {
    "status": "pass",
-   "notes": "h26 (F65), c43 verbatim. Wrong notes true. variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Leaks into q36: the why lists Red = mostly cash and shorts and the third wrong note says 'closer to Red, which is mostly cash and shorts', which is q36's key. Trimmed the why and the note to Yellow only."
   },
   "q10": {
    "status": "pass",
-   "notes": "h11, h12 (C28), c35 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h11, h12, c35 verbatim; 4 is the owner's number. Bank holds the 10% and 2% confusers."
   },
   "q11": {
    "status": "pass",
-   "notes": "h18 (D41), c07 verbatim. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h18 verbatim; key is the shortest choice; wrong notes consistent."
   },
   "q12": {
    "status": "pass",
-   "notes": "c09 (ss.inv_both_falling, proposed), t02 found.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "t03, t06 (TaPlot quoting Scot1and) and a01 (Analyzing Alpha) found: two Tier 2 publishers agree. Not house; the key is his own words.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "t03 and a01 support key and notes. Minor: the why leaks q05's idea one way (stop at trigger day's low) but q05 does not leak q13."
   },
   "q14": {
    "status": "pass",
-   "notes": "h09 (B23), c29, c48 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h09, c29, c48; $8 and $3 million come from the question itself and are under both floors."
   },
   "q15": {
    "status": "pass",
-   "notes": "c04 (proposed 0.7), c23 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Top 30% / 0.7 from c04, 78-99% from c23. Four place-in-range choices, key not longest. 0.7 line is the card's proposed number (owner flag stands)."
   },
   "q16": {
    "status": "pass",
-   "notes": "c04, c19 verbatim (the 2% open line, proposed).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False follows c04/c19 (2% gate). 3% is in the stem. lesson_line reads true. Proposed 2% line is an owner flag."
   },
   "q17": {
    "status": "pass",
-   "notes": "c06 (proposed numbers), c25 verbatim; t03 found. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c06 verbatim: 1.6 ATR, 3.5%, 50-day average volume. Wrong notes match the card. Key is the shortest choice."
   },
   "q18": {
    "status": "cut",
@@ -2766,27 +3649,27 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "calc (93.86 - 91.69) / 93.86 = 2.31% recomputed; d05, d06, h04 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed (93.86-91.69)/93.86 = 2.312%, rounds to 2.31. h04 'about 3%' and d05 2.3% match."
   },
   "q20": {
    "status": "pass",
-   "notes": "h05 (B19), h20 (E51), c33, c34 verbatim. variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The why gives away q69 (another third at 5R, last third trails). Trimmed to the half-versus-third point, which h05 and c33 support. Lesson line was identical to q69's."
   },
   "q21": {
    "status": "pass",
-   "notes": "c13, c14, c01, c16 verbatim (lookalike tells).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Story gives 4 closes under the 4-day line and no touch of the 20-day EMA; look-alike notes are supported by c14/c16. Oops/Remount definitions no longer spelled out here."
   },
   "q22": {
    "status": "pass",
-   "notes": "h02 (A4), c42, c22 verbatim.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The why says 'The gap rule is the one exception', which answers q65 (True) and sets up q29. Removed it; the 'by choice' statement stays true under A4."
   },
   "q23": {
    "status": "cut",
@@ -2796,93 +3679,93 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "calc drawdown_pct 110.00 to 101.20 = 8.0 recomputed. Keys the arithmetic only, not the D-107 range; o03 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed (110.00-101.20)/110.00 = 8.0%. c45 gives the measure; the why disclaims how deep is too deep (D-107 held)."
   },
   "q25": {
    "status": "pass",
-   "notes": "calc (68.40 - 66.10) / 1.50 = 1.53 recomputed; c06 verbatim (about 1.6, proposed).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 2.30/1.50 = 1.533, rounds to 1.53. c06 gives ATR(14) and about 1.6."
   },
   "q26": {
    "status": "pass",
-   "notes": "calc 20.46 + 3 x 0.50 = 21.96 recomputed; d03, d04 verbatim (RELY best 13.7R).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 20.46 + 3 x 0.50 = 21.96. d03 and d04 support the RELY line (13.7R)."
   },
   "q27": {
    "status": "pass",
-   "notes": "c10 (proposed), h02 verbatim. No-adding note is A5.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c10 verbatim: a warning, not an exit; h02 and h31 support the wrong notes. 20.30 is above 19.96."
   },
   "q28": {
    "status": "pass",
-   "notes": "c04, c19, c24 verbatim. The wrong note cited the B- row ('a gap of 2% or more and a weak close'), which reads as a smaller-size trade and so half-supports 'Buy half size'; ss.trigger_decisive is a gate, so the note now says that. Owner: the card lists the same miss as a gate and a B- cue.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "'Buy half size, stop under the low' is defensible under the card's own B- row (c24: a gap of 2% or more, a weak close) and D38/E49 (B- sized down), and the wrong note takes a stand the owner has not settled. Replaced that choice with a plain misconception (a gap shows strength) that c19 rules out, and rewrote the deeper trap."
   },
   "q29": {
    "status": "pass",
-   "notes": "h06, h07 (B20), c41 verbatim. 1R = 2.00; the 30-minute low 49.10 is a 1.45R loss, inside 2R (48.00).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "B20 low of first 30-minute bar = 49.10. 2R mark 52 - 2*2.00 = 48.00 is a calc from the stem; loss at 49.10 is 1.45R, under the ceiling. D41 vs B20 tension is an owner flag, key follows the rulebook as written."
   },
   "q30": {
    "status": "pass",
-   "notes": "c11 (ss.reentry, settled), h28 (B21), c22 verbatim. 'At least 3 closes' rests on the settled re-entry statement. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Second reading: 'Since then the stock has closed under the line twice' can include the stop-out day's own close, which would make 3 closes and flip the key to Yes. Story rewritten so the count is exactly two closes under the line since the trigger."
   },
   "q31": {
    "status": "pass",
-   "notes": "h13 (C29), c36 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "lesson_line matches h13/c36, plain, short."
   },
   "q32": {
    "status": "pass",
-   "notes": "h08 (B22), c37, c46, c47 verbatim. FSLR taught as the earnings-window case, as the dossier corrected it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key follows B22/c37 (no buys within 3 sessions of a report); FSLR facts c46/c47 support the why. Choices balanced two No, two Yes; D-003 dependency declared."
   },
   "q33": {
    "status": "pass",
-   "notes": "h31 (A5), c38 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h31 'one price, one stop, no adding' plus c38; why is supported."
   },
   "q34": {
    "status": "pass",
-   "notes": "h05 (B19), c32 verbatim. Lesson said 'later is giving it back', against B19's allowed 2R to 5R; reworded. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Lesson line says 'never as early as 1R'; B19 says 2R to 5R 'ideally' and the card says 2R to 5R is allowed. Softened the absolute."
   },
   "q35": {
    "status": "pass",
-   "notes": "d12, d13, d21 verbatim (SRPT: buy 122.76, stop 119.10 = 3.0%, open 121.51, low 115.90, 3R level 4 sessions later); c11. Loss framed as planned.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "SRPT numbers match d12/d13; open 121.51 is above the stop so no gap rule. 'near the planned 1R' is soft but fair. Overlaps q67's 'stop doing its job' idea; kept as a different ask."
   },
   "q36": {
    "status": "pass",
-   "notes": "h26 (F65), c43 verbatim. The wrong note said 'The rule is no new longs'; F65 is 'mostly cash and shorts', a guide (A10); reworded. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Leaks into q09: the Yellow choice 'Go smaller, with fewer positions' and the why 'Yellow smaller and fewer' are q09's key. Replaced that choice with a chart-over-reading misconception and trimmed the why. Key (D46, F65) is right."
   },
   "q37": {
    "status": "pass",
-   "notes": "h21 (E52), c40 verbatim; o07 found (Scot1and's own trail, named as his).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key is h21/c40; Scot1and's 4-day trail is a named distractor (o07); key not longest."
   },
   "q38": {
    "status": "pass",
-   "notes": "d14, d15 verbatim (LOW: buy 24.90, stop 24.53 = 1.5%, 50-day under the 200-day); c12. Fixed: the lesson's 'a B- at best' is not on the card (ss.ma_rising_pref is a preference, not a grade row), and the wrong note's 'it works often' had no source.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key and notes fine (c12, d14, d15). The deeper counter 'A perfect trigger day does not make up for a poor location' is an unsupported causal claim from one example, and d15 itself blames the 2008 market. Reworded."
   },
   "q39": {
    "status": "cut",
@@ -2892,27 +3775,27 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "calc 40,000 x 0.75% / (269.73 - 259.09) = 28.2, 28 shares recomputed; 28 x 269.73 = 7,552, 19% of the account, under the A7 cap. d09 verbatim (MELI).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 40,000 x 0.0075 / 10.64 = 28.2, rounds down to 28; far under the 40% cap. d09 gives MELI's fill and stop."
   },
   "q41": {
    "status": "pass",
-   "notes": "c08 (ss.stop_wider, proposed), t04 found.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The ATR wrong note says an ATR 'is a distance, not a level', which is false (a full ATR under the trigger low is a level). Rewritten to rest on c08 (a few cents under a low)."
   },
   "q42": {
    "status": "pass",
-   "notes": "h16 (C34), c30 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h16/c30; judgment call stated."
   },
   "q43": {
    "status": "pass",
-   "notes": "h25 (F63), c31 verbatim. variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q44": {
    "status": "cut",
@@ -2922,33 +3805,33 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "c11, h28, h29 (E56), d18, d19 verbatim (PLTR: 185.93, 177.98 = 4.3%, best 0.31R, gap under the stop on day 4).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "PLTR 08-21 first (stopped next day), 08-27 second, 0.31R, gap under stop day 4: matches dossier and d18/d19. Key follows B21/c11. Largely restates q30's lesson, but from the other side; acceptable."
   },
   "q46": {
    "status": "pass",
-   "notes": "calc 1,500,000 x 1% = 15,000 recomputed; h19 (D42) verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q47": {
-   "status": "pass",
-   "notes": "c09 (proposed), t02 found.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q48": {
    "status": "pass",
-   "notes": "c15, c16, c01 verbatim (lookalike tell). The key is the line, not the D-107 count.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q49": {
    "status": "pass",
-   "notes": "c17 verbatim (the Oops tell: at least three closes, every D-107 option starts at 3). variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Story is the c17 Oops tell; four bare names. Mild elimination help (only choice with no named line)."
   },
   "q50": {
    "status": "cut",
@@ -2958,117 +3841,117 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "c20, o04, o05 found/verbatim.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key was the unique longest choice (36 chars against 35, 35, 31). Shortened to 34 so it is no longer longest."
   },
   "q52": {
    "status": "pass",
-   "notes": "h21 (E52), h17 (C35), c40, d07, d08 verbatim (GRMN 50% higher in two months). variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "E52 trail plus C35 (hold while it keeps working); 50% in two months from d08; story names no ticker. Breakeven distractor is wrong because the trail sits far above breakeven."
   },
   "q53": {
    "status": "pass",
-   "notes": "c21, c01 verbatim; v02 found (the Deepvue dissent, not keyed).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c21 names Moody's two-average system as the wrong line; False is safe. D-014 is an owner flag."
   },
   "q54": {
    "status": "pass",
-   "notes": "c04, c02, d01, d02 verbatim (UTHR, DCR 0.92, 3R in 3 sessions). The 4-day EMA of highs is not on the member chart (unit conflicts); the key rests on the last bar and the drive.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "0.92 and 3R in 3 sessions from d01/d02; key not longest, two Take, two Pass. Concern for the owner: walkthrough w1 teaches the same UTHR trade, so a learner can answer from memory of w1 rather than the chart."
   },
   "q55": {
    "status": "pass",
-   "notes": "c04, d20 verbatim (GSK DCR 0.54, stopped at 0R). Kept over q39.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q56": {
    "status": "pass",
-   "notes": "h29 (E56), c11 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q57": {
    "status": "pass",
-   "notes": "h08 (B22), c37 verbatim. Different fact from q32 (holding through, not buying into). variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key 'Sell before the report unless up 5R' was the only choice carrying a number and the rule itself, so it gave the rule away. Key made plain; the 5R rule stays in the why and wrong notes."
   },
   "q59": {
    "status": "pass",
-   "notes": "calc r_multiple (15.50 - 13.94) / 0.52 = 3.0 recomputed; d10, d11 verbatim (FRO 3R in 7 sessions).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q60": {
-   "status": "pass",
-   "notes": "c12, d15, h30 (D38) verbatim. 'The rising stack' in the lesson was untaught shorthand; reworded. Grading is discretionary (E50); the A+ row names the rising 50 and 200.",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q61": {
    "status": "pass",
-   "notes": "h15 (C33), c39 verbatim. The why said a drifting trade 'was not one' (a Slingshot), calling a valid trade invalid; reworded. Kept over q23.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "h15 and c39 verbatim; 0.6R is under 1R. Key is not the only choice with a number."
   },
   "q67": {
    "status": "pass",
-   "notes": "d21 verbatim (SRPT day 1, LOW day 1, PSX day 2, PLTR day 4: three of four within two sessions); t06 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "d21 plus d12/d14/d16/d18: SRPT and LOW day 1, PSX day 2, PLTR day 4 by gap. Tiny sample caveat is in the deeper trap. Shares the 'stop did its job' idea with q35."
   },
   "q58": {
    "status": "pass",
-   "notes": "c06, c25 verbatim; t03 found. The story fails all three orderly tests (1.85 ATR, a 4% red body, a down day on heavy volume); the wrong note said 'twice', now 'on every count'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "c06 gate numbers (1.6 ATR, 3.5%, 50-day volume); ss.orderly is gate:true on the card so pass is defensible, although the card also lists choppy TCOM 1.85 ATR under b_minus (owner flag). Story's 'above-average volume' is looser than c06's 50-day average but reads fine. q17's wrong note already names TCOM at 1.85 ATR."
   },
   "q62": {
    "status": "pass",
-   "notes": "h30 (D38), h33 (E49) verbatim. The story made it B- by 'a weak close on the trigger day and a thin name': on our card both are gates (ss.trigger_decisive, ss.liquidity), so the answer would be no trade, not a smaller size. Now the story gives the grade with every gate passing.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "h30, h33, h26 verbatim; grade is the story's own read, consistent with E50. No-trade note is supported by D38."
   },
   "q63": {
    "status": "pass",
-   "notes": "h22 (E57), h24 (F62), h05, d05, d06 verbatim (URI). The story gives the low, so the key is reachable. Close entry rests on D-003 option A (unit conflicts).",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Wrong note on 'hold to 5R' said the first third comes off at 3R, not 5R. B19 says the first trim is ideally anywhere from 3R to 6R and he mostly waits for 5R, so that note overreaches. The choice is wrong because of its stop; note rewritten to say that. The 2R note now rests on the hard rule."
   },
   "q64": {
    "status": "pass",
-   "notes": "Rewrote onto the adopted D-106 default (b): the story now states the three no-drive facts from the dossier's own ASO line (d22) so the key is reachable without elimination; the why says 'By our current default' and no longer asserts the climb has nothing to sling from as a rule. Numbers (4%, 20%, five sessions, 25 sessions, 4.1R) all appear in d22/d23. | wrong note for the close choice reworded: 'ends a Slingshot' read as if the close ended the setup. flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "resolver"
+   "by": "checker",
+   "fixed": false,
+   "notes": "c44, t05, t02. Story has no strong move so no D-106 number is needed. Easy for rung 9 but not wrong."
   },
   "q65": {
    "status": "pass",
-   "notes": "h02 (A4), h06 (B20), c41 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q66": {
    "status": "pass",
-   "notes": "h32 (D44), c04 verbatim. The choice 'Buy the close one' read as 'buy at the close'; now 'the near one'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Tell: the key 'Nothing; ...' is the lone non-Buy against three 'Buy' choices. Reworded the key to start with 'Buy' like the rest. Facts h32, c04, h26 are right."
   },
   "q68": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q69": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "One third of 90 is 30 (calc from the stem); E51 gives the 5R trim and the trail; distractor notes are correct."
   }
  }
 }

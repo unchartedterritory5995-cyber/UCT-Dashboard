@@ -124,7 +124,7 @@
   {
    "id": "wy1",
    "source": "s7",
-   "quote": "A \u201cspring\u201d takes price below the low of the TR and then reverses to close within the TR",
+   "quote": "A “spring” takes price below the low of the TR and then reverses to close within the TR",
    "claim": "Wyckoff: a spring takes price below the low of the trading range, then closes back within it."
   },
   {
@@ -758,18 +758,28 @@
     "Linda Raschke"
    ],
    "answer": "Victor Sperandeo",
-   "why": "Victor Sperandeo. Bulkowski credits him with the 2B pattern, and his rule says a failed break is apt to reverse the trend.",
+   "why": "Victor Sperandeo. Bulkowski's page credits him with the 2B pattern, from his book Trader Vic. The idea: in an uptrend, a higher high that fails to carry through is apt to reverse the trend. Bulkowski wrote the pattern up on his page. He did not originate it.",
    "lesson_line": "The 2B is Sperandeo's rule: a break that fails.",
    "facts": [
     "bk1",
-    "m_sper"
+    "m_sper",
+    "sp1"
    ],
    "wrong": {
-    "Larry Williams": "Williams gave us the Oops reversal, a one-day cousin of the 2B.",
-    "Thomas Bulkowski": "Bulkowski measured the pattern but credits Sperandeo.",
-    "Linda Raschke": "Connors and Raschke are known for Turtle Soup, a same-day cousin."
+    "Larry Williams": "Bulkowski's page names Sperandeo as the source of the 2B, not Williams.",
+    "Thomas Bulkowski": "Bulkowski wrote the pattern up on his page, but he credits Sperandeo with it.",
+    "Linda Raschke": "The page that records the 2B credits Sperandeo, not Raschke."
    },
-   "house": true
+   "house": true,
+   "simple": "Victor Sperandeo. Bulkowski's page credits him with the 2B, a break of a prior low or high that fails.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the credit rests on one web page (Bulkowski's, quoting Sperandeo's book)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q02",
@@ -779,14 +789,24 @@
    "criterion": "tb.shape",
    "q": "A 2B bottom breaks a prior low, then fails and closes back above it.",
    "answer": "True",
-   "why": "True. The first break goes no more than 3% under the low and fails to follow through. The right valley sits below the left.",
+   "why": "True. A 2B bottom is a first break under a prior low that goes no more than 3% under it, fails to follow through and closes back above it. In Bulkowski's words the right valley sits below the left. With no close back above within 3 sessions it is a breakdown, not a 2B.",
    "lesson_line": "A 2B is a break that fails. It dips under the low and reclaims it.",
    "facts": [
     "cp2",
     "sp1",
-    "bk2"
+    "bk2",
+    "t_inv"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. A 2B is a break under a prior low that fails fast and closes back above it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the 3% depth line and the 3-session window are the card's proposed criteria"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q03",
@@ -796,25 +816,43 @@
    "criterion": "tb.never_before_reclaim",
    "q": "When can you buy a 2B bottom?",
    "choices": [
-    "After it trades back above the low",
+    "Once it trades back above the low",
     "As soon as it undercuts the low",
     "On the second undercut of that low",
-    "At the next open after a new low"
+    "After three closes under the low"
    ],
-   "answer": "After it trades back above the low",
-   "why": "After it trades back above the broken low. Never before the reclaim. Buying the undercut itself is guessing.",
+   "answer": "Once it trades back above the low",
+   "why": "After it trades back above the broken low. Never before the reclaim. Buying the undercut itself is guessing. Sperandeo's trigger is the return through the level, and our entry is a market order. With no close back above within 3 sessions it is a breakdown, not a 2B.",
    "lesson_line": "Wait for the reclaim. The undercut alone is not a trigger.",
    "facts": [
     "t_never",
     "m_before",
-    "m_sper"
+    "m_sper",
+    "h22",
+    "t_inv",
+    "t_first"
    ],
    "wrong": {
     "As soon as it undercuts the low": "Buying the break before the reclaim is a named mistake.",
     "On the second undercut of that low": "The first break is the one that counts. A second undercut is not the trigger.",
-    "At the next open after a new low": "A new low with no reclaim is a breakdown, not a 2B."
+    "After three closes under the low": "No close back above the broken low within 3 sessions makes it a breakdown, not a 2B."
    },
-   "house": true
+   "house": true,
+   "simple": "Wait until the stock trades back above the broken low. Buying the undercut itself is a guess.",
+   "deeper": {
+    "trap": "At the undercut you cannot yet tell a 2B from a breakdown. With no close back above the broken low within 3 sessions it is a breakdown, not a 2B. The reclaim is what turns the guess into a trigger."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 keyed through the card's proposed 'never before the reclaim' while the trigger rule is held (D-003)"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q04",
@@ -824,14 +862,27 @@
    "criterion": "tb.never_before_reclaim",
    "q": "You buy the 2B as soon as the low breaks, before any reclaim.",
    "answer": "False",
-   "why": "False. Never before the reclaim. Buying the undercut itself is guessing. We buy after it trades back above the low.",
+   "why": "False. We never buy before the reclaim. Buying the undercut itself is guessing. The trigger is the return through the broken low, as Sperandeo has it. Until price trades back above, a break can still turn out to be a plain breakdown, not a 2B.",
    "lesson_line": "No reclaim, no trade. Buying the undercut is guessing.",
    "facts": [
     "t_never",
     "m_before",
-    "m_sper"
+    "m_sper",
+    "t_inv"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. Buying the break is guessing, so we wait until price trades back above the broken low.",
+   "deeper": {
+    "trap": "The undercut can look like a bargain, and buying it feels early and smart. Our card names it as a mistake: buying the break before the reclaim. Waiting costs a little price. It spares you a break that never reclaims, which is a breakdown and not a 2B."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: re-keyed off a Bulkowski misreading"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q05",
@@ -843,19 +894,29 @@
    "sentence": "Never buy a 2B more than ___% above the broken low.",
    "bank": [
     "2",
+    "3",
     "4",
     "5",
-    "8",
     "10"
    ],
    "answer": "4",
-   "why": "4%. A buy more than 4% above the broken low is a chase. The stop would be too far away.",
-   "lesson_line": "Four percent over the low and I am done.",
+   "why": "4%. Never buy more than 4% above the broken low. Past that the stop stays under the buy point, so the distance grows and the shares shrink. Chasing costs size, not risk.",
+   "lesson_line": "Never buy more than 4% over the broken low. Past it, you are chasing.",
    "facts": [
     "t_chase",
-    "h11"
+    "h11",
+    "h12"
    ],
-   "house": true
+   "house": true,
+   "simple": "4 percent. Past that, buying is chasing, and the stop stays far below your buy.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook C28 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q06",
@@ -872,13 +933,23 @@
     "app"
    ],
    "answer": "broker",
-   "why": "Broker. Every position has a real stop order with the broker, not a stop kept in your head.",
-   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "why": "Broker. The stop is a real stop order with the broker, and it only moves up. The stop is the exit. It never moves down or wider. The gap rule is the one exception.",
+   "lesson_line": "A real stop order sits with the broker. It only moves up, never down or wider.",
    "facts": [
     "t_brk",
     "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "Broker. The stop is a real order with the broker, and it only moves up.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook D41 (settled)",
+     "fixed before: a silly bank word removed"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q07",
@@ -888,13 +959,23 @@
    "criterion": "tb.market_washout",
    "q": "A market still making lower lows with no reclaim is not the place for a 2B.",
    "answer": "True",
-   "why": "True. The best 2Bs come as the whole market undercuts its own lows and reclaims them. No reclaim, no 2B.",
+   "why": "True. The best 2Bs come while the whole market washes out under its own prior lows and reclaims them. A market still making lower lows with no reclaim is not the place for a 2B. Buying one then is a named mistake, as NVDA and AMD showed in April 2024.",
    "lesson_line": "Read the index first. A falling market is not a reclaim.",
    "facts": [
     "t_wash",
-    "cx1"
+    "cx1",
+    "m_lower"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. A 2B works best when the whole market dips under its lows and then reclaims them, not while it keeps falling.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the market gate is the card's proposed criterion"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q08",
@@ -902,26 +983,41 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "tb.depth",
-   "q": "How far may the undercut go under the broken low?",
+   "q": "What is the deepest undercut a 2B allows under the broken low?",
    "choices": [
-    "3% or less",
-    "7% or less",
-    "10% or less",
-    "Any depth if it reclaims"
+    "2% under the broken low",
+    "3% under the broken low",
+    "4% under the broken low",
+    "6% under the broken low"
    ],
-   "answer": "3% or less",
-   "why": "3% or less. A shallow undercut keeps the stop close. Deeper only with a smaller size or a later, tighter entry.",
+   "answer": "3% under the broken low",
+   "why": "3%. The lowest low of the undercut is no more than 3% under the prior low. So the stop fits our usual line of about 3% from the buy. A deeper undercut at full size is a named mistake. The stop is far wider than it looks.",
    "lesson_line": "Shallow undercut, close stop. Deep undercut, wide stop.",
    "facts": [
     "t_depth",
-    "m_deep"
+    "m_deep",
+    "h04",
+    "t_chase",
+    "dDELL"
    ],
    "wrong": {
-    "7% or less": "That is more than twice the line. The stop is far wider than it looks.",
-    "10% or less": "Far too deep. The stop would be a different trade.",
-    "Any depth if it reclaims": "The reclaim does not fix a wide stop. Depth is a gate."
+    "2% under the broken low": "Too tight. A 2B may go up to 3% under the low.",
+    "4% under the broken low": "4% is the chase limit above the low, not the depth limit under it.",
+    "6% under the broken low": "Twice the line. The stop would be far wider than it looks."
    },
-   "house": true
+   "house": true,
+   "simple": "3%. A shallow undercut keeps the stop close, and our stop usually sits within about 3% of the buy.",
+   "deeper": {
+    "counter": "DELL on 2024-07-22 closed back above its 127.59 low, but only after going 4.36% under it. The stop that followed was 4.83% from the entry, past the usual 3%. A reclaim does not fix a deep undercut."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the rulebook's stop line (A13) and the card's 3% depth"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q09",
@@ -932,11 +1028,23 @@
    "q": "A 2B reclaim day that closes in the lower half of its range still counts.",
    "answer": "False",
    "why": "False. The reclaim day must close in the upper half of its range. A close in the bottom half invalidates it.",
-   "lesson_line": "A weak close on the reclaim day means the buyers did not hold.",
+   "lesson_line": "A close in the bottom half of the reclaim day invalidates it.",
    "facts": [
     "t_close"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. A reclaim day that closes in the bottom half of its range is invalidated.",
+   "deeper": {
+    "trap": "The trap is counting any trade back above the low as a reclaim. The card also checks the close: it must sit in the upper half of the day's range. A close in the bottom half invalidates the reclaim."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (the card's close rule)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q10",
@@ -954,12 +1062,24 @@
     "20"
    ],
    "answer": "3",
-   "why": "3. No close back above the broken low within 3 sessions makes it a breakdown, not a 2B.",
+   "why": "3. No close back above the broken low within 3 sessions makes it a breakdown, not a 2B. A 2B may take up to 3 sessions to close back above, so the reclaim need not come the same day. Five or more closes under the low is a Remount, a different setup.",
    "lesson_line": "Three sessions to reclaim. After that it is a breakdown.",
    "facts": [
-    "t_inv"
+    "t_inv",
+    "l_oops2",
+    "l_remount"
    ],
-   "house": true
+   "house": true,
+   "simple": "3. With no close back above the broken low within 3 sessions, it is a breakdown, not a 2B.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (the card's invalidation line)",
+     "a card number (3 sessions) that can change"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q11",
@@ -975,7 +1095,7 @@
     "At breakeven after the reclaim"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low. That is the lowest low of the undercut, the new extreme. Turtle Soup also puts its stop past the lower of the two days' lows.",
+   "why": "A few cents under the day's low. On a same-day reclaim that is the lowest low of the undercut, the new extreme. Stop first, then the size comes from the stop. Turtle Soup also puts its stop one tick under the lower of the two days' lows. The stop does not sit on the low, and breakeven comes later.",
    "lesson_line": "The stop goes just past the trap, under the new low.",
    "facts": [
     "h24",
@@ -987,7 +1107,19 @@
     "Under the 200-day average": "The 200-day is context. The stop sits just past the new extreme.",
     "At breakeven after the reclaim": "Breakeven comes later, at the first trim."
    },
-   "house": true
+   "house": true,
+   "simple": "A few cents under the day's low, which is the lowest low of the undercut.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook F62 and the held stop decision D-005 for slow reclaims"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q12",
@@ -995,14 +1127,29 @@
    "rung": 2,
    "format": "tf",
    "criterion": "tb.above_200",
-   "q": "We take a 2B long even when the stock is under its 200-day.",
+   "q": "We take a 2B long even when the stock is trading under its 200-day at the buy.",
    "answer": "False",
-   "why": "False. No longs below the 200-day, except a parabolic long. It is a hard rule.",
-   "lesson_line": "The 200-day line is a hard rule. No 2B longs under it.",
+   "why": "False. No longs below the 200-day simple moving average, unless it is a parabolic long. A 2B shape under the 200-day is watch only.",
+   "lesson_line": "No longs under the 200-day, parabolic longs aside. A 2B under it is watch only.",
    "facts": [
-    "h10"
+    "h10",
+    "dMETA",
+    "dMETAn",
+    "dMETAr"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We take no long below the 200-day average, with only a parabolic long as the exception.",
+   "deeper": {
+    "counter": "META on 2026-01-08 had a 2B shape but its reclaim-day close was 4.2% under the 200-day. It paid here. The rule is about odds over many trades, not about one chart, so one winner does not remove it."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook B26 (hard rule)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q13",
@@ -1012,13 +1159,13 @@
    "criterion": "tb.shape",
    "q": "What is a 2B bottom, in one line?",
    "choices": [
-    "A first break of a low that fails fast",
+    "A failed first break of a swing low",
     "A gap down that reclaims the prior close",
-    "A 2 ATR flush on 2x volume",
-    "A break of the rising 50-day"
+    "A 2 ATR flush on 2x volume at a low",
+    "A dip under a rising 50-day, then back"
    ],
-   "answer": "A first break of a low that fails fast",
-   "why": "A first break of a prior low that fails fast. An Oops is judged on yesterday's low. A U&R is judged on a level like the 50-day.",
+   "answer": "A failed first break of a swing low",
+   "why": "A failed first break of a prior swing low. It goes no more than 3% under the low and fails to follow through. An Oops is judged on yesterday's low. A U&R is judged on a level such as a rising 50-day. A capitulation is a 2 ATR flush on 2x volume.",
    "lesson_line": "A 2B is a failed break of a swing low.",
    "facts": [
     "cp2",
@@ -1029,10 +1176,22 @@
    ],
    "wrong": {
     "A gap down that reclaims the prior close": "That is the Oops, judged on yesterday's low.",
-    "A 2 ATR flush on 2x volume": "That is a capitulation, a different setup.",
-    "A break of the rising 50-day": "A rising average as the level makes it a U&R."
+    "A 2 ATR flush on 2x volume at a low": "That is a capitulation, a different setup.",
+    "A dip under a rising 50-day, then back": "A rising average as the level makes it a U&R."
    },
-   "house": true
+   "house": true,
+   "simple": "A 2B is the first break under a prior swing low that fails fast and goes back above it.",
+   "deeper": {
+    "trap": "The shape looks the same, so name the level first. A swing low at least 5 sessions old is a 2B. Yesterday's low is an Oops. A rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low is a U&R."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the look-alike tells are the card's proposed criteria"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q14",
@@ -1040,16 +1199,26 @@
    "rung": 2,
    "format": "tf",
    "criterion": "tb.never_before_reclaim",
-   "q": "A 2B bottom gets you into a double bottom trade sooner, with more risk.",
+   "q": "Bulkowski says a 2B bottom can get you into a double bottom trade sooner, but with a much greater risk of failure.",
    "answer": "True",
-   "why": "True. Bulkowski says it can get you in sooner than waiting for confirmation, but the risk of a failed trade is much greater.",
+   "why": "True. Bulkowski says the 2B bottom can get you into a double bottom trade sooner than waiting for confirmation. But the risk of a failed trade is much greater. It is a faster entry, not a safer one. The stop is still the exit.",
    "lesson_line": "Sooner in means more failed trades. The stop is the exit.",
    "facts": [
     "bk3",
     "bk4",
-    "t_never"
+    "t_never",
+    "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. Buying the 2B gets you in before the double bottom confirms, but more of those trades fail.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the claim is attributed to Bulkowski's page, which is the only publisher"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q15",
@@ -1060,23 +1229,34 @@
    "q": "Where is a 2B at its best?",
    "choices": [
     "At the 50-day or 200-day",
-    "In open air above the highs",
+    "Far from any moving average",
     "Far under the 200-day",
-    "At a fresh high"
+    "Right after a big red news bar"
    ],
    "answer": "At the 50-day or 200-day",
-   "why": "At the 50-day or 200-day. The best 2Bs undercut a low right at one of those big averages.",
+   "why": "At the 50-day or 200-day. The card says a 2B is best when the undercut low sits at the 50-day or 200-day average, and best when the whole market is washing out and reclaiming. It is a 'best when', not a gate.",
    "lesson_line": "A low at a big average is the best spot for the trap.",
    "facts": [
     "t_near",
-    "cx1"
+    "cx1",
+    "h10",
+    "t_lead"
    ],
    "wrong": {
-    "In open air above the highs": "A 2B is a dip into a low, not a run in open air.",
     "Far under the 200-day": "No longs below the 200-day.",
-    "At a fresh high": "A 2B bottom breaks a low, not a high."
+    "Far from any moving average": "The card likes the undercut low at the 50-day or 200-day, not far from them.",
+    "Right after a big red news bar": "The card wants an orderly drift into the low, with no outsized red news candle just before the break."
    },
-   "house": true
+   "house": true,
+   "simple": "The best 2B undercuts a low that sits right at the 50-day or 200-day average.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 'best when' is the card's proposed preference, not a rulebook line"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q16",
@@ -1086,13 +1266,22 @@
    "criterion": "tb.after_entry_stop",
    "q": "After you buy a 2B, a trade under the new low is the exit, at once.",
    "answer": "True",
-   "why": "True. A trade under the new low is the exit, and the stop only moves up. Take the loss at once.",
+   "why": "True. A trade under the new low is the exit, at once. The stop is the exit. It only moves up, never down or wider, and the gap rule is the one exception. Take the loss and move on.",
    "lesson_line": "Under the new low, out at once. That is losing properly.",
    "facts": [
     "t_after",
     "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. After you buy, a trade under the new low is your exit, and you take it at once.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook A4 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q17",
@@ -1138,14 +1327,23 @@
     },
     "round": 2
    },
-   "why": "50.87. One R is the fill minus the stop. Add three of those to the fill. This is the RL trade, 3R on day 1.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "50.87. One R is the fill minus the stop. Add three of those to the fill. This is the RL trade, which reached 3R on day 1.",
+   "lesson_line": "Know your 3R before the open. The hard rule takes the first third there.",
    "facts": [
     "h05",
     "dRL"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "50.87. One R is the fill minus the stop, and 3R adds three of those to the 49.58 fill.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a computed key"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q19",
@@ -1157,11 +1355,11 @@
    "choices": [
     "At least $10 and $20 million a day",
     "At least $10 and $5 million a day",
-    "At least $20 and $10 million a day",
-    "Any price, if the volume is high"
+    "At least $5 and $20 million a day",
+    "At least $20 and $10 million a day"
    ],
    "answer": "At least $10 and $20 million a day",
-   "why": "$10 a share and $20 million a day. Thin stocks are not even watched.",
+   "why": "At least $10 a share and at least $20 million traded a day. Both tests must pass. Thin stocks are not even watched.",
    "lesson_line": "Ten dollars a share, twenty million a day. Below that, no 2B.",
    "facts": [
     "h09",
@@ -1171,9 +1369,19 @@
    "wrong": {
     "At least $10 and $5 million a day": "Too thin on volume. Our floor is $10 a share and $20 million a day.",
     "At least $20 and $10 million a day": "Swapped. Our floor is $10 a share and $20 million a day.",
-    "Any price, if the volume is high": "Every setup has the floor, price included. Thin stocks are not even watched."
+    "At least $5 and $20 million a day": "Too cheap a share. Our floor is $10 a share and $20 million a day."
    },
-   "house": true
+   "house": true,
+   "simple": "At least $10 a share and $20 million traded a day. A stock must pass both tests.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook B23 (settled)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q20",
@@ -1183,13 +1391,27 @@
    "criterion": "tb.ma200_rising",
    "q": "A 2B is best when the stock's 200-day average is falling.",
    "answer": "False",
-   "why": "False. Best when the 200-day is higher than it was 20 sessions ago. SHOP sat near a rising 200-day.",
+   "why": "False. A 2B is best when the 200-day is rising, meaning higher than it was 20 sessions ago. SHOP sat 6.9% above a rising 200-day. This is a 'best when' preference. Separately, we take no longs below the 200-day, except a parabolic long.",
    "lesson_line": "A rising 200-day under the low is a better floor.",
    "facts": [
     "t_200r",
-    "dSHOPn"
+    "dSHOPn",
+    "h10",
+    "dSHOP"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. A 2B works best when the 200-day average is rising, not falling.",
+   "deeper": {
+    "example": "SHOP in November 2019 sat 6.9% above its rising 200-day when it undercut a six-week-old low by 1.4% and closed back above the next day. The level held on every later test."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 'best when' is the card's proposed preference"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q21",
@@ -1203,15 +1425,24 @@
     "first",
     "second",
     "third",
-    "last"
+    "fourth"
    ],
    "answer": "first",
-   "why": "First. The break must be the first session to trade under that low since it formed. A later bounce is not it.",
+   "why": "First. The break must be the first session to trade under that low since it formed. If the stock already traded under it and bounced, a later dip is not a first break, so it does not count.",
    "lesson_line": "Only the first break counts.",
    "facts": [
     "t_first"
    ],
-   "house": true
+   "house": true,
+   "simple": "First. The break must be the first session under the low since it formed.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (the card's first-break line)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q22",
@@ -1219,23 +1450,36 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "tb.clean_lead_in",
-   "q": "Which lead-in to the low is clean?",
+   "q": "Which lead-in to the low fits a 2B?",
    "choices": [
     "An orderly drift into the low",
     "A big red news candle just before it",
-    "An outsized gap down the day before"
+    "A fast flush on heavy volume",
+    "A slide that ends under the 200-day"
    ],
    "answer": "An orderly drift into the low",
-   "why": "An orderly drift into the low. No outsized red news candle just before the break.",
+   "why": "An orderly drift into the low. A clean lead-in has no outsized red news candle just before the break.",
    "lesson_line": "A clean lead-in is a drift, not a news bar.",
    "facts": [
-    "t_lead"
+    "t_lead",
+    "l_cap",
+    "h10"
    ],
    "wrong": {
-    "A big red news candle just before it": "An outsized red news candle just before the break is not a clean lead-in.",
-    "An outsized gap down the day before": "A news gap before the break is not an orderly drift."
+    "A big red news candle just before it": "The card wants no outsized red news candle just before the break.",
+    "A fast flush on heavy volume": "A 2 ATR flush on 2x volume is a capitulation, a different setup. A 2B comes on quiet volume.",
+    "A slide that ends under the 200-day": "A 2B is a strong stock above its 200-day, and we take no longs below it."
    },
-   "house": true
+   "house": true,
+   "simple": "An orderly drift into the low is clean. A big red news candle just before the break is not.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (the card's lead-in line)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q23",
@@ -1253,13 +1497,22 @@
     },
     "round": 1
    },
-   "why": "2.4%. The prior low minus the lowest low of the undercut, over the prior low. That fits the 3% line.",
+   "why": "2.4%. The undercut is measured from the prior low to the lowest low of the undercut: 50.00 minus 48.80, over 50.00, is 2.4%. That is inside the 3% line, so the stop fits. Deeper undercuts only with a smaller size or a later, tighter entry.",
    "lesson_line": "Measure the undercut against the old low, and keep it inside 3%.",
    "facts": [
     "t_depth"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "2.4 percent. The undercut is the drop from 50.00 to 48.80, measured against 50.00.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a computed key"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q24",
@@ -1278,14 +1531,24 @@
     },
     "round": 2
    },
-   "why": "0.87%. Well inside the 3% line, so the stop is honest. This is the RL trade.",
-   "lesson_line": "Measure the stop. Inside about 3% is an honest stop.",
+   "why": "0.87%. Take the fill minus the stop, 49.58 minus 49.15, and divide by the fill. That is 0.87%, well inside the 3% line where the stop usually sits. This is the RL trade.",
+   "lesson_line": "Measure the stop. It usually sits within about 3% of the buy.",
    "facts": [
     "h04",
     "dRL"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "0.87 percent. The stop sits that far under the 49.58 fill, well inside the usual 3 percent.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q25",
@@ -1295,13 +1558,14 @@
    "criterion": "tb.trigger",
    "q": "Where is the buy?",
    "choices": [
-    "109.63, as it trades back above",
-    "108.30, the undercut low",
-    "110.50, a round number above"
+    "109.63, as price retakes the low",
+    "108.30, the low of the undercut",
+    "110.50, a round number above",
+    "109.40, a bit under the old low"
    ],
-   "story": "A swing low sits at 109.62. Today the stock trades under it, then back above it in the same session.",
-   "answer": "109.63, as it trades back above",
-   "why": "109.63. A market order as it trades back above the low, a cent over it. That is how QCOM was bought on 2020-09-21.",
+   "story": "A swing low sits at 109.62. Today the stock trades down to 108.30, then back above 109.62 in the same session.",
+   "answer": "109.63, as price retakes the low",
+   "why": "109.63. The buy is a market order as price trades back above the 109.62 low. QCOM's buy on 2020-09-21 was 109.63, a cent over the low.",
    "lesson_line": "Buy as it trades back through the broken low, not before.",
    "facts": [
     "dQCOM",
@@ -1309,10 +1573,24 @@
     "t_never"
    ],
    "wrong": {
-    "108.30, the undercut low": "That is buying the undercut itself, before the reclaim.",
-    "110.50, a round number above": "A round number above is a chase. Buy as it trades back through the low."
+    "110.50, a round number above": "Entries are market orders as price trades back through the low. A round number above is not the trigger.",
+    "108.30, the low of the undercut": "That is buying the undercut itself, before the reclaim.",
+    "109.40, a bit under the old low": "That is still under the old low. Never before the reclaim."
    },
-   "house": true
+   "house": true,
+   "simple": "109.63. We buy at market as price trades back above the 109.62 low, not before.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook E57 and the held entry decision D-003",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q26",
@@ -1322,26 +1600,38 @@
    "criterion": "tb.stop",
    "q": "Where does the stop go?",
    "choices": [
-    "108.25, just under today's low",
+    "108.25, just under that low",
+    "108.30, exactly on that low",
     "109.62, at the old swing low",
-    "109.00, halfway to the old low",
-    "Under the 200-day average"
+    "107.30, a dollar under that low"
    ],
-   "story": "You buy the reclaim of the 109.62 low at 109.63. Today's low, the undercut, was 108.30.",
-   "answer": "108.25, just under today's low",
-   "why": "108.25. A few cents under today's low of 108.30, the lowest low of the undercut. That was QCOM's 1.26% stop.",
-   "lesson_line": "The stop sits just under the new low, the point the trap was set.",
+   "story": "You buy the reclaim of the 109.62 low. Today's low, the undercut, was 108.30.",
+   "answer": "108.25, just under that low",
+   "why": "108.25. The stop sits a few cents under the day's low, here 108.30, not exactly on it. That was QCOM's stop, 1.26% from the buy.",
+   "lesson_line": "The stop sits a few cents under the day's low, not on it.",
    "facts": [
     "dQCOM",
     "h24",
     "ts2"
    ],
    "wrong": {
-    "109.62, at the old swing low": "The old low is above the undercut low. A stop there sits inside the trap.",
-    "109.00, halfway to the old low": "A halfway stop is a guess. The stop sits past the new extreme.",
-    "Under the 200-day average": "The 200-day is context, not the stop."
+    "109.62, at the old swing low": "The old low is above the undercut low. A stop there sits above the new low.",
+    "108.30, exactly on that low": "The stop sits a few cents under the day's low, not exactly on it.",
+    "107.30, a dollar under that low": "The stop sits a few cents under the low, not a dollar away."
    },
-   "house": true
+   "house": true,
+   "simple": "108.25, a few cents under the 108.30 low. The stop goes just past that low, not on it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook F62 and the held stop decision D-005 for slow reclaims"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q27",
@@ -1352,24 +1642,40 @@
    "q": "Can you buy the open?",
    "choices": [
     "Yes, it is inside 4% above the low",
-    "No, never buy a gap",
-    "No, wait for a pullback to the low",
-    "Yes, but only half size"
+    "No, a gap open is not a fair fill",
+    "No, wait for a pullback to the old low",
+    "Yes, but only at half the normal size"
    ],
-   "story": "The break day undercut the 64.00 low and closed back above it. The next morning it opens at 65.30.",
+   "story": "The break day undercut the 64.00 low and closed back above it. The next morning it opens at 65.30. Your stop sits a few cents under the undercut low.",
    "answer": "Yes, it is inside 4% above the low",
-   "why": "Yes. The open is inside the 4% limit above the broken low, so a market order at the open is fine.",
+   "why": "Yes. The open, 65.30, is inside the 4% limit above the broken low, 64.00, so a market order at the open is fine. The 4% limit is the gap test. Size comes from the stop, not from the gap.",
    "lesson_line": "Inside 4% over the low, the open is a fair fill.",
    "facts": [
     "t_chase",
-    "h11"
+    "h11",
+    "h12",
+    "h01",
+    "h22",
+    "dPYPL"
    ],
    "wrong": {
-    "No, never buy a gap": "A gap inside the 4% limit is fine.",
-    "No, wait for a pullback to the low": "Waiting can miss it; the open is inside the limit.",
-    "Yes, but only half size": "Size comes from the stop, not from the gap."
+    "No, a gap open is not a fair fill": "A gap inside the 4% limit is a fair fill.",
+    "No, wait for a pullback to the old low": "The test is the 4% limit, and the open is inside it.",
+    "Yes, but only at half the normal size": "Size comes from the stop, not from the gap."
    },
-   "house": true
+   "house": true,
+   "simple": "Yes. The open is inside the 4 percent limit above the broken low, so a market order is fine.",
+   "deeper": {
+    "trap": "The trap is judging a gap by how it feels. Our test is the buy price against the broken low. More than 4% above is a chase: the stop stays put, the distance grows and the shares shrink. Inside 4%, the open is a fair fill."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook C28 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q28",
@@ -1382,23 +1688,33 @@
     "No, it is over 4% above the low",
     "Yes, a gap up shows real strength",
     "Yes, with a smaller stop to fit",
-    "Yes, at half size"
+    "No, a gap open is not a fair fill"
    ],
    "story": "The broken low is 40.00. The stock closed back above it yesterday. Now it gaps open at 42.00.",
    "answer": "No, it is over 4% above the low",
-   "why": "No. 42.00 is more than 4% above the broken low. Never chase; the stop stays under the new low and the shares shrink.",
+   "why": "No. 42.00 is more than 4% above the broken low, 40.00. Never chase: the stop stays under the new low, so the distance grows and the shares shrink. The verdict comes from the 4% test, not from the gap itself.",
    "lesson_line": "Past 4% over the low, the open is not ours.",
    "facts": [
     "t_chase",
     "h11",
-    "h12"
+    "h12",
+    "h01"
    ],
    "wrong": {
     "Yes, a gap up shows real strength": "Strength is not a reason to chase.",
-    "Yes, with a smaller stop to fit": "You do not tighten the stop to fit.",
-    "Yes, at half size": "Half size does not change the rule."
+    "Yes, with a smaller stop to fit": "If the honest stop does not fit the risk, you skip the trade.",
+    "No, a gap open is not a fair fill": "Right verdict, wrong reason. A gap inside the 4% limit is a fair fill. This one fails the 4% test."
    },
-   "house": true
+   "house": true,
+   "simple": "No. 42.00 is more than 4 percent above the 40.00 broken low, so buying there is chasing.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook C28 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q29",
@@ -1408,24 +1724,41 @@
    "criterion": "tb.reclaim_window",
    "q": "Which of these is a breakdown or a Remount, not a 2B?",
    "choices": [
-    "Six closes under, then recovery",
+    "Six closes under, then back up",
     "It reclaims later the same day",
-    "It reclaims on the next day",
+    "It reclaims on the very next day",
     "It undercuts by 1% and reclaims"
    ],
-   "answer": "Six closes under, then recovery",
-   "why": "Six closes under the low. A 2B closes back above within 3 sessions; five or more closes under it is a Remount.",
+   "answer": "Six closes under, then back up",
+   "why": "Six closes under, then back up. A 2B closes back above the broken low within 3 sessions. With no close back above within 3 sessions it is a breakdown, and five or more closes under it, then a retake of the line, is a Remount. GS in 2017 had 6 closes under before its first close back above.",
    "lesson_line": "Quick reclaim is a 2B. A long stay under the line is not.",
    "facts": [
     "t_inv",
-    "l_remount"
+    "l_remount",
+    "dGS"
    ],
    "wrong": {
     "It reclaims later the same day": "A same-day reclaim is the quickest version of the 2B.",
-    "It reclaims on the next day": "A reclaim in a day or two is inside the window.",
-    "It undercuts by 1% and reclaims": "A shallow undercut is what we want."
+    "It undercuts by 1% and reclaims": "A shallow undercut is what we want.",
+    "It reclaims on the very next day": "A reclaim in a day or two is inside the window."
    },
-   "house": true
+   "house": true,
+   "simple": "Six closes under the low is too long for a 2B, which must close back above within 3 sessions.",
+   "deeper": {
+    "trap": "Counting is the whole test. A close back above within 3 sessions is a 2B. Five or more closes under, then a retake of the line, is a Remount. GS on 2017-01-25 had 6 closes under the 236.64 low before the first close back above."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 keyed on the card's proposed 3-session window while the reclaim-window grading is held (D-102)",
+     "+1 a count that sits near the edge (4 closes fits neither label cleanly)"
+    ]
+   },
+   "depends_on": [
+    "D-102"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q30",
@@ -1437,23 +1770,32 @@
    "choices": [
     "No, a report is inside 3 sessions",
     "Yes, it is a 2B, not earnings",
-    "Yes, at half size",
+    "No, a 2B does not work near a report",
     "Yes, then sell before the report"
    ],
    "story": "A clean 2B reclaims its low. The company reports earnings in two sessions.",
    "answer": "No, a report is inside 3 sessions",
-   "why": "No. No new buys in the 3 days before a report. A report this close can gap the stock past your stop.",
-   "lesson_line": "No new buys in the 3 days before a report.",
+   "why": "No. No new buy in the 3 sessions before an earnings report. Here the report is in two sessions, so the buy is out even though the 2B is clean. Holding through a report is allowed only if the trade is up 5R.",
+   "lesson_line": "No new buys in the 3 sessions before a report.",
    "facts": [
     "t_earn",
     "h08"
    ],
    "wrong": {
     "Yes, it is a 2B, not earnings": "The report window is its own rule.",
-    "Yes, at half size": "Half size does not change the rule.",
-    "Yes, then sell before the report": "The rule is no new buys inside the window."
+    "Yes, then sell before the report": "The rule is no new buys inside the window.",
+    "No, a 2B does not work near a report": "Right verdict, wrong reason. The rule is no new buy in the 3 sessions before a report."
    },
-   "house": true
+   "house": true,
+   "simple": "No. The report is two sessions away, inside the 3-session window, so we take no new buy.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook B22 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q31",
@@ -1466,23 +1808,35 @@
     "Pass; the market is still falling",
     "Take it at full size on the reclaim",
     "Take it, the leader is strong",
-    "Take it with a tighter stop"
+    "Pass; the undercut was too deep"
    ],
    "story": "A leader undercuts a low by 0.75% and reclaims it the same day. The Nasdaq made another lower low today, with no reclaim.",
    "answer": "Pass; the market is still falling",
-   "why": "Pass for now. A market still making lower lows is not the place. Buying a 2B then is a named mistake, as NVDA and AMD showed in April 2024.",
+   "why": "Pass for now. A market still making lower lows with no reclaim is not the place for a 2B, however clean the leader looks. The best 2Bs come as the indexes wash out under their prior lows and reclaim them. Buying a 2B then is a named mistake, as NVDA and AMD showed in April 2024.",
    "lesson_line": "A clean 2B in a falling market is still a falling market.",
    "facts": [
     "t_wash",
     "m_lower",
-    "cf1"
+    "cf1",
+    "cx1",
+    "t_inv",
+    "t_depth"
    ],
    "wrong": {
-    "Take it at full size on the reclaim": "A market still making lower lows is not the place.",
+    "Take it at full size on the reclaim": "A market still making lower lows is not the place, whatever the size.",
     "Take it, the leader is strong": "Strength in one name did not save NVDA or AMD.",
-    "Take it with a tighter stop": "You never tighten the stop to fit."
+    "Pass; the undercut was too deep": "The undercut was 0.75%, well inside the 3% line. The market is the problem."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass. The stock looks clean, but a market that keeps making lower lows is not the place for a 2B.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the market gate is the card's proposed criterion"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q32",
@@ -1499,19 +1853,32 @@
    ],
    "story": "You bought the reclaim at 100.05, with the stop at 98.70. The next day it closes at 99.40, back under the 100.00 low, above your stop.",
    "answer": "Hold to the stop; do not add",
-   "why": "Hold to the stop and do not add. A close back under the broken low is a warning that the failure has failed. Look at TSLA, 2023-08-11.",
+   "why": "Hold to the stop and do not add. A close back under the broken low within 2 sessions means the failure has failed. It is a warning, not an exit. Your stop at 98.70 is still the exit.",
    "lesson_line": "A close back under the low is a warning. The stop does the rest.",
    "facts": [
     "t_fails",
     "dTSLA",
+    "dTSLAn",
     "h02"
    ],
    "wrong": {
     "Sell at the close to be safe": "The stop is the exit, not a scary close.",
-    "Add on the dip to lower the cost": "We never add after a warning.",
-    "Move the stop under 99.40": "A stop only moves up."
+    "Add on the dip to lower the cost": "The card says do not add after the warning.",
+    "Move the stop under 99.40": "The card says hold to the stop. The warning is not a reason to change it."
    },
-   "house": true
+   "house": true,
+   "simple": "Hold to the stop and do not add. A close back under the broken low is a warning, not an exit.",
+   "deeper": {
+    "example": "TSLA, 2023-08-11: bought at 240.71 with the stop at 237.97. The next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18. The failure failed."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the card's warning rule and the owner's rulebook A4"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q33",
@@ -1521,14 +1888,14 @@
    "criterion": "tb.after_entry_stop",
    "q": "Your plan from here?",
    "choices": [
-    "Take the loss; retry on a trigger",
-    "Wish you had used a wider stop",
+    "Accept the loss; retry on a trigger",
     "Buy back at once with the same stop",
-    "Move the stop lower next time"
+    "Buy back at once with a wider stop",
+    "Drop this stock from your list"
    ],
    "story": "You bought at 30.83 with the stop at 30.26. The next day's low touches the stop to the cent and you are out. Twenty sessions later the stock is higher.",
-   "answer": "Take the loss; retry on a trigger",
-   "why": "Take the loss. The stop did its job. A new try needs a new trigger. MGM, bought 2017-07-05, touched the stop to the cent the next day.",
+   "answer": "Accept the loss; retry on a trigger",
+   "why": "Accept the loss. The stop did its job. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. MGM touched the stop to the cent the next day and was 31.98 twenty sessions later. The later bounce does not change the plan.",
    "lesson_line": "A stop-out is the plan working. Re-enter only on a new trigger.",
    "facts": [
     "dMGM",
@@ -1537,11 +1904,20 @@
     "h28"
    ],
    "wrong": {
-    "Wish you had used a wider stop": "A wider stop is a bigger loss. The stop did its job.",
-    "Buy back at once with the same stop": "Buy again only on a new trigger.",
-    "Move the stop lower next time": "A stop never moves down or wider."
+    "Buy back at once with the same stop": "Buy again only if the setup triggers again, as a new trade.",
+    "Buy back at once with a wider stop": "A new try needs a new trigger, with its own stop and every rule.",
+    "Drop this stock from your list": "The stop did its job. A new try is allowed, on a new trigger."
    },
-   "house": true
+   "house": true,
+   "simple": "Accept the loss. The stop did its job, and a new try needs a new trigger.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook B21 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q34",
@@ -1554,11 +1930,11 @@
     "Out at once; the loss is past 2R",
     "Hold, the new stop is 96.40",
     "Keep the stop at 98.70 and wait",
-    "Buy more at 96.40 to average down"
+    "Buy more at 96.40 to lower your cost"
    ],
    "story": "You bought at 100.05 with the stop at 98.70. It gaps open at 97.00. The first 30-minute low is 96.40. Your risk was 1.35 a share.",
    "answer": "Out at once; the loss is past 2R",
-   "why": "Out at once. At the first 30-minute low the loss is well past 2R. Inside 2R that low is the new stop; past it, you leave.",
+   "why": "Out at once. At the first 30-minute low of 96.40 the loss is more than twice your 1.35 of risk a share, so it is past 2R. Inside 2R, that low is the new stop. Past 2R, you get out.",
    "lesson_line": "On a gap through the stop, the first 30 minutes decide.",
    "facts": [
     "t_gap",
@@ -1568,9 +1944,21 @@
    "wrong": {
     "Hold, the new stop is 96.40": "That would be right inside 2R. This low is past 2R.",
     "Keep the stop at 98.70 and wait": "The stop is already through.",
-    "Buy more at 96.40 to average down": "We never add to a loser."
+    "Buy more at 96.40 to lower your cost": "The rule is to get out when the loss is past 2R, not to add."
    },
-   "house": true
+   "house": true,
+   "simple": "Out at once. The first 30-minute low would cost more than 2R, so there is no new stop.",
+   "deeper": {
+    "trap": "The trap is treating the first 30-minute low as the new stop every time. It is the new stop only while the loss stays inside 2R. Here the drop from 100.05 to 96.40 is more than twice your 1.35 of risk, so the ceiling applies."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook B20 and its 2R ceiling"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q35",
@@ -1614,14 +2002,23 @@
     },
     "round": 2
    },
-   "why": "45.49. One R is the fill minus the stop. Add five of those to the fill. This is the DINO trade.",
+   "why": "45.49. One R is the fill minus the stop. Add five of those to the fill. This is the DINO trade. Another third comes off here, and the last third is trailed.",
    "lesson_line": "Know 3R and 5R before the open.",
    "facts": [
     "h20",
     "dDINO"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "45.49. One R is the fill minus the stop, and 5R adds five of those to the 42.89 fill.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a computed key"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q37",
@@ -1638,18 +2035,34 @@
    ],
    "story": "You bought at 49.58 with the stop at 49.15. The 2B reaches 3R.",
    "answer": "Sell a third, stop to breakeven",
-   "why": "Sell a third and move the stop to breakeven. The first trim is a third at 3R.",
+   "why": "Sell a third and move the stop to breakeven. The hard rule is a third at 3R, then another third at 5R, then trail the last third. Breakeven can come anywhere from 2R to 5R, and by default it comes at the first trim.",
    "lesson_line": "At 3R sell a third and lift the stop to breakeven.",
    "facts": [
     "h05",
-    "tp2"
+    "tp2",
+    "h20",
+    "t_be",
+    "dRL"
    ],
    "wrong": {
     "Sell it all and take the win": "Trims are thirds, and the last third is trailed.",
     "Sell half, keep the original stop": "The hard rule is a third.",
     "Hold all, nudge the stop up": "The first third comes off at 3R."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell a third at 3R and lift the stop to breakeven on what is left.",
+   "deeper": {
+    "example": "RL on 2009-07-08 was bought at 49.58 with the stop at 49.15 and reached 3R on day 1. That is the point where a third comes off and the stop moves to breakeven."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19, E51)",
+     "+1 the trim levels are marked adjustable"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q38",
@@ -1657,27 +2070,37 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "tb.time_stop",
-   "q": "Your call on day 10?",
+   "q": "Your call now?",
    "choices": [
     "Sell it and free the money",
     "Hold on, aiming for 5R",
     "Add if it breaks out higher",
     "Widen the stop to give it room"
    ],
-   "story": "It is day 10. The 2B has chopped sideways at +0.7R. The stop has not been touched.",
+   "story": "Ten trading days have passed since the buy. The 2B has chopped sideways at +0.7R. The stop has not been touched.",
    "answer": "Sell it and free the money",
-   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "why": "Sell it. Our time stop: a trade still under 1R after 10 trading days is sold, freeing the money. This one sits at +0.7R, so it is under 1R. Waiting longer for 5R is not the plan.",
    "lesson_line": "Ten days and under 1R: sell and use the money elsewhere.",
    "facts": [
     "t_time",
-    "h15"
+    "h15",
+    "h02"
    ],
    "wrong": {
-    "Hold on, aiming for 5R": "A trade under 1R after 10 days is sold.",
-    "Add if it breaks out higher": "We buy once.",
+    "Hold on, aiming for 5R": "A trade still under 1R after 10 trading days is sold.",
+    "Add if it breaks out higher": "The time stop sells a trade stuck under 1R. It does not add to it.",
     "Widen the stop to give it room": "A stop never moves wider."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell it. A trade still under 1R after 10 trading days is sold so the money is free for other trades.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q39",
@@ -1688,24 +2111,38 @@
    "q": "How many do you buy?",
    "choices": [
     "A few, then add as they work",
-    "All four at full size",
-    "One, at double the normal size",
-    "None until next month"
+    "A few, then add the rest tomorrow",
+    "All eight at once, at full size",
+    "All eight at once, at half size"
    ],
-   "story": "After a correction the market reading turns Green again. Four 2Bs reclaim their lows in one morning.",
+   "story": "After a correction the market reading turns Green again. Eight 2Bs reclaim their lows in one morning.",
    "answer": "A few, then add as they work",
-   "why": "A few. After a correction, when the reading turns Green again, start with a few. Add more only as the first ones work.",
-   "lesson_line": "Back from a correction, start small and add as they work.",
+   "why": "A few. After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work. Green allows full risk per grade, but the limit here is how many to open at once.",
+   "lesson_line": "Back from a correction, start with a few and add as they work.",
    "facts": [
     "h27",
-    "t_mkt"
+    "t_mkt",
+    "h26"
    ],
    "wrong": {
-    "All four at full size": "Start with a few and add only as they work.",
-    "One, at double the normal size": "Fewer names never means a bigger size. Size comes from each stop.",
-    "None until next month": "Green again is when 2Bs work best, with a few positions."
+    "A few, then add the rest tomorrow": "Add more only as the first ones work, not on a schedule.",
+    "All eight at once, at full size": "Start with a few positions and add only as they work.",
+    "All eight at once, at half size": "Half size does not change it. Start with a few positions and add only as they work."
    },
-   "house": true
+   "house": true,
+   "simple": "A few. After a correction we start with a few positions and add more only as the first ones work.",
+   "deeper": {
+    "trap": "The trap is reading Green as all in. Green allows full risk per grade and up to 10 positions, but right after a correction we start with a few and add only as they work."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook F68 (settled)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q40",
@@ -1713,26 +2150,36 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "tb.trim_gap_open",
-   "q": "When do you take the first trim?",
+   "q": "When do you take the first trim, a third at 3R?",
    "choices": [
-    "At the open, 51.40",
-    "At the close",
-    "When it falls back to 50.87",
-    "Wait for 5R"
+    "At the start of trading",
+    "At the close of that day",
+    "On a fall back to 50.87",
+    "Wait until it reaches 5R"
    ],
    "story": "Your 3R level is 50.87. The next morning the 2B opens at 51.40.",
-   "answer": "At the open, 51.40",
-   "why": "At the open, 51.40. If a day opens above a trim level, take that trim at the open.",
+   "answer": "At the start of trading",
+   "why": "At the open. If a stock opens above a trim level, take that trim at the open. The 3R level was 50.87 and the open, 51.40, is already past it. Do not wait for a fall back to 50.87, and do not wait for 5R, since the hard rule takes the first third at 3R.",
    "lesson_line": "Open past the level, take the trim at the open.",
    "facts": [
-    "h25"
+    "h25",
+    "h05"
    ],
    "wrong": {
-    "At the close": "The rule is to take it at the open.",
-    "When it falls back to 50.87": "You may never get that price back.",
-    "Wait for 5R": "The first third comes off at 3R. The open is past it."
+    "At the close of that day": "The rule is to take the trim at the open.",
+    "On a fall back to 50.87": "The rule is to take it at the open, not to wait for a fall back.",
+    "Wait until it reaches 5R": "The hard rule takes a third at 3R. The open is past it."
    },
-   "house": true
+   "house": true,
+   "simple": "At the open. If a day opens above a trim level, we take that trim at the open.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook F63 (settled)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q41",
@@ -1768,14 +2215,14 @@
    "criterion": "tb.market_reading",
    "q": "How do you play it?",
    "choices": [
-    "Take it only if it is an A+",
+    "Take it only if it grades A+",
     "Take it at full size, as in Green",
-    "Pass, only Green allows it",
-    "Short the market instead"
+    "Take it smaller, as in Yellow",
+    "Pass, only Green allows it"
    ],
    "story": "A clean 2B reclaims its low, but the market reading is Orange.",
-   "answer": "Take it only if it is an A+",
-   "why": "Take it only as an A+. In an Orange market only A+ setups. Green is full risk, Yellow smaller and fewer.",
+   "answer": "Take it only if it grades A+",
+   "why": "Take it only as an A+. In an Orange market only A+ setups are allowed.",
    "lesson_line": "Orange market, A+ only. Yellow, smaller. Green, full.",
    "facts": [
     "t_mkt",
@@ -1784,9 +2231,19 @@
    "wrong": {
     "Take it at full size, as in Green": "Full risk is for Green.",
     "Pass, only Green allows it": "Orange allows an A+, so Green is not the only reading that does.",
-    "Short the market instead": "Red is mostly cash and shorts. Orange still allows an A+ long."
+    "Take it smaller, as in Yellow": "Smaller and fewer is the Yellow reading. Orange is A+ only."
    },
-   "house": true
+   "house": true,
+   "simple": "In an Orange market only the best setups are allowed, so take it only if it grades A+.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F65, the market reading guide)",
+     "+1 the reading is a guide, not a fixed table"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q43",
@@ -1794,27 +2251,41 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "tb.market_reading",
-   "q": "What do you do?",
+   "q": "What does that reading call for?",
    "choices": [
-    "Mostly cash; no 2B longs",
-    "Take it at full size",
-    "Take it at half size",
-    "Take it with a tighter stop"
+    "Mostly cash, plus shorts",
+    "Full risk, up to 10 positions",
+    "Smaller and fewer positions",
+    "Only A+ setups are allowed"
    ],
    "story": "A clean 2B reclaims its low, but the market reading is Red.",
-   "answer": "Mostly cash; no 2B longs",
-   "why": "Mostly cash. In a Red market it is mostly cash, plus shorts below the 200-day.",
-   "lesson_line": "Red market: cash first. The 2B waits.",
+   "answer": "Mostly cash, plus shorts",
+   "why": "Mostly cash, plus shorts below the 200-day. That is the Red reading, and a clean 2B does not change it.",
+   "lesson_line": "Red market: mostly cash, plus shorts.",
    "facts": [
     "t_mkt",
-    "h33"
+    "h33",
+    "h26",
+    "h27"
    ],
    "wrong": {
-    "Take it at full size": "Full risk is for Green.",
-    "Take it at half size": "In Red the answer is mostly cash.",
-    "Take it with a tighter stop": "A tighter stop does not fix the market."
+    "Full risk, up to 10 positions": "That is the Green reading.",
+    "Smaller and fewer positions": "That is the Yellow reading. Red is mostly cash and shorts.",
+    "Only A+ setups are allowed": "That is the Orange reading. Red is mostly cash and shorts."
    },
-   "house": true
+   "house": true,
+   "simple": "Mostly cash, plus shorts below the 200-day. That is the Red reading.",
+   "deeper": {
+    "counter": "A clean shape does not change the market reading. In a Red market the guide is mostly cash, plus shorts below the 200-day. After a correction, when the reading turns Green again, start with a few positions and add more only as the first ones work."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F65, D46)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q44",
@@ -1822,15 +2293,29 @@
    "rung": 6,
    "format": "tf",
    "criterion": "tb.origin",
-   "q": "Sperandeo says an intermediate 2B usually fails within three to five weeks.",
+   "q": "Sperandeo says the new extreme of an intermediate 2B usually breaks within three to five weeks.",
    "answer": "False",
-   "why": "False. Bulkowski quotes Sperandeo: for intermediate highs or lows, the new extreme will usually break within three to five days.",
-   "lesson_line": "The originator says three to five days. Ours is a reclaim within 3 sessions.",
+   "why": "False. Bulkowski quotes Sperandeo: for intermediate highs or lows, the new extreme will usually break within three to five days, not weeks. Our card sets its own limit: a close back above the broken low within 3 sessions.",
+   "lesson_line": "Sperandeo says three to five days, not weeks. Our card wants the reclaim within 3 sessions.",
    "facts": [
     "bk6",
     "t_inv"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. Sperandeo says the new extreme usually breaks within three to five days, not weeks.",
+   "deeper": {
+    "counter": "Sperandeo gives three to five days for an intermediate 2B. Our card takes 3 sessions for the close back above the broken low. Both count days, not weeks."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one web quote carries the key",
+     "the card's 3-session count is proposed",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q45",
@@ -1838,15 +2323,24 @@
    "rung": 6,
    "format": "tf",
    "criterion": "tb.earnings_window",
-   "q": "You may hold a 2B through a report only if the trade is up 5R.",
+   "q": "You may hold a 2B through an earnings report only if the trade is up 5R.",
    "answer": "True",
-   "why": "True. No new buys in the 3 days before a report. Hold through one only if the trade is up 5R.",
+   "why": "True. We hold through an earnings report only if the trade is up 5R. Separately, we make no new buys in the 3 days before a report.",
    "lesson_line": "Through a report only with a 5R cushion.",
    "facts": [
     "h08",
     "t_earn"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. We hold a trade through a report only if it is up 5R.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q46",
@@ -1856,24 +2350,40 @@
    "criterion": "tb.not_oops",
    "q": "2B or Oops?",
    "choices": [
-    "An Oops, judged on yesterday's low",
-    "A 2B, it reclaimed the same day",
-    "A U&R, it undercut a level"
+    "An Oops, the low is one day old",
+    "A 2B, it reclaimed on the same day",
+    "A breakdown, it broke a low",
+    "A spring, it closed back inside"
    ],
-   "story": "Yesterday closed at 80.00 with a low of 79.20. Today opens at 79.60, trades down to 78.90 and closes at 80.40.",
-   "answer": "An Oops, judged on yesterday's low",
-   "why": "An Oops. It opened under the prior close, broke yesterday's low and reclaimed the prior close the same day. The reference is one day old.",
+   "story": "Yesterday closed at 83.20 with a low of 82.40. Today opens at 82.70, trades down to 82.10 and closes at 83.60.",
+   "answer": "An Oops, the low is one day old",
+   "why": "An Oops. Today opened at 82.70, under the prior close of 83.20. It broke yesterday's low of 82.40 and closed at 83.60, back over the prior close. A 2B breaks a swing low at least 5 sessions old. Yesterday's low is one session old.",
    "lesson_line": "Count the age of the broken low. One day old is an Oops.",
    "facts": [
     "l_oops",
     "t_oops",
-    "m_dip"
+    "m_dip",
+    "t_inv",
+    "l_spring"
    ],
    "wrong": {
-    "A 2B, it reclaimed the same day": "A 2B breaks a swing low at least 5 sessions old. This broke yesterday's low.",
-    "A U&R, it undercut a level": "A U&R needs a bigger level than yesterday's low."
+    "A 2B, it reclaimed on the same day": "A 2B breaks a swing low at least 5 sessions old. This broke yesterday's low.",
+    "A breakdown, it broke a low": "It closed back above the low it broke. A breakdown has no close back above within 3 sessions.",
+    "A spring, it closed back inside": "A spring's level is the floor of a sideways range of 15 sessions or more. This broke yesterday's low."
    },
-   "house": true
+   "house": true,
+   "simple": "An Oops. It opened under the prior close, broke yesterday's low and reclaimed the prior close, and a 2B needs an older low.",
+   "deeper": {
+    "trap": "The shape looks like a 2B, so check the age of the low and the open. An Oops opens under the prior close and breaks yesterday's low. A 2B breaks a swing low at least 5 sessions old. Calling any dip under yesterday's low a 2B is a named mistake."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's proposed look-alike tell (Oops)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q47",
@@ -1883,24 +2393,40 @@
    "criterion": "tb.not_oops",
    "q": "2B or Oops?",
    "choices": [
-    "A 2B, the broken low is old",
-    "An Oops, it reclaimed a close",
-    "A Remount, it took two days"
+    "A 2B, it broke an older swing low",
+    "An Oops, it reclaimed a prior close",
+    "A Remount, it was slow to reclaim",
+    "A spring, it closed back inside"
    ],
-   "story": "On Tuesday the stock breaks a swing low that is eight sessions old. It closes back above that low on Wednesday.",
-   "answer": "A 2B, the broken low is old",
-   "why": "A 2B. The broken low is eight sessions old, and the reclaim came in 2 sessions. An Oops breaks yesterday's low.",
+   "story": "On Tuesday the stock breaks a swing low made twelve sessions ago. It closes back above that low on Wednesday.",
+   "answer": "A 2B, it broke an older swing low",
+   "why": "A 2B. The broken low is twelve sessions old, older than the 5 sessions a 2B needs. The close back above came the next day, inside 3 sessions. An Oops breaks yesterday's low and reclaims the prior close the same day.",
    "lesson_line": "An older swing low and a reclaim in a day or two: that is a 2B.",
    "facts": [
     "l_oops",
     "l_oops2",
-    "t_oops"
+    "t_oops",
+    "l_remount",
+    "l_spring"
    ],
    "wrong": {
-    "An Oops, it reclaimed a close": "An Oops breaks yesterday's low and reclaims the prior close the same day.",
-    "A Remount, it took two days": "A Remount follows five or more closes under the level."
+    "An Oops, it reclaimed a prior close": "An Oops breaks yesterday's low and reclaims the prior close the same day.",
+    "A Remount, it was slow to reclaim": "A Remount follows five or more closes under the level.",
+    "A spring, it closed back inside": "A spring's level is the floor of a sideways range of 15 sessions or more, not a single swing low."
    },
-   "house": true
+   "house": true,
+   "simple": "A 2B. The broken low is twelve sessions old and the stock closed back above it the next day.",
+   "deeper": {
+    "trap": "Two tests separate the look-alikes: how old is the broken low, and how many closes under before the reclaim. Twelve sessions old and a close back above the next day passes both. An Oops needs yesterday's low. A Remount needs five or more closes under."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's proposed look-alike tells (Oops, Remount)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q48",
@@ -1910,23 +2436,39 @@
    "criterion": "tb.not_oops",
    "q": "2B or Oops?",
    "choices": [
-    "A 2B, the reference low is old",
+    "A 2B, the low is not yesterday's",
     "An Oops, it reclaimed the same day",
-    "A Remount, the low is old"
+    "A Remount, it retook an old low",
+    "A breakdown, it dipped under a low"
    ],
-   "story": "The stock opens above yesterday's close, then dips under a nine-session-old swing low and closes back above it the same day.",
-   "answer": "A 2B, the reference low is old",
-   "why": "A 2B. An Oops opens under the prior close and is judged on yesterday's low. This one opened above it and broke an older swing low.",
+   "story": "The stock opens above yesterday's close. It dips under a swing low made thirteen sessions ago and closes back above it the same day.",
+   "answer": "A 2B, the low is not yesterday's",
+   "why": "A 2B. An Oops opens under the prior close and is judged on yesterday's low. This stock opened above yesterday's close and broke a swing low thirteen sessions old, older than the 5 sessions a 2B needs. It closed back above the same day, well inside 3 sessions.",
    "lesson_line": "The open and the reference low decide it. Old swing low, 2B.",
    "facts": [
     "l_oops",
-    "t_oops"
+    "t_oops",
+    "l_remount",
+    "t_inv"
    ],
    "wrong": {
     "An Oops, it reclaimed the same day": "An Oops opens under the prior close. This one opened above it.",
-    "A Remount, the low is old": "A Remount needs five or more closes under the level."
+    "A Remount, it retook an old low": "A Remount needs five or more closes under the level.",
+    "A breakdown, it dipped under a low": "It closed back above the low the same day. A breakdown has no close back above within 3 sessions."
    },
-   "house": true
+   "house": true,
+   "simple": "A 2B. It opened above yesterday's close and broke an older swing low, so it is not an Oops.",
+   "deeper": {
+    "trap": "Do not label by the dip alone. The open decides whether it can be an Oops: an Oops opens under the prior close and is judged on yesterday's low. This stock opened above yesterday's close and broke a swing low thirteen sessions old, so the label is 2B."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's proposed look-alike tell (Oops)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q49",
@@ -1938,21 +2480,41 @@
    "choices": [
     "A U&R, the level is an average",
     "A 2B, it reclaimed the line",
-    "An Oops, it dipped and recovered"
+    "An Oops, it dipped and recovered",
+    "A Remount, it retook the average"
    ],
    "story": "A leader dips under its rising 50-day average and closes back above it. There was no swing low nearby.",
    "answer": "A U&R, the level is an average",
-   "why": "A U&R. When the level is a rising average, a prior high, a round number or the range low, it is a U&R. A 2B breaks a swing low.",
+   "why": "A U&R. When the level is a rising average, a prior high, a round number or the range low, it is a U&R. A 2B breaks a swing low. Here the level was the rising 50-day and there was no swing low nearby.",
    "lesson_line": "Name the level. A swing low is a 2B. A rising average is a U&R.",
    "facts": [
     "l_ur",
-    "cp2"
+    "cp2",
+    "l_remount",
+    "t_oops"
    ],
    "wrong": {
     "A 2B, it reclaimed the line": "A 2B breaks a prior swing low, not an average.",
-    "An Oops, it dipped and recovered": "An Oops needs a break of yesterday's low."
+    "An Oops, it dipped and recovered": "An Oops needs a break of yesterday's low.",
+    "A Remount, it retook the average": "A Remount follows five or more closes under a level. This leader dipped under and closed back above."
    },
-   "house": true
+   "house": true,
+   "simple": "A U&R. The level was a rising average, and a 2B breaks a swing low.",
+   "deeper": {
+    "trap": "Name the level before the label. A rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low makes it a U&R. A swing low at least 5 sessions old makes it a 2B. The dip and the reclaim look the same, so the level is the tell."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 the level test is the card's tb.level criterion, still held (D-101)",
+     "+1 rests on one card line"
+    ]
+   },
+   "depends_on": [
+    "D-101"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q50",
@@ -1963,23 +2525,42 @@
    "q": "2B or Remount?",
    "choices": [
     "A Remount, bought on the retake",
-    "A 2B, it reclaimed the low",
-    "An Oops, it recovered fast"
+    "A 2B, it reclaimed the broken low",
+    "An Oops, it reclaimed the prior close",
+    "A spring, it retook the floor"
    ],
-   "story": "The stock closed under an old low for six sessions. Today it retakes the line.",
+   "story": "The stock closed under an old low for six sessions. Today it trades back above that low.",
    "answer": "A Remount, bought on the retake",
-   "why": "A Remount. Six closes under the 236.64 low before the first close back above. That was GS on 2017-01-25.",
+   "why": "A Remount. A 2B closes back above within 3 sessions, and five or more closes under it is a Remount, bought on the retake of the line. GS on 2017-01-25 had 6 closes under the 236.64 low before the first close back above.",
    "lesson_line": "Count the closes under the line. Five or more is a Remount.",
    "facts": [
     "dGS",
     "dGSn",
-    "l_remount"
+    "l_remount",
+    "l_spring"
    ],
    "wrong": {
-    "A 2B, it reclaimed the low": "A 2B closes back above within 3 sessions. Six closes under is too long.",
-    "An Oops, it recovered fast": "An Oops is judged on yesterday's low."
+    "A 2B, it reclaimed the broken low": "A 2B closes back above within 3 sessions. Six closes under is too long.",
+    "An Oops, it reclaimed the prior close": "An Oops reclaims the prior close the same day and is judged on yesterday's low. This stayed under for six closes.",
+    "A spring, it retook the floor": "A spring closes back inside the same day or the next. This stayed under for six closes."
    },
-   "house": true
+   "house": true,
+   "simple": "A Remount. Six closes under the line is too many for a 2B, which must close back above within 3 sessions.",
+   "deeper": {
+    "trap": "The count of closes under the line is the tell. A 2B closes back above within 3 sessions. Five or more closes under, then a retake, is a Remount, bought on the retake of the line, not on the reclaim of a low."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 the reclaim-window grading is held (D-102)",
+     "+1 rests on one dossier example"
+    ]
+   },
+   "depends_on": [
+    "D-102"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q51",
@@ -1991,22 +2572,41 @@
    "choices": [
     "A spring, the level is a floor",
     "A 2B, it reclaimed a swing low",
-    "An Oops, it closed back inside"
+    "An Oops, it closed back inside",
+    "A Remount, it retook the floor"
    ],
    "story": "A stock has traded sideways for 20 sessions and touched its floor three times. It dips under the floor and closes back inside the same day.",
    "answer": "A spring, the level is a floor",
-   "why": "A spring. The level is the floor of a sideways range of 15 sessions or more, touched at least twice. A 2B breaks a single swing low.",
+   "why": "A spring. A spring's level is the floor of a sideways range of 15 sessions or more, touched at least twice, with the close back inside the same day or the next. This stock traded sideways for 20 sessions and touched its floor three times. A 2B breaks a single swing low.",
    "lesson_line": "A range floor is a spring. A single swing low is a 2B.",
    "facts": [
     "l_spring",
     "wy1",
-    "cp2"
+    "cp2",
+    "l_remount"
    ],
    "wrong": {
     "A 2B, it reclaimed a swing low": "A 2B's level is a single swing low, not the floor of a range.",
-    "An Oops, it closed back inside": "An Oops is judged on yesterday's low."
+    "An Oops, it closed back inside": "An Oops is judged on yesterday's low.",
+    "A Remount, it retook the floor": "A Remount follows five or more closes under the level. This closed back inside the same day."
    },
-   "house": true
+   "house": true,
+   "simple": "A spring. The level is the floor of a long sideways range, not a single swing low.",
+   "deeper": {
+    "trap": "A spring and a 2B look alike on a chart, so the level tells them apart. A spring's level is the floor of a sideways range of 15 sessions or more, touched at least twice. A 2B breaks a single swing low."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 the level test is the card's tb.level criterion, still held (D-101)",
+     "+1 rests on one card line"
+    ]
+   },
+   "depends_on": [
+    "D-101"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q52",
@@ -2016,23 +2616,39 @@
    "criterion": "tb.not_oops",
    "q": "Is it a 2B?",
    "choices": [
-    "No, there is no prior swing low",
-    "Yes, it dipped and reclaimed",
-    "Yes, it is a Remount"
+    "No, no prior swing low to break",
+    "Yes, it dipped under and reclaimed",
+    "Yes, it is a Remount of the low",
+    "No, it needs a gap down first"
    ],
    "story": "A stock falls for six days in a row. Today it dips under yesterday's low and closes a little higher.",
-   "answer": "No, there is no prior swing low",
-   "why": "No. A one-day dip under yesterday's low in a straight decline is not a 2B. The level must be at least 5 sessions old.",
+   "answer": "No, no prior swing low to break",
+   "why": "No. A one-day dip under yesterday's low is an Oops, not a 2B: the level must be at least 5 sessions old. In a six-day decline each low is only a day old, so there is no prior swing low to break. Calling any dip under yesterday's low a 2B is a named mistake.",
    "lesson_line": "Calling any dip under yesterday's low a 2B is a mistake.",
    "facts": [
     "t_oops",
-    "m_dip"
+    "m_dip",
+    "l_oops",
+    "l_remount"
    ],
    "wrong": {
-    "Yes, it dipped and reclaimed": "A dip under yesterday's low is not a 2B.",
-    "Yes, it is a Remount": "A Remount follows five or more closes under a level."
+    "Yes, it dipped under and reclaimed": "A dip under yesterday's low is not a 2B.",
+    "Yes, it is a Remount of the low": "A Remount follows five or more closes under a level.",
+    "No, it needs a gap down first": "The open does not decide it. The level does: a 2B breaks a swing low at least 5 sessions old."
    },
-   "house": true
+   "house": true,
+   "simple": "No. Yesterday's low is only one day old, and a 2B needs a swing low at least 5 sessions old.",
+   "deeper": {
+    "trap": "Calling any dip under yesterday's low a 2B is a named mistake. In a straight decline every low is only a day old. The level must be at least 5 sessions old, and a one-day dip under yesterday's low is an Oops, not a 2B."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's proposed look-alike tell (age of the level)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q53",
@@ -2044,21 +2660,36 @@
    "choices": [
     "No, it is not the first break",
     "Yes, it reclaimed the low",
-    "Yes, a second try is stronger"
+    "Yes, a second try looks stronger",
+    "No, the reclaim came too fast"
    ],
    "story": "Last week the stock traded under a swing low and bounced. This week it dips under the same low again and closes back above it.",
    "answer": "No, it is not the first break",
-   "why": "No. The break must be the first session under the low since it formed. A bounce in a decline that reclaims again is not a 2B.",
+   "why": "No. The break must be the first session to trade under the low since it formed. Last week's bounce already used it, so this dip and reclaim is not a 2B. A reclaim after a second break does not make it stronger.",
    "lesson_line": "Only the first break of the low counts.",
    "facts": [
     "t_first",
-    "t_wash"
+    "t_wash",
+    "t_inv"
    ],
    "wrong": {
     "Yes, it reclaimed the low": "The reclaim is not enough. The break must be the first.",
-    "Yes, a second try is stronger": "Only the first break counts."
+    "Yes, a second try looks stronger": "Only the first break counts.",
+    "No, the reclaim came too fast": "A close back above within 3 sessions is what a 2B asks for. Speed is not the problem. The first-break test is."
    },
-   "house": true
+   "house": true,
+   "simple": "No. Only the first break of the low counts, and this was a second try.",
+   "deeper": {
+    "trap": "A second try can feel stronger, but only the first break counts. The break must be the first session to trade under that low since it formed. A market still making lower lows with no reclaim is not the place for a 2B either."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's proposed first-break criterion"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q54",
@@ -2068,26 +2699,41 @@
    "criterion": "tb.depth",
    "q": "Which rule fails?",
    "choices": [
-    "The undercut was deeper than 3%",
-    "The low was too old",
-    "It did not close back above",
-    "It was the first break"
+    "The undercut was too deep",
+    "The swing low was too recent",
+    "It was slow to close back above",
+    "It was not the first break"
    ],
-   "story": "A stock closes back above its swing low within 3 sessions. The lowest low of the undercut went 4.36% under the old low.",
-   "answer": "The undercut was deeper than 3%",
-   "why": "The undercut. It went 4.36% under the low, past 3%, and the stop is 4.83% away. That was DELL on 2024-07-22.",
+   "story": "A stock breaks, for the first time, a swing low made 15 sessions ago. It closes back above that low within 3 sessions. The lowest low of the undercut went 4.36% under the old low.",
+   "answer": "The undercut was too deep",
+   "why": "The undercut was too deep. The lowest low of the undercut must be no more than 3% under the prior low, so the stop fits. DELL on 2024-07-22 went 4.36% under its 127.59 low, and the stop that followed was 4.83% from the entry. A deeper break that closes back above is not a 2B at full size.",
    "lesson_line": "A deep undercut is not a 2B at full size.",
    "facts": [
     "dDELL",
     "dDELLn",
-    "t_depth"
+    "t_depth",
+    "t_first",
+    "t_inv",
+    "t_oops"
    ],
    "wrong": {
-    "The low was too old": "Age is not the failing number.",
-    "It did not close back above": "It did close back above the low.",
-    "It was the first break": "Being the first break is good."
+    "The swing low was too recent": "At 15 sessions old the low is well past the 5-session line.",
+    "It was slow to close back above": "It closed back above within 3 sessions, inside the window.",
+    "It was not the first break": "The story says it was the first break."
    },
-   "house": true
+   "house": true,
+   "simple": "The undercut. It went 4.36% under the old low, and a 2B must stay within 3%.",
+   "deeper": {
+    "trap": "A close back above is not enough. The undercut must also be shallow. DELL closed back above its 127.59 low, but only after a 4.36% undercut, so the stop that followed was 4.83% from the entry. That is not a 2B at full size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the dossier numbers are read off our own bars"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q55",
@@ -2133,7 +2779,7 @@
    ],
    "story": "A same-day undercut and reclaim of a 638.61 low. The close is 4.2% under the 200-day average.",
    "answer": "The close is under the 200-day",
-   "why": "The close is under the 200-day. META on 2026-01-08 closed 4.2% below it. No longs below the 200-day. That one paid, so the rule is about odds.",
+   "why": "The close is under the 200-day. META on 2026-01-08 closed 4.2% below it, and we take no longs below the 200-day, unless it is a parabolic long. So it is watch only. That one paid, so the rule is about odds, not about one chart.",
    "lesson_line": "A 2B shape under the 200-day is watch only.",
    "facts": [
     "dMETA",
@@ -2146,7 +2792,24 @@
     "The reclaim took too many sessions": "It reclaimed the same day.",
     "The low was too young": "Age is not the issue."
    },
-   "house": true
+   "house": true,
+   "simple": "The close is under the 200-day average. We take no longs below it, so this one is watch only.",
+   "deeper": {
+    "counter": "META paid here. A rule that blocks a winner can still be right, because it works on the odds over many trades, not on one chart. Do not use one winning trade to argue a hard rule away."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook B26 and the held 200-day decision D-009",
+     "a dated read from our own bars",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-009"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q57",
@@ -2154,28 +2817,43 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "tb.market_washout",
-   "q": "What did the daily chart miss?",
+   "q": "What did the stock's chart miss?",
    "choices": [
     "The market had not bottomed",
     "The undercut was far too deep",
-    "The 200-day was still falling",
+    "The 4% chase limit was broken",
     "The reclaim took too long"
    ],
-   "story": "A leader undercuts a low by 0.75% and closes under it. The next morning it opens over the low and you buy at 77.98. The next day it falls through your stop.",
+   "story": "A leader's 76.93 low is undercut by 0.75% and it closes under it. The next morning it opens at 77.98 and you buy. The next day it falls through your stop. Days later the index makes a lower low.",
    "answer": "The market had not bottomed",
-   "why": "The market had not stopped falling. PYPL reclaimed on 2018-03-26 and fell through its stop the next day. SPY made a lower low days later.",
+   "why": "The market had not bottomed. PYPL reclaimed its low and was filled at the open on 2018-03-26, after a shallow undercut and inside the 4% limit. The next day it traded through its 76.30 stop. SPY made a lower low on 04-02, so the market was still washing out, not reclaiming.",
    "lesson_line": "The chart looks clean. The index is the tell.",
    "facts": [
     "dPYPL",
     "dPYPLn",
-    "t_wash"
+    "t_wash",
+    "t_chase"
    ],
    "wrong": {
-    "The undercut was far too deep": "The undercut was shallow.",
-    "The 200-day was still falling": "The index, not the 200-day, was the problem.",
-    "The reclaim took too long": "It reclaimed in a day."
+    "The undercut was far too deep": "A 0.75% undercut is shallow.",
+    "The reclaim took too long": "It reclaimed the next morning, inside 3 sessions.",
+    "The 4% chase limit was broken": "The fill at 77.98 was about 1.4% over the 76.93 low, inside the 4% limit."
    },
-   "house": true
+   "house": true,
+   "simple": "The market had not bottomed. The stock looked clean, but the index made a lower low days later.",
+   "deeper": {
+    "trap": "A clean chart can sit inside a bad market. PYPL undercut by 0.75% and filled at the open, 1.4% over the level, well inside the 4% limit. Every stock-level test passed, yet the next day it traded through the 76.30 stop. SPY made its lower low on 04-02. Read the index first."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 the example numbers are read off our own bars",
+     "+1 the market gate is the card's proposed criterion",
+     "+1 fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q58",
@@ -2187,24 +2865,41 @@
    "choices": [
     "The open traded under the new low",
     "The reclaim day closed near the high",
-    "The undercut was shallow",
-    "The volume was light on the reclaim"
+    "The undercut was very shallow",
+    "The stop was too close to the buy"
    ],
    "story": "You bought the same-day reclaim of the 240.70 low at 240.71. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70.",
    "answer": "The open traded under the new low",
-   "why": "The open traded under the new low. After the 2023-08-11 reclaim, TSLA opened at 235.70, under the stop. The failure failed.",
-   "lesson_line": "A trade under the new low is the exit, at once.",
+   "why": "The open traded under the new low. The next session opened at 235.70, under the 237.97 stop, and the failure failed. On a gap through the stop, the first 30-minute low is the new stop. You are out if the loss is past 2R. TSLA, bought at 240.71 on 2023-08-11, fell to 212.36 by 08-18.",
+   "lesson_line": "An open under the new low means the reclaim failed. Check the first 30 minutes.",
    "facts": [
     "dTSLA",
     "dTSLAn",
-    "t_after"
+    "t_after",
+    "t_gap",
+    "h06",
+    "h07"
    ],
    "wrong": {
     "The reclaim day closed near the high": "A strong close was not the failure.",
-    "The undercut was shallow": "A shallow undercut is good.",
-    "The volume was light on the reclaim": "Volume was not the issue."
+    "The undercut was very shallow": "A shallow undercut is good.",
+    "The stop was too close to the buy": "The stop sat a few cents under the undercut low, 1.14% from the buy. The open gapped through it."
    },
-   "house": true
+   "house": true,
+   "simple": "The open traded under the new low. A gap through the stop is decided by the first 30 minutes.",
+   "deeper": {
+    "trap": "A stop does not protect you from a gap. TSLA's stop was 237.97, but the next session opened at 235.70, under it. On a gap through the stop the first 30-minute low is the new stop, and you are out if the loss is past 2R. The stock then fell to 212.36 by 08-18."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 the example numbers are read off our own bars",
+     "+1 rests on one card line",
+     "+1 fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q59",
@@ -2245,25 +2940,43 @@
    "q": "Full size?",
    "choices": [
     "No; the stop is much too wide",
+    "No; the reclaim came a day late",
     "Yes, the reclaim is strong enough",
-    "Yes, with the stop at the old low",
-    "Buy the undercut instead"
+    "Yes, with the stop at the old low"
    ],
    "story": "A leader undercuts its 74.57 low to 66.12 and closes back above the low the next day.",
    "answer": "No; the stop is much too wide",
-   "why": "No. A deep undercut at full size is a named mistake. PLTR undercut its 74.57 low by 11.3%, so a stop beyond the new low sits far away.",
+   "why": "No. A deep undercut at full size is a named mistake: the stop is far wider than it looks. PLTR undercut its 74.57 low by 11.3%, to 66.12, well past the 3% line. Our stop usually sits within about 3% of the buy, and if the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "The deeper the undercut, the wider the stop.",
    "facts": [
     "dPLTR",
     "m_deep",
-    "h04"
+    "h04",
+    "h01",
+    "t_inv"
    ],
    "wrong": {
     "Yes, the reclaim is strong enough": "A strong reclaim does not make the stop closer.",
-    "Yes, with the stop at the old low": "The stop goes past the new low, not at the old one.",
-    "Buy the undercut instead": "Buying the undercut is guessing."
+    "Yes, with the stop at the old low": "The stop has to be the honest one, not one picked to fit. If the honest stop does not fit the risk, skip the trade.",
+    "No; the reclaim came a day late": "A close back above the next day is inside the 3-session window."
    },
-   "house": true
+   "house": true,
+   "simple": "No. The undercut is far past 3%, so the honest stop sits far from the buy.",
+   "deeper": {
+    "trap": "A close back above is not the whole test. The depth is. PLTR closed back above its 74.57 low, but only after going 11.3% under it, to 66.12. The usual line is 3%. The more it undercuts, the farther the honest stop sits."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rests on the rulebook's stop line (A13, A3)",
+     "+2 where the stop goes on a slow reclaim is held (D-005)"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave3"
   },
   {
    "key": "q65",
@@ -2273,26 +2986,40 @@
    "criterion": "tb.trim_1",
    "q": "Why take a third at 3R on this one?",
    "choices": [
-    "It banks gain before the stall",
-    "It guarantees the whole move",
-    "It lowers the stop",
-    "It lets you add to the position"
+    "It banks part of the gain early",
+    "It proves the 2B will keep running",
+    "It removes the need for a stop",
+    "It tells you to sell the whole trade"
    ],
-   "story": "A 2B reaches 3R on day 2, then stalls for weeks before it runs.",
-   "answer": "It banks gain before the stall",
-   "why": "It banks gain before the stall. JBL reached 3R on day 2, then sat near +4% after 20 sessions. That is the case for the trims.",
-   "lesson_line": "Slow to pay is still a win if you took the third at 3R.",
+   "story": "A 2B reaches 3R on day 2, then goes nowhere for weeks before it runs.",
+   "answer": "It banks part of the gain early",
+   "why": "It banks part of the gain early. JBL reached 3R on day 2, then sat near +4% after 20 sessions before the gap to 130. That is the case for the trims.",
+   "lesson_line": "A trade that is slow to pay still banked a third at 3R.",
    "facts": [
     "dJBLn",
     "h05",
-    "h20"
+    "h20",
+    "tp2"
    ],
    "wrong": {
-    "It guarantees the whole move": "No trim guarantees anything. It banks a third.",
-    "It lowers the stop": "The stop only moves up, to breakeven at the first trim.",
-    "It lets you add to the position": "We buy once. A trim never makes room to add."
+    "It proves the 2B will keep running": "A trim proves nothing about what comes next.",
+    "It removes the need for a stop": "The stop stays. At the first trim it moves up to breakeven.",
+    "It tells you to sell the whole trade": "The first trim is a third. Another third comes off at 5R and the last third is trailed."
    },
-   "house": true
+   "house": true,
+   "simple": "It banks part of the gain early. JBL reached 3R, then sat near +4% for 20 sessions, so a third was already in the bank.",
+   "deeper": {
+    "trap": "The trap is hindsight. You do not trim because you know a stall is coming. You trim because the rule says a third at 3R, another at 5R, and a trail on the last third. The stall only shows why having the rule helps."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook B19 and E51",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q61",
@@ -2300,25 +3027,29 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "tb.reclaim_close",
-   "q": "Hidden ticker, today. It undercut a swing low and closed back above it. Take it or pass?",
+   "q": "Hidden ticker, today. It undercut a swing low and closed back above it. Which statement fits the chart?",
    "choices": [
-    "Take it; same-day reclaim, strong close",
-    "Pass; the undercut was too deep",
-    "Pass; the close is in the bottom half"
+    "The close sat in the upper half",
+    "The undercut ran more than 3% deep",
+    "The reclaim took five sessions to land",
+    "The broken low was only one day old"
    ],
-   "answer": "Take it; same-day reclaim, strong close",
-   "why": "Take it. The stock undercut a nine-session-old low and reclaimed it the same session, closing in the top 6% of its range. 3R came the next day.",
+   "answer": "The close sat in the upper half",
+   "why": "The close sat in the upper half. The reclaim day closed in the top 6% of its range, and the card wants the upper half. The undercut was 1.20%, inside the 3% line, and the reclaim came the same session.",
    "lesson_line": "A strong close on the reclaim day is the sign to look for.",
    "facts": [
     "dQCOM",
     "dQCOMn",
     "t_close",
-    "h05",
-    "t_depth"
+    "t_depth",
+    "t_mkt",
+    "t_earn",
+    "h10"
    ],
    "wrong": {
-    "Pass; the undercut was too deep": "The undercut was 1.20%, well inside 3%.",
-    "Pass; the close is in the bottom half": "The close was in the top 6% of the range."
+    "The undercut ran more than 3% deep": "The undercut was 1.20%, well inside 3%.",
+    "The reclaim took five sessions to land": "It reclaimed the same session.",
+    "The broken low was only one day old": "The broken low was nine sessions old."
    },
    "house": true,
    "chart": {
@@ -2326,7 +3057,20 @@
     "asof": "2020-09-21",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "The close sat in the upper half of the day's range, the sign the card looks for.",
+   "deeper": {
+    "trap": "A clean reclaim is a trigger to consider, never a promise. The market reading, earnings and the 200-day still have to pass."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a dated read from our own bars (QCOM)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q62",
@@ -2336,21 +3080,24 @@
    "criterion": "tb.reclaim_close",
    "q": "Hidden ticker, today. It gapped over a broken low. Take it or pass?",
    "choices": [
-    "Pass; the reclaim closed near its low",
+    "Pass; the close was weak",
     "Take it; the gap shows strength",
-    "Take it; the low is old"
+    "Take it; the low is old",
+    "Pass; a gap is not a real reclaim"
    ],
-   "answer": "Pass; the reclaim closed near its low",
-   "why": "Pass. The gap over the level sold off all day and closed at 0.14 of its range. A close in the bottom half invalidates it.",
+   "answer": "Pass; the close was weak",
+   "why": "Pass. The gap over the level sold off all day and the reclaim day closed at 0.14 of its range. The reclaim day must close in the upper half, and a close in the bottom half invalidates it. GOOG on 2026-07-20 was a failed reclaim: the buyers who lifted it at the open were gone by the bell.",
    "lesson_line": "A reclaim that closes near the low is a failed reclaim.",
    "facts": [
     "dGOOG",
     "dGOOGn",
-    "t_close"
+    "t_close",
+    "t_chase"
    ],
    "wrong": {
     "Take it; the gap shows strength": "The gap faded all day. Strength has to hold to the close.",
-    "Take it; the low is old": "The age of the low is fine. The close is the failing number."
+    "Take it; the low is old": "Even an old low does not save a reclaim that closes in the bottom half of its range.",
+    "Pass; a gap is not a real reclaim": "A gap can be bought when it opens inside the 4% limit and the day closes strong. Here the close is the failing number."
    },
    "house": true,
    "chart": {
@@ -2358,7 +3105,20 @@
     "asof": "2026-07-20",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Pass. The gap faded and the stock closed near its low, and a close in the bottom half cancels the reclaim.",
+   "deeper": {
+    "trap": "The gap looks like strength, but the close is the test. The reclaim day must close in the upper half of its range. GOOG closed at 0.14 of its range after a gap over the level, so the buyers who lifted it at the open were gone by the bell."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 the example numbers are read off our own bars",
+     "+1 the chart, not the text, carries the facts"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q63",
@@ -2366,15 +3126,31 @@
    "rung": 9,
    "format": "tf",
    "criterion": "tb.shape_alone",
-   "q": "The 2B shape alone is enough to make money.",
+   "q": "The market and the stop matter less once the 2B shape looks right.",
    "answer": "False",
-   "why": "False. Expecting the shape alone to pay is a named mistake. The market, the stop and the entry all matter.",
+   "why": "False. Expecting the shape alone to pay is a named mistake. The market has to be washing out and reclaiming, the stop has to fit and the entry has to follow the rules. A 2B in a market still making lower lows is not the place. No shape guarantees a profit.",
    "lesson_line": "A shape is one filter. The market and the stop are the others.",
    "facts": [
     "m_shape",
-    "t_wash"
+    "t_wash",
+    "t_depth",
+    "t_never",
+    "dNVDA",
+    "dNVDAn"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The shape is only one test, and the market, the stop and the entry must be right too.",
+   "deeper": {
+    "example": "NVDA on 2024-04-18 had the shape: a 0.75% undercut, reclaimed the same day, with the stop only 0.82% under the buy. The next day it opened 83.15 and fell to 75.61, a 10% day straight through the stop, as SPY made a lower low."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the card's named mistake and several of its criteria"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q64",
@@ -2384,25 +3160,36 @@
    "criterion": "tb.trail",
    "q": "What do you do with the last third?",
    "choices": [
-    "Sell it; it closed under the trail",
-    "Hold, it is still above the 50-day",
+    "Sell it; the trail is broken",
+    "Hold; it is above the 50-day",
     "Add back the thirds you sold",
     "Move the stop down to give room"
    ],
    "story": "You sold a third at 3R and a third at 5R. The steadier stock now closes under its 21-day average.",
-   "answer": "Sell it; it closed under the trail",
-   "why": "Sell it. The last third trails the 21-day for a steadier name, and a close below it is the exit.",
+   "answer": "Sell it; the trail is broken",
+   "why": "Sell it. The last third is trailed, and for a steadier name the default trail is the 21-day, so a close below it is the exit. For a fast mover the default is the 10-day. The levels are defaults and adjustable.",
    "lesson_line": "Trail the last third and sell on a close below the average.",
    "facts": [
     "h20",
-    "h21"
+    "h21",
+    "h02"
    ],
    "wrong": {
-    "Hold, it is still above the 50-day": "The 50-day is not the trail for a steadier name. The 21-day is.",
-    "Add back the thirds you sold": "We buy once and never add back.",
-    "Move the stop down to give room": "A stop never moves down or wider."
+    "Add back the thirds you sold": "The plan sells in thirds and trails the last one. A close under the trail is the exit.",
+    "Move the stop down to give room": "A stop only moves up, never down or wider.",
+    "Hold; it is above the 50-day": "The 50-day is not the trail for a steadier name. The 21-day is."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell it. The last third trails the 21-day average, and a close below it is the sell signal.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (E51, E52)",
+     "+1 the trail is a default and adjustable"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q66",
@@ -2410,7 +3197,7 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "tb.position_adv",
-   "q": "A stock averages 120,000 shares a day. Under our volume rule, what is the most shares we may own?",
+   "q": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most?",
    "answer": 1200,
    "why": "1,200 shares. We never own more than 1% of a stock's average daily volume. One percent of 120,000 is 1,200.",
    "lesson_line": "Cap every position at 1% of average daily volume.",
@@ -2427,7 +3214,16 @@
     "round": 0
    },
    "house": true,
-   "suffix": " shares"
+   "suffix": " shares",
+   "simple": "1,200 shares. We own at most 1 percent of average daily volume, and 1 percent of 120,000 is 1,200.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook D42; a computed key"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q67",
@@ -2435,16 +3231,25 @@
    "rung": 3,
    "format": "tf",
    "criterion": "tb.position_adv",
-   "q": "A stock that clears the $20 million a day floor is exempt from the 1% of average daily volume limit.",
+   "q": "The $20 million a day floor and the 1% of average daily volume limit are the same test.",
    "answer": "False",
-   "why": "False. The 1% limit applies to every position, liquid or not. The $20 million floor is a separate test.",
+   "why": "False. They are separate tests. The floor of $10 a share and $20 million a day decides whether a stock is traded at all. The 1% limit applies to every position: we never own more than 1% of a stock's average daily volume.",
    "lesson_line": "Two tests apply: the $20 million floor and the 1% volume cap.",
    "facts": [
     "h19",
     "h09",
     "t_adv"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The floor picks which stocks we trade, and the 1% cap limits how much we own of any of them.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D42, B23)"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q68",
@@ -2454,7 +3259,7 @@
    "criterion": "tb.not_stretched",
    "q": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent?",
    "answer": 8.6,
-   "why": "8.6%. That is under 10% above the 10-day average, so the stretch test passes.",
+   "why": "8.6%. Divide the entry by the average, subtract 1 and multiply by 100: 41.50 over 38.20 is 8.6% above. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 10-day average.",
    "lesson_line": "Check the stretch: no more than 10% over the 10-day.",
    "facts": [
     "h13",
@@ -2470,7 +3275,18 @@
     "round": 1
    },
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "8.6 percent. The 41.50 entry is 8.6 percent above the 38.20 average.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook C29",
+     "a computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q69",
@@ -2509,26 +3325,37 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "tb.breakeven",
-   "q": "Bought at 42.89 with the stop at 42.37. At what price is 2R, where the breakeven window opens?",
-   "answer": 43.93,
-   "why": "43.93, the fill plus two R. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally.",
+   "q": "Bought at 28.62 with the stop at 28.16. At what price is 2R, where the breakeven window opens?",
+   "answer": 29.54,
+   "why": "29.54. One R is the fill minus the stop. Add two of those to the fill. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and at the first trim by default.",
    "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
    "facts": [
     "h05",
     "t_be",
-    "dDINO"
+    "dSHOP"
    ],
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 2 * (a - b)",
-     "a": 42.89,
-     "b": 42.37
+     "a": 28.62,
+     "b": 28.16
     },
     "round": 2
    },
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "29.54. One R is the fill minus the stop, and 2R adds two of those to the 28.62 fill.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook B19",
+     "a computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q71",
@@ -2538,14 +3365,24 @@
    "criterion": "tb.breakeven",
    "q": "Our rule lets the stop move to breakeven at 2R, before the first trim at 3R.",
    "answer": "True",
-   "why": "True. Breakeven comes anywhere from 2R to 5R, ideally, and by default at the first trim. Moving at 2R is allowed.",
+   "why": "True. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and by default at the first trim, a third at 3R. Moving at 2R is allowed. It is not required.",
    "lesson_line": "Breakeven is allowed from 2R. The default is the first trim.",
    "facts": [
     "h05",
     "t_be",
     "tp2"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. Breakeven can come anywhere from 2R to 5R, so moving the stop at 2R is allowed.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19)",
+     "+1 the window is worded 'ideally'"
+    ]
+   },
+   "batch": "wave3"
   },
   {
    "key": "q72",
@@ -2553,25 +3390,72 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "tb.first_resistance",
-   "q": "What does our card's note name as the first resistance after a 2B reclaim?",
+   "q": "The first low is 50.00. Price rallied to 56.00, then undercut to 49.40 and reclaimed 50.00. Where do the first sellers often sit?",
    "choices": [
-    "At the rally high between the lows",
-    "At the bottom of the undercut low",
-    "At the 200-day moving average line",
-    "At the prior all-time high price"
+    "Near 56.00, the old peak",
+    "Near 49.40, the undercut low",
+    "Near 50.00, the reclaimed low",
+    "Near 60.00, a round number"
    ],
    "wrong": {
-    "At the bottom of the undercut low": "That is where your stop sits, below you. Sellers wait overhead.",
-    "At the 200-day moving average line": "The card's note does not name the 200-day line. It names the rally high between the two lows.",
-    "At the prior all-time high price": "The card's note names the rally high between the two lows, not the all-time high."
+    "Near 49.40, the undercut low": "That is below you, near your stop. Sellers wait overhead.",
+    "Near 50.00, the reclaimed low": "That is the level you just reclaimed, under you.",
+    "Near 60.00, a round number": "A round number is further away than the peak. The card's note puts the first sellers, often, at the rally high."
    },
-   "answer": "At the rally high between the lows",
-   "why": "At the rally high between the two lows. Our card's note: the first resistance is often that high. It is a lesson note, not a rule.",
-   "lesson_line": "Look for the first sellers at the rally high between the two lows.",
+   "answer": "Near 56.00, the old peak",
+   "why": "Near 56.00, the rally high between the two lows. Our card's note: the first resistance is often that high. It is a lesson note, not a rule, and it says often, not always.",
+   "lesson_line": "First sellers often sit at the rally high between the two lows.",
    "facts": [
     "t_res"
    ],
-   "house": true
+   "house": true,
+   "simple": "Near 56.00, the old peak. Our card's note says the first resistance is often the rally high between the two lows.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one cited fact only (the card's lesson note)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.two_b_reversal",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "tb.not_oops",
+   "q": "What makes a dip under a low an Oops, not a 2B?",
+   "choices": [
+    "The low it broke is only a day old",
+    "The stock sits under its 200-day",
+    "The reclaim took the full 3 sessions",
+    "The undercut went deeper than 3%"
+   ],
+   "answer": "The low it broke is only a day old",
+   "why": "The low it broke is only a day old. An Oops breaks yesterday's low and reclaims the prior close the same day. A 2B breaks a swing low at least 5 sessions old.",
+   "lesson_line": "An Oops breaks yesterday's low. A 2B breaks an older swing low.",
+   "facts": [
+    "l_oops",
+    "l_oops2",
+    "t_oops"
+   ],
+   "wrong": {
+    "The stock sits under its 200-day": "Where the stock sits against its 200-day does not make an Oops. The age of the broken low does.",
+    "The reclaim took the full 3 sessions": "An Oops reclaims the prior close the same day. A 2B may take up to 3 sessions.",
+    "The undercut went deeper than 3%": "Depth is a 2B gate. An Oops is told apart by the age of the broken low."
+   },
+   "house": true,
+   "simple": "An Oops breaks yesterday's low. A 2B breaks a swing low at least 5 sessions old.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the look-alike tell is the card's proposed criterion"
+    ]
+   },
+   "batch": "wave3"
   }
  ],
  "conflicts": [
@@ -2610,99 +3494,99 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Sperandeo is Bulkowski's credit (bk1). Wrong notes true: Larry Williams' Oops, Connors and Raschke's Turtle Soup.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Quotes bk1 and sp1 verified live on thepatternsite.com/2B.html. Key Sperandeo; decoys are real traders; no tell."
   },
   "q02": {
    "status": "pass",
-   "notes": "tb.depth proposed (3%); bk2 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "tb.never_before_reclaim proposed. Removed fact bk4, which Bulkowski says about double-bottom confirmation, not about the reclaim. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key rests on t_never, h22, t_inv. Choices balanced. Overlaps q04 (outside my set): recommend cutting q04."
   },
   "q04": {
-   "status": "pass",
-   "notes": "Why said 'Bulkowski says buying the 2B bottom early carries a much greater risk'. On his page that line compares the 2B bottom with waiting for the DOUBLE BOTTOM's confirmation; it says nothing about buying before the reclaim. Re-keyed to the card (tb.never_before_reclaim, proposed) and Sperandeo's return-through-the-level trigger. (The card's mistake line m_sper repeats the stretch; q03/q04 no longer lean on it for Bulkowski.)",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
-   "notes": "tb.no_chase / C28 settled.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "4 matches t_chase and h11; bank 3 is the depth number, fair. Why rests on h12."
   },
   "q06": {
    "status": "pass",
-   "notes": "'friend' in the bank was silly (rule 10); removed. D41 / tb.stop_broker settled.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Broker matches t_brk and E57/D41; bank words are weak but this is a recall fill."
   },
   "q07": {
    "status": "pass",
-   "notes": "tb.market_washout proposed gate.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "tb.depth proposed (3%, A13).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "3% from t_depth. The 4% decoy is the chase limit (t_chase). Ladder is not extreme."
   },
   "q09": {
    "status": "pass",
-   "notes": "tb.reclaim_close proposed. variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right (t_close). But 'the buyers did not hold' is not in any cited fact (the GOOG note that said it was removed). Rest simple and lesson_line on t_close alone."
   },
   "q10": {
    "status": "pass",
-   "notes": "tb.inv_no_reclaim proposed (3 sessions); tb.reclaim_window (same day graded higher) pending and not keyed.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q11": {
-   "status": "pass",
-   "notes": "F62 settled; on a same-day reclaim the day's low and the undercut low agree (tb.stop is pending, D-005, only for slow reclaims, not keyed). variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
-   "notes": "B26 hard rule, settled. The reclaim-close version (tb.above_200) is pending and not keyed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False matches h10 and META. Parabolic exception stated. Stem fixes the case at the buy."
   },
   "q13": {
    "status": "pass",
-   "notes": "Lookalike tells on the card (Oops, U&R, capitulation).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key says swing low, so an Oops is not a second answer. Decoys map to l_oops, l_cap and l_ur. Echoes q02 but the job differs (look-alike contrast)."
   },
   "q14": {
    "status": "pass",
-   "notes": "Statement is Bulkowski's (sooner than waiting for the double bottom's confirmation, much greater risk of a failed trade). Lesson line tied it to 'we wait for the reclaim', which is a different point; now says the stop is the exit.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "bk3 and bk4 verified on the page, same sentence. Attributed to Bulkowski, so it is a source claim, not a world fact."
   },
   "q15": {
    "status": "pass",
-   "notes": "tb.near_averages proposed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "t_near, t_lead and h10 support key and decoys. Framed as a best-when, not a gate."
   },
   "q16": {
    "status": "pass",
-   "notes": "A4 / tb.after_entry_stop settled.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q17": {
    "status": "cut",
@@ -2711,105 +3595,105 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "Arithmetic: 49.58 + 3 x 0.43 = 50.87. Bars: RL 2009-07-07 low 49.20 (0.75% under 49.57), close 49.36 under; 07-08 close 50.58 over: buy 49.58, stop 49.15.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 49.58+3x0.43=50.87 checked. h05 hard rule."
   },
   "q19": {
    "status": "pass",
-   "notes": "B23 settled. variety rewrite checked 2026-11-10. flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pair 10 and 20 million matches h09 and t_liq. Wrong pairs each share one number. No tell."
   },
   "q20": {
    "status": "pass",
-   "notes": "tb.ma200_rising proposed ('best when'). variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q21": {
    "status": "pass",
-   "notes": "tb.first_break proposed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "First matches t_first. Recall fill."
   },
   "q22": {
    "status": "pass",
-   "notes": "tb.clean_lead_in proposed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key matches t_lead. Wrong notes rest on t_lead, l_cap (quiet volume, 2 ATR flush) and h10. Key is the only calm choice but the card names no other clean lead-in."
   },
   "q23": {
    "status": "pass",
-   "notes": "drawdown_pct 50.00 to 48.80 = 2.4%. tb.depth proposed.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q24": {
    "status": "pass",
-   "notes": "Lesson said 'a close stop means a bigger position for the same risk'; with no mention of the 40% position cap (A7) a tight stop reads as licence for a big position (A7: a tight stop never justifies one). Sizing claim removed. 49.58 - 49.15 = 0.43, /49.58 = 0.867%.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "(49.58-49.15)/49.58=0.867, 0.87 percent. Matches dRL and h04."
   },
   "q25": {
    "status": "pass",
-   "notes": "Distractor 'The close of the reclaim day' (wrong note: not at the close) grades on tb.trigger, which is pending (D-003; the card allows 'near the close if the day closes back above'). Removed; three choices remain. Key is the settled E57 market order and the proposed never-before-the-reclaim.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only one price above the low and near it; 109.63 matches dQCOM and h22. Depends on D-003 (declared)."
   },
   "q26": {
    "status": "pass",
-   "notes": "Arithmetic: 109.63 - 108.25 = 1.38 = 1.26%. Bars: QCOM 2020-09-21 low 108.30, open 109.16, close 111.92. Same-day reclaim, so the stop under the day's low is live-valid (tb.stop pending only for slow reclaims). variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "108.25 matches dQCOM (1.26 percent) and h24. Other prices are clearly wrong by h24 and the story."
   },
   "q27": {
    "status": "pass",
-   "notes": "Re-checked after the 2026-11-10 rescan: the story and numbers are invented plain numbers (64.00 low, open 65.30), a NEXT-session gap open, which the dossier still fills at the open. It never teaches a same-day open fill. No change. Earlier note: Story and why used MKSI as a day-after fill (undercut on one day, open 138.24 the next). Bars show MKSI undercut and opened on the SAME day (2025-11-21: open 138.24, low 134.74, close 144.00), so the 138.24 'open fill' was before the undercut. Rewritten with plain numbers: 65.30 is 2.0% over 64.00, inside C28's 4%.",
-   "fixed": false,
-   "by": "refresher"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right: 65.30 is 2.0 percent over 64.00, inside 4 percent. The note 'Waiting can miss it' is not supported by any fact. Rest it on the 4 percent test and cite the open fill (h22, dPYPL)."
   },
   "q28": {
    "status": "pass",
-   "notes": "C28 settled: 42.00 / 40.00 = +5%, over 4%. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "42.00 is 5 percent above 40.00, past 4 percent. Second No is a stated wrong reason (4 percent rule makes a gap inside the limit fair). Acceptable, owner flagged."
   },
   "q29": {
-   "status": "pass",
-   "notes": "Lookalike tell (Remount) on the card. variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q30": {
    "status": "pass",
-   "notes": "B22 settled.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Two sessions is inside the 3-session window (t_earn, h08). The second No (a 2B does not work near a report) is a wrong-reason choice, owner flagged; acceptable."
   },
   "q31": {
    "status": "pass",
-   "notes": "tb.market_washout proposed; NVDA/AMD April 2024 on the card's failures. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Two Pass, two Take. 0.75% depth rules out the deep-undercut decoy. Key from t_wash, m_lower."
   },
   "q32": {
    "status": "pass",
-   "notes": "Re-checked after the 2026-11-10 rescan: the story uses invented numbers; the TSLA mention only names the 2023-08-11 failed reclaim. Fact dTSLA now has the corrected buy 240.71 and stop 237.97 (1.14%); no figure from the old row is in the item. No change. Earlier note: tb.reclaim_fails settled: hold to the stop, do not add. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "refresher"
+   "notes": "Hold to the stop, do not add matches t_fails. Answerable from h02 (the stop is the exit). Moving the stop is ruled out by the card text, not by h02."
   },
   "q33": {
    "status": "pass",
-   "notes": "Bars: MGM 2017-07-06 low 30.26 = the 30.26 stop; B21 settled. Reclaim and levels match the dossier. variety rewrite checked 2026-11-10 (edited: why)",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Matches h28 and dMGMw. All numbers from dMGM and dMGMn."
   },
   "q34": {
    "status": "pass",
-   "notes": "B20 settled. R = 1.35; loss at 96.40 = 3.65 = 2.7R, past the 2R ceiling, so out. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Loss 100.05-96.40=3.65 is 2.7R of 1.35, past 2R. Matches h06, h07, t_gap."
   },
   "q35": {
    "status": "cut",
@@ -2819,33 +3703,33 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "Arithmetic: 42.89 + 5 x 0.52 = 45.49. Bars: DINO 2018-03-01 low 42.42, open 42.82 under 42.88, close 43.45.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q37": {
    "status": "pass",
-   "notes": "B19 / tp2 settled. variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q38": {
    "status": "pass",
-   "notes": "C33 settled. variety rewrite checked 2026-11-10 (edited: choices)",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Ten days passed, +0.7R, under 1R: h15, t_time. Minor: the key is the only exit among hold/add/widen. Acceptable."
   },
   "q39": {
    "status": "pass",
-   "notes": "Distractor 'One, and no more all year' was silly (rule 10); replaced. Key is F68 (settled): the number of positions, not adds to one trade.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (h27). The deeper line 'Eight 2Bs in one morning is a reason to be choosy' is not supported by any cited fact. Removed."
   },
   "q40": {
    "status": "pass",
-   "notes": "F63 settled.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (h25). The key 'As soon as it opens' repeats the story's 'opens' and is a tell. Reworded, similar length to the other choices."
   },
   "q41": {
    "status": "cut",
@@ -2854,82 +3738,82 @@
    "by": "checker"
   },
   "q42": {
-   "status": "pass",
-   "notes": "F65 settled. The 2B card has no B- market line, so Orange / A+ does not clash here. variety rewrite checked 2026-11-10 (edited: wrong)",
+   "status": "cut",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Choices name the Green and Yellow readings and q43 lists all four, so each question gives the other away by elimination. It also keys 'only if it grades A+', but the unit never defines A+ and E50 says grading is discretionary (lone hedge, relies on an untaught rule). q43 covers the readings cleanly."
   },
   "q43": {
    "status": "pass",
-   "notes": "F65 / D46 settled; Red is a no-trade row on the card.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Red reading matches h26 and h33 (mostly cash, plus shorts below the 200-day). Four parallel readings, balanced lengths. Stands alone once q42 is cut."
   },
   "q44": {
    "status": "pass",
-   "notes": "Lesson line set the originator's 'three to five days' beside 'our count is 3 sessions' as if the same thing; they are different clocks (his: the false extreme breaks; ours: the reclaim). Reworded. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "bk6 says three to five days. False is right. Card's 3 sessions is a separate, pending-D-102 point, stated plainly."
   },
   "q45": {
    "status": "pass",
-   "notes": "B22 settled.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Direct h08. The no-buys sentence is also h08."
   },
   "q46": {
    "status": "pass",
-   "notes": "Lookalike tell (Oops) on the card. Re-derived: opens 79.60 under the 80.00 close, breaks yesterday's low 79.20 (low 78.90), closes 80.40 over the prior close.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Prices check: open 82.70 under 83.20, low 82.10 under 82.40, close 83.60 over 83.20. Oops per l_oops. Breakdown and spring decoys are ruled out by the story."
   },
   "q47": {
    "status": "pass",
-   "notes": "Lookalike tell (Oops) on the card; reclaim within 3 sessions.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Twelve-session low, next-day close back above: 2B per l_oops and l_oops2. Remount and spring decoys excluded by l_remount and l_spring."
   },
   "q48": {
    "status": "pass",
-   "notes": "Lookalike tell (Oops) on the card.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Open above prior close and a thirteen-session low: not an Oops, so 2B. Same lesson as q47 but with a different tell (the open)."
   },
   "q49": {
    "status": "pass",
-   "notes": "Lookalike tell (U&R) on the card.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q50": {
    "status": "pass",
-   "notes": "Lookalike tell (Remount): five or more closes under; GS 2017-01-25 6 closes per dossier.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Six closes under: Remount per l_remount and dGS. Oops and spring decoys excluded."
   },
   "q51": {
-   "status": "pass",
-   "notes": "Lookalike tell (spring) on the card. variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q52": {
-   "status": "pass",
-   "notes": "tb.not_oops proposed.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q53": {
    "status": "pass",
-   "notes": "tb.first_break proposed.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q54": {
    "status": "pass",
-   "notes": "tb.depth proposed. Bars: DELL 2024-07-18 low 122.03 = 4.36% under 127.59; closes under 07-17..07-19, reclaim close 128.74 on 07-22.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "4.36% is over the 3% line (t_depth, dDELL). Each decoy is a rule the story satisfies (15 sessions, within 3, first break)."
   },
   "q55": {
    "status": "cut",
@@ -2938,22 +3822,22 @@
    "by": "checker"
   },
   "q56": {
-   "status": "pass",
-   "notes": "Checked against the corrected dossier (rescanned 2026-11-10, fills at the reclaim). META row: the near-miss now reads buy 638.62, stop 635.67 (0.46%), best 5.5R, 3R on day 1, then stopped: it no longer 'lost'. The why now says it paid and the rule is about odds (new fact dMETAr, a verbatim dossier line). The 4.2% under the 200-day and the B26 key are unchanged. Earlier note: B26 settled (the question keys the hard rule, not the pending reclaim-close wording). META 2026-01-08: low 635.72 under 638.61, close 646.06 over it; the 4.2% is the dossier's. variety rewrite checked 2026-11-10 (edited: why)",
-   "fixed": true,
-   "by": "refresher"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
   },
   "q57": {
    "status": "pass",
-   "notes": "Story said it 'closes through your stop'; bars: 2018-03-27 low 75.65 (through 76.30) but close 76.31, a cent ABOVE the stop. Answer said the market 'was still making lower lows'; bars: SPY's lower low (254.67) came on 2018-04-02, after the stop, so at the time it had not yet made one. Reworded to 'had not stopped falling' and 'a lower low days later'. flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "PYPL numbers match the dossier. 77.98/76.93 is about 1.4%, inside 4%. Key decided by the story's last sentence."
   },
   "q58": {
    "status": "pass",
-   "notes": "Facts dTSLA re-read from the corrected dossier: buy 240.71 (was 241.77, the open), stop 237.97 (1.14%, was 1.57%). The stop 237.97 and the 235.70 open were already right, so the answer stands (235.70 is under the stop). Story now states the real buy, 240.71, which the checker had removed when it was wrong. Earlier note: Asked 'what was the warning' and keyed an open gap under the level; the card's warning (tb.reclaim_fails) is a CLOSE back under within 2 sessions, and a gap through the stop is the exit, not a warning. Also the story's 241.77 is TSLA's OPEN (bars: 2023-08-11 open 241.77, low 238.02, close 242.65), which is before the undercut, so it was not a reclaim buy. Story no longer states the buy; asks what told you it had failed; keyed to tb.after_entry_stop (settled). variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "refresher"
+   "by": "checker",
+   "fixed": false,
+   "notes": "TSLA numbers match dTSLA and dTSLAn. Why teaches the owner's gap rule (h06, h07, t_gap), not 'out at once'."
   },
   "q59": {
    "status": "cut",
@@ -2963,57 +3847,57 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "tb.depth proposed. PLTR 11.3%: (74.57 - 66.12) / 74.57 = 11.33%. Sizing: a wide stop means fewer shares at the same risk (A5), and the answer does not claim a bigger position. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "PLTR undercut 74.57 to 66.12 is 11.3% (dPLTR). Key rests on m_deep, h04 and h01. Overlaps q54 in lesson but not in wording; depends on D-005."
   },
   "q65": {
    "status": "pass",
-   "notes": "Story said the 2B 'reclaims under its 50-day', which the dossier row does not support (and below the 50-day with a flat 200-day is a pending B- case, tb.below_50_grade). Removed. Distractor 'It avoids the 10-day trail' was nonsense; replaced.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key matches dJBLn, h05, h20, tp2. Distractors are real misreadings tied to cited facts."
   },
   "q61": {
    "status": "pass",
-   "notes": "Lesson line said a same-day reclaim 'is the cleanest version'. The corrected dossier says the same-day figures are an upper bound (64.3% to 3R on the daily convention, about 31.0% with the stop at the low so far, 5-minute check), so a same-day reclaim is never taught as an edge. The lesson line now teaches only the strong close. QCOM numbers unchanged in the rescan. Earlier note: Chart QCOM asof 2020-09-21 (the reclaim day): 6,460 bars before it, 1,542 after. Close at 94% of the range (112.14 high, 108.30 low, 111.92 close).",
-   "fixed": true,
-   "by": "refresher"
+   "by": "checker",
+   "fixed": false,
+   "notes": "QCOM facts back all four statements (upper half, 1.20 percent, same session, nine sessions old). Wrong choices are all rule failures, a mild elimination tell, but each is checkable on the chart."
   },
   "q62": {
    "status": "pass",
-   "notes": "Chart GOOG asof 2026-07-20: 5,513 bars before it, 80 after. Bars: open 350.17, high 359.49, low 350.005, close 351.37 = 14% of range; level 348.66 after one close under on 07-17.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "GOOG close at 0.14 of range (dGOOG). Two Pass, two Take; the second Pass is wrong because a gap can be a reclaim."
   },
   "q63": {
    "status": "pass",
-   "notes": "Card mistake: expecting the shape alone to pay.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Rests on m_shape plus t_wash, t_depth and t_never. Easy, but no tell and no unsupported number."
   },
   "q64": {
    "status": "pass",
-   "notes": "E51/E52 settled. Kept over q41.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h20, h21 and h02 support key and wrong notes. Minor lone-exit pattern like q38; acceptable."
   },
   "q66": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "1 percent of 120,000 is 1,200. Rule in the stem, h19 and t_adv."
   },
   "q67": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "h09 and h19 are separate rules (floor vs 1% cap). Why uses 'traded', matching h09."
   },
   "q68": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: why no longer calls the bare entry 'this reclaim' (a real 2B entry cannot sit 8.6% over its 10-day)",
-   "by": "checker",
-   "fixed": true
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q69": {
    "status": "cut",
@@ -3023,21 +3907,27 @@
   },
   "q70": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: 'the earliest the stop moves' overstated B19 (2R to 5R, ideally); now 'where the breakeven window opens'",
    "by": "checker",
-   "fixed": true
+   "fixed": false,
+   "notes": "28.62+2x0.46=29.54. Matches h05, t_be and dSHOP."
   },
   "q71": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q72": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: question now asks what the card's note names, so the 200-day and all-time-high choices are no longer arguably right",
    "by": "checker",
-   "fixed": true
+   "fixed": true,
+   "notes": "Key right (t_res). Three defects: key repeats the story's 'rallied'; the note 'where your stop sits' is off (the stop sits a few cents under it); the 60.00 note and lesson_line say the first sellers ARE at the rally high, but the card says 'often'."
+  },
+  "q73": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "New. Key from l_oops and t_oops. Decoys are real rules from other setups. Defines the Oops before rung 7; answers q46's tell by design (teach, then apply)."
   }
  }
 }
