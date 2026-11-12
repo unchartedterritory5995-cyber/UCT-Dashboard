@@ -176,6 +176,8 @@ class BarBroadcaster:
         # frame twice (e.g. the closed bucket re-marked at the boundary).
         self._last_sent: dict[tuple[str, str], dict[int, dict]] = {}
         self._emit_throttle_ms: int = 100
+        # (sym, key) -> newest contract `rev` dispatched (HLC ms; see `_dispatch`).
+        self._rev: dict[tuple[str, str], int] = {}
         self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
         self._scheduler = scheduler or self._default_schedule
         self._seed_fetcher = seed_fetcher or _default_seed_fetcher
@@ -664,6 +666,14 @@ class BarBroadcaster:
             return
         for bar in bars:
             msg = self._msg(sym, k, dict(bar))
+            # ⭐ BAR CONTRACT `rev` (docs/architecture/bar-contract.md): a hybrid-logical-
+            # clock MILLISECOND revision per (sym, key) — max(prev + 1, now_ms), assigned
+            # here under the lock in dispatch order, so it strictly increases for every
+            # frame of a key and is comparable with REST `developing.rev` (as-of ms).
+            rk = (sym, k)
+            rev = max(self._rev.get(rk, 0) + 1, int(self._clock_ms()))
+            self._rev[rk] = rev
+            msg["rev"] = rev
             legacy_ok = bar["t"] >= self._legacy_hi.get((sym, k), bar["t"])
             if legacy_ok:
                 self._legacy_hi[(sym, k)] = bar["t"]

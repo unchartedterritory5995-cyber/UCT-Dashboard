@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 // Mock the network + durable layers so the test observes ONLY the intent logic.
 const preloadMock = vi.fn()
 vi.mock('swr', () => ({ preload: (...a) => preloadMock(...a) }))
-vi.mock('./barsIDB', () => ({ idbGet: vi.fn(async () => undefined), idbPut: vi.fn(async () => {}) }))
+vi.mock('./barsIDB', () => ({ idbGet: vi.fn(async () => undefined), idbPut: vi.fn(async () => {}), idbPutMonotonic: vi.fn(async () => null) }))
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 import { prefetchBarOnIntent } from './prefetchBars'

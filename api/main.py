@@ -86,6 +86,7 @@ from api.routers import journal_two as journal_two_router
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
 from api.routers import desktop_events as desktop_events_router
+from api.routers import perf_beacon as perf_beacon_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -250,6 +251,7 @@ from api.routers import note_sync as note_sync_router  # note connectors (Roam/C
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
+from api.routers import chart_monitor_heartbeat as chart_monitor_heartbeat_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
@@ -2139,7 +2141,13 @@ def _check_nightly_finished() -> None:
         last = snapshot_db.last_build_run()
         why = _nightly_missing(last)
         if not why:
-            return
+            # A receipt that started after 03:00 is not proof the table was
+            # rebuilt: a capped run (the resume job, the boot warm) writes one too.
+            # The rows are the authority, so read them before saying nothing.
+            behind = snapshot_db.count_rows_built_before(_snapshot_cutoff())
+            if not behind or behind < SNAPSHOT_RESUME_MIN_ROWS:
+                return
+            why = f"{behind} rows were last rebuilt before 03:00 ET"
         if snapshot_builder.build_in_flight():
             why += "; a build is still running"
         from api.services import chart_health_alerts
@@ -2154,6 +2162,121 @@ def _check_nightly_finished() -> None:
         )
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] could not run the screener nightly watchdog: {e}")
+
+
+# -- Resume a nightly that a restart killed ----------------------------------------
+#
+# 2026-11-11: web was redeployed 11 times between 02:52 and 08:50 ET. The 03:00
+# nightly died ~2,000 rows in, the boot warm skipped (it checks only the ROW COUNT,
+# and 11,230 rows were there, just old), and the watchdog could only alert. Members
+# screened on 9,230 rows whose bars ended Nov 6 or Nov 9; MINV3.1 existed on just
+# the 2,000 fresh rows, so Anticipation's 600K-volume rule silently ignored 82% of
+# the market. The last complete build had been Nov 6; every nightly since died the
+# same way.
+#
+# This job finishes the nightly instead. `_stalest` orders never-built and oldest
+# rows first, so a capped run picks up exactly where the killed one stopped, and a
+# run that is itself killed is picked up again on the next tick after the reboot.
+#
+# ⛔ BOUNDED TO THE PRE-OPEN WINDOW AND SIZED TO FINISH INSIDE IT. A build holds
+# `snapshot_builder._BUILD_LOCK`, which the 30 s live sweep shares, so a build
+# still running at 09:30 ET freezes the live screener for its whole length. It
+# never runs in the session and never starts a run it cannot finish in the window.
+#
+# ⛔ BUILT THROUGH THE LAST COMPLETED SESSION (`through_ymd`). bars.db holds today's
+# forming bar for every charted ticker, so without the limit a pre-market build
+# would publish a half-day bar as a finished session.
+#
+#: The window, ET. Ten minutes after 03:00 so the nightly takes the lock first; ten
+#: minutes before the open so the last run is done before the live tier starts.
+SNAPSHOT_RESUME_START_ET = (3, 10)
+SNAPSHOT_RESUME_END_ET = (9, 20)
+#: Fewer rows behind than this is left to the next nightly. A ticker with no bars
+#: is skipped by every build and keeps its old `built_at`, so zero behind never
+#: comes; without a floor the job would rebuild that handful every tick.
+SNAPSHOT_RESUME_MIN_ROWS = 50
+
+
+def _snapshot_resume_rate() -> int:
+    """Rows per minute the resume job plans on. Measured: full builds of 11,230 rows
+    took 36 to 77 minutes (146 to 312 rows a minute, receipts Oct 23 to Nov 6), so
+    120 sits under the slowest and a run sized with it ends inside the window."""
+    try:
+        return max(10, int(os.environ.get("SCREENER_SNAPSHOT_RESUME_ROWS_PER_MIN") or 120))
+    except ValueError:
+        return 120
+
+
+def _snapshot_cutoff(now=None) -> float:
+    """Today's 03:00 ET, when the nightly starts: a row built before it is behind."""
+    now = now or datetime.now(_ET)
+    return now.replace(hour=3, minute=0, second=0, microsecond=0).timestamp()
+
+
+def _snapshot_resume_plan(now, behind, in_flight, rate):
+    """``(rows_to_build, None)`` or ``(None, why_not)``. Pure; the job does the I/O."""
+    if in_flight:
+        return None, "a build is already running"
+    if behind is None:
+        return None, "the rows behind could not be counted"
+    if behind < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "every row is current"
+    start = now.replace(hour=SNAPSHOT_RESUME_START_ET[0], minute=SNAPSHOT_RESUME_START_ET[1],
+                        second=0, microsecond=0)
+    end = now.replace(hour=SNAPSHOT_RESUME_END_ET[0], minute=SNAPSHOT_RESUME_END_ET[1],
+                      second=0, microsecond=0)
+    if not (start <= now < end):
+        return None, "outside the resume window"
+    room = int((end - now).total_seconds() / 60 * rate)
+    if room < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "too close to the open to finish a run"
+    return min(behind, room), None
+
+
+def _run_snapshot_resume() -> None:
+    """The resume job. Never raises. Off with SCREENER_SNAPSHOT_RESUME_ENABLED=0."""
+    try:
+        if os.environ.get("SCREENER_SNAPSHOT_RESUME_ENABLED", "1") != "1":
+            return
+        from api.services.screener import snapshot_builder, snapshot_db
+        now = datetime.now(_ET)
+        cutoff = _snapshot_cutoff(now)
+        behind = snapshot_db.count_rows_built_before(cutoff)
+        rows, why = _snapshot_resume_plan(now, behind, snapshot_builder.build_in_flight(),
+                                          _snapshot_resume_rate())
+        if rows is None:
+            if why not in ("every row is current", "outside the resume window"):
+                print(f"[scheduler] screener snapshot resume: not run ({why}; behind={behind})")
+            return
+        session = snapshot_builder.settled_session(now)
+        if session is None:
+            # Without the limit a pre-market build can store a forming bar as settled.
+            print("[scheduler] screener snapshot resume: not run (the exchange calendar "
+                  "does not cover today, so there is no settled session to build through)")
+            return
+        through = int(session.strftime("%Y%m%d"))
+        stats = snapshot_builder.run_build(max_tickers=rows, through_ymd=through)
+        left = snapshot_db.count_rows_built_before(cutoff)
+        print(f"[scheduler] screener snapshot resume: behind={behind} planned={rows} "
+              f"through={through} built={stats.get('built')} skipped={stats.get('skipped')} "
+              f"errors={stats.get('errors')} refused={stats.get('skipped_reason')} left={left}")
+        if (not stats.get("skipped_reason") and left is not None
+                and left < SNAPSHOT_RESUME_MIN_ROWS):
+            # Caught up: the steps the nightly runs after a complete build.
+            try:
+                from api.services.screener import distribution
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: distributions error: {e}")
+            try:
+                from api.services.screener import volume_curve
+                vc = volume_curve.nightly_job()
+                print(f"[scheduler] screener volume curve (resume): stored={vc.get('stored')} "
+                      f"samples={vc.get('samples')} reason={vc.get('reason')}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: volume curve error: {e}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] screener snapshot resume error: {type(e).__name__}: {e}")
 
 
 # -- UCT Relative Strength: the IBD-style rating history (engineering map --------
@@ -2567,6 +2690,13 @@ def register_screener_jobs(scheduler):
                       trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
                       id="screener_nightly_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    # Finishes a nightly a restart killed (see `_run_snapshot_resume`). Every five
+    # minutes, so a run lost to a deploy is picked up minutes after the reboot; the
+    # job itself decides whether there is anything to do and whether there is time.
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(_run_snapshot_resume, trigger=IntervalTrigger(minutes=5),
+                      id="screener_snapshot_resume", max_instances=1,
+                      replace_existing=True, coalesce=True)
 
     # -- UCT Relative Strength rating history: its OWN cron at 04:15 ET ---------
     #
@@ -3106,7 +3236,17 @@ def register_company_news_jobs(scheduler):
         ticker outside it -- LITE, for one -- could never receive a filing no
         matter how long the service ran. The offset persists in the store, so
         the sweep resumes where it left off across restarts.
+
+        ⚡ It skips a run that would overlap the opening or closing rush (desktop
+        speed plan 10.5): measured 2026-11-11 at 09:38-09:45 ET, 390 s wall and
+        42.5 s of this pod's CPU while members loaded every page. Coverage is
+        not time-critical; the next 20-minute interval runs after the rush.
         """
+        from api.services import market_rush
+        rush = market_rush.should_wait(datetime.now(_ET), 8)
+        if rush:
+            print(f"[news] per-company sweep skipped: {rush} rush")
+            return
         try:
             from api.services.news import ingest
             syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
@@ -5526,6 +5666,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs
                         _heal_bs.bump_db_epoch()
+                        _heal_bs.bump_store_floor("bulk delete", deleted_from=cutoff + 1)
                     except Exception:
                         pass
                     # Also clear in-memory + disk JSON cache for intraday so they
@@ -5597,6 +5738,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v2
                         _heal_bs_v2.bump_db_epoch()
+                        _heal_bs_v2.bump_store_floor("bulk delete", deleted_from=cutoff_v2)
                     except Exception:
                         pass
                     try:
@@ -5665,6 +5807,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v3
                         _heal_bs_v3.bump_db_epoch()
+                        _heal_bs_v3.bump_store_floor("bulk delete", deleted_from=cutoff_v3)
                     except Exception:
                         pass
                     try:
@@ -5729,6 +5872,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_wk
                         _heal_bs_wk.bump_db_epoch()
+                        _heal_bs_wk.bump_store_floor("bulk delete")
                     except Exception:
                         pass
                     # Clear in-memory + disk JSON caches for weekly so they don't keep
@@ -6062,6 +6206,10 @@ async def lifespan(app: FastAPI):
             def _initial_pull():
                 import time as _t
                 _skip_boot_pull = False
+                try:   # clustered-layout adoption (data_sync.adopt_clustered_if_requested)
+                    data_sync.adopt_clustered_store()
+                except Exception as _e:
+                    print(f"[startup] adopt-clustered check failed (non-fatal): {_e}")
                 try:
                     import sqlite3 as _sqlite_probe
                     _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
@@ -10053,6 +10201,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] indicator support digest job registration failed (non-fatal): {e}")
 
+        # Chart-data monitor dead-man (P0a): the worker-side synthetic monitor POSTs a heartbeat
+        # here after every cycle; this job pages ops once when the beats stop (chart_monitor/deadman.py).
+        try:
+            from api.services.chart_monitor import deadman as _cm_deadman
+            _cm_deadman.register(_scheduler)
+        except Exception as e:
+            print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -10629,6 +10785,44 @@ def _bundle_build_id() -> str:
     return result
 
 
+_EARLY_HINTS_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def early_hint_link_header() -> str:
+    """The `Link` header for index.html (desktop speed plan 10.3), read once from the build manifest.
+
+    Cloudflare has Early Hints ON (zone setting `early_hints`): it remembers the Link
+    preloads on a page's response and sends them as a 103 before the next request's page
+    arrives, so the browser starts the entry script, its two vendor chunks and the CSS while
+    the HTML is still on its way (about one round trip sooner on a first visit; repeat visits
+    already have these immutable files cached). Every hint carries `crossorigin` because
+    index.html loads each of them with `crossorigin`: a hint whose mode differs is fetched
+    TWICE. Returns "" on any failure; the page is served the same either way.
+    """
+    global _EARLY_HINTS_CACHE
+    cached = _EARLY_HINTS_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            manifest = _json.load(f)
+        entry = manifest.get("index.html")
+        if isinstance(entry, dict) and entry.get("isEntry") and isinstance(entry.get("file"), str):
+            scripts = [entry["file"]] + [manifest[k]["file"] for k in entry.get("imports", [])
+                                         if isinstance(manifest.get(k), dict) and isinstance(manifest[k].get("file"), str)]
+            styles = [c for c in entry.get("css", []) if isinstance(c, str)]
+            parts = [f"</{f.lstrip('/')}>; rel=preload; as=script; crossorigin" for f in scripts]
+            parts += [f"</{c.lstrip('/')}>; rel=preload; as=style; crossorigin" for c in styles]
+            result = ", ".join(parts)
+    except Exception:
+        result = ""
+    _EARLY_HINTS_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -10986,6 +11180,7 @@ app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
 # Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
 app.include_router(desktop_events_router.router)
+app.include_router(perf_beacon_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)
@@ -11263,6 +11458,7 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(tsdr_lessons_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
+app.include_router(chart_monitor_heartbeat_router.router)  # P0a /api/internal/chart-monitor/* -- PUSH_SECRET bearer, worker chart monitor heartbeat
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)
 # UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
@@ -13493,6 +13689,9 @@ def spa_index_response(full_path: str):
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    hints = early_hint_link_header()
+    if hints:
+        headers["Link"] = hints
     if is_public_note_path(full_path):
         headers.update(PUBLIC_NOTE_HEADERS)
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)

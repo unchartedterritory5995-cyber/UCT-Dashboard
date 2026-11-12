@@ -169,3 +169,47 @@ def test_submit_refuses_an_id_the_api_would_reject_before_any_network(lb, monkey
     monkeypatch.setattr(lb, "_client", lambda: calls.append("client") or None)
     assert lb.submit("s", [{"custom_id": "DIS|Q3", "params": {}}], {}) is None
     assert calls == [] and lb.pending("s") == []
+
+
+# -- one reap per surface (2026-11-11: 191 call_recap rows for 131 distinct results) --
+
+def _one_ended(lb, monkeypatch, surface="call_recap"):
+    monkeypatch.setattr(lb, "_client", lambda: _client_with(
+        _Batches(results=[_result("A_Q3", "x"), _result("B_Q3", "y")])))
+    lb.submit(surface, [{"custom_id": "A_Q3", "params": {}}, {"custom_id": "B_Q3", "params": {}}],
+              {"A_Q3": {}, "B_Q3": {}})
+
+
+def test_a_second_reap_while_one_is_collecting_handles_nothing(lb, monkeypatch):
+    _one_ended(lb, monkeypatch)
+    seen, inner = [], {}
+
+    def handle(cid, msg, meta):
+        seen.append(cid)
+        if "out" not in inner:          # a collector firing mid-reap
+            inner["out"] = lb.reap("call_recap", handle)
+
+    lb.reap("call_recap", handle)
+    assert seen == ["A_Q3", "B_Q3"]
+    assert inner["out"].get("busy") == 1 and inner["out"]["succeeded"] == 0
+
+
+def test_a_reap_after_one_finished_sees_the_row_gone(lb, monkeypatch):
+    _one_ended(lb, monkeypatch)
+    seen = []
+    lb.reap("call_recap", lambda c, m, x: seen.append(c))
+    out = lb.reap("call_recap", lambda c, m, x: seen.append(c))
+    assert seen == ["A_Q3", "B_Q3"] and out["batches"] == 0
+
+
+def test_the_lock_is_per_surface(lb, monkeypatch):
+    _one_ended(lb, monkeypatch, surface="call_recap")
+    lb.submit("earnings_preview", [{"custom_id": "A_Q3", "params": {}}], {"A_Q3": {}})
+    other = {}
+
+    def handle(cid, msg, meta):
+        if "out" not in other:
+            other["out"] = lb.reap("earnings_preview", lambda *a: None)
+
+    lb.reap("call_recap", handle)
+    assert "busy" not in other["out"] and other["out"]["batches"] == 1

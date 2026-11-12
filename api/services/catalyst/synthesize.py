@@ -104,6 +104,41 @@ def _bucket(value, *, step: float | None = None, rel: float | None = None):
     return math.floor(v / step)
 
 
+# rss sources whose text is a market-wide model answer regenerated on every run (its
+# first 400 chars usually describe some OTHER ticker): their presence matters to the
+# skip hash, their wording does not.
+_GENERATED_RSS_SOURCES = frozenset({
+    "Perplexity (discovery)", "Perplexity (finance news)", "Perplexity (EOD setup)",
+})
+SEARCH_TWEET_VIA = "search"   # set by engine._enrich_with_twitter_search
+
+
+def _tweets_identity(tweets) -> dict:
+    curated, n_search = set(), 0
+    for t in tweets or []:
+        if not isinstance(t, dict):
+            continue
+        if t.get("via") == SEARCH_TWEET_VIA:
+            n_search += 1
+            continue
+        curated.add(str(t.get("id") or t.get("url") or (t.get("text") or "")[:120]))
+    # bit_length: 0 | 1 | 2-3 | 4-7 | 8-15 | 16-31 — stable while a busy name sits at the cap
+    return {"curated": sorted(curated), "search_band": n_search.bit_length()}
+
+
+def _rss_identity(rss) -> list:
+    out = set()
+    for h in rss or []:
+        if not isinstance(h, dict):
+            continue
+        src = str(h.get("source") or "")
+        if src in _GENERATED_RSS_SOURCES:
+            out.add(src)
+        else:
+            out.add("|".join((src, str(h.get("url") or ""), str(h.get("title") or ""))))
+    return sorted(out)
+
+
 def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
@@ -115,6 +150,18 @@ def compute_signals_hash(candidate: dict) -> str:
                    "gap_pct", "vol_x", "price", "hunter_headline",
                    "brain_grade", "av_news")
     payload = {k: candidate.get(k) for k in signal_keys}
+    # ⛔ The two lists are hashed by CONTENT IDENTITY, never as raw dicts (2026-11-11
+    # AI-spend review). Measured on prod that day: 472 Opus syntheses, 21 skips — the top
+    # names re-synthesized on EVERY one of 24 runs, and NVDA's prompt was the same 2,998
+    # tokens six runs in a row. Two causes, both noise the thesis never reads:
+    #   * Perplexity discovery / earnings items are stamped `time_published=time.time()`
+    #     at injection, so the raw item differed on every run by its clock alone;
+    #   * the Twitter "Latest" search refills with random retail posts on every call.
+    # So: an rss item is its (source, url, title); a market-wide generated blurb counts by
+    # presence only; a curated tweet is its id; search tweets count by a doubling band.
+    # A new headline, a new curated tweet, or a material move still refreshes the thesis.
+    payload["tweets"] = _tweets_identity(candidate.get("tweets"))
+    payload["rss"] = _rss_identity(candidate.get("rss"))
     # ⛔ The three live numbers move on every tick, so hashing them raw made "skip if
     # nothing changed" never skip: ~22 ticks x top 12 names re-synthesized on Opus each
     # weekday, held only by the dollar cap (2026-11-10 cost audit). Hash them BUCKETED,

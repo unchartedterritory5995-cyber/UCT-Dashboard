@@ -843,6 +843,22 @@ RS_BENCHMARKS = ("SPY", "RSP")
 RS_LINE_TREND_SPY_BARS = 60
 
 
+def bars_through(bars, through_ymd):
+    """``bars`` without any bar dated after ``through_ymd`` (a ``YYYYMMDD`` int). Pure."""
+    if through_ymd is None:
+        return bars
+    through = int(through_ymd)
+    out = []
+    for b in bars or []:
+        try:
+            if int(b.get("t")) > through:
+                continue
+        except (TypeError, ValueError):
+            pass
+        out.append(b)
+    return out
+
+
 def _read_benchmark_bars(symbol):
     """A benchmark's daily BAR DICTS at ``DEEP_BARS`` — ONE read per build per
     benchmark, through the SAME reader every ticker's own bars come from
@@ -1594,7 +1610,7 @@ def build_in_flight() -> bool:
     return _BUILD_LOCK.locked()
 
 
-def run_build(max_tickers=None) -> dict:
+def run_build(max_tickers=None, through_ymd=None) -> dict:
     """Build + upsert the snapshot, and REPORT WHAT ACTUALLY LANDED.
 
     Returns ``{built, skipped, errors, populated, empty_columns, sources}``:
@@ -1610,6 +1626,15 @@ def run_build(max_tickers=None) -> dict:
     while writing NULL into ``market_cap`` on all 3,708 rows. Nothing in that
     line could have told anyone. ``errors`` counts rows LOST; it has never
     counted a column that silently came back empty on every row that survived.
+
+    ``through_ymd`` (a ``YYYYMMDD`` int) drops every daily bar dated after it, for the
+    tickers and for SPY/RSP alike. The resume job (``api.main._run_snapshot_resume``)
+    passes ``settled_session()`` so a build that finishes a killed nightly publishes
+    exactly what the nightly would have. ⛔ It matters because ``bars.db`` holds
+    TODAY's forming bar for every charted ticker (measured 2026-11-11 09:20 ET: AAPL
+    and NVDA ended at 20261111) and a build without the limit stores that half-day
+    bar as a completed session, which shifts every lookback and the live tier's
+    stored bases by one day. ``None`` (every other caller) builds as before.
     """
     if not _BUILD_LOCK.acquire(blocking=False):
         # ⛔ REFUSE, never queue: a queued second build would run the whole
@@ -1625,7 +1650,7 @@ def run_build(max_tickers=None) -> dict:
         global _SECURITY_TYPES_CACHE
         _SECURITY_TYPES_CACHE = None   # reload the type map fresh for this build
         started = time.time()
-        stats = _run_build_locked(max_tickers)
+        stats = _run_build_locked(max_tickers, through_ymd)
         snapshot_db.record_build_run({**stats, "started_at": started,
                                       "finished_at": time.time()})
         return stats
@@ -1650,7 +1675,7 @@ def _per_run_cap(max_tickers=None):
     return int(env) if env else None
 
 
-def _run_build_locked(max_tickers=None) -> dict:
+def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
     targets = _stalest(universe, _per_run_cap(max_tickers))
@@ -1678,8 +1703,8 @@ def _run_build_locked(max_tickers=None) -> dict:
     rs_timing = {"enabled": rs_on, "rows": 0, "ms": 0.0,
                  "phase3": rs_p3, "phase3_ms": 0.0}
     rs_weekly_cache: dict = {}
-    spy_bars = _read_benchmark_bars("SPY")
-    rsp_bars = _read_benchmark_bars("RSP") if rs_on else []
+    spy_bars = bars_through(_read_benchmark_bars("SPY"), through_ymd)
+    rsp_bars = bars_through(_read_benchmark_bars("RSP"), through_ymd) if rs_on else []
     spy_closes = spy_closes_from_bars(spy_bars)
     if not spy_bars:
         sources.setdefault("spy_bars", {})["none"] = 1
@@ -1843,7 +1868,7 @@ def _run_build_locked(max_tickers=None) -> dict:
     from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
-            bars = _read_daily_bars(t)
+            bars = bars_through(_read_daily_bars(t), through_ymd)
             if not bars:
                 skipped += 1
                 continue

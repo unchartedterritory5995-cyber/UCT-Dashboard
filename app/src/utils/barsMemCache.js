@@ -1,3 +1,4 @@
+import { mergeMonotonic } from './barsMerge'
 // Synchronous in-memory LRU cache of chart bars, keyed by `${SYM}_${TF}`.
 // This is the FAST layer in front of IndexedDB: a switch to a (sym, tf) that's
 // in here paints in the SAME synchronous frame — no async idbGet hop, no
@@ -44,7 +45,7 @@ export function memHas(sym, tf) {
   return _map.has(_key(sym, tf))
 }
 
-export function memPut(sym, tf, bars, { savedAt } = {}) {
+export function memPut(sym, tf, bars, { savedAt, meta } = {}) {
   if (!sym || !tf || !bars?.length) return
   const k = _key(sym, tf)
   if (_map.has(k)) _map.delete(k)
@@ -57,10 +58,39 @@ export function memPut(sym, tf, bars, { savedAt } = {}) {
   // A promoted set whose own stamp is missing is stored as UNKNOWN (null), never now.
   const stamp = savedAt === undefined ? Date.now()
     : (Number.isFinite(savedAt) && savedAt > 0 ? savedAt : null)
-  _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp })
+  // `meta`: the BarStore's provenance envelope (data/barStore/persist.js). Only the writer
+  // that passes it keeps it — every other write replaces the record WITHOUT it, so a set
+  // another writer touched never carries a stale seal claim.
+  _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp, ...(meta ? { meta } : {}) })
   while (_map.size > MEM_CACHE_MAX) {
     _map.delete(_map.keys().next().value) // evict least-recently-used (oldest)
   }
+}
+
+/** The monotonic twin of memPut (see barsIDB `mergeMonotonic`): merges `bars` into the
+ *  entry held NOW so a background writer can never move it backwards or shallower. */
+// `startedAt`: when the incoming request BEGAN — a held set written after that is newer on
+// an equal tail (see mergeMonotonic `curIsNewer`).
+export function memPutMonotonic(sym, tf, bars, { savedAt, delta = false, startedAt = null, meta = null } = {}) {
+  if (!sym || !tf || !bars?.length) return null
+  const cur = _map.get(_key(sym, tf))
+  const curIsNewer = Number.isFinite(startedAt) && Number.isFinite(cur?.savedAt) && cur.savedAt > startedAt
+  const next = mergeMonotonic(cur?.bars ?? null, bars, { delta, curIsNewer })
+  if (next && next === cur?.bars && meta) cur.meta = meta   // same rows, newer provenance
+  if (!next?.length || next === cur?.bars) return next ?? null
+  // The stamp follows the source that supplied the tail BAR: the incoming set's own
+  // (`savedAt`, or now when it is fresh from the server), else the held entry's.
+  const incomingWins = next[next.length - 1] === bars[bars.length - 1]
+  memPut(sym, tf, next, { ...(incomingWins ? (savedAt === undefined ? {} : { savedAt }) : { savedAt: cur?.savedAt ?? null }), meta })
+  return next
+}
+
+/** The whole held record `{bars, savedAt, meta}` (no MRU promotion), or null. The BarStore's
+ *  hydrate reads its provenance envelope through this. */
+export function memPeekEntry(sym, tf) {
+  if (!sym || !tf) return null
+  const e = _map.get(_key(sym, tf))
+  return e ? { bars: e.bars, savedAt: e.savedAt ?? null, meta: e.meta ?? null } : null
 }
 
 export function memClear() {

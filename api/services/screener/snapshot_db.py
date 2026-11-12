@@ -771,6 +771,23 @@ def count_rows() -> int:
         return conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0]
 
 
+def count_rows_built_before(cutoff_ts) -> int | None:
+    """Rows a build has not reached since ``cutoff_ts`` (epoch seconds): ``built_at``
+    older than it, or never stamped. ``None`` when the table cannot be read, so a
+    caller can tell "nothing is behind" from "I could not look".
+
+    It reads the ROWS, not a build receipt. A build killed partway writes no receipt
+    and a capped run writes one that looks finished, so only the rows can say how
+    much of the table the last nightly actually rebuilt."""
+    try:
+        with connect() as conn:
+            return int(conn.execute(
+                "SELECT COUNT(*) FROM screener_rows WHERE built_at IS NULL OR built_at < ?",
+                (float(cutoff_ts),)).fetchone()[0])
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
 # ---------------------------------------------------------------------------
 # 🔴 WHAT DATE IS THIS DATA? `MAX(snapshot_date)` IS A TRUE NUMBER WITH A FALSE
 # IMPLICATION, AND IT WAS BEING PRINTED OVER THE MEMBER'S RESULTS.

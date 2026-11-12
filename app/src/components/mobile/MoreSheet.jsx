@@ -18,7 +18,7 @@ const NAV_SECTIONS = [
   {
     label: 'Core',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+      // ⚰️ Dashboard hidden (owner 2026-11-11) — /dashboard redirects to /charts.
       { to: '/morning-wire', label: 'Morning Wire', icon: 'wire' },
       { to: '/uct-20', label: 'UCT 20', icon: 'star' },
     ],

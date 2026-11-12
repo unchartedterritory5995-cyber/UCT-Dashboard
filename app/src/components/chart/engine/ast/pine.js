@@ -3998,17 +3998,70 @@ export function seedAndUpdateOf(body, table) {
 }
 
 /** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
- *  test is a BARE history read (`na(x[k])`): `na` on every bar in Pine (see the
- *  call site). Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs
- *  the update instead. */
+ *  test is a BARE history read (`na(x[k])`). ENGINE 48: it refuses `pine:cycle` by
+ *  name in every version (see the call site, and `selfReferenceSentence`).
+ *  Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs the update
+ *  instead. */
 export function naSeededSelfReference(body, parts, table) {
   if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
-  const spec = table && table.functions && table.functions.accum
-  const bind = spec && spec.recurrence && spec.recurrence.binds
+  // ⛔ THE SHAPE ONLY, NOT THE NAME (engine-48 review N5). `ternarySeedAndUpdate` already
+  // requires the `na(…)` test to contain a free `self`, and `na` takes one argument, so a bare
+  // series read here (or an offset of one) can only be `self`. A name check beside it could
+  // never fire, and a guard that cannot fail is not counted as one.
   const read = body.args[0].args && body.args[0].args[0]
-  return !!read && ((read.type === 'series' && read.name === bind)
-    || (read.type === 'offset' && read.args && read.args[0]
-      && read.args[0].type === 'series' && read.args[0].name === bind))
+  return !!read && (read.type === 'series'
+    || (read.type === 'offset' && read.args && read.args[0] && read.args[0].type === 'series'))
+}
+
+/** ⭐⭐ ENGINE 49 — A DECLARATION THAT READS ITS OWN HISTORY: `x = … x[k] …` with the `=`
+ *  (not `:=`), where `x` was not declared before it in this scope or an enclosing one.
+ *  `declaredBefore` is the caller's answer to that last question (the host asks the env the
+ *  declaration was written in; the runtime lane its scope chain and env), so a local that
+ *  shadows a global, a function parameter, an earlier same-scope `x`, a `var` and a tuple
+ *  never reach here, and stay what they were.
+ *
+ *  Pine v3 removed self-reference in a declaration (a variable must be declared before it is
+ *  referenced): `s = nz(s[1]) + close` is written `s = 0.0` then `s := nz(s[1]) + close`, and
+ *  in v3+ the first spelling does not compile. v1/v2 (and no pragma) do compile it, so each
+ *  lane asks this ONLY where `!listingSeedIsUnpinned(version)`, and refuses `pine:cycle` with
+ *  `selfReferenceSentence`. Census (engine 49): no v3+ script in `corpus/`, the repo's `.pine`
+ *  fixtures and vendor captures, or the licence-held sample spells it.
+ *  ⛔ A HISTORY read only (`x[k]`, `k` any expression): a bare `x = x + 1` reads a name nothing
+ *  declared, and keeps its `pine:undefined` refusal (TradingView's own error for it). */
+export function selfReferencingDeclaration(node, name, declaredBefore) {
+  return !declaredBefore && typeof name === 'string' && !PINE_BUILTIN_VARIABLE_NAMES.has(name)
+    && readsOwnPrevious(node, name)
+}
+
+/** ⛔ A DECLARATION NAMED AFTER A BUILT-IN VARIABLE (`close = close[1] + 1`) IS NOT ASKED: its
+ *  `close[1]` may be Pine's own `close`, and whether TradingView reads it that way (or refuses the
+ *  name) is not settled here, so nothing is refused for it. The bar series, the clock names, and
+ *  the other built-in series a script can read bare. */
+export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
+  'ohlc4', 'hlcc4', 'time', 'time_close', 'time_tradingday', 'timenow', 'bar_index', 'last_bar_index',
+  'tr', 'vwap', 'obv', 'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na',
+  ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.clock || {})])
+
+/** ⭐⭐ ENGINE 48/49 — the specifics of the `pine:cycle` refusal of a self-referencing
+ *  declaration (the lead sentence is `REFUSALS['pine:cycle']`). One wording per version
+ *  family, exported so both lanes' rails pin it:
+ *  - v3+: every declaration `selfReferencingDeclaration` catches (engine 49), engine 48's
+ *    `x = na(x[k]) ? na : U` among them. It names no spelling, so it is true of each.
+ *  - v1/v2 and no pragma: engine 48's `x = na(x[k]) ? na : U` only (`naSeededSelfReference`);
+ *    every other v1/v2 self-reference compiles in Pine and keeps its path.
+ *  `version` is the lexed pragma (`null` = no pragma, read as v1). */
+export function selfReferenceSentence(name, version) {
+  if (!listingSeedIsUnpinned(version)) {
+    return `\`${name}\` reads its own history inside its own declaration. This does not compile `
+      + 'in Pine v3+: a variable cannot refer to itself in its own declaration, so TradingView '
+      + 'draws nothing for this script and nothing is drawn here. In v3+ the variable is declared '
+      + 'once and updated with `:=`'
+  }
+  return `\`${name}\` is set to \`na\` whenever its own earlier value, as its \`na()\` test reads it, `
+    + `is \`na\`. Pine v1/v2 (and a script with no \`//@version\`) does not state what that earlier value `
+    + `is before the first bar: if it is \`na\`, \`${name}\` is \`na\` on every bar; if it is 0, the update `
+    + 'runs from the first bar. The two readings can disagree, and no TradingView capture has settled '
+    + 'which one TradingView draws, so neither is drawn'
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8354,6 +8407,23 @@ export class Resolver {
       }
       try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
     }
+    // ⭐⭐ ENGINE 49 — A v3+ DECLARATION THAT READS ITS OWN HISTORY (`x = … x[k] …`) DOES NOT
+    // COMPILE IN PINE, and refuses by name here, before its initialiser is resolved, so no
+    // other wall in it (and no recurrence fold below) speaks first. The declaration sites mark
+    // the binding (`selfDeclaration`, the declared name) when `selfReferencingDeclaration` holds
+    // in the env the declaration was written in: a shadowing local, a parameter, a `var`, a
+    // tuple and the `x = 0.0` + `x := …` form are never marked. v1/v2 and no pragma compile the
+    // spelling and keep their paths (engine 48's `na`-seeded refusal below included).
+    // ⚠️ THIS LANE REFUSES ONLY WHAT IT RESOLVES. A marked binding nothing reads, one read only
+    // through a `color=` argument, and a name an earlier user function holds (the env has it, so
+    // it is not marked) are still drawn here, while the runtime lane, which asks at the statement,
+    // refuses them (review ENG49-1122 notes 1-3). TradingView compiles none of them, so the split
+    // is between this lane's pre-existing leniency and a true refusal, never an over-refusal.
+    if (bound.selfDeclaration && !listingSeedIsUnpinned(this.pineVersion)) {
+      throw new PineRefusal('pine:cycle',
+        `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(bound.selfDeclaration, this.pineVersion)}`,
+        bound.at || locate(tok))
+    }
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
@@ -8460,16 +8530,36 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
-        // ⭐⭐ LANE B0 — `x = na(x[k]) ? na : U`: Pine reads `x[k]` as `na` on bar 0,
-        // takes the `na` arm, and so `x[k]` is `na` again on every later bar — the
-        // value is `na` on EVERY bar, whatever `U` says. Written as that constant,
-        // which is exactly Pine's, and which keeps the one rule the listing pass
-        // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
-        // history seed whose bar 0 runs the update) true of every `accum` this
-        // translator writes.
-        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
-        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
-        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
+        // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
+        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+        // whose update reads a slot) is refused with the same sentence by
+        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+        // by that name instead; the member door shows this one. Neither answer it could draw is
+        // witnessed:
+        //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
+        //     removed self-reference in a declaration, so there is no TradingView value
+        //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
+        //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
+        //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
+        //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
+        //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
+        //     `U` from 0 and each later bar runs `U` from there. The listing pass's
+        //     candidates (seed, update(U, na), zero) do not include the first reading,
+        //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
+        //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
+        //     capture pins it (capture row W34-I4-S1).
+        // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
+        // not a bare history read (`na(nz(x[1]))`) keep their paths below, in v1/v2 and no
+        // pragma. Since engine 49 a v3+ declaration never reaches this branch: every v3+
+        // declaration that reads its own history refuses at the top of `resolveBindingInner`
+        // (`selfDeclaration`), with the same v3+ sentence.
+        if (naSeededSelfReference(body, parts, this.table)) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(name, this.pineVersion)}`,
+            bound.at || locate(tok))
+        }
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
@@ -16110,6 +16200,17 @@ const varSeedOf = (seed, reads) => {
 }
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
+/** ⭐⭐ ENGINE 49 — mark a `name = rhs` declaration binding whose initialiser reads its own history
+ *  while `name` was not declared before it (`selfReferencingDeclaration`, asked of `declEnv`, the
+ *  env the declaration was written in). The `Resolver` refuses a marked binding `pine:cycle` in
+ *  v3+ only. Returns the binding. */
+const markSelfDeclaration = (binding, name, declEnv) => {
+  if (binding && binding.kind === 'expr'
+      && selfReferencingDeclaration(binding.node, name, !!declEnv && declEnv.has(name))) {
+    binding.selfDeclaration = name
+  }
+  return binding
+}
 
 /** ⭐ C22 — `Resolver.textEqTree`'s memo: per scope, per operand NODE (by
  *  identity — a guard re-read is the same parse node), per operator + literal.
@@ -18744,9 +18845,9 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       // one run (`oneExecutionTokens`) — and the object lane reads it instead.
       const mark = condCallMark(ctx, rhs, nameTok.value)
       const declEnv = new Map(env)
-      env.set(nameTok.value, exprBinding(
+      env.set(nameTok.value, markSelfDeclaration(exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
-        declEnv, locate(nameTok)))
+        declEnv, locate(nameTok)), nameTok.value, declEnv))
       // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
       // has (and mints the parameters it always did); the OBJECT lane's Resolver
       // (`refuseCondCalls`) refuses it by the sentence carried here, or reads
@@ -26216,9 +26317,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       try {
-        env.set(nameTok.value, exprBinding(
-        stampInputName(parseWholeExpression(rhs), nameTok.value),
-        new Map(env), locate(nameTok)))
+        {
+          const declEnv = new Map(env)
+          env.set(nameTok.value, markSelfDeclaration(exprBinding(
+            stampInputName(parseWholeExpression(rhs), nameTok.value),
+            declEnv, locate(nameTok)), nameTok.value, declEnv))
+        }
         // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
         // that actually mattered. `scopeFor` used to re-parse EVERY name the
         // object collector had walked past — including top-level ones — and a
