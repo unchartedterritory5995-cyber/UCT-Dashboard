@@ -45,11 +45,16 @@ Local files and a local server, not Artifacts (he cannot use them).
 | 1 | SET.08 to SET.11 | 287 | DONE and COMMITTED (d312c84b88). 60+4 agents, 12.1M + 0.65M tokens. Verification round fixed 18 of 61 more. |
 | 2 | SET.12 to SET.21 | 652 (balanced planner: 105 full-route, 547 light-route, 21 chunks) | RUNNING, run `wf_b969ceca-6df`, scratch `wave2`, args `wave2_args.json`. Next: sync_scratch, integrate_wave, verify the fixed questions, gates, commit. |
 | 3 | SET.22 to SET.31 | 667 (86 full-route, 581 light-route, 22 chunks) | RUNNING, run `wf_5c8cc8c2-a84`, scratch `wave3`, args `wave3_args.json` (launched while wave 2 was still running). |
-| 4 | SET.32 to SET.46 | 670 | not started |
-| 5 | SET.47 to SET.54 | 503 | not started |
-| 6 | Foundations: F1, F5, F7, F10, F10b | 663 | not started |
-| 7 | F6 (except F6.04) and V | 1,141 | not started |
-| 8 | F8, F9 (except F9.02), F11, F12 | 596 | not started |
+| 4 | SET.32, 33, 34, 40 to 46 (SET.35 to 39 do not exist) | 670 (151 full-route, 519 light, 22 chunks) | planned: `wave4_args.json` |
+| 5 | SET.47 to SET.54 | 503 (65 full-route, 438 light, 16 chunks) | planned: `wave5_args.json` |
+| 6 | Foundations F1, F5, F7, F10, F10b (30 lessons) | 663 (all light-route, 30 chunks) | planned: `wave6_args.json` |
+| 7 | F6 (17 lessons, not F6.04) | 399 (all light-route) | planned: `wave7_args.json` |
+| 8 | V (12 lessons, vocabulary) | 742 (all light-route, 24 chunks) | planned: `wave8_args.json` |
+| 9 | F8, F9 (not F9.02), F11, F12 (27 lessons) | 596 (all light-route) | planned: `wave9_args.json` |
+
+Launch a planned wave with `Workflow({scriptPath: "...\_study-resume\overbuild\overbuild-wave-routed.js", args: <the file's JSON, which already has "wave": "waveN">})`. Foundations
+lessons score low risk (many facts, no house facts), so they all route light; the verification round after each wave covers the gap. Consider
+routing F6 (options rules that change over time) and F9 (the owner's risk rulebook) as full if the first light waves show a high re-check fix rate.
 
 Exact unit lists: `_study-resume\overbuild\wave_units.json`. The full-library cost estimate is about 120 to 150M tokens for option B
 (risk routed); wave 1 measures the light path's real cost (estimate 20k tokens per question vs 44k for the full path in the pilot).
