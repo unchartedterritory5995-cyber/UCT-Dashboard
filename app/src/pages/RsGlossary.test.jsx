@@ -56,7 +56,7 @@ describe('RsGlossary page', () => {
 
   it('carries every glossary term and every misconception, word for word', () => {
     renderAtRoute()
-    expect(GLOSSARY).toHaveLength(18)   // 15 of 04 §c + the three RS indicators the split added (U9)
+    expect(GLOSSARY).toHaveLength(22)   // 15 of 04 §c + the three RS indicators the split added (U9) + RS Exit Warnings and its three warnings (2026-11-12)
     expect(MISCONCEPTIONS).toHaveLength(8)
     for (const t of GLOSSARY) {
       const row = screen.getByTestId(`rs-term-${t.key}`)
@@ -163,6 +163,7 @@ describe('RsGlossary under the RS split flag (U9)', () => {
     expect(screen.queryByTestId('rs-indicators')).toBeNull()
     expect(screen.queryByTestId('rs-method-phases')).toBeNull()
     expect(screen.queryByTestId('rs-method-vs-ema')).toBeNull()
+    expect(screen.queryByTestId('rs-method-exit')).toBeNull()
     expect(screen.queryByRole('link', { name: 'The RS indicators' })).toBeNull()
     expect(screen.getByTestId('rs-method-screener').textContent).toBe('Readings in the screener')
     const text = (id) => screen.getByTestId(id).textContent.replace(/\s+/g, ' ')
@@ -175,17 +176,17 @@ describe('RsGlossary under the RS split flag (U9)', () => {
     expect(screen.getByTestId('rs-method').textContent).not.toMatch(/\bReading\b/)
   })
 
-  it('flag ON: the four indicators by the names the registry gives them, the RS Line sentence verbatim, lessons, formulas', () => {
+  it('flag ON: the five indicators by the names the registry gives them, the RS Line sentence verbatim, lessons, formulas', () => {
     vi.stubEnv('VITE_RS_SPLIT_ENABLED', '1')
     renderAtRoute()
     expectVoice()
     expect(screen.getByRole('link', { name: 'The RS indicators' }).getAttribute('href')).toBe('#rs-indicators')
     const section = screen.getByTestId('rs-indicators')
     expect(within(section).getByRole('heading', { level: 2, name: 'The RS indicators on the chart' })).toBeTruthy()
-    expect(RS_INDICATORS.map((i) => i.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+    expect(RS_INDICATORS.map((i) => i.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
     const markers = {
       rsLine: 'const RS_LINE_SLIM_RAW = {', rsRating: 'const RS_RATING_RAW = {',
-      rsPhases: 'const RS_PHASES_RAW = {', rsVsEma: 'const RS_VS_EMA_RAW = {',
+      rsPhases: 'const RS_PHASES_RAW = {', rsVsEma: 'const RS_VS_EMA_RAW = {', rsExit: 'const RS_EXIT_RAW = {',
     }
     for (const ind of RS_INDICATORS) {
       const row = within(section).getByTestId(`rs-indicator-${ind.id}`)
@@ -199,13 +200,14 @@ describe('RsGlossary under the RS split flag (U9)', () => {
     // the RS Line sentence IS the slim definition's `meta.description`; the other three are the
     // glossary entries authored for them (one source with the export)
     expect(RS_INDICATORS[0].what).toBe(metaDescription(markers.rsLine))
-    for (const [id, key] of [['rsRating', 'uctRsRating'], ['rsPhases', 'uctRsPhases'], ['rsVsEma', 'uctRsVsEma']]) {
+    for (const [id, key] of [['rsRating', 'uctRsRating'], ['rsPhases', 'uctRsPhases'], ['rsVsEma', 'uctRsVsEma'], ['rsExit', 'uctRsExit']]) {
       expect(RS_INDICATORS.find((i) => i.id === id).what).toBe(GLOSSARY.find((t) => t.key === key).definition)
     }
     // the lesson each block links is one the definition's `meta.learn` names
     expect(block(markers.rsPhases).split('\n  placement:')[0]).toContain("{ key: 'rsLine'")
     expect(block(markers.rsVsEma).split('\n  placement:')[0]).toContain("{ key: 'phase'")
     expect(block(markers.rsRating).split('\n  placement:')[0]).not.toContain('learn:')
+    expect(block(markers.rsExit).split('\n  placement:')[0]).not.toContain('learn:')   // no Desk lesson on Webster's method (yet)
     const text = (id) => screen.getByTestId(id).textContent.replace(/\s+/g, ' ').trim()
     expect(text('rs-formula-phases')).toBe(
       'RS trend = 3-bar EMA of the RS line ÷ its 10-bar EMA − 1'
@@ -215,6 +217,12 @@ describe('RsGlossary under the RS split flag (U9)', () => {
     expect(text('rs-formula-vs-ema')).toBe(
       'Distance = 100 × (RS line ÷ its 21-bar EMA − 1), in percent'
       + 'Fast = 3-bar EMA of the distance; slow = 13-bar EMA of the distance',
+    )
+    expect(text('rs-formula-exit')).toBe(
+      'Fast and slow average = simple averages of the RS line: 21 and 50 bars on a daily chart, 8 and 21 on a weekly one'
+      + 'Quick Break = the RS line closes below its fast average after closing at or above it'
+      + 'Quicksand = after a Quick Break, the first close below the RS value at that break'
+      + 'Grateful Dead Break = the RS line closes below its slow average after closing at or above it',
     )
     // still a public page with no API call
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -259,6 +267,11 @@ describe('RsGlossary formulas are pinned to the server constants', () => {
     expect(constant(rsm, 'DEFAULT_MA_LENGTH')).toBe(RS_METHOD.vsEmaLength)
     expect(constant(rsm, 'DEFAULT_VS_EMA_FAST')).toBe(RS_METHOD.vsEmaFast)
     expect(constant(rsm, 'DEFAULT_VS_EMA_SLOW')).toBe(RS_METHOD.vsEmaSlow)
+    // 2026-11-12, RS Exit Warnings: the auto lengths are `EXIT_AUTO_LENGTHS = {"D": (21, 50), "W": (8, 21)}`
+    const auto = rsm.match(/^EXIT_AUTO_LENGTHS[^=]*=\s*\{\s*"D":\s*\((\d+),\s*(\d+)\),\s*"W":\s*\((\d+),\s*(\d+)\)\s*\}/m)
+    expect(auto, 'EXIT_AUTO_LENGTHS not found').not.toBeNull()
+    expect(auto.slice(1).map(Number)).toEqual([RS_METHOD.exitDailyFast, RS_METHOD.exitDailySlow,
+      RS_METHOD.exitWeeklyFast, RS_METHOD.exitWeeklySlow])
     const prov = read(REPO, 'api', 'services', 'signature', 'rs_provider.py')
     expect(constant(prov, '_RS_RATING_MA')).toBe(RS_METHOD.ratingMaLength)
     const reg = read(SRC, 'components', 'chart', 'engine', 'nativeRegistry.js')
