@@ -135,6 +135,30 @@ def basis_id(events: Iterable) -> str:
     return "s1:" + hashlib.sha1(canon.encode("ascii")).hexdigest()[:12]
 
 
+def bind_stamp(events, history_rev: int, first_ts) -> str:
+    """The text `series_meta.adj_basis` stores: the applied events BOUND to the series'
+    `history_rev` and first stored row at stamp time ("v2|<hrev>|<first_ts>|<canonical>").
+    A write that changes held history (moves history_rev) or prepends older rows (moves the
+    first row) — e.g. an old-basis fallback or merge — voids the stamp (review of #1144 D3)."""
+    return f"v2|{int(history_rev)}|{'' if first_ts is None else int(first_ts)}|{canonical(events)}"
+
+
+def parse_stamp(text):
+    """`bind_stamp` text → (history_rev, first_ts | None, [(iso, ratio)]) or None."""
+    if not isinstance(text, str) or not text.startswith("v2|"):
+        return None
+    parts = text.split("|", 3)
+    if len(parts) != 4:
+        return None
+    try:
+        hrev = int(parts[1])
+        first = int(parts[2]) if parts[2] else None
+    except ValueError:
+        return None
+    ev = parse_canonical(parts[3])
+    return None if ev is None else (hrev, first, ev)
+
+
 def target_basis_id(splits: Iterable, as_of: Optional[date] = None) -> str:
     """The basis a series is on once every adjudicable declared split is applied — what a
     provider's `adjusted=true` answer is on today."""

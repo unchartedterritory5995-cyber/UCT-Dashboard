@@ -277,19 +277,44 @@ applied when every row before its first post-split bar is divided by `r`, volume
 **The heal** (`intraday_split_heal.heal_ticker`). For each adjudicable declared split:
 the session-close detector (`bars_sanitize.unadjusted_splits`, the one detector) reports a
 cliff at boundary session B, ratio r; ONE streamed pass over every stored close counts the
-bar-to-bar steps matching r and 1/r (`_SPLIT_TOL`). The rows strictly before the step bar
-are divided by r only when r matches exactly ONE step in the whole series, inside B, and
-1/r matches none — so a mixed series (new-basis rows below old-basis ones: the junction is
-a 1/r step), a bad print or a split-sized real move is refused (logged, nothing written,
-`adj_basis` null). A split-sized bar step near the split that the session closes hide is
-also refused (never stamped "applied"). Every intraday tf of the ticker is written in ONE
-`BEGIN IMMEDIATE` transaction, only if no series' `rev` moved since it was read (else
-"raced", re-planned later); each rescaled series' `history_rev` moves exactly once; the
-memory / disk payload caches of the ticker are dropped. Idempotent: after the commit no
-step remains and the stamp equals the target. Measured (synthetic store, 1m 240k + 5m 48k
-+ 15/30/60m rows): plan 0.43 s outside the lock, transaction 145 ms. Kill switch
-`INTRADAY_SPLIT_HEAL_ENABLED=0`. Railed: `tests/test_intraday_split_heal_basis.py` (H1-H3,
-C1).
+bar-to-bar steps matching r and 1/r (`_SPLIT_TOL`). A rescale of the rows strictly before
+the step bar is planned only when ALL hold:
+- r matches exactly ONE step in the whole series, inside B, and 1/r matches none (a mixed
+  series — new-basis rows below old-basis ones — shows its junction as a 1/r step; a bad
+  print or a split-sized real move makes the count != 1);
+- no other declared event claims the same step (one split listed twice — two dates, two
+  sources — is refused, never divided by r twice: review of #1144 D1);
+- **independent proof** (`daily_proof`, D2): for up to 3 sessions before B the intraday RTH
+  close is r x the STORED daily close of the same date, and for up to 3 sessions from B on
+  it equals it (3%). A real gap shows in BOTH series and is never written — a unique step
+  alone is weak evidence for small ratios (6:5's accept band is 1.02-1.38);
+- the old-basis span fits one bounded transaction (`INTRADAY_SPLIT_HEAL_MAX_ROWS`, default
+  300k rows ≈ 0.15 s under the lock on a dev store; deeper ⇒ refused "too-deep").
+Anything else is logged (`[intraday-split-cliff] ... NOT rewritten: (why, fwd, inv)`),
+nothing is written and `adj_basis` is null. A split-sized step the session closes do not
+show at the declared window (anywhere in the series) also makes the split unprovable — never
+stamped "applied". Each series is written in its OWN `BEGIN IMMEDIATE` transaction, only if
+its `rev` has not moved since it was read (else "raced", re-planned later); a rescaled
+series' `history_rev` moves exactly once; `held_ms` is logged; the ticker's memory / disk
+payload caches are dropped. Idempotent: after the commit no step remains and the stamp
+equals the target.
+
+**The stamp is bound** (D3): `series_meta.adj_basis` stores `v2|<history_rev>|<first ts>|
+<canonical events>` (`adjustment_basis.bind_stamp`), and `series_meta()` serves it only while
+the series' `history_rev` and first stored row are still those — a later write that changes
+held history or prepends rows (an old-basis fallback, a merge) makes it null and the series
+is re-checked.
+
+**Modes** (owner-safety, first deploy): `INTRADAY_SPLIT_HEAL_MODE=report` is the DEFAULT —
+the heal plans and logs `[intraday-split-heal] WOULD-RESCALE <tk> tfs=<tf> boundary=<ts>
+ratio=<r> rows=<n>` (no prices) and counts would-be stamps (`intraday_split_heal.STATS`),
+writing NOTHING: no rows and no stamps, so every served `adj_basis` stays null and clients
+judge cached copies by their ratio test alone (stamping from a heal still being validated
+would make clients trust it first). `INTRADAY_SPLIT_HEAL_MODE=write` applies and logs
+`RESCALED ... rows=<n> held_ms=<ms>` / `STAMP ... adj_basis=<id> held_ms=<ms>`.
+`INTRADAY_SPLIT_HEAL_ENABLED=0` stays the hard off (no checks). Runbook:
+docs/runbooks/held-flags-and-checks.md. Railed: `tests/test_intraday_split_heal_basis.py`
+(H1-H3, C1, D1-D3, M).
 
 ## 3. Examples
 

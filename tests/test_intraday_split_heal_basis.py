@@ -13,6 +13,13 @@ INVARIANTS (property style, seeded):
   C1  `adj_basis` is on every intraday contract answer, equals the store's stamp, is the
       same for rth / eth / derived answers of one source series, and is stable across
       reads; it is a pure, order-insensitive function of the applied split events.
+Review of #1144:
+  D1  any duplication / permutation of the declared events never rescales a row twice;
+  D2  a CORRECTLY adjusted series is never written, whatever its gaps (a real gap the size
+      of a small split shows in the daily closes too — `daily_proof`);
+  D3  a stamp is voided by a later write that changes held history or prepends rows;
+  M   report mode (the default) writes nothing — no rows, no stamps — and logs WOULD-RESCALE;
+      a series deeper than the per-transaction cap is refused, never written in one UPDATE.
 """
 from __future__ import annotations
 
@@ -36,6 +43,7 @@ RATIOS = (2.0, 3.0, 4.0, 10.0, 0.5, 0.25, 0.1, 1.5)
 
 @pytest.fixture
 def store(tmp_path, monkeypatch):
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MODE", "write")
     monkeypatch.setattr(bs, "_DB_PATH", str(tmp_path / "bars.db"))
     bs.bump_db_epoch()
     bs.init_db()
@@ -81,6 +89,33 @@ def _truth(rng, ts, step=0.003):
     return out
 
 
+def _agg(base, tf):
+    """Aggregate 5m RTH bars into `tf` buckets anchored at 09:30 (60m: 09:30 ... 15:30)."""
+    step = int(tf) * 60
+    out = {}
+    for b in base:
+        d = datetime.fromtimestamp(b["t"], ET).date()
+        o930 = _ts(d, 9, 30)
+        k = o930 + ((b["t"] - o930) // step) * step
+        a = out.get(k)
+        if a is None:
+            out[k] = dict(b, t=k)
+        else:
+            a.update(h=max(a["h"], b["h"]), l=min(a["l"], b["l"]), c=b["c"], v=a["v"] + b["v"])
+    return [out[k] for k in sorted(out)]
+
+
+def _put_daily(tk, truth):
+    """The stored DAILY bars on the current basis: each session's RTH close of `truth`."""
+    last = {}
+    for b in truth:
+        dt = datetime.fromtimestamp(b["t"], ET)
+        if 570 <= dt.hour * 60 + dt.minute < 960:
+            last[dt.date().isoformat()] = b["c"]
+    bs.put_bars(tk, "D", [{"t": d, "o": c, "h": c, "l": c, "c": c, "v": 1000} for d, c in sorted(last.items())],
+                date_tf=True)
+
+
 def _old_basis(b, r):
     return {"t": b["t"], "o": b["o"] * r, "h": b["h"] * r, "l": b["l"] * r, "c": b["c"] * r,
             "v": int(round(b["v"] / r))}
@@ -114,14 +149,13 @@ def test_H1_after_a_split_every_stored_row_is_on_the_new_basis(store, monkeypatc
     # afternoon of the last pre-split session on the new basis)
     j_day = rng.randint(8, len(days) - 9)
     tfs = ("5", "15", "60")
-    truth, junction = {}, {}
+    base = _truth(rng, _grid("5", days))
+    truth = {"5": base, "15": _agg(base, "15"), "60": _agg(base, "60")}
+    junction = (_ts(days[j_day], 9, 30) if rng.random() < 0.6
+                else _ts(days[j_day], rng.choice((10, 11, 12, 13, 14)), 30))
     for tf in tfs:
-        ts = _grid(tf, days)
-        truth[tf] = _truth(rng, ts)
-        day_ts = [t for t in ts if datetime.fromtimestamp(t, ET).date() == days[j_day]]
-        junction[tf] = rng.choice(day_ts) if rng.random() < 0.4 else day_ts[0]
-        stored = [_old_basis(b, r) if b["t"] < junction[tf] else b for b in truth[tf]]
-        bs.put_bars(tk, tf, stored)
+        bs.put_bars(tk, tf, [_old_basis(b, r) if b["t"] < junction else b for b in truth[tf]])
+    _put_daily(tk, base)
     declared = days[max(0, min(len(days) - 1, j_day + rng.randint(-3, 3)))].isoformat()
     splits = [(declared, r)]
     h0 = {tf: bs.series_meta(tk, tf)["history_rev"] for tf in tfs}
@@ -211,6 +245,7 @@ def test_H3_a_write_after_the_plan_is_a_race_and_nothing_is_rescaled(store, monk
     truth = _truth(rng, _grid("5", days))
     j = _ts(days[10], 9, 30)
     bs.put_bars("RACE", "5", [_old_basis(b, 2.0) if b["t"] < j else b for b in truth])
+    _put_daily("RACE", truth)
     real_plan = ish.plan_series
 
     def plan_then_write(tk, tf, events, **kw):
@@ -272,6 +307,7 @@ def test_C1_adj_basis_is_on_every_intraday_answer_and_stable(store):
     truth = _truth(rng, _grid("15", days))
     j = _ts(days[12], 9, 30)
     bs.put_bars("CTR", "15", [_old_basis(b, 4.0) if b["t"] < j else b for b in truth])
+    _put_daily("CTR", truth)
     rows = [{"t": t, "o": o, "h": h, "l": l, "c": c, "v": v} for t, o, h, l, c, v in _rows("CTR", "15")]
     before = bc.compute("CTR", "15", "rth", rows)
     assert "adj_basis" in before and before["adj_basis"] is None      # never checked: unknown
@@ -299,3 +335,168 @@ def test_series_meta_reads_a_store_whose_meta_table_predates_the_column(store):
     # the heal's own write self-heals the column
     assert ish.heal_series("OLD", "5", splits=[])["status"] == "applied"
     assert bs.series_meta("OLD", "5")["adj_basis"] == "s0"
+
+
+# ── D1: one split listed twice is never applied twice ─────────────────────────
+
+@pytest.mark.parametrize("seed", range(SEEDS))
+def test_D1_any_duplication_or_permutation_of_events_never_rescales_a_row_twice(store, seed):
+    rng = random.Random(5000 + seed)
+    tk = f"DUP{seed}"
+    days = _sessions(26)
+    r = rng.choice(RATIOS)
+    base = _truth(rng, _grid("5", days))
+    j = _ts(days[13], 9, 30)
+    bs.put_bars(tk, "5", [_old_basis(b, r) if b["t"] < j else b for b in base])
+    _put_daily(tk, base)
+    listings = [(days[13].isoformat(), r)]
+    for _ in range(rng.randint(0, 3)):         # the same split again: another date / source
+        k = rng.choice((-3, -2, -1, 0, 1, 2, 3))
+        listings.append((days[13 + k].isoformat(), r if rng.random() < 0.8 else r * 1.04))
+    rng.shuffle(listings)
+    ish.heal_series(tk, "5", splits=listings)
+    by_t = {b["t"]: b for b in base}
+    distinct = len({(d, f"{x:.6g}") for d, x in listings})
+    for ts, o, h, l, c, v in _rows(tk, "5"):
+        q = c / by_t[ts]["c"]
+        if ts >= j:
+            assert abs(q - 1) < 1e-9
+        else:
+            # unchanged (old basis, q = r) or healed ONCE (q = 1) — never divided twice
+            assert abs(q - r) < 1e-9 * r or abs(q - 1) < 1e-9, (seed, listings, q)
+            if distinct > 1:
+                assert abs(q - r) < 1e-9 * r, (seed, listings)        # refused: untouched
+
+
+def test_D1_repro_a_split_listed_for_two_dates_is_refused_not_divided_by_r_squared(store):
+    days = _sessions(26)
+    base = _truth(random.Random(9), _grid("5", days))
+    j = _ts(days[13], 9, 30)
+    bs.put_bars("TWO", "5", [_old_basis(b, 2.0) if b["t"] < j else b for b in base])
+    _put_daily("TWO", base)
+    before = _rows("TWO", "5")
+    res = ish.heal_series("TWO", "5", splits=[(days[13].isoformat(), 2.0), (days[15].isoformat(), 2.0)])
+    assert not res["rescale"] and {x["why"] for x in res["refused"]} == {"step-claimed-twice"}
+    assert _rows("TWO", "5") == before and bs.series_meta("TWO", "5")["adj_basis"] is None
+
+
+# ── D2: a correctly adjusted series is never written ─────────────────────────
+
+@pytest.mark.parametrize("ratio,gap", [(1.2, 0.92), (1.5, 0.70)])
+def test_D2_repro_a_real_gap_near_a_small_split_is_never_rescaled(store, ratio, gap):
+    """Correctly adjusted 60m rows, a real gap DOWN on the declared date (6:5 with an 8%
+    gap; 3:2 with ~30%): the session detector sees a 'cliff' and the bar step is unique —
+    but the daily closes show the same gap, so nothing is written."""
+    days = _sessions(24)
+    base = _truth(random.Random(21), _grid("5", days))
+    g = _ts(days[12], 9, 30)
+    base = [dict(b, o=b["o"] * gap, h=b["h"] * gap, l=b["l"] * gap, c=b["c"] * gap)
+            if b["t"] >= g else b for b in base]
+    bs.put_bars("GAP", "60", _agg(base, "60"))
+    _put_daily("GAP", base)
+    before, h0 = _rows("GAP", "60"), bs.series_meta("GAP", "60")["history_rev"]
+    res = ish.heal_series("GAP", "60", splits=[(days[12].isoformat(), ratio)])
+    assert res["cliffs"], "the session detector alone would have called this a split"
+    assert not res["rescale"] and res["refused"][0]["why"] == "daily-proof-unknown"
+    assert _rows("GAP", "60") == before
+    assert bs.series_meta("GAP", "60")["history_rev"] == h0
+
+
+@pytest.mark.parametrize("seed", range(SEEDS))
+def test_D2_property_a_correctly_adjusted_series_with_arbitrary_gaps_is_never_written(store, seed):
+    rng = random.Random(9000 + seed)
+    tk = f"OK{seed}"
+    days = _sessions(rng.randint(20, 30))
+    base = _truth(rng, _grid("5", days))
+    splits = []
+    for _ in range(rng.randint(1, 3)):
+        k = rng.randint(3, len(days) - 3)
+        r = rng.choice(RATIOS)
+        g = (1.0 / r) * rng.uniform(0.9, 1.1) if rng.random() < 0.7 else rng.uniform(0.6, 1.4)
+        at = _ts(days[k], rng.choice((9, 11, 13)), 30)
+        base = [dict(b, o=b["o"] * g, h=b["h"] * g, l=b["l"] * g, c=b["c"] * g)
+                if b["t"] >= at else b for b in base]
+        splits.append((days[max(0, min(len(days) - 1, k + rng.randint(-3, 3)))].isoformat(), r))
+    tf = rng.choice(("5", "15", "60"))
+    bs.put_bars(tk, tf, base if tf == "5" else _agg(base, tf))
+    _put_daily(tk, base)
+    before, h0 = _rows(tk, tf), bs.series_meta(tk, tf)["history_rev"]
+    res = ish.heal_series(tk, tf, splits=splits)
+    assert not res.get("rescale"), (seed, res.get("refused"))
+    assert _rows(tk, tf) == before and bs.series_meta(tk, tf)["history_rev"] == h0
+
+
+# ── D3: the stamp is bound to the series it was taken on ─────────────────────
+
+def test_D3_a_later_old_basis_write_voids_the_stamp(store):
+    days = _sessions(22)
+    base = _truth(random.Random(31), _grid("5", days))
+    j = _ts(days[12], 9, 30)
+    splits = [(days[12].isoformat(), 2.0)]
+    target = ab.target_basis_id(splits)
+    bs.put_bars("BND", "5", [_old_basis(b, 2.0) if b["t"] < j else b for b in base[300:]])
+    _put_daily("BND", base)
+    ish.heal_series("BND", "5", splits=splits)
+    assert bs.series_meta("BND", "5")["adj_basis"] == target
+    # an old-basis fallback PREPENDS deeper rows (history_rev does not move for a prepend)
+    bs.put_bars("BND", "5", [_old_basis(b, 2.0) for b in base[:300]])
+    assert bs.series_meta("BND", "5")["adj_basis"] is None, "a stamp must not survive rows it never saw"
+    # ... and the next check never re-stamps the target over that old-basis span (its step
+    # lies far from the declared date: not provable, so unknown — never "applied")
+    rows = _rows("BND", "5")
+    res = ish.heal_series("BND", "5", splits=splits)
+    assert not res["rescale"] and _rows("BND", "5") == rows
+    assert bs.series_meta("BND", "5")["adj_basis"] is None
+    # a held-history change (an interior row rewritten) voids a stamp too
+    bs.put_bars("BND", "5", base[:300])                  # the span rewritten on the new basis
+    ish.heal_series("BND", "5", splits=splits)
+    assert bs.series_meta("BND", "5")["adj_basis"] == target
+    row = _rows("BND", "5")[50]                          # held history rewritten
+    bs.put_bars("BND", "5", [{"t": row[0], "o": row[1] * 2, "h": row[2] * 2, "l": row[3] * 2,
+                              "c": row[4] * 2, "v": row[5]}])
+    assert bs.series_meta("BND", "5")["adj_basis"] is None
+    t0 = _rows("BND", "5")[50]
+    bs.put_bars("BND", "5", [{"t": t0[0], "o": t0[1] * 2, "h": t0[2] * 2, "l": t0[3] * 2, "c": t0[4] * 2, "v": t0[5]}])
+    assert bs.series_meta("BND", "5")["adj_basis"] is None
+
+
+# ── M: report mode (default) and the per-transaction cap ─────────────────────
+
+def test_M_report_mode_is_the_default_and_writes_nothing(store, monkeypatch, caplog):
+    import logging
+    monkeypatch.delenv("INTRADAY_SPLIT_HEAL_MODE", raising=False)
+    assert ish.mode() == "report"
+    days = _sessions(22)
+    base = _truth(random.Random(41), _grid("5", days))
+    j = _ts(days[12], 9, 30)
+    bs.put_bars("REP", "5", [_old_basis(b, 2.0) if b["t"] < j else b for b in base])
+    bs.put_bars("FLT", "5", base[:50])
+    _put_daily("REP", base)
+    before, rev = _rows("REP", "5"), bs.series_meta("REP", "5")["rev"]
+    n0 = dict(ish.STATS)
+    with caplog.at_level(logging.WARNING, logger=ish._log.name):
+        res = ish.heal_series("REP", "5", splits=[(days[12].isoformat(), 2.0)])
+        ish.heal_series("FLT", "5", splits=[])
+    assert res["status"] == "report" and res["rescale"]
+    assert _rows("REP", "5") == before and bs.series_meta("REP", "5")["rev"] == rev
+    assert bs.series_meta("REP", "5")["adj_basis"] is None and bs.series_meta("FLT", "5")["adj_basis"] is None
+    assert ish.STATS["would_rescale"] == n0["would_rescale"] + 1
+    assert ish.STATS["would_stamp"] == n0["would_stamp"] + 1
+    line = next(r.getMessage() for r in caplog.records if "WOULD-RESCALE" in r.getMessage())
+    assert f"REP tfs=5 boundary={j} ratio=2 rows=" in line
+    # the hard off checks nothing at all
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_ENABLED", "0")
+    assert ish.heal_series("REP", "5", splits=[(days[12].isoformat(), 2.0)])["cliffs"] == []
+
+
+def test_M_a_series_deeper_than_the_transaction_cap_is_refused(store, monkeypatch):
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MAX_ROWS", "100")
+    days = _sessions(22)
+    base = _truth(random.Random(43), _grid("5", days))
+    j = _ts(days[12], 9, 30)
+    bs.put_bars("CAP", "5", [_old_basis(b, 2.0) if b["t"] < j else b for b in base])
+    _put_daily("CAP", base)
+    before = _rows("CAP", "5")
+    res = ish.heal_series("CAP", "5", splits=[(days[12].isoformat(), 2.0)])
+    assert not res["rescale"] and res["refused"][0]["why"] == "too-deep"
+    assert _rows("CAP", "5") == before

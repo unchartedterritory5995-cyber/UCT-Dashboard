@@ -653,7 +653,10 @@ function applyRest(state, action, ctx, kind) {
     seriesRev: inSeries != null ? Math.max(inSeries, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: inHist != null ? Math.max(inHist, state.historyRev ?? -Infinity) : state.historyRev,
     cacheKey: inCk ?? state.cacheKey,
-    adjBasis: inAdj ?? state.adjBasis,
+    // D4 (review of #1144): an answer that CARRIES rows but names no basis (an unhealed /
+    // fallback store) leaves them unproven — the entry's stamp is NOT carried onto them (the
+    // persisted copy is then unstamped and re-judged by basisVerdict). Row-less answers keep it.
+    adjBasis: inAdj != null ? inAdj : (Array.isArray(p.bars) && p.bars.length ? null : state.adjBasis),
     // The tail judgement of the NEWEST answer (by series_rev) stands — order-independent.
     tailStatus: (p.tail_status != null && (inSeries == null || state.seriesRev == null || inSeries >= state.seriesRev))
       ? p.tail_status : state.tailStatus,

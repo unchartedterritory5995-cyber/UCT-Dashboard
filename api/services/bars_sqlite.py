@@ -999,9 +999,19 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
     sealed, sealed_ck, _uns, _cov = _seal_state(seal_row, seals, pfloor, glob)
     adj_events = adj_id = None
     if adj is not None:
+        # ⛔ The stamp holds only while the series is the one it was taken on (review of
+        # #1144 D3): same history_rev AND same first stored row — a later write that changed
+        # held history or prepended rows (an old-basis fallback, a merge) voids it.
         from api.services import adjustment_basis as _ab
-        adj_events = _ab.parse_canonical(adj)
-        adj_id = None if adj_events is None else _ab.basis_id(adj_events)
+        st = _ab.parse_stamp(adj)
+        if st is not None and st[0] == hrev:
+            try:
+                first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?", key).fetchone()[0]
+            except Exception:                            # noqa: BLE001
+                first = -1
+            if first == st[1]:
+                adj_events = st[2]
+                adj_id = _ab.basis_id(adj_events)
     return {"rev": rev, "history_rev": hrev, "verified_through": vt,
             "sealed_through": sealed, "sealed_checked_at": sealed_ck,
             "adj_basis": adj_id, "adj_events": adj_events}
@@ -1364,38 +1374,45 @@ _ADJ_STAMP_SQL = ("INSERT INTO series_meta(ticker, tf, rev, adj_basis) VALUES (?
 
 
 def apply_split_basis(ticker: str, plans: dict) -> dict:
-    """THE intraday split heal's write: ONE transaction for every intraday series of `ticker`.
+    """THE intraday split heal's write: ONE short transaction PER SERIES of `ticker`.
 
     `plans` = {tf: {"rev": <series rev the plan was computed at>, "adj_events": <applied
-    [(iso, ratio)] | None = unknown>, "rescale": [(boundary_ts, ratio), ...]}}. Under the write lock (`BEGIN IMMEDIATE`):
-      1. every planned series must still be at the rev it was planned at (optimistic
-         concurrency: a write that landed after the plan's read may have put rows on another
-         basis, so the plan is void) — any mismatch aborts the WHOLE transaction ("raced");
-      2. each rescale divides the rows before its boundary (one indexed UPDATE per event);
-      3. `bump_series_revs(history=True)` once per rescaled series — `history_rev` moves
+    [(iso, ratio)] | None = unknown>, "rescale": [(boundary_ts, ratio), ...]}}. Per series,
+    under the write lock (`BEGIN IMMEDIATE`):
+      1. the series must still be at the rev it was planned at (optimistic concurrency: a
+         write that landed after the plan's read may have put rows on another basis, so the
+         plan is void — "raced", nothing written for that series);
+      2. each rescale divides the rows before its boundary (one indexed UPDATE per event;
+         the planner caps the rows one series may touch — `intraday_split_heal._max_rows`);
+      3. `bump_series_revs(history=True)` once when rows were rescaled — `history_rev` moves
          exactly once, in the same commit as the rows;
-      4. `adj_basis` is stamped for every planned series (rescaled or only checked).
-    A reader sees the old basis + old stamp or the new basis + new stamp, never a mix.
-    Returns {"status": "applied" | "raced", "rows", "rows_by_tf", "rescaled": [tf, ...]}."""
+      4. `adj_basis` is stamped, BOUND to the series' history_rev and first row after the
+         write (`adjustment_basis.bind_stamp`).
+    A reader sees the old basis + old stamp or the new basis + new stamp of a series, never a
+    mix; series are independent row sets (one client key each), so the lock is held per
+    series, not for the whole ticker. Returns {"status", "rows", "rows_by_tf", "rescaled",
+    "by_tf": {tf: {"status": "applied"|"raced", "rows", "held_ms"}}}."""
+    from api.services import adjustment_basis as _ab
     tkr = ticker.upper()
     plans = {str(tf): p for tf, p in (plans or {}).items()}
-    if not plans:
-        return {"status": "applied", "rows": 0, "rows_by_tf": {}, "rescaled": []}
-    last_lock_err = None
-    for attempt in range(3):
-        try:
-            with _WRITE_LOCK:
-                c = _conn()
-                if c.in_transaction:
-                    c.commit()
-                c.execute("BEGIN IMMEDIATE")
-                try:
-                    for tf, p in plans.items():
+    by_tf = {}
+    for tf, p in plans.items():
+        last_lock_err = None
+        for attempt in range(3):
+            try:
+                t0 = time.perf_counter()
+                with _WRITE_LOCK:
+                    c = _conn()
+                    if c.in_transaction:
+                        c.commit()
+                    c.execute("BEGIN IMMEDIATE")
+                    try:
                         if int(series_meta(tkr, tf, _conn_override=c)["rev"]) != int(p.get("rev") or 0):
                             c.rollback()
-                            return {"status": "raced", "rows": 0, "rows_by_tf": {}, "rescaled": []}
-                    by_tf, keys = {}, []
-                    for tf, p in plans.items():
+                            by_tf[tf] = {"status": "raced", "rows": 0,
+                                         "held_ms": (time.perf_counter() - t0) * 1000.0}
+                            break
+                        n = 0
                         for boundary, ratio in p.get("rescale") or ():
                             f = float(ratio)
                             # Every price of the rows BEFORE the boundary / ratio, volume x
@@ -1407,34 +1424,43 @@ def apply_split_basis(ticker: str, plans: dict) -> dict:
                                 "v = CAST(round(v * ?) AS INTEGER) "
                                 "WHERE ticker=? AND tf=? AND ts < ?",
                                 (f, f, f, f, f, tkr, tf, int(boundary)))
-                            by_tf[tf] = by_tf.get(tf, 0) + max(0, cur.rowcount or 0)
-                            keys.append((tkr, tf))
-                    if keys:
-                        bump_series_revs(c, keys, history=True)
-                    from api.services import adjustment_basis as _ab
-                    stamps = [(tkr, tf, None if p.get("adj_events") is None
-                               else _ab.canonical(p["adj_events"])) for tf, p in plans.items()]
-                    try:
-                        c.executemany(_ADJ_STAMP_SQL, stamps)
-                    except sqlite3.OperationalError as e:
-                        if "adj_basis" not in str(e).lower() and "no column" not in str(e).lower():
-                            raise
-                        _create_meta_tables(c)
-                        c.executemany(_ADJ_STAMP_SQL, stamps)
-                    c.commit()
-                except BaseException:
-                    c.rollback()
+                            n += max(0, cur.rowcount or 0)
+                        if n:
+                            bump_series_revs(c, [(tkr, tf)], history=True)
+                        stamp = None
+                        if p.get("adj_events") is not None:
+                            hrev = series_meta(tkr, tf, _conn_override=c)["history_rev"]
+                            first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?",
+                                              (tkr, tf)).fetchone()[0]
+                            stamp = _ab.bind_stamp(p["adj_events"], hrev, first)
+                        try:
+                            c.execute(_ADJ_STAMP_SQL, (tkr, tf, stamp))
+                        except sqlite3.OperationalError as e:
+                            if "adj_basis" not in str(e).lower() and "no column" not in str(e).lower():
+                                raise
+                            _create_meta_tables(c)
+                            c.execute(_ADJ_STAMP_SQL, (tkr, tf, stamp))
+                        c.commit()
+                    except BaseException:
+                        c.rollback()
+                        raise
+                by_tf[tf] = {"status": "applied", "rows": n,
+                             "held_ms": (time.perf_counter() - t0) * 1000.0}
+                if n:
+                    _track(((tkr, tf),))
+                break
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e).lower():
                     raise
-            if keys:
-                _track(sorted(set(keys)))
-            return {"status": "applied", "rows": sum(by_tf.values()), "rows_by_tf": by_tf,
-                    "rescaled": sorted({k[1] for k in keys})}
-        except sqlite3.OperationalError as e:
-            if "locked" not in str(e).lower():
-                raise
-            last_lock_err = e
-            time.sleep(0.05 * (attempt + 1))
-    raise last_lock_err
+                last_lock_err = e
+                time.sleep(0.05 * (attempt + 1))
+        else:
+            raise last_lock_err
+    rows_by_tf = {tf: r["rows"] for tf, r in by_tf.items() if r["rows"]}
+    statuses = {r["status"] for r in by_tf.values()}
+    return {"status": "raced" if "raced" in statuses else "applied",
+            "rows": sum(rows_by_tf.values()), "rows_by_tf": rows_by_tf,
+            "rescaled": sorted(rows_by_tf), "by_tf": by_tf}
 
 
 #: One-time marker: set once a full sweep finds no old-grid 60m ticker. After

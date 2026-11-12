@@ -54,8 +54,19 @@ one indexed UPDATE per event per tf plus the meta upserts.
 for that ticker — the same bounded, deduped 2-worker warm the daily serve path already
 triggers for every ticker it sanitizes.
 
-Kill switch: `INTRADAY_SPLIT_HEAL_ENABLED=0` (default ON) — off means no checks, no writes,
-no stamps (`adj_basis` then stays whatever was stamped, or null).
+Review of #1144 (D1-D4): a step claimed by two declared events is refused (never divided
+twice); a rescale additionally needs `daily_proof` — the stored daily closes show the
+intraday rows before the step are r x the same day's daily close while the rows after it
+match (a real gap shows in BOTH series and is never written); the stamp is bound to the
+history_rev and first row it was taken at (`bars_sqlite.series_meta` serves it only while
+both still hold, so a later old-basis write makes it unknown and re-checked); each series is
+its own bounded transaction (`_max_rows`, held_ms logged).
+
+Modes: `INTRADAY_SPLIT_HEAL_MODE=report` (DEFAULT) plans and logs
+`[intraday-split-heal] WOULD-RESCALE <tk> tfs=<tf> boundary=<ts> ratio=<r> rows=<n>` and
+counts would-be stamps (`STATS`), writing NOTHING (no rows, no stamps: the served adj_basis
+stays null, clients fall back to their ratio test); `write` applies. Hard off:
+`INTRADAY_SPLIT_HEAL_ENABLED=0` — no checks at all.
 """
 from __future__ import annotations
 
@@ -64,7 +75,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional, Sequence
 from zoneinfo import ZoneInfo
 
@@ -86,8 +97,31 @@ _inflight: set[str] = set()
 _checked: dict[tuple, float] = {}
 
 
+#: D2: intraday RTH close / stored daily close for one date — the same price to this much.
+_DAILY_TOL = 0.03
+#: Process counters (ops / tests): plans logged in report mode and writes in write mode.
+STATS = {"would_rescale": 0, "would_stamp": 0, "rescaled": 0, "stamped": 0}
+
+
 def enabled() -> bool:
+    """The HARD off: `INTRADAY_SPLIT_HEAL_ENABLED=0` — no checks, no logs, no writes."""
     return os.environ.get("INTRADAY_SPLIT_HEAL_ENABLED", "1") != "0"
+
+
+def mode() -> str:
+    """`INTRADAY_SPLIT_HEAL_MODE` = "report" (DEFAULT: plan + log `WOULD-RESCALE`, write
+    nothing — no rows, no stamps) | "write" (rescale proven cliffs, stamp adj_basis)."""
+    return "write" if os.environ.get("INTRADAY_SPLIT_HEAL_MODE", "report").strip().lower() == "write" else "report"
+
+
+def _max_rows() -> int:
+    """Rows one series' rescale may touch in ONE transaction (a deeper old-basis span is
+    refused and logged "too-deep", never written in one huge UPDATE). ~240k 1m rows
+    measured ~0.14 s under the lock on a dev store."""
+    try:
+        return int(os.environ.get("INTRADAY_SPLIT_HEAL_MAX_ROWS", "300000"))
+    except ValueError:
+        return 300000
 
 
 def _session_date(t) -> Optional[date]:
@@ -196,11 +230,18 @@ def _within(q: float, r: float, tol: float) -> bool:
     return r > 0 and abs(q / r - 1.0) <= tol
 
 
+#: RTH bucket starts (ET minute of day) whose close is a session's RTH close: the daily
+#: bar's close is the 16:00 close, never an after-hours print.
+_RTH_FROM_MIN, _RTH_TO_MIN = 9 * 60 + 30, 16 * 60
+
+
 def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
     """ONE streamed pass over `(ts, close)` rows (oldest first): per-session last closes,
-    and — per ratio r — the ts of every bar whose step from the previous bar
-    (`close[k-1] / close[k]`) matches r ("fwd") or 1/r ("inv") to `tol`. O(sessions) memory."""
+    per-session last RTH closes, and — per ratio r — `(ts, rows_before)` of every bar whose
+    step from the previous bar (`close[k-1] / close[k]`) matches r ("fwd") or 1/r ("inv")
+    to `tol`. O(sessions) memory."""
     last: dict[str, float] = {}
+    rth: dict[str, float] = {}
     fwd = {r: [] for r in ratios}
     inv = {r: [] for r in ratios}
     prev = None
@@ -212,21 +253,26 @@ def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
             continue
         if not (c > 0):
             continue
-        n += 1
-        d = _session_date(ts)
-        if d is not None:
-            last[d.isoformat()] = c
+        try:
+            dt = datetime.fromtimestamp(int(ts), _ET)
+        except (TypeError, ValueError, OverflowError, OSError):
+            continue
+        iso = dt.date().isoformat()
+        last[iso] = c
+        if _RTH_FROM_MIN <= dt.hour * 60 + dt.minute < _RTH_TO_MIN:
+            rth[iso] = c
         if prev is not None:
             q = prev / c
             for r in ratios:
                 if _within(q, r, tol):
                     if len(fwd[r]) <= _MAX_STEP_MATCHES:
-                        fwd[r].append(int(ts))
+                        fwd[r].append((int(ts), n))
                 elif _within(q, 1.0 / r, tol) and len(inv[r]) <= _MAX_STEP_MATCHES:
-                    inv[r].append(int(ts))
+                    inv[r].append((int(ts), n))
+        n += 1
         prev = c
-    return {"closes": [{"t": d, "c": last[d]} for d in sorted(last)], "fwd": fwd, "inv": inv,
-            "rows": n}
+    return {"closes": [{"t": d, "c": last[d]} for d in sorted(last)], "rth": rth,
+            "fwd": fwd, "inv": inv, "rows": n}
 
 
 def _et_midnight_ms(iso: str) -> int:
@@ -234,12 +280,57 @@ def _et_midnight_ms(iso: str) -> int:
     return int(datetime(d.year, d.month, d.day, tzinfo=_ET).timestamp() * 1000)
 
 
+def daily_proof(ticker: str, boundary: date, r: float, rth_closes: dict) -> str:
+    """D2 (review of #1144) — INDEPENDENT proof that the intraday rows before `boundary` are
+    on the OLD basis. A unique bar step of the split's size is weak evidence on its own: a
+    6:5 split's accept band (1.02-1.38) contains ordinary gaps, and a correctly adjusted
+    series with an 8% gap near a declared 6:5 split looks exactly like a cliff.
+
+    The stored DAILY closes (raw, as stored) are the reference: up to 3 sessions on each
+    side of the boundary are compared with the intraday series' own RTH closes for the SAME
+    dates. "old" only when every pre-boundary ratio intraday/daily ≈ r AND every
+    post-boundary one ≈ 1 (`_DAILY_TOL`) — the step exists in the intraday rows and NOT in
+    the daily rows, so it is a basis difference, not a price move. Anything else
+    (a real gap: both series show it, ratios ≈ 1 on both sides; daily not stored; daily
+    itself unadjusted; mixed) is "unknown" — never written. Reads one indexed window."""
+    from api.services import bars_sqlite
+    hi = boundary + timedelta(days=20)
+    try:
+        rows = bars_sqlite.get_bars_before(ticker.upper(), "D", 60,
+                                           int(hi.strftime("%Y%m%d")))
+    except Exception:  # noqa: BLE001
+        return "unknown"
+    daily = {}
+    for row in rows:
+        s = str(row[0])
+        c = row[4]
+        if c and c > 0:
+            daily[f"{s[:4]}-{s[4:6]}-{s[6:8]}"] = float(c)
+    b = boundary.isoformat()
+    both = sorted(s for s in rth_closes if s in daily)
+    pre = [s for s in both if s < b][-3:]
+    post = [s for s in both if s >= b][:3]
+    if not pre or not post:
+        return "unknown"
+    q_pre = [rth_closes[s] / daily[s] for s in pre]
+    q_post = [rth_closes[s] / daily[s] for s in post]
+    if all(_within(q, r, _DAILY_TOL) for q in q_pre) and all(_within(q, 1.0, _DAILY_TOL) for q in q_post):
+        return "old"
+    return "unknown"
+
+
 def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
                 meta: Optional[dict] = None) -> dict:
     """Judge ONE stored (ticker, tf) against the adjudicable `events` [(iso, ratio)] and
     return its plan: {"tf", "rev", "stamped", "adj_basis", "rescale": [(boundary_ts, r)],
     "cliffs", "refused", "pending", "rows"}. Reads only (series meta first, then the closes,
-    so the plan is never newer than the rev it is checked against)."""
+    so the plan is never newer than the rev it is checked against).
+
+    A rescale is planned only when ALL hold: the session detector reports the cliff; r
+    matches exactly one bar step in the whole series, inside that session, and 1/r none;
+    no OTHER declared event claims the same step (D1: one split listed twice — two dates,
+    two sources — must never divide the rows twice); `daily_proof` says the rows before it
+    are on the old basis (D2); and the rows before it fit one bounded write (`_max_rows`)."""
     from api.services import adjustment_basis as _ab
     from api.services import bars_sanitize as _san
     from api.services import bars_sqlite
@@ -249,9 +340,8 @@ def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
     out = {"tf": tf, "rev": int(meta.get("rev") or 0), "stamped": meta.get("adj_basis"),
            "adj_basis": None, "adj_events": None, "rescale": [], "cliffs": [], "refused": [],
            "pending": [], "rows": 0}
-    #: events an earlier check or heal of THIS series established as applied (its stamp):
-    #: every write since is the provider's current (adjusted) answer, so they stay applied
-    #: while the window around them is not fully observed (a heal near the series' end).
+    #: events an earlier check or heal of THIS series established as applied (its stamp —
+    #: bound to the history_rev and first row it was taken at, see bars_sqlite.series_meta).
     known = {(d, f"{float(r):.6g}") for d, r in (meta.get("adj_events") or ())}
     if rows is None:
         # No split after the series' first session: nothing can be on another basis, and
@@ -277,41 +367,41 @@ def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
     first_s = sessions[0]
     applied, unknown = [], False
     win = _san._SPLIT_BOUNDARY_WINDOW
+    candidates = []                      # (event, step_ts, rows_before, boundary_session)
+
+    def refuse(d, r, why, boundary=None):
+        out["refused"].append({"split": d, "ratio": r, "boundary": boundary, "why": why,
+                               "fwd_steps": len(scan["fwd"].get(r, [])),
+                               "inv_steps": len(scan["inv"].get(r, []))})
+
     for d, r in events:
         r = float(r)
         if d <= first_s:
             applied.append((d, r))           # every stored row is already after it
             continue
         anchor = next((i for i, s in enumerate(sessions) if s >= d), None)
-        lo = (anchor if anchor is not None else len(sessions)) - win
-        near = set(sessions[max(0, lo):(anchor + win + 1) if anchor is not None else None])
         cliff = _san.unadjusted_splits(closes, [(d, r)])
         if cliff:
             b = cliff[0][0]
             out["cliffs"].append((b.isoformat(), r))
             steps, inv = scan["fwd"].get(r, []), scan["inv"].get(r, [])
-            if len(steps) == 1 and not inv and _session_date(steps[0]) == b:
-                out["rescale"].append((steps[0], r))
-                applied.append((d, r))
+            if len(steps) == 1 and not inv and _session_date(steps[0][0]) == b:
+                candidates.append(((d, r), steps[0][0], steps[0][1], b))
             else:
-                out["refused"].append({"split": d, "ratio": r, "boundary": b.isoformat(),
-                                       "fwd_steps": len(steps), "inv_steps": len(inv)})
+                refuse(d, r, "step-not-unique", b.isoformat())
                 unknown = True
             continue
-        steps_near = [t for t in scan["fwd"].get(r, []) + scan["inv"].get(r, [])
-                      if (_session_date(t) or date.min).isoformat() in near]
-        if steps_near:
-            # A split-sized BAR step near the split that the session closes do not show (a
-            # big same-session move hid it): neither "applied" nor provable. Unknown.
-            out["refused"].append({"split": d, "ratio": r, "boundary": None,
-                                   "fwd_steps": len(scan["fwd"].get(r, [])),
-                                   "inv_steps": len(scan["inv"].get(r, []))})
+        if scan["fwd"].get(r) or scan["inv"].get(r):
+            # A split-sized BAR step the session closes do not show at the declared window —
+            # hidden by a same-session move, or anywhere else in the series (an old-basis
+            # span prepended far from the split's date): neither "applied" nor provable.
+            refuse(d, r, "hidden-step")
             unknown = True
             continue
         if (d, f"{r:.6g}") in known and anchor is not None:
             applied.append((d, r))           # established earlier; no cliff since
             continue
-        if anchor is None or len(sessions) - anchor <= _san._SPLIT_BOUNDARY_WINDOW:
+        if anchor is None or len(sessions) - anchor <= win:
             # The series has not reached (all of) the window the step can fall in: not
             # judgeable yet. Rows all written before the split's date are not adjusted for
             # it; once rows were written since, they may be on either basis.
@@ -320,6 +410,31 @@ def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
                 unknown = True
             continue
         applied.append((d, r))               # the whole window observed, no cliff: applied
+
+    # D1: a step claimed by more than one declared event is one split listed twice (or two
+    # ratios inside one tolerance band) — it is never divided once per listing: refused.
+    claims: dict[int, list] = {}
+    for cand in candidates:
+        claims.setdefault(cand[1], []).append(cand)
+    for step_ts, group in claims.items():
+        if len(group) > 1:
+            for (d, r), _ts, _n, b in group:
+                refuse(d, r, "step-claimed-twice", b.isoformat())
+            unknown = True
+            continue
+        (d, r), _ts, n_before, b = group[0]
+        proof = daily_proof(tk, b, r, scan["rth"])
+        if proof != "old":
+            refuse(d, r, f"daily-proof-{proof}", b.isoformat())
+            unknown = True
+            continue
+        if n_before > _max_rows():
+            refuse(d, r, "too-deep", b.isoformat())
+            unknown = True
+            continue
+        out["rescale"].append((step_ts, r))
+        out.setdefault("rescale_rows", {})[step_ts] = n_before
+        applied.append((d, r))
     out["adj_events"] = None if unknown else applied
     out["adj_basis"] = None if unknown else _ab.basis_id(applied)
     return out
@@ -343,9 +458,10 @@ def _invalidate_served_caches(tk: str, tfs) -> None:
 
 def heal_ticker(ticker: str, *, splits: Optional[Sequence] = None,
                 tfs: Sequence[str] = INTRADAY_TFS, as_of: Optional[date] = None) -> list[dict]:
-    """Check every intraday tf of one ticker; rescale every PROVEN cliff and stamp
-    `adj_basis` — all tfs in ONE transaction (`bars_sqlite.apply_split_basis`). A tf whose
-    read fails is simply not part of the write."""
+    """Check every intraday tf of one ticker and, in WRITE mode, rescale every PROVEN cliff
+    and stamp `adj_basis` (`bars_sqlite.apply_split_basis`: one bounded transaction per
+    series). In REPORT mode (the default) the same plan is only LOGGED — no row, no stamp is
+    written. A tf whose read fails is simply not part of the write."""
     from api.services import adjustment_basis as _ab
     from api.services import bars_sqlite
     if not enabled():
@@ -369,33 +485,52 @@ def heal_ticker(ticker: str, *, splits: Optional[Sequence] = None,
         if p.get("empty"):
             continue
         if p["refused"]:
-            _log.warning("[intraday-split-cliff] %s tf=%s unapplied split boundary(ies) %s "
-                         "-- NOT rewritten: the step is not provably unique (fwd, inv) %s",
+            _log.warning("[intraday-split-cliff] %s tf=%s split boundary(ies) %s NOT rewritten: %s",
                          tk, tf, [c[0] for c in p["cliffs"]],
-                         [(x["fwd_steps"], x["inv_steps"]) for x in p["refused"]])
+                         [(x["why"], x["fwd_steps"], x["inv_steps"]) for x in p["refused"]])
         if p["rescale"] or p["adj_basis"] != p["stamped"]:
             plans[tf] = {"rev": p["rev"], "adj_events": p["adj_events"], "rescale": p["rescale"]}
     if not plans:
         for p in res:
             p.setdefault("status", "unchanged")
         return res
-    t0 = time.perf_counter()
+    per = {p["tf"]: p for p in res}
+    if mode() != "write":
+        # ⛔ REPORT: nothing is written — not the rows, not even a stamp. A stamp is what the
+        # client trusts to keep a cached copy; stamping from a heal whose decisions are still
+        # being validated would make the clients trust them first.
+        for tf, plan in plans.items():
+            per[tf]["status"] = "report"
+            for step_ts, r in plan["rescale"]:
+                STATS["would_rescale"] += 1
+                _log.warning("[intraday-split-heal] WOULD-RESCALE %s tfs=%s boundary=%d ratio=%.6g rows=%d",
+                             tk, tf, step_ts, r, per[tf].get("rescale_rows", {}).get(step_ts, 0))
+            if not plan["rescale"]:
+                STATS["would_stamp"] += 1
+        for p in res:
+            p.setdefault("status", "unchanged")
+        return res
     out = bars_sqlite.apply_split_basis(tk, plans)
-    held_ms = (time.perf_counter() - t0) * 1000.0
-    for p in res:
-        p["status"] = out["status"] if p["tf"] in plans else "unchanged"
-    if out["status"] == "applied" and out["rescaled"]:
+    for tf, r in out["by_tf"].items():
+        per[tf]["status"] = r["status"]
+        if r["status"] != "applied":
+            continue
+        if r["rows"]:
+            per[tf]["written"] = int(r["rows"])
+            STATS["rescaled"] += 1
+            _log.warning("[intraday-split-heal] RESCALED %s tf=%s boundaries=%s rows=%d held_ms=%.0f",
+                         tk, tf, [b for b, _r in plans[tf]["rescale"]], r["rows"], r["held_ms"])
+        else:
+            STATS["stamped"] += 1
+            _log.info("[intraday-split-heal] STAMP %s tf=%s adj_basis=%s held_ms=%.0f", tk, tf,
+                      per[tf]["adj_basis"], r["held_ms"])
+    if out["rescaled"]:
         _invalidate_served_caches(tk, out["rescaled"])
-        per = {p["tf"]: p for p in res}
-        for tf in out["rescaled"]:
-            per[tf]["written"] = int(out["rows_by_tf"].get(tf, 0))
-        _log.warning("[intraday-split-heal] %s rescaled tf=%s boundaries=%s rows=%d "
-                     "(one txn, %.0f ms)", tk, out["rescaled"],
-                     sorted({(p["tf"], c[0]) for p in res for c in p.get("cliffs", ())
-                             if p["tf"] in out["rescaled"]}), out["rows"], held_ms)
-    elif out["status"] == "raced":
+    if any(r["status"] == "raced" for r in out["by_tf"].values()):
         _log.info("[intraday-split-heal] %s: a write landed after the plan -- re-planned "
                   "on a later serve", tk)
+    for p in res:
+        p.setdefault("status", "unchanged")
     return res
 
 

@@ -397,6 +397,19 @@ describe('P4 price basis (adj_basis)', () => {
     expect(kept.bars[0].t).toBe(old[0].t)
   })
 
+  it('B5 (D4): an answer with rows but no adj_basis never inherits the held stamp', () => {
+    const all = rows(12)
+    const held = full(initialState(K5, ctx), all.slice(0, 10), { adj_basis: 's1:aaaaaaaaaaaa' })
+    expect(held.adjBasis).toBe('s1:aaaaaaaaaaaa')
+    const d = reduce(held, { type: 'rest-delta', payload: { ...contract(all.slice(9, 12), { adj_basis: null }), since: all[8].t } }, ctx)
+    expect(d.adjBasis, 'rows from an unproven store are not stamped').toBeNull()
+    const f = full(held, all, { adj_basis: null })
+    expect(f.adjBasis).toBeNull()
+    // a row-less answer (nothing new) keeps what is held
+    const e = reduce(held, { type: 'rest-delta', payload: { ...contract([], { adj_basis: null }), since: all[9].t } }, ctx)
+    expect(e.adjBasis).toBe('s1:aaaaaaaaaaaa')
+  })
+
   it('B4: @hist — another history_rev (older or newer) / basis / row series is refused; the same stamp prepends', () => {
     const all = rows(40)
     const held = full(initialState(K5, ctx), all.slice(20), { history_rev: 5, adj_basis: 's0' })

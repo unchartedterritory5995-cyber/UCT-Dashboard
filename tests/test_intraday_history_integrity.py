@@ -25,6 +25,7 @@ ET = ZoneInfo("America/New_York")
 
 @pytest.fixture
 def store(tmp_path, monkeypatch):
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MODE", "write")
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
     bars_sqlite.bump_db_epoch()
     bars_sqlite.init_db()
@@ -52,6 +53,13 @@ def _series(pre_px: float, post_px: float, tf="5"):
     return out
 
 
+def _daily(ticker, px):
+    """Stored daily closes on the CURRENT basis (the independent proof the heal asks for)."""
+    bars_sqlite.put_bars(ticker, "D", [{"t": _dt.date(y, m, d).isoformat(), "o": px, "h": px,
+                                        "l": px, "c": px, "v": 1} for (y, m, d) in SESSIONS],
+                         date_tf=True)
+
+
 def _stored(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 100000)
 
@@ -63,12 +71,13 @@ SPLITS = [(SPLIT_DAY, 2.0)]
 
 def test_a_proven_split_cliff_is_healed_in_the_store(store, caplog):
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
+    _daily("SPLT", 50.0)
     with caplog.at_level(logging.WARNING, logger=ish._log.name):
         res = ish.heal_series("SPLT", "5", splits=SPLITS)
     assert res["cliffs"] == [(SPLIT_DAY, 2.0)] and res["written"] == 18
     assert _stored("SPLT", "5") == [tuple(r) for r in bars_sqlite.get_bars("SPLT", "5", 100000)]
     assert {r[4] for r in _stored("SPLT", "5")} == {50.0}    # one basis, no cliff
-    assert "intraday-split-heal" in caplog.text and "rescaled" in caplog.text
+    assert "intraday-split-heal" in caplog.text and "RESCALED" in caplog.text
 
 
 def test_an_unprovable_cliff_is_detected_and_logged_but_nothing_is_written(store, caplog):
@@ -117,6 +126,7 @@ def test_no_declared_split_never_reads(store, monkeypatch):
 def test_heal_ticker_checks_every_intraday_tf(store):
     for tf in ("5", "15"):
         bars_sqlite.put_bars("SPLT", tf, _series(100.0, 50.0))
+    _daily("SPLT", 50.0)
     by_tf = {r["tf"]: r for r in ish.heal_ticker("SPLT", splits=SPLITS)}
     assert set(by_tf) == {"1", "5", "15", "30", "60"}
     assert by_tf["5"]["cliffs"] and by_tf["15"]["cliffs"] and not by_tf["1"]["cliffs"]
