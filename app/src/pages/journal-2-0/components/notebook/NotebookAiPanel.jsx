@@ -6,10 +6,10 @@
 //
 // The panel is a lazy chunk of its own (tabs/NotebookTab.jsx): the Notebook's first open does not carry it.
 //
-// The question panel opens at once (`autoOpen`). Closing it (its X, or Escape) closes the whole section when there is
-// nothing else in it, and hands focus back to the AI button through `onClose`; while "Or tell Notebook what to change"
-// is on, that door stays (on a phone the question panel is a sheet over the page, and the door must stay reachable
-// after it closes). The AI button toggles the section either way.
+// The question panel opens at once (`autoOpen`). Closing it (its X, or Escape) closes the whole section -- "Or tell
+// Notebook what to change" with it (preview fix round 1: a door left behind on its own read as a stray button) -- and
+// hands focus back to the AI button through `onClose`. The AI button (on a phone, ⋯ "Ask your Notebook") opens both
+// again.
 import { Suspense, useState } from 'react'
 import lazyChunk from '../../lib/lazyChunk'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -24,23 +24,17 @@ const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
 
 export default function NotebookAiPanel({ id, onOpenNote, onClose, blockedNoteIds = null }) {
   const actionsOn = notebookFlag('notebook_ai_actions_enabled') === true
-  const [askOpen, setAskOpen] = useState(true)
   const [previewDoc, setPreviewDoc] = useState(null)
   const [capturedSource, setCapturedSource] = useState(null)
-  const closeAsk = () => {
-    setAskOpen(false)
-    onClose?.({ all: !actionsOn })
-  }
+  const closeAsk = () => onClose?.()
   return (
     <section id={id} className={styles.section} aria-label="Ask your Notebook" data-notebook-ai-panel="">
-      {askOpen && (
-        <div className={styles.askDoor}>
-          <AskPanel scope="notebook" autoOpen onClose={closeAsk} onOpenNote={onOpenNote}
-            onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
-              signal, openNote: onOpenNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
-            })} />
-        </div>
-      )}
+      <div className={styles.askDoor}>
+        <AskPanel scope="notebook" autoOpen onClose={closeAsk} onOpenNote={onOpenNote}
+          onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
+            signal, openNote: onOpenNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+          })} />
+      </div>
       {actionsOn && (
         <Suspense fallback={null}>
           <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={onOpenNote} />

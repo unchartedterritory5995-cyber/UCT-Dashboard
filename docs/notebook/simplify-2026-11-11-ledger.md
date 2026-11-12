@@ -151,3 +151,15 @@ Pre-existing failures seen while running neighbouring suites (not caused by Task
 - `components/trade/TradeDetailPage.test.jsx` ("renders the outcome header from the fixture trade": no `[data-testid="chart"]`): red twice (once on its own), green in the final batch; flaky, unrelated to the Notebook.
 - `tabs/NotebookTab.templates.test.jsx`: two "creating from a member template" cases time out when run beside a heavy suite (seen beside TradeDetailPage); 9/9 on its own, twice, and beside NotebookTab.toolbar.test.jsx (as Task 2 recorded).
 - `components/notebook/ImportRepairNotice.test.jsx` "Import notes on Research Home" was already red on this branch before Task 5 (rewritten above; green now).
+
+## Preview fix round 1 (browser walk of 1edb49e133)
+
+Fixed: the colour picker from "Aa" (one swatch wide), the note Ask panel over the header buttons, the header "AI" label sitting low, the list's AI section leaving "Or tell Notebook what to change" behind (and reopening on return to the list), the "Aa" menu opening left over the title.
+
+Behaviour changed on purpose:
+- `NotebookAiPanel`: closing the question panel now closes the whole section at every width, the "Or tell Notebook what to change" door with it. Task 5 had kept that door open after the question sheet closed on a phone; on a phone the section reopens from ⋯ "Ask your Notebook", which opens both again.
+- The list's AI section closes when the member leaves the list (a note, the Daily brief), so it is closed on return.
+
+Pre-existing tests changed: none (new cases in `NoteEditorPage.calmToolbar.test.jsx` and `NotebookTab.landing.test.jsx`).
+
+Pre-existing failure seen (not caused here, not changed): `styles/tokens.reachable.test.js` ("re-points an alias target": `pages/study/RevealCard.module.css`), as Task 2 recorded.

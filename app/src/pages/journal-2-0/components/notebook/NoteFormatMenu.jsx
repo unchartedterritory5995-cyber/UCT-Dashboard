@@ -134,7 +134,7 @@ export default function NoteFormatMenu({
       </button>
       {menu.open && (
         <div {...menu.menuProps} aria-label={MORE_FORMATTING}
-          className={`${menu.menuProps.className} ${view === 'root' ? '' : styles.list}`}>
+          className={`${menu.menuProps.className} ${styles.menuStart} ${view === 'root' ? '' : styles.list}`}>
           {rows}
         </div>
       )}

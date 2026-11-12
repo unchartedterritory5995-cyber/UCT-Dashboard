@@ -474,3 +474,57 @@ describe('ONE "Save as template": plain by default, or keep live blocks', () => 
     expect(screen.queryByRole('button', { name: 'Keep live blocks' })).toBeNull()
   })
 })
+
+// Preview fix round 1 (found walking the built branch in Chromium at 1920 x 945). jsdom lays nothing out, so each
+// layout fix is held where it lives -- the rule in the stylesheet and the class or nesting it needs in the DOM. The
+// browser walk is the verdict.
+const sheet = (name) => readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook', name), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+
+describe('preview fix round 1: the layout the browser walk found wrong', () => {
+  it('item 1: the colour picker sizes to its swatch rows, not to the button it hangs from', () => {
+    expect(declares(sheet('TextColorMenu.module.css'), '.popover', 'width', 'max-content')).toBe(true)
+  })
+
+  it('item 5: the "Aa" menu hangs from the button\'s left edge, outranking the shared right-aligned menu', async () => {
+    expect(declares(sheet('NoteFormatMenu.module.css'), '.anchor > .menuStart', 'left', '0')).toBe(true)
+    expect(declares(sheet('NoteFormatMenu.module.css'), '.anchor > .menuStart', 'right', 'auto')).toBe(true)
+    await mount()
+    fireEvent.click(screen.getByRole('button', { name: 'More formatting' }))
+    const menu = screen.getByRole('menu', { name: 'More formatting' })
+    expect(menu.className).toMatch(/menuStart/)
+    expect(menu.parentElement.className).toMatch(/anchor/)
+  }, 60000)
+
+  it('item 2: at desktop the Ask panel anchors to the AI group, below the header row, not to its folded toggle', async () => {
+    expect(declares(DESKTOP, '.headerControls .aiGroup', 'position', 'relative')).toBe(true)
+    expect(declares(DESKTOP, '.askFolded > div', 'position', 'static')).toBe(true)
+    latchNotebookFlags({ notebook_writing_help_enabled: true })
+    await mount()
+    const header = document.querySelector('[data-note-header]')
+    const ai = within(header).getByRole('button', { name: 'AI' })
+    fireEvent.click(ai)
+    fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
+    const panel = await screen.findByRole('dialog', { name: 'Ask This note' })
+    // the box `.askFolded > div` makes static IS the one holding the panel, and the group it then anchors to is the AI
+    // group, whose last drawn control is the AI button
+    const box = panel.parentElement
+    expect(box.parentElement.className).toMatch(/askFolded/)
+    expect(box.tagName).toBe('DIV')
+    const group = box.parentElement.parentElement
+    expect(group.getAttribute('data-header-control')).toBe('ai')
+    expect(group.className).toMatch(/aiGroup/)
+    expect(group.lastElementChild.contains(ai)).toBe(true)
+  }, 60000)
+
+  it('item 3: the header\'s AI button centres its icon, word and chevron in one row', async () => {
+    expect(declares(CSS, '.aiBtn', 'display', 'inline-flex')).toBe(true)
+    expect(declares(CSS, '.aiBtn', 'align-items', 'center')).toBe(true)
+    latchNotebookFlags({ notebook_writing_help_enabled: true })
+    await mount()
+    const ai = within(document.querySelector('[data-note-header]')).getByRole('button', { name: 'AI' })
+    expect(ai.className).toMatch(/aiBtn/)
+    // no icon nudged by hand any more (the inline vertical-align that left the word low)
+    for (const svg of ai.querySelectorAll('svg')) expect(svg.style.verticalAlign).toBe('')
+  }, 60000)
+})

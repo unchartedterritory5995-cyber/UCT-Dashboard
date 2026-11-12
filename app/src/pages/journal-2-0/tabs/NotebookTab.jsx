@@ -2163,10 +2163,15 @@ export default function NotebookTab() {
     aiOpenerRef.current = document.activeElement   // the ⋯ button: the menu hands focus back to it before this runs
     setAiOpen(true)
   }
-  const closeAi = ({ all = true } = {}) => {
-    if (all) setAiOpen(false)
+  // Preview fix round 1 (item 4): closing the question panel closes the WHOLE AI section -- the question panel and
+  // "Or tell Notebook what to change" together (that door used to stay behind on its own) -- and hands focus back.
+  const closeAi = () => {
+    setAiOpen(false)
     requestAnimationFrame(() => (aiOpenerRef.current || aiBtnRef.current)?.focus?.())
   }
+  // ...and the section is closed whenever the list is entered: it closes as the member leaves the list (a note, the
+  // Daily brief), so coming back never finds it reopened by itself. Pressing "AI" again opens both pieces.
+  useEffect(() => { if (!listToolbarShown) setAiOpen(false) }, [listToolbarShown])
   // Notebook simplify, Task 5: Research home's first-run doors for a member with no notes -- "Add a sample notebook"
   // and the get-started list -- are in the list's own empty state now (Research home is no longer routed).
   const sampleNotebook = useAddSampleNotebook({ onOpenNote: openNote })

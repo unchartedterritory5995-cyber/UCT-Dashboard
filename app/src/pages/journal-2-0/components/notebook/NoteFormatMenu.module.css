@@ -8,6 +8,13 @@
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
 }
+/* Preview fix round 1: the menu hangs from "Aa"'s LEFT edge and opens to the right, where the row has room (the
+   shared menu hangs right-aligned, which spread it left over the note's title). Two classes, so it outranks the shared
+   `.menu` rule whatever order the two stylesheets load in. */
+.anchor > .menuStart {
+  left: 0;
+  right: auto;
+}
 .label {
   flex: 1;
 }

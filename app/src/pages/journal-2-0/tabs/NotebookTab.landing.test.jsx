@@ -185,4 +185,39 @@ describe('the list toolbar’s AI button', () => {
     await waitFor(() => expect(screen.queryByTestId('ask-scope')).toBeNull(), T)
     expect(ai.getAttribute('aria-expanded')).toBe('false')
   })
+
+  // Preview fix round 1 (item 4): closing the question panel closed only the panel; "Or tell Notebook what to change"
+  // stayed on screen by itself until AI was pressed again.
+  it('closing the question panel closes the whole section, both pieces, and focus goes back to AI', async () => {
+    latchNotebookFlags({ notebook_ai_actions_enabled: true })
+    at('/journal')
+    const ai = within(await listToolbar()).getByRole('button', { name: 'AI' })
+    act(() => { ai.click() })
+    // non-vacuity: both pieces are open
+    expect(await screen.findByRole('region', { name: 'Or tell Notebook what to change' }, T)).toBeTruthy()
+    expect(screen.getByTestId('ask-scope')).toBeTruthy()
+    act(() => { screen.getByRole('button', { name: 'Close Ask' }).click() })
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Ask your Notebook' })).toBeNull(), T)
+    expect(screen.queryByRole('region', { name: 'Or tell Notebook what to change' })).toBeNull()
+    expect(ai.getAttribute('aria-expanded')).toBe('false')
+    await waitFor(() => expect(document.activeElement).toBe(ai), T)
+    // AI opens both again
+    act(() => { ai.click() })
+    expect(await screen.findByRole('region', { name: 'Or tell Notebook what to change' }, T)).toBeTruthy()
+    expect(screen.getByTestId('ask-scope')).toBeTruthy()
+  })
+
+  it('the section is closed whenever the list is entered: open, go to the Daily brief, come back -- closed', async () => {
+    at('/journal')
+    let ai = within(await listToolbar()).getByRole('button', { name: 'AI' })
+    act(() => { ai.click() })
+    await screen.findByTestId('ask-scope', {}, T)
+    act(() => { screen.getByRole('button', { name: 'Daily brief row' }).click() })
+    await waitFor(() => expect(document.querySelector('[data-today-home]')).not.toBeNull(), T)
+    act(() => { within(document.querySelector('[data-today-home]')).getByRole('button', { name: 'All notes' }).click() })
+    ai = within(await listToolbar()).getByRole('button', { name: 'AI' })
+    expect(ai.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('region', { name: 'Ask your Notebook' })).toBeNull()
+    expect(screen.queryByTestId('ask-scope')).toBeNull()
+  })
 })

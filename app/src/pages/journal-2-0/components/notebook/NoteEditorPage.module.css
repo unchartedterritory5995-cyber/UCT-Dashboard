@@ -1213,4 +1213,17 @@
   .headerControls .foldDesktop { display: none; }
   /* Only Ask's toggle: its panel lives in the same box and opens from the "AI" menu. */
   .askFolded [data-ask-toggle] { display: none; }
+  /* Preview fix round 1 (item 2): with its toggle folded, Ask's box has no height and sat mid-row, so its panel's
+     `top: 100%; right: 0` put the panel over "Saved" and Favorite. The box gives up being the panel's anchor
+     (`position: static`) and the AI group takes it: the panel opens under the header row, its right edge on the right
+     edge of "AI" (the group's last drawn control). */
+  .headerControls .aiGroup { position: relative; }
+  .askFolded > div { position: static; }
+}
+/* Preview fix round 1 (item 3): the header's "AI" button lays its sparkle, word and chevron out in one centred row.
+   As inline content the 16 px icons set the line box, and the word sat on the baseline below their middle. */
+.aiBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }

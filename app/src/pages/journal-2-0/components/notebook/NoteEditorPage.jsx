@@ -5389,13 +5389,13 @@ export default function NoteEditorPage({
                 <button
                   {...aiMenu.triggerProps}
                   type="button"
-                  className={styles.chromeBtn}
+                  className={`${styles.chromeBtn} ${styles.aiBtn}`}
                   aria-label="AI"
                   title="AI: ask about this note, or get writing help"
                 >
-                  <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                  AI
-                  <UIcon name="chevronDown" {...TOOLBAR_ICON} style={{ marginLeft: 4 }} />
+                  <UIcon name="sparkle" {...TOOLBAR_ICON} />
+                  <span>AI</span>
+                  <UIcon name="chevronDown" {...TOOLBAR_ICON} />
                 </button>
                 {aiMenu.open && (
                   <div {...aiMenu.menuProps} aria-label="AI">
