@@ -88,6 +88,8 @@ const byId = (s, id) => s.boards.find(b => b.id === id) || null
 
 export const drawingBoardsKind = {
   name: 'drawingBoards',
+  source: 'drawingBoards',  // #1112 rail: the host key this kind's list/read/commit reads (capabilities.noTargetSentence)
+  unavailable: "Drawing boards aren't available on this page — open Charts to use them.",
   // Boards are the member's own, the same whichever layout is open: a layout switch neither pins nor blocks them.
   boardScoped: false,
   // commit itself waits for the server's copy and says in its receipt whether it was seen.
