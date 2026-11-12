@@ -114,6 +114,8 @@ function inverseOf(p) {
 
 export const layoutBarKind = {
   name: 'layoutDock',
+  source: 'layoutDock',           // #1112 rail: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The layout bar isn't available on this page — open Charts to use it.",
   // the bar is the member's own, the same whichever layout is open
   boardScoped: false,
   selfDescribing: true,
