@@ -524,6 +524,36 @@
    "source": "s18",
    "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
    "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+  },
+  {
+   "id": "h03",
+   "source": "s18",
+   "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent",
+   "claim": "We have no losing-streak rule: only the drawdown ladder, in percent, cuts size."
+  },
+  {
+   "id": "h04",
+   "source": "s18",
+   "quote": "A drawdown is how far the account is below its highest value, open trades included",
+   "claim": "A drawdown is how far the account sits below its peak, open trades included."
+  },
+  {
+   "id": "h05",
+   "source": "s18",
+   "quote": "This replaces the setup plans' \"take some off at 2R and 3R\" in what the courses teach as ours",
+   "claim": "Our trims at 3R and 5R replace the old setup plans' targets at 2R and 3R."
+  },
+  {
+   "id": "h06",
+   "source": "s18",
+   "quote": "No daily loss limit.",
+   "claim": "We have no daily loss limit."
+  },
+  {
+   "id": "h07",
+   "source": "s18",
+   "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
+   "claim": "The further the account falls below its peak, the smaller the cap on each new position, down to no new trades."
   }
  ],
  "walkthroughs": [
@@ -589,39 +619,58 @@
    "q": "You're planning a trade. What does 1R mean?",
    "choices": [
     "Your planned loss if the stop is hit",
-    "One percent of your account",
-    "Your first profit target",
-    "The stock's average daily range"
+    "One percent of your account's value",
+    "The price of your first profit target",
+    "The stock's average daily price range"
    ],
    "answer": "Your planned loss if the stop is hit",
-   "why": "Your planned loss if the stop is hit. R is your initial risk: the distance from your entry to your stop when you open the trade.",
+   "why": "Your planned loss if the stop is hit. R is your initial risk: the distance from your entry to your stop when you open the trade. It's the money you agree to lose if you're wrong, set before you buy. It isn't a percent of the account, a target or a measure of how much the stock swings.",
    "lesson_line": "1R is what you agree to lose before you buy. Every result gets measured in it.",
    "facts": [
     "f20",
     "f01",
-    "f48"
+    "f48",
+    "f03"
    ],
    "wrong": {
-    "One percent of your account": "That's a risk-per-trade rule. You can size so 1R equals 1% of the account, but R itself comes from your entry and stop.",
-    "Your first profit target": "Targets get measured in R. R itself is the risk side of the trade.",
-    "The stock's average daily range": "That measures how much the stock swings. R is the distance to the stop you chose."
-   }
+    "One percent of your account's value": "That's one risk-per-trade setting. You can size so 1R is a set percent of the account, but R itself comes from your entry and stop.",
+    "The price of your first profit target": "A target sits on the profit side, and it gets measured in R. R itself is the risk side of the trade.",
+    "The stock's average daily price range": "That measures how much the stock swings in a day. R is the distance from your entry to the stop you chose."
+   },
+   "simple": "1R is what you plan to lose if the stop is hit. Per share, it's your entry minus your stop.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (stem changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
    "skill": "risk.expectancy",
    "rung": 1,
    "format": "tf",
-   "q": "An R-multiple states a trade's result as a multiple of the risk you took at entry.",
+   "q": "Every trade's result, win or loss, can be stated as a multiple of its initial risk.",
    "answer": "True",
-   "why": "True. Every profit and loss can be expressed as a multiple of the initial risk. Risk $10 a share and make $100 a share, and that's a 10R winner.",
+   "why": "True. Every profit and loss can be expressed as a multiple of the initial risk. Risk $10 a share and make $100 a share, and that's a 10R winner. Losses are counted the same way. The yardstick is the risk at entry, not the account size or the share price.",
    "lesson_line": "Count every result in R. A dollar win means little until you know what you risked.",
    "facts": [
     "f17",
     "f18",
     "f34",
     "f35"
-   ]
+   ],
+   "simple": "True, every win and every loss can be counted as a multiple of the risk you took going in.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why's units corrected)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -639,12 +688,21 @@
     }
    },
    "suffix": "R",
-   "why": "3R. $4.50 of gain over $1.50 of risk.",
+   "why": "3R. The R-multiple is the gain per share divided by the risk per share. $4.50 divided by $1.50 is 3. Keep both sides in the same unit, per share against per share.",
    "lesson_line": "R-multiple is the gain per share divided by the risk per share.",
    "facts": [
     "f17",
     "f18"
-   ]
+   ],
+   "simple": "It's 3R, because the $4.50 gain is three times the $1.50 you risked on each share.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -660,7 +718,7 @@
     "Its best single trade, in R"
    ],
    "answer": "Its average per trade, in R",
-   "why": "Its average result per trade, in R. Expectancy is the mean R across every trade, winners and losers together.",
+   "why": "Its average result per trade, in R. Expectancy is the mean R-multiple across every trade, winners and losers together. Add up the R and divide by the number of trades. It isn't the win rate, the average winner or the best trade.",
    "lesson_line": "Expectancy is your average R per trade, losers included.",
    "facts": [
     "f10",
@@ -671,7 +729,14 @@
     "How often it wins, in percent": "That's the win rate. It says nothing about how big the wins and losses are.",
     "Its average winner, in R": "That leaves the losers out. Expectancy averages every trade.",
     "Its best single trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
-   }
+   },
+   "simple": "Expectancy is the average result per trade in R, counting every winner and every loser.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -680,13 +745,20 @@
    "format": "tf",
    "q": "If 1R is 1% of your account, a 2R winner makes 2% of the account.",
    "answer": "True",
-   "why": "True. R turns straight into account terms. Van Tharp's example: risk 1% of $100,000, which is $1,000, and a $2,000 profit is 2R.",
+   "why": "True. R turns straight into account terms. Van Tharp's example: risk 1% of $100,000, which is $1,000, and a $2,000 profit is 2R. That $2,000 is 2% of the account.",
    "lesson_line": "Know your R in dollars and as a percent. Then every result reads the same way.",
    "facts": [
     "f03",
     "f04",
     "f49"
-   ]
+   ],
+   "simple": "True, if each R is 1% of the account, a winner worth 2R adds 2% to it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -695,14 +767,23 @@
    "format": "tf",
    "q": "A casino with a small edge still loses plenty of single bets.",
    "answer": "True",
-   "why": "True. Players can win in the short term. The casino's edge pays over many bets, and a trading edge also shows up only over many trades.",
+   "why": "True. Players can win in the short term, even where the casino's profit is only about 0.5% to a bit over 2%. The casino's edge pays over many bets. A trading edge also shows up only over many trades, not on each one.",
    "lesson_line": "An edge shows up over many trades, not on each one.",
    "facts": [
     "f44",
     "f45",
     "f46",
     "f21"
-   ]
+   ],
+   "simple": "True, a casino wins over many bets, but players still beat it on plenty of single bets.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why no longer equates a system with a casino)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
@@ -711,12 +792,19 @@
    "format": "tf",
    "q": "To make money over time, a system has to win more than half its trades.",
    "answer": "False",
-   "why": "False. The size of the wins counts as much as how often you win. Van Tharp's example: 99 losers costing a dollar each and one $500 winner still nets $401.",
+   "why": "False. The size of the wins counts as much as how often you win. Van Tharp's example: 99 losers at a dollar each and one $500 winner still nets $401. Counting wins and losses alone ignores how much each one made or lost.",
    "lesson_line": "Win rate alone can't grade a system. You need the size of the wins and losses too.",
    "facts": [
     "f15",
     "f28"
-   ]
+   ],
+   "simple": "False, a system can lose most of its trades and still make money if its winners are much bigger than its losers.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -724,15 +812,15 @@
    "rung": 3,
    "format": "fill",
    "q": "Finish the formula.",
-   "sentence": "Expectancy is win rate times average win, minus loss rate times average ___.",
+   "sentence": "Expectancy is win rate times average win, ___ loss rate times average loss size.",
    "bank": [
-    "loss",
-    "win",
-    "trade",
-    "target"
+    "minus",
+    "plus",
+    "over",
+    "times"
    ],
-   "answer": "loss",
-   "why": "Loss. Weight each outcome by how often it happens, then subtract the losing side. Investopedia's example: 0.6 x $10,000 minus 0.4 x $5,000 is $4,000.",
+   "answer": "minus",
+   "why": "Minus. Weight each outcome by how often it happens, then subtract the losing side from the winning side. Investopedia's example: 0.6 x $10,000 minus 0.4 x $5,000 is $4,000. The loss goes in as a size, then gets subtracted. In R, the result is your average R per trade.",
    "lesson_line": "Win rate times average win, minus loss rate times average loss.",
    "facts": [
     "f29",
@@ -740,7 +828,14 @@
     "f31",
     "f32",
     "f22"
-   ]
+   ],
+   "simple": "Minus, because you weigh the losing side by how often you lose, then take it away from the winning side.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -758,12 +853,21 @@
     }
    },
    "suffix": "%",
-   "why": "45%. Win rate is the winning trades out of all closed trades: 18 of 40.",
+   "why": "45%. Win rate is the share of closed trades that made money: 18 out of 40. It tells you how often you win, not how much. Open trades don't count until they close.",
    "lesson_line": "Win rate tells you how often. It doesn't tell you how much.",
    "facts": [
     "f23",
     "f24"
-   ]
+   ],
+   "simple": "Your win rate is 45%, because 18 winning trades out of 40 closed trades is 45%.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
@@ -775,44 +879,69 @@
    "choices": [
     "At 3R and 5R",
     "At 1R and 2R",
-    "At 10% and 20% gains"
+    "At 10% and 20%",
+    "At 2R and 3R"
    ],
    "answer": "At 3R and 5R",
-   "why": "At 3R and 5R. The stop sets R. A third comes off at 3R, another third at 5R, and the last third trails.",
+   "why": "At 3R and 5R. The stop sets R. Our hard rule takes a third off at 3R, another third at 5R, and the last third trails. In practice the first trim often waits for 5R. The trims are measured in R from the stop, not in percent gains.",
    "lesson_line": "Our trims are 3R and 5R. The stop sets R, and R sets the trims.",
    "facts": [
     "h01",
     "h02",
+    "h05",
     "f17"
    ],
    "wrong": {
     "At 1R and 2R": "Smaller than our plan uses. The first trim waits for 3R.",
-    "At 10% and 20% gains": "Fixed percents ignore the stop. Ours are measured in R from the stop."
-   }
+    "At 10% and 20%": "Fixed percents ignore the stop. Our trims are measured in R from the stop.",
+    "At 2R and 3R": "Those were the old setup plans' targets. Our rulebook replaced them: a third off at 3R, another third at 5R."
+   },
+   "simple": "Our trims are at 3R and 5R: a third comes off at each, then the last third trails.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "rewritten 2026-11-09 to the rulebook"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
    "skill": "risk.expectancy",
    "rung": 4,
    "format": "numeric",
-   "q": "Your system wins 45% of its trades. Winners average +2R and losers -1R. What's the expectancy per trade?",
-   "answer": 0.35,
+   "q": "Your system wins 30% of its trades. Winners average +3R and losers -1R. What's the expectancy per trade?",
+   "answer": 0.2,
    "calc": {
     "fn": "expectancy_r",
     "args": {
-     "win_rate_pct": 45,
-     "avg_win_r": 2,
+     "win_rate_pct": 30,
+     "avg_win_r": 3,
      "avg_loss_r": 1
     }
    },
    "suffix": "R",
-   "why": "+0.35R a trade. Win rate times average win, minus loss rate times average loss.",
-   "lesson_line": "A 45% system that wins 2R and loses 1R averages +0.35R a trade. That's an edge.",
+   "why": "+0.2R a trade. Win rate times average win, minus loss rate times average loss. Count the loss as a size, 1R, since the formula already subtracts it. The loss rate is whatever is left after the wins. Here the big winners more than pay for the many smaller losers.",
+   "lesson_line": "A system that wins 30% at 3R and loses 1R averages +0.2R a trade.",
    "facts": [
     "f29",
     "f22",
-    "f10"
-   ]
+    "f10",
+    "f31",
+    "f32"
+   ],
+   "simple": "It's +0.2R a trade, because the 30% of trades that win 3R more than pay for the losers at 1R.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (lesson line)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q12",
@@ -820,7 +949,7 @@
    "rung": 4,
    "format": "numeric",
    "house": true,
-   "q": "Our plan has the entry at $40 and the stop at $38. Where is 5R, our second trim?",
+   "q": "Our plan has the entry at $40 and the stop at $38. At what price is the trade up 5R?",
    "answer": 50,
    "calc": {
     "fn": "arith",
@@ -831,14 +960,25 @@
     }
    },
    "prefix": "$",
-   "why": "$50. R is the $40 to $38 distance. Add five of those to the entry and you have the 5R trim, where the second third comes off.",
+   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. That's where our rule takes the second third off. The first third comes off at 3R.",
    "lesson_line": "Trim price is the entry plus R times the multiple.",
    "facts": [
     "h02",
     "h01",
     "f20",
     "f48"
-   ]
+   ],
+   "simple": "5R is $50, because you add five times the $40 to $38 gap to your $40 entry.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (E51)",
+     "rewritten 2026-11-09 to the rulebook"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -857,14 +997,27 @@
     }
    },
    "suffix": "R",
-   "why": "4R. You planned to lose 1R and lost four times that. Your result in R counts what really happened, not what you planned.",
+   "why": "4R. Your R was the $30 to $28 distance. You sold at $22, four of those distances below your entry. You planned to lose 1R and lost four times that. The plan sets R, and the result in R counts what really happened.",
    "lesson_line": "Skip the stop and your loss is whatever the stock decides.",
    "facts": [
     "f06",
     "f05",
     "f08",
     "f09"
-   ]
+   ],
+   "simple": "You lost 4R, because the fall from $30 to $22 is four times the $30 to $28 risk you planned.",
+   "deeper": {
+    "example": "Van Tharp's own case: buy at $60 with a plan to sell at $55, so 1R is $5. The stock drops there and you don't sell. If it goes all the way to zero, you lose $60 a share, a 12R loss instead of 1R."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (why and lesson line)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q14",
@@ -876,10 +1029,11 @@
    "choices": [
     "Either +2R or -1R",
     "+0.35R, the expectancy",
-    "Most likely +2R"
+    "Most likely +2R",
+    "+0.5R, the midpoint"
    ],
    "answer": "Either +2R or -1R",
-   "why": "Either +2R or -1R. No marble says +0.35R. That's the average you get over many draws.",
+   "why": "Either +2R or -1R. Those are the only marbles in the bag, so no single draw pays +0.35R. The +0.35R is the average over many draws. Any one draw is a little more likely to be a -1R, since losers are 55% of the bag.",
    "lesson_line": "Expectancy is an average over many trades. No single trade pays it.",
    "facts": [
     "f10",
@@ -888,8 +1042,16 @@
    ],
    "wrong": {
     "+0.35R, the expectancy": "That's the average over many draws. No marble in the bag says +0.35R.",
-    "Most likely +2R": "Losers are 55% of the bag, so any one draw is more likely a -1R."
-   }
+    "Most likely +2R": "Losers are 55% of the bag, so any one draw is more likely a -1R.",
+    "+0.5R, the midpoint": "That averages +2R and -1R as if they were equally common. No marble says +0.5R either. Each draw pays one or the other."
+   },
+   "simple": "Each draw pays either +2R or -1R, because no marble in the bag says +0.35R.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -913,7 +1075,7 @@
      "exit": 53
     }
    },
-   "why": "+1.5R. R is fixed by your first stop, the $50 to $48 distance. The $53 exit is 1.5 times that above your entry.",
+   "why": "+1.5R. R is fixed by your first stop, the $50 to $48 distance. The $53 exit is 1.5 times that distance above your entry. Trailing the stop protects a gain, but it never resets R. A stop-out above your entry is a win.",
    "lesson_line": "R is set once, by the first stop. Trailing the stop doesn't change it.",
    "facts": [
     "f19",
@@ -924,7 +1086,17 @@
     "-1R, the stop was hit": "A stop-out isn't always a loss. This stop sat above your entry, so it locked in a gain.",
     "+3R": "That counts each dollar as 1R. Your R is the $50 to $48 distance.",
     "Can't tell, the stop moved": "R stays tied to the first stop. Moving the stop later doesn't change it."
-   }
+   },
+   "simple": "It made +1.5R, because R stays the first $50 to $48 risk, and $53 is 1.5 of those above $50.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (story's fill wording)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q16",
@@ -935,7 +1107,8 @@
    "choices": [
     "About 33%",
     "50%",
-    "About 67%"
+    "About 67%",
+    "Above 50%"
    ],
    "answer": "About 33%",
    "calc": {
@@ -946,16 +1119,28 @@
     },
     "round": 0
    },
-   "why": "About 33%. At that rate, each 2R winner pays for two 1R losers, so the average is zero. Win more often than that and the average turns positive.",
+   "why": "About 33%. Expectancy is the win rate times 2R, minus the loss rate times 1R. It is zero when one 2R winner pays for two 1R losers, a win rate of one in three. Win more often than that and the average turns positive.",
    "lesson_line": "Bigger winners lower the win rate you need. At 2R, about 33% breaks even.",
    "facts": [
     "f29",
-    "f22"
+    "f22",
+    "f15"
    ],
    "wrong": {
     "50%": "That's breakeven only when winners and losers are the same size. Bigger winners lower it.",
-    "About 67%": "That's flipped. About 67% is the loss rate at breakeven, not the win rate."
-   }
+    "About 67%": "That's flipped. About 67% is the loss rate at breakeven, not the win rate.",
+    "Above 50%": "That's the belief that you must win most trades. With 2R winners against 1R losers, about 33% already breaks even."
+   },
+   "simple": "About 33%, because at that rate each +2R winner pays for two -1R losers, so the average is zero.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (why's promise wording)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -974,13 +1159,22 @@
     }
    },
    "prefix": "$",
-   "why": "$7,000 on average. Expectancy is what you make per dollar risked: 0.35R a trade, at $200 a trade, over 100 trades. It's an average, not a promise.",
+   "why": "$7,000 on average. Expectancy is what you make per dollar risked: 0.35R a trade, at $200 a trade, over 100 trades. It's an average, not a promise. Any one stretch of 100 trades can land above or below it.",
    "lesson_line": "Expectancy times risk per trade times trades. That's the average payoff, never a guarantee.",
    "facts": [
     "f16",
     "f21",
     "f33"
-   ]
+   ],
+   "simple": "On average $7,000, because the average trade earns 0.35 of the $200 you risk, over 100 trades.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
@@ -998,13 +1192,23 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "2.8%. Independent chances multiply, so it's six 0.55s multiplied together. Rare for any six trades you name in advance.",
+   "why": "2.8%. Independent chances multiply, so it's six 0.55s multiplied together. That's rare for any six trades you name in advance. It only holds because the question says each trade is independent.",
    "lesson_line": "For a run of independent losses, multiply the chances. Six trades you name in advance rarely all lose.",
    "facts": [
     "f38",
     "f39",
     "f40"
-   ]
+   ],
+   "simple": "It's 2.8%, because when no trade affects the next, you just multiply six chances of 0.55 together.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (source moved to the archived page)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -1015,7 +1219,8 @@
    "choices": [
     "B, at +0.4R a trade",
     "A, it wins more often",
-    "They come out the same"
+    "They come out the same",
+    "A, at +0.6R a trade"
    ],
    "answer": "B, at +0.4R a trade",
    "calc": {
@@ -1026,7 +1231,7 @@
      "avg_loss_r": 1
     }
    },
-   "why": "B, at +0.4R a trade. B loses more often, but its winners are big enough to more than pay for it. A's winners are only the size of its losers.",
+   "why": "B, at +0.4R a trade. Run the formula on both. B wins 40% at +2.5R and loses 60% at -1R, so it nets +0.4R. A's winners are only the size of its losers, so it nets less. The test is the average R per trade, not the win rate.",
    "lesson_line": "Compare systems by expectancy, not by win rate.",
    "facts": [
     "f29",
@@ -1035,8 +1240,19 @@
    ],
    "wrong": {
     "A, it wins more often": "Winning more often isn't the test. A's winners are only as big as its losers, so it averages less than B.",
-    "They come out the same": "Run the formula on both. B's bigger winners outweigh its lower win rate."
-   }
+    "They come out the same": "Run the formula on both. B's bigger winners outweigh its lower win rate.",
+    "A, at +0.6R a trade": "That counts A's winners and forgets its losers. Once A's 40% of 1R losses come off, A makes less than B."
+   },
+   "simple": "B makes more, about +0.4R a trade, because its big winners more than pay for losing more often.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (stem narrowed to 'per trade')"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
@@ -1048,7 +1264,8 @@
    "choices": [
     "-2.5R",
     "-1R, the stop caps it",
-    "-5R"
+    "-5R",
+    "-1.5R"
    ],
    "answer": "-2.5R",
    "calc": {
@@ -1059,7 +1276,7 @@
      "exit": 45
     }
    },
-   "why": "-2.5R. A triggered stop becomes a market order, and a gap can fill it well past your stop. Losses bigger than 1R happen.",
+   "why": "-2.5R. Your R is the $50 to $48 distance. The fill at $45 sits 2.5 of those below your entry. A triggered stop becomes a market order, and a gap can fill it well past your stop. Losses bigger than 1R happen.",
    "lesson_line": "A stop can't promise 1R. A gap decides the fill.",
    "facts": [
     "f52",
@@ -1068,8 +1285,21 @@
    ],
    "wrong": {
     "-1R, the stop caps it": "A stop price is a trigger, not a guaranteed fill. The open went straight past it.",
-    "-5R": "That counts each dollar as 1R. Your R is the $50 to $48 distance."
-   }
+    "-5R": "That counts each dollar as 1R. Your R is the $50 to $48 distance.",
+    "-1.5R": "That measures only the slip past the stop, $48 to $45. R counts from your $50 entry, so the loss runs the full $50 to $45."
+   },
+   "simple": "It's a -2.5R loss, because the gap filled your stop at $45, which is 2.5 times your $50 to $48 risk.",
+   "deeper": {
+    "trap": "The trap is thinking the stop price is your worst case. The SEC says the stop price is not the guaranteed execution price; it's a trigger for a market order. Overnight news can open a stock far past your stop. Size every trade knowing a gap can cost more than 1R."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q21",
@@ -1081,7 +1311,8 @@
    "choices": [
     "55%, same as every draw",
     "Lower, a winner is due",
-    "Higher, you're on a cold streak"
+    "Higher, you're on a cold streak",
+    "Tiny, seven straight is rare"
    ],
    "answer": "55%, same as every draw",
    "calc": {
@@ -1091,7 +1322,7 @@
      "q": 0.55
     }
    },
-   "why": "55%, same as every draw. The marble goes back in the bag, so the odds never change. Expecting a winner to be due is the gambler's fallacy.",
+   "why": "55%, same as every draw. The marble goes back in the bag, so the odds never change. Past results don't change the next draw's chance. Expecting a winner to be due is the gambler's fallacy.",
    "lesson_line": "The bag has no memory. Nothing is ever due.",
    "facts": [
     "f40",
@@ -1100,8 +1331,22 @@
    ],
    "wrong": {
     "Lower, a winner is due": "That's the gambler's fallacy. Past draws don't change what's in the bag.",
-    "Higher, you're on a cold streak": "The bag has no memory. A streak doesn't change the odds of the next draw."
-   }
+    "Higher, you're on a cold streak": "The bag has no memory. A streak doesn't change the odds of the next draw.",
+    "Tiny, seven straight is rare": "That's the chance of seven losers named in advance. The six are already drawn, so only the next draw is left, at 55%."
+   },
+   "simple": "It's still 55%, because each marble goes back in the bag, so past draws never change the odds.",
+   "deeper": {
+    "trap": "The trap is sizing up after a losing streak. Van Tharp warns that believing a winner is due tempts you to size up when you shouldn't. The bag has no memory, so a streak is never a reason to size up."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (fact swapped to f59)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q22",
@@ -1110,14 +1355,24 @@
    "format": "tf",
    "q": "A system that wins two of every three trades has to be profitable.",
    "answer": "False",
-   "why": "False. Investopedia's example: twice as many wins as losses, but each loss three times the size of each win, is a losing strategy.",
+   "why": "False. A win rate alone can't make a system profitable. Investopedia's example: twice as many wins as losses, but each loss three times the size of each win, is a losing strategy. Two wins of one unit against one loss of three units lose one unit every three trades.",
    "lesson_line": "A high win rate with big losers still loses. Check the size of the losses.",
    "facts": [
     "f26",
     "f27",
     "f25",
     "f10"
-   ]
+   ],
+   "simple": "False, if each loss is much bigger than each win, winning two of every three trades can still lose money.",
+   "deeper": {
+    "trap": "The trap is grading a system by how often it wins. Investopedia notes that even with a high win rate, a poor risk/reward ratio can lead to losses. Check the average loss in R against the average win in R before you trust a high win rate."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q23",
@@ -1129,7 +1384,7 @@
    "choices": [
     "About 19.5% of the time",
     "About 2.8% of the time",
-    "Under 1% of the time",
+    "Less than 1% of the time",
     "About 55% of the time"
    ],
    "answer": "About 19.5% of the time",
@@ -1142,7 +1397,7 @@
     },
     "round": 1
    },
-   "why": "About 19.5% of the time. Six draws you name in advance all lose only about 2.8% of the time, but 20 draws give a run lots of places to start.",
+   "why": "About 19.5% of the time. Six draws you name in advance all lose only about 2.8% of the time. But 20 draws give a run of six many places to start. So the chance adds up to about one in five.",
    "lesson_line": "In a 45% system, six losers in a row inside 20 trades is not rare. Plan for it.",
    "facts": [
     "f38",
@@ -1151,9 +1406,21 @@
    ],
    "wrong": {
     "About 2.8% of the time": "That's the chance six draws you pick in advance all lose. A run can start at many points in 20 draws.",
-    "Under 1% of the time": "It feels that rare. The math says it happens far more often.",
-    "About 55% of the time": "That's the chance of one losing draw, not a run of six."
-   }
+    "About 55% of the time": "That's the chance of one losing draw, not a run of six.",
+    "Less than 1% of the time": "It feels that rare. The math says it happens far more often, about one time in five."
+   },
+   "simple": "About 19.5% of the time, because a run of six losers can start at many points in 20 draws.",
+   "deeper": {
+    "example": "A run of six can start at the first draw, the second, and so on, up to the last six draws. Each start on its own is a 2.8% shot. The starts overlap, so you can't simply add them, but together they come to about 19.5%."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q24",
@@ -1179,7 +1446,7 @@
      "l": 1
     }
    },
-   "why": "+7R. The 9 winners made 18R and the 11 losers cost 11R. The streak felt awful, but the order of the draws doesn't change the total.",
+   "why": "+7R. The 9 winners made 18R and the 11 losers cost 11R. The streak felt awful, but the order of the draws doesn't change the total. Expectancy is the average of every draw, not of the worst stretch.",
    "lesson_line": "Count the R, not the feeling. A bad streak inside a good system still adds up.",
    "facts": [
     "f10",
@@ -1190,7 +1457,19 @@
     "-2R": "That counts trades, not R. Each winner was worth twice each loser.",
     "+18R": "That's the winners alone. The 11 losers cost 11R.",
     "-6R, the streak sank it": "The streak is 6 of the 11 losers. The winners more than pay for all of them."
-   }
+   },
+   "simple": "It made +7R, because 9 winners at 2R bring 18R and 11 losers cost 11R.",
+   "deeper": {
+    "trap": "The trap is judging by the worst stretch. Six losers in a row feel like proof the system is broken. Add every draw and the total is still +7R. Van Tharp's own sample did the same: a 3R loss sat among trades that still averaged 2R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q25",
@@ -1200,13 +1479,13 @@
    "story": "Over 150 trades, your setup has won 45% at about +2R. Now you've lost six in a row, each by your rules, each about 1R.",
    "q": "What do the six losses tell you about the setup?",
    "choices": [
-    "Little, six trades is a tiny sample",
+    "Little, six trades is too few",
     "It's broken, stop trading it",
-    "A winner is due, size up",
+    "A winner is now due, size up",
     "The stop is too wide, tighten it"
    ],
-   "answer": "Little, six trades is a tiny sample",
-   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R still say far more. Keep watching for a market change, and size down while the account dips.",
+   "answer": "Little, six trades is too few",
+   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever. Our rule never cuts size for a streak. Instead, the cap on new positions shrinks as the account falls below its peak.",
    "lesson_line": "Judge a setup on a big sample of trades, not on the last few.",
    "facts": [
     "f13",
@@ -1215,13 +1494,29 @@
     "f57",
     "f58",
     "f59",
-    "f36"
+    "f36",
+    "h03",
+    "h04",
+    "h07"
    ],
    "wrong": {
     "It's broken, stop trading it": "Six trades is too few to judge. Van Tharp wants at least thirty just to get a good idea.",
-    "A winner is due, size up": "A losing run doesn't make a winner due, so it's no reason to size up.",
-    "The stop is too wide, tighten it": "Your losses were 1R, as planned. A tighter stop just gets hit more often."
-   }
+    "The stop is too wide, tighten it": "Your losses were 1R, as planned. A tighter stop just gets hit more often.",
+    "A winner is now due, size up": "A losing run doesn't make a winner due, so it's no reason to size up."
+   },
+   "simple": "Little, because six trades are far too few to judge a setup that 150 trades say has an edge.",
+   "deeper": {
+    "trap": "The trap is acting on the last few trades. Van Tharp wants at least thirty trades just to get a good idea of a system's expectancy. Small samples swing more and tell you less. Six losers in a row feel like proof, but they are a small sample inside a big one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B17, A8) for the sizing line",
+     "fixed before (why added market change and sizing)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q26",
@@ -1230,13 +1525,25 @@
    "format": "tf",
    "q": "A trading system's expectancy is fixed by its rules, just like a casino's house edge.",
    "answer": "False",
-   "why": "False. A casino's edge is built into the game. Your expectancy is an estimate from past trades, and no system works forever as markets change.",
+   "why": "False. A casino's edge is built into the rules of its games. Your expectancy is an estimate from the trades you have so far. Markets change, and no system makes money forever, so you keep measuring it.",
    "lesson_line": "Your edge is an estimate. Keep measuring it, trade by trade.",
    "facts": [
     "f56",
     "f54",
     "f57"
-   ]
+   ],
+   "simple": "False, a casino's edge is built into its games, but your expectancy is only an estimate from past trades.",
+   "deeper": {
+    "trap": "Van Tharp's sample system shows an expectancy of 2R, 'based on the available data.' New trades can move that number. Treat your expectancy as a running estimate and recheck it as trades come in and as the market changes."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (fact replaced by f57)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q27",
@@ -1247,12 +1554,12 @@
    "q": "What's the catch, if any?",
    "choices": [
     "The stop gets hit more often",
-    "None, 4R beats 2R",
+    "None, 4R pays twice as much",
     "The target gets further away",
     "You'd have to buy fewer shares"
    ],
    "answer": "The stop gets hit more often",
-   "why": "The stop gets hit more often. A closer stop shrinks the risk per share but raises the odds it triggers, so the 4R target comes with a lower win rate.",
+   "why": "The stop gets hit more often. A closer stop shrinks the risk per share but raises the odds it triggers. So the 4R target comes with a lower win rate. Whether 4R pays more depends on how far the win rate falls.",
    "lesson_line": "A tighter stop doesn't buy free R. The stop goes where the idea is wrong.",
    "facts": [
     "f36",
@@ -1260,10 +1567,22 @@
     "f53"
    ],
    "wrong": {
-    "None, 4R beats 2R": "Only if the win rate holds, and a closer stop gets hit more.",
     "The target gets further away": "The target price didn't move. Only the risk side shrank.",
-    "You'd have to buy fewer shares": "The opposite. Same dollar risk, half the risk per share, so you'd buy more."
-   }
+    "You'd have to buy fewer shares": "The opposite. Same dollar risk, half the risk per share, so you'd buy more.",
+    "None, 4R pays twice as much": "Only if the win rate holds, and a closer stop gets hit more often."
+   },
+   "simple": "The catch is that a closer stop gets hit more often, so the bigger 4R comes with fewer wins.",
+   "deeper": {
+    "trap": "On paper, halving the stop distance doubles the R. Investopedia warns that the bigger reward against risk comes with a lower chance of getting it. StockCharts puts it simply: keep your stops too tight and you'll get stopped out a lot."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why wording and stem)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q28",
@@ -1287,7 +1606,7 @@
      "avg_loss_r": 1.1
     }
    },
-   "why": "+0.23R a trade. Win rate times average win, minus loss rate times average loss. And 120 trades sits inside the 100 to 200 Van Tharp wants for a clear picture.",
+   "why": "+0.23R a trade. Win rate times average win, minus loss rate times average loss. The loss rate is what's left after the 38% of wins. And 120 trades sits inside the 100 to 200 Van Tharp wants for a clear picture.",
    "lesson_line": "Grade a system from its numbers, not its feeling.",
    "facts": [
     "f29",
@@ -1298,7 +1617,57 @@
     "+0.91R a trade": "That counts the winners and forgets the losers.",
     "+1.3R a trade": "That's the average win minus the average loss. It ignores how often each happens.",
     "Negative, most trades lost": "Losing most trades is fine when the winners are big enough. Run the numbers."
-   }
+   },
+   "simple": "It's +0.23R a trade, because the 38% of trades that win 2.4R more than pay for the losers at 1.1R.",
+   "deeper": {
+    "trap": "The tempting move is to count wins and losses. Most of these trades lost, yet the system averages +0.23R, because its winners are about twice the size of its losers. Grade the R, not the tally."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q29",
+   "skill": "risk.expectancy",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "After losses, what does our rule use to cut the size of new trades?",
+   "choices": [
+    "The account's drop from its peak",
+    "A string of losing trades in a row",
+    "Hitting a daily loss limit",
+    "A single loss bigger than 1R"
+   ],
+   "answer": "The account's drop from its peak",
+   "simple": "The account's drop from its peak, because we have no losing-streak rule and no daily loss limit.",
+   "why": "The account's drop from its peak. We have no losing-streak rule and no daily loss limit. As the account falls further below its highest value, open trades included, the cap on each new position shrinks. At 15% down, we open no new trades.",
+   "lesson_line": "We count no losing streaks. As the account falls below its peak, our position cap shrinks.",
+   "facts": [
+    "h03",
+    "h04",
+    "h06",
+    "h07"
+   ],
+   "wrong": {
+    "A string of losing trades in a row": "We have no losing-streak rule. A streak matters only through the drop it causes in the account.",
+    "Hitting a daily loss limit": "We have no daily loss limit. Size comes down as the account falls below its peak.",
+    "A single loss bigger than 1R": "One big loss has no rule of its own. It counts through the drop it causes below the peak."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B15, B17, A8)",
+     "new in wave9"
+    ]
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1342,171 +1711,177 @@
   },
   "q01": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "f20, f01 (Tharp) and f48 (Investopedia) confirmed: R is the planned loss set by entry and stop. Distractors are real confusions (the 1% rule, a target, the daily range) and the 1% note is accurate. Changed 'What does 1R stand for?' (literal answer: risk) to 'What does 1R mean?', the term-question form."
+   "fixed": false,
+   "notes": "Own answer from f20/f01/f48 matches the key. Choices 35-37 chars, no tell. Wrong note on 1% rests on f03. Simple is two short sentences, grounded."
   },
   "q02": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "f17, f18 (Tharp glossary) and f34, f35 (Investopedia risk/reward) confirmed; two publishers agree results are measured against the risk taken. Changed the why's 'Risk $10 a share and make $100' to '$100 a share' so the 10R is exact."
+   "fixed": false,
+   "notes": "True from f17 near word for word. The absolute 'Every' on a True key balances the False absolutes. Does not give away q01 or q03."
   },
   "q03": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "$4.50 / $1.50 = 3R recomputed; calc matches. f17/f18 (live) teach the method."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "f10, f22 (Tharp, live) and f33 (Investopedia: EV is the long-term average) confirmed: expectancy is the mean R of every trade. Wrong choices are real confusions (win rate, average winner, best trade). flagged-question fix checked 2026-11-11"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "f03/f04 (Tharp, live): 1% of $100,000 = $1,000 and a $2,000 profit is 2R, which is 2% of the account; f49 (Investopedia) dollar risk = account x risk %. True as stated."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "f44-f46 confirmed in context (players may win in the short term; the edge shows over the long haul). Changed the why's 'a trading system's expectancy works the same way', which clashed with q26, to 'a trading edge also shows up only over many trades'."
+   "fixed": false,
+   "notes": "Why now follows f44/f45/f46 wording; 0.5% to a bit over 2% is in f45; the trading line rests on f21."
   },
   "q07": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "f15 (Tharp, live): 99 x $1 = $99 lost, one $500 winner, net $401, recomputed; f28 (Investopedia): counting wins ignores the money. False is right; plenty of profitable systems win under half their trades."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "f29-f32 (Investopedia): 0.6 x 10,000 = 6,000; 0.4 x 5,000 = 2,000; 6,000 - 2,000 = 4,000, recomputed; f22 (Tharp). The sentence is the expectancy_r formula. Bank distractors are plausible slips."
+   "fixed": false,
+   "notes": "Blank is now the operation; 'loss size' makes 'plus' wrong. $4,000 example is f30-f32. No second defensible word in the bank."
   },
   "q09": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "18 / 40 = 45% recomputed; f23 (Tharp: closed trades that make money) and f24 (Investopedia) agree."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h01 (B19) and h02 (E51) verbatim in section 9. Key 'At 3R and 5R' follows; 1R/2R and flat percents are real wrong picks. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was 'At 2R and 3R' (profit targets); now the trims at 3R and 5R. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
+   "notes": "Key 3R and 5R = h01 (B19) + h02 (E51). 'At 2R and 3R' rests on h05 (B19 replaced it). No tell; 3R appears in two choices. q12's why reveals the trims but sits at a later rung."
   },
   "q11": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "0.45 x 2 - 0.55 x 1 = 0.35 recomputed; calc matches. The lesson line 'A 45% system at 2R' left out the -1R loss side; now 'that wins 2R and loses 1R'."
+   "fixed": false,
+   "notes": "Recomputed 0.3*3 - 0.7*1 = 0.2. Numbers come from the stem and calc. No longer answered by q14 or q17."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: Recomputed 40 + 5 x (40 - 38) = 50; calc agrees. E51 (h02) verbatim; the why's 'second third' follows from it. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, E51); awaiting cold check. Was the 2R target ($44); now 5R, the second trim ($50), so it does not repeat F10.03#q11's 3R price on the same $40 / $38 numbers"
+   "notes": "40 + 5*2 = 50. Stem no longer names a 5R trim, so it does not point at q10's key. The 5% stop vs A13's about 3% is a habit, not a rule, and is already an owner flag."
   },
   "q13": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "(30 - 22) / (30 - 28) = 4R recomputed; Tharp's skipped-stop example (f08, f09: $60 buy, $55 stop, 12R loss) confirmed in context. Changed 'R counts what really happened' (R is the plan; the result in R is what happened) and the lesson line '1R becomes whatever the stock decides' (1R never changes) to 'your loss is whatever the stock decides'. Track auditor 2026-11-09: f08's claim (shown in the reveal) spelled 'honour'; now 'honor', the spelling the rest of the course uses."
+   "fixed": false,
+   "notes": "Deeper now ends on f09's 12R; $60, $55, $5 all in f08/f09."
   },
   "q14": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "The bag holds only +2R and -1R marbles, so no draw pays +0.35R; f10 (mean R) and f33 (long-run average) support it. 'Most likely +2R' is wrong since 55% are -1R. The +0.35R choice is the real trap, not a giveaway."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "(53 - 50) / (50 - 48) = +1.5R recomputed; f19 (R defined by the initial stop) and f20 (set when you open) show R stays fixed after a trail. The story said the stop 'gets hit', leaving the fill open while q20 teaches fills can slip; now 'it fills at $53'."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "Breakeven: 2p = 1 - p, so p = 1/3 = 33.3%; calc 100/(1+2) rounds to 33. 50% and 67% are the real confusions and their notes are right. The why said the system 'makes money' above 33%; now 'the average turns positive', an expectation, not a promise."
+   "fixed": false,
+   "notes": "Facts change only (f15 added). Breakeven 1/3 recomputed; calc 100/3 rounds to 33."
   },
   "q17": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "0.35 x $200 x 100 = $7,000 recomputed; f16 (Tharp, live: average per dollar risked over a number of trades), f21, f33. The why already says it is an average, not a promise."
+   "fixed": false,
+   "notes": "0.35*200*100 = 7000. Simple says the average trade, not each trade, so it no longer contradicts q14."
   },
   "q18": {
    "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "0.55^6 = 0.02768, 2.8% at one decimal, recomputed; independence is stated in the question. The live s10 page could not be read (HTTP 402, WebFetch blocked, rewritten 2026-04-23), so s10 now cites the Archive copy of 2025-08-29, where f38 (that copy's wording) and f39 are confirmed and the quote check finds both. Lesson line now keeps the premise ('independent', 'name in advance')."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q19": {
    "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "A: 0.6 x 1 - 0.4 x 1 = +0.2R; B: 0.4 x 2.5 - 0.6 x 1 = +0.4R, recomputed; calc matches. 'Which is better?' was open to fair argument (B has longer losing runs and a bumpier ride); now 'Which makes more per trade?', which the key answers exactly."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "(45 - 50) / (50 - 48) = -2.5R recomputed. f52 (SEC: the stop price is a trigger for a market order, not a guaranteed price) confirmed on the investor.gov bulletin updated 2026-08-18; f07 (Tharp gap) and f51 (Investopedia gap) agree. Tier 1 support."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q21": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "Inside the marble game (replacement stated) the next draw stays 55%. f40, f41 confirmed in the Archive capture of 2026-10-26 (same 2026-05-08 version; live page 402, WebFetch blocked). Swapped f38 (multiplication, not what this key rests on) for Tharp's f59 (gambler's fallacy after a losing streak), confirmed live."
+   "fixed": true,
+   "notes": "Deeper trap added 'to size up and win it back'; the 'win it back' motive is in no cited fact (f59 only says you are tempted to size up). Rewritten to f59's own claim."
   },
   "q22": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "f26/f27 (Investopedia): two wins of 1 against one loss of 3 is -1 per three trades, a losing strategy, recomputed; f10 (Tharp). The converse of q07, on different facts, so not a duplicate."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q23": {
    "status": "pass",
-   "fixed": false,
    "by": "checker",
-   "notes": "Recomputed by an exact run-length count over all 20-draw paths: 0.194970 for a run of 6+ losses at 55%, equal to the calc (19.5%); 2.8% is 0.55^6. The marble game is independent by construction. f38/f39 now on the archived s10 copy. 'Not rare, plan for it' is fair at about one in five."
+   "fixed": false,
+   "notes": "0.55^6 = 2.77%, which rounds to 2.8%; 2.8% and 19.5% both come from the question's own choices; the overlap point is correct."
   },
   "q24": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
-   "by": "checker",
-   "notes": "9 x 2 - 11 x 1 = +7R recomputed; -2R (counting trades), +18R (winners only) and -6R (the streak) are real errors with correct notes. The order of draws cannot change a sum."
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q25": {
    "status": "pass",
-   "fixed": true,
    "by": "checker",
-   "notes": "Key fair: six trades say little against 150 (f13 Tharp's thirty-trade minimum; f42/f43 small samples swing). Trading-sense gap: the why only said keep going. A seasoned trader also checks whether the market changed and cuts size in a drawdown, so the why now says so, from Tharp's live page: f57 (systems must adapt to changing market conditions), f58 (reduce size when equity is dropping); f59 backs the 'size up' wrong note."
+   "fixed": true,
+   "notes": "Why says 'It cuts size only when the account falls a set percent below its peak'. Stated alone, that is false against the rulebook: D38 (grade), F65 (market reading) and B16 (monthly 8% limit) also cut or stop size. B17's 'only' answers losing streaks, not every cause. The sizing line is now tied to h07's cap; h07 added to facts."
   },
   "q26": {
    "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "f56 (casino edge built into the games) and f54 (Tharp: expectancy 'based on the available data') confirmed. f55 (Investopedia trading edge) could not be confirmed anywhere (live page 402, WebFetch blocked, only a 2025 archive without the quote), so it was replaced by Tharp's f57 ('No system is a money-making machine ... print cash forever'), confirmed live; the why now says 'no system works forever as markets change'."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
-   "fixed": true,
-   "by": "checker",
-   "notes": "$34 - $30 = $4: $4 / $2 = 2R, $4 / $1 = 4R, recomputed. f36/f37 (Investopedia) and f53 (StockCharts, live) confirmed. The why said a closer stop 'shrinks the loss', but at the same dollar risk (as the shares note rightly says) only the risk per share shrinks; fixed. 'the bigger R' is now 'the 4R target'; the lesson line now reads 'A tighter stop doesn't buy free R'. Track auditor 2026-11-09: 'What's the catch?' presumed a catch and so ruled out the 'None, 4R beats 2R' choice before it was read (the stem F9.05's checker fixed in its q19); now 'What's the catch, if any?', as in F9.02 q17 and F9.06 q20. Key and choices unchanged."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q28": {
    "status": "pass",
+   "by": "writer",
    "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q29": {
+   "status": "pass",
    "by": "checker",
-   "notes": "0.38 x 2.4 - 0.62 x 1.1 = 0.912 - 0.682 = +0.23R recomputed; +0.91R (winners only) and +1.3R (2.4 - 1.1) are the real slips the notes name. f14: 120 trades is inside Tharp's 100 to 200."
+   "fixed": true,
+   "notes": "The key is right among the choices (B17, A8), but the stem 'what cuts the size of your new trades' and the why, simple, lesson_line and daily-limit note claim only the drop from peak cuts size. The rulebook also cuts size by grade (D38) and market reading (F65), and stops new trades at the 8% monthly limit (B16). Fixes: the stem is limited to loss-based cuts, 'only' is removed wherever no quote carries it, and the why teaches h07's shrinking cap and the 15% stop. Choices and key are unchanged, and every number is in h07."
   }
  }
 }

@@ -108,6 +108,15 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R value",
+   "url": "https://vantharpinstitute.com/glossary/r-value",
+   "accessed": "2026-11-12",
+   "why_reliable": "The institute of Van K. Tharp, the author who made R-multiples standard in trading books; the same glossary page is used for R in F12.03. Used here only to define R, never alone for a key."
   }
  ],
  "facts": [
@@ -422,6 +431,48 @@
    "source": "s12",
    "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
    "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+  },
+  {
+   "id": "h5",
+   "source": "s12",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Our rule: no new buys in the 3 days before a report, and hold through a report only when the trade is up 5R."
+  },
+  {
+   "id": "h6",
+   "source": "s12",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "Our time stop: a trade still under 1R after 10 trading days is sold, so the money can work elsewhere."
+  },
+  {
+   "id": "h7",
+   "source": "s12",
+   "quote": "Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge. Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+   "claim": "Our risk per trade runs from 0.25% to 2% of the account; under 1% is normal and 2% is the absolute ceiling."
+  },
+  {
+   "id": "h8",
+   "source": "s12",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "Our stop only moves up, never down or wider; the one exception is the gap rule."
+  },
+  {
+   "id": "h9",
+   "source": "s12",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Our rule: every planned buy has its entry, stop and size written down before the market opens."
+  },
+  {
+   "id": "h10",
+   "source": "s12",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Our rule: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "f49",
+   "source": "s13",
+   "quote": "A term used to express the initial risk taken in a given position, as defined by one’s initial stop loss.",
+   "claim": "R is the risk you took on a trade, set by your first stop."
   }
  ],
  "walkthroughs": [
@@ -483,13 +534,23 @@
    "format": "tf",
    "q": "You can write your trade plan after you buy, once you see how the stock acts.",
    "answer": "False",
-   "why": "False. The plan comes first. Investopedia notes most trading experts want no money at risk until the plan is made.",
+   "why": "False. The plan comes before the buy. Investopedia notes most trading experts want no money at risk until a plan is made. Our rule goes further: every planned buy has its entry, stop and size written down before the market opens. Schwab adds that deciding first can help you enter orders correctly and manage risk. Watching how it acts after you buy is reacting, not planning.",
    "lesson_line": "No plan, no position.",
    "facts": [
     "f21",
-    "f04"
+    "f04",
+    "h9"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "False, because the plan comes first and no money should be at risk until it is written down.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why now teaches the owner's rulebook (section 9, D39)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
@@ -497,13 +558,21 @@
    "format": "tf",
    "q": "A trade plan needs your reason for the trade, not just the prices.",
    "answer": "True",
-   "why": "True. Schwab starts a plan with the objective, why this trade now, and it guides every other decision. IBKR's plan lists your reasoning too.",
-   "lesson_line": "Write the why first. It tells you when the trade stops making sense.",
+   "why": "True. Schwab says turning a hunch into a concrete objective can be a north star, guiding every other decision. IBKR's plan lists the trade's method and reasoning too. The reason does not replace the prices. It sits beside the entry, the stop and the exit, which IBKR sets as prices.",
+   "lesson_line": "Write the why first. It can guide every other line of the plan.",
    "facts": [
     "f06",
-    "f45"
+    "f45",
+    "f43"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "True, because your reason for the trade can guide every other choice you make in the plan.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -518,13 +587,20 @@
     "hold"
    ],
    "answer": "exit",
-   "why": "Exit. What, how much, when in, when out. A plan settles the way out, for a win and for a loss, before you're in.",
+   "why": "Exit. Schwab says a trade boils down to four decisions: what to trade, how much, when to enter and when to exit. Investopedia adds that a plan says when and how to exit, for winners and for losers. Add, hedge and hold are not on Schwab's list of four.",
    "lesson_line": "What, how much, when in, when out. Decide all four before the click.",
    "facts": [
     "f03",
     "f28"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Exit, because every trade comes down to what, how much, when to get in and when to get out.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -535,10 +611,10 @@
     "Buy on a move over $42.10",
     "Buy when it starts to break out",
     "Buy once it looks strong",
-    "Buy when volume comes in"
+    "Buy near $42 if it holds up"
    ],
    "answer": "Buy on a move over $42.10",
-   "why": "Buy on a move over $42.10. A real rule is exact, a price or a very specific condition, so there's no guessing in the moment. The other three leave the call to a feeling.",
+   "why": "Buy on a move over $42.10. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would buy at the same price.",
    "lesson_line": "A real entry rule is exact. Two people reading it would buy at the same price.",
    "facts": [
     "f23",
@@ -547,9 +623,18 @@
    "wrong": {
     "Buy when it starts to break out": "Break out over what price? With no level, you'd be deciding in the moment, which is what the plan is there to stop.",
     "Buy once it looks strong": "That's a feeling, not a rule. Two people reading it would buy at two different prices.",
-    "Buy when volume comes in": "How much volume, compared with what? With no number, you'd be judging it in the moment."
+    "Buy near $42 if it holds up": "It names a price, but 'near' and 'holds up' aren't exact. Two people reading it could buy at different prices."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Buy on a move over $42.10, because an exact price leaves nothing to guess when the moment comes.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a distractor replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -557,13 +642,22 @@
    "format": "tf",
    "q": "A trade plan only needs an exit for when the trade goes wrong.",
    "answer": "False",
-   "why": "False. A plan says how you get out both ways: how you take a loss, and how you take a profit.",
+   "why": "False. Investopedia says a plan must state how to exit with a profit, and how and when to get out with a loss. Schwab's exit section names both the target price and the stop. The profit exit can be a target price or a rule for when to sell. Either way, it is written before you buy.",
    "lesson_line": "Two exits on every plan: where you're wrong, and how you get paid.",
    "facts": [
     "f24",
     "f12"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "False, because a plan needs two exits, one for taking a loss and one for taking a profit.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (where became how, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -577,7 +671,7 @@
     "When the news turns against it"
    ],
    "answer": "When you place the trade",
-   "why": "When you place the trade. Schwab says listing what would change your mind at that point can help you keep a clear head. Later, it's easy to fall in love with the idea.",
+   "why": "When you place the trade. Schwab says people fall in love with an idea and hold on too long. Listing what would change your mind when you place the trade can help you keep a clear head. Investopedia says planning makes you decide ahead what you'll do if the market goes against you. Once a stock is under your price, selling gets harder because it means taking a loss.",
    "lesson_line": "Decide what proves you wrong while you have nothing to defend.",
    "facts": [
     "f14",
@@ -590,36 +684,57 @@
     "After a few bad days in a row": "That's deciding under pressure. The plan exists so this call is made before the pressure.",
     "When the news turns against it": "Then you're reacting. What would change your mind belongs on the plan before any news hits."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "When you place the trade, before you fall in love with the idea and find it hard to let go.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (helps became can help, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Our trade plans list Entry, Stop, Trim and Trail. What does the Trim line tell you?",
+   "q": "Our trade plans include Entry, Stop, Trim and Trail lines. What does the Trim line tell you?",
    "choices": [
     "Where to take some profit off",
     "Where you get out if you're wrong",
     "How the stop follows it higher",
-    "How many shares to buy"
+    "How many shares to buy at entry"
    ],
    "answer": "Where to take some profit off",
-   "why": "Where to take some profit off. In our plan a third comes off at 3R and another third at 5R. Trim is where you take some off.",
+   "why": "Where to take some profit off. Our rule sells the first third at 3R and another third at 5R, then trails the last third. R is the risk you took on the trade, set by your first stop. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner.",
    "lesson_line": "Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
    "facts": [
     "h1",
     "h2",
     "h4",
     "h3",
-    "f33"
+    "f33",
+    "f29",
+    "f49"
    ],
    "wrong": {
     "Where you get out if you're wrong": "That's the Stop line.",
     "How the stop follows it higher": "That's the Trail line, like moving the stop up under each higher low.",
-    "How many shares to buy": "That's your size, worked out from the stop. Trim is about selling some, not buying."
+    "How many shares to buy at entry": "That's your size, worked out from the stop. Trim is about selling some, not buying."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Trim is where you sell part of a winner to lock in some of the profit.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (section 9, B19 and E51)",
+     "rewritten to the rulebook 2026-11-09"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -627,13 +742,20 @@
    "format": "tf",
    "q": "A pre-trade checklist should ask which way the overall market is trending.",
    "answer": "True",
-   "why": "True. IBKR's trading checklist starts with market direction, and Investopedia's plan says to factor in the overall market. Your stock doesn't trade alone.",
-   "lesson_line": "Check the market before you check the stock.",
+   "why": "True. IBKR's trading checklist includes market direction: up, down or sideways. Investopedia's plan says to factor in the overall market condition. The stock you pick still trades inside that market. Checking the market does not replace checking the stock.",
+   "lesson_line": "Check the market, not just the stock.",
    "facts": [
     "f48",
     "f35"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "True, because a trading checklist asks which way the market is trending, and a plan factors in the whole market.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -642,12 +764,13 @@
    "story": "Your plan: buy XYZ on a move over $42.10, out of a six-week base. First target $47. Size: 200 shares.",
    "q": "Which line must you add before you place the order?",
    "choices": [
-    "The stop price",
+    "A stop price below $42.10",
     "A second, higher target",
-    "A price alert at $42.10"
+    "A price alert at $42.10",
+    "A plan to buy more on a dip"
    ],
-   "answer": "The stop price",
-   "why": "The stop price. A plan sets the entry, the exit and the stop as prices. Without a stop, the 200 shares weren't really sized either, since size comes from the entry-to-stop distance.",
+   "answer": "A stop price below $42.10",
+   "why": "A stop price below $42.10. IBKR's plan sets the entry, the exit and the stop as prices. Investopedia says to build stop-loss prices into every plan. Without a stop, the 200 shares weren't really sized either. Size comes from the distance between the entry and the stop. A second target and an alert are optional extras.",
    "lesson_line": "No stop, no size, no trade.",
    "facts": [
     "f43",
@@ -657,9 +780,22 @@
    ],
    "wrong": {
     "A second, higher target": "Nice to have, but a plan can run with one target. It can't run without the price that says you're wrong.",
-    "A price alert at $42.10": "An alert helps you catch the entry. It says nothing about where you're wrong."
+    "A price alert at $42.10": "An alert helps you catch the entry. It says nothing about where you're wrong.",
+    "A plan to buy more on a dip": "Adding on a dip is not an exit. It puts more money in without saying where you're wrong, and that's the line this plan lacks."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "The stop price, because without it you don't know where you're wrong or how many shares to buy.",
+   "deeper": {
+    "trap": "The stop decides the size, not the other way round. Pick 200 shares first and then hunt for a stop that fits, and the stop lands where your budget says. Investopedia works size out from the entry-to-stop distance, so the stop comes first."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "key text lengthened and a fourth choice added in this upgrade"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
@@ -670,21 +806,31 @@
     "What share of your money you'll trade",
     "Your entry on the stock you're watching",
     "The stop on the stock you hold",
-    "The target on today's breakout"
+    "How many shares you'll buy today"
    ],
    "answer": "What share of your money you'll trade",
-   "why": "What share of your money you'll trade. Before you start frequent trading, FINRA says to consider what share of your investment money goes to it. Fidelity's plan sets that split too. Prices go on each trade's own plan.",
+   "why": "What share of your money you'll trade. Before frequent trading, FINRA says to consider what percentage of your total investment funds goes to it. Fidelity's trading plan sets what percentage of your funds goes to each asset type. Entry, stop and size change with every setup. They go on each trade's own plan.",
    "lesson_line": "Two plans: one for your trading as a whole, one for each trade.",
    "facts": [
     "f01",
-    "f38"
+    "f38",
+    "f29"
    ],
    "wrong": {
     "Your entry on the stock you're watching": "That changes with every setup, so it goes on that trade's plan.",
     "The stop on the stock you hold": "Each trade has its own stop. It belongs on that trade's plan.",
-    "The target on today's breakout": "That's one trade's number, so it goes on that trade's plan."
+    "How many shares you'll buy today": "That's one trade's size. It comes from that trade's stop, so it goes on that trade's plan."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "What share of your money you'll trade, because that line covers your trading as a whole, not one trade.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (key reworded, FINRA scope narrowed, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
@@ -698,7 +844,7 @@
     "Stocks you already know well"
    ],
    "answer": "Criteria a stock has to meet",
-   "why": "Criteria a stock has to meet. For a trade plan, Schwab says you'll typically want specific criteria tied to your objective, like stocks in an uptrend on the daily chart.",
+   "why": "Criteria a stock has to meet. Schwab says a trade plan typically wants specific criteria tied to your objective. One example is stocks in an uptrend on the daily chart. Investopedia's plan also says what securities can be traded. A big move, a tip or a familiar name can put a stock in front of you. It still has to meet your criteria.",
    "lesson_line": "Your list comes from your rules, not from whatever's loud today.",
    "facts": [
     "f08",
@@ -710,7 +856,16 @@
     "Names a chat room is buzzing about": "A tip isn't a criterion. You can't repeat it or review it later.",
     "Stocks you already know well": "Knowing a company isn't a setup. The stock still has to meet your criteria today."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Criteria a stock has to meet, so your list comes from your rules and not from what's loud today.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (question and why wording, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q12",
@@ -718,7 +873,7 @@
    "format": "tf",
    "q": "Money you need for bills soon is fine to trade with, as long as your stops are tight.",
    "answer": "False",
-   "why": "False. Fidelity and Investopedia both say trade only what you can afford to lose. FINRA warns never to fund frequent trading with essential assets. And a stop won't protect you from a gap.",
+   "why": "False. Fidelity says never trade more than you can afford to lose, and Investopedia says the same. FINRA warns never to fund frequent trading with essential assets. A tight stop doesn't fix it. Fidelity notes stop orders will not protect you from sudden price drops, known as gaps.",
    "lesson_line": "Trade only money you can afford to lose. A stop can't promise you its price.",
    "facts": [
     "f02",
@@ -726,7 +881,19 @@
     "f39",
     "f42"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "False, because bill money is money you can't afford to lose, and a stop can't protect you from a gap.",
+   "deeper": {
+    "trap": "A tight stop feels like a promise to lose only a little. It isn't one. If bad news lands while the market is shut, the stock can open far below your stop, and the loss lands there. Fidelity warns stop orders won't protect you from gaps. Money you need soon can't take that hit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lead source changed, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -743,13 +910,22 @@
     }
    },
    "prefix": "$",
-   "why": "$48.50. That's 3% below $50. Written as a price, there's nothing left to work out when it hits.",
+   "why": "$48.50. That's 3% below the $50 support. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits.",
    "lesson_line": "Turn every exit rule into a price before you buy.",
    "facts": [
     "f15",
     "f31"
    ],
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "$48.50, because 3% below $50 is $48.50, and now the exit is a price you can type in.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q14",
@@ -758,12 +934,12 @@
    "q": "Leave size aside. Which plan is finished, with every line ready to place as an order?",
    "choices": [
     "Over $48.10, stop $46.90, target $51.70",
-    "Over $48.10, target $51.70",
+    "Buy over $48.10, target $51.70",
     "Buy $48.10, sell if it looks weak",
-    "Stop $46.90, target $51.70, buy soon"
+    "Stop $46.90, target $51.70, buy it later"
    ],
    "answer": "Over $48.10, stop $46.90, target $51.70",
-   "why": "Over $48.10, stop $46.90, target $51.70. Entry, stop and target are all prices, so each one becomes an order. The others leave a line blank or to a feeling.",
+   "why": "Over $48.10, stop $46.90, target $51.70. Investopedia says to build stop-loss prices and profit targets into your plan, so every trade has exact exit points. Here the entry, the stop and the target are all prices, so each becomes an order. The others leave the stop out, or leave the entry or the exit vague.",
    "lesson_line": "If a line can't become an order, the plan isn't finished.",
    "facts": [
     "f43",
@@ -771,11 +947,20 @@
     "f23"
    ],
    "wrong": {
-    "Over $48.10, target $51.70": "No stop. You'd be in the trade with no price that says you're wrong.",
     "Buy $48.10, sell if it looks weak": "'Looks weak' isn't a price. You'd be deciding the exit in the moment.",
-    "Stop $46.90, target $51.70, buy soon": "'Buy soon' isn't an entry. The stop and target only make sense from an entry you've set."
+    "Buy over $48.10, target $51.70": "No stop. You'd be in the trade with no price that says you're wrong.",
+    "Stop $46.90, target $51.70, buy it later": "'Buy it later' isn't an entry. The stop and target only make sense from an entry you've set."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "The one with entry, stop and target all as prices, because each line can go straight in as an order.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (question reworded, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -790,19 +975,34 @@
     "A rule for adding more shares"
    ],
    "answer": "A time limit to make it work",
-   "why": "How long you'd give it to work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period.",
+   "why": "A time limit to make it work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period. Our rule is a time stop: a trade still under 1R after 10 trading days is sold. R is the risk you took on the trade, set by your first stop. Selling frees the money for a stock that is moving. A trade stuck sideways this long would have been sold months ago.",
    "lesson_line": "Know how long you'll give a trade, not just where its stop and target sit.",
    "facts": [
     "f07",
     "f40",
-    "f41"
+    "f41",
+    "h6",
+    "f49"
    ],
    "wrong": {
     "A second, higher profit target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
     "A tighter stop on the trade": "That changes where you're wrong on price. This trade's problem is time.",
     "A rule for adding more shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "A time limit, because a stock can drift sideways for months without ever touching your stop or your target.",
+   "deeper": {
+    "trap": "A sideways stock feels safe because it never hits the stop. The cost is hidden: the money is stuck and can't go to a setup that is working. Fidelity says time exits can work for a stock that drifts sideways without hitting a stop. Our time stop sells a trade still under 1R after 10 trading days."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why now teaches the owner's rulebook (section 9, C33)",
+     "fixed before (can work, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q16",
@@ -812,23 +1012,33 @@
    "q": "Which entry line fits the plan?",
    "choices": [
     "Buy on a move over $48",
-    "Buy now at $47.60, ahead of it",
+    "Buy at $47.60, ahead of it",
     "Buy if it dips back to $44",
     "Buy once it's 10% above $48"
    ],
    "answer": "Buy on a move over $48",
-   "why": "Buy on a move over $48. The plan is a breakout, so the trigger is the top of the base. Schwab lists a breakout from a basing pattern as an entry signal.",
+   "why": "Buy on a move over $48. The base runs from $44 to $48, so the breakout trigger is a move over its top. Schwab lists a breakout of a basing pattern on a daily chart as an entry signal. Investopedia notes a tactical trader typically looks for exact price levels. Buying at $47.60 jumps the signal. Buying at $44 is a different trade, a bounce off support.",
    "lesson_line": "The idea picks the level. Write the level, then wait for it.",
    "facts": [
     "f11",
-    "f23"
+    "f23",
+    "h10"
    ],
    "wrong": {
-    "Buy now at $47.60, ahead of it": "That's buying before the signal. Your plan says breakout, and it hasn't broken out.",
     "Buy if it dips back to $44": "That's a different trade, a bounce off support. It doesn't fit a breakout plan.",
-    "Buy once it's 10% above $48": "That's chasing. You'd pay well above the level, with the stop far below you."
+    "Buy once it's 10% above $48": "That's chasing. Our rule never buys more than 4% above the buy point. At 10% you're well past it, with the stop far below you.",
+    "Buy at $47.60, ahead of it": "That's buying before the signal. Your plan says breakout, and it hasn't broken out."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Buy on a move over $48, because the plan is a breakout and $48 is the top of the base.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a wrong-note now teaches the owner's rulebook (section 9, C28)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -843,18 +1053,33 @@
     "Cancel the stop and just watch it"
    ],
    "answer": "Keep it; review the rule tonight",
-   "why": "Keep it, and review the rule after the close. Investopedia says a plan's signals don't change while you're trading, only when the market is closed. Fidelity warns against knee-jerk changes.",
+   "why": "Keep it, and review the rule after the close. Investopedia says a plan's signals don't change while you're trading, only when the market is closed. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. Our stop only moves up, never down or wider. The one exception is our gap rule, and this is a dip, not a gap. A rule you fix tonight applies to your next trade.",
    "lesson_line": "Plan when it's closed. Follow it when it's open.",
    "facts": [
     "f30",
-    "f36"
+    "f36",
+    "h8",
+    "f29"
    ],
    "wrong": {
     "Widen it now, before it gets hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade.",
     "Buy more to lower your average cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
     "Cancel the stop and just watch it": "Then nothing guards the trade, and you're deciding everything in the moment."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Keep the stop you set last night, and change a rule only after the close, never in the middle of a trade.",
+   "deeper": {
+    "trap": "A wider stop feels like patience. It is really a bigger loss you agreed to after the fact. Your size came from the old stop, since size is worked out from the entry-to-stop distance. Widen the stop and the same shares now risk more than the plan allowed."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why now teaches the owner's rulebook (section 9, A4)",
+     "fixed before (distractor and wrong-note, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
@@ -863,11 +1088,12 @@
    "story": "Your plan risks 1% a trade. Two setups trigger in chip stocks that tend to move together. You take full size in both.",
    "q": "The group drops and both stops hit. What did you lose?",
    "choices": [
-    "2% of the account, or more",
+    "2%, as each stop loses its 1%",
     "1%, since it's really one idea",
-    "1%, the plan's per-trade cap"
+    "1%, the plan's per-trade cap",
+    "Under 1%, as the risk is split"
    ],
-   "answer": "2% of the account, or more",
+   "answer": "2%, as each stop loses its 1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -876,17 +1102,31 @@
      "risk_b": 1
     }
    },
-   "why": "2% of the account, or more. Two full positions that move together are double the risk if both stops hit, and a gap can add to it. Your plan should say whether that's allowed.",
-   "lesson_line": "Two stocks that move together can hit two stops at once. Plan for it.",
+   "why": "2%, as each stop loses its 1%. Two full positions each lose their own 1% when their stops hit, so together they lose 2%. A gap can make it more: Fidelity warns stop orders will not protect you from gaps. Investopedia says full positions in two stocks that move alike could mean double risk if both hit the stop. It says an investor must decide if that's allowed.",
+   "lesson_line": "Each stop that hits costs its own risk. Two at once cost twice.",
    "facts": [
     "f26",
     "f42"
    ],
    "wrong": {
     "1%, since it's really one idea": "It's one idea, but two full positions. Each one loses its 1% at its own stop.",
-    "1%, the plan's per-trade cap": "The 1% limits each trade, not your total. Two stopped-out trades lose 1% each, and the losses add."
+    "1%, the plan's per-trade cap": "The 1% limits each trade, not your total. Two stopped-out trades lose 1% each, and the losses add.",
+    "Under 1%, as the risk is split": "Two full positions don't split your risk. Each one loses its own 1% at its stop, and these two fell together."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "2%, because each full position loses its own 1% at its stop, and a gap can make it more.",
+   "deeper": {
+    "trap": "Two tickers feel like two separate bets. When both stops hit on the same drop, each loses its own 1%, and the losses add. The 1% cap on each trade does nothing to limit the total. Investopedia says an investor must decide whether a second look-alike gets full size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (distractor replaced, 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -895,25 +1135,39 @@
    "story": "You're writing a plan for a three-week swing. The company reports earnings in 10 days, inside that window.",
    "q": "What does the plan need before you buy?",
    "choices": [
-    "A line on what you'll do at the report",
+    "What you'll do at the report",
     "Nothing; the stop covers a report",
     "A tighter stop for report day",
     "A bigger size to catch the pop"
    ],
-   "answer": "A line on what you'll do at the report",
-   "why": "A line on what you'll do at the report. Known dates like earnings belong on the plan, and a stop can't protect you from a gap. Decide now: hold through it, cut size, or sell before.",
+   "answer": "What you'll do at the report",
+   "why": "What you'll do at the report. IBKR's plan lists the dates of critical data releases, and Schwab says to plan ahead for earnings announcements. Fidelity warns a stop can't protect you from a gap. Our rule: hold through a report only if the trade is up 5R. Otherwise you sell before it. R is the risk you took on the trade, set by your first stop. We also make no new buys in the 3 days before a report. This one is 10 days out, so that rule doesn't block the buy.",
    "lesson_line": "Put the dates on the plan. A gap won't wait for your stop.",
    "facts": [
     "f44",
     "f16",
-    "f42"
+    "f42",
+    "h5",
+    "f49"
    ],
    "wrong": {
     "Nothing; the stop covers a report": "A stop can't protect you from a gap. After a bad report the open can land far below it.",
     "A tighter stop for report day": "A tighter stop does nothing against a gap. The open can land below it.",
     "A bigger size to catch the pop": "That's a bet on which way the report goes, with more at risk if it gaps the wrong way."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Decide now what you'll do at the report, because a gap can jump right past your stop.",
+   "deeper": {
+    "trap": "The trap is thinking the stop caps the damage. After a bad report the stock can open far below the stop, and your fill comes there, not at the stop. That's why the plan settles the report before you buy. Under our rule you sell before it unless the trade is already up 5R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why now teaches the owner's rulebook (section 9, B22) in place of a web list it replaced"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
@@ -922,13 +1176,13 @@
    "story": "After a careful review of your trades, you decide your plan's rules don't work. The market opens tomorrow.",
    "q": "What do you do tomorrow?",
    "choices": [
-    "No trades until a new plan is written",
+    "No trades until a new plan is made",
     "Trade on feel until a new idea comes",
     "Keep using the old rules for now",
     "Trade a smaller size with no rules"
    ],
-   "answer": "No trades until a new plan is written",
-   "why": "No trades until a new plan is written. Investopedia says scrap a plan that doesn't work and place no trades until a new one is made. Fidelity agrees: a change needs a replacement plan.",
+   "answer": "No trades until a new plan is made",
+   "why": "No trades until a new plan is made. Investopedia says a plan that doesn't work should be scrapped, and no trades placed until a new one is created. Fidelity agrees: if you change your plan, devise a replacement to guide your trading. A smaller size or the old rules still mean trading without a plan that works.",
    "lesson_line": "Scrap a broken plan, but never trade without one.",
    "facts": [
     "f27",
@@ -939,7 +1193,17 @@
     "Keep using the old rules for now": "You've just decided they don't work. Trading them anyway means knowingly using a broken plan.",
     "Trade a smaller size with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Don't trade until a new plan is made, because trading with no plan is what a plan is there to stop.",
+   "deeper": {
+    "trap": "The trap is the gap between plans. It is tempting to keep trading a little while you work out the new rules. Investopedia's line is plain: no trades are placed until a new plan is created. Trading small with no rules is still trading with no plan."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q21",
@@ -948,13 +1212,13 @@
    "story": "You bought for speeding sales growth. Your plan's exits: the stop, or growth slowing. The next report shows growth slowing sharply. The stock is still above your stop.",
    "q": "What does your plan tell you?",
    "choices": [
-    "Get out: your reason to own it is gone",
+    "Sell: your reason to own it is gone",
     "Hold: the stop hasn't been hit",
     "Hold: one report doesn't change much",
-    "Lower the stop to give it more room"
+    "Sell half, keep the rest on the stop"
    ],
-   "answer": "Get out: your reason to own it is gone",
-   "why": "Get out. Your plan named slowing growth as an exit, and this report shows it. Schwab's plan lists the business or chart changes that would make you close the position.",
+   "answer": "Sell: your reason to own it is gone",
+   "why": "Sell: your reason to own it is gone. Your plan named two exits, the stop or slowing growth, and the report triggered the second. Schwab's exit plan lists the business or chart changes that would make you close the position. Investopedia says a plan's signals don't change while you're trading. The stop is where price says you're wrong. Your written reason can say it first.",
    "lesson_line": "The stop is where price says you're wrong. Your reason can say it first.",
    "facts": [
     "f13",
@@ -965,9 +1229,22 @@
    "wrong": {
     "Hold: the stop hasn't been hit": "The stop is one of your exits. The other one you wrote just triggered.",
     "Hold: one report doesn't change much": "That's how people fall in love with an idea and hold on too long. Your plan named this exact change.",
-    "Lower the stop to give it more room": "That gives more room to a trade whose written exit has already triggered."
+    "Sell half, keep the rest on the stop": "Your plan named slowing growth as an exit for the trade, not for half of it. The half you keep still rides on a reason that is gone."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Sell, because your plan named slowing growth as an exit, and this report shows that exit has been hit.",
+   "deeper": {
+    "trap": "The trap is letting the stop be the only exit. The stop is a price, so it waits for the chart to catch up with the news. Schwab warns that people fall in love with an idea and hold on too long. An exit you wrote while calm is worth following when it triggers."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (story lists the exits, 2026-11-09)",
+     "possible tension with the rulebook's 'The stop is the exit' (A4) and 'the chart comes first' (D40); flagged for the owner"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q22",
@@ -982,18 +1259,31 @@
     "Nothing yet, see how it goes"
    ],
    "answer": "The goal, not the risk rule",
-   "why": "The goal. Investopedia says set realistic expectations and don't risk too much on one trade. Schwab's general rule has some traders risking up to 1% to 2%. A goal that needs 5% is the problem.",
+   "why": "The goal, not the risk rule. Our risk runs from 0.25% to 2% of the account a trade. Under 1% is normal and 2% is the absolute ceiling. Schwab notes some traders risk up to 1% to 2%. Investopedia says to set realistic expectations and not risk too much on one trade. A goal that needs 5% a trade is the broken line, so the goal changes.",
    "lesson_line": "Your goals bend to your risk rules. Never the other way round.",
    "facts": [
     "f34",
-    "f17"
+    "f17",
+    "h7"
    ],
    "wrong": {
     "The risk rule, up to 5% a trade": "That lets a wish set your risk. A short losing streak at 5% a trade digs a deep hole.",
     "How often you trade, to hit the goal": "Forcing more trades means taking setups you'd normally pass. That's chasing quick profits.",
     "Nothing yet, see how it goes": "A plan built on that goal pushes you toward bigger bets. Fix it before the first trade."
    },
-   "skill": "process.plan"
+   "skill": "process.plan",
+   "simple": "Fix the goal, because a goal that needs 5% risk a trade breaks the risk rule that protects the account.",
+   "deeper": {
+    "trap": "The trap is working backward from a wish. A target return picks the risk, and the risk rule bends to fit. At 5% a trade, a short losing streak digs a deep hole. Our risk is picked by setup quality, recent results, the market and your edge. A goal is not on that list."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why now teaches the owner's rulebook (section 9, A1)"
+    ]
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1025,135 +1315,135 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key backed by Investopedia f21 (no capital risked until a plan is made, a written document) and Schwab f04 (decisions made before placing a trade). Clear false statement.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q02": {
    "status": "pass",
-   "notes": "Schwab f06 (section 1 'Why this trade now: Set an objective', a north star for other decisions) and IBKR f45 'Trade methodology and reasoning' in its plan components: two publishers agree.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True re-derived from f06 (Schwab: objective as a north star guiding all other decisions) and f45 (IBKR: methodology and reasoning); two publishers. Why keeps Schwab's 'can be' hedge; f43 backs the prices line. No tell, sentences short."
   },
   "q03": {
    "status": "pass",
-   "notes": "Schwab f03 (what, how much, when to enter, when to exit) and Investopedia f28 (when and how to exit). Bank words add/hedge/hold do not fit the four decisions.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Exit re-derived from f03 (Schwab's four decisions) and f28 (Investopedia: when and how to exit). 'Four' is a count of f03's own list. Add, hedge, hold are not defensible from the quote. Why is supported."
   },
   "q04": {
    "status": "pass",
-   "notes": "Key backed by Investopedia f23 (exact price levels or very specific requirements) and Schwab f10. Fixed: the distractor 'Buy if it's up on the day' is an exact, followable condition (above the prior close), so it was replaced with the vague 'Buy when volume comes in'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key correct (f23 exact price levels, f10). Tell: the key was the only choice with a number, so a member could pick it by spotting the price without knowing why. Replaced 'Buy when volume comes in' with a choice that names a price but stays vague ('near', 'holds up'), so the question tests exactness, not the dollar sign. Why unchanged; still true for the new choice."
   },
   "q05": {
    "status": "pass",
-   "notes": "Investopedia f24 (exit with a profit and with a loss) and Schwab f12 (target and stop). Fixed: why and lesson line said 'where you take the profit'; a profit exit can be a trail, so it now says 'how'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "Schwab f14 in context (fall in love with an idea; list what would change your mind at the time you place the trade); f25/f46/f20 agree. Fixed: 'helps you keep a clear head' to the source's 'can help'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h1 (owner, Entry Stop Trim Trail), h2 (B19), h4 (E51), h3 (TRADE_PLANS Kicker trail) verbatim. Key follows; the three wrong choices are the other lines of the plan. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. The why's 'targets sit at 2R and 3R' now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
+   "notes": "Key re-derived from h2/h4 (thirds at 3R and 5R) and f33 (partial profits); house flag set. R defined by f49 (quote matches F12.03, F9.03, V.06). Stem's 'include' fits A12's five-part list. Lengths balanced (29-33), wrong notes cite h3 and f29."
   },
   "q08": {
    "status": "pass",
-   "notes": "IBKR f48 lists Market Direction first among checklist components; Investopedia f35 'Factor in the overall market condition' (Key Takeaways and step 5). Two publishers agree; sound trading sense.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "True stands on f48 (IBKR) plus f35 (Investopedia). But the why says IBKR's checklist 'starts with' market direction and 'It comes first', and the lesson line says check the market before the stock: f48's quote gives no order, and the IBKR page returned HTTP 403 (unreachable), so the order claim cannot be confirmed. Removed the order claims."
   },
   "q09": {
    "status": "pass",
-   "notes": "IBKR f43 (entry, exit and stop-loss prices), Schwab f12, Investopedia f31; f29 and Schwab's own worked example size from the entry-to-stop distance. Distractors really are optional.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Stop re-derived from f43, f31, f12. Deeper now rests on f29 (size from entry-to-stop distance), in line with rulebook A3 (stop first, size from the stop). Lengths balanced. Overlaps q14 on 'a plan needs a stop' but q14 also tests vague entry and exit; neither gives the other's key away."
   },
   "q10": {
    "status": "pass",
-   "notes": "FINRA f01 (Tier 1, current page dated June 4, 2026) and Fidelity f38 read in context. Fixed: FINRA's line is about frequent trading, so the why and f01/f02 claims now say so; the key 'How much of your money' could read as one trade's size, now 'What share of your money'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key re-derived from f01 (FINRA, Tier 1) and f38 (Fidelity). Key 37 chars, a distractor 39. The new share-count distractor is a real per-trade money line; wrong note cites f29. No second defensible answer."
   },
   "q11": {
    "status": "pass",
-   "notes": "Schwab f08/f09 (watchlist criteria tied to your objective; uptrend on the daily chart) and Investopedia f22. Fixed: the question said 'what to trade' comes first, but Schwab puts the objective first; the why said 'works best', the source says 'you'll typically want'. Track audit 2026-11-09: kept; F12.02 q03 (the same Schwab '5 Elements' criteria fact, asked as an MCQ with the same 'biggest mover' and 'chat room' distractors) is cut as its duplicate.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "Fidelity f39 and Investopedia f32 (only what you can afford to lose), FINRA f02, Fidelity f42 (stops do not protect from gaps). Fixed: the why called FINRA's frequent-trading line 'active trading' and led with it; it now leads with the two general sources.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "Schwab f15 is one of its sample exit criteria; asked as Schwab's sample. Recomputed: 50 x (1 - 0.03) = 48.50; calc matches.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "IBKR f43, Investopedia f31/f23. Fixed: 'which plans could become orders' was also true of the no-stop plan (a buy stop and a limit sell); now asks which plan is finished, every line ready to place as an order.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key re-derived from f31 (Investopedia: stop and target prices in the plan) and f43 (IBKR: entry, exit, stop as prices). Key 39 chars, longest is a distractor at 40. Why no longer copies q09. Each wrong choice fails in a distinct way."
   },
   "q15": {
    "status": "pass",
-   "notes": "Schwab f07 'How long do I expect this trade to last?' and Fidelity f40/f41 time exit. Fixed: Fidelity says a time exit 'can work' sideways, not 'is made for'; lesson line no longer orders a deadline on every trade. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Time limit re-derived from f07, f40, f41; why teaches C33 via h6 and defines R via f49. 'Sold months ago' holds: a trade sideways since entry sits under 1R, and 10 trading days falls months before four months. Choices balanced (27-30)."
   },
   "q16": {
    "status": "pass",
-   "notes": "Schwab f11 (breakout of a basing pattern as an entry signal), Investopedia f23 (exact price levels). Base $44-$48, close $47.60: the breakout trigger is over $48; each distractor is a real mistake.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Move over $48 re-derived from f11 (breakout of a basing pattern) and f23 (exact levels); story fixes a breakout plan and the base top. Chase note teaches C28 via h10 (4%); 10% comes from the choice. Lengths 22-27, no silly choice."
   },
   "q17": {
    "status": "pass",
-   "notes": "Investopedia f30 (signals not changed while trading, re-evaluated when markets are closed) and Fidelity f36 (no knee-jerk changes). Fixed: 'Sell now, ahead of the stop' is not clearly wrong to many good traders, so it became the named mistake 'Buy more to lower your cost'. Track audit 2026-11-09: the note on 'Widen it now' said 'If wider really is better, it'll still be better tonight', which read as permission to lower this trade's stop after the close and contradicted F12.02 q13/q15 ('Stops move one way') and F12.07 q12/q21 (moving the stop down is the mistake). Now 'If the rule needs work, change it tonight, for your next trade': f30 (re-evaluate when the market is closed) still supports it. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "Investopedia f26 (full positions in two similar stocks: double risk if both stops hit) and Fidelity f42 (gaps). Recomputed 1 + 1 = 2; calc matches. Fixed: '1%, since the two cancel out' was silly when the story says both stop out; now '1%, the plan's per-trade cap'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "2% re-derived by calc 1+1; f26 (double risk if both stops hit) and f42 (gaps) support the why. No correlation rule taught as ours (struck by the owner, section 5); Investopedia's 'must decide' credited to Investopedia. Choices 28-30, all in one pattern."
   },
   "q19": {
    "status": "pass",
-   "notes": "IBKR f44 (schedule of critical data releases), Schwab f16 (identify earnings announcements for the week ahead), Fidelity f42 (stops do not protect from gaps). Sound: decide hold, cut size or sell before the report. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key re-derived from f44 (IBKR schedule of data releases) and f16 (Schwab: plan for earnings); why teaches B22 via h5 (hold only if up 5R; no buys in the 3 days before) and correctly notes 10 days out is not blocked. R defined by f49. No tell."
   },
   "q20": {
    "status": "pass",
-   "notes": "Investopedia f27 (scrap a plan that doesn't work; no trades until a new plan is created) and Fidelity f37 (devise a replacement). Two publishers agree. variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q21": {
-   "status": "pass",
-   "notes": "Schwab f13/f14 (fundamental or technical changes that would make you close). Fixed: the key relied on an unstated condition (that the reason to buy was also an exit); the story now lists the plan's two exits. Added Investopedia f30 as a second publisher. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
   },
   "q22": {
    "status": "pass",
-   "notes": "Investopedia f34 (realistic expectations; don't risk too much on a single trade) and Schwab f17 (some traders risk up to 1%-2%). Key and distractors sound; no promise of returns.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Goal re-derived from h7 (0.25% to 2%, 2% ceiling), f17, f34. Deeper's 'A goal is not on that list' is grounded in h7's own list; 5% comes from the story. Choices 27-36, key not longest."
   }
  }
 }

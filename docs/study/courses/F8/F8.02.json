@@ -247,6 +247,14 @@
    "title": "The trade plan for every setup: Kicker row (owner's rulings 2026-11-02)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -615,6 +623,72 @@
    "source": "s29",
    "quote": "or the day-1 30-minute opening-range break",
    "claim": "The Kicker's second entry is the day-one 30-minute opening-range break."
+  },
+  {
+   "id": "h04",
+   "source": "s30",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Our rule C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h05",
+   "source": "s30",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink."
+  },
+  {
+   "id": "h06",
+   "source": "s30",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Our rule D39: entry, stop and size are written down before the open."
+  },
+  {
+   "id": "h07",
+   "source": "s30",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "Our rule F67: tired, sick, angry or distracted means no new trades that day."
+  },
+  {
+   "id": "h08",
+   "source": "s30",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "Our rule D44: no setup, no trade; cash is a position."
+  },
+  {
+   "id": "h09",
+   "source": "s30",
+   "quote": "Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.",
+   "claim": "Our rule F66: never take a trade from an alert or a post without your own entry, stop and size."
+  },
+  {
+   "id": "h10",
+   "source": "s30",
+   "quote": "Entries are market orders.",
+   "claim": "Our rule E57: we enter with market orders."
+  },
+  {
+   "id": "h11",
+   "source": "s30",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule A5: the full size goes on at one price with one stop, with no adding."
+  },
+  {
+   "id": "h12",
+   "source": "s30",
+   "quote": "the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade."
+  },
+  {
+   "id": "h13",
+   "source": "s30",
+   "quote": "by default a few cents under the day's low or the prior day's low",
+   "claim": "Our rule A3: the default stop sits a few cents under the day's low or the prior day's low."
+  },
+  {
+   "id": "h14",
+   "source": "s30",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "Our rule C29: skip a long more than 10% above its 10-day average."
   }
  ],
  "walkthroughs": [
@@ -678,7 +752,7 @@
     "Fear of holding a trade overnight"
    ],
    "answer": "Fear of being left out of a move",
-   "why": "Fear of being left out of a move. FOMO is the feeling that something exciting is happening while you sit on the sidelines, and its urgency drives impulsive decisions.",
+   "why": "Fear of being left out of a move. FOMO stands for the fear of missing out. In trading it is the fear of missing out on potential market moves. It feels like something exciting is happening while you sit on the sidelines. Its urgency drives rushed, impulsive decisions. It is not the fear of a loss: FOMO is about a gain you are not in.",
    "lesson_line": "FOMO wants you in now, on somebody else's move.",
    "facts": [
     "f62",
@@ -690,7 +764,16 @@
     "Fear of buying a stock at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
     "Fear of holding a trade overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "FOMO is the fear of being left out of a move others are making, and that urge pushes you into rushed trades.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (checker changed the why and a distractor)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
@@ -698,7 +781,7 @@
    "format": "tf",
    "q": "Chasing is jumping into a move after it has already happened.",
    "answer": "True",
-   "why": "True. A chase is a position taken too late to properly benefit, sometimes right when the move is ready to reverse.",
+   "why": "True. Chasing means coming into a position too late to properly benefit. Schwab describes it as jumping on a move after it has already happened, perhaps just when it is ready to reverse. Investopedia ties chasing to herd instinct and buying at a high price. Steenbarger saw a client chase moves that ran from his ideal entry, which often led to small paper-cut losses.",
    "lesson_line": "If the move already ran without you, paying up for it is a chase.",
    "facts": [
     "f12",
@@ -706,7 +789,16 @@
     "f10",
     "f54"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "True, chasing means buying into a move after it already ran, often too late to make much from it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (lesson line and facts changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -714,14 +806,22 @@
    "format": "tf",
    "q": "FOMO can also make you buy too early, before your setup gives its signal.",
    "answer": "True",
-   "why": "True. Steenbarger describes a trader who front-ran his setups, getting in before the proper signal. A good candidate is no reason to buy before it triggers.",
+   "why": "True. FOMO shows up early as well as late. Steenbarger describes a trader who front-ran his setups, getting into trades before the proper signal. Investopedia's breakout advice: finding a good candidate is no reason to trade early, so wait for the price to make its move.",
    "lesson_line": "Getting in before your own signal is FOMO too. Let the trigger pull you in.",
    "facts": [
     "f56",
-    "f27",
-    "f28"
+    "f27"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "True, fear of missing out can push you to buy before your setup has given its signal.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (lesson line changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -737,13 +837,22 @@
     "open"
    ],
    "answer": "low",
-   "why": "Low. An uptrend is a series of higher highs and higher lows. A pullback that holds above the last low is a higher low.",
+   "why": "Low. An uptrend is a series of rising peaks and rising troughs: higher highs and higher lows. A pullback that stops above the last pullback's bottom makes a higher low. A higher high is the other half of the pattern: a new peak above the last peak, not a pullback's bottom.",
    "lesson_line": "Higher highs and higher lows. That's what an uptrend is made of.",
    "facts": [
     "f42",
     "f24"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Low, because in an uptrend each dip stops above the last dip, and that makes a higher low.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (sentence changed by the checker to remove a giveaway)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -757,18 +866,29 @@
     "Your upside to the target grows"
    ],
    "answer": "Your risk per share gets bigger",
-   "why": "Your risk per share gets bigger. Risk per share is entry minus stop, so a higher entry means more lost per share if the stop is hit.",
+   "why": "Your risk per share gets bigger. Risk per share is the dollar gap from your entry down to your stop. Same stop, higher entry: a wider gap and more lost per share if the stop is hit. Keep the same size and you take on more risk than you intended. Our rule keeps the dollar risk, so the shares shrink. And it never buys more than 4% above the buy point.",
    "lesson_line": "Every dollar you chase gets added to your risk per share.",
    "facts": [
     "f22",
-    "f34"
+    "f34",
+    "h05",
+    "h04"
    ],
    "wrong": {
     "Nothing, the stop still caps the loss": "The stop sets your exit price, not your loss per share. A higher entry adds to the distance down to it.",
     "The stop gets more room, so it's safer": "More room is more loss per share. The stop sits where it always did; you just paid more.",
     "Your upside to the target grows": "The other way round. A higher entry leaves less room to the same target."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Your risk per share gets bigger, because the gap between what you paid and your stop is now wider.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28: chasing costs size, not risk)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -776,14 +896,24 @@
    "format": "tf",
    "q": "Buying strength is the same thing as chasing.",
    "answer": "False",
-   "why": "False. Rhodes' rule is to buy what is showing strength. A chase is getting in too late, after the move. IBD's test is how far past the buy point you get in.",
+   "why": "False. Rhodes' rule is to buy what is showing strength. A chase is coming into a position too late to properly benefit. What separates them is how far past the buy point you get in. The further past, the greater the risk of a shakeout. Our rule draws the line: never buy more than 4% above the buy point.",
    "lesson_line": "Buying strength at your trigger is a plan. Buying it far past the trigger is a chase.",
    "facts": [
     "f38",
     "f12",
-    "f48"
+    "f48",
+    "h04"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "False, buying strength at your planned trigger is a plan, while chasing is buying too late, far past it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28, the 4% line)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
@@ -793,23 +923,35 @@
    "choices": [
     "So you decide before emotions kick in",
     "So you never take a losing trade",
-    "So a fast move can't leave you behind"
+    "So a fast move can't leave you behind",
+    "So you know where the stock will go next"
    ],
    "answer": "So you decide before emotions kick in",
-   "why": "So you decide before emotions kick in. Fidelity: set your entries and exits in advance so you aren't making spur-of-the-moment choices at peaks or valleys.",
+   "why": "So you decide before emotions kick in. Fidelity: set your process in advance so you aren't making spur-of-the-moment choices at temporary peaks or valleys. A plan removes some of the emotion and guesswork. It does not stop losses or catch every move. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
    "lesson_line": "Make the decision while you're calm. Then just follow it.",
    "facts": [
     "f33",
     "f35",
     "f21",
     "f30",
-    "f03"
+    "f03",
+    "h06"
    ],
    "wrong": {
     "So you never take a losing trade": "A plan still has losses. It keeps them small: stick to the plan and take small losses quickly.",
-    "So a fast move can't leave you behind": "You'll still miss moves. The plan stops you from chasing the ones you miss."
+    "So a fast move can't leave you behind": "You'll still miss moves. The plan stops you from chasing the ones you miss.",
+    "So you know where the stock will go next": "A plan fixes your own choices in advance, so you don't decide on the spur of the moment. It doesn't say where the stock goes."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Writing it down first lets you decide while calm, so you aren't choosing on the spur of the moment.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D39, written before the open)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -827,13 +969,26 @@
     }
    },
    "suffix": "times",
-   "why": "4 times. Risk per share is entry minus stop. The stop at $29 was a dollar under $30, and it's four dollars under $33.",
-   "lesson_line": "Chasing doesn't move your stop. It moves your risk.",
+   "why": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it.",
+   "lesson_line": "Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
    "facts": [
     "f22",
-    "f34"
+    "f34",
+    "h05",
+    "h04"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "4 times, because your stop sat a dollar under the plan price but four dollars under where you bought.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (C28: chasing costs size, not risk)",
+     "+1 fixed before (question wording changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -841,13 +996,23 @@
    "format": "tf",
    "q": "Everyone around you is buying a stock. That alone is a good reason for you to buy it.",
    "answer": "False",
-   "why": "False. Others buying doesn't mean you have to. The SEC warns that following the crowd can lead to significant losses.",
+   "why": "False. Others buying doesn't mean you have to. The SEC warns that following the crowd may lead to significant investment losses. The words 'that alone' matter: a crowd is not a setup. Stick with your plan and don't let the fear of missing out make the decision.",
    "lesson_line": "The crowd buying is a feeling, not a setup.",
    "facts": [
     "f02",
-    "f04"
+    "f04",
+    "f03"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "False, other people buying is pressure, not a reason, and following the crowd can lead to big losses.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (a fact removed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
@@ -856,23 +1021,35 @@
    "story": "Your plan is to buy a break over $25.40. The stock is at $25.10 and climbing fast. You're scared it'll go without you.",
    "q": "What do you do?",
    "choices": [
-    "Wait for $25.40, buy stop ready",
+    "Buy once it clears $25.40",
     "Buy now before it gets away",
-    "Buy now, $25.10 is close enough"
+    "Buy now, $25.10 is close enough",
+    "Buy half now, half at $25.40"
    ],
-   "answer": "Wait for $25.40, buy stop ready",
-   "why": "Wait for $25.40 with a buy stop ready. A buy stop just over the level fills only if the break happens. Buying before the signal is FOMO too.",
+   "answer": "Buy once it clears $25.40",
+   "why": "Buy once it clears $25.40. Buying before the signal is FOMO too. Finding a good candidate is no reason to trade early: wait for the price to make its move. If it never clears, you never owned a stock that failed to trigger.",
    "lesson_line": "Let the trigger pull you in. If it never triggers, you never needed it.",
    "facts": [
-    "f28",
     "f27",
-    "f56"
+    "f56",
+    "h11"
    ],
    "wrong": {
     "Buy now before it gets away": "That's jumping ahead of the setup: in before the signal, on fear. If the break fails, you own a stock that never triggered.",
-    "Buy now, $25.10 is close enough": "Close isn't the signal. The level is there because the break over it is the setup."
+    "Buy now, $25.10 is close enough": "Close isn't the signal. The level is there because the break over it is the setup.",
+    "Buy half now, half at $25.40": "Half bought early is still in before the signal. Our rule puts the full size on at one price with one stop."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Buy only once it clears $25.40, because buying before the signal is fear talking, not your plan.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (A5 for the half-now choice)",
+     "+1 key reworded in this batch (no order type, no lone wait choice)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
@@ -896,20 +1073,32 @@
      "stop": 38
     }
    },
-   "why": "$1,000. Risk is shares times entry minus stop: 200 shares from $43 down to $38. That's more than double the $400 you planned.",
-   "lesson_line": "Same size, higher entry, same stop: more risk than you signed up for.",
+   "why": "$1,000. Risk is shares times entry minus stop: 200 shares from $43 down to $38. That is more than double the $400 you planned. Buying higher with the same size raised the risk on every share. Our rule sizes from the stop, so the shares would shrink. And $43 is more than 4% above $40, so our rule skips it.",
+   "lesson_line": "Keep the size on a chase and the risk grows. Past 4% above the buy point, our rule doesn't buy.",
    "facts": [
     "f22",
     "f23",
     "f34",
-    "f31"
+    "f31",
+    "h05",
+    "h04"
    ],
    "wrong": {
     "$400": "That was the plan at $40. Buying higher with the same stop raised the risk on every share.",
     "$600": "That's only the extra you paid above $40. The stop is still at $38, below your old entry too.",
     "$8,600": "That's the whole position. You'd only lose all of it if the stock went to zero."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "$1,000, because each of the 200 shares now sits further above the same $38 stop than you planned.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (C28 and A5: size from the stop)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q12",
@@ -917,14 +1106,24 @@
    "format": "tf",
    "q": "A chat room says \"get in now, this won't last.\" That urgency is a good reason to act fast.",
    "answer": "False",
-   "why": "False. Urgency is the tool. The SEC warns that scammers say an opportunity won't last to pressure you, and says never feel pressured to invest right away.",
+   "why": "False. Urgency is the tool. The SEC warns that promoters may say an opportunity won't last long to pressure you into investing right away. Its advice: never feel pressured to invest right away. Our rule: never take a trade from an alert or a post without your own entry, stop and size.",
    "lesson_line": "Urgency is someone else's plan for your money. Slow down.",
    "facts": [
     "f09",
     "f06",
-    "f07"
+    "f07",
+    "h09"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "False, a rush to get in now is a pressure tactic, so slow down and use your own plan.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F66, no trades from alerts or posts)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -967,13 +1166,29 @@
     }
    },
    "suffix": "%",
-   "why": "9%. That's $43.60 minus $40, divided by $40. IBD talks of a 5% buy zone after a breakout, so this is well past it.",
-   "lesson_line": "Measure how far past the buy point you are before you buy. Further past, more shakeout risk.",
+   "why": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "lesson_line": "Measure how far past the buy point you are before you buy. Past 4%, let it go.",
    "facts": [
-    "f47",
-    "f48"
+    "f48",
+    "h04",
+    "h05",
+    "f37"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "9%, because $43.60 is well above the $40 buy point, far past our 4% limit for a buy.",
+   "deeper": {
+    "trap": "The trap is feeling that a 9% run proves the stock is strong, so buying it must be safe. It may be strong. But your stop still sits under the $40 buy point, so the gap down to it is wide. Our rule draws the line first: past 4% above the buy point, we don't buy. Rhodes' rule for a missed trade is to wait for a correction."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (C28 replaced IBD's 5% buy zone with 4%)",
+     "+1 fixed before (why reworded by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -984,25 +1199,37 @@
    "choices": [
     "Wait for a pullback, higher low",
     "Buy now with the old stop at $37",
-    "Buy now with a stop at $43",
+    "Wait for a new high, then buy",
     "Buy double size to catch up"
    ],
    "answer": "Wait for a pullback, higher low",
-   "why": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. Buying now out of regret is how late entries get caught near a peak.",
+   "why": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. At $44 the stock is well over 4% past the $40 breakout, past our limit for a buy. A regret buy after a missed move often lands near a peak.",
    "lesson_line": "Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
    "facts": [
     "f37",
     "f57",
     "f19",
     "f20",
-    "f48"
+    "f48",
+    "h04",
+    "f22"
    ],
    "wrong": {
-    "Buy now with the old stop at $37": "That's the old stop with a much higher entry. Your risk per share more than doubles.",
-    "Buy now with a stop at $43": "That stop is picked to make the chase fit, not set where the idea is wrong. Chasers get whipsawed and stopped out a lot.",
-    "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger."
+    "Buy now with the old stop at $37": "That's the old stop with a much higher entry, so your risk per share grows. And $44 is past our 4% line.",
+    "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger.",
+    "Wait for a new high, then buy": "A new high is even further past the $40 buy point, beyond our 4% line. The further past, the greater the shakeout risk."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Wait for a pullback that holds a higher low, because a regret buy after a missed move often lands near a peak.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28, the 4% line)",
+     "+1 a choice replaced in this batch (the stop-at-$43 choice and its overreaching note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q16",
@@ -1016,7 +1243,7 @@
     "His position size was too small"
    ],
    "answer": "The extra trades are FOMO trades",
-   "why": "The extra trades are FOMO trades. Steenbarger sees win rates fall as trade counts rise, often because the added trades come from a FOMO mindset. The fear of missing leads to marginal trades.",
+   "why": "The extra trades are FOMO trades. Steenbarger sees win rates fall as the number of trades rises, often because the added trades come from a FOMO mindset. The fear of missing leads to marginal trades. Investopedia adds that a regret entry after a missed move often loses as prices fall from their highs.",
    "lesson_line": "When your trade count jumps, check how many came from FOMO.",
    "facts": [
     "f50",
@@ -1029,7 +1256,16 @@
     "He needs a faster trading platform": "Speed doesn't fix the choice to take a marginal trade.",
     "His position size was too small": "Size doesn't change how often trades win. The extra trades were the weak ones."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "The extra trades usually come from fear of missing out, and those added trades tend to be the weak ones.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (a fact replaced by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -1044,20 +1280,34 @@
     "Short it, the gap is far too big"
    ],
    "answer": "Wait for the opening range to set",
-   "why": "Wait for the opening range to form. ChartSchool's gap rule gives the open an hour to set its range, and some traders watch only a few minutes. Then you have a level to buy over and a low for the stop.",
+   "why": "Wait for the opening range to form. With no entry or stop, you can't know your risk or size the trade. ChartSchool's gap rule allows one hour after the open for the price to set its range. Some traders watch only a few minutes. Then you have a level to buy over and a low for the stop. The SEC's line: never feel pressured to invest right away.",
    "lesson_line": "No plan, no trade. Let the range form, then buy the break with a stop under it.",
    "facts": [
     "f43",
     "f26",
     "f25",
-    "f06"
+    "f06",
+    "h10"
    ],
    "wrong": {
-    "Buy at market before it runs away": "That's buying on urgency with no stop. The SEC's line: never feel pressured to invest right away.",
+    "Buy at market before it runs away": "The order type isn't the fault. Our entries are market orders too. Buying on urgency with no stop is the mistake.",
     "Buy now, set a stop later": "Without a stop you don't know your risk, so you can't size the trade.",
     "Short it, the gap is far too big": "A big gap is no reason to fight it. With no plan, the answer is to wait, not to flip sides."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Wait for the opening range to form, because with no plan you have no level to buy and no place for a stop.",
+   "deeper": {
+    "trap": "The trap is reading a fast open as a reason to act now. A gap still running at 9:32 has set no range yet, so there is no level to buy over and no low for a stop. Without a stop you can't size the trade, and the loss has no floor. Waiting may cost some price. The range gives you both a trigger and a stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (E57 in a wrong note; D39 and C30, see owner flag)",
+     "+1 fixed before (why changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
@@ -1075,14 +1325,27 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "91%. That's $120.75 minus $10.97, divided by $120.75. The run came on social media hype, and many who arrived late endured significant pain.",
+   "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result.",
    "lesson_line": "When the hype is everywhere, you're probably late. Late buyers take the worst of the fall.",
    "facts": [
     "f18",
     "f17",
     "f15"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "About 91%, because the stock fell from $120.75 to $10.97 within a few weeks of its top.",
+   "deeper": {
+    "example": "Investopedia's GameStop case ran on social media hype. In January 2021 the stock went from around $5 to about $120 in under three weeks. It topped at $120.75 and traded at $10.97 a few weeks later. Many who arrived late to the party endured significant pain. Once everyone is talking about a stock, it has likely already run."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 computed key from quoted history numbers",
+     "+1 fixed before (question reworded by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -1092,53 +1355,78 @@
    "q": "What's the honest read?",
    "choices": [
     "I'm late; wait for a real setup",
-    "The buzz proves it goes higher",
+    "The buzz proves it will go higher",
     "Buy now, add more as it rises",
     "Short it, it has to fall now"
    ],
    "answer": "I'm late; wait for a real setup",
-   "why": "You're late. Once everyone is talking about a stock, it has likely already run, and early buyers may be ready to take profits. Wait for a real setup with a stop.",
+   "why": "You're late. Once everyone is talking about a stock, it has likely already run and grown more expensive. Early buyers may be getting ready to take profits. If you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. Wait for a real setup with a stop.",
    "lesson_line": "If the whole internet knows, you're not early.",
    "facts": [
     "f15",
     "f16",
     "f04",
     "f05",
-    "f08",
-    "f53"
+    "f53",
+    "h11"
    ],
    "wrong": {
-    "The buzz proves it goes higher": "Buzz is the crowd, not a signal. The SEC warns following the crowd can lead to significant losses.",
-    "Buy now, add more as it rises": "That's chasing twice. Adding to a chase just makes the chase bigger.",
-    "Short it, it has to fall now": "A fast run can keep running. Shorting it with no setup is a guess, not a plan."
+    "Buy now, add more as it rises": "That's chasing twice. Our rule buys the full size once, at one price, with no adding.",
+    "Short it, it has to fall now": "A fast run can keep running. Shorting it with no setup is a guess, not a plan.",
+    "The buzz proves it will go higher": "Buzz is the crowd, not a signal. The SEC warns following the crowd can lead to significant losses."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "You're late, because once everyone is talking about a stock it has likely already run, so wait for a real setup.",
+   "deeper": {
+    "trap": "The trap is that friends' gains feel like proof. They prove the stock already moved, not that it will keep moving. Feeds and buzz can push you into an impulsive buy. The SEC warns that following the crowd can lead to significant losses. Up 40% in five days, the honest read is that you are late. Wait for a setup with a stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
    "rung": 8,
    "format": "numeric",
    "house": true,
-   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. With our default stop at yesterday's low, how far away is the stop, in percent?",
-   "answer": 10.2,
+   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it, in %?",
+   "answer": 10.3,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(entry - stop) / entry * 100",
      "entry": 54,
-     "stop": 48.5
+     "stop": 48.45
     },
     "round": 1
    },
    "suffix": "%",
-   "why": "10.2%. That's $54 minus $48.50, divided by $54. Our default stop is the day's low or the prior day's low, and after a big gap the prior low is far away. The same risk buys far fewer shares.",
+   "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position.",
    "facts": [
-    "h01",
+    "h13",
     "f22",
-    "f23"
+    "f23",
+    "h12"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "About 10.3%, because a stop a few cents under yesterday's $48.50 low sits far below today's $54 open.",
+   "deeper": {
+    "trap": "The trap is tightening the stop to make the gap trade fit. Our stop sits a few cents under the day's low or the prior day's low, not where it feels small. With the stop 10.3% away, keep the dollar risk the same and buy fewer shares. If the honest stop does not fit the risk, skip the trade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (A3 and F62: a few cents under the low)",
+     "+1 restated in this batch"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q21",
@@ -1147,42 +1435,71 @@
    "story": "Your journal shows a pattern. You miss your planned entry, then chase the move. Most of those trades end as small stop-outs.",
    "q": "What fix goes at the root?",
    "choices": [
-    "Grade each day on following the plan",
+    "Grade each day on your process",
     "Trade more names so you miss less",
     "Use wider stops on the chases",
     "Buy before the signal to beat it"
    ],
-   "answer": "Grade each day on following the plan",
-   "why": "Grade each day on following the plan. Steenbarger's client chased moves that ran from his entry and took paper-cut losses. He graded himself each day purely on process.",
+   "answer": "Grade each day on your process",
+   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick to the plan and take small losses quickly.",
    "lesson_line": "Score your day on the process, not the P&L.",
    "facts": [
     "f54",
     "f55",
     "f21",
     "f30",
-    "f03"
+    "f03",
+    "h12",
+    "h05",
+    "h08"
    ],
    "wrong": {
     "Trade more names so you miss less": "More names means more chances to chase. You'll always miss moves; the job is the best ones.",
-    "Use wider stops on the chases": "A wider stop on a chase is more risk on a worse entry.",
+    "Use wider stops on the chases": "Our size comes from the stop, so a wider stop just buys fewer shares. It leaves the chasing habit in place.",
     "Buy before the signal to beat it": "That's FOMO's other face: in before the signal, on fear."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Grade each day on whether you followed your plan, not on the money you made.",
+   "deeper": {
+    "counter": "Wider stops and more names look like fixes but feed the same habit. Our size comes from the stop, so a wider stop just buys fewer shares on a worse entry. More names means more moves to chase. Grading the process changes what counts as a win. A day you followed the plan is a good day, even with no trade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 key text shortened in this batch to remove a longest-choice tell"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q22",
    "rung": 8,
    "format": "tf",
-   "q": "Missing a trade costs you money, just like taking a loss.",
-   "answer": "False",
-   "why": "False. A missed trade takes nothing out of your account; you give up a possible gain. Steenbarger: the danger in missing is not financial, it's the self-criticism after. Rhodes: not having a position is a position.",
+   "q": "Missing a trade takes no money out of your account.",
+   "answer": "True",
+   "why": "True. A missed trade takes nothing out of your account; you only give up a possible gain. Steenbarger: the danger in missing trades is not financial risk but the self-criticism after. Rhodes: not having a position is a position. Our rule says the same: no setup, no trade, and cash is a position.",
    "lesson_line": "A missed trade leaves your account whole. A chased trade can cost plenty.",
    "facts": [
     "f60",
     "f61",
-    "f51"
+    "f51",
+    "h08"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "True, a missed trade takes no money from your account, though you give up a gain you might have had.",
+   "deeper": {
+    "trap": "The trap is counting a missed gain as a loss. Once you do, every move you missed feels like money owed, and the urge to chase grows. Treat the miss for what it is. Your account is whole, and other trades keep appearing later in the day or the next day."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D44, cash is a position)",
+     "+1 statement flipped to True in this batch for the unit's True/False balance"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q23",
@@ -1193,51 +1510,81 @@
    "choices": [
     "No, it's a pullback near support",
     "Yes, it already broke out at $40",
-    "Yes, only new highs are safe"
+    "Yes, only new highs are safe",
+    "No, any dip after a breakout is a buy"
    ],
    "answer": "No, it's a pullback near support",
-   "why": "No. Broken resistance usually turns into support on pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it.",
+   "why": "No. Broken resistance usually turns into support on later pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it. And $41 is within 4% of the $40 buy point, inside our line. Rhodes' rule for a missed trade is the same: wait for a correction, then put the trade on.",
    "lesson_line": "Miss the break, wait for the pullback that holds. That's your second chance.",
    "facts": [
     "f41",
     "f40",
     "f37",
     "f42",
-    "f57"
+    "f57",
+    "h04"
    ],
    "wrong": {
     "Yes, it already broke out at $40": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
-    "Yes, only new highs are safe": "Buying near support with a close stop is the spot Murphy calls best. A new high far from support means a wider stop."
+    "Yes, only new highs are safe": "Buying near support with a close stop is the spot Murphy calls best. A new high far from support means a wider stop.",
+    "No, any dip after a breakout is a buy": "Not any dip. This one counts because it held above its last low, near support. An uptrend needs higher lows."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "It's not a chase, because you bought a pullback that held above its last low near the old breakout level.",
+   "deeper": {
+    "trap": "The trap is thinking a missed breakout is gone for good. Here the stock broke out over $40, ran to $45 and came back to $41, above its last low. That is a second chance near support, with a stop close by. It stops being this setup if the dip breaks its last low, because an uptrend needs higher lows."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "+1 fixed before (question wording changed by the checker)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q24",
    "rung": 9,
    "format": "scenario",
-   "story": "You've chased three moves this week and been stopped out of all three. Another stock is ripping, and you feel the pull again.",
+   "story": "You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull.",
    "q": "What do you do right now?",
    "choices": [
-    "Step back; no trade until calm",
+    "Step back; no new trades today",
     "Buy, this one will make it back",
-    "Go in with double the size",
+    "Take a short break, then trade it",
     "Enter, but with a very tight stop"
    ],
-   "answer": "Step back; no trade until calm",
-   "why": "Step back. ChartSchool's advice: when emotions run high, take a breather and step back. Schwab: if you can't separate emotions from decisions, slow down or take a break.",
-   "lesson_line": "When you feel the pull this hard, step away from the screen.",
+   "answer": "Step back; no new trades today",
+   "why": "Step back; no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. Bob Farrell's rule: when emotions run high, take a breather and step back. Schwab says slow down or take a break. Our rule goes further: no new trades until tomorrow. Chasing to win losses back is the urge Rhodes says not to give in to.",
+   "lesson_line": "Angry after a run of losses means no new trades today. Step away from the screen.",
    "facts": [
     "f45",
     "f32",
     "f39",
-    "f59"
+    "f59",
+    "h07"
    ],
    "wrong": {
     "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
-    "Go in with double the size": "Doubling size on a FOMO trade doubles the damage if it's another chase.",
-    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often."
+    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often.",
+    "Take a short break, then trade it": "Our rule is stricter than a breather. Angry means no new trades that day, not a pause and back in."
    },
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "Take no new trades today, because you're angry after three chased losses and the pull is emotion, not a setup.",
+   "deeper": {
+    "trap": "The trap is the tight stop. It feels like it caps the damage, so the chase seems safe. But traders who chase out of FOMO frequently get whipsawed and stopped out. One more stop-out feeds the urge to win it back. The fix is not a better order. It is no new trades today."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F67, no new trades that day)",
+     "+1 fixed before (openers varied by the checker)",
+     "+1 key and story changed in this batch"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q25",
@@ -1245,14 +1592,159 @@
    "format": "tf",
    "q": "The goal is to catch as many of the big moves as you can.",
    "answer": "False",
-   "why": "False. Nobody takes every opportunity; the job is limiting risk and taking the best ones. ChartSchool: being consistently profitable matters more than chasing movers.",
+   "why": "False. Nobody takes every opportunity, and the goal is not to try. The job is limiting your risk while taking the best opportunities, and trading those as well as possible. ChartSchool: being consistently profitable matters more than chasing movers. Our rule: no setup, no trade, and cash is a position.",
    "lesson_line": "You'll miss plenty of moves. Your job is the best few, done well.",
    "facts": [
     "f58",
     "f52",
-    "f44"
+    "f44",
+    "h08"
    ],
-   "skill": "psych.fomo"
+   "skill": "psych.fomo",
+   "simple": "False, nobody catches every move, so the job is to limit risk and take the best few trades well.",
+   "deeper": {
+    "trap": "The trap is grading yourself on the moves you missed. That turns every big move into a target, and chasing movers costs you consistency. Nobody takes every opportunity. Pick the best few, limit the risk on each, and let the rest go."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D44, no setup, no trade)",
+     "+1 fixed before (statement reworded by the checker)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q26",
+   "skill": "psych.fomo",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "By our rule, how far above the buy point can you still buy?",
+   "choices": [
+    "Up to 4% above the buy point",
+    "Up to 5% above the buy point",
+    "Up to 10% above the buy point",
+    "Any distance, if shares shrink"
+   ],
+   "answer": "Up to 4% above the buy point",
+   "simple": "Up to 4%, because our rule never buys more than 4% above the buy point.",
+   "why": "Up to 4% above the buy point. Our rule: never buy more than 4% above the buy point. Inside that line, the stop stays under the buy point, so the distance grows and the shares shrink. IBD talks of a 5% buy zone; our line is 4%.",
+   "lesson_line": "Our chase line is 4% above the buy point. Past it, we don't buy.",
+   "facts": [
+    "h04",
+    "h05",
+    "f47",
+    "f48",
+    "h14"
+   ],
+   "wrong": {
+    "Up to 5% above the buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point.",
+    "Up to 10% above the buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
+    "Any distance, if shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28, C29)",
+     "+1 new in this batch"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q27",
+   "skill": "psych.fomo",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "Last night you wrote your plan: buy over $50, stop $49.20, size set. Today it clears $50 and trades at $50.60. You worry it's already a chase.",
+   "q": "By our rules, what do you do?",
+   "choices": [
+    "Buy now with a market order",
+    "Wait for a pullback to buy",
+    "Buy half now, half on a dip",
+    "Buy with a limit order at $50"
+   ],
+   "answer": "Buy now with a market order",
+   "simple": "Buy now, because the trigger hit, the price is still inside our 4% line, and the plan was set last night.",
+   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop, so at $50.60 the shares shrink a little.",
+   "lesson_line": "When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
+   "facts": [
+    "h06",
+    "h04",
+    "h10",
+    "h11",
+    "h12",
+    "h05",
+    "f38",
+    "f12",
+    "f48"
+   ],
+   "wrong": {
+    "Wait for a pullback to buy": "Nothing was missed: $50.60 is well within 4% of $50, so this is no chase. Rhodes' rule: buy what is showing strength.",
+    "Buy half now, half on a dip": "Our rule puts the full size on at one price with one stop. No adding later.",
+    "Buy with a limit order at $50": "Our entries are market orders, not limits. The plan says buy once it clears $50, and it has."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D39, C28, E57, A5)",
+     "+1 new in this batch"
+    ]
+   },
+   "deeper": {
+    "trap": "The trap is treating every fast move as a chase. A chase is buying far past the buy point. Here the price sits just over the trigger you wrote last night, well inside our 4% line. Buy it, and size from the stop at the real price. A fill a little over $50 means a few fewer shares, not a skipped trade."
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q28",
+   "skill": "psych.fomo",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned.",
+   "q": "What does our rule say to do?",
+   "choices": [
+    "Skip today; plan it tonight",
+    "Buy at market before it runs",
+    "Buy now, set a stop later",
+    "Short it, the gap is too big"
+   ],
+   "answer": "Skip today; plan it tonight",
+   "simple": "Skip it today, because our rule needs the entry, stop and size written down before the market opens.",
+   "why": "Skip today and plan it tonight. Our rule: every planned buy has its entry, stop and size written down before the market opens. This one has none. Without a stop you can't know your risk or size the trade. Never feel pressured to invest right away. Steenbarger: however many trades you miss, new ones keep coming.",
+   "lesson_line": "No written plan before the open, no buy. Plan it tonight if it still looks good.",
+   "facts": [
+    "h06",
+    "f06",
+    "h10",
+    "h12",
+    "h08",
+    "f51",
+    "f22"
+   ],
+   "wrong": {
+    "Buy at market before it runs": "The order type isn't the fault; our entries are market orders too. Buying on urgency with no plan is.",
+    "Buy now, set a stop later": "Our size comes from the stop. With no stop you can't know your risk or size the trade.",
+    "Short it, the gap is too big": "A big gap is no reason to fight it. No setup, no trade, on either side."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D39; see the owner flag on D39 and the day-one opening-range entry)",
+     "+2 replaces q17, whose key taught the web view D39 replaced"
+    ]
+   },
+   "deeper": {
+    "trap": "The trap is reading a fast open as a reason to act now. Our rule writes every buy's entry, stop and size before the market opens. A stock you never planned has none of those, so you can't size it. Let it go today. If it still looks good tonight, write the plan for tomorrow."
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1289,75 +1781,75 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key backed by f01 (SEC, Tier 1), f62 (Steenbarger: 'fear of missing out on potential market moves', added, confirmed live) and f36 (Fidelity). Changed: f13 dropped (not in any readable copy); why now uses f36's 'urgency drives impulsive decisions'; distractor 'Fear of selling a winner too soon' replaced because it is arguably a form of FOMO (missing the rest of a move); 'holding a trade overnight' is plainly a different fear.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Simple grounded in f36/f62 (sidelines, potential moves; urgency drives impulsive decisions). 21 words. Key independently derived; no tell."
   },
   "q02": {
    "status": "pass",
-   "notes": "f12 (Investopedia chasing, archive 2025-05-24) and f29 (Schwab, live: 'jump on a move after it's already happened') agree; added f54 (Steenbarger, live) so the key holds on two live publishers. f11 removed (not in any readable copy). Lesson line changed from 'buying it now is a chase' so it no longer contradicts q23's pullback buy.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f56 (Steenbarger: front-runs setups out of the fear of missing) confirmed live; f27 (Investopedia breakouts, archive 2025-08-06, read in context: wait for the breakout); added f28 (Investopedia cup and handle, live: fill only if price breaks resistance). Lesson line changed: 'if the signal didn't pull you in, FOMO did' overclaimed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True key follows from f56 (front-runs setups before proper signals) and f27. No order type named. Sentences 22 words or fewer."
   },
   "q04": {
    "status": "pass",
-   "notes": "f42 (ChartSchool) and f24 (Investopedia, live) agree: uptrend = higher highs and higher lows. Changed the sentence: 'That pullback low is a higher ___' gave the answer away; it now reads 'That's a higher ___'. 'high' stays a real trap.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f22 (Investopedia, live) and f34 (Fidelity, live). Higher entry, same stop: risk per share grows. Each wrong choice is really wrong (stop sets the exit, not the loss; more room is more loss; less room to the target).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key derived from f22 before reading. Key 31 chars, not longest. Why teaches both halves of C28 (h05 shares shrink, h04 4% line) with no ungrounded number."
   },
   "q06": {
    "status": "pass",
-   "notes": "f38 (Rhodes on ChartSchool: buy strength), f48 (IBD, live: 'how far past the buy point you get in') and f12 (Investopedia, archive) agree that buying strength at the trigger is not a chase. Never keys buying strength as bad, which fits momentum swing trading.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False key from f38 + f12 + f48; h04 line stated as ours. No second defensible reading; sentences short."
   },
   "q07": {
    "status": "pass",
-   "notes": "f33 and f35 (Fidelity, live), f21 (Investopedia trading psychology, archive 2025-12-09), f30 (Schwab, live), f03 (SEC, live) agree: a plan set in advance keeps emotion out. Wrong choices are really wrong.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Simple overreached: 'fear or excitement ... can't choose for you' is an absolute; f35 says a plan removes SOME of the emotion. Reworded to f33's spur-of-the-moment claim. Wrong note and key fine."
   },
   "q08": {
    "status": "pass",
-   "notes": "Recomputed: (33 - 29) / (30 - 29) = 4 / 1 = 4. calc matches. f22 confirmed live. Changed the question from 'how many times bigger' (ambiguous) to 'how many times the plan's'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc (33-29)/(30-29)=4 correct. '$33 is more than 4% above $30' follows from the question's numbers (10%). Consistent with C28."
   },
   "q09": {
    "status": "pass",
-   "notes": "f02 (SEC Director's Take, archived but timeless) and f04 (SEC investor alert) confirmed live in context; Tier 1. 'That alone' keeps it fair to momentum traders. Removed f13 (not in any readable copy).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "f28 (Investopedia, live: stop buy fills only if price breaks resistance), f27 (Investopedia, archive), f56 (Steenbarger, live). Waiting with a buy stop is the plan; both 'buy now' choices buy before the trigger.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key derived from f27/f56. Choices 25-31 chars, key shortest, not a lone patient choice. Half-now note rests on A5 (h11). No order type, so no clash with E57."
   },
   "q11": {
    "status": "pass",
-   "notes": "Recomputed: 200 x ($43 - $38) = $1,000; plan 200 x ($40 - $38) = $400; $600 = 200 x $3; $8,600 = 200 x $43. calc matches. f22, f23 (Investopedia), f34 (Fidelity), f31 (Schwab) confirmed live.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 200*(43-38)=1000 correct; 'more than double the $400' true (2.5x); '$43 is more than 4% above $40' true (7.5%). Distractors are real errors."
   },
   "q12": {
    "status": "pass",
-   "notes": "f09 (SEC Director's Take: 'won't last long in order to pressure you') and f06 (SEC alert: 'Never feel pressured to invest right away') confirmed live; Tier 1. f07 read in context (pump and dump).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q13": {
    "status": "cut",
@@ -1367,75 +1859,93 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "Recomputed: (43.60 - 40) / 40 = 9%. calc pct_change matches. f47/f48 (IBD headline and first paragraph, the only unpaywalled text) confirmed live. Changed 'IBD's buy zone ends 5% past the buy point' to 'IBD talks of a 5% buy zone after a breakout', which is what the served text says.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "pct_change 40 to 43.6 = 9. Why and trap state C28 as ours and credit the correction to Rhodes (f37). Grounded."
   },
   "q15": {
    "status": "pass",
-   "notes": "f37 (Rhodes: if a trade is missed, wait for a correction), f57 (Steenbarger), f48 (IBD) confirmed live; f19/f20 (Investopedia, archive 2025-12-09). Recomputed the wrong note: plan risk $3, chase risk $7, so it more than doubles. Every wrong choice is a named mistake. Track audit 2026-11-09: kept over F8.03 q16 (froze, then the stock ran; same Rhodes line), which is cut as its duplicate. f19/f20 re-read on the CURRENT Investopedia page (updated 2026-07-19) with the quote checker's own client: found. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key derived from f37 + h04 and holds. But the why ('Buying now out of regret is how late entries get caught near a peak') and simple ('gets late buyers caught near a top') state as certain what f20 says happens 'often'. Both hedged to match f20. Choices and wrong notes fine. Note for integrator: the story's $37 stop is 7.5% under $40, far past A13's usual 3% (not keyed, left as is)."
   },
   "q16": {
    "status": "pass",
-   "notes": "f49, f50 confirmed live on Steenbarger's 2018-05-14 post, in context (his SMB coaching data). Changed: f14 (not in any readable Investopedia copy) replaced by f19, f20 (Investopedia trading psychology, archive 2025-12-09: regret entries after a missed move 'often results in direct losses'), which agrees and is a second publisher. Attributed to him in the question. Track audit 2026-11-09: the second publisher had been read only in a 2025 archive copy; f19 and f20 were found on the CURRENT page (updated 2026-07-19) by the quote checker's own client, so the support rule holds on live text.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q17": {
-   "status": "pass",
-   "notes": "f43 (ChartSchool gap rule: allow one hour), f26 and f25 (Investopedia opening range, live) and f06 (SEC) confirmed. Key 'wait for the opening range' needs no fixed length. Changed: the why no longer names 'our Kicker' (untaught house name); it now says some traders watch only a few minutes (f26). variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
-   "notes": "Recomputed: (120.75 - 10.97) / 120.75 = 90.9%, rounds to 91; Investopedia itself says 'a loss of 91%' (archive 2025-07-22). Split checked: GameStop 8-K 2022-07-06 four-for-one; $483 / 4 = $120.75. Changed 'What did a buyer at the top lose' to 'How far down was a buyer at the top', since GME rebounded and the loss was open. Track audit 2026-11-09: f15 to f18 had been read only in the 2025-07-22 archive copy; all four were found on the CURRENT page (updated 2026-08-31) by the quote checker's own client, and that page still says 'a loss of 91%'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Deeper example's last sentence 'The buyers who came last, on the loudest buzz, bought closest to the top' is unsupported and arguably false (the very last buyers bought on the way down). Replaced with f18's own claim (late arrivals endured significant pain) and f15 stated as the general point, not as a GameStop fact. Every number still from f17/f18."
   },
   "q19": {
    "status": "pass",
-   "notes": "f04, f05 (SEC alert, Tier 1) and f08 (SEC bulletin, manias) confirmed live; f15, f16 (Investopedia FOMO, archive 2025-07-22) and f53 (Steenbarger, live). Up 40% in five days is extended; waiting for a setup is right and the short is fairly called a guess.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key derived from f15/f16/f53. Choices 28-33 chars, key not longest. Add-more note rests on A5 (h11), buzz note on f04. Minor: the untouched short note 'A fast run can keep running' has no fact behind it; harmless, left."
   },
   "q20": {
    "status": "pass",
-   "notes": "h01 matches sizing_rule.md section 2 item 1 (owner's answer). Recomputed: (54 - 48.50) / 54 = 10.19%, rounds to 10.2. calc matches. f22, f23 confirmed live. Wide stop means a small position: sound.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Question 136 chars. Calc (54-48.45)/54*100 = 10.28, round 1 = 10.3. Stop placement matches A3/F62 (h13). Why and trap teach size-from-stop and skip-if-it-doesn't-fit (h12). Integrator note: A13 (stop usually within about 3% of the buy) would sharpen the 'skip' point if the file ever carries it as a fact."
   },
   "q21": {
    "status": "pass",
-   "notes": "f54, f55 (Steenbarger 2019-11-08, live, read in context: he graded himself purely on process) plus f30 (Schwab), f03 (SEC) on sticking to the plan. Wrong choices are named mistakes.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rulebook conflict: the wrong note and deeper counter say a wider stop on a chase 'adds risk' / 'is more risk'. Our rules size from the stop (A3, h12) and C28 says chasing costs size, not risk (h05), so a wider stop buys fewer shares at the same dollar risk. Reworded both to the house framing; 'changes what you are trying to win' (unsupported) softened to follow f55; h12, h05, h08 added for the new claims."
   },
   "q22": {
    "status": "pass",
-   "notes": "f60 (Steenbarger: 'the danger is not financial risk') and f61 (Rhodes: 'not having a position is a position') confirmed live in context. Changed the why to admit you give up a possible gain, and the lesson line from 'costs nothing' to 'leaves your account whole', so it is not overstated.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True statement grounded in f60, f61, h08; why keeps 'you give up a possible gain'. Not a giveaway in practice since the reframing is the point. Easy for rung 8, but no defect."
   },
   "q23": {
    "status": "pass",
-   "notes": "f41, f40 (Murphy on ChartSchool: broken resistance becomes support; buy near support), f37 (Rhodes), f42 confirmed live. The $40 breakout level, the $41 pullback holding a higher low: a pullback buy, not a chase. Changed 'stop just under that low' (ambiguous) to 'just under the pullback low'. | flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key derived from f41/f40/f42. $41 is 2.5% above $40, inside C28. Two Yes and two No choices, key not longest. No conflict with q15 (teach then apply)."
   },
   "q24": {
    "status": "pass",
-   "notes": "f45 confirmed live, but in context it is ChartSchool's own 'Translation' under Farrell's rules, not Farrell's words: the why now credits ChartSchool. f32 (Schwab), f39 (Rhodes), f59 (Steenbarger) confirmed. Changed the tight-stop note from 'mostly gets whipsawed' to 'often', matching Steenbarger's 'frequently'. Three wrong choices all opened with Take it and the right one did not; varied the openers. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Tell: the key was the only choice that did not enter a trade (lone patient answer, the unit's own flagged pattern), and 'Go in with double the size' was a weak filler. Replaced it with the real misconception F67 replaced, a short breather then trade (f45/f32's web view). The why now shows our rule goes further than Farrell and Schwab, so the web view cannot defend the new distractor. Key unchanged; choices 26-33 chars, key 30 not longest."
   },
   "q25": {
    "status": "pass",
-   "notes": "f52, f58 (Steenbarger, live: 'not to trade every possible opportunity') and f44 (ChartSchool, live). Changed the statement from 'catch most of the big moves' (the sources say not every, not 'not most') to 'catch as many of the big moves as you can', which f52 rejects directly; lesson line softened to 'miss plenty'.",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h04. Choices 28-30 chars, key not longest. 5% and 10% are real named rules (f47 IBD, h14 C29); 'Any distance, if shares shrink' is a real misreading of h05. Reveals in q05/q06 teach the same line, which is teach-then-recall, not a giveaway in question text."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Rulebook conflict: the story says 'size set' at a $50 trigger and the deeper trap says the size is set 'so the work is to follow them'. Filled at $50.60 with stop $49.20, keeping that size raises risk per share from $0.80 to $1.40, the very thing q11 teaches against; A5/C28 (h12, h05) size from the real entry, so the shares shrink. Why and trap now say so; h12 and h05 added. Key and choices hold ($50.60 is 1.2% over $50, inside C28; E57 market orders; A5 no adding)."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from D39 (h06) + D44 (h08); no opening-range choice offered, so no second defensible answer among the choices. Choices 25-28 chars. The owner flag (day-one 30-minute range break as a house entry) stands and must be answered before release; if he says the range break counts without a premarket plan, cut q28."
   }
  }
 }

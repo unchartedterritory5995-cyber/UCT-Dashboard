@@ -168,6 +168,14 @@
    "title": "Behavioral Patterns and Pitfalls of U.S. Investors (Federal Research Division, Library of Congress, under an interagency agreement with the SEC, August 2010)",
    "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -440,6 +448,42 @@
    "source": "s1",
    "quote": "Drawdowns (maximum loss per trade using a trading system)",
    "claim": "CME lists drawdowns, the maximum loss per trade, among what your records should let you analyze."
+  },
+  {
+   "id": "h01",
+   "source": "s19",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "Rule A4: our stop only moves up, never down or wider; a gap against the stop is the one exception."
+  },
+  {
+   "id": "h02",
+   "source": "s19",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "Rule B27: we journal every trade the same day and review the week every weekend, ideally."
+  },
+  {
+   "id": "h03",
+   "source": "s19",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Rule C28: we never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h04",
+   "source": "s19",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Rule B22: no new buys in the 3 days before earnings, and hold through a report only if the trade is up 5R."
+  },
+  {
+   "id": "h05",
+   "source": "s19",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Rule D39: every planned buy has its entry, stop and size written down before the market opens."
+  },
+  {
+   "id": "h06",
+   "source": "s19",
+   "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics.",
+   "claim": "Rule E59: each month we review win rate, average win and loss in R, and expectancy."
   }
  ],
  "walkthroughs": [
@@ -509,10 +553,11 @@
    "choices": [
     "So you can sort and compare trades",
     "So each entry is longer and richer",
-    "So you can skip the written notes"
+    "So you can skip the written notes",
+    "So you can fill it in once a week"
    ],
    "answer": "So you can sort and compare trades",
-   "why": "So trades can be sorted and compared. Free notes drift, detailed one day and sketchy the next. Fixed fields let you track, sort and analyze, and pull up every trade of one kind at once.",
+   "why": "So you can sort and compare trades. Free notes drift: detailed one day, sketchy the next. Schwab notes that a spreadsheet lets you track, sort and analyze. Steenbarger says tags pull up every entry on one stock or one topic. Fixed fields do not mean longer entries or no written notes. The reason and the lesson are fields too.",
    "lesson_line": "Same fields on every trade. That's what makes a journal you can sort.",
    "facts": [
     "f06",
@@ -522,12 +567,23 @@
     "f05",
     "f28",
     "f30",
-    "f01"
+    "f01",
+    "h02"
    ],
    "wrong": {
     "So each entry is longer and richer": "Longer isn't the goal. The best journals keep collecting the information light.",
-    "So you can skip the written notes": "The reason and the lesson are fields too. A good entry holds numbers and written notes."
-   }
+    "So you can skip the written notes": "The reason and the lesson are fields too. A good entry holds numbers and written notes.",
+    "So you can fill it in once a week": "Fixed fields are about what you log, not when. CME Group says to record why as you enter. Our rule: journal every trade the same day, ideally."
+   },
+   "simple": "Fixed fields let you sort and compare your trades, so every trade of one kind comes up at once.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (distractor replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
@@ -536,7 +592,7 @@
    "format": "tf",
    "q": "The best time to log why you took a trade is after it closes, when you know how it went.",
    "answer": "False",
-   "why": "False. Write the reason as you enter. Once you know the outcome, the trade looks more predictable than it was. A note written at entry keeps what you really thought.",
+   "why": "False. Write the reason as you enter the trade, as CME Group advises. After an event, people tend to see it as predictable, even with little basis to predict it. That is hindsight bias, one of the known biases of judgment. A note written at entry keeps what you really thought. The result goes in after the close. The reason does not.",
    "lesson_line": "Log the reason before the result. Afterwards, hindsight edits it.",
    "facts": [
     "f01",
@@ -544,7 +600,16 @@
     "f31",
     "f42",
     "f43"
-   ]
+   ],
+   "simple": "False. Write the reason as you enter, because after the close the trade looks easier to call than it was.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (hindsight source re-cited 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -555,20 +620,32 @@
    "choices": [
     "Numbers and your written reasons",
     "Your P&L and your account balance",
-    "Price alerts and news headlines"
+    "Price alerts and news headlines",
+    "Winning trades and losing trades"
    ],
    "answer": "Numbers and your written reasons",
-   "why": "Numbers and your written reasons. Steenbarger describes entries as both quantitative, like P&L and wins and losses, and qualitative, written notes. Investopedia's list pairs entry and exit points with your reasons.",
+   "why": "Numbers and your written reasons. Steenbarger says entries can be quantitative, like P&L and wins and losses, and qualitative, like written summaries. Investopedia lists entry and exit points beside your reasons for taking the trade. Numbers show what happened. Your words show why. Every trade, win or loss, holds both.",
    "lesson_line": "Numbers say what happened. Your notes say why. Log both.",
    "facts": [
     "f30",
     "f14",
-    "f01"
+    "f01",
+    "f03"
    ],
    "wrong": {
     "Your P&L and your account balance": "Both are numbers. Neither says why you took the trade or how you ran it.",
-    "Price alerts and news headlines": "Those come from the market. Your log records what you decided and why."
-   }
+    "Price alerts and news headlines": "Those come from the market. Your log records what you decided and why.",
+    "Winning trades and losing trades": "That sorts trades by result, not by kind of information. Every entry, win or loss, holds numbers and your reasons."
+   },
+   "simple": "A good entry holds numbers and your written reasons, because numbers show what happened and your words show why.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "three publishers agree; stable"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -585,13 +662,22 @@
     "lesson"
    ],
    "answer": "emotion",
-   "why": "Emotion. Worry, tension and nervousness are clues worth tracking. In their own field, you can line them up against what you did.",
+   "why": "Emotion. The note describes a feeling, nervousness, and the habit it drove. Steenbarger calls worry, physical tension and nervousness great clues to track in a journal. Tendler says to write down what the emotion was and what triggered it. In their own field, feelings can be lined up against your trades.",
    "lesson_line": "Feelings get their own field. That's how a fear pattern shows up.",
    "facts": [
     "f32",
     "f31",
     "f38"
-   ]
+   ],
+   "simple": "It goes in the emotion field, because nervous feelings are clues worth tracking next to what you did.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree; stable"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -606,7 +692,7 @@
     "Emotion at the entry"
    ],
    "answer": "Reason for the trade",
-   "why": "Reason for the trade. It says why you bought, and it goes in as you enter. CME Group and Investopedia both list your reasons as part of the record.",
+   "why": "Reason for the trade. The note says why you bought: the base and the volume. CME Group says to record why you made the trade as you enter it. Investopedia lists your reasons for taking the trade as part of the record. A lesson comes after the result, and an exit plan says where you get out.",
    "lesson_line": "Why you bought is its own field, written before you know the outcome.",
    "facts": [
     "f01",
@@ -616,7 +702,16 @@
     "Lesson for next time": "A lesson is what you take from the result. This note gives the reason you bought.",
     "Exit plan for the trade": "An exit plan says where you'd get out. This note says why you got in.",
     "Emotion at the entry": "There's no feeling in it. It's a chart reason: the base and the volume."
-   }
+   },
+   "simple": "It is the reason for the trade, because it says why you bought, and you write that as you enter.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a wrong note reworded 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -625,12 +720,21 @@
    "format": "tf",
    "q": "At the end of the day, adding up your P&L is the most important part of your log.",
    "answer": "False",
-   "why": "False. CME Group puts it plainly: adding up profit or loss is secondary to knowing the why and how. A journal keeps you on process, not on the swings in P&L.",
+   "why": "False. CME Group says adding up your profit or loss is secondary to knowing the why and how of your trading. Steenbarger says a journal keeps your focus on process, not on the ups and downs of P&L. The total still goes in the log. It is just not the main thing you review.",
    "lesson_line": "The total is the easy part. The why and the how are what you review.",
    "facts": [
     "f04",
     "f33"
-   ]
+   ],
+   "simple": "False, because the total is the easy part, and knowing why and how you traded matters more.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree; stable"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
@@ -646,12 +750,21 @@
     "score"
    ],
    "answer": "lesson",
-   "why": "Lesson. Schwab's worksheet ends every trade with what worked, what didn't, and lessons learned. Tendler asks the same thing: what mistakes did you make, and how can you be better next time.",
+   "why": "Lesson. Schwab's worksheet ends each trade with three lines: what worked, what didn't work, and lessons learned. Tendler closes a review the same way: your mistakes, and how to be better next time. Profit is a result field and the target is a plan field. Neither is the lesson.",
    "lesson_line": "Every entry ends with one lesson you can use tomorrow.",
    "facts": [
     "f13",
     "f41"
-   ]
+   ],
+   "simple": "The last field is the lesson, the one thing you will do better next time.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (bank words replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -666,7 +779,7 @@
     "Planned target price for the trade"
    ],
    "answer": "Your grade for following the plan",
-   "why": "The plan grade. Schwab's worksheet grades how closely the plan was followed, on its own line next to the gain or loss. Your journal tracks how well you follow your rules, not just whether you made money.",
+   "why": "The plan grade. Schwab's worksheet has its own line to grade how closely the plan was followed, next to the realized gain or loss. Steenbarger says the journal tracks how well you follow your rules, not just whether you make money. A broken rule can still pay. The P&L, the exit and the target cannot show it. Only the grade does.",
    "lesson_line": "Grade the plan apart from the P&L. A broken rule that paid is still broken.",
    "facts": [
     "f12",
@@ -676,7 +789,16 @@
     "Realized gain or loss in dollars": "P&L shows the result, not how you got it. A rule break can still make money.",
     "Exit price on the closing fill": "The exit says where you got out. It can't say whether that was the plan.",
     "Planned target price for the trade": "That's part of the plan itself. It can't say whether you stuck to it."
-   }
+   },
+   "simple": "The plan grade shows it, because a trade can make money even when you broke your rules.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (stem and a distractor changed 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -688,45 +810,64 @@
     "Entry, stop, target and size",
     "Exit price and the R it made",
     "What worked and what didn't",
-    "Realized gain or loss"
+    "The realized gain or loss"
    ],
    "answer": "Entry, stop, target and size",
-   "why": "Entry, stop, target and size. That's the plan, and it goes in before the trade. Tharp says to set your exit point at the time you enter. The result fields come after you close.",
+   "why": "Entry, stop, target and size. Those are the plan fields, and they go in before the trade. Schwab's worksheet lists entry price, initial profit target, initial stop loss and position size. Tharp says to set your exit point at the time you enter any trade. Our rule: every planned buy has its entry, stop and size written down before the market opens. The exit, the R and the review come after you close.",
    "lesson_line": "Plan fields before the click. Result fields after the close.",
    "facts": [
     "f11",
     "f07",
     "f34",
-    "f02"
+    "f02",
+    "h05"
    ],
    "wrong": {
     "Exit price and the R it made": "You don't have those until the trade is over. They're result fields.",
     "What worked and what didn't": "That's the review at the end. You can't answer it before the trade.",
-    "Realized gain or loss": "Realized means the trade is closed. That comes last."
-   }
+    "The realized gain or loss": "Realized means the trade is closed. That comes last, in the result fields."
+   },
+   "simple": "The plan goes in first: entry, stop, target and size, because the rest only exists once the trade is closed.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "why cites the owner's rulebook (D39)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
    "skill": "process.journal",
    "rung": 5,
    "format": "numeric",
-   "q": "Your log: entry $67, initial stop $57, exit $82. What R goes in the result field?",
+   "q": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field?",
    "answer": 1.5,
    "calc": {
     "fn": "r_multiple",
     "args": {
-     "entry": 67,
-     "stop": 57,
-     "exit": 82
+     "entry": 40,
+     "stop": 39,
+     "exit": 41.5
     }
    },
    "suffix": "R",
-   "why": "1.5R. The risk was $67 down to $57. The gain was $67 up to $82, one and a half times that.",
+   "why": "1.5R. R is the initial risk, set by your initial stop: from $40 down to $39. The gain ran from $40 up to $41.50, one and a half times that distance. Van Tharp's glossary says every profit or loss can be stated as a multiple of that initial risk.",
    "lesson_line": "Log every result in R, measured against the initial stop.",
    "facts": [
     "f37",
     "f36"
-   ]
+   ],
+   "simple": "Log 1.5R, because the gain was one and a half times the risk from entry to the initial stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
@@ -735,13 +876,22 @@
    "format": "tf",
    "q": "A log that covers your entries and exits covers what you most need to fix.",
    "answer": "False",
-   "why": "False. Steenbarger warns that journals often skip position size and risk. The parts left out are often the ones that matter most. Schwab's worksheet gives the stop and the size their own lines.",
+   "why": "False. Steenbarger warns that a journal might focus on entries and exits, but not position and risk management. He adds that the areas left out are often the ones most important to work on. Schwab's worksheet gives the initial stop and the position size their own lines. CME Group wants records that show your drawdowns, the maximum loss per trade.",
    "lesson_line": "If size and stop aren't fields, your log can't show the mistakes in them.",
    "facts": [
     "f20",
     "f11",
     "f46"
-   ]
+   ],
+   "simple": "False, because logs often skip how you manage the position and the risk, and those often matter most.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (CME fact added 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q12",
@@ -751,13 +901,13 @@
    "story": "Three of your notes say 'chased it,' 'FOMO buy' and 'bought way up.' You want to know what chasing costs you.",
    "q": "What makes that quick to check?",
    "choices": [
-    "One fixed tag for every chase",
-    "Longer notes on every trade",
-    "Rereading all of your notes",
-    "Logging only the chases"
+    "Giving every chase one fixed tag",
+    "Writing longer notes on every trade",
+    "Rereading all of your old notes",
+    "Logging only the trades you chase"
    ],
-   "answer": "One fixed tag for every chase",
-   "why": "One fixed tag. Use the same word every time, and one search pulls up every chase. Tagging trades by type is how you see which kinds work and which don't.",
+   "answer": "Giving every chase one fixed tag",
+   "why": "Give every chase one fixed tag. Three names for one mistake will not sort together. Use the same tag word every time, and one search pulls up every chase. Steenbarger says tags turn a journal into a searchable database, by stock or by topic, such as overtrading. Schwab notes a spreadsheet lets you sort and analyze. Then the chases can be compared with the rest.",
    "lesson_line": "One mistake, one tag, the same word every time.",
    "facts": [
     "f27",
@@ -765,10 +915,22 @@
     "f06"
    ],
    "wrong": {
-    "Longer notes on every trade": "More words, same problem. Three names for one mistake still won't sort together.",
-    "Rereading all of your notes": "It works, slowly, and you redo it every time you want the number. A fixed tag answers it in one search.",
-    "Logging only the chases": "Then you can't compare chases with your other trades. Every trade goes in the log."
-   }
+    "Writing longer notes on every trade": "More words, same problem. Three names for one mistake still won't sort together.",
+    "Rereading all of your old notes": "It works, slowly, and you redo it each time you want the answer. A fixed tag answers it in one search.",
+    "Logging only the trades you chase": "Then you can't compare chases with your other trades. Every trade goes in the log."
+   },
+   "simple": "Give every chase the same tag, because one word can be searched and sorted, and three different words cannot.",
+   "deeper": {
+    "example": "Keep a short list of mistake tags and pick the words once. Here the word could be chased. Every entry that bought far above the plan gets that tag, never FOMO one day and bought way up the next. One filter then shows how those trades did next to all the rest. Never invent a new word for an old mistake."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree; stable"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -777,12 +939,21 @@
    "format": "tf",
    "q": "A log of just the ticker and P&L for each trade can tell you which setup works.",
    "answer": "False",
-   "why": "False. You need the setup on every trade too. CME Group wants records that show profit or loss by strategy. Tagging trades by type is how you see which ones work.",
+   "why": "False. A ticker and a P&L cannot tell you the setup. You need a setup field or tag on every trade. CME Group wants records that show profit or loss for a particular system or strategy. Steenbarger describes tags that quickly show which types of trades work best.",
    "lesson_line": "No setup field, no setup stats. Tag it on every trade.",
    "facts": [
     "f05",
     "f27"
-   ]
+   ],
+   "simple": "False, because without the setup on every trade, the log has no way to group results by setup.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a long sentence split 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q14",
@@ -799,12 +970,26 @@
     }
    },
    "suffix": "%",
-   "why": "2%. Measure the fill against the planned $50. Schwab's review asks whether your entries were carried out well, and these two fields answer it.",
+   "why": "2%. Measure the gap from the planned $50 to the $51 fill, as a share of the planned $50. Log the planned entry and the real fill as two fields. Schwab's review asks whether your entries were performed effectively, and these two fields answer it.",
    "lesson_line": "Log the planned entry and the real fill. The gap is your execution.",
    "facts": [
     "f11",
-    "f08"
-   ]
+    "f08",
+    "h03"
+   ],
+   "simple": "The fill was 2% above plan, because the gap from $50 to $51 is 2% of the planned price.",
+   "deeper": {
+    "example": "Our rule sets a line for this gap: never buy more than 4% above the buy point. If $50 was your buy point, a $51 fill is inside it. Logging both prices on every trade is how you see whether you stay inside the line, trade after trade."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "deeper cites the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -814,11 +999,12 @@
    "story": "You bought at $20 with a stop at $19. It slid, so you moved the stop to $18. It hit there.",
    "q": "What R goes in your log?",
    "choices": [
-    "A loss of 2R",
-    "A loss of 1R",
-    "No R, the plan changed"
+    "A loss of 2R on the trade",
+    "A loss of 1R on the trade",
+    "A loss of 0.5R on the trade",
+    "No R, since the plan changed"
    ],
-   "answer": "A loss of 2R",
+   "answer": "A loss of 2R on the trade",
    "calc": {
     "fn": "arith",
     "args": {
@@ -828,24 +1014,40 @@
      "exit": 18
     }
    },
-   "why": "A loss of 2R. R comes from the stop you set at entry, $20 to $19. You got out at $18, twice that distance. Moving the stop doesn't reset R.",
+   "why": "A loss of 2R. R is the initial risk, set by your initial stop: $20 down to $19. You got out at $18, twice that distance. Tharp says getting out past your planned stop makes the loss bigger than 1R. Twice the plan is 2R. Moving the stop does not reset R. Our rule: the stop only moves up, never down, with one exception for a gap.",
    "lesson_line": "R is set at entry. Moving the stop changes the loss, not the yardstick.",
    "facts": [
     "f36",
     "f35",
-    "f11"
+    "f11",
+    "f37",
+    "h01"
    ],
    "wrong": {
-    "A loss of 1R": "That measures from the moved stop. Your planned risk was $20 to $19, and you lost twice that.",
-    "No R, the plan changed": "That's exactly the trade your log needs to show. Measure it against the stop you set at entry."
-   }
+    "A loss of 1R on the trade": "That measures from the moved stop. Your planned risk was $20 to $19, and you lost twice that.",
+    "A loss of 0.5R on the trade": "That flips the math. R is the loss divided by the planned risk, not the planned risk divided by the loss.",
+    "No R, since the plan changed": "That's exactly the trade your log needs to show. Measure it against the stop you set at entry."
+   },
+   "simple": "Log a 2R loss, because R comes from the stop you set at entry, and moving the stop does not change it.",
+   "deeper": {
+    "trap": "The trap is to log the loss against the stop you moved to. That makes a 2R loss look like 1R, and the log hides the rule you broke. Keep the initial stop in its own field and never edit it. Then a stop moved down and hit shows up as a loss bigger than 1R, and your review can count them."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "why cites the owner's rulebook (A4)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q16",
    "skill": "process.journal",
    "rung": 7,
    "format": "scenario",
-   "story": "Your emotion field says 'anxious' on 7 of your last 8 early exits. Each time, the stock went on to hit your target.",
+   "story": "Your emotion field says 'anxious' on 7 of your last 8 early exits. All 8 stocks went on to hit your target.",
    "q": "What is your log telling you?",
    "choices": [
     "Fear is cutting your winners short",
@@ -854,20 +1056,33 @@
     "Feelings are noise, drop that field"
    ],
    "answer": "Fear is cutting your winners short",
-   "why": "Fear is cutting your winners short. Here the emotion field lines up with the early exits. Selling winners too soon is a common, costly habit. Once you see the fear pattern, you can work on it.",
+   "why": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC says investors tend to sell winning positions, and that this habit is counterproductive.",
    "lesson_line": "Same feeling on the same mistake is a pattern. The emotion field is how you find it.",
    "facts": [
     "f32",
     "f31",
     "f38",
     "f44",
-    "f45"
+    "f45",
+    "f34"
    ],
    "wrong": {
     "Your targets are set too far away": "The stocks reached your targets. The targets were fine. The exits weren't.",
     "Those exits were sound risk control": "Your stop is your risk control. These exits came early, out of anxiety, on trades that went on to work.",
     "Feelings are noise, drop that field": "That field is what found the pattern. Without it you'd see early exits, not why."
-   }
+   },
+   "simple": "Fear is making you sell too soon, because the same anxious feeling shows up on nearly every early exit.",
+   "deeper": {
+    "trap": "The trap is to judge each early exit alone. One exit before the target can be a fair call. 7 of 8 with the same feeling is a pattern. Only an emotion field filled in every time lets you see it. And a target hit later does not prove any single exit was wrong. The pattern is the point."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (disposition effect facts added 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -877,13 +1092,13 @@
    "story": "A stock you bought a month ago has doubled. You remember buying it as a long-term leader. Your log, written at entry, says 'quick trade into earnings.'",
    "q": "Which do you go by in your review?",
    "choices": [
-    "The log, written at entry",
+    "The log you wrote when you bought",
     "Your memory, it knows the story",
     "Neither, the profit is what counts",
     "Whichever fits how it turned out"
    ],
-   "answer": "The log, written at entry",
-   "why": "The log. You wrote it before you knew the ending. After the fact, events look more predictable than they were. That's hindsight bias.",
+   "answer": "The log you wrote when you bought",
+   "why": "The log you wrote when you bought. You wrote it before you knew the ending. After an event, people tend to see it as more predictable than it was. That is hindsight bias. Your review grades the plan you really had, a quick trade into earnings, not the story you remember now.",
    "lesson_line": "Trust what you wrote before you knew the ending.",
    "facts": [
     "f01",
@@ -891,13 +1106,27 @@
     "f17",
     "f31",
     "f39",
-    "f42"
+    "f42",
+    "h04"
    ],
    "wrong": {
     "Your memory, it knows the story": "Memory knows the ending, and that's the problem. After the fact, events look more predictable than they were.",
     "Neither, the profit is what counts": "The profit is real, but the plan was a quick trade. Your review needs to see that.",
     "Whichever fits how it turned out": "That's hindsight bias doing the review for you."
-   }
+   },
+   "simple": "Go by the log, because you wrote it before you knew the ending, and memory rewrites the story.",
+   "deeper": {
+    "example": "The log also lets the review test the plan against our rules. Our rule: no new buys in the 3 days before an earnings report. Hold through a report only if the trade is up 5R. A note that says quick trade into earnings tells you which rule to check. Memory would have quietly dropped it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (hindsight source re-cited 2026-11-09)",
+     "deeper cites the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
@@ -913,20 +1142,33 @@
     "Stop until your trading improves"
    ],
    "answer": "Cut it to a few fixed fields",
-   "why": "Cut it down. The best journals don't make collecting the information a burden. Tendler suggests starting with 3 to 5 minutes at a time.",
+   "why": "Cut it to a few fixed fields. Steenbarger says the best journals don't make collecting information burdensome, and journaling shouldn't become a burden. Tendler suggests starting with 3 to 5 minutes each time. A journal only works if you keep working it. Our rule is to journal every trade the same day, ideally, and a short form makes that doable.",
    "lesson_line": "A short log you fill every time beats a long one you quit.",
    "facts": [
     "f28",
     "f21",
     "f40",
     "f29",
-    "f03"
+    "f03",
+    "h02"
    ],
    "wrong": {
     "Force yourself through all 40": "Willpower won't fix a form that's too long. The same thing happens again.",
-    "Log only your biggest losers": "Then the log can't show your win rate, and your winners hold lessons too.",
+    "Log only your biggest losers": "That skips trades instead of fixing the form. The fix is fewer fields, not fewer trades.",
     "Stop until your trading improves": "That's when the journal helps most. A journal only works if you keep working it."
-   }
+   },
+   "simple": "Cut the form to a few fixed fields, because a short log you fill every time beats a long one you quit.",
+   "deeper": {
+    "trap": "The trap is thinking more questions make a better journal. A 40-question form gets skipped, and a skipped entry teaches nothing. Keep the plan fields, the result, the plan grade, one lesson and a few tags. That is enough to sort your trades and find the patterns."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "why cites the owner's rulebook (B27)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -938,11 +1180,11 @@
    "choices": [
     "A chart saved at entry, line marked",
     "Today's chart, line drawn from memory",
-    "The final P&L on the trade",
-    "The day's news headlines"
+    "The final P&L recorded on the trade",
+    "The news headlines from that day"
    ],
    "answer": "A chart saved at entry, line marked",
-   "why": "A chart saved at entry. CME Group lists support and resistance levels among what to record as you enter. Steenbarger notes you can save pictures of your trading screen in the journal. Memory drops details like this.",
+   "why": "A chart saved at entry, with the line marked. CME Group lists support and resistance levels among what to record as you enter. Steenbarger notes you can save pictures of your trading screen in the journal. Tendler warns that details fade from memory, and they can be the key to the problem. A chart drawn today is drawn by someone who knows the ending.",
    "lesson_line": "Save the chart when you enter, with your levels on it. A picture beats a memory.",
    "facts": [
     "f02",
@@ -952,36 +1194,63 @@
    ],
    "wrong": {
     "Today's chart, line drawn from memory": "Now you know how it ended, so the line lands wherever fits the story.",
-    "The final P&L on the trade": "The P&L says it lost. It says nothing about where your line was.",
-    "The day's news headlines": "News might explain the move. It can't show where your line was."
-   }
+    "The final P&L recorded on the trade": "The P&L says it lost. It says nothing about where your line was.",
+    "The news headlines from that day": "News might explain the move. It can't show where your line was."
+   },
+   "simple": "A chart saved when you bought, with the line marked, because a picture keeps the level that memory loses.",
+   "deeper": {
+    "trap": "The trap is redrawing the line today. Once you know how the trade ended, the line tends to land wherever fits the story. Save the chart at entry, with the line marked, before the result exists. Then the review judges the line you really had."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (stem made specific 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
    "skill": "process.journal",
    "rung": 8,
    "format": "scenario",
-   "story": "Your log keeps a planned entry and an actual fill. On 8 of your last 10 trades, the fill was well above the plan.",
+   "story": "Your log keeps a planned entry and an actual fill. On 8 of your last 10 trades, the fill was 5% to 8% above the plan.",
    "q": "What is the log showing you?",
    "choices": [
-    "You're chasing past your planned entry",
+    "You keep chasing past the plan",
     "Your planned entries are too low",
     "Normal slippage, nothing to fix",
     "Your stops are set too tight"
    ],
-   "answer": "You're chasing past your planned entry",
-   "why": "You're chasing. On most trades you paid well over your planned level. Schwab's review asks whether your entries were carried out well, and this log says no. Reviewing past trades is how a pattern like this shows up.",
+   "answer": "You keep chasing past the plan",
+   "why": "You keep chasing past the plan. On 8 of your last 10 trades, the fill was 5% to 8% above the planned entry. Our rule: never buy more than 4% above the buy point, and these fills went past it. Schwab's review asks whether your entries were performed effectively, and this log says no. Investopedia says reviewing past trades shows your patterns. Fix the click, not the plan.",
    "lesson_line": "Plan and fill side by side. When the fill keeps running ahead of the plan, fix the click, not the plan.",
    "facts": [
     "f08",
     "f11",
-    "f15"
+    "f15",
+    "h03",
+    "h02"
    ],
    "wrong": {
     "Your planned entries are too low": "That bends the plan to fit the habit. The plan was the level. The fills drifted.",
-    "Normal slippage, nothing to fix": "A small miss now and then is normal. Well above plan on most trades is a habit.",
+    "Normal slippage, nothing to fix": "A small miss now and then is normal. 5% to 8% above plan on 8 of 10 trades is past our 4% line, and a habit.",
     "Your stops are set too tight": "Nothing here is about stops. The gap is between the planned entry and the fill."
-   }
+   },
+   "simple": "You are chasing, because on most trades you paid more than 4% over your planned price, past our line.",
+   "deeper": {
+    "trap": "The trap is moving the plan up to meet the fills. Then the log looks clean and the habit hides. Keep the planned entry fixed, log the real fill beside it, and compare the two when you review. Our rule is to review the week every weekend, ideally."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (key reworded 2026-11-09)",
+     "why cites the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q21",
@@ -992,21 +1261,77 @@
    "q": "What can this log tell you?",
    "choices": [
     "Neither one, the winners are missing",
-    "Your win rate, from the losers",
-    "Your best setup, by elimination"
+    "Both, once you log enough losers",
+    "Your win rate, from the losers alone",
+    "The best setup, by its smallest losses"
    ],
    "answer": "Neither one, the winners are missing",
-   "why": "Neither. A win rate is the share of your trades that made money versus those that didn't, so it needs every trade. CME Group wants the why and how of your wins, not only your losses.",
+   "why": "Neither one. A win rate is the share of your trades that made money versus those that didn't, so it needs every trade. Profit or loss by setup needs the winners too. CME Group wants the why and how of your wins, not only your losses. Our rule is to journal every trade the same day, ideally.",
    "lesson_line": "Log every trade, winners too. A log of losers can't tell you what works.",
    "facts": [
     "f09",
     "f03",
-    "f07"
+    "f07",
+    "f05",
+    "h02"
    ],
    "wrong": {
-    "Your win rate, from the losers": "You'd need the total number of trades. Without the winners, you don't have it.",
-    "Your best setup, by elimination": "A setup missing from your losers may just be one you rarely trade. Without the winners you can't tell."
-   }
+    "Both, once you log enough losers": "More losers never add the winners. A win rate needs every trade, and a best setup needs its wins.",
+    "Your win rate, from the losers alone": "You'd need the total number of trades. Without the winners, you don't have it.",
+    "The best setup, by its smallest losses": "Small losses don't make a setup the best. A setup earns that with its wins, and those aren't in this log."
+   },
+   "simple": "Neither, because a win rate and a best setup both need your winning trades, and this log left them out.",
+   "deeper": {
+    "trap": "The trap feels efficient: losers teach the most, so log only those. But a log of losers can't even tell you how often you lose. A setup missing from it may be one you rarely trade, not one that works. Every trade goes in, winners too."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "why cites the owner's rulebook (B27)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q22",
+   "skill": "process.journal",
+   "rung": 1,
+   "format": "mcq",
+   "house": true,
+   "q": "Under our rule, when do you journal a trade, and when do you review?",
+   "choices": [
+    "Same day, then review each weekend",
+    "Each weekend, then review monthly",
+    "Same day, then review each quarter",
+    "Each month, then review each quarter"
+   ],
+   "answer": "Same day, then review each weekend",
+   "why": "Same day, then review each weekend. Our rule: journal every trade the same day and review the week every weekend, ideally. Schwab suggests a review at the end of the month or quarter. Where our rulebook speaks, we follow it. Details fade from memory, so the same day is when you still have them.",
+   "lesson_line": "Log it the same day. Review the week on the weekend.",
+   "simple": "Journal each trade the same day and review the week every weekend. That is our rule, ideally.",
+   "facts": [
+    "h02",
+    "f08",
+    "f39",
+    "h06"
+   ],
+   "wrong": {
+    "Each weekend, then review monthly": "That waits too long to log. Our rule journals every trade the same day, ideally.",
+    "Same day, then review each quarter": "The logging is right, the review is late. Our rule reviews the week every weekend, ideally.",
+    "Each month, then review each quarter": "Both wait too long. Our rule: journal the same day and review the week every weekend."
+   },
+   "deeper": {
+    "example": "The weekend review reads the week's entries. Our rule adds a monthly look at the numbers: win rate, average win and loss in R, and expectancy. Fixed fields make both reviews quick."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "house rule (h02, owner's rulebook B27)"
+    ]
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1046,129 +1371,135 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key: Schwab f06 (spreadsheets track, sort, analyze) + Steenbarger f23/f27 (tags pull up every entry of one kind), confirmed live. Replaced the distractor 'So the P&L adds up on its own': a fixed-field spreadsheet does total P&L, so it was partly true. New distractor 'skip the written notes' is wrong per f30 and f01. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key decided from f06/f23/f27 before reading: sort and compare. New wrong note grounded in f01 and h02 (B27 wording incl. 'ideally'). Choices 33-34 chars, no tell. It previews the journal half of q22 only inside a post-answer note: reinforcement, not a giveaway."
   },
   "q02": {
    "status": "pass",
-   "notes": "CME f01 (record why as you enter each trade) confirmed. Hindsight line re-cited from the unconfirmable Investopedia page to StockCharts ChartSchool f17, Steenbarger f31 (a real-time record) and the SEC-hosted report f42/f43. Why reworded to match the new sources.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f30 (Steenbarger: entries are qualitative and quantitative), f14 (Investopedia: entry and exit points plus your reasons) and f01 (CME) confirmed in context. Wrong notes fair; the news note never calls news irrelevant (CME lists market news for later analysis).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "f32 (Steenbarger: worry, tension, nervousness are clues to track), f31 and f38 (Tendler: what the emotion was) confirmed. Only 'emotion' fits the note; bank words are real field names.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f01 (CME) and f14 (Investopedia) confirmed. The 'Lesson' wrong note said the note 'was written before anything happened', a timing the question never states; reworded.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "f04 (CME: adding up P&L is secondary to the why and how) and f33 (Steenbarger: process over the ups and downs of P/L) confirmed in context. Two publishers agree, and a profitable trader would.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q07": {
    "status": "pass",
-   "notes": "f13 (Schwab worksheet ends with what worked, what didn't, lessons learned) and f41 (Tendler) confirmed. Bank words 'ticker', 'volume' and 'price' were silly next to 'for next time'; bank is now lesson, profit, target, score.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "f12 (Schwab: realized gain/loss, then grade how closely the plan was followed) and f22 (Steenbarger: track rule-following, not just money) confirmed. Question said 'broke your plan' and the key 'following the plan', a giveaway; now 'broke your rules', and 'Planned target price' replaces the weak 'Time and date' distractor. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q09": {
    "status": "pass",
-   "notes": "f11 (Schwab plan fields), f07 (worksheet covers the trade before you make it), f34 (Tharp: pre-determine the exit when you enter) and f02 (CME, recorded as you enter) confirmed. Every wrong choice needs the trade closed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key decided from f11/f07: entry, stop, target, size. Why's D39 line matches h05 and sizing_rule.md D39 verbatim in meaning; Tharp line matches f34. 'Target' is Schwab's word; owner A12 says Trim, already in owner_flags; no key contradicts the rulebook. Choices 25-28 chars."
   },
   "q10": {
    "status": "pass",
-   "notes": "Recomputed: risk 67 - 57 = 10, gain 82 - 67 = 15, 15 / 10 = 1.5R; matches the calc. f36/f37 (Van Tharp R value, R multiple) confirmed live.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed: (41.5-40)/(40-39) = 1.5. Every number is in the stem or calc; R definition from f36, multiple from f37. 2.5% stop sits inside A13's ~3%. Teaches the initial-stop yardstick that q15 applies, but no longer states the moved-stop answer."
   },
   "q11": {
    "status": "pass",
-   "notes": "f20 (Steenbarger: journals cover entries and exits but not position and risk management, and what is left out is often most important) and f11 (Schwab) confirmed. Added CME f46 (records should show maximum loss per trade) as a second publisher. Lesson line 'never show up' softened; a 25-word sentence split.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "False keyed from f20 ('position and risk management'; 'areas left out ... most important'); f11 and f46 support the extra lines. Statement is fairly false, no second answer. Note: lesson fact f20's claim still paraphrases as 'position size and risk'; already in owner_flags, outside question fields."
   },
   "q12": {
    "status": "pass",
-   "notes": "f23, f27 (Steenbarger: tags make a searchable database by topic, e.g. overtrading) and f06 (Schwab: sort and analyze) confirmed. The 'rereading' note honestly says slow, not impossible.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key decided from f23/f27/f06: one consistent tag. Grammar now parallel (four gerunds, 31-35 chars). 'Rereading' is excluded by 'quick'. Mild lesson-word echo ('fixed') accepted: no distractor or story word gives it away."
   },
   "q13": {
    "status": "pass",
-   "notes": "f05 (CME: analyze profit or loss for a particular system or strategy) and f27 (Steenbarger) confirmed. Split a 27-word sentence in the why.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "Recomputed (51 - 50) / 50 = 2%; matches the calc. f11 (Schwab entry price) and f08 (Schwab: were my entries performed effectively) confirmed.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "Recomputed (20 - 18) / (20 - 19) = 2, a 2R loss; matches the calc. f36 (R set by the initial stop), f35 (Tharp: out at $30 against a planned $40 stop = 2R) and f11 confirmed in context.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed (20-18)/(20-19) = 2. f35 and f36 key it; h01 (A4) correctly framed as the rule broken. Choices 25-28 chars, 0.5R note correct (inverse ratio). Deeper narrowed and supported."
   },
   "q16": {
    "status": "pass",
-   "notes": "f32, f31 (Steenbarger) and f38 (Tendler) confirmed. Nothing cited said cutting winners short is a real, costly habit; added the SEC-hosted report's disposition effect lines (f44, f45, Tier 1) and one why sentence. The key reads the member's own log; a trader would agree.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key, story and why are sound (f32, f44, f45; 7 of 8 and All 8 are in the story). But the wrong note on 'Those exits were sound risk control' says 'Your stop is your risk control', which no cited fact supports. f34 (the exit point set at entry is your risk) supports it; added to facts."
   },
   "q17": {
    "status": "pass",
-   "notes": "f01 and f16 (CME: record why as you enter; go back to it later) confirmed. The Investopedia hindsight facts could not be confirmed live; re-cited to StockCharts ChartSchool f17, Steenbarger f31, Tendler f39 and SEC report f42. The why no longer claims a journal 'avoids' hindsight bias; it gives the definition only.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "f28, f21 (Steenbarger: don't make collection burdensome), f40 (Tendler: 3 to 5 minutes each time), f29 and f03 confirmed. '3 to 5' matches f40.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key decided from f28/f21/f40/f29: shorten the form. Wrong note no longer pre-answers q21. 3 to 5 minutes is in f40; 40 is in the story; h02 quoted with 'ideally'. Choices 28-32 chars."
   },
   "q19": {
    "status": "pass",
-   "notes": "f02 (CME: support and resistance levels recorded as you enter), f24, f25 (Steenbarger) and f39 (Tendler) confirmed. 'What would have settled it?' was vague; now asks what would have shown where the line was. Why says Steenbarger 'notes you can' save screen pictures, matching his 'you can even'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "f08 (Schwab), f11 and f15 (Investopedia: reviewing trades shows patterns) confirmed. The key 'entering late, above plan' repeated the story's words; now 'You're chasing past your planned entry', beside the equally plan-worded 'Your planned entries are too low'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story's 5% to 8% on 8 of 10 vs h03's 4% line (C28) makes chasing decidable and slippage plainly wrong. Every number comes from the story or h03. E57 (market orders) does not make 5-8% normal slippage. Deeper's weekend review grounded in h02."
   },
   "q21": {
    "status": "pass",
-   "notes": "f09 (Schwab: win rate = share of trades profitable versus not) and f03 (CME: the why and how of wins and losses) confirmed. Without the winners neither number exists; the 'by elimination' note is sound.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key decided from f09/f05/f03: neither. Key 36 chars, not the longest (38). It is not a lone negative now that 'Both, once you log enough losers' sits beside it. All wrong notes grounded. No overlap with q13 or q18."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "House recall of B27 (h02 verbatim in meaning). No convergence tell: the most frequent parts (Same day, quarter) point to a wrong choice. Schwab f08 shown as context, rulebook wins. Monthly numbers review (h06/E59) kept to the deeper, so 'review monthly' as a journal-weekly pair stays clearly wrong. Choices 32-36 chars."
   }
  }
 }

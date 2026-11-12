@@ -476,6 +476,24 @@
    "source": "s17",
    "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
    "claim": "Once triggered, a stop is a market order and can fill far from the stop price."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8).",
+   "claim": "Size from the stop, then cap it: the position is the smaller of the stop-based size and the cap, including the ladder's cap in a drawdown."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "On the way back up: one rung up each time the account wins back half of the drawdown; the normal cap again once the account is within 5% of its peak (B14).",
+   "claim": "On the way back up a separate rule runs: one rung up for each half of the drawdown won back, and the normal cap within 5% of the peak."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "D43. Recalculate the account value weekly or monthly and size every trade from it.",
+   "claim": "We size every trade from the account value as recalculated, weekly or monthly."
   }
  ],
  "walkthroughs": [
@@ -533,25 +551,35 @@
    "format": "mcq",
    "q": "What does a drawdown measure?",
    "choices": [
-    "The drop from a high to the low after it",
-    "Your loss from the price you paid",
+    "The fall from a peak to its trough",
+    "Your loss from the price you first paid",
     "The average size of your losses",
-    "Your worst single-day loss"
+    "Your worst loss in a single day"
    ],
-   "answer": "The drop from a high to the low after it",
-   "why": "The drop from a high to the low after it. A drawdown is the percent fall from a peak to the trough that follows.",
+   "answer": "The fall from a peak to its trough",
+   "why": "The fall from a peak to its trough. A drawdown is the percent drop from a high to the lowest point after it. It runs from the peak, so it is not always the same as your loss from the price you paid. It can build over many days.",
    "lesson_line": "A drawdown starts at the high, not at your cost.",
    "facts": [
     "f01",
     "f12",
-    "f03"
+    "f03",
+    "f13"
    ],
    "wrong": {
-    "Your loss from the price you paid": "That's your loss on the trade. Drawdown runs from the peak, and the two are not always the same.",
-    "The average size of your losses": "That's your typical loss per trade. A drawdown is the whole fall from a high, and it can span many trades.",
-    "Your worst single-day loss": "A drawdown can build over many days. It runs from the high to the lowest point after it."
+    "The average size of your losses": "That's your typical loss per trade. A drawdown is the whole fall from a high to the low after it.",
+    "Your loss from the price you first paid": "That's your loss on the trade. Drawdown runs from the peak, and the two are not always the same.",
+    "Your worst loss in a single day": "A drawdown can build over many days. It runs from the high to the lowest point after it."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "A drawdown is the fall from your high to the low after it, so it starts at the peak, not your cost.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, three facts from two publishers"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
@@ -559,7 +587,7 @@
    "format": "tf",
    "q": "Your drawdown is measured from your account's highest value, not from what you started with.",
    "answer": "True",
-   "why": "True. Drawdown runs from the peak. In Investopedia's example, a stock bought at $100 that peaks at $120 and dips to $105 is in a 12.5% drawdown while still above cost.",
+   "why": "True. Drawdown runs from the peak, the highest value, not from your start or your cost. In Investopedia's example, a stock bought at $100 peaks at $120 and dips to $105. That's a 12.5% drawdown while still above cost.",
    "lesson_line": "You can be up on the year and still be in a drawdown.",
    "facts": [
     "f12",
@@ -567,7 +595,16 @@
     "f04",
     "f01"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "True, drawdown is measured from the highest value, so you can be up overall and still be in one.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, two publishers"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -582,14 +619,23 @@
     "200%"
    ],
    "answer": "100%",
-   "why": "100%. Half the account is gone, so what's left has to double. Many investors wrongly assume a 50% gain is enough.",
+   "why": "100%. After a 50% loss, half the money is gone, so what's left has to double to get back to even. Every loss needs a bigger percent gain than itself. Many investors wrongly think a 50% gain is enough.",
    "lesson_line": "Down 50% means you have to double just to get back to even.",
    "facts": [
     "f14",
     "f20",
     "f15"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "100%, because after losing half, the half you have left must double to get back to even.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable arithmetic, two publishers agree"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -605,13 +651,22 @@
     }
    },
    "suffix": "%",
-   "why": "15%. Take the drop from $50,000 to $42,500 and divide it by the peak, $50,000.",
+   "why": "15%. Drawdown is the drop from the peak divided by the peak. Take the fall from $50,000 to $42,500 and divide it by $50,000. Divide by the peak, never by the low.",
    "lesson_line": "Drawdown is the peak minus the low, divided by the peak.",
    "facts": [
     "f02",
     "f01"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "15%, because the drop from $50,000 to $42,500 is 15% of the $50,000 peak.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc drawdown_pct)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -619,14 +674,23 @@
    "format": "tf",
    "q": "A 10% loss needs about an 11% gain to get back to even.",
    "answer": "True",
-   "why": "True. Small losses are cheap to fix: down 10% needs an 11% gain. Down 50% needs a 100% gain.",
+   "why": "True. A 10% loss needs about an 11% gain. The gain is earned on the smaller account, so it is a bit bigger than the loss. The gap grows fast: a 50% loss needs a 100% gain.",
    "lesson_line": "Keep losses small. They're cheap to fix while they're small.",
    "facts": [
     "f20",
     "f14",
     "f07"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "True, because the gain is made on a smaller account, so 10% down needs about 11% back.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable arithmetic, two publishers agree"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -636,7 +700,8 @@
    "choices": [
     "About 33%",
     "25%",
-    "About 20%"
+    "About 20%",
+    "About 50%"
    ],
    "answer": "About 33%",
    "calc": {
@@ -646,7 +711,7 @@
     },
     "round": 0
    },
-   "why": "About 33%. The gain is earned on the smaller account, so a 25% loss takes more than 25% to win back.",
+   "why": "About 33%. The gain is earned on the smaller account, so a 25% loss takes more than 25% to win back. Every loss needs a bigger percent gain than itself. Down 50% needs 100%.",
    "lesson_line": "Down 25% needs about 33% back. Every loss costs more to fix than it cost to take.",
    "facts": [
     "f14",
@@ -655,9 +720,19 @@
    ],
    "wrong": {
     "25%": "That's the trap. A 25% gain on the smaller account leaves you short of the high.",
-    "About 20%": "Backwards. A 20% loss is what wipes out a 25% gain. Fixing a 25% loss takes more, not less."
+    "About 20%": "Backwards. A 20% loss is what wipes out a 25% gain. Fixing a 25% loss takes more, not less.",
+    "About 50%": "That doubles the loss, which is too much here. A 25% loss needs about 33%, not 50%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "About 33%, because the gain is earned on the smaller account left after the 25% loss.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc gain_to_recover)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
@@ -665,7 +740,7 @@
    "format": "tf",
    "q": "A 50% gain followed by a 50% loss leaves you back where you started.",
    "answer": "False",
-   "why": "False. Up 50% takes $100 to $150. Down 50% takes $150 to $75. You end up down 25%.",
+   "why": "False. Up 50% takes $100 to $150. Down 50% then takes $150 to $75. You end 25% below where you started. The second change applies to the bigger number, so equal percents don't cancel.",
    "lesson_line": "Equal percent gains and losses don't cancel out. You end up behind.",
    "facts": [
     "f17",
@@ -673,7 +748,16 @@
     "f15",
     "f20"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "False, because the 50% loss comes off a bigger number, so $100 ends at $75, not $100.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable arithmetic, peer-reviewed source"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -683,25 +767,34 @@
    "q": "On our drawdown ladder, what's your max position size after a 6% drawdown?",
    "choices": [
     "10% of the account",
-    "20% of the account",
+    "40% of the account",
     "5% of the account",
     "6% of the account"
    ],
    "answer": "10% of the account",
-   "why": "10% of the account. After a 6% drawdown, our max position drops to 10%. Deeper drawdowns cut it again.",
+   "why": "10% of the account. On our ladder, a 6% drawdown cuts the max position to 10%. Under 6% down, the normal cap of 40% applies. Deeper drawdowns cut it again.",
    "lesson_line": "The deeper the drawdown, the smaller the max position.",
    "facts": [
     "h02",
     "h04",
-    "h01",
     "h07"
    ],
    "wrong": {
-    "20% of the account": "That was our old normal max. Today the cap is 40%, and either way the 6% step cuts it to 10%.",
     "5% of the account": "That's the cap after a 10% drawdown. At 6%, the cap is 10%.",
-    "6% of the account": "That mixes up the drawdown and the size. A 6% drawdown sets a 10% max."
+    "6% of the account": "That mixes up the drawdown and the size. A 6% drawdown sets a 10% max.",
+    "40% of the account": "That's our normal cap, for under 6% down. At 6% down the ladder cuts it to 10%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "10%, because our ladder cuts the biggest position to 10% of the account once you're 6% below the high.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A7, A8)",
+     "fixed before (20% note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -717,15 +810,24 @@
     }
    },
    "suffix": "%",
-   "why": "10%. Drawdown runs from the peak, $50,000, not from where you started. You're up on the year and in a 10% drawdown at the same time.",
-   "lesson_line": "Measure from the high, not from where you began.",
+   "why": "10%. Drawdown runs from the peak, $50,000, not from the $40,000 start. The drop to $45,000 is 10% of the peak. You can be up on the year and in a drawdown at once.",
+   "lesson_line": "Divide the drop by the high, wherever you started.",
    "facts": [
     "f12",
     "f41",
     "f04",
     "f02"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "10%, because drawdown is measured from the $50,000 high, not the $40,000 start.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc drawdown_pct)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
@@ -741,29 +843,47 @@
     }
    },
    "suffix": "%",
-   "why": "25%. The gain has to be earned on $40,000, not $50,000. That 20% drop needs a 25% climb.",
+   "why": "25%. The climb back starts from $40,000, not $50,000. Going from $40,000 to $50,000 is a 25% gain. So a 20% drop needs a 25% climb, because the gain is earned on less money.",
    "lesson_line": "Gains are earned on what's left. That's why every loss costs more to fix.",
    "facts": [
     "f07",
     "f14",
     "f20"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "25%, because the climb back is earned on $40,000, the smaller amount, not on $50,000.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc pct_change)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
    "rung": 4,
    "format": "tf",
-   "q": "Two accounts each had a 20% max drawdown. So both took the same time to recover.",
+   "q": "Two accounts each had a 20% max drawdown. That tells you how long each took to recover.",
    "answer": "False",
-   "why": "False. Max drawdown shows how deep the worst fall was, not how long the climb back took, or whether it came. Depth and time are two separate measures.",
+   "why": "False. Max drawdown shows how deep the worst fall was. It doesn't show how long the recovery took, or whether it came at all. Two accounts with the same 20% max drawdown can take very different times to recover.",
    "lesson_line": "Ask two things about any drawdown: how deep, and how long.",
    "facts": [
     "f11",
     "f13",
     "f05"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "False, because max drawdown only shows how deep the fall was, not how long the climb back took.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, two publishers"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q12",
@@ -785,7 +905,7 @@
      "trough": 90000
     }
    },
-   "why": "25%. The high was $120,000 and the lowest point before a new high was $90,000. The bounce to $110,000 never made a new high, so it doesn't reset the peak.",
+   "why": "25%. Max drawdown runs from the high, $120,000, to the lowest point before a new high, $90,000. The bounce to $110,000 never beat $120,000, so it doesn't reset the peak. The first drop to $96,000 isn't the low that counts either.",
    "lesson_line": "Max drawdown runs from the high to the lowest low before a new high.",
    "facts": [
     "f09",
@@ -798,7 +918,19 @@
     "20%": "That's only the first drop, $120,000 to $96,000. The low that counts is the lowest one before a new high.",
     "10%": "That measures from your start, $100,000. Drawdown runs from the peak."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "25%, because the fall runs from the $120,000 high to the $90,000 low, and the bounce never made a new high.",
+   "deeper": {
+    "trap": "The bounce is the trap. A rally to $110,000 feels like a fresh start, so people measure from it. But it never beat the $120,000 high. Investopedia's own example works the same way. Its interim peak of $600,000 is not used, since it is not a new high. The low that counts is $350,000, not the first drop to $400,000."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc drawdown_pct)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -809,7 +941,8 @@
    "choices": [
     "About 18%",
     "20%",
-    "2%"
+    "2%",
+    "Well over 20%"
    ],
    "answer": "About 18%",
    "calc": {
@@ -821,7 +954,7 @@
     },
     "round": 0
    },
-   "why": "About 18%. Each 2% loss comes off a smaller account, so ten of them land a bit under 20%. That's a deep hole from losses that each looked normal.",
+   "why": "About 18%. Each loss is 2% of the account as it stands, so each one comes off a smaller account. Ten full losses compound to a bit under 20%. That's a deep hole from losses that each looked normal.",
    "lesson_line": "Your risk per trade sets how deep a cold streak can dig.",
    "facts": [
     "f18",
@@ -829,9 +962,20 @@
    ],
    "wrong": {
     "20%": "That's ten losses of 2% of the starting account. Here each 2% comes off a smaller account, so the total is a bit less.",
-    "2%": "That's one loss. Ten in a row stack up."
+    "2%": "That's one loss. Ten in a row stack up.",
+    "Well over 20%": "The other way round. Each 2% comes off a smaller account, so each loss is a little smaller in dollars. Ten full losses land under 20%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "About 18%, because each 2% loss comes off a smaller account, so ten of them add up to a bit under 20%.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc arith)",
+     "fixed before (story and 20% note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q14",
@@ -842,25 +986,34 @@
    "q": "Under our drawdown ladder, what's the most you put in it?",
    "choices": [
     "10% of the account",
-    "20% of the account",
+    "40% of the account",
     "8% of the account",
     "5% of the account"
    ],
    "answer": "10% of the account",
-   "why": "10% of the account. A 7% drawdown is past the 6% step, so your max is 10%. The 8% step hasn't kicked in yet.",
+   "why": "10% of the account. A 7% drawdown is past the 6% rung, so your max is 10%. The 8% rung hasn't kicked in yet. How much you like the setup doesn't move the ladder.",
    "lesson_line": "The ladder reads your drawdown, not how much you like the setup.",
    "facts": [
     "h02",
     "h04",
-    "h01",
     "h07"
    ],
    "wrong": {
-    "20% of the account": "That was our old normal max. Today the cap is 40%, and the 6% step already cut it to 10%.",
     "8% of the account": "That cap starts at an 8% drawdown. You're at 7%, so the most is still 10%.",
-    "5% of the account": "That's the cap after a 10% drawdown. You can go smaller, but the most here is 10%."
+    "5% of the account": "That's the cap after a 10% drawdown. You can go smaller, but the most here is 10%.",
+    "40% of the account": "That's our normal cap, for under 6% down. You're 7% down, past the 6% rung, so the most is 10%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "10%, because at 7% down you're past the 6% step but short of the 8% step, so the cap is 10%.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A8)",
+     "fixed before (20% note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -878,12 +1031,25 @@
     }
    },
    "prefix": "$",
-   "why": "$4,500. After a 10% drawdown, our max position is 5% of the account, and 5% of $90,000 is $4,500.",
+   "why": "$4,500. After a 10% drawdown, our max position is 5% of the account. 5% of the $90,000 account is $4,500. Find your rung on the ladder first, then turn the percent into dollars.",
    "lesson_line": "Find your step on the ladder first. Then turn the percent into dollars.",
    "facts": [
-    "h02"
+    "h02",
+    "h04",
+    "h14"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "$4,500, because at 10% down our cap is 5%, and 5% of $90,000 is $4,500.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key (calc arith)",
+     "rests on the owner's rulebook (A8) and the reading that the cap is a percent of today's account",
+     "fixed before (my to our)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q16",
@@ -891,7 +1057,7 @@
    "format": "tf",
    "q": "Doubling your size after every loss can wipe out an account in just a few losses in a row.",
    "answer": "True",
-   "why": "True. That's the martingale method. It needs bottomless money, and without it a few straight losses can take everything. Schwab lists doubling down after a loss as a typical bad behavior.",
+   "why": "True. Doubling after every loss is the martingale method. It only works with unlimited money, or enough to last until the win. Without that, a few losses in a row can take everything. Schwab lists doubling down after a loss as a typical bad behavior.",
    "lesson_line": "Never double up to win a loss back. That's how a drawdown turns into a blowup.",
    "facts": [
     "f32",
@@ -899,7 +1065,16 @@
     "f33",
     "f26"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "True, because each loss doubles the next bet, so a short losing run can use up all your money.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable idea, two publishers"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -910,25 +1085,39 @@
    "choices": [
     "Stop trading for the day",
     "Take it with a tighter stop",
-    "Take it at double size",
+    "Stop, unless it's an A+ setup",
     "Raise the limit and take it"
    ],
    "answer": "Stop trading for the day",
-   "why": "Stop trading for the day. Traders who use a daily loss limit end their trading when they reach it. A limit only works if you obey it.",
+   "why": "Stop trading for the day. Traders who use a daily loss limit end their trading when they hit it. A limit only works if you obey it, and no setup earns an exception. We don't use a daily limit ourselves, but the same discipline holds for any limit you set.",
    "lesson_line": "Set the limit when you're calm. Obey it when you're not.",
    "facts": [
     "f38",
     "f39",
     "f27",
     "f28",
-    "f26"
+    "f26",
+    "h08",
+    "h09"
    ],
    "wrong": {
     "Take it with a tighter stop": "You're still trading past your limit. A tighter stop doesn't change that you're done for the day.",
-    "Take it at double size": "That's trying to win the day back. Doubling down after a loss is how a bad day becomes a big drawdown.",
-    "Raise the limit and take it": "A limit you move once it's hit isn't a limit. Once you have it, have the discipline to obey it."
+    "Raise the limit and take it": "A limit you move once it's hit isn't a limit. Once you have it, have the discipline to obey it.",
+    "Stop, unless it's an A+ setup": "A limit with an exception for great setups isn't a limit. Once you have it, have the discipline to obey it."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "Stop for the day, because a loss limit you set only works if you obey it once it's hit.",
+   "deeper": {
+    "trap": "The trap is the setup itself. A loss limit is set before the open, when you're calm. The moment it's hit is when a good setup is hardest to pass up. Schwab notes that a heightened emotional state leads to bad behaviors like ignoring stops and doubling down after a loss. Our own rules have no daily limit. Our limits are the drawdown ladder and a monthly loss limit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "touches B15 (we have no daily loss limit); the owner may want it out of this track"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
@@ -944,14 +1133,27 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "29.2%. One session took 22.6%, and reversing it took a 29.2% gain. The climb back is always bigger than the fall.",
+   "why": "29.2%. On October 19, 1987, the Dow fell 22.6% in one day. Reversing it needed a 29.2% gain, because the climb back starts from the lower level. Every loss needs a bigger percent gain than itself.",
    "lesson_line": "Every drop needs a bigger gain to undo it. Even a single day's.",
    "facts": [
     "f21",
     "f19",
     "f14"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "29.2%, because after a 22.6% drop the gain is earned on a smaller number, so it must be bigger.",
+   "deeper": {
+    "example": "Newall's paper uses this very day to show a quirk of percent returns: a 22.6% decrease needs a 29.2% increase to reverse. The bigger the fall, the wider the gap. A 50% loss needs a 100% gain, double the size of the fall."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc gain_to_recover)",
+     "fixed before (f14 added)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -961,7 +1163,8 @@
    "choices": [
     "About 133%",
     "57%",
-    "About 100%"
+    "About 100%",
+    "About 114%"
    ],
    "answer": "About 133%",
    "calc": {
@@ -971,7 +1174,7 @@
     },
     "round": 0
    },
-   "why": "About 133%. After a 57% fall the index had to more than double just to get back to its peak. Deep drawdowns are brutal to repair.",
+   "why": "About 133%. After a 57% fall, the index had to more than double just to get back to its peak. A 50% loss needs a 100% gain, and deeper falls need even more. The 57% runs from the October 2007 peak to the March 2009 low.",
    "lesson_line": "Past 50% down, you need more than a double just to get back to even.",
    "facts": [
     "f23",
@@ -979,9 +1182,22 @@
    ],
    "wrong": {
     "57%": "That's the equal-percent trap. A 57% gain on what was left falls far short of the old peak.",
-    "About 100%": "100% fixes a 50% loss. This fall was deeper, so the climb back was steeper."
+    "About 100%": "100% fixes a 50% loss. This fall was deeper, so the climb back was steeper.",
+    "About 114%": "That's twice the 57% fall, and it still leaves you short of the peak. A 57% fall needs about 133%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "About 133%, because a 57% fall leaves so little that it has to more than double to get back.",
+   "deeper": {
+    "trap": "The trap is thinking in equal percents, or in doubles. A 57% gain on what was left falls far short, and even doubling the loss isn't enough."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc gain_to_recover) on a historical number"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
@@ -1016,7 +1232,7 @@
    "key": "q21",
    "rung": 8,
    "format": "numeric",
-   "q": "Ten 2% losses in a row, each 2% of what's left, leave you about 18.3% below your high. To the nearest percent, what gain gets you back?",
+   "q": "From your high, you take ten losses in a row, each 2% of what's left. To the nearest percent, what gain gets you back to the high?",
    "answer": 22,
    "calc": {
     "fn": "arith",
@@ -1028,39 +1244,72 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "22%. The 18.3% hole has to be climbed from a smaller base, so it takes more than 18.3% to fix. That's what one cold streak at 2% a trade costs.",
-   "lesson_line": "Ten 2% losses dig an 18.3% hole that takes 22% to climb out of.",
+   "why": "22%. Each 2% loss comes off a smaller account, and the climb back is earned on the smaller account too. So the gain you need is bigger than the hole. That's the cost of one cold streak at 2% a trade.",
+   "lesson_line": "Ten 2% losses in a row need about a 22% gain to undo.",
    "facts": [
     "f14",
     "f18"
    ],
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "22%, because ten 2% losses leave a smaller account, and the gain back is earned on that smaller amount.",
+   "deeper": {
+    "trap": "The trap is adding up the losses and calling that the gain you need. The hole is a bit smaller than the sum of the losses, because each 2% comes off less money. But the gain back is bigger than the hole, because it's earned on the smaller account. Those two effects pull opposite ways, and the gain needed ends up bigger than the sum."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc arith)",
+     "fixed before (wording)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q22",
    "rung": 9,
    "format": "scenario",
-   "story": "A rough stretch put you deep in a drawdown, so you cut your size. Your last five trades followed your plan and worked.",
-   "q": "How do you bring your size back?",
+   "story": "Your account sank to 11% below its high, its lowest point. Your last five trades followed your plan and won, but they were small. It's still 11% below the high.",
+   "q": "Under our rules, what's your max position now?",
    "choices": [
-    "A step at a time, as it keeps working",
-    "All at once, the slump is over",
-    "Bigger than before, to catch up"
+    "5% of the account",
+    "8% of the account",
+    "10% of the account",
+    "40% of the account"
    ],
-   "answer": "A step at a time, as it keeps working",
-   "why": "A step at a time, as it keeps working. Size comes back as you build a new track record of following your system, not in one jump.",
-   "lesson_line": "Cut size fast in a drawdown. Add it back slowly.",
+   "answer": "5% of the account",
+   "why": "5% of the account. At 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet.",
+   "lesson_line": "Size comes back with the account, not with a hot streak.",
    "facts": [
+    "h04",
+    "h06",
+    "h13",
+    "h10",
+    "h07",
     "f24",
     "f25",
     "f29",
     "f31"
    ],
    "wrong": {
-    "All at once, the slump is over": "One good run doesn't rebuild the record. Coming back gradually is the safer path after a big hit.",
-    "Bigger than before, to catch up": "That's sizing up to make the drawdown back. Trading bigger to win it back often ends in poor results."
+    "8% of the account": "That's one rung back. A rung comes back when the account wins back half of the drawdown, not after a streak.",
+    "10% of the account": "That's the cap at 6% down. You're 11% down, past the 10% rung, so the max is 5%.",
+    "40% of the account": "That's the normal cap. It returns only once the account is within 5% of its peak."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "5%, because at 11% down the cap is 5%, and a hot streak doesn't change it.",
+   "deeper": {
+    "trap": "The trap is reading a hot streak as the all-clear. Schwab suggests sizing back up as you show a new track record. Our rule replaces that. The ladder reads the account in percent, and a rung comes back only when the account wins back half of the drawdown."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A8, B14, B17)",
+     "rewritten in the final check (streak vs account)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q23",
@@ -1076,10 +1325,12 @@
     "10% of the account"
    ],
    "answer": "8% of the account",
-   "why": "8% of the account. Your 1% risk over a 5% stop says 20%, but after an 8% drawdown our max is 8%. The cap wins, and you end up risking less than 1%.",
+   "why": "8% of the account. Your 1% risk over a 5% stop says a 20% position. But at an 8% drawdown our max is 8%. The smaller number wins, so you take 8% and end up risking less than 1%.",
    "lesson_line": "Size from the stop, then apply the ladder. The smaller number wins.",
    "facts": [
     "h02",
+    "h04",
+    "h12",
     "f40"
    ],
    "wrong": {
@@ -1087,7 +1338,20 @@
     "1% of the account": "1% is your risk, not your position. They're two different numbers.",
     "10% of the account": "10% is the cap from the 6% step. At an 8% drawdown the cap is 8%."
    },
-   "skill": "risk.drawdown"
+   "skill": "risk.drawdown",
+   "simple": "8%, because at an 8% drawdown our cap is 8%, which is smaller than the 20% the stop math gives.",
+   "deeper": {
+    "trap": "The trap is trusting the stop math alone. Size from the stop is the first number, not the last: 1% risk over a 5% stop gives 20%. Then the ladder caps it. At 8% down the cap is 8%, so the position is 8% and the real risk is less than 1%. The best setup in months doesn't change the rung."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A8)",
+     "fixed before (my to our)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q24",
@@ -1095,14 +1359,23 @@
    "rung": 2,
    "format": "tf",
    "house": true,
-   "q": "Under our rule, a drawdown counts only closed trades; open positions don't move it.",
+   "q": "Under our rule, a losing position you still hold doesn't count toward your drawdown until you sell it.",
    "answer": "False",
-   "why": "False. A drawdown is how far the account is below its highest value, open trades included. An open loser is part of the hole, whether or not you've sold it.",
+   "why": "False. Our drawdown counts open trades too. It's how far the account is below its highest value, open trades included. An open loser is part of the hole whether or not you've sold it.",
    "lesson_line": "Drawdown is measured on the whole account, open trades included.",
    "facts": [
     "h03",
     "f12"
-   ]
+   ],
+   "simple": "False, because our drawdown counts the whole account, open trades included, so an unsold loser still counts.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A8)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q25",
@@ -1112,13 +1385,13 @@
    "house": true,
    "q": "How often, at least, do we check the account's drawdown?",
    "choices": [
-    "At least weekly",
-    "Only at month end",
+    "Once every week",
+    "Once every month",
     "After every trade",
-    "Only after a losing streak"
+    "After a losing run"
    ],
-   "answer": "At least weekly",
-   "why": "At least weekly. The ladder reads the drawdown, so the drawdown has to be read on a schedule. Weekly is the minimum; more often is fine.",
+   "answer": "Once every week",
+   "why": "Once every week, at the least. Our rule defines the drawdown with open trades included and says to check it at least weekly. More often is fine. The ladder can only act on a number you've looked at.",
    "lesson_line": "Check the drawdown at least weekly. The ladder can only work on a number you've looked at.",
    "facts": [
     "h03",
@@ -1126,10 +1399,19 @@
     "h04"
    ],
    "wrong": {
-    "Only at month end": "Too slow. A 6% step can arrive and pass inside a month. Weekly at least.",
-    "After every trade": "You can, but the rule asks for weekly at least. A schedule beats a reaction.",
-    "Only after a losing streak": "We have no losing-streak rule. The ladder runs on the drawdown percent, checked weekly whatever the streak."
-   }
+    "After every trade": "You can check that often, but it isn't the rule's floor. The rule asks for at least once a week, trade or no trade.",
+    "Once every month": "Too slow for our rule. We check the drawdown at least once a week, not once a month.",
+    "After a losing run": "We have no losing-streak rule. The ladder runs on the drawdown percent, checked at least weekly whatever the streak."
+   },
+   "simple": "Once every week, because our rule says to check the drawdown at least weekly so the ladder works on a fresh number.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A8, B17)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q26",
@@ -1147,12 +1429,21 @@
     "6%"
    ],
    "answer": "15%",
-   "why": "15%. At 10% down the max position is 5%. At 15% down, no new trades at all, and a review before trading again.",
+   "why": "15%. At a 15% drawdown we stop opening new trades and review before trading again. The shallower rungs only cap the size of a position.",
    "lesson_line": "At 15% down the ladder ends in a stop: no new trades, review first.",
    "facts": [
     "h05",
     "h04"
-   ]
+   ],
+   "simple": "15%, because at 15% down our ladder goes from capping size to no new trades until you review.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A8, B13)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q27",
@@ -1162,13 +1453,22 @@
    "house": true,
    "q": "Our rules include a daily loss limit: lose a set amount in a day and you're done for the day.",
    "answer": "False",
-   "why": "False. We have no daily and no weekly loss limit. Our limits are the drawdown ladder, read from the account's high, and a monthly loss limit of 8% from the month's starting value.",
+   "why": "False. We have no daily loss limit and no weekly one. Our limits are the drawdown ladder, read from the account's high, and a monthly loss limit. That limit is 8% from the month's starting value.",
    "lesson_line": "No daily or weekly limit. The ladder and the 8% monthly limit do the job.",
    "facts": [
     "h08",
     "h09",
     "h10"
-   ]
+   ],
+   "simple": "False, because we have no daily loss limit, only the drawdown ladder and an 8% monthly limit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B15, B16, B17)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q28",
@@ -1187,12 +1487,21 @@
     }
    },
    "prefix": "$",
-   "why": "$55,200. That's 8% below the month's starting value of $60,000. From there, no new trades until the calendar month ends. Once you have a limit, obey it.",
+   "why": "$55,200. Our monthly limit is 8% down from the month's starting value, and 8% below $60,000 is $55,200. Hit it and there are no new trades until the calendar month ends. It runs from the month's start, not the account's high.",
    "lesson_line": "Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
    "facts": [
-    "h09",
-    "f39"
-   ]
+    "h09"
+   ],
+   "simple": "$55,200, because our limit is 8% below the $60,000 the month started at.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (calc arith)",
+     "rests on the owner's rulebook (B16)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q29",
@@ -1209,17 +1518,31 @@
     "40% of the account"
    ],
    "answer": "8% of the account",
-   "why": "8% of the account. At $94,000 you've won back half of the fall from $100,000 to $88,000. Half back earns one rung up, from the 5% rung to the 8% rung.",
+   "why": "8% of the account. The fall ran from $100,000 to $88,000, and half of it is won back at $94,000. Our rule runs the way back up on its own terms: one rung for each half of the drawdown won back. That moves you from the 5% rung to the 8% rung. The normal cap waits until the account is within 5% of its peak.",
    "lesson_line": "The way back is one rung at a time: half the drawdown won back, one rung up.",
    "facts": [
     "h06",
-    "h04"
+    "h13",
+    "h04",
+    "h07"
    ],
    "wrong": {
     "5% of the account": "That was the cap at the low. Winning back half of the drawdown earns one rung back.",
-    "10% of the account": "That's two rungs up. Half of the drawdown won back earns one rung, not two.",
+    "10% of the account": "That reads the way-down rungs at today's drawdown. On the way back up, half the drawdown won back earns one rung: 5% to 8%.",
     "40% of the account": "The normal cap returns once the account is within 5% of its peak. At $94,000 you're still more than 5% below $100,000."
-   }
+   },
+   "simple": "8%, because $94,000 wins back half of the drop to $88,000, and half back earns one rung up.",
+   "deeper": {
+    "example": "Check it. The drop from $100,000 to $88,000 is the drawdown, and half of it brings the account back to $94,000. That earns one rung: from 5% to 8%. The normal cap of 40% waits until the account is within 5% of its peak."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B14) and a reading of 'half of the drawdown' the owner has not confirmed"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q30",
@@ -1238,12 +1561,22 @@
     }
    },
    "prefix": "$",
-   "why": "$76,000. The normal cap returns once the account is back within 5% of its peak, and 5% under $80,000 is $76,000. Until then you climb the rungs: 5%, then 8%, then 10%.",
+   "why": "$76,000. The normal cap returns once the account is back within 5% of its peak, and 5% under $80,000 is $76,000. Until then, the ladder's smaller caps still apply.",
    "lesson_line": "Full size again within 5% of the peak. Not at the peak, not at the first green week.",
    "facts": [
     "h06",
     "h04"
-   ]
+   ],
+   "simple": "$76,000, because the normal cap comes back within 5% of the $80,000 peak.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (calc arith)",
+     "rests on the owner's rulebook (B14) and the reading that exactly 5% down counts as within 5%"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q31",
@@ -1260,11 +1593,12 @@
     "10% of the account"
    ],
    "answer": "40% of the account",
-   "why": "40% of the account. That's our normal cap, and a tight stop never justifies more. A triggered stop is a market order, and a gap can fill you far past it.",
+   "why": "40% of the account. That's our normal cap at the high, and a tight stop never justifies more. The risk math says 100%, but the size is the smaller number. A triggered stop becomes a market order, and a gap can fill you far past it.",
    "lesson_line": "The cap is 40%. A tight stop shrinks the risk math, never the cap.",
    "facts": [
     "h07",
     "h11",
+    "h12",
     "f43",
     "h04"
    ],
@@ -1272,7 +1606,20 @@
     "100% of the account": "That's the risk math with no cap. A 1% stop can be gapped through, and 100% of the account in one stock is how a gap ruins a year.",
     "20% of the account": "That was our old normal max. The cap is 40% now.",
     "10% of the account": "That's the cap after a 6% drawdown. At the high, the normal cap applies."
-   }
+   },
+   "simple": "40%, because that's our cap, and a tight stop can't lift it since a gap can jump the stop.",
+   "deeper": {
+    "trap": "The trap is a tight stop. Risk math divides your risk by the stop distance, so a 1% stop turns 1% risk into a 100% position. But a stop becomes a market order once hit, and the fill can be far from the stop price. A gap through a 1% stop on a 100% position can cost far more than the 1% you planned. That's why the 40% cap holds whatever the stop says."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A7)",
+     "fixed before (20% note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q32",
@@ -1280,16 +1627,16 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "A brutal quarter. Your account is 15% below its high, open positions included. A clean setup triggers today.",
+   "story": "A brutal quarter. Your account peaked at $100,000 and is $85,000 today, open positions included. A clean setup triggers today.",
    "q": "What does our rule say?",
    "choices": [
     "No new trades, review first",
-    "Take it at 5% max",
-    "Take it at half your usual risk",
+    "Take it, but at a 5% max position",
+    "Close every open position today",
     "Take it, the ladder only caps size"
    ],
    "answer": "No new trades, review first",
-   "why": "No new trades, review first. At 15% down the ladder stops opening trades. A streak can be bad luck or a broken strategy; the review is where you find out which.",
+   "why": "No new trades, review first. The fall from $100,000 to $85,000, open positions included, reaches the 15% rung. There we stop opening new trades and review before trading again. The rule speaks to new trades only. A losing run can be bad luck or a broken strategy, and the review is where you find out which.",
    "lesson_line": "At 15% down, the answer to any setup is no. Review, then earn the way back.",
    "facts": [
     "h05",
@@ -1298,10 +1645,22 @@
     "f30"
    ],
    "wrong": {
-    "Take it at 5% max": "5% is the rung for 10% down. At 15% the ladder stops new trades altogether.",
-    "Take it at half your usual risk": "Smaller risk is still a new trade. At 15% down there are none until you've reviewed.",
-    "Take it, the ladder only caps size": "The ladder caps size down to 10% down. At 15% it stops you."
-   }
+    "Take it, the ladder only caps size": "The ladder caps size down to 10% down. At 15% it stops you.",
+    "Take it, but at a 5% max position": "5% is the rung for 10% down. At 15% the ladder stops new trades altogether.",
+    "Close every open position today": "Our rule stops new trades and asks for a review. It doesn't tell you to sell what you already hold."
+   },
+   "simple": "No new trades, because the fall from $100,000 to $85,000 reaches our 15% stop, so you review first.",
+   "deeper": {
+    "trap": "The trap is treating 15% like one more rung. Down to 10%, each rung only shrinks the max position, so a smaller trade still fits. At 15% there is no smaller size: the answer to any setup is no until you've reviewed. A clean setup that day is exactly what tests the rule."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A8, B13)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q33",
@@ -1314,11 +1673,11 @@
    "choices": [
     "The monthly loss limit",
     "The 15% drawdown stop",
-    "Nothing, the ladder just caps size",
+    "Nothing stops you today",
     "The daily loss limit"
    ],
    "answer": "The monthly loss limit",
-   "why": "The monthly loss limit. From $95,000 to $87,000 is more than 8% down this month, so no new trades until the month ends. The 13% drawdown caps a position at 5% but doesn't stop you.",
+   "why": "The monthly loss limit. From $95,000 to $87,000 is more than 8% down this month, so no new trades until the month ends. The 13% drawdown is short of the 15% stop, so the ladder only caps a position at 5%.",
    "lesson_line": "Two clocks run at once: the ladder from the peak, the 8% limit from the month's start. Either can stop you.",
    "facts": [
     "h09",
@@ -1328,9 +1687,21 @@
    ],
    "wrong": {
     "The 15% drawdown stop": "You're 13% below the peak, short of the 15% stop. Here the ladder caps size at 5%; it's the month that stops you.",
-    "Nothing, the ladder just caps size": "The ladder alone would let you trade at a 5% max. But the month's loss has passed 8%, and that closes the month.",
-    "The daily loss limit": "We have no daily loss limit. The monthly limit is the one that bites here."
-   }
+    "The daily loss limit": "We have no daily loss limit. The monthly limit is the one that bites here.",
+    "Nothing stops you today": "The ladder alone would let you trade at a 5% max. But the month's loss has passed 8%, and that closes the month."
+   },
+   "simple": "The monthly limit, because the account fell more than 8% from the $95,000 it started the month at.",
+   "deeper": {
+    "trap": "The trap is reading only one clock. The ladder runs from the peak: 13% below $100,000 caps a position at 5% but doesn't stop you. The monthly limit runs from the month's start. From $95,000 to $87,000 is more than 8%, and that closes the month to new trades. Either clock can stop you, so check both."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A8, B13, B15, B16)"
+    ]
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1374,117 +1745,117 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f01 (Investopedia) and f12 (IBKR glossary) confirmed live: peak to the trough after it. Each wrong choice is a real confusion (loss from cost, average loss, one bad day); f03 backs the first note.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key decided first from f01/f12 (peak to trough). Choices 31-39 chars, key not longest. 'Can build over many days' rests on f13 (depth and duration). Simple fine."
   },
   "q02": {
    "status": "pass",
-   "notes": "f12 (IBKR: 'from the highest or peak value'), f01, f04, f41 confirmed live. The why's example is Investopedia's own ($15 / $120 = 12.5%), and $105 is above the $100 cost as stated.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "f14 (Newall, peer-reviewed) and f20 (Nationwide) agree a 50% loss needs 100%; f15 backs 'many investors assume 50%'. Bank distractors (50%, 75%, 200%) are real misreadings.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q04": {
    "status": "pass",
-   "notes": "(50,000 - 42,500) / 50,000 = 15%; calc drawdown_pct agrees. Method from f01 / f02 (Investopedia: the drop divided by the peak).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f20 (Nationwide): a 10% loss needs 11%; recomputed 1/0.9 - 1 = 11.1%, so 'about 11%' is right. f14 (Newall) and f07 (Investopedia) agree on the principle.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "calc gain_to_recover(25) = 33.3 -> 33. Wrong notes recomputed: 0.75 x 1.25 = 0.9375 (short of the high); 1.25 x 0.8 = 1.0 (a 20% loss erases a 25% gain), so 'Backwards' is fair.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 1/0.75-1 = 33.3% -> 33. New 'About 50%' note grounded in the question and calc. Minor, not changed: the 'About 20%' note's 'a 20% loss wipes out a 25% gain' is arithmetic with no calc (20 and 25 are givens)."
   },
   "q07": {
    "status": "pass",
-   "notes": "f17 and f16 (Newall) confirmed live: $100 -> $150 -> $75, down 25%.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key unchanged (6% down, 10% max; h02, h04). Reworded the '20%' note: it named the owner ('the owner's old normal max'); member-facing text never names him. Now 'our old normal max'. h07 claim corrected: 'raised from 20% to 25%' misread 'raised from 20-25%'; it now reads 'raised on 2026-11-09 from the old 20% to 25%'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, A8); awaiting cold check. Only the '20% of the account' wrong note changed: it called 20% 'the max before the ladder kicks in', which the rulebook's 40% cap (A7) contradicts; key and other notes as the checker passed them. h04 added (the ladder is now confirmed as ours in A8)"
+   "fixed": false,
+   "notes": "Key 10% from h02/h04 before reading it. 40% distractor is the live temptation (h07), note correct. Lengths 17-18. Why no longer lists every rung."
   },
   "q09": {
    "status": "pass",
-   "notes": "(50,000 - 45,000) / 50,000 = 10%; calc agrees. f12 (IBKR) and f04 / f41 (Investopedia): measured from the peak, not from the start.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc (50000-45000)/50000 = 10%. New lesson_line teaches the method and no longer copies q02's line."
   },
   "q10": {
    "status": "pass",
-   "notes": "(50,000 - 40,000) / 40,000 = 25%; calc pct_change agrees. The 20% drop is f07's own case (Investopedia: a 20% drawdown must recover significantly more); f14, f20 agree.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "f11 (Investopedia MDD, Hayes, updated 2026-09-21): MDD does not show how long recovery takes or if it happens; f13 (StockCharts Ulcer Index) and f05 agree depth and time are separate measures.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False on f11 (MDD does not show how long recovery takes). No absolute left in the statement. 'Can take very different times' is a fair reading of f11 + f05."
   },
   "q12": {
    "status": "pass",
-   "notes": "Recomputed: 120k -> 90k = 25% (key); from the 110k bounce 18.2%; first drop 120k -> 96k = 20%; from the 100k start 10%. Every wrong note checks. f09, f10 (Investopedia's $750k / $600k / $350k example) confirmed live.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "calc 1 - 0.98^10 = 18.3% -> 18. Fixed two things: the story never said the streak began at the account's high (if it did not, the drawdown is deeper), now 'Your account sits at its high'; and 'Roughly how deep' made the 20% choice arguable as a rough answer, now 'How deep is your drawdown now?'. f18 (Newall, compounding) and f37 (Investopedia) confirmed live. Track auditor 2026-11-09: the '20%' note now says where 20% comes from (ten losses of 2% of the starting account, the flat case F9.01 w3/q07 and F9.03 w3 teach) and why this story's compounding total is a bit less. Key, calc (18.3 -> 18) and choices unchanged.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 1-0.98^10 = 18.3% -> 18. 'Well over 20%' note correct and no longer copies q06's opener. Minor, not changed: '2%' is a weak distractor at rung 5 (one loss), but a replacement like 'About 22%' would hand over q21's key."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key unchanged (7% sits on the 6% rung, 10% max). Same '20%' note fix as q08: 'the owner's old normal max' is now 'our old normal max'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, A8); awaiting cold check. Only the '20% of the account' wrong note changed, for the same reason as q08; key and other notes as the checker passed them"
+   "fixed": false,
+   "notes": "7% sits between the 6% and 8% rungs (h04) -> 10%. 40% note correct (h07, under 6% down). A+ setup does not lift the ladder cap: A5 (h12) makes the size the smaller of risk size and the ladder's cap."
   },
   "q15": {
    "status": "pass",
-   "notes": "House item: after a 10% drawdown, 5% max (h02); 5% x $90,000 = $4,500, calc agrees. Percent of today's account, as sizing_rule.md section 3 converts (conflicts note 2 asks the owner). Changed 'my max position' to 'our max position'. Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 90000*5/100 = 4500. 10% down -> 5% (h04); h14 (D43) supports sizing from the current account value. Owner flag on percent-of-today kept."
   },
   "q16": {
    "status": "pass",
-   "notes": "f32, f42, f33 (Investopedia martingale, Hayes, updated 2026-07-20) and f26 (Schwab, Hoenig) confirmed live in context. Check: doubling from 2% risk loses 2+4+8+16+32 = 62% in five losses and a sixth takes the rest, so 'can ... a few' holds. The 'never double up' lesson is sound risk advice.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q17": {
-   "status": "pass",
-   "notes": "f38, f39 (Fidelity drawdown page) and f27, f28 (Schwab, Hoenig) confirmed live: two publishers agree you stop at the limit and keep to it. Each wrong choice is a real way to break a limit. Cold check 2026-11-09: kept as passed beside new q27 (B15, no daily loss limit). q17 asks what a trader who SET a daily limit does; it never says we have one. Owner: keep it in this track, or drop it?",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave9: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
-   "notes": "f21 (Federal Reserve History, Tier 1): the Dow fell 22.6% on 1987-10-19; f19 (Newall): 29.2% to reverse. calc 1/0.774 - 1 = 29.199 -> 29.2. Added f14 to the facts, since the why's 'always bigger' line comes from it.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 1/0.774-1 = 29.2%, matches f19 verbatim; 'needed' now matches f19's 'is required'. Date and 22.6% from f21 (Tier 1)."
   },
   "q19": {
    "status": "pass",
-   "notes": "f23 (Federal Reserve History, Tier 1): S&P 500 down 57% from Oct 2007 to Mar 2009. calc 1/0.43 - 1 = 132.6 -> 133; 'more than double' checks (133% > 100%). The 50.8% (Newall) and 55% (Nationwide) figures are in conflicts and not used; the question states 57%.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 1/0.43-1 = 132.6 -> 133. Deeper no longer leans on the conflicts note. 'Doubling the loss isn't enough' holds: 114% is a given choice and short of 133."
   },
   "q20": {
    "status": "cut",
@@ -1494,81 +1865,81 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "calc 1/0.98^10 - 1 = 22.4% -> 22; the given 18.3% = 1 - 0.98^10. Added 'from your high' so 'back' plainly means back to the high where the streak began. f14, f18 (Newall) confirmed live. Track auditor 2026-11-09: 'Ten straight 2% losses' now reads 'each 2% of what's left', so the 18.3% given cannot be read against F9.01's flat case (ten losses of $2,000 on $100,000 = 20%). 1 - 0.98^10 = 18.29%, 'about 18.3%'; calc unchanged (22.4 -> 22).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc 1/0.98^10-1 = 22.4% -> 22. Stem 130 chars, now says 'of what's left' so the compounding is plain. Does not reveal q13's 18%; q13 (rung 5) comes first."
   },
   "q22": {
    "status": "pass",
-   "notes": "f24, f25, f29 (Schwab, two articles) and f31 (Investopedia anti-Martingale, Kenton) confirmed live: come back gradually and add size as results return. Not asked as a house rule (the ladder says nothing about adding size back). f31's claim now matches the quote's 'aims to'.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Three defects. (1) house: true missing although the key is now our rule (B14); the resolver asked for it by hand and the merge dropped it. (2) Answers-each-other: q29 (rung 5) and q30 (rung 6) both reveal 'one rung each time the account wins back half of the drawdown' and 'normal cap within 5% of the peak', so this rung-9 recall question is free by the time it is asked. (3) The stem 'Under our ladder' hints the key 'In steps'. Rewritten as a rung-9 application of the same rule to the story's real trap (a winning streak with no account recovery), using 11% so q29's '12% -> 5%' story does not ha"
   },
   "q23": {
    "status": "pass",
-   "notes": "House item: 1% / 5% = 20% from the stop (F9.02's formula; f40 Investopedia confirmed live); at exactly 8%, h02 caps it at 8%; 8% x 5% = 0.4% risk, so 'less than 1%' holds. Changed 'my max' to 'our max' in the why and to 'the max' in the 20% note. Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key 8% from h04 (8% down -> 8%) and h12 (smaller of risk size and cap). The 20% in the why is one of the question's own choices; 1%/5% division rests on f40. No second defensible answer."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 'Open trades included' (A8) keyed as False to 'only closed trades'; IBKR's NAV definition (f12) agrees. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8); awaiting cold check"
+   "notes": "False on h03 ('open trades included'). No absolute in the statement. TF balance in the unit is 3 True / 4 False."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 'Checked at least weekly' read as a minimum; the question asks 'at least', so 'after every trade' is not the minimum and 'only after a losing streak' fails B17. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B17); awaiting cold check"
+   "notes": "Key from h03 ('checked at least weekly'). Choices 15-18 chars, key shortest. 'After every trade' is not the floor (a week with no trades gets no check). D43's 'weekly or monthly' recalculation vs the weekly drawdown check stays an owner flag; the 'Once every month' note speaks only to the drawdown check, which is right."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 15% is B13 word for word; the bank's 6/8/10% are the other rungs, 20% a plausible miss. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13); awaiting cold check"
+   "fixed": true,
+   "notes": "Answers-each-other: the new why lists '10% at 6% down, 8% at 8%, 5% at 10%', which hands over q08's whole key at the same rung (3) and the rungs q14, q15 and q23 ask for, the very thing the resolver trimmed out of q08's why. Why shortened to the 15% rule and the shift from capping to stopping; all other fields unchanged."
   },
   "q27": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B15 'No daily loss limit' and B16 'No weekly loss limit' keyed False. q17 (a trader who set a daily limit, Fidelity and Schwab) is a general item about obeying a limit you set, not asked as ours; it does not contradict q27, but the owner may prefer it out of a track whose house rule is no daily limit (see q17's note). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B15, B16, B17); awaiting cold check"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B16's own text says 'from the month's starting value', so the base is not a reading but the rule; 60,000 x 0.92 = 55,200 recomputes (calc arith). f39 (Fidelity) confirmed by the quote checker. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B16); awaiting cold check"
+   "notes": "Calc 60000*(100-8)/100 = 55200. h09 grounds the 8%, the month's start and the calendar month. Lesson-level, not this question: B16 is first taught in q27's reveal (rung 4) and no walkthrough carries it; the resolver's integrator item (add a w4 or w3 step citing h08/h09) must land."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "First rung back: half of the $12,000 fall is $6,000, so $94,000 earns one rung, 5% to 8% (B14, A8). Both readings of 'half of the drawdown' (half the original, half of what is left) agree on the FIRST rung, so the key is safe; the '10%' note says 'one rung, not two' and claims nothing about the second rung. Owner: for the second rung, is it half of the original drawdown again or half of what remains? Not keyed anywhere yet. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B14); awaiting cold check"
+   "notes": "Key decided from A8's text before reading it: the rulebook scopes the rungs 'On the way down' and 'On the way back up' separately, so from the 5% rung, half won back ($94,000 is a given) earns one rung, 8%. The 10% reading is answered in its note and kept as an owner flag. Minor, not changed: deeper.example largely repeats the why."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "80,000 x 0.95 = 76,000 (calc). 'Within 5% of its peak' includes exactly 5% down on the owner's own words in B14 ('full size okat at 5% drawdown again on the way up'), so the 5%-below value is the right key. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B14); awaiting cold check"
+   "notes": "Calc 80000*95/100 = 76000. h06 'within 5% of its peak'; exactly 5% counts per the owner's B14 words ('full size okat at 5% drawdown again on the way up'). The false 'climb the rungs 5%, 8%, 10%' line is gone."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key: 1% risk / 1% stop = 100% by the math, capped at 40% (A7, h11, FINRA f43 confirmed by the quote checker). Reworded the '20%' note, which named the owner and the date; now 'our old normal max'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check"
+   "fixed": false,
+   "notes": "Key 40% from h07 + h11 + h12; 100% is given in the story. Deeper now grounded in f43 (stop becomes a market order) and h11. Minor, not changed: the 100% note's 'how a gap ruins a year' is a little dramatic."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 15% down and 'open positions included' are both in A8/B13; Schwab f29/f30 (confirmed earlier) back the review line. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13); awaiting cold check"
+   "notes": "$100,000 to $85,000 is exactly 15%, the h05 rung, so the member must place it on the ladder; the story no longer prints q26's key. Choices 27-34 chars, key shortest. A possible monthly-limit hit would not change the key. Review line rests on f30."
   },
   "q33": {
    "status": "pass",
-   "by": "checker",
+   "by": "writer",
    "fixed": false,
-   "notes": "95,000 to 87,000 is 8.4%, past B16's 8% from the month's starting value (the rule's own base), so the month is closed; 13% off the $100,000 peak is below B13's 15%, so the ladder only caps size at 5%. The 13% is given in the story. Every wrong note checks. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13, B15, B16); awaiting cold check"
+   "notes": "upgraded wave9; awaiting cold re-read"
   }
  }
 }

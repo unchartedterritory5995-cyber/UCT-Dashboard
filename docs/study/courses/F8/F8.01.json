@@ -163,6 +163,14 @@
    "url": "https://www.kellogg.northwestern.edu/academics-research/research/detail/2012/hindsight-bias/",
    "accessed": "2026-11-09",
    "why_reliable": "A peer-reviewed review article in Perspectives on Psychological Science (2012), by Neal Roese of Kellogg and Kathleen Vohs. The abstract is on Kellogg's own faculty research page, so the wording is the authors', not a summary."
+  },
+  {
+   "id": "s19",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -597,6 +605,54 @@
    "source": "s18",
    "quote": "Hindsight bias occurs when people feel that they “knew it all along,” that is, when they believe that an event is more predictable after it becomes known than it was before it became known.",
    "claim": "Hindsight bias is the 'knew it all along' feeling: once an event is known, it seems more predictable than it was before."
+  },
+  {
+   "id": "h01",
+   "source": "s19",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "Our rule B27: journal every trade the same day and review the week every weekend."
+  },
+  {
+   "id": "h02",
+   "source": "s19",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "Our rule F67: on a day you are tired, sick, angry or distracted, take no new trades."
+  },
+  {
+   "id": "h03",
+   "source": "s19",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "Our rule D44: no setup, no trade; cash is a position."
+  },
+  {
+   "id": "h04",
+   "source": "s19",
+   "quote": "Follow the rules; breaking one is not recommended.",
+   "claim": "Our rule C36: follow the rules; breaking one is not recommended."
+  },
+  {
+   "id": "h05",
+   "source": "s19",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Our rule C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h06",
+   "source": "s19",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "Our rule A4: the stop only moves up, never down or wider."
+  },
+  {
+   "id": "h07",
+   "source": "s19",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "Our rule B21: after a stop-out, re-enter only if the setup triggers again, as a new trade."
+  },
+  {
+   "id": "h08",
+   "source": "s19",
+   "quote": "No daily loss limit.",
+   "claim": "Our rule B15: no daily loss limit."
   }
  ],
  "walkthroughs": [
@@ -660,12 +716,22 @@
    "format": "tf",
    "q": "Your trading mistakes are mostly random, so there's no pattern worth mapping.",
    "answer": "False",
-   "why": "False. A research review done for the SEC says investors make the same mistakes repeatedly. Tendler puts it plainly: there's no randomness in the mental game.",
+   "why": "False. A research review done for the SEC says investors fall into predictable patterns and make the same mistakes repeatedly. Tendler says your emotional reactions happen again and again for the same reason. In his words, there's no randomness in the mental game. That is why a mistake that keeps coming back can be written down, traced and mapped.",
    "lesson_line": "Your mistakes repeat for a reason. What repeats can be mapped.",
    "facts": [
     "f01",
     "f10"
-   ]
+   ],
+   "simple": "False, because the same mistakes keep coming back for the same reasons, so there is a pattern to map.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "two Tier 2 publishers agree (SEC-hosted review and Tendler)",
+     "fixed before (why reworded)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q02",
@@ -674,17 +740,19 @@
    "format": "mcq",
    "q": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it?",
    "choices": [
-    "A record of when and why it happens",
-    "More willpower in the moment",
-    "A week away from the screens",
-    "A new setup to trade"
+    "A log of when and why it happens",
+    "More willpower when the urge hits",
+    "A full week away from the screens",
+    "A new setup that suits you better"
    ],
-   "answer": "A record of when and why it happens",
-   "why": "A record of when and why it happens. Tendler's first stage is a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step.",
+   "answer": "A log of when and why it happens",
+   "why": "A log of when and why it happens. Tendler's first stage is Map Your Pattern: a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step to avoiding costly mistakes. Mapping is the first step, not the whole fix. Tendler's next stages find the root of the problem and then correct it, day after day.",
    "lesson_line": "Map it first. Then fix it.",
    "facts": [
     "f27",
     "f28",
+    "f29",
+    "f30",
     "f75",
     "f89",
     "f31",
@@ -693,10 +761,19 @@
     "f24"
    ],
    "wrong": {
-    "More willpower in the moment": "Fighting the urge in the moment is what Tendler calls a band-aid. It hasn't stopped this mistake so far.",
-    "A week away from the screens": "A break can help short term, but Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
-    "A new setup to trade": "The setup isn't the problem. You know the rule and break it anyway, so the habit comes with you to the next setup."
-   }
+    "More willpower when the urge hits": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it.",
+    "A full week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
+    "A new setup that suits you better": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup."
+   },
+   "simple": "Keep a log of when and why it happens, because you have to see the pattern before you can fix it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable method; Tendler and Investopedia agree"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q03",
@@ -705,25 +782,37 @@
    "format": "mcq",
    "q": "When should you write down a trading mistake?",
    "choices": [
-    "The same day, while it's fresh",
-    "At month-end, all at once",
-    "Only when it costs a lot",
-    "Never, just forget it and move on"
+    "Same day, while it's fresh",
+    "At month-end, all in one go",
+    "Only when it costs you a lot",
+    "Never, forget it and move on"
    ],
-   "answer": "The same day, while it's fresh",
-   "why": "The same day. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. A note written then still holds what you really thought.",
+   "answer": "Same day, while it's fresh",
+   "why": "Same day, while it's fresh. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. Our own rule says the same: ideally, journal every trade the same day and review the week every weekend. A note written that day keeps your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
    "lesson_line": "Write it down today, while you still remember why you clicked.",
    "facts": [
     "f54",
     "f15",
     "f14",
-    "f71"
+    "f71",
+    "f11",
+    "h01"
    ],
    "wrong": {
-    "At month-end, all at once": "By then you know how the trades ended, and that colors what you remember. A journal written at the time keeps your first reasons.",
-    "Only when it costs a lot": "Small mistakes repeat and add up. Leave them out and your map has holes.",
-    "Never, just forget it and move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one."
-   }
+    "At month-end, all in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
+    "Only when it costs you a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes.",
+    "Never, forget it and move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one."
+   },
+   "simple": "Write it the same day, while it's fresh, because a note made then still holds what you really thought.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why states our rule B27 (the owner's rulebook)",
+     "fixed before (wrong note, coach named)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q04",
@@ -732,15 +821,26 @@
    "format": "tf",
    "q": "Once you know how a trade ended, it's easy to believe you saw it coming.",
    "answer": "True",
-   "why": "True. That's hindsight bias, one of the biases of judgment in Kahneman's work. A journal written at the time shows what you really expected.",
+   "why": "True. That's hindsight bias, the 'knew it all along' feeling. Once an event is known, it seems more predictable than it was before. Kahneman's work lists hindsight among the biases of judgment that lead to poor decisions. It does not mean a result teaches nothing. A journal written at the time shows what you really expected, so you review the decision, not the memory.",
    "lesson_line": "Write down why you took the trade before you know how it ends.",
    "facts": [
     "f95",
     "f70",
     "f03",
     "f04",
-    "f71"
-   ]
+    "f71",
+    "f72"
+   ],
+   "simple": "True. That's hindsight bias: once you know the ending, it seems easier to predict than it really was.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Kellogg (peer-reviewed abstract) and Investopedia agree",
+     "fixed before (second source added)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q05",
@@ -756,7 +856,7 @@
     "signal"
    ],
    "answer": "mistake",
-   "why": "Mistake. Losses come with trading, and one loss is no reason to change the plan. A mistake is not doing what your plan says, and that's what you tag in your log.",
+   "why": "Mistake. A mistake is not doing what your plan says. A planned trade that hits its stop is a loss, and losses are common and part of the risk. One loss, or a rough patch, is no reason to change the plan. Your review checks one thing first: whether you followed the plan. That, not the P&L, is what you tag in your log.",
    "lesson_line": "Losses are part of the risk. Breaking the plan is the mistake.",
    "facts": [
     "f83",
@@ -764,8 +864,21 @@
     "f87",
     "f85",
     "f77",
+    "f82",
     "f36"
-   ]
+   ],
+   "simple": "Mistake, because a planned stop-out is part of the risk, while breaking your plan is a choice you own.",
+   "deeper": {
+    "counter": "A loss can hold no mistake at all. You took a planned setup, set the stop, and it hit. Nothing to fix. Now flip it: you skipped your stop and the stock bounced back. No loss, but still a mistake. Tag by the plan, never by the P&L."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable idea; Investopedia and Tendler agree"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q06",
@@ -774,13 +887,24 @@
    "format": "tf",
    "q": "A good review looks at what you did well, not only at your mistakes.",
    "answer": "True",
-   "why": "True. Steenbarger's daily journal logs what you did well and what you didn't. Reviewing only mistakes, he says, makes a negative environment for growth.",
+   "why": "True. Steenbarger's daily journal logs what you did well and what you didn't. He warns that reviewing only what you do wrong makes a negative environment for your growth. Investopedia agrees that reviewing your decisions shows what went right and what went wrong. 'Did well' means you followed your plan well, not just that a trade made money.",
    "lesson_line": "Log what you did well too. That's what you want to repeat on purpose.",
    "facts": [
     "f55",
     "f63",
-    "f72"
-   ]
+    "f72",
+    "f77"
+   ],
+   "simple": "True, because what you did well is what you want to repeat, and only looking at mistakes drags you down.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Steenbarger and Investopedia agree",
+     "fixed before (lesson line)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q07",
@@ -789,14 +913,23 @@
    "format": "tf",
    "q": "Being hard on yourself after a mistake helps you stop repeating it.",
    "answer": "False",
-   "why": "False. Tendler says beating yourself up just makes the situation worse. Steenbarger agrees: getting down on yourself pulls effort away from improving. Own the mistake, then get curious about it.",
+   "why": "False. Tendler says beating yourself up only makes you feel bad and makes the situation worse. Steenbarger agrees: getting down on yourself pulls effort away from improving. That does not mean shrugging it off. Investopedia says to take responsibility for your mistakes and learn from them. Own it, then study it like a detective, not a critic.",
    "lesson_line": "Be a detective, not a critic. Curious beats harsh.",
    "facts": [
     "f13",
     "f12",
     "f62",
     "f82"
-   ]
+   ],
+   "simple": "False, because beating yourself up drains the effort you need to fix it, so own the mistake and study it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tendler, Steenbarger and Investopedia agree; stable"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q08",
@@ -812,7 +945,7 @@
     "A promise to do better tomorrow"
    ],
    "answer": "Your thoughts and feelings then",
-   "why": "What you thought and felt before buying. Tendler maps the thoughts, emotions and decisions around a mistake, because that's the part that repeats. The dollar figure tells you what happened, not why.",
+   "why": "Your thoughts and feelings then. Tendler maps the emotions, thoughts, actions and decisions around a mistake, because they are the data that explain it. Steenbarger says naming how you feel is the first step. The dollar figure tells you what happened, not why. Add what came before, during and after the trade, and the pattern can show.",
    "lesson_line": "The P&L says what happened. Your thoughts and feelings say why.",
    "facts": [
     "f11",
@@ -824,10 +957,19 @@
     "f53"
    ],
    "wrong": {
-    "Who or what is to blame for it": "Blaming someone or something else skips your own part in it. Investopedia lists that as projection, an unhealthy way to cope.",
+    "Who or what is to blame for it": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it.",
     "The exact loss, down to the cent": "You already have the number. What's missing is the why.",
     "A promise to do better tomorrow": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it."
-   }
+   },
+   "simple": "Write down what you thought and felt, because that part repeats, while the dollar loss only says what happened.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tendler, Steenbarger and Investopedia agree"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q09",
@@ -845,13 +987,22 @@
     }
    },
    "suffix": "%",
-   "why": "75%. Six of your eight breaks were one mistake. That's your pattern, and it's where the map starts.",
-   "lesson_line": "Name each mistake the same way every time. Then the one that repeats stands out.",
+   "why": "75%. Six of your eight breaks were the same mistake, and 6 out of 8 is 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
+   "lesson_line": "Look back for the mistake that repeats. That one is your pattern.",
    "facts": [
     "f75",
     "f11",
     "f01"
-   ]
+   ],
+   "simple": "75%, because 6 of your 8 breaks were the same mistake, and that repeat is the pattern to map first.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q10",
@@ -862,23 +1013,34 @@
    "q": "Which tag fits this trade?",
    "choices": [
     "FOMO, a trade outside your plan",
-    "Revenge, making back a loss",
-    "Hesitation, waiting too long",
-    "Cut a winner short"
+    "Revenge, trying to win back a loss",
+    "Hesitation, waiting too long to act",
+    "Early exit, cutting a winner short"
    ],
    "answer": "FOMO, a trade outside your plan",
-   "why": "FOMO, a trade outside your plan. Tendler names this mistake: jumping into positions other traders are in, even though they're outside your system. FINRA's advice when social media stirs up fear of missing out: pause and evaluate.",
+   "why": "FOMO, a trade outside your plan. Tendler names this mistake: jumping into positions other traders are in, even though they're outside your system. FINRA says that when social media stirs up excitement or fear of missing out, pause and evaluate. Our rule is no setup, no trade: never force a trade just to have something on. Cash is a position.",
    "lesson_line": "Not on your list, not your trade. Tag it FOMO and note what pulled you in.",
    "facts": [
     "f25",
     "f94",
-    "f80"
+    "f80",
+    "h03"
    ],
    "wrong": {
-    "Revenge, making back a loss": "There's no loss before this trade. Revenge comes after a loss.",
-    "Hesitation, waiting too long": "The opposite. You jumped in fast.",
-    "Cut a winner short": "That's an exit mistake. This one happened at the entry."
-   }
+    "Revenge, trying to win back a loss": "Nothing in the story is about winning back a loss. Revenge comes after a loss, when you want the money back.",
+    "Hesitation, waiting too long to act": "The opposite. You jumped in fast, on a stock you don't even follow.",
+    "Early exit, cutting a winner short": "That's an exit mistake. This one happened at the entry."
+   },
+   "simple": "It's FOMO, because you bought a stock that was not on your list just because everyone else was excited about it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why states our rule D44 (the owner's rulebook)",
+     "fixed before (story and why)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q11",
@@ -917,26 +1079,37 @@
    "choices": [
     "Check how you feel at set times",
     "Watch your P&L more closely",
-    "Trade only on days you feel calm",
+    "Set a daily loss limit to stop you",
     "Push the feelings aside and focus"
    ],
    "answer": "Check how you feel at set times",
-   "why": "Check how you feel at set times. Tendler suggests an alarm every 15, 30 or 60 minutes. Steenbarger suggests taking your emotional temperature every hour.",
+   "why": "Check how you feel at set times. Tendler suggests an alarm every 15, 30 or 60 minutes. Steenbarger suggests taking your emotional temperature every hour. Either works, and no one interval is the rule. Each check names the feeling early, so you can spot it in real time and limit the damage. If a check finds you angry or distracted, our rule is no new trades that day.",
    "lesson_line": "Check in on a timer, so you catch the build-up before it costs you.",
    "facts": [
     "f16",
     "f50",
     "f51",
+    "f41",
     "f18",
-    "f32",
-    "f33",
-    "f34"
+    "f34",
+    "h02",
+    "h08"
    ],
    "wrong": {
     "Watch your P&L more closely": "In Tendler's sample map, staring at the P&L is part of the problem, not the cure.",
-    "Trade only on days you feel calm": "Sitting out the hot days is a work-around Tendler calls training wheels. You still won't see the build-up.",
-    "Push the feelings aside and focus": "That hides the build-up you're trying to catch. Steenbarger says naming how you feel is the first step."
-   }
+    "Push the feelings aside and focus": "That hides the build-up you're trying to catch. Steenbarger says naming how you feel is the first step.",
+    "Set a daily loss limit to stop you": "Our rules set no daily loss limit. A limit also acts only after money is lost. Tendler's map is meant to spot the reaction in real time."
+   },
+   "simple": "Check in on how you feel at set times during the day, so you notice frustration building before it costs you.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why states our rule F67 (the owner's rulebook)",
+     "fixed before (why and a wrong note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q13",
@@ -946,11 +1119,12 @@
    "story": "This month's log: five chased entries lost $240, $180, $300, $220 and $260. Two stops you moved lower lost $450 and $500.",
    "q": "Which mistake cost you more this month?",
    "choices": [
-    "Chasing, $1,200 in all",
-    "Moving the stop, the bigger hits",
-    "Neither, losses are part of trading"
+    "Chasing, $1,200 over the month",
+    "Moving the stop, $500 on one hit",
+    "Neither, losses come with trading",
+    "Too few trades this month to tell"
    ],
-   "answer": "Chasing, $1,200 in all",
+   "answer": "Chasing, $1,200 over the month",
    "calc": {
     "fn": "arith",
     "args": {
@@ -962,18 +1136,34 @@
      "e": 260
     }
    },
-   "why": "Chasing, $1,200 in all. The two stop moves were the biggest single losses. Added up, the five chases cost more this month.",
+   "why": "Chasing, $1,200 over the month. The five chases add up to $1,200. The two stop moves were the biggest single losses, at $450 and $500, but together they still cost less. So count each mistake by name and add it up. One big hit draws your eye, and the total shows where the money went. Both are still mistakes: our rule says the stop only moves up.",
    "lesson_line": "Add up each mistake by name. The totals show where the money really went.",
    "facts": [
     "f72",
     "f75",
     "f85",
-    "f11"
+    "f11",
+    "h05",
+    "h06"
    ],
    "wrong": {
-    "Moving the stop, the bigger hits": "Each stop move hurt more, at $450 and $500. Added up, the five chases still cost more.",
-    "Neither, losses are part of trading": "A planned stop-out is a loss. Chasing and moving a stop break the plan, so they're mistakes."
-   }
+    "Moving the stop, $500 on one hit": "Each stop move hurt more, at $450 and $500. Added up, the five chases still cost more.",
+    "Neither, losses come with trading": "A planned stop-out is a loss. Our rules say no chasing, and the stop only moves up, never down. Both broke the plan.",
+    "Too few trades this month to tell": "The question is what this month cost, and the money is already counted. You don't need more trades to add up these totals."
+   },
+   "simple": "Chasing cost more, because the five small chases add up to $1,200, more than the two big stop moves together.",
+   "deeper": {
+    "trap": "The trap is the size of one loss. The $450 and $500 stop moves sting more, so they feel like the bigger problem. But five smaller chases, from $180 to $300 each, added up to more. Rank your mistakes by the total for the month, not by the one that hurt most."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "a wrong note and the why state our rule A4 (the owner's rulebook)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q14",
@@ -982,13 +1172,23 @@
    "format": "tf",
    "q": "Once you know which bias trips you up, that alone usually stops it.",
    "answer": "False",
-   "why": "False. Investopedia notes Kahneman's view that awareness alone usually isn't enough. Steenbarger passes on a point from a reader he calls wise: journaling is necessary but not sufficient.",
+   "why": "False. Investopedia gives Kahneman's view that awareness alone usually isn't enough to overcome a bias. Steenbarger passes on a point from a reader he calls wise: journaling may be necessary, but it is not sufficient. Knowing the bias is the start, not the fix. Once you know your tendencies, Investopedia says, work on a concrete plan to deal with them.",
    "lesson_line": "The map shows you the problem. Fixing it takes a concrete plan.",
    "facts": [
     "f90",
     "f61",
     "f78"
-   ]
+   ],
+   "simple": "False, because knowing a bias rarely stops it by itself, so you also need a clear plan for what to do differently.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Investopedia and Steenbarger agree",
+     "fixed before (attribution of f61)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q15",
@@ -1027,26 +1227,41 @@
    "story": "Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green.",
    "q": "How do you log this trade?",
    "choices": [
-    "A mistake, even though it paid",
-    "A good trade, since it worked",
-    "A new setup worth adding",
-    "No entry, it's a winner"
+    "A mistake, logged as a rule break",
+    "A good trade, since it made money",
+    "A new setup worth trading again",
+    "No log entry, since it's a winner"
    ],
-   "answer": "A mistake, even though it paid",
-   "why": "A mistake, even though it paid. You broke your plan and got rewarded. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while.",
+   "answer": "A mistake, logged as a rule break",
+   "why": "A mistake, logged as a rule break. Your plan says buy only on a pullback, and you chased. Judge the decision, not the result. Judging by the outcome is outcome bias, and it leads people to repeat risky choices. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while. Our rule is to follow the rules. Change the plan only when you have found a better way, not after one win.",
    "lesson_line": "A broken rule that pays still goes in the log as a mistake.",
    "facts": [
     "f37",
     "f73",
     "f74",
     "f88",
-    "f85"
+    "f85",
+    "h04",
+    "h01"
    ],
    "wrong": {
-    "A good trade, since it worked": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
-    "A new setup worth adding": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
-    "No entry, it's a winner": "Winners go in the log too, and so do the rules you broke to get them."
-   }
+    "A good trade, since it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
+    "A new setup worth trading again": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
+    "No log entry, since it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
+   },
+   "simple": "Log it as a mistake, because you broke your plan, and a win can teach you to break it again.",
+   "deeper": {
+    "trap": "The trap is the green number. A rule break that pays feels like proof the rule was wrong. One win proves nothing, and the reward makes the break feel right. Log the break, note what pulled you in, and watch whether it repeats. If a pullback rule really misses good trades, change it on purpose, after a review."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why states our rule C36 (the owner's rulebook)",
+     "fixed before (f36 dropped)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q17",
@@ -1056,13 +1271,13 @@
    "story": "Tendler gives a sample map. Thought: 'I'm not letting the market stop me.' Behavior: glued to one position and the P&L. Decision: get the money back.",
    "q": "What trading mistake does this map lead to?",
    "choices": [
-    "Taking the same losing trade again",
+    "Taking the same trade again",
     "Hesitating on a good entry",
     "Selling a winner too early",
     "Buying a stock everyone's chasing"
    ],
-   "answer": "Taking the same losing trade again",
-   "why": "Taking the same losing trade again. In Tendler's map, the mistake is taking the same trade over and over. The feeling underneath is revenge.",
+   "answer": "Taking the same trade again",
+   "why": "Taking the same trade again. In Tendler's map, the trading mistake is taking the same trade over and over, until it's clear you're wrong and getting nowhere. The decision underneath is revenge: getting the money back. The thought and the fixation on one position and its P&L come first. Learn those, and you can spot them in real time and limit the damage.",
    "lesson_line": "The mistake comes last. Learn the thoughts that come first, and you can catch it sooner.",
    "facts": [
     "f21",
@@ -1071,44 +1286,68 @@
     "f20",
     "f41",
     "f64",
-    "f92",
-    "f84"
+    "h07"
    ],
    "wrong": {
     "Hesitating on a good entry": "This trader is pushing, not holding back. Hesitating comes from fear.",
     "Selling a winner too early": "There's no winner here. The trade already lost, and the trader wants the money back.",
     "Buying a stock everyone's chasing": "The focus is one position the trader already lost on, not a new hot name."
-   }
+   },
+   "simple": "It leads to taking the same losing trade again and again, because the trader wants revenge and the money back.",
+   "deeper": {
+    "trap": "The trap is a re-entry that looks like a plan. Our rule: after a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Wanting the money back is not a trigger. If the only reason to get back in is the last loss, it's revenge."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the deeper note states our rule B21 (the owner's rulebook)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q18",
    "skill": "psych.pattern",
    "rung": 8,
    "format": "scenario",
-   "story": "You keep buying stocks after big run-ups, and most of those trades lose. Your written plan never says where an entry should be.",
+   "story": "You keep buying stocks after big run-ups, and most of those trades lose. Your written plan lists stocks to watch, and nothing more.",
    "q": "What do you fix first?",
    "choices": [
-    "Write an entry rule into the plan",
+    "Write a rule for when you buy",
     "Work on your fear of missing out",
     "Cut your size in half for now",
     "Take a month off from trading"
    ],
-   "answer": "Write an entry rule into the plan",
-   "why": "Write an entry rule into the plan. Tendler calls tightening your rules the correct first step. You can't break a rule you don't have.",
-   "lesson_line": "Write the rule first. Then you can tell a gap in your plan from an emotional pattern.",
+   "answer": "Write a rule for when you buy",
+   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Only if the mistakes keep costing you after that does the answer lie in the mental game. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
+   "lesson_line": "Write the rule first. You can't break a rule you don't have.",
    "facts": [
     "f22",
     "f23",
     "f86",
-    "f33",
     "f57",
-    "f58"
+    "f58",
+    "h05"
    ],
    "wrong": {
     "Work on your fear of missing out": "Maybe later. Tendler says you tighten the rules first, then look at the mental side if the mistakes keep coming.",
     "Cut your size in half for now": "Smaller size can limit the damage, but it fixes nothing. The gap in your plan is still there.",
     "Take a month off from trading": "You'd come back with the same gap in your plan."
-   }
+   },
+   "simple": "Write an entry rule first, because you can't break a rule you don't have, so the gap in the plan comes first.",
+   "deeper": {
+    "trap": "The trap is jumping to psychology. Buying after big run-ups looks like FOMO, and it may be. But with no written entry rule, there is nothing to break yet. Write the rule first, then trade it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why states our rule C28 (the owner's rulebook)",
+     "fixed before (story and a wrong note)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q19",
@@ -1118,13 +1357,13 @@
    "story": "Your entry rule is written down and you know it cold. Still, about once a week you buy far above your entry point, usually after missing a few big moves.",
    "q": "What does that tell you?",
    "choices": [
-    "It's an emotional pattern to map",
+    "It's an emotional pattern",
     "The rule needs to be stricter",
     "The entry rule doesn't work",
     "It's bad luck, it will pass"
    ],
-   "answer": "It's an emotional pattern to map",
-   "why": "It's an emotional pattern to map. You know the rule and still break it. Tendler: when a mistake repeats and you can't stop yourself, emotions are the reason.",
+   "answer": "It's an emotional pattern",
+   "why": "It's an emotional pattern, and the next step is to map it. You know the rule and still break it, about once a week. Tendler: when a mistake repeats and you can't stop yourself, emotions are the reason. Here the trigger shows up after missed moves. Map what you think and feel right before the chase. The rule doesn't need changing. You aren't following it yet.",
    "lesson_line": "Knowing the rule and breaking it anyway is the signal. Map what comes right before it.",
    "facts": [
     "f24",
@@ -1137,22 +1376,48 @@
     "The rule needs to be stricter": "You already break a clear rule. Tendler: when the bleeding continues, the answer won't come from the technical side.",
     "The entry rule doesn't work": "You can't judge a rule you aren't following. Change the plan only when it's found not to work.",
     "It's bad luck, it will pass": "Tendler: there's no randomness in the mental game. This one shows up after missed moves, so it has a trigger."
-   }
+   },
+   "simple": "It's an emotional pattern, because you know the rule and break it anyway after missing moves, so map what comes first.",
+   "deeper": {
+    "trap": "The trap is fixing the rule. A tighter rule feels like action, but you already break a clear one. Tendler says that when the bleeding continues, the answer won't come from the technical side. Map the trigger instead: the missed moves, the thoughts, the urge, then the buy."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (story wording)"
+    ]
+   },
+   "batch": "wave9"
   },
   {
    "key": "q20",
    "skill": "psych.pattern",
    "rung": 8,
    "format": "tf",
-   "q": "Fear, greed and anger are the real problem, not signals of a deeper one.",
-   "answer": "False",
-   "why": "False. Tendler: emotions are not the problem; they're signals pointing to where the real problem lies. Steenbarger agrees that fear and greed are not the issue.",
+   "q": "Fear, greed and anger are signals that point to a deeper problem.",
+   "answer": "True",
+   "why": "True. Tendler: emotions are not the problem. They are signals pointing to where the real problem lies. His second stage digs for the hidden flaws and biases behind them. Steenbarger agrees that fear and greed are not the issues. That does not mean you ignore them. Tendler says pretending an emotion isn't there only manages the problem. So read what they point to, and fix that.",
    "lesson_line": "An emotion is a messenger. Read the message instead of just trying to silence it.",
    "facts": [
     "f26",
     "f29",
-    "f59"
-   ]
+    "f59",
+    "f34"
+   ],
+   "simple": "True, because fear, greed and anger point to a deeper flaw, so fix what they point to, not just the feeling.",
+   "deeper": {
+    "counter": "Steenbarger names a different root than Tendler. For him, the issue is trying to short circuit the work of mastering markets. Tendler looks for hidden flaws, biases and errors in learning. Both agree the feeling is not the root. Look under it: a skill gap, or a flaw in how you think."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Tendler and Steenbarger agree",
+     "fixed before (question reworded)"
+    ]
+   },
+   "batch": "wave9"
   }
  ],
  "conflicts": [
@@ -1192,63 +1457,63 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "f01 (the SEC-hosted report) and f10 (Tendler: 'There's no randomness in the mental game') confirmed in context. Key False is right. The why said research 'found' it; the report sums up behavioral finance, so now 'A research review done for the SEC says'. Track audit 2026-11-09: s1 refiled as Tier 2 (as in F8.03 and F8.05); the key still has two Tier 2 publishers that agree (the report and Tendler), validator clean.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q02": {
    "status": "pass",
-   "notes": "f27, f28 (Tendler's stage one is mapping), f31-f33 (control is a 'band-aid'; sitting out hot days is a work-around, 'training wheels'), f89 (Investopedia, live) and f24 confirmed. Tendler's s2 also says to write down 'why' you FOMO in, so 'when and why' fits. Each wrong choice is a real habit and is wrong for the stated reason. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own answer before key: the log (f27/f28 map first, f89 first step). Matches. Choices 32-33 chars, no tell. Willpower note rests on f31; week-away note on f33 (good short-term, training wheels); setup note on f24. Not against the rulebook: F67 sits out a day, the wrong choice is a full week, and the note never calls F67 training wheels. Owner flag stands."
   },
   "q03": {
    "status": "pass",
-   "notes": "f54 (Steenbarger: accomplished traders record journals after the close), f14, f15 (Tendler) and f71 (Investopedia hindsight page, live, updated 2026-05-27) confirmed. Same-day key is supported; Tendler also allows writing up old mistakes from memory (noted in conflicts), which the key does not deny. Month-end note said you know how 'every' trade ended (not true for open swing trades); now 'the trades'. Track audit 2026-11-09: the why now names him on first use, 'Coach Brett Steenbarger', the way F8.02 q16 does; his TraderFeed bio reads 'a performance coach for portfolio managers and traders' (read 2026-11-09). f54 re-read live on TraderFeed; f71 re-read live on Investopedia with the checker's own client (updated 2026-05-27).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (h01 B27, f54, f71); choices 26-28 chars, no tell. Defect: the 'Only when it costs you a lot' note says 'Small mistakes repeat too' and attributes 'a map with gaps hides the pattern' to Tendler; no fact says either. Replaced with our B27 (h01, every trade) and f11 (record before, during and after your mistakes)."
   },
   "q04": {
    "status": "pass",
-   "notes": "f70, f71 (Investopedia, live) and f03 (Tier 1 report names hindsight as a bias of judgment) confirmed. f03 only names the bias, so the meaning rested on one Tier 2 publisher: added s18/f95, the Roese and Vohs (2012) peer-reviewed abstract on Kellogg's page ('knew it all along'), quote check found. True is right. Track audit 2026-11-09: with s1 refiled as Tier 2 the key rests on Kellogg (f95) and Investopedia (f70, f71, re-read live with the checker's own client), two publishers; validator clean.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True from f70/f95 before the key. Simple names hindsight bias, grounded. Why rests on f95, f03/f04, f72, f71. No absolute or hedge in the statement. q03 no longer pre-answers it."
   },
   "q05": {
    "status": "pass",
-   "notes": "f83, f81 (Investopedia coping page), f85, f87 ('Plans shouldn't change whenever there's a loss'), f77 and f36 confirmed. 'Mistake' is the only word that fits the contrast; 'loss' is the natural confusion. A trader would agree a planned stop-out is not a mistake. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "'mistake' from f85/f77 and the sentence's own contrast. 'loss' is ruled out by the first sentence, the other bank words are clearly off. Simple rests on f83 and f82. Facts list fine."
   },
   "q06": {
    "status": "pass",
-   "notes": "f55, f63 (Steenbarger: log what you did well; reviewing only what you do wrong makes a negative environment) and f72 (Investopedia: what went right or wrong) confirmed, two publishers. True. Lesson line said 'good trades', which can read as winning trades in a unit that judges decisions, not results; now 'what you did well'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True from f55/f63. f77 now grounds the 'did well means you followed your plan' line. No tell."
   },
   "q07": {
    "status": "pass",
-   "notes": "f13 (Tendler: beating yourself up makes it worse), f62 (Steenbarger: frustration pulls effort away from improving), f12 and f82 confirmed. False is right and both coaches agree. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "f11, f12, f10 (Tendler), f51, f53 (Steenbarger), f79 and f93 (Investopedia lists blame as 'projection' among 'dysfunctional coping methods', live) confirmed. Key and every wrong note hold. No change. flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f12/f51. Blame note keeps f93's 'facing a big loss' and does not call the $400 big. Choices 30-32 chars."
   },
   "q09": {
    "status": "pass",
-   "notes": "Recomputed by hand: 6 / 8 x 100 = 75; the arith calc agrees. f75 (look for recurring mistakes), f11, f01 support counting by name. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "75 = 6/8*100, calc right, why fine. Defect: the lesson_line still teaches 'Name each mistake the same way every time', the same method sentence the Resolver dropped from the why as ungrounded. Replaced with a line grounded in f75 (look for recurring mistakes)."
   },
   "q10": {
    "status": "pass",
-   "notes": "f25 (Tendler: 'FOMO positions other traders are in even though they are outside your system'), f94 (FINRA, live, 2026-10-14) and f80 confirmed. FINRA's advice is about FOMO from social media, so the story now says 'everyone online' and the why says 'when social media stirs up fear of missing out', which also spells out FOMO for a beginner.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "FOMO from f25/f94 and h03 (D44). Choices 31-35 chars, key not longest. New notes: revenge note rests on f19 and the story; no unsupported claims."
   },
   "q11": {
    "status": "cut",
@@ -1258,21 +1523,21 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "f16 (Tendler: alarm every 15, 30 or 60 minutes), f50, f51 (Steenbarger), f18, f32-f34 confirmed. The why said Steenbarger 'takes his' temperature hourly; the source is general advice ('take our emotional temperature'), now 'suggests taking your'. The 'push the feelings aside and focus' note could clash with q20's source on focus, so it now says ignoring hides the build-up and naming the feeling comes first (f51).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: timed check-ins (f16 every 15/30/60 min, f50 hourly); matches. Choices 27-34 chars, key mid-length. The daily-loss-limit choice is not a second answer: B15 says no daily loss limit (h08 quote verified in sizing_rule.md section 9), and it acts after the loss, not on the feeling. 'Push the feelings aside' is not Steenbarger's f60 (that replaces distraction with focus); f34 says pretending the emotion isn't there doesn't solve it. Why's F67 line (h02) is consistent with the rulebook. Every number is in f16/f50."
   },
   "q13": {
    "status": "pass",
-   "notes": "Recomputed by hand: 240 + 180 + 300 + 220 + 260 = 1,200; the stop moves are 450 + 500 = 950, so chasing cost more. The calc agrees and the key shows 1,200. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Own calc: chases 240+180+300+220+260 = 1,200; stop moves 450+500 = 950. Key right. Each stop move (450, 500) beats the largest chase (300), so 'Each stop move hurt more' holds. 950 never stated; no ungrounded number. Choices 30-33 chars. Showing a single hit against a month total is the trap the item tests, not a give-away. Neither-note grounded in h05 and h06."
   },
   "q14": {
    "status": "pass",
-   "notes": "f90 (Investopedia, live on retry, updated 2026-08-31: Kahneman, 'awareness alone usually isn't enough'), f61 (Steenbarger) and f78 confirmed. False is right. f61 is a reader's point he calls wise, not a quote of the reader, so the why now says he 'passes on a point from' that reader.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "False from f90, f61, f78. f61 now quoted as 'may be necessary, but not sufficient' with the reader attribution. Fine."
   },
   "q15": {
    "status": "cut",
@@ -1282,33 +1547,33 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "f37 (Tendler: 'getting rewarded for bad behavior temporarily validates the fantasy'), f73, f74 (outcome bias), f88, f85 confirmed. The why and one wrong note used f36, which Tendler says of a desperate gamble when 'your chips are down', not a chase that paid. Both now rest on f37; f36 dropped from this item. Key is right.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f73/f74/f37 and our C36 (h04): don't break a rule; if you do, journal it. Choices 31-33 chars, no concessive tell. No-entry note grounded in h01 (B27). Owner flag on C36's bent-rule note stands."
   },
   "q17": {
    "status": "pass",
-   "notes": "f18-f21 checked word for word against Tendler's sample map; the story drops the map's 'revenge' line so it does not give the answer away. f41, f64 support the lesson line. Key matches the map's 'Trading mistake' line. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is f20, the map's own mistake line; distractors clearly off. Defect: the why ends 'you can catch the mistake before it happens'; f41 and f64 say spot it in real time and limit the damage, not prevent it beforehand. Last sentence reworded to f41."
   },
   "q18": {
    "status": "pass",
-   "notes": "f22, f23 (Tendler: tightening your rules is 'the correct first step'), f86 (Investopedia: rules for exactly when to enter), f57, f58 confirmed. The story did not say the run-up buys were losing (buying strength is a real style), so it now says most of them lose. The size-cut note now grants that trading smaller limits damage (Tendler's 'training wheels', f33 added) but fixes nothing.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right: no entry rule yet, so tighten the rules first (f22/f23, f86, h05 C28). Choices 29-32 chars, story no longer echoes the key. Defect: the deeper note still ends 'Map the emotion only if you still break it', which is q19's story and key word for word (rule known, still broken, map the emotion). Cut that line. Also dropped f33 (training wheels), which nothing in q18 uses now."
   },
   "q19": {
    "status": "pass",
-   "notes": "f24, f23 (Tendler), f75, f10, f85 confirmed. The story said you buy 'far above it', with 'it' being the rule; now 'far above your entry point'. Key and wrong notes hold, and the q18/q19 split matches Tendler's order (rules first, then the mental side).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "f26 (Tendler: 'Emotions are not the problem. They are signals'), f29, f59 (Steenbarger: 'fear and greed are not the issues') confirmed. The old second half, 'so the goal is to get rid of them', was arguable: Tendler says resolved emotions do go away. Reworded to his own frame, 'the real problem, not signals of a deeper one'; False now rests on both sources directly.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "True from f26 before the key; the flip is fine and has no hedge or absolute. Defect: the new line 'Tendler says they drive a mistake you repeat and can't stop' is f24, the exact rule q19 tests (q19's why quotes it). At rung 8 it runs before q19 and answers it. Replaced with f34 (pretending an emotion isn't there only manages the problem), which still says emotions are not to be ignored. Facts: f24 swapped for f34."
   }
  }
 }
