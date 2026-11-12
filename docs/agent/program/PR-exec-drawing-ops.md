@@ -130,3 +130,10 @@ A	docs/agent/program/PR-exec-drawing-ops.md           this file
   - golden: the one hint line;
   - capreg `coverage/*`: group column → drawingOps.
 - `baseline.lock.json` did not move.
+
+## Re-merge onto d5f3f9bf6e (after #1074 + #1030), 2026-11-12
+- Union of the count pins: FULL 169 + 2 = **171**; screener manifest 163 + 2 = **165**. `nlm1Routing` keeps every family's words.
+- Frozen re-record, in its own commit (4424140719): capreg `COVERAGE.md` / `coverage.json` regenerated from the merged registry. `contract.json` already equalled master ∪ this family's two pins (checked: none removed or changed).
+- **Why the #1112 "no target here" rail did not fire for this family (AUDIT ask):** it adds **no new target kind**. `drawing.duplicate` and `drawing.setPositionAlerts` are registered with the existing **`drawings`** kind (`registerDrawingOps(common, …)`; `common` is drawings.js's, "target = the drawings entry"), which already declares `source: 'drawings'` on master.
+- **Discovery (agentBatch4):** both actions were already in the "Drawing tools" topic. Clean before and after the merge.
+- **Knowledge guard:** `drawing.duplicate` and `drawing.setPositionAlerts` are withheld bare by the existing verbs (`duplicate`, `set`). #1030's server-mirror ratchet, now on master, is green on this head.
