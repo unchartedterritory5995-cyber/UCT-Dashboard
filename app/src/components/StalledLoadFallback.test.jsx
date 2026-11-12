@@ -56,7 +56,7 @@ describe('StalledLoadFallback', () => {
     act(() => { vi.advanceTimersByTime(STALL_MS) })
     expect(screen.getByText('This page is taking too long to load.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /back to charts/i })).toBeInTheDocument()
     // The splash is gone — the panel replaces it, not overlays it.
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
@@ -68,11 +68,11 @@ describe('StalledLoadFallback', () => {
     expect(window.location.reload).toHaveBeenCalledTimes(1)
   })
 
-  it('Back to dashboard is a FULL navigation (window.location.href), not client-side routing', () => {
+  it('Back to Charts is a FULL navigation (window.location.href), not client-side routing', () => {
     render(<StalledLoadFallback />)
     act(() => { vi.advanceTimersByTime(STALL_MS) })
-    fireEvent.click(screen.getByRole('button', { name: /back to dashboard/i }))
-    expect(window.location.href).toBe('/dashboard')
+    fireEvent.click(screen.getByRole('button', { name: /back to charts/i }))
+    expect(window.location.href).toBe('/charts')
   })
 
   it('unmount (route resolved) cancels the timer — a fast route never trips the panel later', () => {

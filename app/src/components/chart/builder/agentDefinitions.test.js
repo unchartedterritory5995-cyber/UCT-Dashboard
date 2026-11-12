@@ -12,7 +12,7 @@ import { mergeChartSettings } from '../chartDefaults'
 import { checkInstanceInput, isValidColorValue } from '../engine/instanceControls'
 import {
   DEFINITIONS_CONTRACT, DEFINITION_OPS, searchDefinitions, describeDefinition, findDefinitionUsage,
-  planDefinitionAction, executeDefinitionAction, undoDefinitionAction, discardDraft,
+  planDefinitionAction, executeDefinitionAction, undoDefinitionAction, discardDraft, DELETE_REFUSALS,
 } from './agentDefinitions'
 import { withoutEngineStamp, engineStampOf } from '../engine/scriptEngineVersion'
 import { readUserDefinition } from '../../../hooks/useUserDefinitions'
@@ -157,13 +157,64 @@ describe('delete — safe by default', () => {
     expect(srv.calls).toEqual([])
     expect((await executeDefinitionAction(p.plan, ctx({ charts: [a] }), srv)).status).toBe('confirmed')
   })
-  it('nothing is deleted when the stored document cannot be read first', async () => {
+  // ⛔ F-15 follow-up — nothing was written, so this is a REFUSAL in a true sentence, never
+  // `unconfirmed` (which the member read as "could not read it back" + "some changes could not
+  // be reversed")
+  it('nothing is deleted when the stored document cannot be read first — refused, in its own words', async () => {
     const srv = { ...fakeServer(), read: async () => ({ ok: false, status: null, error: 'offline' }) }
     let deleted = false
     srv.remove = async () => { deleted = true; return { ok: true } }
     const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
-    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toMatchObject({ status: 'unconfirmed' })
+    const res = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+    expect(res).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
+    expect(res.detail.why).toBe('could not read this indicator’s saved definition before deleting it, so a delete could not be undone exactly')
     expect(deleted).toBe(false)
+  })
+  it('a read that answers but carries no document is refused the same way; nothing is deleted', async () => {
+    const srv = { ...fakeServer(), read: async () => ({ ok: true, row: { def_id: MINE, version: 2, definition: null } }) }
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
+    expect(deleted).toBe(false)
+  })
+  // review #1109 finding 2: a 404 on the first read says the indicator is already gone (deleted
+  // from another tab); that is the sentence, not "could not read" (true, but it hides the fact)
+  it('a 404 on the first read is refused as not-found; nothing is deleted', async () => {
+    const srv = { ...fakeServer(), read: async () => ({ ok: false, status: 404, error: 'Not found' }) }
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'not-found' })
+    expect(deleted).toBe(false)
+  })
+  // ⛔ F-15 follow-up — Undo's own first read: only a 404 says the id is free. Anything else
+  // (no answer, a 5xx, a 200 whose body held no definition) leaves it unknown; nothing is
+  // written, so it is a refusal in a true sentence, never `unconfirmed`.
+  for (const [label, answer] of [
+    ['no answer', { ok: false, status: null, error: 'offline' }],
+    ['a 500', { ok: false, status: 500, error: 'The server could not read this indicator (500).' }],
+    ['a 200 without the definition', { ok: false, status: 200, error: 'The server answered without the definition.' }],
+  ]) {
+    it(`Undo of a delete whose first read gets ${label} is refused in its own words, and nothing is written`, async () => {
+      const srv = fakeServer()
+      const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+      const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+      expect(done.status).toBe('confirmed')
+      srv.read = async () => answer
+      const undone = await undoDefinitionAction(done.undo, ctx(), srv)
+      expect(undone).toEqual({ ok: false, reason: 'restore-conflict', detail: { why: 'UCT could not check whether that indicator already exists' } })
+      expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
+      expect(srv.rows.get(MINE).live).toBe(false)
+    })
+  }
+  it('control: Undo of a delete whose first read finds the indicator live keeps its own sentence', async () => {
+    const srv = fakeServer()
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+    srv.rows.get(MINE).live = true
+    expect(await undoDefinitionAction(done.undo, ctx(), srv)).toEqual({ ok: false, reason: 'restore-conflict', detail: { why: 'the definition is live again' } })
+    expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
   })
   it('a token from another contract, or a stale definition version, is refused', async () => {
     expect(await executeDefinitionAction({ contract: 'uct.indicators.mutation/1', op: 'delete', defId: MINE }, ctx(), fakeServer())).toMatchObject({ ok: false, reason: 'bad-request' })
@@ -202,10 +253,13 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
 //     script-shaped document saved without its script `scriptEdited` (L2), and
 //     stores whatever script it was given (null when none).
 const SCRIPT = '//@version=5\nindicator("x")\nplot(ta.sma(close, 20))'
-function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, scriptShaped = false, scriptEdited = false } = {}) {
+const SHARE_ORIGIN = { author_id: 'author-1', def_id: 'u_dddddddddddd', version: 3, ast_hash: 'h', table_version: 1 }
+function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, scriptShaped = false, scriptEdited = false,
+  origin = false, stampOnSave = null, markAnyOnSave = false, storeScriptOnSave = null, unmarkOnSave = false, originOnSave } = {}) {
   const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}),
     ...(scriptShaped ? { recurrenceOrigin: registry.PINE_RECURRENCE_ORIGIN } : {}), ...(scriptEdited ? { scriptEdited: true } : {}) }
-  const definition = { ...FIX.styled_markers, id: MINE, meta }
+  // `origin` is what `install_share` writes on a copy installed from someone else's share
+  const definition = { ...FIX.styled_markers, id: MINE, meta, ...(origin ? { origin: SHARE_ORIGIN } : {}) }
   const rows = new Map([[MINE, { def_id: MINE, version: 2, definition, repaint: null, live: true, pine_source: hasScript ? SCRIPT : null }]])
   const calls = []
   const view = (r, opts) => {
@@ -220,9 +274,18 @@ function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, 
       calls.push(['save', id, opts || null])
       const script = opts && typeof opts.pineSource === 'string' && opts.pineSource.trim() ? opts.pineSource : null
       let stored = script ? doc : withoutEngineStamp(doc)
-      if (!script && isScriptDocument(stored) && stored.meta.scriptEdited !== true) stored = { ...stored, meta: { ...stored.meta, scriptEdited: true } }
+      // `markAnyOnSave`: a save door that drifted and marks EVERY scriptless save (N2's backstop)
+      if (!script && (markAnyOnSave || isScriptDocument(stored)) && stored.meta.scriptEdited !== true) stored = { ...stored, meta: { ...stored.meta, scriptEdited: true } }
+      // `stampOnSave`: a door that moves the stamp on a scripted save (R4: same script, different stamp)
+      if (script && stampOnSave !== null) stored = { ...stored, meta: { ...stored.meta, engineVersion: stampOnSave } }
+      // `unmarkOnSave`: a door that drops the hand-edited mark (review #1087 mutation O)
+      if (unmarkOnSave) { const { scriptEdited: _m, ...rest } = stored.meta; stored = { ...stored, meta: rest } }
+      // `originOnSave`: a store that drops (null) or rewrites (an object) the share provenance (N4)
+      if (originOnSave === null) { const { origin: _o, ...rest } = stored; stored = rest } else if (originOnSave !== undefined) stored = { ...stored, origin: originOnSave }
       const r = rows.get(id)
-      Object.assign(r, { definition: JSON.parse(JSON.stringify(stored)), live: true, version: r.version + 1, pine_source: dropScriptOnSave ? null : script })
+      // `storeScriptOnSave`: a door that stores a script other than the one it was sent (mutation H)
+      const keptScript = storeScriptOnSave !== null ? storeScriptOnSave : (dropScriptOnSave ? null : script)
+      Object.assign(r, { definition: JSON.parse(JSON.stringify(stored)), live: true, version: r.version + 1, pine_source: keptScript })
       return { ok: true, row: { def_id: id, version: r.version } }
     },
   }
@@ -265,8 +328,8 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
       return { ok: true, row: { ...rest, has_pine_source: true } }
     }
     const { done } = await deleteThenUndo(srv)
-    expect(done).toMatchObject({ status: 'unconfirmed' })
-    expect(done.error).toMatch(/nothing was deleted/)
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.scriptUnread } })
+    expect(done.detail.why).toBe('could not read this indicator’s saved script, so a delete could not be undone exactly')
     expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
     expect(srv.rows.get(MINE).live).toBe(true)
   })
@@ -274,7 +337,9 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
   it('a stamped document with no stored script is not deleted: its stamp could not be restored', async () => {
     const srv = pineServer({ hasScript: false })
     const { done } = await deleteThenUndo(srv)
-    expect(done).toMatchObject({ status: 'unconfirmed' })
+    // there is NO script on this row, so "could not read its saved script" would be false
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.stampWithoutScript } })
+    expect(done.detail.why).toBe('this indicator is marked as translated from a Pine script that is not stored with it, so a delete could not be undone exactly')
     expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
   })
 
@@ -292,7 +357,7 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
     const srv = pineServer({ dropScriptOnSave: true })
     const { undone } = await deleteThenUndo(srv)
     expect(undone.status).toBe('did-not-land')
-    expect(undone.error).toMatch(/not exactly as it was/)
+    expect(undone.error).toBe('The indicator came back, but without its saved script, so it is not exactly as it was.')
   })
 
   it('a repaint-acknowledged Pine import carries BOTH the acknowledgement and the script', async () => {
@@ -318,9 +383,8 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
     const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true })
     expect(isScriptDocument(srv.original)).toBe(true) // the fixture IS what the save door would mark
     const { done } = await deleteThenUndo(srv)
-    expect(done).toMatchObject({ status: 'unconfirmed', reason: 'unconfirmed' })
-    expect(done.error).toMatch(/imported from Pine before its script was kept/)
-    expect(done.error).toMatch(/nothing was deleted/)
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.legacyImport } })
+    expect(done.detail.why).toBe('this indicator was imported from Pine before its script was kept, so a delete could not be undone exactly')
     expect(done.undo).toBe(undefined)
     expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
     expect(srv.rows.get(MINE).live).toBe(true)
@@ -344,6 +408,229 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
     expect(done.status).toBe('confirmed')
     expect(undone.status).toBe('confirmed')
     expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+  })
+})
+
+// ─── F-15 follow-ups (review of #617: N1 shared copies, N2 the hand-edited mark, N3 rails) ──
+describe('F-15 N1 — a copy installed from someone else\'s share is refused in its OWN words', () => {
+  // `install_share` saves the copy with NO script (the author's Pine never travels) and keeps
+  // the source row's stamp and `origin`. There is no script to read, so the old sentence
+  // ("could not read its saved script") was false; so was "imported before its script was kept".
+  const SHARED = 'this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly'
+  it('a stamped share copy (no script, has_pine_source false) is refused with the shared-copy sentence; nothing is deleted', async () => {
+    const srv = pineServer({ hasScript: false, stamp: true, scriptShaped: true, origin: true })
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition' })
+    expect(done.detail.why).toBe(SHARED)
+    expect(done.detail.why).not.toMatch(/Could not read|before its script was kept/)
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(true)
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+  })
+  it('a share copy of a LEGACY unstamped script gets the same shared-copy sentence, not the legacy-import one', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true, origin: true })
+    const { done } = await deleteThenUndo(srv)
+    expect(done.detail.why).toBe(SHARED)
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+  })
+  it('control: a share copy whose restore IS exact (not script-shaped, unstamped) still deletes and comes back exactly, origin kept', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+    expect(srv.rows.get(MINE).definition.origin).toEqual(SHARE_ORIGIN)
+  })
+  it('control: a share copy the member later saved WITH a script deletes and restores exactly, script and stamp included', async () => {
+    const srv = pineServer({ origin: true, scriptShaped: true })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+    expect(srv.rows.get(MINE).pine_source).toBe(SCRIPT)
+  })
+  it('a share copy that DOES hold a script the read did not return says so (that sentence is true there)', async () => {
+    const srv = pineServer({ origin: true, scriptShaped: true })
+    srv.read = async (id) => { const { pine_source: _s, live: _l, ...rest } = srv.rows.get(id); return { ok: true, row: { ...rest, has_pine_source: true } } }
+    const { done } = await deleteThenUndo(srv)
+    expect(done.detail.why).toBe(DELETE_REFUSALS.scriptUnread)
+  })
+})
+
+describe('F-15 N3 — rails for the two terms no test proved (review mutations R4, R5)', () => {
+  it('R5: an UNSTAMPED, NOT script-shaped row whose read dropped its script is refused (only has_pine_source says so)', async () => {
+    const srv = pineServer({ stamp: false })
+    expect(isScriptDocument(srv.original)).toBe(false)
+    expect(engineStampOf(srv.original)).toBe(null)
+    srv.read = async (id) => { srv.calls.push(['read', id, null]); const { pine_source: _s, live: _l, ...rest } = srv.rows.get(id); return { ok: true, row: { ...rest, has_pine_source: true } } }
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.scriptUnread } })
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(true)
+  })
+  it('R4: a read-back with the SAME script but a MOVED stamp is never "confirmed", and says what moved', async () => {
+    const srv = pineServer({ stampOnSave: 2 })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).pine_source).toBe(SCRIPT) // the script half agrees
+    expect(engineStampOf(srv.rows.get(MINE).definition)).toBe(2)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with a different engine version, so it is not exactly as it was.')
+  })
+})
+
+describe('F-15 N2 — "confirmed" also means the hand-edited mark (`meta.scriptEdited`) came back the same', () => {
+  it('P5: a scriptless undo record for an unstamped LEGACY script document is refused before anything is written', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true })
+    expect(isScriptDocument(srv.original)).toBe(true)
+    await srv.remove(MINE)
+    const record = { contract: DEFINITIONS_CONTRACT, kind: 'undo', op: 'delete', defId: MINE, name: 'My Breakout Dots', definition: srv.original, repaint: false }
+    const undone = await undoDefinitionAction(record, ctx(), srv)
+    expect(undone).toMatchObject({ ok: false, reason: 'restore-conflict' })
+    expect(undone.detail.why).toBe('it was imported from Pine before its script was kept')
+    expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(false)
+  })
+  it('backstop: a save door that marks a document the record did not have marked is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, markAnyOnSave: true })
+    expect(isScriptDocument(srv.original)).toBe(false)
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition.meta.scriptEdited).toBe(true)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but marked as hand-edited, so it is not exactly as it was.')
+  })
+  // review #1087 mutation O: the check must notice a LOST mark as well as a gained one
+  it('a read-back that LOST the hand-edited mark is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true, scriptEdited: true, unmarkOnSave: true })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition.meta.scriptEdited).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but no longer marked as hand-edited, so it is not exactly as it was.')
+  })
+  // review #1087 mutation M: only `scriptEdited === true` is the mark; `false` is unmarked
+  it('`scriptEdited: false` is NOT the mark: a legacy import carrying it is still refused (its restore would come back marked)', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true })
+    const row = srv.rows.get(MINE)
+    row.definition = { ...row.definition, meta: { ...row.definition.meta, scriptEdited: false } }
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.legacyImport } })
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+  })
+})
+
+// review #1087 N4: `origin` is part of "exact". The real store keeps the document's keys as sent
+// (`user_definitions.save` stores `json.dumps(stored, sort_keys=True)`; `get` returns it parsed),
+// so an exact restore reads the same `origin` back; anything else is named, never "confirmed".
+describe('F-15 N4 — "confirmed" also means the share provenance (`origin`) came back the same', () => {
+  const MOVED = { ...SHARE_ORIGIN, version: 4 }
+  it('a read-back that LOST `origin` is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: null })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition.origin).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but without the details of the share it was copied from, so it is not exactly as it was.')
+  })
+  it('a read-back with a DIFFERENT `origin` is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: MOVED })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with different details of the share it was copied from, so it is not exactly as it was.')
+  })
+  it('a read-back that GAINED an `origin` the deleted row did not have is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, originOnSave: SHARE_ORIGIN })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(done.undo.definition.origin).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with share details it did not have, so it is not exactly as it was.')
+  })
+  it('control: the same `origin` with its keys in another order (the store sorts them) still confirms', async () => {
+    const reordered = Object.fromEntries(Object.entries(SHARE_ORIGIN).reverse())
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(SHARE_ORIGIN))
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: reordered })
+    const { undone } = await deleteThenUndo(srv)
+    expect(undone.status).toBe('confirmed')
+  })
+})
+
+// review #1087 mutation H: each script wording is pinned to its own case
+describe('F-15 — the not-exact message names the script difference it saw', () => {
+  it('the read-back holds a DIFFERENT script than the one restored: "with a different saved script"', async () => {
+    const srv = pineServer({ storeScriptOnSave: '//@version=5\nindicator("y")\nplot(close)' })
+    const { undone } = await deleteThenUndo(srv)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with a different saved script, so it is not exactly as it was.')
+  })
+  it('the read-back holds a script the deleted row did NOT have: "with a script it did not have"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, storeScriptOnSave: SCRIPT })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(done.undo.pineSource).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with a script it did not have, so it is not exactly as it was.')
+  })
+})
+
+describe('F-15 N4 — delete → Undo through the REAL doors (only fetch is stubbed)', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  // A server double that follows the router: GET (with `?source=1` the script), DELETE (soft:
+  // 404 after), PUT over the tombstone resurrects the same id, storing exactly the body it got.
+  function fetchServer(row) {
+    const state = { ...row, live: true }
+    const puts = []
+    const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
+    const fetchStub = async (url, init = {}) => {
+      const method = init.method || 'GET'
+      if (!String(url).includes(`/api/user-definitions/${MINE}`)) return json(404, { detail: 'Not found' })
+      if (method === 'GET') {
+        if (!state.live) return json(404, { detail: 'Not found' })
+        const withSource = String(url).includes('source=1')
+        return json(200, { def_id: MINE, version: state.version, definition: JSON.parse(JSON.stringify(state.definition)), repaint: null,
+          has_pine_source: state.pine_source != null, ...(withSource && state.pine_source != null ? { pine_source: state.pine_source } : {}) })
+      }
+      if (method === 'DELETE') { state.live = false; state.version += 1; return json(200, {}) }
+      if (method === 'PUT') {
+        const body = JSON.parse(init.body)
+        puts.push(body)
+        Object.assign(state, { definition: body.definition, pine_source: body.pine_source ?? null, live: true, version: state.version + 1 })
+        return json(200, { def_id: MINE, version: state.version })
+      }
+      return json(405, { detail: 'Method not allowed' })
+    }
+    return { state, puts, fetchStub }
+  }
+  it('a stamped Pine import with its script: the real save door keeps the stamp, sends the script, and the restore is confirmed exact', async () => {
+    const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', engineVersion: 1, recurrenceOrigin: registry.PINE_RECURRENCE_ORIGIN }
+    const original = { ...FIX.styled_markers, id: MINE, meta }
+    const srv = fetchServer({ version: 2, definition: JSON.parse(JSON.stringify(original)), pine_source: SCRIPT })
+    vi.stubGlobal('fetch', srv.fetchStub)
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }))
+    expect(done.status).toBe('confirmed')
+    expect(srv.state.live).toBe(false)
+    const undone = await undoDefinitionAction(done.undo, ctx())
+    expect(undone.status).toBe('confirmed')
+    expect(srv.puts).toHaveLength(1)
+    expect(srv.puts[0].pine_source).toBe(SCRIPT)
+    expect(srv.puts[0].definition).toEqual(original)
+    expect(srv.state.definition.meta.scriptEdited).toBe(undefined)
+  })
+  it('a legacy Pine import: the real doors are never asked to delete it (the save door WOULD mark it scriptEdited)', async () => {
+    const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', recurrenceOrigin: registry.PINE_RECURRENCE_ORIGIN }
+    const srv = fetchServer({ version: 2, definition: { ...FIX.styled_markers, id: MINE, meta }, pine_source: null })
+    vi.stubGlobal('fetch', srv.fetchStub)
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }))
+    expect(done.detail.why).toBe(DELETE_REFUSALS.legacyImport)
+    expect(srv.state.live).toBe(true)
+    // and the premise, through the REAL save door: a scriptless save of it would come back marked
+    const { saveUserDefinition } = await import('../../../hooks/useUserDefinitions')
+    await saveUserDefinition(srv.state.definition, MINE, null, null)
+    expect(srv.puts[0].definition.meta.scriptEdited).toBe(true)
   })
 })
 

@@ -362,6 +362,7 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     concurrency bound + the daemon thread. Massive is authoritative, so a bar it
     omits (real no-trade) is never fabricated."""
     ticker_up = ticker.upper()
+    _t0 = _time.time()                    # this fetch's provider check instant
     raw = _fetch_intraday(ticker_up, tf, bars)
     fetched = [b for b in (raw or []) if isinstance(b.get("t"), (int, float))]
     if not fetched or _is_intraday_stale(raw):
@@ -370,7 +371,9 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, tf, oldest - 1)}
     missing = [b for b in fetched if int(b["t"]) not in stored_ts]
     if missing:
-        _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        with _provider_write(_t0):
+            _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
     return len(missing)
 
@@ -589,28 +592,6 @@ def _session_close_minutes(ymd: int) -> int:
     return _RTH_CLOSE_MINUTES
 
 
-def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
-    """True when an intraday tail reaches the FINAL bucket of its own session.
-
-    A post-market tail is complete by construction (it is past the close). A tail
-    that stops before the last regular bucket is an artifact of when we last
-    fetched, not of trading — which is the distinction the date compare cannot make.
-
-    ⚠️ ABSTAINS RATHER THAN GUESSING: an unparseable instant answers True, so a
-    shape surprise can never turn into a universe-wide refetch.
-    """
-    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
-        return True
-    try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        tail_minutes = dt.hour * 60 + dt.minute
-        close_minutes = _session_close_minutes(int(dt.strftime("%Y%m%d")))
-        return tail_minutes >= close_minutes - int(tf)
-    except Exception:                      # noqa: BLE001
-        return True
-
-
 # ── EXTENDED-HOURS TAIL (2026-11-11) ─────────────────────────────────────────
 # ⛔⛔ THE SERVED SERIES CARRIES EXTENDED HOURS (04:00-20:00 ET), BUT EVERY
 # "IS THIS TAIL DONE?" RULE MEASURED IT AGAINST THE 16:00 CLOSE. Measured on
@@ -635,6 +616,28 @@ def _is_trading_day_ymd(d) -> bool:
     return d.weekday() < 5 and not _is_nyse_holiday(int(d.strftime("%Y%m%d")))
 
 
+# ── THE ONE SESSION CLOCK (P1 bar contract, 2026-11-11) ──────────────────────
+# ⛔ FOUR "IS THIS TAIL DONE?" IMPLEMENTATIONS DISAGREED: `intraday_session_complete`
+# (RTH close, ZERO tolerance), `intraday_ext_session_complete` (20:00 close, ONE-bucket
+# tolerance — while its comment claimed "same tolerance as the RTH rule"), three copies
+# of the frontier walk (`expected_completed_bucket` / `_rth_bucket` / `_ext_bucket`)
+# and `_ext_session_verified` with its own session-end arithmetic. Every one of them is
+# now a reading of THREE primitives over ONE session window:
+#   `_session_window(day, session)`        (open, close) of a trading day's session
+#   `newest_closed_bucket(tf, session)`    the FRONTIER: newest bucket of the session
+#                                          that has closed (the previous session's
+#                                          final bucket when none of today's has)
+#   `tail_within_one_bucket(tf, tail, b)`  the ONE tolerance rule: a tail reaches bucket
+#                                          b when it is at b or at the bucket just
+#                                          before it (a thin name that did not print in
+#                                          the newest interval) — the rule
+#                                          `intraday_tail_status` always used.
+# session ∈ {"rth", "eth"}; buckets are the STORED grid (`_ext_bucket_start`: clock
+# floors on 1-30m, `SIXTY_MIN_GRID` on 60m). `bar_contract` (complete_through,
+# developing) is built on the same primitives.
+_SESSIONS = ("rth", "eth")
+
+
 def _ext_bucket_start(tf: str, t: int) -> int:
     if tf == "60":
         return bucket_60_et_unix_seconds(int(t))
@@ -642,65 +645,94 @@ def _ext_bucket_start(tf: str, t: int) -> int:
     return int(t) // step * step
 
 
-def expected_completed_ext_bucket(tf: str, now: float | None = None):
-    """Start (unix s) of the latest EXTENDED-session bucket (04:00-20:00 ET, early-close
-    aware) that has CLOSED — on today's session once its first bucket has closed, else
-    the FINAL bucket of the previous trading session. None only for a non-intraday tf
-    or an unreadable clock. During RTH this equals `expected_completed_bucket`."""
-    if tf not in ("1", "5", "15", "30", "60"):
+def _session_window(day, session: str) -> tuple[int, int]:
+    """(open_ts, close_ts) unix seconds of `session` on the ET calendar day of `day` (a
+    date/datetime already in ET). Half-day aware. The caller checks it is a trading day."""
+    et = _ZI("America/New_York")
+    midnight = int(datetime(day.year, day.month, day.day, tzinfo=et).timestamp())
+    ymd = day.year * 10000 + day.month * 100 + day.day
+    if session == "rth":
+        return (midnight + _RTH_OPEN_MINUTES_SERVER * 60,
+                midnight + _session_close_minutes(ymd) * 60)
+    return midnight + _EXT_OPEN_MINUTES_SERVER * 60, midnight + _ext_close_minutes(ymd) * 60
+
+
+def newest_closed_bucket(tf: str, session: str = "eth", now: float | None = None,
+                         today_only: bool = False):
+    """Start (unix s) of the newest `session` bucket that has CLOSED: today's once the
+    session's first bucket has closed, else (unless `today_only`) the FINAL bucket of
+    the previous trading session. None for a non-intraday tf, `today_only` with no
+    closed bucket today, or an unreadable clock (abstain, never guess)."""
+    if tf not in ("1", "5", "15", "30", "60") or session not in _SESSIONS:
         return None
     try:
         et = _ZI("America/New_York")
         now_ts = float(now if now is not None else _time.time())
         now_dt = datetime.fromtimestamp(now_ts, et)
-        day = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         if _is_trading_day_ymd(now_dt):
-            ymd = int(now_dt.strftime("%Y%m%d"))
-            ext_open = int(day.timestamp()) + _EXT_OPEN_MINUTES_SERVER * 60
-            ext_close = int(day.timestamp()) + _ext_close_minutes(ymd) * 60
-            if now_ts >= ext_close:
-                return _ext_bucket_start(tf, ext_close - 1)
-            cur = _ext_bucket_start(tf, int(now_ts))
-            prev = _ext_bucket_start(tf, cur - 1)
-            if prev >= ext_open:
-                return prev
-        d = day - timedelta(days=1)
+            open_ts, close_ts = _session_window(now_dt, session)
+            if now_ts >= close_ts:
+                return _ext_bucket_start(tf, close_ts - 1)
+            if now_ts >= open_ts:
+                prev = _ext_bucket_start(tf, _ext_bucket_start(tf, int(now_ts)) - 1)
+                if prev >= open_ts:
+                    return prev
+        if today_only:
+            return None
+        d = now_dt - timedelta(days=1)
         for _ in range(14):
             if _is_trading_day_ymd(d):
-                ymd = int(d.strftime("%Y%m%d"))
-                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
-                return _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+                return _ext_bucket_start(tf, _session_window(d, session)[1] - 1)
             d -= timedelta(days=1)
         return None
     except Exception:                      # noqa: BLE001 — abstain, never guess
         return None
 
 
-def intraday_ext_session_complete(tf: str, last_ts) -> bool:
-    """True when an intraday tail reaches the FINAL bucket of its EXTENDED session."""
+def expected_completed_ext_bucket(tf: str, now: float | None = None):
+    """The extended-session frontier: `newest_closed_bucket(tf, "eth")`."""
+    return newest_closed_bucket(tf, "eth", now)
+
+
+def tail_within_one_bucket(tf: str, tail, target) -> bool:
+    """THE tolerance rule: `tail` reaches bucket `target` (see the block above)."""
+    return int(tail) >= _ext_bucket_start(tf, int(target) - 1)
+
+
+def session_end_ts(last_ts, session: str = "eth") -> int | None:
+    """Close instant of `session` on `last_ts`'s ET day (None: unreadable instant)."""
+    try:
+        et = _ZI("America/New_York")
+        return _session_window(datetime.fromtimestamp(int(last_ts), et), session)[1]
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+def session_complete(tf: str, last_ts, session: str = "eth") -> bool:
+    """True when an intraday tail holds the FINAL bucket of its own day's `session`
+    (EXACTLY — review #1098 F5: after the close a missing final bucket, 15:55 5m / 15:59
+    1m / the 15:30 hour, is a hole to repair; the one-bucket tolerance is for intraday
+    CURRENTNESS against a moving frontier, `tail_within_one_bucket`). A tail past the session close is complete by construction; a
+    tail that stops earlier is an artifact of when we last fetched, not of trading —
+    the distinction a DATE compare cannot make (PLTR 5m ended 15:15, measured
+    2026-09-20). ⚠️ ABSTAINS RATHER THAN GUESSING: a non-intraday tf or an unparseable
+    instant answers True, so a shape surprise can never become a universe refetch."""
     if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
         return True
     try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        ymd = int(dt.strftime("%Y%m%d"))
-        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
-        final = _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
-        # same one-bucket tolerance as the RTH rule (`close - tf`)
-        return int(last_ts) >= _ext_bucket_start(tf, final - 1)
+        end = session_end_ts(last_ts, session)
+        if end is None:
+            return True
+        return int(last_ts) >= _ext_bucket_start(tf, end - 1)
     except Exception:                      # noqa: BLE001
         return True
 
 
-def _ext_session_end_ts(last_ts) -> int | None:
-    try:
-        et = _ZI("America/New_York")
-        dt = datetime.fromtimestamp(int(last_ts), et)
-        ymd = int(dt.strftime("%Y%m%d"))
-        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
-        return midnight + _ext_close_minutes(ymd) * 60
-    except Exception:                      # noqa: BLE001
-        return None
+def session_verified(ticker: str, tf: str, last_ts, session: str = "eth") -> bool:
+    """The provider was asked after the tail's `session` ended (nothing newer exists)."""
+    vt = tail_verified_through(ticker, tf)
+    end = session_end_ts(last_ts, session) if last_ts is not None else None
+    return vt is not None and end is not None and vt >= end
 
 
 # ── TAIL CURRENTNESS: OBSERVED vs VERIFIED (2026-09-28) ──────────────────────
@@ -720,8 +752,14 @@ def _ext_session_end_ts(last_ts) -> int | None:
 # ⛔ `verified_through` IS NEVER DERIVED FROM THE STORED TAIL. It is written in exactly
 # one place (`_mark_tail_verified`), after a provider answer that did not raise AND
 # whose rows reached SQLite — so a failed write ("database is locked") verifies
-# nothing. It is per-process and in memory on purpose: a restart forgets it and the
-# next request re-verifies; it can never become a durable claim.
+# nothing.
+# ⭐ PERSISTED IN THE STORE (P1 bar contract, 2026-11-11 — supersedes "per-process, in
+# memory on purpose"). The proof lives beside the rows it proves (`bars_sqlite`
+# `series_meta`), so it survives a restart and reads the same from every process on
+# that store. It is still never a claim about rows the store does not hold: a DELETE
+# of the series' rows voids every proof taken before it (`proof_floor`), and a
+# wholesale change (snapshot install, bulk heal) voids them all (`bump_store_floor`).
+# `_tail_verified` is only this process's fallback for an unreadable store.
 _TAIL_VERIFIED_MAX_KEYS = 50000
 _tail_verified: dict = {}
 _tail_verified_lock = _threading.Lock()
@@ -735,11 +773,27 @@ def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
         prev = _tail_verified.get(key)
         if prev is None or checked_at > prev:
             _tail_verified[key] = checked_at
+    try:
+        _sqlite.record_verified(ticker, tf, checked_at)
+    except Exception:                      # noqa: BLE001 — the in-process copy still holds
+        pass
+
+
+def _stored_verified_through(ticker: str, tf: str):
+    """The store's proof (None = none); falls back to this process's copy only when
+    the store has no meta API (a stubbed store in tests)."""
+    fn = getattr(_sqlite, "series_meta", None)
+    if fn is not None:
+        try:
+            return fn(ticker, tf)["verified_through"]
+        except Exception:                  # noqa: BLE001
+            pass
+    with _tail_verified_lock:
+        return _tail_verified.get((ticker.upper(), tf))
 
 
 def tail_verified_through(ticker: str, tf: str):
-    with _tail_verified_lock:
-        vt = _tail_verified.get((ticker.upper(), tf))
+    vt = _stored_verified_through(ticker, tf)
     # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
     # through its newest delivered minute (review #1051 F1): a thin covered name never
     # takes the provider-heal path that writes `_tail_verified`, so without this its
@@ -753,6 +807,37 @@ def tail_verified_through(ticker: str, tf: str):
         except Exception:                  # noqa: BLE001
             pass
     return vt
+
+
+class _NullCheck:
+    """`provider_check` stand-in for a store double without one (tests)."""
+    def __init__(self, *_a):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
+def _provider_write(checked_at: float):
+    """`bars_sqlite.provider_check(checked_at)`: the writes inside persist a provider
+    answer taken at `checked_at` and cannot overwrite rows a NEWER check sealed. Every
+    provider fetch → persist site opens one with the instant taken BEFORE its fetch."""
+    return getattr(_sqlite, "provider_check", _NullCheck)(checked_at)
+
+
+def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None:
+    """A full / deep provider fetch re-supplied the series from its oldest row: deleted
+    rows from there are restored (bar contract `record_cover`, review #1098 F4)."""
+    try:
+        ts = [int(b["t"]) for b in (rows or []) if isinstance(b.get("t"), (int, float))]
+        fn = getattr(_sqlite, "record_cover", None)
+        if ts and fn is not None:
+            fn(ticker_up, tf, min(ts), checked_at)
+    except Exception:                      # noqa: BLE001 — a cover only widens what may seal
+        pass
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -776,11 +861,24 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             last_ts = _lt[0]              # provider fetches only what is still missing
     checked_at = _time.time()
     status: dict = {}
-    new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
-    if new and not _is_intraday_stale(new):
-        _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+    # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
+    # it can never overwrite rows a NEWER check has sealed (`bars_sqlite.provider_check`).
+    with _provider_write(checked_at):
+        new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
+        persisted = not new
+        if new and not _is_intraday_stale(new):
+            _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+            persisted = True
     if status.get("ok"):
         _mark_tail_verified(ticker_up, tf, checked_at)
+        # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
+        # through `checked_at`, and those rows are in the store — so every bucket that
+        # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
+        if persisted and status.get("window_start") is not None:
+            from api.services.bar_contract import SEAL_LAG_S
+            _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
+                                  status["window_start"], checked_at,
+                                  covers_from=status.get("fill_from"))
     return new
 
 
@@ -928,6 +1026,12 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
     are exactly as proven as the rows they were built from — and only after the write
     reached SQLite (a failed write verifies nothing)."""
     try:
+        # Bar contract (review #1098 F4): the base's seal is read BEFORE the derived rows
+        # are built from the base, so the rows can only be as final as (or more than) it.
+        try:
+            _bm = _sqlite.series_meta(ticker_up, _DERIVED_BASE_TF)
+        except Exception:                 # noqa: BLE001
+            _bm = {}
         d = _local_derived_tail(ticker_up, tf, last_ts)
         if not d:
             return None
@@ -938,6 +1042,17 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
         vt = tail_verified_through(ticker_up, d["src"]) if d.get("complete") else None
         if vt is not None:
             _mark_tail_verified(ticker_up, tf, vt)
+        if d.get("complete"):
+            # Bar contract seal, inherited the same way: a derived bucket that ended by
+            # the base's seal is built only from final base buckets. The derived window
+            # starts where the derivation started reading the base — the bucket of the
+            # target's stored tail — not at the first row it kept; its check instant is
+            # the base seal's own (`record_sealed` contiguity + check-instant rules).
+            _base_seal = _bm.get("sealed_through")
+            if _base_seal is not None and d.get("src") == _DERIVED_BASE_TF:
+                _sqlite.record_sealed(ticker_up, tf, _base_seal,
+                                      _derived_bucket_start(tf, int(last_ts)),
+                                      _bm.get("sealed_checked_at") or _time.time())
         new_last = max(int(b["t"]) for b in d["rows"])
         current = (not _needs_fresh(new_last, tf)
                    and intraday_tail_status(ticker_up, tf, new_last)["tail_status"] != "unverified")
@@ -953,67 +1068,16 @@ def expected_completed_bucket(tf: str, now: float | None = None):
     """Start (unix seconds) of the latest REGULAR-session bucket that has CLOSED, or
     None when no bucket of today's session is expected (weekend, holiday, before the
     first bucket closes). The server twin of the client's
-    `marketSession.expectedLatestCompletedBar(tf, now, {session:'rth'})` — same
-    bucket-start convention, same irregular 09:30 opening hour on tf=60, same early
-    closes (`_session_close_minutes`)."""
-    if tf not in ("1", "5", "15", "30", "60"):
-        return None
-    try:
-        et = _ZI("America/New_York")
-        now_ts = float(now if now is not None else _time.time())
-        now_dt = datetime.fromtimestamp(now_ts, et)
-        ymd = int(now_dt.strftime("%Y%m%d"))
-        if now_dt.weekday() >= 5 or _is_nyse_holiday(ymd):
-            return None
-        midnight = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        open_ts = int(midnight.timestamp()) + _RTH_OPEN_MINUTES_SERVER * 60
-        close_ts = int(midnight.timestamp()) + _session_close_minutes(ymd) * 60
-        if now_ts < open_ts:
-            return None
-
-        def _bstart(t: int) -> int:
-            if tf == "60":
-                return bucket_60_et_unix_seconds(int(t))
-            step = int(tf) * 60
-            return int(t) // step * step
-
-        if now_ts >= close_ts:
-            return _bstart(close_ts - 1)
-        cur = _bstart(int(now_ts))
-        prev = _bstart(cur - 1)
-        if prev < open_ts:
-            return None
-        return prev
-    except Exception:                      # noqa: BLE001 — abstain, never guess
-        return None
+    `marketSession.expectedLatestCompletedBar(tf, now, {session:'rth'})`; one reading
+    of `newest_closed_bucket` (the session clock above)."""
+    return newest_closed_bucket(tf, "rth", now, today_only=True)
 
 
 def expected_completed_rth_bucket(tf: str, now: float | None = None):
-    """Start (unix s) of the latest REGULAR-session bucket that has CLOSED: today's once
-    its first RTH bucket has closed, else the FINAL RTH bucket of the previous trading
-    session (half-day aware). The RTH twin of `expected_completed_ext_bucket` and the
-    frontier an RTH-only chart (`session=rth`) is judged against (review #1051 F2: a
-    thin name with no post-market prints is complete at its close for a chart that
-    never shows post-market). None for a non-intraday tf or an unreadable clock."""
-    if tf not in ("1", "5", "15", "30", "60"):
-        return None
-    today = expected_completed_bucket(tf, now)
-    if today is not None:
-        return today
-    try:
-        et = _ZI("America/New_York")
-        now_ts = float(now if now is not None else _time.time())
-        d = datetime.fromtimestamp(now_ts, et).replace(hour=0, minute=0, second=0, microsecond=0)
-        d -= timedelta(days=1)
-        for _ in range(14):
-            if _is_trading_day_ymd(d):
-                ymd = int(d.strftime("%Y%m%d"))
-                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
-                return _ext_bucket_start(tf, midnight + _session_close_minutes(ymd) * 60 - 1)
-            d -= timedelta(days=1)
-        return None
-    except Exception:                      # noqa: BLE001 — abstain, never guess
-        return None
+    """The REGULAR-session frontier: today's newest closed RTH bucket, else the previous
+    session's final one — what an RTH-only chart (`session=rth`) is judged against
+    (review #1051 F2). `newest_closed_bucket(tf, "rth")`."""
+    return newest_closed_bucket(tf, "rth", now)
 
 
 def normalize_session(session) -> str | None:
@@ -1027,8 +1091,11 @@ def normalize_session(session) -> str | None:
     return None
 
 
+_VT_UNSET = object()
+
+
 def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None,
-                         session: str | None = None) -> dict:
+                         session: str | None = None, verified_through=_VT_UNSET) -> dict:
     """Machine-readable currentness for an intraday response.
 
     Returns {"tail_status": "current" | "verified" | "unverified",
@@ -1039,7 +1106,9 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
                    bucket closed and had nothing newer (`verified_through` says when).
       unverified — outside the tolerance and nobody has proven there is nothing newer:
                    the repair was shed, failed, or is still running. NOT current."""
-    vt = tail_verified_through(ticker, tf)
+    # `verified_through` given = judge THAT proof (the bar contract passes the one it
+    # attached to the payload, read before the payload's rows — never a newer one).
+    vt = tail_verified_through(ticker, tf) if verified_through is _VT_UNSET else verified_through
     out = {"tail_status": "unverified", "verified_through": vt}
     try:
         tail = int(tail_ts) if tail_ts is not None else None
@@ -1055,13 +1124,10 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
     # (`session=rth`) never shows post/pre-market, so its tail is judged against the
     # REGULAR frontier — a thin name with no after-hours prints is current at its
     # close, not `unverified` + fast polls all evening. Absent/eth = extended frontier.
-    if normalize_session(session) == "rth":
-        ext_frontier = expected_completed_rth_bucket(tf, now)
-    else:
-        ext_frontier = expected_completed_ext_bucket(tf, now)
+    ext_frontier = newest_closed_bucket(
+        tf, "rth" if normalize_session(session) == "rth" else "eth", now)
     if ext_frontier is not None:
-        tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
-        if tail is not None and tail >= tolerance_floor:
+        if tail is not None and tail_within_one_bucket(tf, tail, ext_frontier):
             out["tail_status"] = "current"
         elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
@@ -1138,13 +1204,6 @@ def _ext_completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
             _ext_completeness_attempt.clear()
         _ext_completeness_attempt[key] = now
     return True
-
-
-def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
-    """The provider was asked after the tail's EXTENDED session ended (nothing newer)."""
-    vt = tail_verified_through(ticker, tf)
-    end = _ext_session_end_ts(last_ts)
-    return vt is not None and end is not None and vt >= end
 
 
 #: Seconds after a 5m boundary during which the live stream's proof may trail the new
@@ -1304,11 +1363,11 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     if tf in ("1", "5", "15", "30", "60") and not _is_cold_stale_intraday(tf, last_ts):
         # The date matches the latest session — but a date is not a session. A tail
         # that stops before its own close is TRUNCATED, and off-market nothing else
-        # will ever notice (see `intraday_session_complete`). Escalate once per
+        # will ever notice (see `session_complete`). Escalate once per
         # truncated tail per cooldown, and only when the caller named the symbol.
         if (ticker
                 and _os.environ.get("BARS_SESSION_COMPLETENESS", "1") == "1"
-                and not intraday_session_complete(tf, last_ts)
+                and not session_complete(tf, last_ts, "rth")
                 and _completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         # ⭐ EXTENDED completeness (2026-11-11): a tail that reaches the 16:00 close but
@@ -1320,8 +1379,8 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
         # most once per tail instant per `_EXT_COMPLETENESS_COOLDOWN` (short, so a
         # failed attempt is retried on the client's catch-up poll, not hours later).
         if (ticker and _request_is_interactive()
-                and not intraday_ext_session_complete(tf, last_ts)
-                and not _ext_session_verified(ticker, tf, last_ts)
+                and not session_complete(tf, last_ts, "eth")
+                and not session_verified(ticker, tf, last_ts, "eth")
                 and _ext_completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         return False
@@ -1384,7 +1443,7 @@ def daily_bars_needed_since(lo_iso: str, *, today=None) -> int:
     return max(30, min(need, _DEEP_REQUEST_THRESHOLD - 1))
 
 
-def _mark_history_complete(ticker: str, tf: str) -> None:
+def _mark_history_complete(ticker: str, tf: str, bars: int | None = None) -> None:
     """Record that a full-history (deep) fetch has populated SQLite for this
     (ticker, tf). Without this, a deep backfill whose requested count exceeds
     the stock's actual available bar count (e.g. asking 20000 daily bars for a
@@ -1396,7 +1455,14 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
     ⛔ NEVER ON A FALLBACK INTRADAY ANSWER. yfinance serves 7 days of 1m and FMP a
     shallow RTH-only window; marking either "complete" told the cache gate "this is
     all there is" and locked the truncated depth in for 6h, so the deep Massive pull
-    never re-ran even after Massive recovered."""
+    never re-ran even after Massive recovered.
+
+    ⛔⛔ THE MARKER RECORDS HOW DEEP THE FETCH WAS (2026-11-11). It used to be a bare
+    True: the chart's 3000-bar off-critical-path deep pull (≈75 days of 15m) marked the
+    key "complete", and for the next 6 h every scroll-back ask (`bars=30000`, ≈2 years)
+    was answered from SQLite as if 75 days were the whole history — no fetch ever ran.
+    The value is now the deepest `bars` a successful full fetch was asked for, and
+    `_history_complete(ticker, tf, bars)` only vouches for requests at or under it."""
     if tf in ("1", "5", "15", "30", "60") and _last_intraday_fetch_was_fallback():
         import logging as _log_hc
         _log_hc.getLogger(__name__).info(
@@ -1404,16 +1470,32 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
             ticker, tf, last_intraday_source())
         return
     try:
-        cache.set(f"histfull_{ticker}_{tf}", True, ttl=21600)
+        key = f"histfull_{ticker}_{tf}"
+        depth = int(bars) if bars else _HISTFULL_ANY
+        prev = cache.get(key)
+        if isinstance(prev, int) and not isinstance(prev, bool) and prev > depth:
+            depth = prev
+        cache.set(key, depth, ttl=21600)
     except Exception:
         pass
 
 
-def _history_complete(ticker: str, tf: str) -> bool:
+# A marker set without a depth (a legacy caller) vouches for any request size.
+_HISTFULL_ANY = 1 << 30
+
+
+def _history_complete(ticker: str, tf: str, bars: int | None = None) -> bool:
+    """True when a full fetch at least `bars` deep is recorded (any depth when `bars`
+    is None — the daily seasonality caller)."""
     try:
-        return cache.get(f"histfull_{ticker}_{tf}") is True
+        v = cache.get(f"histfull_{ticker}_{tf}")
     except Exception:
         return False
+    if v is True:                          # pre-depth marker still in a live cache
+        return bars is None
+    if not isinstance(v, int) or isinstance(v, bool):
+        return False
+    return bars is None or v >= int(bars)
 
 
 def _expected_latest_session_yyyymmdd(now=None) -> int:
@@ -1746,6 +1828,14 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
     just-restored stale snapshot between purges."""
     date_tf = tf in ("D", "W", "M")
     weekly = tf == "W"
+    # Key guard (W: 2026-07-02, D: 2026-11-11): a stored row whose date key breaks the
+    # `date_bar_keys` rule (a W not on its Friday; a D on a non-trading day — prod's
+    # Saturday 2026-11-07 bar) never renders, even before the background purge lands.
+    key_guard = None
+    if tf in ("D", "W"):
+        from api.services import date_bar_keys as _dk
+        if tf == "W" or _dk.calendar_applies(ticker):
+            key_guard = _dk.key_ok
     out = []
     for ts, o, h, l, c, v in rows:
         if o is None or h is None or l is None or c is None:
@@ -1754,12 +1844,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
             continue
         if date_tf:
             s = str(ts)
-            if weekly:
-                try:
-                    if datetime(int(s[:4]), int(s[4:6]), int(s[6:])).weekday() != 4:
-                        continue
-                except ValueError:
-                    continue
+            if key_guard is not None and not key_guard(tf, ts):
+                continue
             t_val = f"{s[:4]}-{s[4:6]}-{s[6:]}"
         else:
             t_val = ts
@@ -2242,6 +2328,104 @@ def _last_known_close(ticker: str, tf: str) -> float | None:
     return None
 
 
+# A payload that EXTENDS history (starts before the oldest stored row) and disagrees with
+# the stored rows it overlaps on at least this share of shared timestamps (>2% close apart)
+# is another company (a reused symbol) or another price basis: refused, never stored.
+_OVERLAP_MISMATCH_SHARE = 0.5
+_OVERLAP_MIN_SHARED = 5
+# Only the stored rows of the newest this-many ET sessions are compared (see below).
+_OVERLAP_RECENT_SESSIONS = 2
+
+
+def _desc_chain_valid(bars, anchor) -> bool:
+    """The chained per-bar check run NEWEST → OLDEST, seeded with `anchor` (the stored
+    tail's close). Each bar's CLOSE is compared to the next-newer bar's OPEN (the bar is
+    handed to `validate_bar` with o/c swapped, so the same rules apply mirrored), and the
+    reference walks back only across valid bars. ≥ `_PARTIAL_VALIDATION_THRESHOLD` valid
+    passes — the threshold `_payload_passes_validation` uses."""
+    pc = anchor
+    valid = total = 0
+    for bar in reversed(bars):
+        if not isinstance(bar, dict):
+            continue
+        total += 1
+        ok, _ = _bar_validation.validate_bar(dict(bar, o=bar.get("c"), c=bar.get("o")), prior_close=pc)
+        if ok:
+            valid += 1
+            pc = bar.get("o", pc)
+    return total > 0 and (valid / total) >= _PARTIAL_VALIDATION_THRESHOLD
+
+
+def _overlap_disagrees(ticker: str, src_tf: str, bars) -> bool:
+    """True when `bars` extends stored history and disagrees WHOLESALE with the stored
+    rows of the NEWEST `_OVERLAP_RECENT_SESSIONS` stored sessions (see
+    `_OVERLAP_MISMATCH_SHARE`). A payload that only refreshes the stored range (a tail /
+    delta fetch) is not judged here — a provider re-adjustment of recent bars must still
+    be able to land.
+
+    ⛔ ONLY THE NEWEST STORED SESSIONS ARE THE REFERENCE (review of #1116). Intraday split
+    heal detects and logs only, so after a split the OLDER stored rows stay on the pre-split
+    basis; comparing a split-adjusted deep payload against them refused exactly the
+    history that corrects them. The newest sessions are on today's basis (the same anchor
+    the backward chain starts from): a reused symbol or a wrong-basis payload disagrees
+    there and is refused; a split-adjusted payload agrees there and overwrites the stale
+    pre-split rows."""
+    try:
+        first_t = int(bars[0]["t"])
+        last_t = int(bars[-1]["t"])
+        stored_first = _sqlite.get_first_ts(ticker.upper(), src_tf)
+        if stored_first is None or first_t >= int(stored_first):
+            return False
+        per_day = (16 * 60) // max(1, int(src_tf))
+        recent = _sqlite.get_bars(ticker.upper(), src_tf, per_day * (_OVERLAP_RECENT_SESSIONS + 1))
+        et = _ZI("America/New_York")
+        days = sorted({datetime.fromtimestamp(int(r[0]), et).date() for r in recent})[-_OVERLAP_RECENT_SESSIONS:]
+        keep = set(days)
+        stored = {int(r[0]): float(r[4]) for r in recent
+                  if int(r[0]) <= last_t and datetime.fromtimestamp(int(r[0]), et).date() in keep}
+        shared = mism = 0
+        for b in bars:
+            sc = stored.get(int(b.get("t", -1)))
+            c = b.get("c")
+            if sc is None or not isinstance(c, (int, float)) or sc == 0:
+                continue
+            shared += 1
+            if abs(float(c) - sc) / abs(sc) > 0.02:
+                mism += 1
+        return shared >= _OVERLAP_MIN_SHARED and mism / shared >= _OVERLAP_MISMATCH_SHARE
+    except Exception:
+        return False
+
+
+def _intraday_payload_valid(ticker: str, src_tf: str, payload, anchor_tfs=()) -> bool:
+    """THE validity question for an intraday provider payload (`fetch_with_validation`'s
+    `validate_for`).
+
+    ⛔⛔ CHAINED FROM TODAY, WALKING BACKWARD (2026-11-11, review of #1116). The old
+    ascending check was seeded with the NEWEST stored close and started at the payload's
+    OLDEST bar: a deep (scroll-back) payload starting months back failed the 50% gate on
+    every bar until the price came back within 50% of today, so Massive's whole deep answer
+    was rejected for any stock that had moved > 50% (production 2026-11-11: `bars=32000`
+    added no depth on 60m for 14 of 21 names). Seeding with "the bar before the payload"
+    fixed that but left a deep payload with NOTHING to agree with. Walking newest → oldest
+    from the stored close keeps the "agrees with today" anchor AND accepts any real long
+    move (each step is checked against its neighbour). And a payload that extends history
+    but disagrees wholesale with the stored rows it overlaps is refused, so a reused symbol
+    or a different price basis can never overwrite good rows."""
+    bars = _extract_bars(payload)
+    bars = [b for b in (bars or []) if isinstance(b, dict) and isinstance(b.get("t"), (int, float))]
+    if not bars:
+        return False
+    anchor = None
+    for tf_ in (src_tf, *anchor_tfs):
+        anchor = _last_known_close(ticker, tf_)
+        if anchor is not None:
+            break
+    if not _desc_chain_valid(bars, anchor):
+        return False
+    return not _overlap_disagrees(ticker, src_tf, bars)
+
+
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — routes the Massive → FMP → yfinance source chain
     through ``fetch_with_validation`` so corrupt primary payloads automatically
@@ -2257,6 +2441,12 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     _logger = _log.getLogger(__name__)
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
     prior_close = _last_known_close(ticker, tf)
+
+    def _valid15(payload, _t=ticker, _tf=tf):      # 30m/60m: validated on their 15m source
+        return _intraday_payload_valid(_t, "15", payload, anchor_tfs=(_tf,))
+
+    def _valid(payload, _t=ticker, _tf=tf):
+        return _intraday_payload_valid(_t, _tf, payload)
     # Latest session that should have bars — drives staleness escalation so a
     # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
     expected_session = _expected_latest_session_yyyymmdd()
@@ -2277,7 +2467,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         src = max_bars * 4
         # fetch_with_validation handles the Massive → FMP → yfinance chain for the
         # 15-min source, applying per-bar validation at each hop.
-        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session,
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             out = _resample_derived("60", bars_src)[-max_bars:]
             _logger.warning(
@@ -2300,7 +2491,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # Massive's native 30-min aggregate is intermittently sparse (it drops
         # half-hour bars the 15m feed carries). 30 divides the 09:30 open, so the
         # clock floor IS TradingView's 30m grid on both session views.
-        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session,
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             return _resample_derived("30", bars_src)[-max_bars:]
         _logger.warning(
@@ -2309,7 +2501,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
     # 1/5/15-min: validating fetch chain
-    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session)
+    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session,
+                                      validate_for=_valid)
     if validated and not _is_intraday_stale(validated):
         return validated
 
@@ -2327,9 +2520,15 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
 
-def _massive_raw_to_iso(raw) -> list[dict]:
+def _massive_raw_to_iso(raw, ticker: str | None = None) -> list[dict]:
     """Convert raw Massive aggs (t = unix ms) to our normalized daily
-    format (t = ISO date string)."""
+    format (t = ISO date string).
+
+    ⛔ Only NYSE sessions (2026-11-11). The provider's daily aggregate carries its own
+    date, and on 2026-11-07 it carried a SATURDAY for a handful of names; copied
+    through verbatim it was stored, drawn as an extra candle and summed into the week.
+    The key rule has one owner: `date_bar_keys`."""
+    from api.services.date_bar_keys import session_daily
     out = []
     for bar in raw:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
@@ -2339,7 +2538,7 @@ def _massive_raw_to_iso(raw) -> list[dict]:
             "l": _px(bar["l"]), "c": _px(bar["c"]),
             "v": int(_bar_volume(bar)),
         })
-    return out
+    return session_daily(out, ticker)
 
 
 # Hard deadline for the REQUEST-path yfinance daily tail-fill. 3.5s bounds a cold
@@ -2399,7 +2598,7 @@ def _recent_daily_iso(ticker: str, days: int) -> list[dict]:
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
-    massive_iso = _massive_raw_to_iso(get_agg_bars(ticker, from_date, to_date))
+    massive_iso = _massive_raw_to_iso(get_agg_bars(ticker, from_date, to_date), ticker)
     return _fill_daily_tail_with_yf(ticker, massive_iso)
 
 
@@ -2573,7 +2772,9 @@ def rebuild_sixty_min_grid(ticker: str) -> dict:
 # live-tick display), so re-writing the recent window is always safe. 8h covers
 # a full RTH session + buffer; deeper/cross-session poison is handled by the
 # reconciliation worker + one-time heal. Env-tunable.
-_DELTA_HEAL_WINDOW_SECONDS = int(_os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS", str(8 * 3600)))
+# ⭐ ONE OWNER: `bars_sqlite.MUTABLE_WINDOW_S` (same env var) — the store decides
+# `history_rev` against the same window this repair rewrites (bar-contract.md §2).
+_DELTA_HEAL_WINDOW_SECONDS = _sqlite.MUTABLE_WINDOW_S
 
 # Gap-fill lookback (days). The trailing heal window above only RE-WRITES recent
 # bars; it never restores an interior bar that was NEVER stored (first fetched
@@ -2601,9 +2802,12 @@ def _delta_keep_bar(ts: int, heal_floor: int, stored_ts: "set | None") -> bool:
     window (heal recent partials) OR it is missing from storage (restore a hole).
     `stored_ts is None` disables gap-fill (kill-switch) → exact pre-2026-07-14
     trailing-only behaviour. Pure + module-level so it's unit-testable."""
+    # The boundary is the store's (`bars_sqlite.is_held_history`): the row AT the floor is
+    # held history — a client polling `since = tail - window` never re-reads it, so the
+    # repair must not rewrite it either (it would change it without a history_rev bump).
     if stored_ts is None:
-        return ts >= heal_floor
-    return ts >= heal_floor or ts not in stored_ts
+        return not _sqlite.is_held_history(ts, heal_floor)
+    return not _sqlite.is_held_history(ts, heal_floor) or ts not in stored_ts
 
 
 def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = None,
@@ -2655,7 +2859,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         gap_days = max(gap_days, min(_DELTA_GAPFILL_DAYS, _GAPFILL_CAP_BY_TF.get(tf, 14)))
     # Floor below which we don't bother re-emitting (already-final history).
     # last_ts==0 (cold) → floor 0 → return everything fetched (full populate).
-    heal_floor = max(0, last_ts - _DELTA_HEAL_WINDOW_SECONDS) if last_ts else 0
+    # Rows strictly ABOVE it are rewritten (`_delta_keep_bar`); cold (last_ts==0) → -1.
+    heal_floor = max(0, _sqlite.history_floor(tf, last_ts)) if last_ts else -1
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     # ⛔ "2 CALENDAR DAYS" IS NOT "TODAY AND YESTERDAY'S SESSION". On a Monday (or the
     # day after a holiday) the 1m cap of 2 days reached back to Saturday, so a hole in
@@ -2664,6 +2869,22 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     if gapfill_on:
         from_date = min(from_date, _prior_session_iso())
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    if status is not None:
+        # The REWRITTEN window starts here: every fetched row at/after it is re-emitted
+        # (bar contract seal, `_heal_intraday_tail`). ET midnight of `from_date` is the
+        # later (conservative) reading of the provider's date bound.
+        try:
+            _fd = datetime.strptime(from_date, "%Y-%m-%d")
+            _fd_start = int(datetime(_fd.year, _fd.month, _fd.day,
+                                     tzinfo=_ZI("America/New_York")).timestamp())
+            status["window_start"] = max(heal_floor + 1, _fd_start)
+            if gapfill_on:
+                # The gap-fill restores every MISSING row from `from_date` on (rows the
+                # store lacks are re-emitted below the heal floor too): deleted rows
+                # from there are back, so a seal may reach past an old delete point.
+                status["fill_from"] = _fd_start
+        except Exception:                 # noqa: BLE001 — no window, no seal
+            status.pop("window_start", None)
 
     # Timestamps already stored in (roughly) the fetched window. A re-fetched bar
     # NOT in this set is a genuine hole to restore. One indexed, lock-free read.
@@ -2930,7 +3151,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     lookback = min(int(max_bars * 1.5) + 30, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
-    massive_bars = _massive_raw_to_iso(raw)
+    massive_bars = _massive_raw_to_iso(raw, ticker)
 
     if deep:
         # Only nightly warmer asks for deep history — pulls yfinance and merges.
@@ -2956,7 +3177,7 @@ def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 8, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
-    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date)))
+    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date), ticker))
     return _resample_weekly_iso(daily)[-max_bars:]
 
 
@@ -2999,7 +3220,7 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 35, 10950)  # ~35 calendar days per month
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
-    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date)))
+    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date), ticker))
     return _resample_monthly_iso(daily)[-max_bars:]
 
 
@@ -3023,12 +3244,14 @@ def _bar_volume(bar: dict) -> float:
     return 0 if v is None else v
 
 
-def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
-    """Resample our normalized daily bars (t = ISO date string) to weekly."""
+def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+    """Resample our normalized daily bars (t = ISO date string) to weekly.
+    Non-session daily rows are excluded (`date_bar_keys`) — a week is its sessions."""
     if not daily_bars:
         return []
+    from api.services.date_bar_keys import session_daily
     weeks = {}
-    for bar in daily_bars:
+    for bar in session_daily(daily_bars, ticker):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
@@ -3061,12 +3284,14 @@ def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
     ]
 
 
-def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
-    """Resample our normalized daily bars (t = ISO date string) to monthly."""
+def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+    """Resample our normalized daily bars (t = ISO date string) to monthly.
+    Non-session daily rows are excluded (`date_bar_keys`) — a month is its sessions."""
     if not daily_bars:
         return []
+    from api.services.date_bar_keys import session_daily
     months = {}
-    for bar in daily_bars:
+    for bar in session_daily(daily_bars, ticker):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
@@ -3340,12 +3565,30 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
     # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
     _intraday_window_missing = False
+    # ⭐⭐ A SHORT WINDOW IS NOT A COVERED ONE (2026-11-11). The chart's scroll-back asks
+    # this path for "the `bars` bars before my oldest bar" (`to=` = that bar's ET date).
+    # A store holding a few rows just before the cutoff used to count as covering it, so
+    # the ask was answered with those few rows and the provider was never asked for the
+    # rest. Now a read SHORTER than asked (`len < bars * 0.9`) fetches the stretch BEFORE
+    # its oldest row, once per (ticker, tf, to) per `_TO_WINDOW_TTL` — a name whose
+    # history genuinely starts there (a recent listing) is asked once, not per scroll.
+    _win_key = f"towin_{ticker_up}_{tf}_{to_str}_{_depth_tier(bars)}"
+    _intraday_window_short = False
+    _fetch_to_str = str(to_str)
     if not date_tf:
         try:
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-    if _intraday_window_missing:
+        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
+                and cache.get(_win_key) is None):
+            _intraday_window_short = True
+            try:
+                _fetch_to_str = datetime.fromtimestamp(
+                    int(rows[0][0]), _ZI("America/New_York")).strftime("%Y-%m-%d")
+            except Exception:
+                _intraday_window_short = False
+    if _intraday_window_missing or _intraday_window_short:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
@@ -3361,9 +3604,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             bars_per_day = (16 * 60) // max(mult, 1)
             eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
             lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
-            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            _to_d = datetime.strptime(_fetch_to_str, "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
-            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            cold_key = f"replayto::{ticker_up}::{tf}::{_fetch_to_str}"
+            # A window with NOTHING stored waits the deep ceiling (there is nothing else
+            # to paint); a short one already has bars to serve, so it waits briefly and
+            # then answers `filling` instead of holding the request.
+            _win_wait = _DEEP_DEADLINE_SECONDS if _intraday_window_missing else _TO_SHORT_WAIT_SECONDS
             with _inflight_lock:
                 ev = _inflight.get(cold_key)
                 do_fetch = ev is None
@@ -3383,13 +3630,25 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
-                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                            _t0 = _time.time()    # this fetch's provider check instant
+                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
                                     if int(b.get("t", 0)) <= to_key]
+                            _stored_ok = True
                             if deep:
                                 try:
-                                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                                except Exception:
-                                    pass
+                                    with _provider_write(_t0):
+                                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                                except Exception as _we:   # noqa: BLE001
+                                    _stored_ok = False
+                                    import logging as _log_tw
+                                    _log_tw.getLogger(__name__).warning(
+                                        "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
+                                        ticker_up, tf, _fetch_to_str, type(_we).__name__, _we)
+                            # The provider has answered AND the answer is stored: what is
+                            # stored now is all there is. A failed fetch or a failed write
+                            # leaves the window un-marked, so the next ask retries it.
+                            if _stored_ok:
+                                cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
                         except Exception:     # noqa: BLE001 — background
                             pass
                         finally:
@@ -3405,14 +3664,14 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                         with _inflight_lock:
                             _inflight.pop(cold_key, None)
                         ev.set()
-                    ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS))
+                    ev.wait(timeout=_bounded_wait(_win_wait))
                 else:
                     with _inflight_lock:
                         _inflight.pop(cold_key, None)
                     ev.set()
             else:
                 # another request is fetching this exact window — wait (bounded), then read
-                ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS + 0.5))
+                ev.wait(timeout=_bounded_wait(_win_wait + 0.5))
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
             # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
             # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
@@ -3422,12 +3681,23 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
             except Exception:
                 _intraday_window_missing = not rows
+            with _inflight_lock:
+                _replay_running = cold_key in _inflight
             if _intraday_window_missing and not warm:
-                with _inflight_lock:
-                    _replay_running = cold_key in _inflight
                 if _replay_running:
                     # Shed, clearly marked: the window is still landing — re-poll the tier.
                     return _replay_warming_response(resp_ticker, tf)
+            elif _intraday_window_short and _replay_running and rows:
+                # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
+                # window is real and in order: serve it now, flagged `filling`, and tell
+                # the client when the rest should be there.
+                _mark_serve("to-filling")
+                r = JSONResponse(
+                    content={"ticker": resp_ticker, "tf": tf,
+                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
+                    headers={"Cache-Control": "public, max-age=5"})
+                r.headers["Retry-After"] = "3"
+                return r
         except Exception:
             rows = rows or []
     if not rows:
@@ -3438,6 +3708,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # an honest best effort, not static history: never pin it for an hour.
     _replay_ttl = 30 if (not date_tf and _intraday_window_missing) else 3600
     return JSONResponse(content=payload, headers={"Cache-Control": f"public, max-age={_replay_ttl}"})
+
+
+# How long a fetched `to=` window vouches that the store holds all the provider has for
+# it (see `_get_bars_to_response`). Long: history before a date does not change.
+_TO_WINDOW_TTL = int(_os.environ.get("BARS_TO_WINDOW_TTL_SECONDS", str(6 * 3600)))
+_TO_SHORT_WAIT_SECONDS = 2.0
 
 
 # Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
@@ -3729,6 +4005,7 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     _lg = _log.getLogger(__name__)
     try:
         _deep = _is_deep_request(bars)
+        _t0 = _time.time()                # this fetch's provider check instant
         with _provider_fault_scope.scope() as _faults:
             if tf in ("1", "5", "15", "30", "60"):
                 raw = _fetch_intraday(ticker_up, tf, bars)
@@ -3742,9 +4019,11 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             if date_tf:
                 _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
             else:
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
             if _deep:
-                _mark_history_complete(ticker_up, tf)
+                _mark_history_complete(ticker_up, tf, bars)
         elif not raw and _faults.clean:
             _record_cold_negative(ticker_up, tf)
             _lg.info("[bars] cold bg fetch %s tf=%s: no provider has data — "
@@ -4126,10 +4405,13 @@ def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
 
     def _job():
         try:
+            _t0 = _time.time()            # this fetch's provider check instant
             raw = _fetch_intraday(ticker_up, tf, bars)
             if raw and not _is_intraday_stale(raw):
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
-                _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
+                _mark_history_complete(ticker_up, tf, bars)  # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
             _log_bf.getLogger(__name__).warning(
@@ -4459,7 +4741,7 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
         if not stored_rows or not (
-            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
@@ -4539,7 +4821,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("live_cov")
     _fresh_needed = _needs_fresh(last_ts, tf, ticker_up) if stored_rows else True
     if stored_rows and not _fresh_needed and (
-        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
@@ -4591,7 +4873,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # backfill of a stock with fewer bars than requested) — then it's NOT
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
-        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf)
+        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
 
         # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
         # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF
@@ -4801,6 +5083,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             # A deep backfill (bars above the first-paint window)
                             # pulls the yfinance pre-2003 IPO tail for D/W/M.
                             _deep = _is_deep_request(_bars)
+                            _fetch_t0 = _time.time()      # this fetch's check instant
                             if _tf in ("1", "5", "15", "30", "60"):
                                 new = _fetch_intraday(_sym, _tf, _bars)
                             elif _tf == "W":
@@ -4816,12 +5099,14 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 if _dtf:
                                     _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                                 else:
-                                    _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    with _provider_write(_fetch_t0):
+                                        _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    _record_full_cover(_sym, _tf, new, _fetch_t0)
                                 # Mark full history loaded so a request larger
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).
                                 if _deep:
-                                    _mark_history_complete(_sym, _tf)
+                                    _mark_history_complete(_sym, _tf, _bars)
                         else:
                             if _tf == "D":
                                 new = _delta_daily(_sym, _last_ts)
@@ -5009,7 +5294,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     if date_tf or not _is_intraday_stale(raw):
                         _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
                         if _deep:
-                            _mark_history_complete(ticker_up, tf)
+                            _mark_history_complete(ticker_up, tf, bars)
                 # Slice to the requested count for the response. We stored ALL
                 # fetched bars in SQLite above (so future larger requests don't
                 # have to refetch), but the caller only needs `bars` count back.
@@ -5180,8 +5465,14 @@ def fetch_with_validation(
     bars: int,
     prior_close: float | None = None,
     expected_session: int | None = None,
+    validate_for=None,
 ):
     """Fetch from primary; if it fails validation, fall back through alternates.
+
+    ``validate_for`` (optional): ``payload -> bool``, replaces the ascending
+    ``_payload_passes_validation(payload, prior_close)`` check — the intraday caller
+    passes `_intraday_payload_valid` (chained backward from the stored close + the
+    overlap-agreement rule).
 
     Order: Massive → FMP (intraday only) → yfinance.  Returns the first
     payload whose every bar passes validation, or ``None`` if every source
@@ -5236,7 +5527,8 @@ def fetch_with_validation(
     if _scb.is_ok("massive"):
         try:
             payload = _fetch_intraday_massive(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("massive", success=valid)
             if valid:
                 chosen = _accept(payload)
@@ -5254,7 +5546,8 @@ def fetch_with_validation(
     if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
         try:
             payload = _fetch_intraday_fmp(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("fmp", success=valid)
             if valid and not _payload_has_extended_hours(payload):
                 fmp_rth = payload          # RTH-only: yfinance first, this only if it fails
@@ -5274,7 +5567,8 @@ def fetch_with_validation(
     if _scb.is_ok("yfinance"):
         try:
             payload = _fetch_intraday_yfinance(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("yfinance", success=valid)
             if valid:
                 chosen = _accept(payload, "yfinance")

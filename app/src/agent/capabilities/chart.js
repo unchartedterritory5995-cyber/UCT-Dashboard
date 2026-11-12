@@ -336,6 +336,9 @@ function scopedFp(snap, item) {
 }
 export const chartKind = {
   name: 'chart',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Charts aren't available on this page — open Charts to change a chart.",
+  empty: "There are no charts on this board yet.",
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
   read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)

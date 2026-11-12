@@ -32,7 +32,7 @@ describe('Login 2FA challenge step', () => {
     // fixture says what the backend says for a pro plan, as Login.test.jsx does.
     login.mockResolvedValue({ user: { role: null }, plan: 'pro', paid_equiv: true })
     submitPassword()
-    await waitFor(() => expect(nav).toHaveBeenCalledWith('/dashboard', { replace: true }))
+    await waitFor(() => expect(nav).toHaveBeenCalledWith('/charts', { replace: true }))
     expect(screen.queryByText(/two-factor check/i)).not.toBeInTheDocument()
   })
 
@@ -47,7 +47,7 @@ describe('Login 2FA challenge step', () => {
     fireEvent.change(screen.getByLabelText(/code/i), { target: { value: '654321' } })
     fireEvent.click(screen.getByRole('button', { name: /verify/i }))
     await waitFor(() => expect(verifyTotp).toHaveBeenCalledWith('tok123', '654321'))
-    await waitFor(() => expect(nav).toHaveBeenCalledWith('/dashboard', { replace: true }))
+    await waitFor(() => expect(nav).toHaveBeenCalledWith('/charts', { replace: true }))
   })
 
   it('a wrong code shows the error and stays on the code step', async () => {

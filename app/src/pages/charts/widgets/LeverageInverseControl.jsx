@@ -45,7 +45,9 @@ const PANEL_ROW_H = 30
 const GUTTER = 8
 const GAP = 4
 
-export default function LeverageInverseControl({ sym, onSelect, themeVars = null, candleColors = null }) {
+// variant 'tabs' (the /charts chart widget's symbol menu): plain text tabs with a gold
+// underline on the current seat, matching the header. Default = the bordered pill.
+export default function LeverageInverseControl({ sym, onSelect, themeVars = null, candleColors = null, variant = null }) {
   // Long/short + factor labels track the chart's candle up/down colors so the pill
   // and the family panel match the canvas (e.g. blue up / pink down) out of the box.
   const liVars = candleColors?.up || candleColors?.down
@@ -186,7 +188,7 @@ export default function LeverageInverseControl({ sym, onSelect, themeVars = null
   )
 
   return (
-    <div ref={wrapRef} className={styles.wrap}>
+    <div ref={wrapRef} className={variant === 'tabs' ? `${styles.wrap} ${styles.wrapTabs}` : styles.wrap}>
       <div className={styles.pill}>
         <button
           type="button"
