@@ -240,3 +240,24 @@ Deferred (for the later task that owns `tools/notebook_*.py`):
 - `a11y/surfaceCoverage.test.js` "every file in the population has an entry" is red on this branch for three files earlier tasks added without an axe entry: `NoteFormatMenu.jsx` (Task 4), `NotebookAiPanel.jsx` (Task 5), `SavedViewsMenuGroup.jsx` (Task 2). Not this wave's files; each needs a recipe (or a true `coveredBy`) in `a11y/notebookSurfaces.js`.
 
 Pre-existing failures seen (not caused here, not changed): `components/screener/reachable.test.js` "nothing committed is connected to nothing" (five non-Notebook modules: agentExecTune, railScan, railSupport, WhatElseOpenPrompt, useDayFacts; no Notebook module is flagged now); `lib/persistence/persistenceManifest.test.js` two census cases (unresolved StockChart/barStoreSwitch keys, a missing known key), unrelated to the Notebook; `GenericTourEngine.test.jsx` "on Home with Start a note there" failed once inside a 25-file batch (focus landed on <body>) and passed on its own (load flake).
+
+## Go-live wave 1, fix round 1
+
+First-open bytes (`python tools/notebook_perf_budgets.py --dist app/dist`): 2,277,805 B on `e53a0b9d38` (85 chunks, +17,012 over the 2,260,793 budget) -> 2,258,099 B (83 chunks, PASS, 2,694 under; master's CI 2,259,893, a local build of master's `bb74818ef2` 2,260,264). Moved off the Notebook's first open, each loaded where it is used:
+- the review drafting door (`lib/reviewDraftRun.js`) on the first New-menu press (its words are `lib/reviewPeriods.js`);
+- the sample notebook's client (`onboarding/sampleNotebook.js`) on a press (add, remove); the list keeps `onboarding/sampleNotebookKeys.js` (route, key, reader, row words) and `onboarding/useSampleNotebook.js` (the two hooks); `SampleNotebookDoor` is a lazy chunk of the zero-notes state;
+- the View menu's `SavedViewsMenuGroup` (warmed when idle and on pointer/focus of "View");
+- the Daily brief's note sections (`TodayHomeNotes.jsx`, which imports nothing of TodayHome's: a shared module folds the brief's manifest entry away) and its Notices panel;
+- the note's find bar (`NoteFindBar`) and table toolbar (`TableToolbar`), warmed when the editor is idle (master-era code, moved to pay for this branch's additions).
+
+Walkthroughs: `NEEDS_NOTES` is empty (every voice-notes step is drawn with zero notes at both tiers); its rails use a probe id. The tour cards and the failure notice say "start it again from Walkthroughs on the Support page" (the Learn menu is gone).
+
+Review fixes: the D4 busy-line test now runs fake timers past 8 s (with a control); disabled menu rows are not keyboard stops; the sample removal re-reads the status at the press and empties the cached status at once on success; the Daily brief holds the Notices box and the note sections back while a walkthrough is wanted; copy (FirstRunSheet "Open today's note from the notes list", image-docx "on a desktop") and stale comments; tokens in the new CSS.
+
+Deleted: `SAMPLE_COPY.dismiss`, `.removing`, `.cancel`. Deferred: `SAMPLE_COPY.strip`, `.remove`, `.tour` are walker-only (read by `tools/notebook_wave8_walk.py` and its Python test), kept for the instruments task.
+
+Pre-existing tests changed: `loadFailedConsumers.test.js` (the sample route's reader is sampleNotebookKeys.js); `tourStart.test.js`, `GenericTourEngine.test.jsx` (NEEDS_NOTES probe; Walkthroughs wording); `GenericTourEngine.c1.test.jsx`, `RegistryToursGate.test.jsx` (the Learn wording); `TodayHome.homeNotes.test.jsx` (constants from TodayHomeNotes; the walkthrough hold); `NotebookTab.goLiveMenus.test.jsx`, `NotebookTab.sampleRemove.test.jsx` (review cases). New: `a11y/simplifyMenus.a11y.test.jsx` (recipes note-format-menu, saved-views-menu-group, notebook-ai-panel, today-home-notes, entries in notebookSurfaces.js).
+
+Tests touched beyond the review cases: `NoteEditorPage.rails.test.jsx` (the Find rail awaits the lazy find bar); `NotebookTab.lazyViews.test.js` (SavedViewsMenuGroup, onboarding/SampleNotebookDoor and lib/reviewDraftRun are lazy); `sampleNotebook.test.js` (pins `SAMPLE_WRITE_URL`, the client's own literal for the door rail, to the keys module's route). Copy (4h): tourStart cards, RegistryToursGate's failure notice, FirstRunSheet's write failure, image-docx step; pinned by tourStart.test.js, RegistryToursGate.test.jsx, GenericTourEngine.c1.test.jsx. A last grep of member-visible strings for Learn, on Home, Research home, Notebook home and toolbar's Templates finds comments only.
+
+Pre-existing red, not changed: `lib/widgetFormula/widgetFormula.lazy.test.js` NON-VACUITY (its roots are hardcoded without TodayHome; red on master `bb74818ef2` too). `a11y/surfaceCoverage.test.js` "every recipe ... registered" passes alone but can hit its 15 s timeout inside a large batch.
