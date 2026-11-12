@@ -1,5 +1,5 @@
 // Family C (chart right-click parity): chartMenu.askAi (C1-178) and chartMenu.resetWatermark (C1-061) through the REAL panel on
-// CI trigger 11-12: the master re-merge (dcfe73fbfc, barStore only) touched no Agent path, so this line starts the agent ci push run.
+// CI trigger 11-12: the master re-merges (dcfe73fbfc barStore; 44f2b7bf50 Pine engine 51) touched no Agent path, so this line starts the agent ci push run.
 // the fixture board, the model scripted (no paid call). One chart only: the chart the targeting rules name (the clicked one, a
 // relation to it — #988: the clicked chart is the anchor, never the target), every other chart untouched. Read back, exact Undo
 // for the watermark; Ask AI has no Undo (it opens another page, after the receipt). The widget half (the adapter reaching
