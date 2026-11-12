@@ -70,10 +70,15 @@ export const RS_METHOD = Object.freeze({
   vsEmaLength: 21,
   vsEmaFast: 3,
   vsEmaSlow: 13,
+  // 2026-11-12, UCT RS Exit Warnings: the auto lengths (`relative_strength.EXIT_AUTO_LENGTHS`).
+  exitDailyFast: 21,
+  exitDailySlow: 50,
+  exitWeeklyFast: 8,
+  exitWeeklySlow: 21,
 })
 
 /**
- * The four RS indicators (U9), shown only when the split ships. `name` is each
+ * The five RS indicators (U9, and RS Exit Warnings 2026-11-12), shown only when the split ships. `name` is each
  * definition's `meta.name` and the RS Line's `what` is its `meta.description`
  * (`nativeRegistry.js`; the test pins both to the source). The other three take
  * their `what` from the glossary entry authored for them in `teachingData.js`,
@@ -90,6 +95,10 @@ export const RS_INDICATORS = Object.freeze([
   Object.freeze({ id: 'rsRating', name: 'UCT RS Rating', lesson: null, what: glossaryDefinition('uctRsRating'), more: 'Daily charts only: the rating is a once-a-day rank.' }),
   Object.freeze({ id: 'rsPhases', name: 'UCT RS Phases', lesson: 'rsLine', what: glossaryDefinition('uctRsPhases'), more: null }),
   Object.freeze({ id: 'rsVsEma', name: 'UCT RS vs 21 EMA', lesson: 'phase', what: glossaryDefinition('uctRsVsEma'), more: null }),
+  Object.freeze({
+    id: 'rsExit', name: 'UCT RS Exit Warnings', lesson: null, what: glossaryDefinition('uctRsExit'),
+    more: 'Daily and weekly charts only. The names and meanings are Mike Webster\'s; the exact rules are UCT\'s reading of them.',
+  }),
 ])
 
 /** Glossary terms that have a Desk lesson (keys of `RS_LEARN_VIDEOS`). */
@@ -157,13 +166,13 @@ function LessonLink({ lessonKey }) {
   )
 }
 
-/** U9: the four indicators, one block each. Rendered only when the split ships. */
+/** U9: the five indicators, one block each. Rendered only when the split ships. */
 function IndicatorsSection() {
   return (
     <section className={styles.section} aria-labelledby="rs-indicators" data-testid="rs-indicators">
       <h2 className={styles.h2} id="rs-indicators">The RS indicators on the chart</h2>
       <p className={styles.body}>
-        Relative strength is four indicators in the chart library, each drawing one thing. Add the ones you read;
+        Relative strength is five indicators in the chart library, each drawing one thing. Add the ones you read;
         every one of them compares the stock with the same benchmark, the S&amp;P 500 unless you pick another.
       </p>
       {RS_INDICATORS.map((ind) => (
@@ -215,6 +224,30 @@ function SplitFormulas({ m }) {
           The {m.vsEmaLength}-bar EMA is the RS line&rsquo;s own average, the one the RS Line indicator can draw, so
           the two never disagree. Above zero the RS line is above its average; the two EMAs of the distance smooth
           its path.
+        </p>
+      </MethodBlock>
+
+      <MethodBlock
+        id="rs-m-exit" title="RS Exit Warnings" testId="rs-method-exit"
+        formula={(
+          <Formula testId="rs-formula-exit">
+            Fast and slow average = simple averages of the RS line: {m.exitDailyFast} and {m.exitDailySlow} bars on a
+            daily chart, {m.exitWeeklyFast} and {m.exitWeeklySlow} on a weekly one
+            <br />
+            Quick Break = the RS line closes below its fast average after closing at or above it
+            <br />
+            Quicksand = after a Quick Break, the first close below the RS value at that break
+            <br />
+            Grateful Dead Break = the RS line closes below its slow average after closing at or above it
+          </Formula>
+        )}
+      >
+        <p className={styles.body}>
+          A Quick Break and the Quicksand that follows it belong to one cycle. The cycle ends when the RS line closes
+          back at or above its fast average, and the next fall below it is a new Quick Break. Each warning fires once
+          per event, on a closed bar. The names and one-line meanings are Mike Webster&rsquo;s; the exact rules here
+          are UCT&rsquo;s reading of them, because the published description leaves them open. A warning is a prompt
+          to review the position. No published hit rate exists for these signals and UCT has not measured one yet.
         </p>
       </MethodBlock>
     </>

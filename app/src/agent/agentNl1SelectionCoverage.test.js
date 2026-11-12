@@ -13,9 +13,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { SETS } from './testing/sets'
-import { captureCase } from './testing/capture'
+import { captureCase, subsetsUpTo } from './testing/capture'
 import { isProtected } from './protectedLayouts'
-import { NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET, nl1GroupOf as groupOfAction } from './nl1/selection'
+import { NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET, NL1_MAX_NEED, nl1GroupOf as groupOfAction } from './nl1/selection'
 import { loadMeta, loadOptions, loadSaved, _resetScreenerCache } from './capabilities/screener'
 
 registerBuiltins()
@@ -37,6 +37,25 @@ beforeAll(async () => {
   await loadMeta(); await loadOptions(); await loadSaved({ force: true })
 })
 
+// WHICH reroutes are tabled per request. Every set of up to 3 unselected groups is C(n,1)+C(n,2)+C(n,3) reselects per
+// request — cubic in the group count, and ~97% of this file's time (#1074 at 971a1f6606: 99.6 s locally, 2.4 s without the
+// table; 344.6 s on CI vs the 300 s limit, after ONE words-only group was added). Tabled here: EVERY set of up to 2 groups
+// (the whole-or-refused invariant below still covers all of them) plus every 3-group need that one of this turn's accepted
+// plans actually asks for (the only 3-group entries measure() reads). Floors and coverage are unchanged; the whole-or-refused
+// check HERE now covers every ≤2-group reroute and the 3-group needs an accepted plan asks for. A PARTIAL 3-group reroute is
+// caught by agentNl1Selection.test.js ('a reroute carries every group the model asked for — or says it cannot; never part of
+// them'), which must stay (AUDIT mutant, #1134: partial 3-group reroute survives this file, fails that rail). The eval export
+// (agentNl1EvalCapture, tools/agent_eval_run.py) keeps the full table (captureCase's default).
+function rerouteNeeds(s, expect) {
+  const out = subsetsUpTo(s.unselected, 2)
+  const seen = new Set(out.map(n => n.join('+')))
+  for (const p of plansOf(expect)) {
+    const need = [...new Set(p.map(o => groupOfAction(o.a)))].filter(g => s.unselected.includes(g)).sort()
+    if (need.length > 2 && need.length <= NL1_MAX_NEED && !seen.has(need.join('+'))) { seen.add(need.join('+')); out.push(need) }
+  }
+  return out
+}
+
 function capture(budget) {
   const spec = JSON.parse(fs.readFileSync(path.join(DIR, 'corpus.json'), 'utf8'))
   const catalogs = new Map()
@@ -49,7 +68,7 @@ function capture(budget) {
       else expects.set(`${c.id}#0`, c.expect)
     }
     for (const c of data.cases) {
-      for (const t of captureCase(spec, c, 'nl1', { isProtectedLayout: (e) => isProtected(e), catalogs, budget })) {
+      for (const t of captureCase(spec, c, 'nl1', { isProtectedLayout: (e) => isProtected(e), catalogs, budget, rerouteNeeds })) {
         rows.push({ ...t, set: s.file, expect: expects.get(`${c.id}#${t.turn}`) })
       }
     }

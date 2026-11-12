@@ -121,11 +121,42 @@ export const GROUPS = [
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
+  // ⭐ pl-grid (C3-042..061): the Multi Chart GRID itself — its shape, entering / leaving it, the sync toggles, Groups, saved
+  // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
+  // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
+  { id: 'multiChart', title: 'The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart', domains: ['multiChart'], fillLast: true,
+    // #1030 re-merge (Lead 2026-11-11): WORDS-ONLY (never v2 filler, as watchlistShow / compareGroups), and every word needs GRID
+    // context: a bare "group(s)", "row(s)", "sync" or "crosshair" never selects it alone (the frozen no-lookbehind rows stay master's)
+    wordsOnly: true,
+    // a bare \"grid\" / \"2x2\" is chartGrid's (charts tiled on the board): this group needs the grid AS a thing the member acts on
+    words: [/\bmulti[\s-]?charts?\b/, /\bsplit (?:my|the) screen\b/,
+      /\b(?:open|save|delete|apply|load|close|exit|leave|restore|fill|refresh|rename) (?:the |this |that |my |a )?(?:[\w’'&-]+ ){0,3}?grids?\b/,
+      /\b(?:show|give) me an? (?:\d\s*(?:x|by|×)\s*\d|(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)) grid\b/, /\b(?:in|of|across) the (?:whole )?grid\b/,
+      // a shape said as rows AND columns ("three rows and four columns")
+      /\b(?:\d|one|two|three|four)\s+rows?\b.*\b(?:\d|one|two|three|four)\s+columns?\b|\b(?:\d|one|two|three|four)\s+columns?\b.*\b(?:\d|one|two|three|four)\s+rows?\b/,
+      // sync WITH what it syncs (the crosshair, the time range, the charts / cells); link / lock only the crosshair or time range
+      // ("link the top two charts" is widget.setLink's)
+      /\bsync\w*\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?|charts|cells)\b|\b(?:link\w*|lock\w*)\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?)\b|\bcross[\s-]?hairs?\s+(?:[\w’'-]+\s+){0,3}?(?:sync\w*|link\w*|across)\b/,
+      /\b(?:every|all(?: the| my)?|each) (?:charts?|cells?) (?:\w+ ){0,3}?(?:to |on )?the same (?:dates|time ?range)\b/,
+      // Groups mode, or stepping the grid's group
+      /\bgroups mode\b|\b(?:next|previous|prev) group\b|\brefresh (?:the |this |my )?group\b|\bswitch (?:over )?to (?:the |my )?[\w&’' -]{1,40}? group\b(?! (?:comparisons?|overlays?|scale))/,
+      /\bmaximi[sz]e|\bfull[\s-]?(?:size|screen)\b|\bblow (?:it |that |the \w+ )?up\b|\bwhole grid\b|\bun-?maximi[sz]e\b/,
+      /\bshared (?:chart )?settings\b|\bmy (?:own )?(?:chart|normal) settings\b|\breset\b.*\bmy chart\b|\bback to my (?:own )?chart\b/,
+      /\bnormal (?:board|charts? board)\b|\bback to (?:the |my )?(?:normal |regular )?(?:board|workspace)\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
     // W1.1 R-03 (LT-9): "rename <X> to <Y>" names a layout as often as a tab or a list — the group rides along (routing only ADDS)
     words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/, /\brename\b(?!.*\b(?:watch ?lists?|lists?|tabs?|screens?|scans?|indicators?|drafts?|alerts?)\b).*\bto\b/] },
+  // C3-037..039 (#1074): the Layout Dock's BAR — pin a layout to it, take one off, move one along it. Its OWN three-action group by
+  // action name, WORDS-ONLY (never a filler), like watchlistShow (#1027): #1074 re-merge onto 64421f770d — with the three in
+  // `layouts`, that group grew past what NL-1's budget fits beside the core + another group (corpus ws-11, layout.duplicate, lost
+  // its first call), and the bar words made `layouts` ride on the chart header's bar-info readout (C1-065, chart.setSetting).
+  // Words: a place on the bar or dock ("take Swing off the bar", "move Swing to the left on the bar"), but never a bar-info noun
+  // after "bar" ("hide the close in the bar info": the chart's readout, not the dock); "unpin"; "pin" with "layout".
+  { id: 'layoutBar', title: 'The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it',
+    domains: [], actions: ['layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b(?! (?:info|readouts?|data|values?|legend|strip)\b)/, /\bunpin\b/, /\bpin\b.*\blayout/] },
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],

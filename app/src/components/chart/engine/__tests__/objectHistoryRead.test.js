@@ -83,6 +83,10 @@ describe('the runtime reads `x` on bar `bar - e`', () => {
     expect(r.reason).toContain('bar 5')
     expect(r.live).toEqual([])
     expect(r.counts.label).toBe(0)
+    // ⭐ OZ N-2 (railed in engine 50) — the offset as the script writes it, `[-1]`, never our
+    // placeholder name (`x[-1]`): the member reads this sentence (`stoppedRunSentence`)
+    expect(r.reason).toBe('a history read `[-1]` on bar 5 is a future bar — TradingView stops the script there')
+    expect(r.reason).not.toMatch(/\bx\[/)
   })
 
   it('⛔⛔ an offset at or past `max_bars_back` is a Pine runtime error', () => {

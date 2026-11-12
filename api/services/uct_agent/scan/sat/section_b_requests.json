@@ -11188,8 +11188,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -11508,8 +11516,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -11826,8 +11842,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12150,8 +12174,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12467,8 +12499,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12785,8 +12825,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -13103,8 +13151,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -13688,8 +13744,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14007,8 +14071,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14324,8 +14396,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14902,8 +14982,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -15220,8 +15308,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -15805,8 +15901,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -16384,8 +16488,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -16963,8 +17075,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17281,8 +17401,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17866,8 +17994,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18184,8 +18320,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18508,8 +18652,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18832,8 +18984,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19156,8 +19316,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19474,8 +19642,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19792,8 +19968,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -20109,8 +20293,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -20427,8 +20619,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21005,8 +21205,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21585,8 +21793,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -22164,8 +22380,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -22743,8 +22967,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -23060,8 +23292,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",

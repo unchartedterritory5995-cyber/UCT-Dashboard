@@ -6,6 +6,7 @@ import { latchRuntimePanePermission } from '../lib/runtimePanePermission'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { setRecoveryAuthCheck } from '../lib/recoveryRegistry'
 import { publishPrefsUser } from '../lib/prefsSession'
+import { noteBootUser, setSignedInHint, takeBootMe } from '../lib/bootFetch'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 import { readResearchNotices } from '../pages/research/notices/researchNoticeFlags'
@@ -277,9 +278,16 @@ export function AuthProvider({ children }) {
       return { plan: 'free', role: null, transient: true }
     }
     try {
-      const res = await fetch('/api/auth/me')
+      // The first check takes the request main.jsx started as the page loaded (lib/bootFetch.js), so it
+      // is not one round trip behind the first render. Missing, stale or failed: fetch as always.
+      const boot = takeBootMe()
+      const bootRes = boot ? await boot : null
+      const res = bootRes || await fetch('/api/auth/me')
+      const fromBoot = !!bootRes && res === bootRes
       if (res.ok) {
         const data = await res.json()
+        if (fromBoot) noteBootUser(data.user?.id ?? null)
+        setSignedInHint(!!data.user)
         setUser(data.user)
         setPlan(data.plan)
         setSubscription(data.subscription || null)
@@ -293,6 +301,8 @@ export function AuthProvider({ children }) {
       } else {
         // Definitive rejection — 401/403 (and every other 4xx, unchanged
         // from today's behavior): logged out, and any transient flag clears.
+        if (fromBoot) noteBootUser(null)
+        setSignedInHint(false)
         setUser(null)
         setPlan('free')
         setSubscription(null)

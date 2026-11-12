@@ -1197,6 +1197,94 @@
    "shape": null
   },
   {
+   "name": "layout.pinToBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Pin one of the member's layouts to the layout bar along the bottom of Charts (the library's \"add to bar\"). The slot goes on the end. Does NOT open the layout and does not change the board.",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id from the layouts list, or the member's own words for it (UCT matches them; several matches are asked about). To also switch to it, that is layout.open, a separate step.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "layout.unpinFromBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Take one layout off the layout bar along the bottom of Charts (the slot menu's \"Close\"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it. If they did not name one, or it sits on the bar twice, clarify with the real names.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "layout.moveOnBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Reorder the layout bar along the bottom of Charts: move one layout left or right one spot (the slot menu's Move left / Move right), to the first or last spot, or to a numbered spot.",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it; to = \"left\" or \"right\" (one spot), \"first\" or \"last\", or a spot number counted from 1 on the left (the `spot` in the bar list).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout",
+     "to"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "watchlist.list",
    "domain": "watchlist",
    "target": "watchlistLibrary",
@@ -7047,6 +7135,133 @@
    "defaults": null,
    "defaultsWhen": null,
    "shape": null
+  },
+  {
+   "name": "multiChart.set",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Change the Multi Chart GRID as a whole, as its Multi Charts menu does: open it at a shape (layout rows × columns) or exit to the Charts board, crosshair / time-range sync, Groups mode, load / step / refresh a group, open / save / delete a saved grid, open Shared Chart Settings, restore a maximized grid. Undo restores the grid exactly.",
+   "hints": "target = the multiChart ref. rows/cols only with op layout (both null = open Multi Chart as it was); on only with the sync / groupsMode ops; name = the group (pickGroup) or saved grid (applySaved / saveGrid / deleteSaved) as the member said it; direction only with stepGroup. ONE chart’s ticker / timeframe / style is a chart.* action on that cell, not this. Maximizing one cell or resetting one cell to the member’s own chart is multiChart.cell.",
+   "args": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "layout",
+       "exit",
+       "syncCrosshair",
+       "syncTimeRange",
+       "groupsMode",
+       "pickGroup",
+       "stepGroup",
+       "refreshGroup",
+       "applySaved",
+       "saveGrid",
+       "deleteSaved",
+       "openSettings",
+       "restoreGrid"
+      ]
+     },
+     "rows": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "cols": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "on": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "next",
+       "previous",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "rows",
+     "cols",
+     "on",
+     "name",
+     "direction"
+    ]
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "prev": "previous",
+     "back": "previous",
+     "forward": "next"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"op\":\"layout\",\"rows\":2,\"cols\":3,\"on\":null,\"name\":null,\"direction\":null}"
+  },
+  {
+   "name": "multiChart.cell",
+   "domain": "multiChart",
+   "target": "gridCell",
+   "summary": "ONE Multi Chart cell’s own buttons: maximize it so it covers the whole grid, or “Reset to my chart” (the cell drops its own chart settings and draws the member’s chart settings again; its ticker, timeframe and Style stay). Undo puts it back.",
+   "hints": "target = that cell’s ref from charts (the chart the member named or clicked). To un-maximize use multiChart.set op restoreGrid.",
+   "args": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "maximize",
+       "resetToMine"
+      ]
+     }
+    },
+    "required": [
+     "op"
+    ]
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "op": {
+     "maximise": "maximize",
+     "expand": "maximize",
+     "reset": "resetToMine"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"op\":\"maximize\"}"
   }
  ]
 }

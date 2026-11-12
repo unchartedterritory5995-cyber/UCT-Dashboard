@@ -30,7 +30,7 @@ function deliver(w, sim, e) {
 function liveWorld(sim, nowMs) {
   const registry = createRegistry({ ctx: () => ({ nowMs }) })
   const stream = fakeStream(), candle = fakeCandle(), prices = fakePrices()
-  const live = createLiveFeed({ registry, stream, candle, prices, now: () => nowMs })
+  const live = createLiveFeed({ registry, pushEnabled: () => true, stream, candle, prices, now: () => nowMs })
   const detach = live.attach(sim.key, { session: sim.session })
   // every snapshot the feed produces keeps S1 / S3 / frozen
   registry.subscribe(sim.key, (s) => {
@@ -100,7 +100,7 @@ describe('liveFeed ordering — push final vs poll vs tick (seeded)', () => {
     const stream = fakeStream(), candle = fakeCandle(), prices = fakePrices()
     stream.st.delivering = false
     let clock = nowMs
-    const live = createLiveFeed({ registry, stream, candle, prices, now: () => clock })
+    const live = createLiveFeed({ registry, pushEnabled: () => true, stream, candle, prices, now: () => clock })
     live.attach(key)
     registry.dispatch(key, { type: 'rest-full', payload: { bars: [{ t: nowMs / 1000 - 420, o: 100, h: 101, l: 99, c: 100, v: 5 }], contract: 1, grid: 'eth-clock', cache_key: 'b1:SIM:5:eth-clock', series_rev: 1, history_rev: 1, complete_through: null } })
     candle.tick('SIM', 100.4, clock)
@@ -120,6 +120,32 @@ describe('liveFeed ordering — push final vs poll vs tick (seeded)', () => {
     w.detach()
     expect(w.stream.count() + w.candle.count() + w.prices.count()).toBe(0)
   })
+})
+
+// P3-S1 review fix 2 — the push feed is DARK unless its ONE build gate (lib/realtimeBarsGate,
+// the VITE_REALTIME_BARS owner legacy Writer B's useRealtimeBars reads) is on. INVARIANT, every
+// key kind: gate off ⇒ the store opens no stream subscription, never counts push as delivering,
+// and the tick fallback is the live source; gate on ⇒ the push feed is subscribed.
+describe('push feed build gate (VITE_REALTIME_BARS)', () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+  const keys = [keyOf({ sym: 'GATE', tf: '1' }), keyOf({ sym: 'GATE', tf: '5' }), keyOf({ sym: 'GATE', tf: '60', session: 'eth' }), keyOf({ sym: 'GATE', tf: 'D' })]
+  for (const [env, on] of [[undefined, false], ['0', false], ['1', true]]) {
+    it(`VITE_REALTIME_BARS=${env} ⇒ push ${on ? 'subscribed' : 'never subscribed, ticks are the source'}`, () => {
+      if (env !== undefined) vi.stubEnv('VITE_REALTIME_BARS', env)
+      else vi.stubEnv('VITE_REALTIME_BARS', '')
+      for (const key of keys) {
+        const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
+        const stream = fakeStream(), candle = fakeCandle(), prices = fakePrices()
+        const live = createLiveFeed({ registry, stream, candle, prices })   // the DEFAULT gate
+        const off = live.attach(key)
+        expect(stream.count(), key).toBe(on ? 1 : 0)
+        expect(live.isStreamLive(key), key).toBe(on)
+        expect(candle.count() + prices.count(), key).toBe(2)   // the fallback is always attached
+        off()
+        expect(stream.count() + candle.count() + prices.count()).toBe(0)
+      }
+    })
+  }
 })
 
 describe('D/W/M fold of the 1m stream', () => {
@@ -177,7 +203,7 @@ describe('D/W/M fold of the 1m stream', () => {
       const key = keyOf({ sym: 'SIM', tf: 'D' })
       const registry = createRegistry({ ctx: () => ({ nowMs: clock }) })
       const stream = fakeStream()
-      createLiveFeed({ registry, stream, candle: fakeCandle(), prices: fakePrices(), now: () => clock }).attach(key)
+      createLiveFeed({ registry, pushEnabled: () => true, stream, candle: fakeCandle(), prices: fakePrices(), now: () => clock }).attach(key)
       for (const e of sim.events) {
         clock = e.arr
         vi.setSystemTime(clock)
@@ -229,7 +255,7 @@ describe('D/W/M fold of the 1m stream', () => {
     vi.setSystemTime(nowMs)
     const registry = createRegistry({ ctx: () => ({ nowMs }) })
     const stream = fakeStream()
-    createLiveFeed({ registry, stream, candle: fakeCandle(), prices: fakePrices(), now: () => nowMs }).attach(key)
+    createLiveFeed({ registry, pushEnabled: () => true, stream, candle: fakeCandle(), prices: fakePrices(), now: () => nowMs }).attach(key)
     const rest = (h, v, rev) => registry.dispatch(key, { type: 'rest-full', payload: {
       bars: [{ t: '2026-11-09', o: 90, h: 95, l: 89, c: 94, v: 9000 }, { t: day, o: 100, h, l: 98, c: 101, v }],
       contract: 1, grid: 'plain', cache_key: 'b1:SIM:D:plain', series_rev: rev, history_rev: 1, complete_through: null,

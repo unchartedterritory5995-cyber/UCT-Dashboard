@@ -5,7 +5,9 @@ import { TIER1_IDS } from './tier1Library.fixture'
 // `compute.kind: 'server'`, none ever a settings section, so no July blob can
 // name one and a migration may switch none on. Named, not derived from the
 // registry, so a fourth server definition cannot join this list unnoticed.
-const RS_SPLIT_IDS = ['rsRating', 'rsPhases', 'rsVsEma']
+// 2026-11-12 (RS Exit Warnings): `rsExit`, the fifth RS definition, joins them: server lane,
+// never a settings section.
+const RS_SPLIT_IDS = ['rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
 import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'
