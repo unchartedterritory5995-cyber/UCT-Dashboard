@@ -62,5 +62,5 @@ def test_the_report_counts_the_upgrade(monkeypatch):
     rep = la.build()
     up = rep["upgrade"]
     assert up["live"] == sum(rep["formats"].values())
-    assert up["three_choice"] + up["four_choice"] == sum(rep["formats"].get(f, 0) for f in ("mcq", "scenario"))
+    assert up.get("three_choice", 0) + up.get("four_choice", 0) == sum(rep["formats"].get(f, 0) for f in ("mcq", "scenario"))
     assert "upgrade (docs/study/OVERBUILD_PLAN.md)" in la.render(rep)
