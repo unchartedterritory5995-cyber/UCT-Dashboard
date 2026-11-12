@@ -86,3 +86,14 @@ def test_new_questions_facts_and_cuts_are_applied_and_later_files_override_earli
     assert au.main([str(src), str(a), str(b), "--out", str(out)]) == 0
     q1 = json.loads(out.read_text(encoding="utf-8"))["questions"][0]
     assert q1["tier"] == "extended" and q1["simple"].startswith("The bid")
+
+
+def test_a_cut_beats_an_upgrade_and_a_pass_and_a_calc_can_be_replaced():
+    d = copy.deepcopy(_unit())
+    au.apply(d, UP, "b", {"q01": {"status": "pass", "notes": "ok"}}, {"cut": ["q01"]})
+    assert d["verify"]["q01"]["status"] == "cut"
+    d2 = copy.deepcopy(_unit())
+    au.apply(d2, {"q06": {"calc": {"fn": "spread", "args": {"bid": 20.0, "ask": 20.1}}, "answer": 0.1,
+                         "q": "The bid is 20.00 and the ask is 20.10. What is the spread in dollars?",
+                         "why": "0.10. Ask minus bid."}}, "b")
+    assert cl.unit_problems(d2) == []
