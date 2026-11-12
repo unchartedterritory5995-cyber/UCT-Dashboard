@@ -39,8 +39,16 @@ export const ENUM_UNREADABLE_SENTENCE = 'the style, size or position of this dra
 
 /** The three ways an enum slot withholds its drawing — guard, drop reason, sentence — ONE table,
  *  read by every converter in `ast/pine.js` (create, setter, cell). */
+// ⛔ ENGINE 51 (review of #1149, minor 4) — Pine v6's INTEGER text size, in typographic
+// points (`text_size = 11`, `input.int(12)`). This chart sizes text by the six `size.*`
+// words only; a point size is a capability it does not have yet, said as such.
+export const TEXT_SIZE_POINTS_SENTENCE = 'the text size of this drawing is an integer point size (Pine v6 '
+  + '`text_size` in typographic points), which this chart does not draw yet; the drawing is withheld '
+  + 'rather than drawn at one of the six named sizes'
+
 export const ENUM_DROPS = Object.freeze({
   na: Object.freeze({ guard: 'pine:enum-na', drop: 'enum:na', sentence: ENUM_NA_SENTENCE }),
   named: Object.freeze({ guard: 'pine:enum-named-call', drop: 'enum:named-call', sentence: ENUM_NAMED_CALL_SENTENCE }),
   unreadable: Object.freeze({ guard: 'pine:enum-unreadable', drop: 'enum:unreadable', sentence: ENUM_UNREADABLE_SENTENCE }),
+  points: Object.freeze({ guard: 'pine:text-size-points', drop: 'enum:points', sentence: TEXT_SIZE_POINTS_SENTENCE }),
 })

@@ -41,6 +41,7 @@ import {
   bodyMayWriteList as bodyMayWriteListRule, forInMutationRefusal,
 } from './forInRule.js'
 import { MAX_COLLECTION_CAP } from './objectProgram.js'
+import { setterPineParams } from '../objectSetterParams.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
@@ -145,23 +146,16 @@ export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
  *    table.cell_set_*  column, row, then the one property (named as it is)
  *    table.clear / merge_cells   `CLEAR_POSITIONAL`
  *    <family>.delete   nothing
- *    setters           the properties `SETTER_PROPS` names; a one-property
- *                      setter takes its value under any name but the handle's
- *                      (Pine names it `x`, `color`, `width` … — the runtime
- *                      lane's own rule, `objectCall` lowering); a multi-property
- *                      setter by the property names or Pine's (`SETTER_PINE_NAMES`).
+ *    setters           the properties `SETTER_PROPS` names, a named value
+ *                      placed by PINE's parameter name only (`SETTER_PINE_PARAMS`,
+ *                      `../objectSetterParams.js`, shared with the runtime lane):
+ *                      `box.set_bgcolor(id, color)` writes `bgcolor`, and
+ *                      `label.set_text(lb, txt = "a")` is refused, as Pine does.
  *  Returns `null` for an op this table does not describe (the caller keeps its
  *  own path), `{refused}` for a call Pine would not compile or this reader cannot
  *  place (a name the op does not take, a value given twice, a positional argument
  *  after a named one, more arguments than it takes), else `{handle, slots}` —
  *  `slots` keyed by parameter name. */
-export const SETTER_PINE_NAMES = Object.freeze({
-  'line.set_xy1': Object.freeze(['x', 'y']), 'line.set_xy2': Object.freeze(['x', 'y']),
-  'line.set_xloc': Object.freeze(['x1', 'x2', 'xloc']),
-  'label.set_xy': Object.freeze(['x', 'y']), 'label.set_xloc': Object.freeze(['x', 'xloc']),
-  'box.set_lefttop': Object.freeze(['left', 'top']), 'box.set_rightbottom': Object.freeze(['right', 'bottom']),
-  'box.set_xloc': Object.freeze(['left', 'right', 'xloc']),
-})
 export function objectCallParams(ns, method) {
   if (ns === 'table' && method === 'cell') return ['column', 'row', ...CELL_POSITIONAL]
   if (ns === 'table' && CELL_SETTER_PROPS[method]) return ['column', 'row', CELL_SETTER_PROPS[method]]
@@ -179,8 +173,10 @@ export function placeObjectArgs(ns, method, handle, args) {
   let h = handle || null
   let pos = 0
   let named = false
-  const pineNames = SETTER_PINE_NAMES[`${ns}.${method}`] || null
   const isSetter = !!(SETTER_PROPS[ns] || {})[method]
+  // ⛔ Engine 51 (review of #1149, low 7) — a setter's value is named as Pine names it,
+  // never by the property it writes and never by any other word.
+  const pineNames = isSetter ? setterPineParams(ns, method) : null
   for (const a of args || []) {
     if (!a) continue
     let key
@@ -188,9 +184,11 @@ export function placeObjectArgs(ns, method, handle, args) {
       named = true
       const nm = String(a.name)
       if (nm === handleName) key = handleName
-      else if (params.includes(nm)) key = nm
-      else if (pineNames && pineNames.includes(nm)) key = params[pineNames.indexOf(nm)]
-      else if (isSetter && params.length === 1) key = params[0]
+      else if (isSetter) {
+        const at = pineNames ? pineNames.indexOf(nm) : -1
+        if (at < 0) return { refused: `named argument \`${nm}\`` }
+        key = params[at]
+      } else if (params.includes(nm)) key = nm
       else return { refused: `named argument \`${nm}\`` }
     } else {
       if (named) return { refused: 'a positional argument after a named one' }

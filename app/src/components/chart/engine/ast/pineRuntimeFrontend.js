@@ -99,6 +99,7 @@ import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
+import { setterPineParams, setterPineParamsOfAny } from '../objectSetterParams.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
@@ -3964,6 +3965,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
    * or `any.<method>` (dispatched on the receiver's family at run time);
    * `recvNode` (method form) is the object, prepended as the first argument.
    */
+  /** ⭐ Engine 51 — a setter's Pine parameter names after the handle, or null when
+   *  `fn` is not a setter (or, for `any.<m>`, the families spell it differently). */
+  const setterNamesOf = (fn, spec, method) => {
+    if (spec) return spec.kind === 'set' ? setterPineParams(spec.family, fn.slice(spec.family.length + 1)) : null
+    return method && /^set_/.test(method) ? setterPineParamsOfAny(method, ANY_METHODS[method]) : null
+  }
   const lowerObjectCall = (fn, argList, tok, scope, recvNode = null) => {
     // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
     // taken arm. A drawing made in an arm would be made on every bar.
@@ -3998,12 +4005,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let at
       if (nm) {
         namedSeen = true
-        // ⭐ Pine names a setter's value by what it is (`x`, `y`, `text`); the
-        // store's parameters are the properties written. A one-property setter
-        // takes its one value under any name; a name not in the list otherwise
-        // is a refusal.
-        at = params.indexOf(nm === 'table_id' ? 'id' : nm)
-        if (at < 0 && spec && spec.kind === 'set' && spec.props.length === 1 && nm !== 'id') at = 1
+        // ⭐ Pine names a setter's value by what it is (`x`, `y`, `color`); the
+        // store's parameters are the properties written. ⛔ Engine 51 (review of
+        // #1149, low 7): a setter's value is placed by PINE's parameter name only
+        // (`SETTER_PINE_PARAMS`, the table the host lane reads too), so
+        // `label.set_text(lb, txt = "a")` is refused, as TradingView refuses it.
+        const pineNames = setterNamesOf(fn, spec, method)
+        if (pineNames && nm !== 'id' && nm !== 'table_id') {
+          const i = pineNames.indexOf(nm)
+          at = i < 0 ? -1 : i + 1
+        } else at = params.indexOf(nm === 'table_id' ? 'id' : nm)
         if (at < 0) refuseObject(fn.replace(/^any\./, '.'), `this lane does not read a named argument \`${nm}\` there`, tok)
       } else {
         if (namedSeen) refuseObject(fn, 'a positional argument after a named one', tok)

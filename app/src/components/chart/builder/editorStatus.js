@@ -139,7 +139,7 @@ export const FAMILIES = Object.freeze([
     id: 'drawing',
     // HONESTY-SWEEP: a drawing whose style/size/position can be `na`, or is computed by a helper
     // called with a named argument, is withheld (`pine.js`, `ENUM_NA_SENTENCE` / `ENUM_NAMED_CALL_SENTENCE`).
-    exact: ['pine:drawing', 'pine:enum-na', 'pine:enum-named-call', 'pine:enum-unreadable'],
+    exact: ['pine:drawing', 'pine:enum-na', 'pine:enum-named-call', 'pine:enum-unreadable', 'pine:text-size-points'],
     prefix: ['pine:object-', 'runtime:object'],
     label: 'Lines, labels, boxes and tables',
     why: 'We cannot yet make this drawing exactly the way TradingView does, so it is not drawn.',

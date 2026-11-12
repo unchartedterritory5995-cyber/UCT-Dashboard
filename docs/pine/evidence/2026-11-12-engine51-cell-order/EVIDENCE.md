@@ -229,9 +229,12 @@ default".
 The census translates every file with the host translator. It hashes the object program, the
 outputs and the runtime verdict.
 
-- 128 of 1,605 files hashed differently. Re-translated one by one in isolation, **92 are
-  byte-identical**: their census difference came from state carried between translations in one
-  process. That is pre-existing; noted for follow-up.
+- 128 of 1,605 files hashed differently. **92 of them differ in JSON key order only**: the
+  census hashes `JSON.stringify` of the program, and `emitMethodOn` rebuilds a cell's arguments in
+  `CELL_POSITIONAL` order, so a cell written with named arguments carries the same properties in
+  a different key order. (Corrected in review: this said "state carried between translations in
+  one process", which was wrong. Part 3's census hashes the canonical, key-sorted program as
+  well, and separates the two.)
 - The remaining **33 distinct scripts (36 rows) change**:
 
 | change | scripts |
