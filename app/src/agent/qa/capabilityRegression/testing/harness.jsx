@@ -29,6 +29,7 @@ import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
 import { captureIndicatorTemplate } from '../../../../components/chart/builder/indicatorTemplates'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
@@ -91,6 +92,8 @@ export const BOARDS = {
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }, { indicatorAlerts: true }],
+  // #1030: ONE + the Multi Chart grid's control surface (testing/gridStub.js; the grid closed, 2×2 kept for next time)
+  GRID: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { grid: true }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
 }
@@ -178,6 +181,7 @@ export function resolveTarget(t, body) {
   const m = /^\$([A-Za-z]+)(?:\[(\d+)\])?$/.exec(String(t || ''))
   if (!m) return t
   const list = body?.context?.[m[1]]
+  if (list && !Array.isArray(list) && m[2] == null && list.ref) return list.ref                 // a context OBJECT ("$multiChart", #1030)
   return Array.isArray(list) && list[Number(m[2] || 0)] ? list[Number(m[2] || 0)].ref : `missing:${t}`
 }
 // an ARG may name a live value from the request context: "$ctx:drawings.0.drawings.0.id" (ids minted at run time)
@@ -319,6 +323,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (extra.grid) mounted.h.gridControl = makeGridControl(['NVDA'])
   if (extra.layoutDock) {
     // the Layout Dock's door (pages/charts/LayoutDock.jsx agentRef): the same positional helpers over the
     // `charts_layout_dock` preference (st.prefs, so a case checks the bar with `prefs`); the library is the board's

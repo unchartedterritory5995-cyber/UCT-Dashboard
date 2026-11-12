@@ -173,7 +173,9 @@
   "agent.undo": "undo",
   "guide.explain": "guide",
   "guide.show": "guide",
-  "calendar.day": "calendar"
+  "calendar.day": "calendar",
+  "multiChart.set": "multiChart",
+  "multiChart.cell": "multiChart"
  },
  "groups": [
   {
@@ -199,6 +201,10 @@
   {
    "id": "workspace",
    "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+  },
+  {
+   "id": "multiChart",
+   "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
   },
   {
    "id": "layouts",
@@ -350,6 +356,10 @@
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
      },
      {
       "id": "layouts",
@@ -519,6 +529,10 @@
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
      },
      {
       "id": "layouts",
@@ -702,6 +716,10 @@
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+     },
+     {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
      },
      {
       "id": "layouts",
@@ -897,6 +915,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -1062,6 +1084,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -1156,6 +1182,7 @@
     "chartGrid",
     "boardEdit",
     "workspace",
+    "multiChart",
     "layouts",
     "layoutBar",
     "indicators",
@@ -1343,7 +1370,9 @@
     "agent.undo",
     "guide.explain",
     "guide.show",
-    "calendar.day"
+    "calendar.day",
+    "multiChart.set",
+    "multiChart.cell"
    ],
    "routing": null
   }

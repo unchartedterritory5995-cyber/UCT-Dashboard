@@ -149,6 +149,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // #1030: the Multi Chart grid's own words (the grid as a thing acted on, a shape with rows AND columns, sync WITH what it syncs)
+    multiChart: ['open multi chart as a 2x3', 'open my momentum nine grid', 'sync the crosshairs on every chart', 'turn groups mode on'],
     // #1074: the Layout Dock's bar — a place on the bar / dock, "unpin", or "pin" with "layout"
     layoutBar: ['take Swing off the bar', 'pin my Momentum layout', 'move Day Trading to the left on the layout bar'],
   }

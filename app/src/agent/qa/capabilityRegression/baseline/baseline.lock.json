@@ -4320,6 +4320,36 @@
      "modes": {}
     }
    }
+  },
+  "multiChart.grid.layout": {
+   "digest": "20021a750af90a29",
+   "phrasings": {
+    "can you split my screen into a two by three grid of charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open Multi Chart with two rows and three columns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multiChart.grid.syncCrosshair": {
+   "digest": "e260682e60609d94",
+   "phrasings": {
+    "link the crosshairs across the multi chart grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on crosshair sync for the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -4530,6 +4560,11 @@
   },
   "refuse.arrangeColumns-standin": {
    "digest": "bb2d172e740d8613",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.multiChart.cell-grid-closed": {
+   "digest": "0638b246c841cc2a",
    "gap": false,
    "mode": null
   }

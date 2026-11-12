@@ -796,7 +796,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -829,5 +829,8 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(prefs ? { prefs } : {}),
     // The router's navigate() (an allow-listed path from capabilities/app.js only).
     ...(navigate ? { navigate } : {}),
+    // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
+    // member enters a grid from the board. Read by capabilities/multiChart.js only.
+    ...(gridControl ? { gridControl } : {}),
   }
 }

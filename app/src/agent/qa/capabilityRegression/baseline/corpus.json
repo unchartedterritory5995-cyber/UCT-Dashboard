@@ -10718,6 +10718,103 @@
       "phrasings": [
         "keep a copy of that one"
       ]
+    },
+    {
+      "id": "multiChart.grid.layout",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "layout",
+              "rows": 2,
+              "cols": 3,
+              "on": null,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "mode": "grid",
+          "layout": "2x3",
+          "cellCount": 6
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "mode": "workspace",
+            "layout": "2x2",
+            "cellCount": 4
+          }
+        }
+      },
+      "phrasings": [
+        "can you split my screen into a two by three grid of charts",
+        "open Multi Chart with two rows and three columns"
+      ]
+    },
+    {
+      "id": "multiChart.grid.syncCrosshair",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "syncCrosshair",
+              "rows": null,
+              "cols": null,
+              "on": true,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "syncCrosshair": true,
+          "mode": "workspace"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "syncCrosshair": false
+          }
+        }
+      },
+      "phrasings": [
+        "link the crosshairs across the multi chart grid",
+        "turn on crosshair sync for the grid"
+      ]
     }
   ],
   "refusals": [
@@ -12485,6 +12582,43 @@
             "receipt": false
           }
         }
+      ]
+    },
+    {
+      "id": "refuse.multiChart.cell-grid-closed",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js): a cell button with Multi Chart closed: no grid cell is a target, nothing changes",
+      "capabilities": [
+        "multiChart.cell"
+      ],
+      "board": "GRID",
+      "steps": [
+        {
+          "say": "maximize the top-left chart in the multi chart grid",
+          "model": {
+            "ops": [
+              {
+                "action": "multiChart.cell",
+                "target": "$charts[0]",
+                "args": {
+                  "op": "maximize"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "multiChart.cell",
+            "grid": {
+              "maxId": null,
+              "mode": "workspace"
+            }
+          }
+        }
+      ],
+      "refuses": [
+        "multiChart.cell"
       ]
     }
   ]

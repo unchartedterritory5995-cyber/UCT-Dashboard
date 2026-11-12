@@ -52,6 +52,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import useGridAgentControl from './grid/useGridAgentControl'
 import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
@@ -2746,6 +2747,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // authority for which shell renders (a single MQL, deliberately), so the
   // device class is derived from it rather than from a second opinion.
   const mc = useMultiChartState(deviceClassOf(isMobile))
+  // ⭐ UCT Agent: the grid's own writers, for the Agent host below (useGridAgentControl — stable, read live)
+  const gridAgentControl = useGridAgentControl(mc)
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -3499,7 +3502,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       read: () => agentReplayRef.current?.cutoff ?? null,
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
-  }), [])
+    gridControl: gridAgentControl,
+  }), [])   // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
   useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
