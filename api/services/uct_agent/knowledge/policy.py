@@ -66,6 +66,29 @@ def _empty(why: str) -> dict:
     return {"policy_version": 0, "sources": {}, "prefix_classes": [], "error": why}
 
 
+# ── MINIMAL MODE (owner directive 2026-11-04): a first Brain test independent of the unfinished Rights subsystem ─────
+#: UCT_AGENT_KN_MINIMAL=1 pins the source baseline IN CODE and ignores every policy.json field that could widen what
+#: is served without a verified path: extra admitted sources, rights_cleared_concepts, extra team_origins,
+#: excluded_setup_mentions.mode = serve_flagged and cleared_rows. Setup templates and records are not served at all.
+#: policy.json may still NARROW (a source set to admit false, an origin removed): the intersection is used.
+MINIMAL_ENV = "UCT_AGENT_KN_MINIMAL"
+MINIMAL_SOURCES = frozenset({"setup_knowledge", "trader_archive"})
+MINIMAL_TEAM_ORIGINS = frozenset({"tsdr", "bracco", "manrav", "chartmaster", "jersace", "attheask", "uct", "uct team"})
+
+
+#: QA round 5: FAIL CLOSED — unset or an explicit off-word means off; ANY other value (enabled, Y, 2, ...) means ON
+_OFF_WORDS = frozenset({"", "0", "false", "off", "no"})
+#: the remaining policy.json fields minimal mode would otherwise read: pinned so they can only NARROW
+MINIMAL_EXCLUDED_CATEGORIES = frozenset({"TEST"})
+MINIMAL_DATED_CATEGORIES = frozenset({"MACRO", "REGIME", "SECTOR"})
+MINIMAL_DATED_MAX_AGE_DAYS = 30
+MINIMAL_TRADER_ALIASES = {"TSDR_Trading": "TSDR", "1ChartMaster": "Chartmaster", "Uncharted Territory": "UCT Team"}
+
+
+def minimal_mode() -> bool:
+    return str(os.environ.get(MINIMAL_ENV) or "").strip().lower() not in _OFF_WORDS
+
+
 def version() -> int:
     try:
         return int(load().get("policy_version") or 0)
@@ -82,6 +105,9 @@ def classify(source: Optional[str]) -> dict:
             return {"state": "excluded", "licence": pc.get("licence") or "unresolved", "label": s,
                     "reason": pc.get("reason") or "excluded by policy"}
     row = pol.get("sources", {}).get(s)
+    if minimal_mode() and s not in MINIMAL_SOURCES:
+        return {"state": "excluded", "licence": (row or {}).get("licence") or "unresolved", "label": s or "(blank)",
+                "reason": "not in the minimal-mode source baseline"}
     if isinstance(row, dict):
         if row.get("admit") is True:
             return {"state": "admitted", "licence": row.get("licence") or "unresolved",
@@ -97,6 +123,8 @@ _CLEARED_FIELDS = ("template", "provenance_ref", "rights_review_ref", "approved_
 
 def rights_cleared(name: Optional[str]) -> Optional[dict]:
     """The rights-cleared concept entry for this template, only when EVERY required field is present."""
+    if minimal_mode():
+        return None                                  # minimal mode: no rights-cleared concepts
     for e in (load().get("templates") or {}).get("rights_cleared_concepts") or []:
         if isinstance(e, dict) and str(e.get("template") or "") == str(name or "") \
                 and all(str(e.get(f) or "").strip() for f in _CLEARED_FIELDS):
@@ -116,6 +144,8 @@ def classify_template(origin_trader: Optional[str], name: Optional[str] = None) 
                 "label": f"a team-authored concept explanation (rights review {cleared['rights_review_ref']})",
                 "reason": "", "provenance_ref": cleared["provenance_ref"], "rights_review_ref": cleared["rights_review_ref"]}
     team = {str(x).strip().lower() for x in t.get("team_origins") or []}
+    if minimal_mode():
+        team &= MINIMAL_TEAM_ORIGINS                  # minimal mode: policy.json may narrow the origins, never widen
     unresolved = {str(x).strip().lower() for x in t.get("unresolved_origins") or []}
     if team and o.lower() in team:
         return {"state": "admitted", "licence": t.get("team_licence") or "team_owned",
@@ -168,6 +198,8 @@ def cleared_row_ids() -> dict:
     in the future; delta 3: the sha256 content_sha of the text that was reviewed, as the index records it). The caller
     serves a cleared row only while its current content_sha matches, so changed text loses its clearance. Any other
     entry is ignored, so its row stays withheld."""
+    if minimal_mode():
+        return {}                                    # minimal mode: no cleared rows at all
     out = {}
     for e in load().get("cleared_rows") or []:
         if not (isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS)):
@@ -196,6 +228,8 @@ def excluded_mentions_mode() -> str:
     """Review #751 delta 6 (owner directive 2026-11-04, withhold uncertain): an admitted row that NAMES an excluded
     setup is withheld unless cleared ("withhold", the default and what any value but "serve_flagged" means). The owner
     may re-admit those rows as a block, served flagged commentary_only, with "serve_flagged"."""
+    if minimal_mode():
+        return MENTIONS_WITHHOLD                     # minimal mode: never serve_flagged
     v = str((load().get("excluded_setup_mentions") or {}).get("mode") or "").strip().lower() \
         if isinstance(load().get("excluded_setup_mentions"), dict) else ""
     return MENTIONS_SERVE_FLAGGED if v == MENTIONS_SERVE_FLAGGED else MENTIONS_WITHHOLD
@@ -208,20 +242,24 @@ def admitted_sources() -> list[str]:
 
 
 def excluded_categories() -> set[str]:
-    return {str(c).upper() for c in load().get("excluded_categories") or []}
+    out = {str(c).upper() for c in load().get("excluded_categories") or []}
+    return out | set(MINIMAL_EXCLUDED_CATEGORIES) if minimal_mode() else out      # minimal: the policy only ADDS
 
 
 def dated_categories() -> set[str]:
-    return {str(c).upper() for c in load().get("dated_categories") or []}
+    out = {str(c).upper() for c in load().get("dated_categories") or []}
+    return out | set(MINIMAL_DATED_CATEGORIES) if minimal_mode() else out         # minimal: more dated = narrower
 
 
 def dated_max_age_days() -> int:
-    return _int(load().get("dated_max_age_days"), 30)
+    n = _int(load().get("dated_max_age_days"), 30)
+    return min(n, MINIMAL_DATED_MAX_AGE_DAYS) if minimal_mode() else n            # minimal: never older
 
 
 def trader(name: Optional[str]) -> str:
     n = str(name or "").strip()
-    return str((load().get("trader_aliases") or {}).get(n, n))
+    aliases = MINIMAL_TRADER_ALIASES if minimal_mode() else (load().get("trader_aliases") or {})
+    return str(aliases.get(n, n))                                                 # minimal: attribution pinned
 
 
 def search_setting(key: str, default: int) -> int:

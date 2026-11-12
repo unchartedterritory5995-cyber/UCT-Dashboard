@@ -163,6 +163,8 @@ def validate_setup(params: dict) -> Optional[str]:
     why = _gate()
     if why:
         return why
+    if policy.minimal_mode():
+        return "UCT's setup templates and records are not served in the minimal Brain configuration"
     s = str(params.get("setup") or "").strip()
     if not s or len(s) > MAX_SETUP:
         return "a setup name (up to 60 characters) is required"
@@ -679,12 +681,17 @@ def _blocked_snapshot() -> Optional[tuple]:
       - owner decision (2026-11-03): rows naming an EXCLUDED template with definitional wording nearby, unless the row
         is on policy.cleared_rows with a complete provenance + rights-review entry; and rows whose mention check failed.
     None = cannot tell (index unreadable, or rebuilt while this ran): the caller refuses the search (fail closed)."""
+    from api.services.uct_agent.knowledge import rights
     try:
-        pmt = policy.path().stat().st_mtime
+        pmt = policy.path().stat().st_mtime_ns
     except OSError:
         pmt = None
+    try:                                            # review #793: the signed audit log and the server key decide too
+        amt = rights.audit_path_for(policy.path()).stat().st_mtime_ns
+    except OSError:
+        amt = None
     build = index.build_id(index.built_info())
-    key = (pack.pack_ts(), build, str(policy.path()), pmt)
+    key = (pack.pack_ts(), build, str(policy.path()), pmt, amt, rights._key() is not None, policy.minimal_mode())
     snap = _BLOCKED_CACHE.get("snap")
     if _BLOCKED_CACHE["key"] == key and snap is not None:
         return snap
@@ -694,7 +701,8 @@ def _blocked_snapshot() -> Optional[tuple]:
     rows = index.mention_rows()
     if ids is None or rows is None:              # never cache a "cannot tell"
         return None
-    want = policy.cleared_row_ids()
+    from api.services.uct_agent.knowledge import rights   # review #793: only server-key-signed clearances
+    want = rights.authorized()
     shas = index.content_shas(want) if want else {}
     if shas is None:
         return None

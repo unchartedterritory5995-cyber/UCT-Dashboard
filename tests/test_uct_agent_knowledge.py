@@ -1475,7 +1475,15 @@ def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(k
     entry = {"kb_id": 60, "content_sha": sha, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60",
              "approved_by": "owner", "approved_on": "2026-11-04"}
     q = {"question": "cup and handle handle high entry rounded base", "k": 3}
+    # review #793: a clearance is served only when applied with the server-held key (a signed audit record)
+    from api.services.uct_agent.knowledge import rights
+    monkeypatch.setenv(rights.KEY_ENV, "test-server-held-rights-key-0123456789abcdef")
     _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # unsigned: withheld
+    pol = _with_policy(monkeypatch, tmp_path, cleared_rows=[])
+    applied = os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]
+    rights.apply([entry], Path(applied), applied_by="Owner Name", now=time.time())
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
     p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 60)
     assert p["commentary_only"] is True                                   # still flagged: cleared is not a definition
     _with_policy(monkeypatch, tmp_path, cleared_rows=[{**entry, "rights_review_ref": ""}])   # incomplete: withheld
@@ -1483,7 +1491,9 @@ def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(k
     _with_policy(monkeypatch, tmp_path, cleared_rows=[{k: v for k, v in entry.items() if k != "content_sha"}])
     assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # no sha: withheld
     # review #751 delta 3: the text changes under the same kb_id (a later pack): the clearance no longer holds
-    _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", applied)                 # back to the applied, signed policy
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    assert 60 in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
     c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
     c.execute("UPDATE knowledge_base SET content = content || ' The handle is the whole rule.' WHERE id = 60")
     c.commit()
