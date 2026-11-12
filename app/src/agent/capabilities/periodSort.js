@@ -64,6 +64,8 @@ async function waitFor(host, ok) {
 
 export const periodSortKind = {
   name: 'periodSort',
+  source: 'periodSort',  // #1112 rail: the host key this kind's list/read/commit reads (capabilities.noTargetSentence)
+  unavailable: "Custom-Period Sort isn't available on this page — open Charts to use it.",
   list: (host) => { const s = readSort(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'periodSort' ? readSort(host) : null),
   stateOf: (s) => ({ ...viewOf(s), widgets: s.widgets, unreadable: !!s.unreadable, run: null, dock: false }),
