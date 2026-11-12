@@ -4059,8 +4059,9 @@ def f_first_run(W, door):
     goto(W, pg, "/journal/notebook")
     mark_root(pg)
     pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
-    # the base tour's card (its first step is "Folders and tags" since go-live wave 1 removed the welcome step)
-    tour = pg.locator("[data-tour-card]").filter(visible=True).first
+    # the base tour's card, a modal dialog with "Skip tour" (its first step is "Folders and tags" since go-live wave 1
+    # removed the welcome step)
+    tour = pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name="Skip tour")).filter(visible=True).first
     tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
     if tour_seen:

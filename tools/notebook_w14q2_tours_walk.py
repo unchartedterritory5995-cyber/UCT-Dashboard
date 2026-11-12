@@ -313,7 +313,9 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
         row["notes"].append("not listed in Walkthroughs")
         return row
     li.first.get_by_role("link", name=WALK_LINK).click()
-    st = wait_state(pg, title, lambda s: s["kind"] in ("step", "unreachable"), 25)
+    # a card that is still "Looking for the next step" has no number yet: wait for a numbered step (or the card saying
+    # the tour cannot run here)
+    st = wait_state(pg, title, lambda s: s["kind"] == "unreachable" or (s["kind"] == "step" and isinstance(s.get("n"), int)), 25)
     row["start"] = st.get("url")
     if st["kind"] == "unreachable":
         row["notes"].append(f"unreachable card: {st['title']}")
@@ -352,6 +354,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
         st = state(pg, title)
         if st["kind"] != "step":
             break
+        if not isinstance(st.get("n"), int):
+            # The card is between steps ("Looking for the next step") and shows no "Step N of M" yet: look again
+            # (bounded by this loop), never compare a missing number (it stopped the walk with a TypeError).
+            row["notes"].append(f"a card without a step number for a moment: {st.get('title')!r}")
+            pg.wait_for_timeout(500)
+            continue
         if st["n"] not in row["shown"]:
             row["shown"].append(st["n"])
             row["modes"].append(st["mode"])

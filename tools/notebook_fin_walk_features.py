@@ -582,7 +582,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             C.settle_first_run(pE)      # the base tour may have opened by itself meanwhile (its card is modal)
             try:
                 C.press_through(pE, pE.get_by_role("button", name=tour_item, exact=True).first)
-                card = pE.locator("[data-tour-card]")
+                card = C.base_tour_card(pE)      # the base tour's modal card (not a registry tour's [data-tour-card])
                 card.first.wait_for(state="visible", timeout=20000)
                 for _ in range(12):
                     walked.append((card.first.locator("h2").first.inner_text() or "").strip())
@@ -1525,7 +1525,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             try:
                 row = q2.walk_tour(p2, c2, base, width, t, P="c2")
             except Exception as e:  # noqa: BLE001
-                row = {"tour": t["id"], "opens": False, "declared": len(t["steps"]), "notes": [f"driver error: {type(e).__name__}: {str(e)[:200]}"]}
+                row = {"tour": t["id"], "opens": False, "declared": len(t["steps"]), "notes": [f"driver error: {type(e).__name__}: {str(e)[:200]}",
+                                                                                         traceback.format_exc()[-700:]]}
             focus_after = p2.evaluate(w.FOCUS_DESC_JS)
             fails = [s["check"] for s in sub if s["verdict"] == "FAIL"]
             ok = bool(row.get("opens")) and row.get("reached_start_at_step") == 1 and not fails
@@ -1777,12 +1778,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 res["more"] = more.evaluate(COVER_JS)
                 h2.press(more, touch)
                 # on touch the More menu is a sheet of plain buttons (ContextPopover's touch branch, not role=menu)
-                sheet_ = p_.get_by_role("dialog").filter(has=p_.get_by_role("button", name=re.compile(r"^Replay"))).last
-                C.vis_loc(sheet_, 8000)
-                res["menu_items"] = [re.sub(r"\s+", " ", t).strip()[:40] for t in sheet_.get_by_role("button").all_inner_texts()]
-                plan_item = sheet_.get_by_role("button", name=re.compile(r"^Plan")).first
+                plan_item = p_.get_by_role("button", name=re.compile(r"^Plan")).filter(visible=True).first
+                C.vis_loc(plan_item, 8000)
+                res["menu_items"] = [re.sub(r"\s+", " ", t).strip()[:40] for t in p_.locator("[role=dialog] button").filter(visible=True).all_inner_texts()][:12]
                 res["plan_in_more"] = plan_item.count() > 0
-                res["replay_in_more"] = sheet_.get_by_role("button", name=re.compile(r"^Replay")).count() > 0
+                res["replay_in_more"] = p_.get_by_role("button", name=re.compile(r"^Replay")).filter(visible=True).count() > 0
                 plan_item.click(timeout=8000)
                 panel = p_.locator("[data-chart-plan-panel]").first
                 panel.wait_for(state="visible", timeout=20000)
@@ -1896,7 +1896,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         text = re.sub(r"\s+", " ", card.first.text_content() or "").strip() if shown else None
         m = card.first.evaluate(COVER_JS) if shown else {}
         link = card.get_by_role("link", name=re.compile(r"setups board"))
-        lm = link.first.evaluate(COVER_JS) if C.vis_loc(link, 10000) else {}
+        lm = {}
+        if C.vis_loc(link, 10000):
+            link.first.scroll_into_view_if_needed(timeout=5000)   # the card sits below the brief's first cards
+            pg.wait_for_timeout(300)
+            lm = link.first.evaluate(COVER_JS)
         link_text = re.sub(r"\s+", " ", link.first.text_content() or "").strip() if lm else None
         if lm:
             link.first.click()
@@ -2289,7 +2293,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 C.step(p, i, "styles.new-from-kind", f"New note -> Trade plan makes a note in the Trade plan style ({vp})",
                        "PASS" if ok else "FAIL", notes_before=before, notes_after=after, first_button=box)
                 C.goto(p, base, "/journal/notebook?styles=1", wait="main")
-                dlg = p.get_by_role("dialog", name="Journal styles")
+                dlg = p.get_by_role("dialog", name="Manage templates")   # S7 renamed the "Journal styles" manager
                 C.vis_loc(dlg, 15000)
                 inside = dlg.evaluate("d => { const r = d.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1 }")
                 C.step(p, i, "styles.manager", f"Settings/deep link opens the Styles manager inside the viewport ({vp})",

@@ -387,6 +387,12 @@ def member(browser, admin_req, base: str, tag: str, vp: str):
 FIRST_RUN_SHEET = "Make the Notebook yours"   # FirstRunSheet.jsx, the 60-second first run (S16)
 
 
+def base_tour_card(pg):
+    """The base tour's card: NotebookTour.jsx draws a modal dialog (role=dialog, aria-modal) with a "Skip tour"
+    button, NOT the registry tours' `[data-tour-card]`."""
+    return pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name="Skip tour", exact=True))
+
+
 def settle_first_run(pg) -> dict:
     """Close what a new member meets first, the way a member does. Returns what was there.
     Go-live wave 2: the empty notes list is the first screen. A brand-new member can meet the 60-second first run
@@ -395,7 +401,7 @@ def settle_first_run(pg) -> dict:
     run (S16), so it can arrive a moment AFTER the sheet is closed: the loop keeps looking until nothing new comes."""
     seen = {"base_tour": False, "compass": False, "first_run_sheet": False, "both_at_once": False}
     sheet = pg.locator("[role=dialog]").filter(has_text=FIRST_RUN_SHEET)
-    card = pg.locator("[data-tour-card]")
+    card = base_tour_card(pg)
     # Measured on the c2 sandbox (go-live wave 2): the tour's card can arrive 6 to 10 s after the page, once its chunk
     # and the preferences have answered and the first run (if any) is closed.
     quiet_until = time.time() + 15.0
