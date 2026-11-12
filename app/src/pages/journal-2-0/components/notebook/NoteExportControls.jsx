@@ -1,9 +1,13 @@
-// The editor's per-note export group: PNG, Print, and the Export menu (wave 8).
+// The editor's per-note export group: the Export menu, holding PNG, Print and the file formats (wave 8).
+//
+// Notebook simplify, Task 4: PNG and Print were two buttons beside Export; they are now the menu's first two
+// items, above the file formats, so the More panel shows ONE Export entry. Each runs exactly what its button ran,
+// and a finished PNG hands focus back to the Export button (the menu closed when it was picked).
 //
 // Seam S8-3 moved PNG / Print / Markdown here out of NoteEditorPage.jsx unchanged; lane 8C
 // (C4, ruling D-C4) turns the Markdown button into an EXPORT menu — Markdown · Web page ·
-// JSON · Word — beside PNG and Print. The editor still owns the `columnRef` (the note column
-// PNG rasterizes) and the chrome message line (`onMessage` is its `setChromeMsg`), so every
+// JSON · Word — then beside PNG and Print, now below them in the same menu. The editor still
+// owns the `columnRef` (the note column PNG rasterizes) and the chrome message line (`onMessage` is its `setChromeMsg`), so every
 // sentence lands where it always did, and ONE `exportBusy` guards all five doors.
 //
 // ⛔ Every format goes through the format route (`noteExportUrl`), Markdown included: the
@@ -31,9 +35,9 @@
 // Save-as-template precedent), and when words are still unsent nothing is downloaded.
 // PNG and Print read the note on screen, so they already carry every word.
 //
-// ⛔ Final review M-1: PNG and the Export button are DISABLED while a file is made, and a
+// ⛔ Final review M-1: the Export button is DISABLED while a file (or a PNG) is made, and a
 // disabled button loses focus (the browser moves it to <body>). When the work ends, the
-// button that started it takes focus back -- unless the member has moved on meanwhile.
+// Export button takes focus back -- unless the member has moved on meanwhile.
 import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { MoreMenuOpenContext } from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
@@ -59,6 +63,12 @@ async function failureSentence(res) {
   return 'export failed'
 }
 
+/** The two doors that read the note on screen, first in the menu (Notebook simplify, Task 4). */
+const SCREEN_DOORS = Object.freeze([
+  Object.freeze({ id: 'png', label: 'PNG', keeps: 'The note as it looks on screen, charts included, as one image.' }),
+  Object.freeze({ id: 'print', label: 'Print', keeps: 'Print it, or save it as a PDF from the print dialog.' }),
+])
+
 /** M-9: the sentence when the editor still holds words the server has not taken. */
 export const UNSENT_BEFORE_EXPORT = "Your latest edits haven't reached the server yet, so the file would miss them. Nothing was downloaded — try again in a moment."
 
@@ -67,7 +77,6 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   const [menuOpen, setMenuOpen] = useState(false)
   const menuId = useId()
   const triggerRef = useRef(null)
-  const pngRef = useRef(null)
   const menuRef = useRef(null)
   const itemRefs = useRef([])
   // M-1: the button to hand focus back to once the busy state clears.
@@ -81,9 +90,15 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     if (!active || active === document.body || active === el) el.focus()
   }, [exportBusy])
 
+  const closeMenu = useCallback((returnFocus) => {
+    setMenuOpen(false)
+    if (returnFocus) triggerRef.current?.focus()
+  }, [])
+
   const savePng = async () => {
+    closeMenu(true)
     if (exportBusy) return
-    refocusRef.current = pngRef.current
+    refocusRef.current = triggerRef.current
     setExportBusy(true)
     onMessage('rendering…')
     try {
@@ -106,10 +121,14 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     }
   }
 
-  const closeMenu = useCallback((returnFocus) => {
-    setMenuOpen(false)
-    if (returnFocus) triggerRef.current?.focus()
-  }, [])
+  const print = () => {
+    closeMenu(true)
+    loadExport().then(({ printNote }) => {
+      printNote()
+      // Print opens the browser's dialog; whether a PDF was saved is not ours to know.
+      trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
+    }, () => onMessage('export failed'))
+  }
   const closeOnly = useCallback(() => setMenuOpen(false), [])
   // K2: Tab stays inside while focus is inside; Escape closes and hands focus to the button.
   // The first item takes focus through the effect below, so the hook does not move it.
@@ -199,23 +218,6 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
 
   return (
     <>
-      {/* Export: PNG rasterizes the note column (charts included); Print
-          rides the browser's Save-as-PDF via the print stylesheet. */}
-      <button type="button" ref={pngRef} className={editorStyles.chromeBtn} onClick={savePng} disabled={exportBusy}
-        title="Download this note as a PNG image">
-        PNG
-      </button>
-      <button type="button" className={editorStyles.chromeBtn}
-        onClick={() => {
-          loadExport().then(({ printNote }) => {
-            printNote()
-            // Print opens the browser's dialog; whether a PDF was saved is not ours to know.
-            trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
-          }, () => onMessage('export failed'))
-        }}
-        title="Print — or Save as PDF from the print dialog">
-        Print
-      </button>
       <span className={styles.menuWrap}>
         <button
           ref={triggerRef}
@@ -232,7 +234,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
               setMenuOpen(true)
             }
           }}
-          title="Download this note as Markdown, a web page, JSON or Word"
+          title="Save this note as a PNG image, print it, or download it as Markdown, a web page, JSON or Word"
         >
           Export
           <UIcon name="chevronDown" size={12} gold={false} />
@@ -242,10 +244,28 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
           // menu pattern closes on Tab; this follows the Notebook's one keep-Tab-inside contract.
           <div ref={menuRef} id={menuId} role="menu" aria-label="Export this note as"
             className={styles.menu} {...disclosureProps} onKeyDown={onMenuKeyDown}>
+            {/* PNG rasterizes the note column (charts included); Print rides the browser's Save-as-PDF via
+                the print stylesheet. Both read the note on screen, so neither waits on the server. */}
+            {SCREEN_DOORS.map((d, i) => (
+              <button
+                key={d.id}
+                ref={(el) => { itemRefs.current[i] = el }}
+                type="button"
+                role="menuitem"
+                className={styles.item}
+                aria-label={d.label}
+                aria-describedby={`${menuId}-${d.id}`}
+                onClick={d.id === 'png' ? savePng : print}
+              >
+                <span className={styles.itemLabel}>{d.label}</span>
+                <span id={`${menuId}-${d.id}`} className={styles.itemKeeps}>{d.keeps}</span>
+              </button>
+            ))}
+            <div role="separator" className={styles.sep} />
             {EXPORT_FORMATS.map((f, i) => (
               <button
                 key={f.id}
-                ref={(el) => { itemRefs.current[i] = el }}
+                ref={(el) => { itemRefs.current[SCREEN_DOORS.length + i] = el }}
                 type="button"
                 role="menuitem"
                 className={styles.item}

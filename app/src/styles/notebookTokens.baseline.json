@@ -504,7 +504,7 @@
   "spacing 5px": 1
  },
  "pages/journal-2-0/components/notebook/NoteMenuActions.jsx": {
-  "icon-size 13px": 5
+  "icon-size 13px": 4
  },
  "pages/journal-2-0/components/notebook/NoteMenuActions.module.css": {
   "spacing 10px": 1,
@@ -1130,12 +1130,6 @@
  "pages/journal-2-0/components/notebook/styles/SaveAsStyleForm.module.css": {
   "spacing 10px": 1,
   "spacing 6px": 1
- },
- "pages/journal-2-0/components/notebook/styles/SaveStyleDoor.jsx": {
-  "icon-size 13px": 1
- },
- "pages/journal-2-0/components/notebook/styles/SaveStyleDoor.module.css": {
-  "spacing 10px": 1
  },
  "pages/journal-2-0/components/notebook/styles/StarterPackOffer.module.css": {
   "border-radius 10px": 1,

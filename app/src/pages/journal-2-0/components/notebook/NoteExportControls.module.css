@@ -63,3 +63,9 @@
   .trigger { min-height: var(--tap-min); }
   .item { min-height: var(--tap-min); }
 }
+/* Notebook simplify, Task 4: the rule between the on-screen doors (PNG, Print) and the file formats. */
+.sep {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--border);
+}

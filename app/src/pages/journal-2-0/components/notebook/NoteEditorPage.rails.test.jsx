@@ -100,9 +100,12 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(q.queryByTitle('Download this note as a PNG image')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     const more = within(screen.getByRole('group', { name: 'More note actions' }))
-    expect(more.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
-    expect(more.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
-    expect(more.getByRole('button', { name: /^Export/ })).toBeInTheDocument()
+    // Notebook simplify, Task 4: PNG and Print are the first two items of the Export menu, above the file formats,
+    // so More shows ONE Export entry.
+    fireEvent.click(more.getByRole('button', { name: /^Export/ }))
+    const exportMenu = within(more.getByRole('menu', { name: 'Export this note as' }))
+    expect(exportMenu.getByRole('menuitem', { name: 'PNG' })).toBeInTheDocument()
+    expect(exportMenu.getByRole('menuitem', { name: 'Print' })).toBeInTheDocument()
   })
 
   /**

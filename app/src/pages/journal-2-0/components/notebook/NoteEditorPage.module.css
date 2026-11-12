@@ -1201,3 +1201,16 @@
   color: var(--text-bright);
 }
 
+/* Notebook simplify, Task 4 ("a calmer editor"): the DESKTOP split. At 1025 px and up the formatting row keeps B, I,
+   H1, H2, the lists, link, image, the mic, "Aa" and Insert, and the header keeps Favorite, one "AI" menu, Share and
+   More. The controls folded there (`.foldDesktop`) are the touch tier's, unchanged at 1024 px and below; the desktop's
+   own doors (`.desktopOnly`) exist only up here. Rails: NoteEditorPage.calmToolbar.test.jsx. */
+.desktopOnly { display: none; }
+.menuAnchor { position: relative; display: inline-flex; }
+@media (min-width: 1025px) {
+  .desktopOnly { display: contents; }
+  .toolbarRow .foldDesktop,
+  .headerControls .foldDesktop { display: none; }
+  /* Only Ask's toggle: its panel lives in the same box and opens from the "AI" menu. */
+  .askFolded [data-ask-toggle] { display: none; }
+}

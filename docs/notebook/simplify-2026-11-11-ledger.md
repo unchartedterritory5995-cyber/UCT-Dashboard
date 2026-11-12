@@ -64,3 +64,30 @@ Shared module lifted (no logic duplicated): `lib/reviewDraftRun.js` is the body 
 Pre-existing failures seen while running neighbouring suites (not caused by Task 3, not changed):
 - `components/screener/reachable.test.js` (two cases, the same five unrelated modules and `chart/rightMargin.js` as Task 2 recorded).
 - `styles/tokens.reachable.test.js` ("re-points an alias target": `pages/study/RevealCard.module.css`).
+
+## Task 4: a calmer editor (formatting row, note header, details line, More menu)
+
+Deferred (go-live pass):
+- Walkthrough `b1WritingHelp` (step `open`, anchor `writing-help` in NoteEditorPage.jsx): the anchor is still written once, on Writing help's ONE door element (`writingHelpDoor`), which renders as the header button (the touch tier's; `display: none` at 1025 px and up while the "AI" menu is there) and, while the desktop "AI" menu is open, as its "Writing help" item. At desktop the tour finds the folded header button first; re-pointing it at the AI button (or opening the menu first) is the go-live pass.
+- Walkthrough `b1ImageDocx` (steps `format` / `scan`, anchors `note-format`, `note-scan`) is a touch-tier tour and its controls are unchanged; at desktop both were already hidden. No change.
+- Walkthroughs `export` (`note-export`, the More door) and `ask` (`ask-row`, the header controls) keep their anchors. A tour sentence that says PNG and Print sit beside Export, or that names "Ask this note" in the desktop header, needs the go-live pass.
+- `tools/notebook_fin_walk.py`, `tools/notebook_door_audit.py`, `tools/notebook_proof_walk.py`: at 1025 px and up the row's Font, Size, Text color and highlight, Quote, `</>`, Attach a file, Horizontal rule and "Insert widget" are `display: none` (`.foldDesktop`); their desktop doors are the "More formatting" ("Aa") menu (Font, Size, Text color and highlight, Quote, Code, Attach a file, Divider) and the row's "Insert". The header's "Ask this note" toggle and "Writing help" button are folded the same way while the "AI" menu shows ("Ask about this note", "Writing help"). PNG and Print are items of More > Export now (menuitems "PNG", "Print"), and "Save as template with blocks" is More > Save as template > "Keep live blocks". A walk at 1024 px or below sees the old controls.
+- `tools/notebook_perf_budgets.py`: `NoteFormatMenu.jsx` (and its CSS module) joins the note editor's chunk; `NewNoteMenu`'s `useMenuButton` was already in the Notebook's first open. Not measured: no build in this task.
+- "Import a tweet" (flag `notebook_tweet_import_enabled`, off) is not in the brief's desktop row list; it stays where it was (after Insert image) when the flag is on, rather than being folded or dropped.
+- The note header at desktop still shows a problem line (save failed, conflict, refused) and the Saved indicator before Favorite; unchanged.
+- The details line keeps its "+N" after the third tag (it says how many more tags there are; Details lists them).
+
+Pre-existing tests changed (old behaviour deliberately changed):
+- `NoteEditorPage.details.test.jsx`: the summary is `#thesis · NVDA` (no sector, no "3 properties", no "Not reviewed"); it now waits on the properties having answered (the Sector row in Details) before reading the line.
+- `NoteExportControls.test.jsx`, `.lazy.test.jsx`, `.a11y.test.jsx`: PNG and Print are the Export menu's first two items (6 items, not 4); a PNG hands focus back to the Export button (the menu closed when it was picked), and mid-export the busy guard is the disabled Export button.
+- `NoteEditorPage.rails.test.jsx` (K2 row): PNG and Print are reached through More > Export.
+- `NoteMenuActions.saveAsStyle.test.jsx`, `.styleDemand.test.jsx`, `.styleDoorFocus.test.jsx`: the blocks door is "Keep live blocks" inside the one "Save as template" entry; on demand still means nothing is fetched until that choice is pressed; while its chunk loads the pressed choice keeps its place and focus and an "Opening…" status shows. With the switch off the entry opens the plain form with no choice.
+- `NoteEditorPage.phoneFormat.test.jsx`: the desktop row's own "More formatting" and "Insert" (`.desktopOnly`) are set aside from the touch-row classification and checked on their own (new case: in no run, and out of the Tab ring while Format is open); the Tab ring skips controls under `[hidden]`, as a browser does.
+- `NoteEditorPage.phoneInsert.test.jsx`: the phone "+" is found by its phone-only class, since the desktop row's last control is also named "Insert".
+- `NoteEditorPage.phoneHeaderRow.test.jsx`: the phone row count also skips `.desktopOnly` (the desktop "AI" menu, `display: none` below 1025 px).
+- `styles/notebookTokens.baseline.json` shrank (NoteMenuActions lost one 13 px icon with the old blocks button; SaveStyleDoor's 13 px icon and its CSS module went with its button) and `notebookTokens.lint.test.js`'s CEILING was lowered to match (spacing 1250 -> 1249, icon-size 240 -> 238). The new `NoteFormatMenu` files are on the tokens.
+
+Removed: `styles/SaveStyleDoor.module.css` (its button and sentence moved to NoteMenuActions; the door is now the blocks form alone). `NoteEditorPage` no longer reads `useNoteProperties` / `useThesisReviews` for the details line (PropertiesSection and ThesisSection read the same keys themselves).
+
+Pre-existing failures seen while running neighbouring suites (not caused by Task 4, not changed):
+- `components/screener/reachable.test.js` (two cases, the same five unrelated modules and `chart/rightMargin.js` as Tasks 2 and 3 recorded).

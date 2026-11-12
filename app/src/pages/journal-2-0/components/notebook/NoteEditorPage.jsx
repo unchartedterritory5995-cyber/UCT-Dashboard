@@ -64,6 +64,9 @@ import NoteShareControls from './NoteShareControls'
 import NoteExportControls from './NoteExportControls'
 import NoteMoreMenu from './NoteMoreMenu'
 import moreStyles from './NoteMoreMenu.module.css'
+import NoteFormatMenu from './NoteFormatMenu'
+import { useMenuButton } from './NewNoteMenu'
+import menuStyles from './NewNoteMenu.module.css'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, resolveNoteCitation, selectResolvedPassage } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
@@ -105,8 +108,6 @@ import { firstFieldPos } from '../../lib/firstFieldPos'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
-import useNoteProperties from '../../hooks/useNoteProperties'
-import useThesisReviews from '../../hooks/useThesisReviews'
 import { templateRevealFor } from '../../lib/templatePropertyDefs'
 import {
   REGISTRY_TOUR_OPEN_EVENT, getRegistryTourWanted, subscribeRegistryTourWanted,
@@ -884,12 +885,12 @@ export function useAutoGrow(ref, value) {
 /** The note body's accessible shape: a named, multi-line text field (fix round 2). */
 export const NOTE_BODY_ARIA = Object.freeze({ role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' })
 
-function ToolButton({ active, onClick, label, title, disabled }) {
+function ToolButton({ active, onClick, label, title, disabled, className = '' }) {
   const ranOnPressRef = useRef(false)
   return (
     <button
       type="button"
-      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''} ${disabled ? styles.toolBtnDisabled : ''}`}
+      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''} ${disabled ? styles.toolBtnDisabled : ''} ${className}`}
       disabled={disabled}
       onMouseDown={(e) => { e.preventDefault(); ranOnPressRef.current = true; onClick() }}
       onKeyDown={() => { ranOnPressRef.current = false }}
@@ -1288,6 +1289,10 @@ export default function NoteEditorPage({
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
   const colorMenuId = useId()
+  // Notebook simplify, Task 4: which door opened the picker -- the row's own toggle (the touch tier) or the
+  // desktop row's "Aa" menu -- so it hangs from, and hands focus back to, the control that opened it.
+  const [colorFrom, setColorFrom] = useState('row')
+  const formatTriggerRef = useRef(null)
   // Wave 5: the note outline panel / sheet, toggled from the toolbar row.
   const [outlineOpen, setOutlineOpen] = useState(false)
   const outlineToggleRef = useRef(null)
@@ -2250,15 +2255,12 @@ export default function NoteEditorPage({
     error: thesisError, refresh: refreshThesis, evidence: thesisEvidence, changelog: thesisChangelog,
     isLoading: thesisLoading,
   } = useThesisSummary(noteId)
-  // Notebook UX pass (2026-10-10): the one-line details summary under the title reads the SAME
-  // SWR keys PropertiesSection and ThesisSection read, so it adds no request -- except the
-  // review history, which is asked for only for a note ThesisSection renders (whose review
-  // panel asks for the same key).
-  const { properties: detailProperties } = useNoteProperties(noteId)
+  // Whether this note is a thesis (ThesisSection's own test), for "Make this a thesis" in More.
+  // Notebook simplify, Task 4: the details line no longer says the sector, a property count or the review
+  // state, so the property and review reads it made for that are gone (PropertiesSection and ThesisSection
+  // read the same keys themselves).
   const detailsThesis = !isTradeCanvasDoc(note?.bodyJson) && !thesisLoading && !thesisError
     && isThesisShaped(note, thesisEvidence, thesisChangelog)
-  const { completed: thesisReviewsDone, isLoading: reviewsLoading, error: reviewsError } =
-    useThesisReviews(detailsThesis ? noteId : null)
   // S2: the note menu's "Make this a thesis" -- kind Thesis through the property door.
   const [makingThesis, setMakingThesis] = useState(false)
   const makeThesis = async () => {
@@ -2572,10 +2574,17 @@ export default function NoteEditorPage({
   const paletteOpenerRef = useRef(null)
   const writingHelpButtonRef = useRef(null)
   const writingHelpFromButtonRef = useRef(false)
-  const openWritingHelpFromButton = useCallback(() => {
+  // Notebook simplify, Task 4: where the panel hands focus back when a header door opened it -- the
+  // Writing help button, or the desktop "AI" menu's button when the menu item opened it.
+  const writingHelpReturnRef = useRef(null)
+  const openWritingHelpFromButton = useCallback((returnTo = writingHelpButtonRef.current) => {
     openWritingHelp()
     writingHelpFromButtonRef.current = true
+    writingHelpReturnRef.current = returnTo
   }, [openWritingHelp])
+  // Notebook simplify, Task 4: the desktop header's ONE "AI" menu (Ask about this note, Writing help), on the
+  // notes list's menu engine. Called here, above the early returns, as every hook must be.
+  const aiMenu = useMenuButton()
   // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
   // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
   // "Add to this note" is ONE editor transaction at the end of the note (never a
@@ -3434,7 +3443,9 @@ export default function NoteEditorPage({
   // `toolbarStateReducer`, which bails out (same object reference) on a
   // keystroke that changed neither the active marks/block nor undo/redo, so
   // plain typing stops forcing a page-wide re-render (standard 4, O(1) check).
-  const [, bumpToolbar] = useReducer(toolbarStateReducer, null)
+  // Notebook simplify, Task 4: the state is kept (it was discarded) -- the desktop "Aa" menu reads its active
+  // state and its checked font and size from it, so it adds no render-time `editor` read of its own.
+  const [toolbarFormat, bumpToolbar] = useReducer(toolbarStateReducer, null)
   useEffect(() => {
     if (!editor) return undefined
     const update = () => bumpToolbar(editor)
@@ -5037,8 +5048,7 @@ export default function NoteEditorPage({
   }
 
   // The one-line details summary (NoteDetailsLine): only what has a value, in the order a
-  // trader reads a research note -- what it is (#tags), what it is about (ticker, sector), how
-  // much else is filled in, and whether the thesis has been reviewed.
+  // trader reads a research note -- what it is (up to three #tags) and what it is about (ticker).
   const detailItems = (() => {
     const out = []
     const tags = Array.isArray(note.tags) ? note.tags : []
@@ -5047,32 +5057,44 @@ export default function NoteEditorPage({
       out.push({ key: 'tags:more', text: `+${tags.length - DETAILS_TAGS_SHOWN}`, kind: 'tag' })
     }
     if (note.ticker) out.push({ key: 'ticker', text: note.ticker, kind: 'ticker' })
-    const sector = detailProperties.find((p) => p.id === 'builtin:sector')?.value
-    if (sector) out.push({ key: 'sector', text: String(sector), kind: 'meta' })
-    // "N properties" counts the rows the details will show (the ticker is its own field now).
-    const filled = detailProperties.filter((p) => !DETAILS_OMIT.includes(p.id)
-      && p.value !== null && p.value !== undefined && p.value !== ''
-      && !(Array.isArray(p.value) && p.value.length === 0)).length
-    if (filled > 0) out.push({ key: 'props', text: `${filled} ${filled === 1 ? 'property' : 'properties'}`, kind: 'meta' })
-    // Said only once the history has answered: "Not reviewed" off a read still in flight (or a
-    // failed one) would be a claim nobody measured.
-    if (detailsThesis && !reviewsLoading && !reviewsError) {
-      const last = thesisReviewsDone[0]
-      const when = last?.completedAt ? new Date(last.completedAt) : null
-      out.push({
-        key: 'review',
-        text: last
-          ? (when && !Number.isNaN(when.getTime()) ? `Reviewed ${when.toLocaleDateString()}` : 'Reviewed')
-          : 'Not reviewed',
-        kind: 'status',
-      })
-    }
+    // Notebook simplify, Task 4: the sector, the "N properties" count and the review state are no longer said
+    // here (the owner found the line busy). Each is still one press away, inside Details: the Sector row, the
+    // property rows and the thesis review line.
     return out
   })()
 
   // Writing help's ONE visibility condition: the header button and, on a phone, the More
   // panel's item both read it, so the two doors can never disagree about when it exists.
   const showWritingHelp = Boolean(editor && !locked && writingHelpOn && editor.isEditable && !isCanvas)
+  // Notebook simplify, Task 4: at desktop width Ask and Writing help are ONE "AI" menu -- when both are offered.
+  // Ask is offered on every note (AskPanel has no gate here), so that is exactly when Writing help is; with Writing
+  // help absent, Ask stays the plain "Ask this note" button it was. The touch tier keeps both buttons as they were.
+  const aiMenuOn = showWritingHelp
+  // Writing help's door, ONE element in the source so its walkthrough anchor (`data-tour="writing-help"`) is
+  // written exactly once (onboarding/tourAnchors.test.js): the header button (`menu` null; folded at desktop, the
+  // touch tier's), or the desktop "AI" menu's item (`menu` the AI menu). Both open the same panel, and focus comes
+  // back to the control that opened it.
+  const writingHelpDoor = (menu) => (
+    <button
+      type="button"
+      role={menu ? 'menuitem' : undefined}
+      className={menu ? menuStyles.item : `${styles.chromeBtn} ${styles.foldDesktop}`}
+      ref={menu ? undefined : writingHelpButtonRef}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={menu
+        ? menu.run(() => openWritingHelpFromButton(menu.triggerProps.ref.current))
+        : () => openWritingHelpFromButton()}
+      aria-label="Writing help"
+      data-tour="writing-help"
+      title="Writing help — summarize, rewrite, continue or translate"
+    >
+      <UIcon name="sparkle" {...TOOLBAR_ICON} style={menu ? undefined : { verticalAlign: '-2px', marginRight: 4 }} />
+      {menu ? 'Writing help' : <span className={styles.phoneIconLabel}>Writing help</span>}
+    </button>
+  )
+  // The widget palette's two row doors (the touch row's "Insert widget", the desktop row's "Insert"): its Escape
+  // and close hand focus back to whichever opened it.
+  const togglePalette = (e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }
 
   // Notebook phone pass (2026-10-10): on a phone the note header keeps Star, Share and More;
   // these are the header actions More carries there (NoteMoreMenu renders them only when it was
@@ -5339,7 +5361,9 @@ export default function NoteEditorPage({
           {/* Notebook phone pass (2026-10-10): `.askSlot` lays out as if it were not there; on a
               phone it hides ONLY the toggle (the panel is a Sheet there and must still open,
               from More's "Ask about this note"). */}
-          <div className={styles.askSlot}>
+          {/* Notebook simplify, Task 4: `.askFolded` hides ONLY the toggle at desktop while the "AI" menu is there
+              (the panel lives in the same box and must still open, from the menu's "Ask about this note"). */}
+          <div className={`${styles.askSlot} ${aiMenuOn ? styles.askFolded : ''}`}>
           <AskPanel
             scope="note"
             target={noteId}
@@ -5354,21 +5378,37 @@ export default function NoteEditorPage({
           </div>
           {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
               (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
-              left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
-          {showWritingHelp && (
-            <button
-              type="button"
-              className={styles.chromeBtn}
-              ref={writingHelpButtonRef}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={openWritingHelpFromButton}
-              aria-label="Writing help"
-              data-tour="writing-help"
-              title="Writing help — summarize, rewrite, continue or translate"
-            >
-              <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              <span className={styles.phoneIconLabel}>Writing help</span>
-            </button>
+              left its walkthrough pointing at nothing: the Writing help tour opens on this button.
+              Notebook simplify, Task 4: at desktop it is folded into the "AI" menu below (`writingHelpDoor`). */}
+          {showWritingHelp && writingHelpDoor(null)}
+          {/* Notebook simplify, Task 4: the desktop "AI" menu -- Ask about this note, Writing help -- each item
+              pressing the same door as the button it folds (`openAskFrom`, `writingHelpDoor`). */}
+          {aiMenuOn && (
+            <span className={styles.desktopOnly}>
+              <span className={styles.menuAnchor}>
+                <button
+                  {...aiMenu.triggerProps}
+                  type="button"
+                  className={styles.chromeBtn}
+                  aria-label="AI"
+                  title="AI: ask about this note, or get writing help"
+                >
+                  <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  AI
+                  <UIcon name="chevronDown" {...TOOLBAR_ICON} style={{ marginLeft: 4 }} />
+                </button>
+                {aiMenu.open && (
+                  <div {...aiMenu.menuProps} aria-label="AI">
+                    <button type="button" role="menuitem" className={menuStyles.item}
+                      onClick={aiMenu.run(() => openAskFrom(aiMenu.triggerProps.ref.current))}>
+                      <UIcon name="search" {...TOOLBAR_ICON} />
+                      Ask about this note
+                    </button>
+                    {writingHelpDoor(aiMenu)}
+                  </div>
+                )}
+              </span>
+            </span>
           )}
           </div>
           {/*
@@ -5666,7 +5706,7 @@ export default function NoteEditorPage({
             </button>
             <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
-              className={styles.fontSelect}
+              className={`${styles.fontSelect} ${styles.foldDesktop}`}
               value={editor.getAttributes('textStyle').fontFamily || ''}
               onChange={(e) => {
                 const v = e.target.value
@@ -5683,7 +5723,7 @@ export default function NoteEditorPage({
               ))}
             </select>
             <select
-              className={styles.fontSizeSelect}
+              className={`${styles.fontSizeSelect} ${styles.foldDesktop}`}
               value={editor.getAttributes('textStyle').fontSize || ''}
               onChange={(e) => {
                 const v = e.target.value
@@ -5711,24 +5751,24 @@ export default function NoteEditorPage({
                 colour at the caret; the picker is a popover on desktop and a
                 bottom sheet on touch (TextColorMenu). */}
             <span className={styles.formatRun} id={`${formatRunId}-b`} data-format-run="">
-            <span className={styles.colorAnchor}>
+            <span className={`${styles.colorAnchor} ${styles.foldDesktop}`}>
               <button
                 ref={colorToggleRef}
                 type="button"
-                className={`${styles.toolBtn} ${colorOpen ? styles.toolBtnActive : ''}`}
+                className={`${styles.toolBtn} ${colorOpen && colorFrom === 'row' ? styles.toolBtnActive : ''}`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setColorOpen((o) => !o)}
+                onClick={() => { setColorFrom('row'); setColorOpen((o) => !(o && colorFrom === 'row')) }}
                 // A disclosure, not a menu: the picker is a GROUP of pressed-state
                 // buttons, so `aria-haspopup` (which announces a menu) would
                 // promise arrow-key menu behaviour it does not have.
-                aria-expanded={colorOpen}
-                aria-controls={colorOpen ? colorMenuId : undefined}
+                aria-expanded={colorOpen && colorFrom === 'row'}
+                aria-controls={colorOpen && colorFrom === 'row' ? colorMenuId : undefined}
                 aria-label={TEXT_COLOR_MENU_LABEL}
                 title={`${TEXT_COLOR_MENU_LABEL} — ${modKeyLabel()}+Shift+H highlights`}
               >
                 <span className={`${styles.colorGlyph} ${editor.getAttributes('textColor').color ? textColorClass(editor.getAttributes('textColor').color) : ''}`}>A</span>
               </button>
-              {colorOpen && (
+              {colorOpen && colorFrom === 'row' && (
                 <TextColorMenu id={colorMenuId} editor={editor} onClose={() => setColorOpen(false)} toggleRef={colorToggleRef} />
               )}
             </span>
@@ -5765,11 +5805,13 @@ export default function NoteEditorPage({
               label={<UIcon name="quote" {...TOOLBAR_ICON} />}
               disabled={!canRunHistory(editor, 'toggleBlockquote')}
               title={canRunHistory(editor, 'toggleBlockquote') ? 'Quote' : "Quote isn't available inside a list -- exit the list first"}
+              className={styles.foldDesktop}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
               label="</>"
+              className={styles.foldDesktop}
             />
             <ToolButton
               onClick={() => {
@@ -5804,6 +5846,7 @@ export default function NoteEditorPage({
               onClick={() => attachFileInputRef.current?.click()}
               label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
+              className={styles.foldDesktop}
             />
             {/* Import a tweet: the same event as /tweet, on this editor's own DOM root.
                 Absent while notebook_tweet_import_enabled is off. */}
@@ -5846,18 +5889,51 @@ export default function NoteEditorPage({
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
               title="Horizontal rule"
+              className={styles.foldDesktop}
             />
           {/* Widget palette door — point-and-click inserts for people who
-              don't reach for slash commands (owner ask). */}
+              don't reach for slash commands (owner ask). Notebook simplify, Task 4: the touch tier's; at desktop
+              the row's last control is the "Insert" below. */}
           <button
             type="button"
-            className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
-            onClick={(e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }}
+            className={`${styles.toolBtn} ${styles.foldDesktop} ${paletteOpen ? styles.toolBtnActive : ''}`}
+            onClick={togglePalette}
             title="Insert a chart or preset — pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
             ⊞ Insert
           </button>
+          </span>
+          {/* Notebook simplify, Task 4: the DESKTOP row's last two controls (`.desktopOnly`: not displayed at 1024 px
+              and below, where the touch row above is unchanged). "Aa" ("More formatting", NOT the phone's Format
+              disclosure) holds the row controls folded at desktop (`.foldDesktop`), each item running what its row
+              control runs; "Insert" opens the widget palette, as the touch row's "Insert widget" does.
+              `hidden` while the phone's Format disclosure is open: the disclosure traps Tab inside this row, and its
+              trap cannot see a stylesheet's display: none, so a hidden last control would break the wrap. */}
+          <span className={styles.desktopOnly} hidden={formatOpen || undefined}>
+            <NoteFormatMenu
+              editor={editor}
+              format={toolbarFormat}
+              fontSizes={FONT_SIZES}
+              onColor={() => { setColorFrom('format'); setColorOpen(true) }}
+              onAttach={() => attachFileInputRef.current?.click()}
+              triggerRef={formatTriggerRef}
+              buttonClassName={styles.toolBtn}
+              activeClassName={styles.toolBtnActive}
+            >
+              {colorOpen && colorFrom === 'format' && (
+                <TextColorMenu id={colorMenuId} editor={editor} onClose={() => setColorOpen(false)} toggleRef={formatTriggerRef} />
+              )}
+            </NoteFormatMenu>
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
+              onClick={togglePalette}
+              title="Insert a chart or preset — pick ticker and timeframe by clicking"
+              aria-label="Insert"
+            >
+              ⊞ Insert
+            </button>
           </span>
           </>
           {/* Wave 10 lane K2 (D-3): Outline moved to the header row; PNG, Print, Export and the
@@ -6258,7 +6334,7 @@ export default function NoteEditorPage({
             request={writingHelp}
             onAccept={acceptWritingHelpDraft}
             onClose={() => setWritingHelp(null)}
-            returnFocusTo={writingHelpFromButtonRef.current ? writingHelpButtonRef : undefined}
+            returnFocusTo={writingHelpFromButtonRef.current ? writingHelpReturnRef : undefined}
           />
         </Suspense>
       )}

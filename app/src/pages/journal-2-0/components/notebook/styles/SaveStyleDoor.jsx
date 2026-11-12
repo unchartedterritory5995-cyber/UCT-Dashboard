@@ -1,40 +1,10 @@
-// Notebook P1 (spec P1.4): the note menu's "Save as template with blocks" door -- the button, the
-// naming form and the sentence it leaves behind. It lives in the lazy styles chunk; NoteMenuActions shows a
-// plain button while journal styles are on and mounts this only on that button's first press, replacing it
-// (the form is already open). Same look as the menu's own buttons (a copy of their rules).
-import { useRef, useState } from 'react'
-import UIcon from '../../../../../components/ui/UIcon'
+// Notebook P1 (spec P1.4): the note menu's "keep live blocks" template save -- its naming form, in the lazy
+// styles chunk. Notebook simplify, Task 4: the menu has ONE "Save as template" entry now, and choosing "Keep live
+// blocks" inside it mounts this door; the menu (NoteMenuActions) owns the entry, the choice and the sentence left
+// behind, so this is the form alone. The save itself is SaveAsStyleForm's, unchanged.
 import SaveAsStyleForm from './SaveAsStyleForm'
-import styles from './SaveStyleDoor.module.css'
 
-export default function SaveStyleDoor({ note, onBeforeSave }) {
-  const [open, setOpen] = useState(true)       // mounted by the menu's first press: the form is already open
-  const [status, setStatus] = useState(null)   // { message, tone }
-  const btnRef = useRef(null)
-  return (
-    <>
-      <button ref={btnRef} type="button" className={styles.btn} aria-expanded={open} autoFocus
-        onClick={() => { setStatus(null); setOpen((v) => !v) }}
-        title="Reuse this note's blocks, outline and property values as a template">
-        <UIcon name="sliders" size={13} gold={false} />
-        Save as template with blocks
-      </button>
-      {open && (
-        <SaveAsStyleForm
-          note={note}
-          onBeforeSave={onBeforeSave}
-          onDone={(sentence, { failed } = {}) => {
-            setOpen(false)
-            if (sentence) setStatus({ tone: failed ? 'error' : 'ok', message: sentence })
-            btnRef.current?.focus()
-          }}
-        />
-      )}
-      {status && (
-        <span className={status.tone === 'error' ? styles.statusError : styles.status} role={status.tone === 'error' ? 'alert' : 'status'}>
-          {status.message}
-        </span>
-      )}
-    </>
-  )
+/** @param onDone `(sentence | null, { failed? }) => void`: the menu says the sentence and closes the form. */
+export default function SaveStyleDoor({ note, onBeforeSave, onDone }) {
+  return <SaveAsStyleForm note={note} onBeforeSave={onBeforeSave} onDone={onDone} />
 }
