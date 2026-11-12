@@ -168,7 +168,7 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // [731, 495241, '2680617189ad5026'].
         // ⭐ Engine 52 (serve, never default): the colour reader now follows a `bound` binding
         // and reads a choice's test in the binding's own scope, so artemis's cell colours are
-        // resolved (one more cell drawn, TradingView's text) — 274 more Resolvers and steps in
+        // resolved (the drawn cells unchanged and TradingView's) — 274 more Resolvers and steps in
         // each lane; plot outputs byte-identical (census `outputs` hash). Pre: plain
         // [644, 495146, '5013c426d180b036'] / manifest [644, 495154, '1dfc1e096e164f4f'].
         plain: [918, 495420, '59ff1f72cf67d49f'], manifest: [918, 495428, '33cdbd16923ad35a'] },
