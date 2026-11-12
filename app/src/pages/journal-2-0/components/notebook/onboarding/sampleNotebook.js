@@ -28,15 +28,12 @@ export const SAMPLE_WRITE_URL = '/api/j2/onboarding/sample-notebook'
 export const SAMPLE_COPY = Object.freeze({
   add: 'Add a sample notebook',
   adding: 'Adding the sample…',
-  tour: 'Take the tour',
   addFailed: SAMPLE_ADD_FAILED,
   // M-13: the first-run screen shows while a member has no ACTIVE notes, so the server's
   // refusal ("you already have notes") has to say where they are.
   refused: "You already have notes, so we didn't add the sample. If you can't see them, look in Trash or Archive.",
-  // `strip`, `remove` and `tour` are read only by tools/notebook_wave8_walk.py (and its Python test): walker-only since
-  // go-live wave 1 retired the strip, kept until the instruments task re-points that walk.
-  strip: "You're looking at the sample notebook",
-  remove: 'Remove it',
+  // (Go-live wave 2: the strip's `strip`, `remove` and `tour` words left with it; tools/notebook_wave8_walk.py now walks
+  // the More menu row below and reads the tour doors from Support.jsx and gettingStarted.js.)
   // Go-live wave 1 (A7): the notes list's ⋯ row, and its status line while it runs (sampleNotebookKeys.js).
   ...SAMPLE_ROW_COPY,
   removed: 'Sample notebook moved to Trash. You can restore it from there.',

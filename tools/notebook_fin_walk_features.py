@@ -68,7 +68,11 @@ JOURNAL_STYLES_KEY = "notebook_journal_styles_enabled"     # lib/journalStylesFl
 SMART_CHIPS_KEY = "notebook_smart_chips_enabled"            # lib/smartChipsFlag.js
 IMAGE_DOCS_KEY = "notebook_image_docx_documents_enabled"    # the screenshot chip's second switch (NoteEditorPage handleImageInsert)
 SCREENSHOT_FIXTURE = REPO / "tools" / "fixtures" / "chart-header-nvda-1d.png"   # made by tools/gen_chart_header_fixture.py
-SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js
+REVIEW_DRAFTS_KEY = "notebook_review_drafts_enabled"          # lib/reviewDraftsFlag.js, the auth payload key
+SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"
+GALLERY_DOOR = "Browse the Template library"
+KIND_GROUP = "Start from a template"                       # KindSection.jsx's group of note kinds (S7; was "Start from a kind of note")                 # TemplatePicker.jsx, data-tour="template-gallery-door" (S7)          # hooks/useJ2SelectedAccount.js
+WALKTHROUGH_ROWS = "#walkthroughs + ul > li"               # Support.jsx WalkthroughsSection (helpAnchors.js WALKTHROUGHS_ID)
 # Notebook P2 Tier 2 part B (Task 11): the `followup` step's switch (it also needs the journal styles one, which the card's
 # create does) and the symbol it walks. The producer's own pass is run by notebook_fin_walk.FOLLOWUP_CHILD.
 EARNINGS_FOLLOWUP_KEY = "notebook_earnings_followup_enabled"   # lib/earningsFollowupFlag.js
@@ -85,6 +89,11 @@ FOLLOWUP_REACTION_PREFIX = "Reaction: −4.2% close to close"
 # product's own registry (lib/pageLayouts.js), never retyped: `page_layout_registry()`.
 PAGE_LAYOUTS_KEY = "journal_page_layouts_enabled"           # lib/pageLayoutsFlag.js, the auth payload key
 PAGE_LAYOUTS_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "pageLayouts.js"
+# Go-live wave 2: the sample notebook's removal door is the notes list's More menu row, and its status line. Both read
+# from the product's own files, never retyped.
+_SAMPLE_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding"
+SAMPLE_REMOVE_ROW = re.search(r"removeRow: '([^']+)'", (_SAMPLE_DIR / "sampleNotebookKeys.js").read_text(encoding="utf-8")).group(1)
+SAMPLE_REMOVED = re.search(r"removed: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
 
 
 def page_layout_registry() -> dict:
@@ -323,7 +332,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
 
     def unfold(pg_, name_re):
         """Open a folded control the way a member would (UX pass 2026-10-10 folded the welcome's
-        capability preview, Research Home's quieter boxes and the note's details). A no-op when it
+        capability preview, Research Home's quieter boxes and the note's details; since go-live wave 2, the Daily
+        brief's Reporting soon and Passed setups folds). A no-op when it
         is already open or absent; returns whether it pressed."""
         btn = pg_.locator("button[aria-expanded='false']").filter(has_text=re.compile(name_re, re.I))
         try:
@@ -336,29 +346,77 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         return False
 
     def home():
+        """The notes list: a bare /journal/notebook opens it since go-live wave 1 (Research home is gone)."""
         C.goto(pg, base, "/journal/notebook")
         pg.wait_for_timeout(1500)
+
+    def brief():
+        """The Daily brief (`?view=today`): Research home's Reporting soon, Passed setups, Notices, Needs review and
+        the setups card live here now (go-live wave 1)."""
+        C.goto(pg, base, "/journal/notebook?view=today")
+        pg.wait_for_timeout(2500)
+
+    def open_templates(p_):
+        """The template sheet, the way a member opens it now: the list's "+ New" arrow ("More ways to start a note")
+        then "From a template" (the toolbar's "Templates" button folded into that menu, simplify Task 3). On a phone the
+        "+ New" group is not drawn; there the More menu's "New from a template" is the door."""
+        caret = p_.get_by_role("button", name="More ways to start a note", exact=True).filter(visible=True)
+        if C.vis_loc(caret, 15000):
+            C.press_through(p_, caret.first)
+            p_.get_by_role("menu", name="Start a note").get_by_role("menuitem", name="From a template", exact=True).first.click(timeout=10000)
+        else:
+            more_menu_has(p_, "New from a template", press=True)
+        p_.wait_for_timeout(1500)
+
+    def more_menu_has(p_, row_name, press=False):
+        """Open the notes list's More menu ("More notebook actions") and say whether `row_name` is a visible item;
+        `press` presses it (the menu closes itself), otherwise the menu is closed with Escape."""
+        btn = p_.get_by_role("button", name="More notebook actions", exact=True)
+        if not C.vis_loc(btn, 30000):
+            return False
+        # The sample's status is read the first time the menu opens (go-live wave 1, A7), so the row may arrive a
+        # moment after the menu: wait for it, then close and reopen once if it never came.
+        for _ in range(2):
+            C.press_through(p_, btn.first)
+            item = p_.get_by_role("menu", name="More notebook actions").get_by_role("menuitem", name=row_name, exact=True)
+            if C.vis_loc(item, 8000):
+                if press:
+                    item.first.click()
+                else:
+                    p_.keyboard.press("Escape")
+                return True
+            p_.keyboard.press("Escape")
+            p_.wait_for_timeout(800)
+        return False
 
     def note_json(nid):
         r = M.get(f"{base}/api/j2/notes/{nid}")
         return (r.json().get("note") or {}) if r.status == 200 else {}
 
     # ── first run ───────────────────────────────────────────────────────────────────────
+    # Go-live wave 2: Research home (its "Welcome to your Notebook" screen, the capability preview and the "Want to
+    # try it first?" promotion) was deleted by ruling. A new member lands on the EMPTY notes list: its empty state
+    # carries Import notes, "Add a sample notebook" and the Get started list; "What your Notebook can do" moved to Help
+    # (Support.jsx NotebookCapabilitiesSection). The step proves those replacement doors instead.
     def first_run_on(pg_, inst_, ctx_):
         C.goto(pg_, base, "/journal/notebook")
-        welcome = C.vis_loc(pg_.get_by_role("heading", name="Welcome to your Notebook", level=2), 30000)
+        empty = C.vis_loc(pg_.get_by_text("Your notebook is empty.", exact=True), 30000)
         seen = C.settle_first_run(pg_)
         pg_.wait_for_timeout(1500)
-        unfold(pg_, r"^\s*See what it can do")
-        preview = C.vis_loc(pg_.get_by_role("heading", name="What your Notebook can do"), 10000)
-        lines = pg_.evaluate("""() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'What your Notebook can do');
-            const sec = hd && hd.closest('section'); return sec ? [...sec.querySelectorAll('li')].map(li => li.textContent.trim().replace(/\\s+/g, ' ')) : [] }""")
-        promo = pg_.get_by_text("Want to try it first?").count() > 0
+        imp = C.vis_loc(pg_.get_by_role("button", name="Import notes"), 5000)
+        promo = C.vis_loc(pg_.get_by_role("button", name="Add a sample notebook"), 10000)
         chk = pg_.evaluate(CHECKLIST_JS)
-        ok = welcome and preview and promo and bool(chk) and bool(lines)
-        C.step(pg_, inst_, "first run", "welcome, capability preview, sample promotion and Get started list",
-               "PASS" if ok else "FAIL", welcome=welcome, base_tour_autostarted=seen["base_tour"], preview=preview,
-               preview_lines=lines, promotion=promo, checklist=chk, scope=[w.first_run_root_selector()])
+        C.goto(pg_, base, "/support")
+        cap = pg_.locator("section[aria-labelledby='support-notebook-can-do']")
+        preview = C.vis_loc(cap, 20000)
+        lines = [re.sub(r"\s+", " ", t).strip() for t in cap.first.locator("li").all_inner_texts()] if preview else []
+        # S16: one first-run moment at a time -- the 60-second first run and the base tour never on screen together
+        ok = empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
+        C.step(pg_, inst_, "first run", "empty notes list: Import notes, Add a sample notebook and the Get started list; one first-run moment at a time; Help lists What your Notebook can do",
+               "PASS" if ok else "FAIL", empty_list=empty, import_notes=imp, base_tour_autostarted=seen["base_tour"],
+               first_run_sheet_and_tour_together=seen["both_at_once"],
+               base_tour_title=seen.get("base_tour_title"), first_run_sheet=seen["first_run_sheet"], help_capabilities=preview,
+               preview_lines=lines, add_sample=promo, checklist=chk, scope=["section[aria-labelledby='support-notebook-can-do']"])
 
     def firstrun():
         first_run_on(pg, inst, ctx)
@@ -379,8 +437,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.settle_first_run(pg)
         btn = pg.get_by_role("button", name="Add a sample notebook")
         btn.first.wait_for(state="visible", timeout=20000)
-        btn.first.click()
-        for _ in range(120):   # the click opens the sample's welcome note; the strip is on Home
+        C.press_through(pg, btn.first)
+        for _ in range(120):   # the click opens the sample's welcome note
             if len(C.notes_list(ctx, base)) >= 5:
                 break
             pg.wait_for_timeout(500)
@@ -388,8 +446,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         landed = pg.url.split(base)[-1]
         C.step(pg, inst, "sample notebook", "the click lands on the sample's welcome note", "INFO", landed=landed)
         home()
-        strip = C.vis_loc(pg.get_by_text("You're looking at the sample notebook"), 60000)
-        pg.wait_for_timeout(2500)
+        # Go-live wave 1 retired Research home's "You're looking at the sample notebook" strip; the sample's door
+        # now is the notes list's More menu row "Remove the sample notebook" (shown while the sample is active).
+        strip = more_menu_has(pg, SAMPLE_REMOVE_ROW)
+        pg.wait_for_timeout(1000)
         notes = C.notes_list(ctx, base)
         tick = sorted({n.get("ticker") for n in notes if n.get("ticker")})
         st = M.get(base + "/api/j2/onboarding/sample-notebook").json()
@@ -400,8 +460,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                                  for sym in SAMPLE_SYMS}
         examples = [n.get("title") for n in notes if "example --" in (n.get("title") or "")]
         ok = strip and len(notes) == 10 and len(examples) == 5
-        C.step(pg, inst, "sample notebook", "Add a sample notebook: practice notes plus one example per feature",
-               "PASS" if ok else "FAIL", strip=strip, notes=len(notes), tickers=tick, recorded_ids=len(S["sample_ids"]),
+        C.step(pg, inst, "sample notebook", "Add a sample notebook: practice notes plus one example per feature; the list's More menu offers Remove the sample notebook",
+               "PASS" if ok else "FAIL", remove_row_in_more_menu=strip, notes=len(notes), tickers=tick, recorded_ids=len(S["sample_ids"]),
                titles=S["sample_titles"])
     run("sample", sample)
 
@@ -474,8 +534,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "sample examples", "TSLA call excerpt note: the quoted passage renders as a cited excerpt",
                "PASS" if n_ex and cites else "FAIL", citations_on_page=cites, stored_excerpts=n_ex,
                note_text=pg.locator(".ProseMirror").first.inner_text()[:300])
-        # GOOGL and AMZN: Research Home
-        home()
+        # GOOGL and AMZN: the Daily brief (Research home's Passed setups and Reporting soon moved there, folded)
+        brief()
+        unfold(pg, r"^\s*Passed setups")
         googl = C.vis(pg, '[data-passed-symbol="GOOGL"]', 30000)
         g_txt = pg.locator('[data-passed-symbol="GOOGL"]').first.inner_text().replace("\n", " ")[:200] if googl else None
         C.step(pg, inst, "sample examples", "passed setups: the GOOGL example is listed with how it moved since",
@@ -495,33 +556,77 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     run("examples", examples)
 
     # ── the Get started list ────────────────────────────────────────────────────────────
+    # Go-live wave 2. The list renders only for a member with NO notes (simplify Task 1, by ruling: "the gate renders
+    # nothing once a note exists"), so the old checks (ticks for opening a sample note, writing a note and starting from
+    # a template, all made AFTER the sample was added) walked a list that is not drawn by design. Replaced by what an
+    # empty member can do with it: the base tour item ticks when the tour is finished, the tick survives a reload, Hide
+    # hides it for good, and the list leaves once a note exists. The main member's first note is still written here
+    # (the gallery step publishes it), through the list's "+ New".
     def checklist():
-        home()
-        C.settle_first_run(pg)
-        c0 = pg.evaluate(CHECKLIST_JS)
-        C.step(pg, inst, "get started", "the list after adding the sample", "INFO", checklist=c0)
-        if not c0:
-            C.step(pg, inst, "get started", "the list is on Research Home", "FAIL", checklist=None)
-            return
-
         def done(label, chk):
             return any(i["done"] and label in i["label"] for i in (chk or {}).get("items", []))
 
-        # open the sample notebook (a real action: open one of its notes)
-        sid = (S.get("sample_ids") or [None])[0]
-        if sid:
-            C.goto(pg, base, f"/journal/notebook?note={sid}", ".ProseMirror")
-            pg.wait_for_timeout(1500)
+        cE, emailE, _ = C.member(browser, admin.request, base, "c2gs", "1280")
+        iE = C.Inst(cE, cfg, "1280")
+        pE = cE.new_page()
+        try:
+            C.goto(pE, base, "/journal/notebook")
+            C.vis_loc(pE.get_by_text("Your notebook is empty.", exact=True), 30000)
+            C.settle_first_run(pE)
+            pE.wait_for_timeout(1500)
+            c0 = pE.evaluate(CHECKLIST_JS)
+            C.step(pE, iE, "get started", "the list on an empty notes list", "PASS" if c0 and c0.get("items") else "FAIL",
+                   checklist=c0, email=emailE)
+            tour_item = next((i["label"] for i in (c0 or {}).get("items", []) if i["label"].startswith("Take the ")), None)
+            walked, err = [], None
+            C.settle_first_run(pE)      # the base tour may have opened by itself meanwhile (its card is modal)
+            try:
+                C.press_through(pE, pE.get_by_role("button", name=tour_item, exact=True).first)
+                card = pE.locator("[data-tour-card]")
+                card.first.wait_for(state="visible", timeout=20000)
+                for _ in range(12):
+                    walked.append((card.first.locator("h2").first.inner_text() or "").strip())
+                    done_btn = card.first.get_by_role("button", name="Done", exact=True)
+                    if done_btn.count():
+                        done_btn.first.click()
+                        break
+                    card.first.get_by_role("button", name="Next", exact=True).first.click()
+                    pE.wait_for_timeout(1200)
+                card.first.wait_for(state="hidden", timeout=8000)
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            pE.wait_for_timeout(2000)
+            c1 = pE.evaluate(CHECKLIST_JS)
+            C.step(pE, iE, "get started", "finishing the base tour from its item ticks it",
+                   "PASS" if tour_item and done(tour_item, c1) else "FAIL", item=tour_item, tour_steps_walked=walked,
+                   reach_error=err, checklist=c1)
+            pE.reload(wait_until="domcontentloaded")
+            h._dismiss_intro(pE)
+            pE.wait_for_timeout(3500)
+            c2_ = pE.evaluate(CHECKLIST_JS)
+            same = bool(c1) and bool(c2_) and [i for i in c1["items"] if i["done"]] == [i for i in c2_["items"] if i["done"]]
+            C.step(pE, iE, "get started", "ticks survive a reload", "PASS" if same and any(i["done"] for i in c2_["items"]) else "FAIL",
+                   before=c1, after=c2_)
+            C.settle_first_run(pE)
+            C.press_through(pE, pE.get_by_role("button", name="Hide the get started list").first)
+            pE.wait_for_timeout(1500)
+            gone1 = pE.evaluate(CHECKLIST_JS) is None
+            pE.reload(wait_until="domcontentloaded")
+            h._dismiss_intro(pE)
+            pE.wait_for_timeout(3500)
+            gone2 = pE.evaluate(CHECKLIST_JS) is None
+            C.step(pE, iE, "get started", "Hide removes the list and it stays hidden after a reload",
+                   "PASS" if gone1 and gone2 else "FAIL", hidden_at_once=gone1, hidden_after_reload=gone2,
+                   pref=w.prefs_of(cE, base).get("notebook_getting_started"))
+        finally:
+            cE.close()
+        # The main member (the sample is in): the list is not drawn once a note exists (ruling, Task 1).
         home()
-        c1 = pg.evaluate(CHECKLIST_JS)
-        C.step(pg, inst, "get started", "opening a sample note ticks 'Open the sample notebook'",
-               "PASS" if done("Open the sample notebook", c1) else "FAIL", checklist=c1)
-        # write your first note
-        b = pg.get_by_role("button", name="Write your first note")
-        if b.count():
-            b.first.click()
-        else:
-            pg.get_by_role("button", name=re.compile(r"^\+?\s*New note$")).first.click()
+        c3 = pg.evaluate(CHECKLIST_JS)
+        C.step(pg, inst, "get started", "a member with notes (the sample added) is not shown the list (by ruling)",
+               "PASS" if c3 is None else "FAIL", checklist=c3)
+        # write the main member's first note through the list's "+ New" (the gallery step publishes it)
+        C.press_through(pg, pg.get_by_role("button", name="+ New", exact=True).first)
         pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
         pg.locator('input[aria-label="Note title"]').first.fill("My first note")
         pg.locator(".ProseMirror").first.click()
@@ -531,100 +636,27 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 break
             pg.wait_for_timeout(500)
         S["first_note"] = next((n["id"] for n in C.notes_list(ctx, base) if n.get("title") == "My first note"), None)
-        pg.wait_for_timeout(1500)
-        home()
-        c2_ = pg.evaluate(CHECKLIST_JS)
-        C.step(pg, inst, "get started", "writing a note ticks 'Write your first note'",
-               "PASS" if done("Write your first note", c2_) else "FAIL", checklist=c2_, note=S.get("first_note"),
-               was_already_done=done("Write your first note", c1))
-        # start a note from a template
-        link = pg.get_by_role("link", name="Start a note from a template")
-        tpl_err, tpl_note = None, None
-        try:
-            if link.count():
-                link.first.click()
-            else:
-                C.goto(pg, base, "/journal/notebook?view=all")
-                pg.get_by_role("button", name="Templates", exact=True).first.click()
-            pg.wait_for_timeout(2500)
-            card = pg.locator("[data-template-key]").filter(visible=True).first
-            if not card.count():
-                # the list's link lands on All notes; the templates are one press further (Templates)
-                pg.get_by_role("button", name="Templates", exact=True).filter(visible=True).first.click()
-            card.wait_for(state="visible", timeout=20000)
-            key = card.get_attribute("data-template-key")
-            card.click()
-            pg.wait_for_timeout(800)
-            use = pg.get_by_role("button", name="Use this template")
-            if use.count() and use.first.is_visible():
-                use.first.click()
-            pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
-            tpl_note = pg.url.split("note=")[-1].split("&")[0]
-            pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
-            pg.wait_for_timeout(1500)
-            S["template_key"] = key
-        except Exception as e:  # noqa: BLE001
-            tpl_err = str(e)[:300]
-        home()
-        c3 = pg.evaluate(CHECKLIST_JS)
-        C.step(pg, inst, "get started", "starting a note from a template ticks its step",
-               "PASS" if done("Start a note from a template", c3) else "FAIL", checklist=c3, template_note=tpl_note,
-               template_key=S.get("template_key"), reach_error=tpl_err)
-        pg.reload(wait_until="domcontentloaded")
-        h._dismiss_intro(pg)
-        pg.wait_for_timeout(3000)
-        c4 = pg.evaluate(CHECKLIST_JS)
-        same = bool(c3) and bool(c4) and [i for i in c3["items"] if i["done"]] == [i for i in c4["items"] if i["done"]]
-        C.step(pg, inst, "get started", "ticks survive a reload", "PASS" if same and c4 and any(i["done"] for i in c4["items"]) else "FAIL",
-               before=c3, after=c4)
-        hide = pg.get_by_role("button", name="Hide the get started list")
-        hide.first.click()
-        pg.wait_for_timeout(1500)
-        gone1 = pg.evaluate(CHECKLIST_JS) is None
-        pg.reload(wait_until="domcontentloaded")
-        h._dismiss_intro(pg)
-        pg.wait_for_timeout(3000)
-        gone2 = pg.evaluate(CHECKLIST_JS) is None
-        C.step(pg, inst, "get started", "Hide removes the list and it stays hidden after a reload",
-               "PASS" if gone1 and gone2 else "FAIL", hidden_at_once=gone1, hidden_after_reload=gone2,
-               pref=w.prefs_of(ctx, base).get("notebook_getting_started"))
+        C.step(pg, inst, "get started", "+ New on the notes list makes a note the member can title and type in",
+               "PASS" if S.get("first_note") else "FAIL", note=S.get("first_note"))
     run("checklist", checklist)
 
     # ── the one-time offer, What's new, Walkthroughs ─────────────────────────────────────
     def offer():
+        # Notebook simplify Task 1 (ruling): no card, toast or dialog the member did not ask for, so the one-time tour
+        # offer no longer opens by itself; every tour is in Help > Walkthroughs and What's new (checked below). This
+        # step now proves the offer stays away on the notes list, where it used to appear.
         home()
         offer_ = pg.locator("[data-tour-offer]")
-        for _ in range(24):
-            if offer_.count():
-                break
-            if pg.evaluate(w.STAGE_JS)["slotOthers"]:
-                try:
-                    pg.get_by_role("button", name="Got it", exact=True).first.click(timeout=2000)
-                except Exception:  # noqa: BLE001
-                    pass
-            pg.wait_for_timeout(500)
-        shown = C.vis_loc(offer_, 8000)
-        title = offer_.first.locator("h2").inner_text() if shown else None
-        focus_in = pg.evaluate("() => { const o = document.querySelector('[data-tour-offer]'); return !!(o && o.contains(document.activeElement)) }")
-        C.step(pg, inst, "offer", "the one-time tour offer appears on Home, without taking focus",
-               "PASS" if shown and not focus_in else "FAIL", title=title, took_focus=focus_in, stage=pg.evaluate(w.STAGE_JS),
+        pg.wait_for_timeout(8000)
+        C.step(pg, inst, "offer", "no unprompted tour offer on the notes list (ruling: Help > Walkthroughs is the door)",
+               "PASS" if offer_.count() == 0 else "FAIL", offers=offer_.count(), stage=pg.evaluate(w.STAGE_JS),
                scope=["[data-tour-offer]"])
-        if shown:
-            later = offer_.first.get_by_role("button", name="Not now")
-            later.focus()
-            pg.keyboard.press("Enter")
-            pg.wait_for_timeout(1500)
-            hidden = offer_.count() == 0
-            pg.reload(wait_until="domcontentloaded")
-            h._dismiss_intro(pg)
-            pg.wait_for_timeout(4000)
-            C.step(pg, inst, "offer", "Not now hides it; no second offer in the same session after a reload",
-                   "PASS" if hidden and offer_.count() == 0 else "FAIL", hidden=hidden, offers_after_reload=offer_.count(),
-                   notebook_tours=w.prefs_of(ctx, base).get("notebook_tours"))
         C.goto(pg, base, "/support")
-        replay = pg.get_by_role("link", name=re.compile(r"^Replay"))   # "Replay the <title> tour" since lane A11Y
+        # "Start the <title> tour" / "Replay the <title> tour" (S14). What's new below uses the same links, so the
+        # rows are read from the Walkthroughs list itself (the list after the #walkthroughs heading).
+        replay = pg.locator(WALKTHROUGH_ROWS).get_by_role("link", name=q2.WALK_LINK)
         C.vis_loc(replay, 20000)
-        rows = [x.replace("\n", " ").strip() for x in pg.locator("li", has=replay).all_inner_texts()]
+        rows = [x.replace("\n", " ").strip() for x in pg.locator(WALKTHROUGH_ROWS).all_inner_texts()]
         registry = q2.read_registry()
         want = [t["title"] for t in registry if t["replayable"]]
         missing = [t for t in want if not any(t in r for r in rows)]
@@ -640,11 +672,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── template gallery ────────────────────────────────────────────────────────────────
     def gallery():
         C.goto(pg, base, "/journal/notebook?view=all")
-        pg.get_by_role("button", name="Templates", exact=True).first.click()
-        door = pg.get_by_role("button", name="Browse the community gallery")
+        open_templates(pg)
+        # S7 (master, "one vocabulary"): the door is "Browse the Template library" and the gallery's heading is
+        # "Template library · From members" (they were "Browse the community gallery" / "Community gallery").
+        door = pg.get_by_role("button", name=GALLERY_DOOR)
         door.first.wait_for(state="visible", timeout=20000)
         door.first.click()
-        opened = C.vis_loc(pg.get_by_role("heading", name="Community gallery"), 20000)
+        opened = C.vis_loc(pg.get_by_role("heading", name=re.compile(r"^Template library")), 20000)
         pg.wait_for_timeout(1500)
         picks = M.get(base + "/api/j2/template-gallery?section=picks").json().get("templates") or []
         regions = {r: pg.get_by_role("region", name=r).count() for r in ("UCT picks", "Community")}
@@ -659,7 +693,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 pg.get_by_role("button", name=f"Preview {title}").first.click(timeout=10000)
                 dlg = pg.get_by_role("dialog", name=title)
                 dlg.first.wait_for(state="visible", timeout=15000)
-                use = pg.get_by_role("button", name="Use this template")
+                use = dlg.get_by_role("button", name=re.compile(r"^Use( this template)?$"))   # S7: "Use"
                 use.first.click(timeout=10000)
                 added = C.vis_loc(pg.get_by_text(f"Added “{title}” to Your templates."), 15000)
                 mk = pg.get_by_role("button", name="Make a note from it")
@@ -679,7 +713,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         name = f"Fin walk plan {int(time.time()) % 100000}"
         st, tpl = C.api(ctx, inst, "POST", base, "/api/j2/note-templates", {"noteId": src, "name": name})
         C.goto(pg, base, "/journal/notebook?view=all")
-        pg.get_by_role("button", name="Templates", exact=True).first.click()
+        open_templates(pg)
         sent, perr = False, None
         try:
             share = pg.get_by_role("button", name=f"Share {name} to the community gallery")
@@ -734,14 +768,17 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         new_prop()
         types = [t.strip() for t in pg.get_by_role("combobox", name="Property type").locator("option").all_inner_texts()]
         pg.get_by_role("combobox", name="Property type").select_option(label="Formula")
-        starter = pg.get_by_role("combobox", name="Start from a trader formula")
-        starter.wait_for(state="visible", timeout=8000)
-        starters = [t.strip() for t in starter.locator("option").all_inner_texts()]
-        starter.select_option(label=next(s for s in starters if s.startswith("R-multiple")))
+        # S13 (master, audit 2026-11-05): the trader formulas are buttons in the group "Start from a trader formula"
+        # (FormulaEditor.jsx), no longer a select; the raw formula sits behind "Write your own".
+        group = pg.get_by_role("group", name="Start from a trader formula")
+        group.wait_for(state="visible", timeout=15000)
+        starter_btns = group.locator("[data-formula-starter]")
+        starters = [re.sub(r"\s+", " ", t).strip() for t in starter_btns.all_inner_texts()]
+        group.get_by_role("button", name=re.compile(r"^R-multiple")).first.click()
         nm_box = pg.get_by_role("textbox", name="Property name")
         if not nm_box.input_value():
             nm_box.fill("R-multiple")
-        formula_text = pg.get_by_role("textbox", name="Formula").input_value()
+        formula_text = pg.get_by_role("textbox", name="Formula", include_hidden=True).input_value()
         pg.get_by_role("button", name="Create").click()
         frow = pg.locator("li[data-prop-row]").filter(has_text="R-multiple").first
         frow.wait_for(state="visible", timeout=10000)
@@ -972,7 +1009,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
 
     # ── earnings prep ───────────────────────────────────────────────────────────────────
     def earnings():
-        home()
+        brief()   # Reporting soon is on the Daily brief, folded (go-live wave 1)
+        unfold(pg, r"^\s*Reporting soon")
         box = pg.locator("[data-reporting-soon]")
         present = C.vis_loc(box, 30000)
         pg.wait_for_timeout(2500)
@@ -993,7 +1031,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "sample examples", "earnings prep: with AMZN on the watchlist, Reporting soon opens the sample's AMZN draft (Open, not Create)",
                "PASS" if opened_prep and opened_prep == (S.get("sample_by_ticker") or {}).get("AMZN") else "FAIL",
                open_button=n_open, create_button=n_create, opened_note=opened_prep)
-        home()
+        brief()
+        unfold(pg, r"^\s*Reporting soon")
         C.vis_loc(box, 30000)
         btn = pg.get_by_role("button", name="Create prep note for AMD")
         made, body, err = None, "", None
@@ -1061,12 +1100,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
 
     # ── passed setups ───────────────────────────────────────────────────────────────────
     def passed():
-        home()
+        brief()   # Passed setups is on the Daily brief, folded (go-live wave 1)
+        unfold(pg, r"^\s*Passed setups")
         box = pg.locator("[data-passed-setups]")
         present = C.vis_loc(box, 30000)
         pg.wait_for_timeout(2000)
         rows = pg.evaluate("() => [...document.querySelectorAll('[data-passed-symbol]')].map(e => ({ sym: e.getAttribute('data-passed-symbol'), text: e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 160) }))")
-        C.step(pg, inst, "passed setups", "the list on Research Home shows the passed name and how it moved since",
+        C.step(pg, inst, "passed setups", "the list on the Daily brief shows the passed name and how it moved since",
                "PASS" if present and any(r["sym"] == "GOOGL" for r in rows) else "FAIL", rows=rows, scope=["[data-passed-setups]"])
         day = C.TODAY - timedelta(days=35)
         while day.weekday() >= 5:
@@ -1307,11 +1347,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── review drafts ───────────────────────────────────────────────────────────────────
     def reviews():
         for kind in ("daily", "weekly", "monthly"):
+            # Research home's "Reviews that write themselves" box is gone; the door is the list's "+ New" arrow, whose
+            # menu carries a Reviews group (Today's recap, This week's review, This month's review), simplify Task 3.
             home()
-            box = pg.locator('[data-tour="review-drafts-home"]')
-            present = C.vis_loc(box, 30000)
+            caret = pg.get_by_role("button", name="More ways to start a note", exact=True)
+            present = C.vis_loc(caret, 30000)
             made, text, err = None, None, None
             try:
+                caret.first.click()
                 pg.locator(f'[data-tour="review-drafts-{kind}"]').first.click(timeout=15000)
                 pg.wait_for_url(lambda u: "note=" in u, timeout=60000)
                 made = pg.url.split("note=")[-1].split("&")[0]
@@ -1324,7 +1367,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             n = note_json(made) if made else {}
             heads = re.findall(r'"type": "heading".*?"text": "([^"]{2,60})"', json.dumps(n.get("bodyJson") or {}))[:14]
             C.step(pg, inst, "review drafts", f"one click drafts the {kind} review as a note",
-                   "PASS" if made and text and len(text) > 200 else "FAIL", box=present, note=made, title=n.get("title"),
+                   "PASS" if made and text and len(text) > 200 else "FAIL", new_menu_arrow=present, note=made, title=n.get("title"),
                    headings=heads, text_head=(text or "")[:500], mentions_amd="AMD" in (text or ""), alerts=alerts, reach_error=err)
             S[f"review_{kind}"] = made
         C.step(None, inst, "review drafts", "the Compass quote inside a draft", "NOT_RUN", reason="NO KEY", shot=False)
@@ -1339,7 +1382,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     run("nokey", nokey)
 
     def passed_show_all():
-        home()
+        brief()
+        unfold(pg, r"^\s*Passed setups")
         C.vis(pg, "[data-passed-setups]", 20000)
         rows_ = pg.locator("[data-passed-symbol]").count()
         show = pg.get_by_role("button", name=re.compile(r"^Show all", re.I)).count()
@@ -1351,7 +1395,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def pages_for_layout():
         sb = S.get("sample_by_ticker") or {}
         return [
-            ("Research Home", "/journal/notebook", ["[data-reporting-soon]", "[data-passed-setups]", '[data-tour="review-drafts-home"]']),
+            # Go-live wave 2: Research home is gone; the bare address is the notes list, and its Reporting soon and Passed
+            # setups are on the Daily brief (the review drafts box became the New menu's Reviews group).
+            ("notes list", "/journal/notebook", ['[role="toolbar"][aria-label="Notes list tools"]']),
+            ("Daily brief", "/journal/notebook?view=today", ["[data-today-home]", "[data-reporting-soon]", "[data-passed-setups]"]),
             ("plan note with fingerprint (AAPL sample)", f"/journal/notebook?note={sb.get('AAPL')}", ['[data-testid="fingerprint-panel"]']),
             ("own chart plan note (AMD)", f"/journal/notebook?note={S.get('amd_note')}", ['[data-testid="fingerprint-panel"]', "[data-chart-plan-panel]"]),
             ("formula note", f"/journal/notebook?note={S.get('formula_note')}", ["li[data-prop-row]"]),
@@ -1439,6 +1486,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             opt = p_.get_by_role("option", name=re.compile("transcript", re.I))
             opt.first.wait_for(state="visible", timeout=10000)
             p_.keyboard.press("Enter")
+            # The picker opens on the note's ticker; a note with none (the tours open the member's most recent note,
+            # the formula note) asks for one first: the member types the name the sandbox holds a call for.
+            sym = p_.locator("#tc-symbol")
+            if C.vis_loc(sym, 5000) and not (sym.first.input_value() or "").strip():
+                sym.first.fill("TSLA")
+                p_.get_by_role("button", name="Find calls", exact=True).first.click(timeout=5000)
             return True
         except Exception:  # noqa: BLE001 -- the generic press is tried next, and the row says what happened
             return False
@@ -1574,6 +1627,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def new_member(tag, vp):
         c_, email_, me_ = C.member(browser, admin.request, base, tag, vp)
         i_ = C.Inst(c_, cfg, vp)
+        # Go-live wave 2: the base tour now waits for the 60-second first run (S16), so on a new member's first visit
+        # its (modal) card can arrive many seconds after the page and cover the door a check is pressing. These
+        # members exist to measure other doors, so the walk records the base tour as skipped through the member's own
+        # preference route (the write "Skip tour" makes; request and response in api_writes). The base tour itself
+        # is walked by `checklist` and the tours section.
+        C.api(c_, i_, "POST", base, "/api/auth/preferences",
+              {"key": "notebook_tour", "value": json.dumps({"v": 1, "state": "dismissed", "step": None})})
         p_ = c_.new_page()
         HOLD.update(pg=p_, inst=i_)
         return c_, email_, me_, i_, p_
@@ -1589,24 +1649,28 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def menu_names(menu):
         return [re.sub(r"\s+", " ", t).strip() for t in menu.get_by_role("menuitem").all_inner_texts()]
 
-    # ── discover.new-note-home (1280 and 390) ──────────────────────────────────────────────────────
+    # ── discover.new-note-list (1280 and 390) ──────────────────────────────────────────────────────
+    # Go-live wave 2: Research home's New note split button is gone (wave 1, B); the door a member uses is the notes
+    # list's "+ New" (one press, a blank note) and its arrow ("More ways to start a note", the menu "Start a note"). On
+    # a phone the "+ New" group is not drawn: the More menu carries the phone rows (Today, New from a template, Import,
+    # Voice note, Reviews) and the floating "+" makes a note.
     def d_new_note_home():
         cA, emailA, meA, iA, pA = new_member("c2dnh", "1280")
         c9 = None
         try:
             st, body = C.api(cA, iA, "POST", base, "/api/j2/notes", {"title": "First research note", "bodyJson": TEXT_DOC})
             at(pA, base, "/journal/notebook", first_run=True)
-            wrap = pA.locator('[data-tour="new-note-home"]')
-            main_btn = wrap.get_by_role("button", name="New note", exact=True)
-            caret = wrap.get_by_role("button", name="More ways to start a note", exact=True)
+            main_btn = pA.get_by_role("button", name="+ New", exact=True)
+            caret = pA.get_by_role("button", name="More ways to start a note", exact=True)
             shown = C.vis_loc(main_btn, 30000)
             m_main = main_btn.first.evaluate(COVER_JS) if shown else {}
-            search_top = pA.locator("input[data-home-search]").first.evaluate("e => e.getBoundingClientRect().top") if pA.locator("input[data-home-search]").count() else None
             voice_on = bool(meA.get("notebook_voice_notes_enabled")) and bool(meA.get("paid_equiv"))
-            # Notebook P1: "From a style" (spec P0.1/P1.4) is listed while journal styles are on, read like voice.
+            reviews_on = meA.get(REVIEW_DRAFTS_KEY) is True
+            # "From a template" is in the menu either way; journal styles decide what it opens (the kind picker, or the
+            # plain template sheet), so the switch is recorded with the row, read like the product reads it.
             styles_on = bool(meA.get("notebook_journal_styles_enabled"))
-            expected = (["From an outline"] + (["From a style"] if styles_on else []) + (["Voice note"] if voice_on else [])
-                        + ["Today's note"])
+            expected = (["Blank", "From a template"] + (["Voice note"] if voice_on else []) + ["Import"]
+                        + (["Today's recap", "This week's review", "This month's review"] if reviews_on else []))
             caret.first.click()
             menu = pA.get_by_role("menu", name="Start a note")
             opened = C.vis_loc(menu, 8000)
@@ -1625,23 +1689,27 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 pA.wait_for_timeout(400)
             ok = (shown and m_main.get("uncovered") and m_main.get("above_fold") and opened and items == expected
                   and after == before + 1 and "note=" in (landed or ""))
-            C.step(pA, iA, "discover.new-note-home", "Research Home header: New note makes a note; the caret lists the ways that are armed",
-                   "PASS" if ok else "FAIL", button=m_main, search_box_top=search_top, menu_items=items, expected_items=expected,
-                   voice_flag_on=voice_on, styles_flag_on=styles_on, notes_before=before, notes_after=after, landed=landed, note_create_status=st,
-                   scope=['[data-tour="new-note-home"]'])
-            # 390: the same member, the menu fully inside the window
+            C.step(pA, iA, "discover.new-note-list", "notes list: + New makes a note in one press; its arrow lists the ways that are armed",
+                   "PASS" if ok else "FAIL", button=m_main, menu=m_menu, menu_items=items, expected_items=expected,
+                   voice_flag_on=voice_on, styles_flag_on=styles_on, notes_before=before, notes_after=after, landed=landed,
+                   note_create_status=st, scope=['[role="toolbar"][aria-label="Notes list tools"]'])
+            # 390: the same member; the More menu (the phone's door to the New menu's rows) opens fully inside the window
             c9, i9, p9 = phone_of(cA)
             at(p9, base, "/journal/notebook")
-            w9 = p9.locator('[data-tour="new-note-home"]')
-            C.vis_loc(w9.get_by_role("button", name="New note", exact=True), 30000)
-            w9.get_by_role("button", name="More ways to start a note", exact=True).first.click()
-            menu9 = p9.get_by_role("menu", name="Start a note")
+            more = p9.get_by_role("button", name="More notebook actions", exact=True)
+            C.vis_loc(more, 30000)
+            more.first.click()
+            menu9 = p9.get_by_role("menu", name="More notebook actions")
             op9 = C.vis_loc(menu9, 8000)
             mm = menu9.first.evaluate(COVER_JS) if op9 else {}
-            items9 = menu_names(menu9) if op9 else []
-            ok9 = op9 and mm.get("inside_x") and mm["rect"]["bottom"] <= mm["innerHeight"] and items9 == expected
-            C.step(p9, i9, "discover.new-note-home", "390 px: the New note menu opens fully inside the window", "PASS" if ok9 else "FAIL",
-                   menu=mm, menu_items=items9, expected_items=expected, scope=['[data-tour="new-note-home"]', "[role=menu]"])
+            items9 = [t for t in (menu_names(menu9) if op9 else [])]
+            vis9 = [re.sub(r"\s+", " ", e.inner_text()).strip() for e in menu9.get_by_role("menuitem").filter(visible=True).all()] if op9 else []
+            want9 = ["New from a template", "Import"] + (["Voice note"] if voice_on else []) + (
+                ["Today's recap", "This week's review", "This month's review"] if reviews_on else [])
+            ok9 = op9 and mm.get("inside_x") and mm["rect"]["bottom"] <= mm["innerHeight"] and all(x in vis9 for x in want9)
+            C.step(p9, i9, "discover.new-note-list", "390 px: the More menu opens fully inside the window and carries the New menu's rows",
+                   "PASS" if ok9 else "FAIL", menu=mm, menu_items=items9, visible_items=vis9, expected_present=want9,
+                   scope=["[role=menu]"])
         finally:
             for c_ in (c9, cA):
                 if c_ is not None:
@@ -1675,13 +1743,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         c9, i9, p9 = phone_of(ctx)
         try:
             at(p9, base, "/journal/notebook")
-            door = p9.get_by_role("button", name="Show folders panel", exact=True)
+            # S12 (V4): on a phone the folders drawer's door is the toolbar's labelled "Folder: All notes" dropdown
+            door = p9.get_by_role("button", name=re.compile(r"^Folder: "))
             shown = C.vis_loc(door, 30000)
             m = door.first.evaluate(COVER_JS) if shown else {}
             label = door.first.evaluate("e => [...e.querySelectorAll('span')].map(s => s.textContent.trim()).join(' ')") if shown else None
             ok = shown and m.get("uncovered") and m.get("inside_x") and m.get("above_fold")
             C.step(p9, i9, "discover.phone-folders-visible", "390 px Home: the Folders drawer button is on screen and nothing covers it",
-                   "PASS" if ok else "FAIL", button=m, visible_word=label, scope=["button[aria-label='Show folders panel']"])
+                   "PASS" if ok else "FAIL", button=m, visible_word=label, scope=["[aria-controls='notebook-folders-panel']"])
         finally:
             c9.close()
 
@@ -1699,6 +1768,33 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         row = frame.locator('[role="toolbar"][aria-label="Chart tools"]')
         res: dict = {}
         err = None
+        if touch and (p_.viewport_size or {}).get("width", 1280) <= 640:
+            # S12 (master, 7ccec23c77, by ruling): at phone width the chart's compact header drops Draw, Plan and
+            # Replay into its More menu. The door a member uses there: More, then Plan (which opens the plan panel).
+            try:
+                more = toolbar_button(p_, frame, "More chart actions", touch)
+                more.scroll_into_view_if_needed(timeout=10000)
+                res["more"] = more.evaluate(COVER_JS)
+                h2.press(more, touch)
+                # on touch the More menu is a sheet of plain buttons (ContextPopover's touch branch, not role=menu)
+                sheet_ = p_.get_by_role("dialog").filter(has=p_.get_by_role("button", name=re.compile(r"^Replay"))).last
+                C.vis_loc(sheet_, 8000)
+                res["menu_items"] = [re.sub(r"\s+", " ", t).strip()[:40] for t in sheet_.get_by_role("button").all_inner_texts()]
+                plan_item = sheet_.get_by_role("button", name=re.compile(r"^Plan")).first
+                res["plan_in_more"] = plan_item.count() > 0
+                res["replay_in_more"] = sheet_.get_by_role("button", name=re.compile(r"^Replay")).count() > 0
+                plan_item.click(timeout=8000)
+                panel = p_.locator("[data-chart-plan-panel]").first
+                panel.wait_for(state="visible", timeout=20000)
+                res["panel_opened"] = True
+            except Exception as e:  # noqa: BLE001
+                err = f"{type(e).__name__}: {str(e)[:300]}"
+            mo = res.get("more") or {}
+            ok = (not err and mo.get("uncovered") and mo.get("inside_x") and res.get("plan_in_more") and res.get("replay_in_more")
+                  and res.get("panel_opened"))
+            C.step(p_, i_, "discover.chart-plan-clickable", "390 px: the chart's More (phone chart mode) lists Plan and Replay, is uncovered, and Plan opens the plan panel",
+                   "PASS" if ok else "FAIL", reach_error=err, note=nid, scope=['[role="toolbar"][aria-label="Chart tools"]', "[data-chart-plan-panel]"], **res)
+            return
         try:
             plan = toolbar_button(p_, frame, "Plan", touch)
             plan.scroll_into_view_if_needed(timeout=10000)
@@ -1750,7 +1846,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 and str(i.get("link") or "").startswith("/journal/notebook?note=")]
         al = M.get(base + "/api/alerts?limit=20")
         alerts = al.json() if al.status == 200 and isinstance(al.json(), list) else []
-        at(pg, base, "/journal/notebook")
+        at(pg, base, "/journal/notebook?view=today")   # the Notices box moved to the Daily brief (go-live wave 1, A4)
         summ = pg.locator('[data-tour="home-notices"] > summary')
         shown = C.vis_loc(summ, 30000)
         # textContent, never innerText: the box's heading is upper-cased by CSS, and innerText follows it
@@ -1786,28 +1882,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    "INFO", reason="GET /api/voice/insights returned no open note_level_touch / note_big_move / note_date_due row with a note link", **facts)
             return
         ok = shown and n >= 1 and len(row_texts) == n and f"note={want_id}" in (landed or "") and editor
-        C.step(pg, inst, "discover.notices", "Home shows 'Notices · N' (N of at least 1) and a RESURFACED-NOTE row opens that note",
+        C.step(pg, inst, "discover.notices", "the Daily brief shows 'Notices · N' (N of at least 1) and a RESURFACED-NOTE row opens that note",
                "PASS" if ok else "FAIL", **facts)
 
-    # ── discover.setups-box (1280) ─────────────────────────────────────────────────────────────────
+    # ── discover.setups-card (1280) ────────────────────────────────────────────────────────────────
+    # Go-live wave 2: Research home's "Active setups · N" box (SetupsBox) was dropped by ruling; the replacement door
+    # is the Daily brief's "Setups near entry" card, whose link opens the setups board (and the board's way back).
     def d_setups_box():
         HOLD.update(pg=pg, inst=inst)
-        at(pg, base, "/journal/notebook")
-        boxl = pg.locator('[data-tour="home-setups"]')
-        shown = C.vis_loc(boxl, 30000)
-        count_loc = boxl.first.locator("span").first          # the box's one count line (SetupsBox.jsx `.count`)
-        count_re = re.compile(r"^Active setups · (\d+ open|none open)$")
-        count = None
-        for _ in range(20):                                    # the count arrives with the board's own read
-            count = re.sub(r"\s+", " ", count_loc.text_content() or "").strip() if shown else None
-            if count_re.match(count or ""):
-                break
-            pg.wait_for_timeout(500)
-        text = re.sub(r"\s+", " ", boxl.first.text_content() or "").strip() if shown else None
-        m = boxl.first.evaluate(COVER_JS) if shown else {}
-        link = pg.get_by_role("link", name="Open the setups board", exact=True)
-        lm = link.first.evaluate(COVER_JS) if C.vis_loc(link, 5000) else {}
-        link.first.click()
+        at(pg, base, "/journal/notebook?view=today")
+        card = pg.locator('[data-today-card="setups"]')
+        shown = C.vis_loc(card, 30000)
+        text = re.sub(r"\s+", " ", card.first.text_content() or "").strip() if shown else None
+        m = card.first.evaluate(COVER_JS) if shown else {}
+        link = card.get_by_role("link", name=re.compile(r"setups board"))
+        lm = link.first.evaluate(COVER_JS) if C.vis_loc(link, 10000) else {}
+        link_text = re.sub(r"\s+", " ", link.first.text_content() or "").strip() if lm else None
+        if lm:
+            link.first.click()
         for _ in range(30):
             if pg.url.split("?")[0].endswith("/journal/notebook/setups"):
                 break
@@ -1823,37 +1915,46 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     break
                 pg.wait_for_timeout(300)
         home_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook")
-        ok = (shown and count_re.match(count or "") and m.get("above_fold") and lm.get("uncovered") and on_board and back_shown and home_again)
-        C.step(pg, inst, "discover.setups-box", "Home box 'Active setups · …' above the fold; its link opens the board; the board has Back to Notebook",
-               "PASS" if ok else "FAIL", box_text=text, count_line=count, box=m, link=lm, on_board=on_board, back_link=back_shown, back_href=back_href,
-               back_lands_on_home=home_again, scope=['[data-tour="home-setups"]'])
+        ok = (shown and lm.get("uncovered") and on_board and back_shown and home_again)
+        C.step(pg, inst, "discover.setups-card", "Daily brief: the 'Setups near entry' card's link opens the board; the board has Back to Notebook",
+               "PASS" if ok else "FAIL", card_text=(text or "")[:300], card=m, link=lm, link_text=link_text, on_board=on_board,
+               back_link=back_shown, back_href=back_href, back_lands_on_notebook=home_again, scope=['[data-today-card="setups"]'])
 
     # ── discover.one-ask (1280) ────────────────────────────────────────────────────────────────────
+    # Go-live wave 2: Research home's Ask section moved behind the notes list's "AI" button (simplify Task 5), and the
+    # note's "Ask this note" toggle is the desktop header's "AI" menu item "Ask about this note" (Task 4).
     def d_one_ask():
         HOLD.update(pg=pg, inst=inst)
         at(pg, base, "/journal/notebook")
+        ai = pg.get_by_role("button", name="AI", exact=True).filter(visible=True)
+        ai_shown = C.vis_loc(ai, 20000)
+        if ai_shown:
+            ai.first.click()
         regions = pg.get_by_role("region", name="Ask your Notebook")
+        C.vis_loc(regions, 15000)
         n = regions.count()
-        toggle = regions.first.locator("[data-ask-toggle]") if n else None
-        toggle_n = toggle.count() if toggle is not None else 0
-        toggle_name = toggle.first.get_attribute("aria-label") if toggle_n else None
-        change = regions.first.get_by_role("button", name="Or tell Notebook what to change", exact=True).count() if n else 0
-        old_door = pg.get_by_role("button", name=re.compile(r"Ask Notebook to do something", re.I)).count()
         flag_on = notebook_flag_on("notebook_ai_actions_enabled")
-        # the note-level door: "Ask this note", and no Notebook-wide section on a note's page
+        if n and flag_on:      # "Or tell Notebook what to change" is its own lazy box inside the section (AiActionsBox)
+            C.vis_loc(regions.first.get_by_role("button", name="Or tell Notebook what to change", exact=True), 15000)
+        change = regions.first.get_by_role("button", name="Or tell Notebook what to change", exact=True).count() if n else 0
+        question = regions.first.get_by_role("textbox").count() if n else 0
+        # the note-level door: the header's "AI" menu, "Ask about this note"; no Notebook-wide section on a note's page
         nid = S.get("ibm_note") or S.get("amd_note")
         C.goto(pg, base, f"/journal/notebook?note={nid}", ".ProseMirror")
         nudges(pg)
         pg.wait_for_timeout(1500)
-        note_door = pg.get_by_role("button", name="Ask this note", exact=True)
-        note_n = note_door.count()
-        note_vis = C.vis_loc(note_door, 15000)
+        note_ai = pg.locator('[data-tour="note-ai"]')
+        note_ai_vis = C.vis_loc(note_ai, 15000)
+        item_vis = False
+        if note_ai_vis:
+            note_ai.first.click()
+            item_vis = C.vis_loc(pg.get_by_role("menu", name="AI").get_by_role("menuitem", name="Ask about this note", exact=True), 8000)
+            pg.keyboard.press("Escape")
         region_on_note = pg.get_by_role("region", name="Ask your Notebook").count()
-        ok = (n == 1 and toggle_name and toggle_n == 1 and (change == 1 or not flag_on) and old_door == 0
-              and note_n == 1 and note_vis and region_on_note == 0)
-        C.step(pg, inst, "discover.one-ask", "Home has exactly one region 'Ask your Notebook' (the Ask toggle and 'Or tell Notebook what to change'); a note's door is 'Ask this note'",
-               "PASS" if ok else "FAIL", regions_on_home=n, ask_toggle=toggle_name, ask_toggles_in_region=toggle_n, change_box_in_region=change, ai_actions_flag_on=flag_on,
-               old_second_door_buttons=old_door, ask_this_note_buttons=note_n, ask_this_note_visible=note_vis, regions_on_note=region_on_note,
+        ok = (ai_shown and n == 1 and (change == 1 or not flag_on) and note_ai_vis and item_vis and region_on_note == 0)
+        C.step(pg, inst, "discover.one-ask", "the notes list's AI opens exactly one 'Ask your Notebook' region (with 'Or tell Notebook what to change'); a note's AI menu has 'Ask about this note'",
+               "PASS" if ok else "FAIL", ai_button=ai_shown, regions_on_list=n, question_fields=question, change_box_in_region=change,
+               ai_actions_flag_on=flag_on, note_ai_menu=note_ai_vis, ask_about_this_note_item=item_vis, regions_on_note=region_on_note,
                scope=['section[aria-label="Ask your Notebook"]'])
 
     def notebook_flag_on(key):
@@ -1905,8 +2006,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def d_capture_doors():
         HOLD.update(pg=pg, inst=inst)
         at(pg, base, "/journal/notebook?view=all")
-        imp = pg.get_by_role("button", name="Import", exact=True)
-        imp.first.click(timeout=15000)
+        # Import left the toolbar for the "+ New" arrow's menu (simplify Task 3)
+        pg.get_by_role("button", name="More ways to start a note", exact=True).first.click(timeout=15000)
+        pg.get_by_role("menu", name="Start a note").get_by_role("menuitem", name="Import", exact=True).first.click(timeout=10000)
         heading = pg.get_by_role("heading", name="Capture from anywhere")
         has_heading = C.vis_loc(heading, 15000)
         pg.wait_for_timeout(1500)     # the two gates answer on their own reads
@@ -1941,110 +2043,102 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
 
-    # ── discover.learn-groups (390) and its control ────────────────────────────────────────────────
-    def learn_sheet(p_):
-        btn = p_.get_by_role("button", name="Learn", exact=True)
-        btn.first.wait_for(state="visible", timeout=30000)
-        btn.first.click()
-        dlg = p_.get_by_role("dialog", name="Learn: walkthroughs")
-        opened = C.vis_loc(dlg, 10000)
-        return dlg, opened
+    # ── discover.help-walkthroughs (390) and its control ───────────────────────────────────────────
+    # Go-live wave 2: the Learn menu (and its "Add the sample notebook" item) was dropped by ruling; Help > Walkthroughs
+    # lists every tour, and the empty notes list offers the sample. This proves both replacement doors at 390.
+    def replay_from_help(p_, title):
+        """Start a registered tour the way a member does now: Help > Walkthroughs, "Replay the <title> tour"."""
+        C.goto(p_, base, "/support")
+        li = p_.locator("li").filter(has=p_.get_by_text(title, exact=True)).filter(has=p_.get_by_role("link", name=q2.WALK_LINK))
+        li.first.get_by_role("link", name=q2.WALK_LINK).first.click(timeout=20000)
 
     def d_learn_groups():
+        registry = q2.read_registry()
+        want = [t["title"] for t in registry if t["replayable"]]
         c9, i9, p9 = phone_of(ctx)
         try:
+            at(p9, base, "/support")
+            replay = p9.locator(WALKTHROUGH_ROWS).get_by_role("link", name=q2.WALK_LINK)
+            C.vis_loc(replay, 20000)
+            rows = [x.replace("\n", " ").strip() for x in p9.locator(WALKTHROUGH_ROWS).all_inner_texts()]
+            missing = [t for t in want if not any(t in r for r in rows)]
+            first = replay.first.evaluate(COVER_JS) if replay.count() else {}
+            ok = not missing and len(rows) == len(want) + 1 and first.get("inside_x")
+            C.step(p9, i9, "discover.help-walkthroughs", "390 px: Help > Walkthroughs lists the base tour and every replayable tour, inside the window",
+                   "PASS" if ok else "FAIL", listed=rows, expected=want, missing=missing, first_link=first,
+                   scope=["ul:has(> li > a[href*='notebook'])"])
+            # a member with notes: the list offers no "Add a sample notebook"
             at(p9, base, "/journal/notebook")
-            dlg, opened = learn_sheet(p9)
-            groups = [g.get_attribute("aria-label") for g in dlg.get_by_role("group").all()] if opened else []
-            items = menu_names(dlg) if opened else []
-            catalog = dlg.get_by_role("menuitem", name="What your Notebook can do", exact=True).count() if opened else 0
-            sample = dlg.get_by_role("menuitem", name="Add the sample notebook", exact=True).count() if opened else 0
-            want = ["Basics", "Writing and capture", "Trading", "Research"]
-            ok = opened and groups == want and catalog == 1 and sample == 0
-            C.step(p9, i9, "discover.learn-groups", "390 px: Learn opens a dialog of grouped tours with 'What your Notebook can do'; a member with notes is not offered the sample",
-                   "PASS" if ok else "FAIL", dialog_opened=opened, groups=groups, expected_groups=want, catalog_items=catalog,
-                   sample_items_for_member_with_notes=sample, items=items, scope=["[role=dialog]"])
+            p9.wait_for_timeout(1500)
+            offered = p9.get_by_role("button", name="Add a sample notebook").filter(visible=True).count()
+            C.step(p9, i9, "discover.help-walkthroughs", "390 px: a member with notes is not offered the sample on the notes list",
+                   "PASS" if offered == 0 else "FAIL", add_sample_buttons=offered)
         finally:
             c9.close()
-        # control: the same menu for a member with NO notes DOES offer the sample (R15), so the absence above is not blindness
+        # control: a member with NO notes IS offered the sample on the empty list (R15), so the absence above is not blindness
         cF, emailF, meF, iF, pF = new_member("c2lg0", "390")
         try:
             at(pF, base, "/journal/notebook", first_run=True)
-            dlgF, openedF = learn_sheet(pF)
-            sampleF = dlgF.get_by_role("menuitem", name="Add the sample notebook", exact=True).count() if openedF else 0
-            C.step(pF, iF, "discover.learn-groups", "control, 390 px: the same menu for a member with no notes offers 'Add the sample notebook' (ruling R15)",
-                   "PASS" if openedF and sampleF == 1 else "FAIL", dialog_opened=openedF, sample_items=sampleF,
-                   items=menu_names(dlgF) if openedF else [], scope=["[role=dialog]"])
+            sampleF = C.vis_loc(pF.get_by_role("button", name="Add a sample notebook"), 15000)
+            C.step(pF, iF, "discover.help-walkthroughs", "control, 390 px: the empty notes list offers 'Add a sample notebook' (ruling R15)",
+                   "PASS" if sampleF else "FAIL", add_sample_shown=sampleF)
         finally:
             cF.close()
 
     # ── discover.catalog (1280) ────────────────────────────────────────────────────────────────────
+    # Go-live wave 2: "What your Notebook can do" left the Learn menu's sheet for Help (Support.jsx,
+    # NotebookCapabilitiesSection, after Walkthroughs).
     def d_catalog():
         HOLD.update(pg=pg, inst=inst)
         me_now = M.get(base + "/api/auth/me").json()
         flags_on = {"notebook_terminal_links_enabled": me_now.get("notebook_terminal_links_enabled") is True,
                     "compass_notes_tool_enabled": me_now.get("compass_notes_tool_enabled") is True}
-        at(pg, base, "/journal/notebook")
-        btn = pg.get_by_role("button", name="Learn", exact=True)
-        btn.first.click(timeout=15000)
-        menu = pg.get_by_role("menu", name="Learn: walkthroughs")
-        opened = C.vis_loc(menu, 8000)
-        item = menu.get_by_role("menuitem", name="What your Notebook can do", exact=True)
-        has_item = item.count() == 1
-        sheet_text, labels = None, {}
-        if has_item:
-            item.first.click()
-            dlg = pg.get_by_role("dialog", name="What your Notebook can do")
-            if C.vis_loc(dlg, 10000):
-                pg.wait_for_timeout(1200)     # the preview loads on demand
-                sheet_text = re.sub(r"\s+", " ", dlg.first.inner_text())
-                labels = {k: (k in sheet_text) for k in ("Terminal commands in notes", "Compass can read your notes")}
+        at(pg, base, "/support")
+        sec = pg.locator("section[aria-labelledby='support-notebook-can-do']")
+        opened = C.vis_loc(sec, 15000)
+        sheet_text = re.sub(r"\s+", " ", sec.first.inner_text()) if opened else None
+        labels = {k: (k in (sheet_text or "")) for k in ("Terminal commands in notes", "Compass can read your notes")}
         if not all(flags_on.values()):
             C.step(pg, inst, "discover.catalog", "the switches this check names are not both on in this sandbox", "NOT_RUN",
                    flags_on=flags_on, reason="NOT_RUN: a line shows only while its switch is on", sheet_text=sheet_text)
         else:
-            ok = opened and has_item and labels and all(labels.values())
-            C.step(pg, inst, "discover.catalog", "Learn > 'What your Notebook can do' lists 'Terminal commands in notes' and 'Compass can read your notes'",
-                   "PASS" if ok else "FAIL", flags_on=flags_on, learn_menu_opened=opened, catalog_item=has_item, lines_found=labels,
-                   sheet_text=(sheet_text or "")[:900], scope=["[role=dialog]"])
-        pg.keyboard.press("Escape")
-        pg.wait_for_timeout(300)
+            ok = opened and all(labels.values())
+            C.step(pg, inst, "discover.catalog", "Help > 'What your Notebook can do' lists 'Terminal commands in notes' and 'Compass can read your notes'",
+                   "PASS" if ok else "FAIL", flags_on=flags_on, section_shown=opened, lines_found=labels,
+                   sheet_text=(sheet_text or "")[:900], scope=["section[aria-labelledby='support-notebook-can-do']"])
 
     # ── discover.search-in-place (1280) ────────────────────────────────────────────────────────────
+    # Go-live wave 2: Research home's search box (which handed its text to the folders panel) is gone; the door is the
+    # folders panel's own search, and the command palette's #search door lands in it. The text a member types must
+    # arrive whole in the ONE "Search your notes" field, at a typist's speed and in a burst.
     def d_search_in_place():
-        # A FRESH tab per attempt: the walk's main tab has navigated so many times that its history is at the
-        # browser's 50-entry cap, where history.length stops counting and "one entry added" reads as zero
-        # (measured in this walk's first full run: history_added 0 for both attempts).
         def attempt(text, gap_ms):
             pg = ctx.new_page()
             HOLD.update(pg=pg, inst=inst)
-            at(pg, base, "/journal/notebook")
-            box_ = pg.locator("input[data-home-search]")
-            box_.first.wait_for(state="visible", timeout=30000)
+            at(pg, base, "/journal/notebook#search")
             inputs = pg.locator('input[aria-label="Search your notes"]').filter(visible=True)
+            C.vis_loc(inputs, 20000)
             n_before = inputs.count()
+            focused = pg.evaluate("() => document.activeElement ? document.activeElement.getAttribute('aria-label') : null")
+            if focused != "Search your notes" and n_before:
+                inputs.first.click()
             h0 = pg.evaluate("history.length")
-            box_.first.click()
             pg.keyboard.type(text, delay=gap_ms)
             pg.wait_for_timeout(2500)
             n_after = inputs.count()
-            return pg, {"gap_ms": gap_ms, "inputs_before": n_before, "inputs_after": n_after,
-                    "sidebar_value": inputs.first.input_value() if n_after else None,
-                    "home_box_visible_after": pg.locator("input[data-home-search]").filter(visible=True).count(),
-                    "history_before": h0, "history_added": pg.evaluate("history.length") - h0, "final_url": pg.url.split(base)[-1]}
+            return pg, {"gap_ms": gap_ms, "inputs_before": n_before, "inputs_after": n_after, "focused_on_arrival": focused,
+                        "value": inputs.first.input_value() if n_after else None,
+                        "history_added": pg.evaluate("history.length") - h0, "final_url": pg.url.split(base)[-1]}
 
-        # A fast typist (about 60 ms between keys) and a burst (5 ms, faster than any hand, several changes
-        # inside the router's transition). The text must arrive whole at the typist's speed; the burst is the
-        # history-entry stress; whether it kept every character is RECORDED (burst_kept_whole_text), not graded:
-        # 5 ms between keys is not a speed a hand has.
         p_typist, typist = attempt("nvda", 60)
         p_typist.close()
         pg_b, burst = attempt("nvda", 5)
-        one = lambda r: r["inputs_before"] == 1 and r["inputs_after"] == 1 and r["home_box_visible_after"] == 0 and r["history_added"] == 1 and r["final_url"].endswith("#search")  # noqa: E731
-        ok = one(typist) and typist["sidebar_value"] == "nvda" and one(burst) and bool(burst["sidebar_value"])
-        C.step(pg_b, inst, "discover.search-in-place", "Typing in Home's search hands the text to the sidebar search; one 'Search your notes' input on screen; fast typing adds one history entry",
+        one = lambda r: r["inputs_before"] == 1 and r["inputs_after"] == 1  # noqa: E731
+        ok = (one(typist) and typist["value"] == "nvda" and typist["focused_on_arrival"] == "Search your notes"
+              and one(burst) and bool(burst["value"]))
+        C.step(pg_b, inst, "discover.search-in-place", "The #search door lands focus in the one 'Search your notes' field; typed text arrives whole",
                "PASS" if ok else "FAIL", typist_60ms=typist, burst_5ms=burst,
-               burst_kept_whole_text=burst["sidebar_value"] == "nvda", scope=["input[aria-label='Search your notes']"])
+               burst_kept_whole_text=burst["value"] == "nvda", scope=["input[aria-label='Search your notes']"])
         pg_b.close()
 
     # ── discover.chart-tour-no-deadend (1280) ──────────────────────────────────────────────────────
@@ -2053,11 +2147,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         try:
             C.api(cA, iA, "POST", base, "/api/j2/notes", {"title": "One text note", "bodyJson": TEXT_DOC})
             at(pA, base, "/journal/notebook", first_run=True)
-            pA.get_by_role("button", name="Learn", exact=True).first.click(timeout=15000)
-            menu = pA.get_by_role("menu", name="Learn: walkthroughs")
-            C.vis_loc(menu, 8000)
-            sample_in_menu = menu.get_by_role("menuitem", name="Add the sample notebook", exact=True).count()
-            menu.get_by_role("menuitem", name="Chart plan basics tour", exact=True).first.click(timeout=10000)
+            replay_from_help(pA, "Chart plan basics")      # the Learn menu's door was dropped by ruling
             card = pA.get_by_role("dialog").filter(has=pA.get_by_role("heading", name="This walkthrough needs a chart in a note"))
             shown = C.vis_loc(card, 30000)
             title = card.first.get_by_role("heading").first.inner_text() if shown else None
@@ -2065,10 +2155,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             add_btn = card.first.get_by_role("button", name=re.compile(r"sample notebook", re.I)).count() if shown else None
             exit_btn = card.first.get_by_role("button", name="Go to my notes", exact=True).count() if shown else 0
             buttons = [re.sub(r"\s+", " ", t).strip() for t in card.first.get_by_role("button").all_inner_texts()] if shown else []
-            C.step(pA, iA, "discover.chart-tour-no-deadend", "One text-only note: 'Chart plan basics' says it needs a chart, points at /chart, offers no sample, exits with 'Go to my notes'",
+            C.step(pA, iA, "discover.chart-tour-no-deadend", "One text-only note: 'Chart plan basics' from Help says it needs a chart, points at /chart, offers no sample, exits with 'Go to my notes'",
                    "PASS" if shown and title == "This walkthrough needs a chart in a note" and "/chart" in body and add_btn == 0 and exit_btn == 1 else "FAIL",
                    card_title=title, card_text=body[:400], buttons=buttons, add_sample_buttons=add_btn, exit_buttons=exit_btn,
-                   sample_item_in_learn_menu=sample_in_menu, scope=["[role=dialog]"])
+                   scope=["[role=dialog]"])
             if exit_btn:
                 card.first.get_by_role("button", name="Go to my notes", exact=True).click()
                 pA.wait_for_timeout(1200)
@@ -2083,10 +2173,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         cF, emailF, meF, iF, pF = new_member("c2ct0", "1280")
         try:
             at(pF, base, "/journal/notebook", first_run=True)
-            pF.get_by_role("button", name="Learn", exact=True).first.click(timeout=15000)
-            menu = pF.get_by_role("menu", name="Learn: walkthroughs")
-            C.vis_loc(menu, 8000)
-            menu.get_by_role("menuitem", name="Chart plan basics tour", exact=True).first.click(timeout=10000)
+            replay_from_help(pF, "Chart plan basics")
             card = pF.get_by_role("dialog").filter(has=pF.get_by_role("heading", name="This walkthrough needs a chart in a note"))
             shown = C.vis_loc(card, 30000)
             add = card.first.get_by_role("button", name="Add the sample notebook", exact=True)
@@ -2108,15 +2195,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             cF.close()
 
     # ── discover.voice-tour (1280) ─────────────────────────────────────────────────────────────────
+    # Go-live wave 2: started from Help (the Learn menu is gone); its door is the list's "+ New" arrow (wave 1, C1).
     def d_voice_tour():
         cA, emailA, meA, iA, pA = new_member("c2vt", "1280")
         try:
             C.api(cA, iA, "POST", base, "/api/j2/notes", {"title": "One text note", "bodyJson": TEXT_DOC})
             at(pA, base, "/journal/notebook", first_run=True)
-            pA.get_by_role("button", name="Learn", exact=True).first.click(timeout=15000)
-            menu = pA.get_by_role("menu", name="Learn: walkthroughs")
-            C.vis_loc(menu, 8000)
-            menu.get_by_role("menuitem", name="Voice notes tour", exact=True).first.click(timeout=10000)
+            replay_from_help(pA, "Voice notes")
             trail = []
 
             def card_state(tag):
@@ -2126,26 +2211,27 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 title = (c.get_by_role("heading").first.text_content() or "").strip() if vis else None
                 nm = pA.get_by_role("menu", name="Start a note").count()
                 vi = pA.get_by_role("menuitem", name="Voice note", exact=True).count()
-                trail.append({"at": tag, "card": vis, "progress": steps, "title": title, "menu_open": nm, "voice_item": vi})
+                trail.append({"at": tag, "card": vis, "progress": steps, "title": title, "menu_open": nm, "voice_item": vi,
+                              "url": pA.url.split(base)[-1]})
                 return c
 
-            c1 = card_state("tour started")
-            caret = pA.locator('[data-tour="new-note-home"]').get_by_role("button", name="More ways to start a note", exact=True)
+            card_state("tour started")
+            caret = pA.get_by_role("button", name="More ways to start a note", exact=True)
             caret.first.click(timeout=10000)                         # the step asks the member to open it
             for _ in range(30):                                      # the tour moves on when the member did the thing
                 t_ = pA.locator("[data-tour-card] h2").first
                 if t_.count() and "record, upload" in (t_.text_content() or "").lower():
                     break
                 pA.wait_for_timeout(300)
-            c2_ = card_state("after opening the menu")
+            card_state("after opening the menu")
             pA.locator("[data-tour-card]").first.get_by_role("button", name="Next", exact=True).click(timeout=10000)   # a pointer click
             pA.wait_for_timeout(900)
-            c3 = card_state("after Next (pointer)")
+            card_state("after Next (pointer)")
             last_title = trail[-1]["title"]
             done_btn = pA.locator("[data-tour-card]").first.get_by_role("button", name="Done", exact=True).count()
             menu_kept = trail[-1]["menu_open"] == 1 and trail[-1]["voice_item"] >= 1
             ok = ("step 3 of 3" in (trail[-1]["progress"] or "").lower() and menu_kept and done_btn == 1 and last_title)
-            C.step(pA, iA, "discover.voice-tour", "'Voice notes' from Learn reaches its last step by pointer clicks on Next, and the New note menu stays open",
+            C.step(pA, iA, "discover.voice-tour", "'Voice notes' from Help reaches its last step by pointer clicks on Next, and the New menu stays open",
                    "PASS" if ok else "FAIL", trail=trail, done_buttons=done_btn, menu_kept_open=menu_kept, scope=["[data-tour-card]", "[role=menu]"])
             if done_btn:
                 pA.locator("[data-tour-card]").first.get_by_role("button", name="Done", exact=True).click()
@@ -2185,14 +2271,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         for vp in ("1280", "820", "390"):
             p, i, c = at(vp)
             try:
-                # The door is Research Home's New note caret -> "From a style" (spec P0.1/P1.4; plan Task 12).
-                # The notes list's "+ New note" is a bare blank create by design and opens no kind picker.
+                # The door was Research Home's New note caret -> "From a style" (spec P0.1/P1.4; plan Task 12). Go-live
+                # wave 2: it is the notes list's "+ New" arrow -> "From a template" (S7 renamed it; on a phone, the More
+                # menu's "New from a template"). "+ New" itself is a bare blank create and opens no kind picker.
                 C.goto(p, base, "/journal/notebook", wait="main")
-                home_new = p.locator('[data-tour="new-note-home"]')
-                C.vis_loc(home_new.get_by_role("button", name="More ways to start a note", exact=True), 30000)
-                home_new.get_by_role("button", name="More ways to start a note", exact=True).first.click()
-                p.get_by_role("menuitem", name="From a style").first.click()
-                group = p.get_by_role("group", name="Start from a kind of note")
+                open_templates(p)
+                group = p.get_by_role("group", name=KIND_GROUP)
                 C.vis_loc(group, 15000)
                 # Measured BEFORE the press: creating the note closes the sheet and opens the note.
                 box = group.evaluate("g => { const b = g.querySelector('button'); const r = b.getBoundingClientRect(); return {h: r.height, w: r.width} }") if vp != "1280" else None
@@ -2525,10 +2609,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             for vp in ("1280", "390"):
                 p, i, c = at(vp)
                 try:
-                    C.goto(p, base, "/journal/notebook", wait="main")
-                    if vp != "1280":            # the phone Notebook folds the header tools (JournalLayout D2)
+                    # Notebook simplify Task 1 took the header tools (Log Trade, the settings gear) off the desktop
+                    # Notebook; they stay on every other Journal page, so the door is walked from Trades.
+                    C.goto(p, base, "/journal/trades", wait="main")
+                    gear = p.get_by_role("button", name="Open Portfolio Settings", exact=True).filter(visible=True)
+                    if not C.vis_loc(gear, 8000):   # a phone may fold the header tools behind Journal tools (JournalLayout D2)
                         p.get_by_role("button", name="Journal tools", exact=True).click()
-                    p.get_by_role("button", name="Open Portfolio Settings", exact=True).click()
+                    p.get_by_role("button", name="Open Portfolio Settings", exact=True).filter(visible=True).first.click()
                     sel = p.get_by_role("combobox", name="Pre-entry checklist in Log Trade", exact=True)
                     C.vis_loc(sel, 15000)
 
@@ -2694,14 +2781,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             return st, ((closed or {}).get("trade") if isinstance(closed, dict) else None) or {}
 
         def new_from_kind(p_, kind_name):
-            """Research Home's New note caret -> From a style -> the kind (the door styles.new-from-kind walks).
-            Returns (note id, the create's status), the id read off the create's own answer."""
+            """The notes list's "+ New" arrow -> From a template -> the kind (the door styles.new-from-kind walks; it was
+            Research Home's caret -> From a style until go-live wave 2). Returns (note id, the create's status), the id
+            read off the create's own answer."""
             C.goto(p_, base, "/journal/notebook", wait="main")
-            caret = p_.locator('[data-tour="new-note-home"]').get_by_role("button", name="More ways to start a note", exact=True)
-            C.vis_loc(caret, 30000)
-            caret.first.click()
-            p_.get_by_role("menuitem", name="From a style").first.click()
-            kinds = p_.get_by_role("group", name="Start from a kind of note")
+            open_templates(p_)
+            kinds = p_.get_by_role("group", name=KIND_GROUP)
             C.vis_loc(kinds, 15000)
             create = re.compile(r"/api/j2/notes(\?|$)")
             with p_.expect_response(lambda r: r.request.method == "POST" and bool(create.search(r.url)), timeout=30000) as made:
@@ -2909,7 +2994,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             for vp in ("1280", "390"):
                 p, i, c = at(vp)
                 try:
-                    C.goto(p, base, "/journal/notebook", wait="main")
+                    C.goto(p, base, "/journal/trades", wait="main")   # Log Trade left the desktop Notebook's header (simplify Task 1)
                     log_btn = p.get_by_role("button", name="Log Trade", exact=True).filter(visible=True)
                     if not C.vis_loc(log_btn, 8000):          # the phone folds the header tools (JournalLayout D2)
                         p.get_by_role("button", name="Journal tools", exact=True).click()
@@ -3373,7 +3458,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     continue
                 p, i, c = at(vp)
                 try:
-                    C.goto(p, base, "/journal/notebook")
+                    C.goto(p, base, "/journal/notebook?view=today")   # the Notices box is on the Daily brief (go-live wave 1, A4)
                     summ = p.locator('[data-tour="home-notices"] > summary')
                     shown = C.vis_loc(summ, 45000)
                     if shown:
@@ -3397,7 +3482,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     tall = (vp == "1280") or (h_ is not None and h_ >= 44)
                     ok = bool(seen and flat and tall and href == want_href
                               and (vp != "1280" or (f"followup={FOLLOWUP_SYM}&reportDate={FU['day']}" in (landed or "") and region)))
-                    C.step(p, i, "followup.notice", f"Home's Notices lists \"{FOLLOWUP_NOTICE_TITLE}\" as a link of its own; at 1280 it opens the card ({vp})",
+                    C.step(p, i, "followup.notice", f"the Daily brief's Notices lists \"{FOLLOWUP_NOTICE_TITLE}\" as a link of its own; at 1280 it opens the card ({vp})",
                            "PASS" if ok else "FAIL", summary_shown=shown, link_visible=seen, link_height=h_, href=href, expected_href=want_href,
                            no_sideways_scroll=flat, pressed=(vp == "1280"), landed=landed, card_region=region)
                 finally:
@@ -3865,10 +3950,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     run("page_layouts", page_layouts)
 
     def discover():
-        doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
+        # Go-live wave 2: new-note-home -> new-note-list, setups-box -> setups-card, learn-groups -> help-walkthroughs
+        # (Research home's split button, its setups box and the Learn menu were retired; each check now walks the door
+        # that replaced it, named after it).
+        doors = (("new-note-list", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
                  ("phone-folders-visible", d_phone_folders), ("chart-plan-clickable", d_chart_plan),
-                 ("notices", d_notices), ("setups-box", d_setups_box), ("one-ask", d_one_ask),
-                 ("due-date", d_due_date), ("capture-doors", d_capture_doors), ("learn-groups", d_learn_groups),
+                 ("notices", d_notices), ("setups-card", d_setups_box), ("one-ask", d_one_ask),
+                 ("due-date", d_due_date), ("capture-doors", d_capture_doors), ("help-walkthroughs", d_learn_groups),
                  ("catalog", d_catalog), ("search-in-place", d_search_in_place),
                  ("chart-tour-no-deadend", d_chart_tour), ("chart-tour-no-deadend", d_chart_tour_nonotes),
                  ("voice-tour", d_voice_tour))
@@ -3907,14 +3995,16 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         fs_, fb_ = C.api(ctx, inst, "POST", base, "/api/j2/note-folders", {"name": "Sample notebook", "parentId": _parent})
         own_folder = ((fb_ or {}).get("folder") or fb_ or {}).get("id") if isinstance(fb_, dict) else None
         S["own_same_name_folder"] = own_folder
+        # Go-live wave 2: Research home's strip and its "Remove it" are gone; the door is the notes list's More menu
+        # row "Remove the sample notebook" (wave 1, A7), and the list's status line says what happened. One press
+        # on the row (opening the menu is the door's first press, as for any menu row).
         home()
-        strip = pg.get_by_text("You're looking at the sample notebook")
-        there = C.vis_loc(strip, 30000)
         clicks, msg = 0, None
+        there = more_menu_has(pg, SAMPLE_REMOVE_ROW, press=True)
+        removed_line = False
         if there:
-            pg.get_by_role("button", name="Remove it", exact=True).first.click()
             clicks = 1
-            pg.wait_for_timeout(4000)
+            removed_line = C.vis_loc(pg.get_by_text(SAMPLE_REMOVED, exact=False), 20000)
             status = pg.get_by_role("status").all_inner_texts() + pg.get_by_role("alert").all_inner_texts()
             msg = [s[:200] for s in status if "sample" in s.lower()]
             anyway = pg.get_by_role("button", name=re.compile("anyway", re.I))
@@ -3931,8 +4021,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         after = M.get(base + "/api/j2/onboarding/sample-notebook").json()
         ids = set(before.get("ids") or S.get("sample_ids") or [])
         left = [n for n in C.notes_list(ctx, base) if n.get("id") in ids]
-        C.step(pg, inst, "remove sample", "Remove it: every sample note leaves the Notebook in one click",
-               "PASS" if there and clicks == 1 and not left and not (after.get("activeIds") or []) else "FAIL", strip=there, clicks=clicks,
+        row_gone = not more_menu_has(pg, SAMPLE_REMOVE_ROW)
+        C.step(pg, inst, "remove sample", "More > Remove the sample notebook: every sample note leaves the Notebook in one press, the status line says so, the row leaves",
+               "PASS" if there and clicks == 1 and removed_line and row_gone and not left and not (after.get("activeIds") or []) else "FAIL",
+               more_menu_row=there, removed_line=removed_line, row_gone_after=row_gone, clicks=clicks,
                message=msg, active_before=len(before.get("activeIds") or []), active_after=len(after.get("activeIds") or []),
                notes_left=[n.get("title") for n in left])
         pg.wait_for_timeout(1500)
@@ -3944,10 +4036,16 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         home_text = pg.evaluate("() => (document.querySelector('[class*=\"_main_\"]') || document.body).innerText")
         titles = [t for t in (S.get("sample_titles") or []) if t and t in home_text]
         leftovers["home_titles"] = titles
-        leftovers["home_passed_googl"] = pg.locator('[data-passed-symbol="GOOGL"]').count()
+        brief()      # Research home's pieces live on the Daily brief now (Passed setups, the home read's sections)
+        unfold(pg, r"^\s*Passed setups")
+        pg.wait_for_timeout(1500)
+        leftovers["brief_passed_googl"] = pg.locator('[data-passed-symbol="GOOGL"]').count()
+        brief_text = pg.evaluate("() => (document.querySelector('[class*=\"_main_\"]') || document.body).innerText")
+        leftovers["brief_titles"] = [t for t in (S.get("sample_titles") or []) if t and t in brief_text]
         hp = M.get(base + "/api/j2/notebook/home")
         leftovers["home_api_ids"] = [i for i in ids if i in hp.text()] if hp.status == 200 else f"HTTP {hp.status}"
-        C.step(pg, inst, "remove sample", "Research Home after removal", "PASS" if not titles and not leftovers["home_passed_googl"] and not leftovers["home_api_ids"] else "FAIL",
+        C.step(pg, inst, "remove sample", "the notes list and the Daily brief after removal",
+               "PASS" if not titles and not leftovers["brief_passed_googl"] and not leftovers["brief_titles"] and not leftovers["home_api_ids"] else "FAIL",
                **leftovers)
         ps_ = M.get(base + "/api/j2/research-capture/passed-setups")
         passed_txt = ps_.text() if ps_.status == 200 else ""

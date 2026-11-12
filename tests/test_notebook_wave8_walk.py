@@ -530,11 +530,14 @@ def test_takes_text_is_a_field_or_anything_editable(walk):
 # ── wave 8: the source readers find what they read, in the committed files ──────────────
 
 def test_the_tour_steps_are_read_in_order_with_every_title(walk):
+    # Go-live wave 1 removed the base tour's `first-run` step (Research home's "Welcome to your Notebook"): the tour
+    # opens on the folders panel.
     steps = walk["tour_steps"]()
-    assert [s["id"] for s in steps][:2] == ["first-run", "sidebar"], "non-vacuity: the order is the file's"
+    assert [s["id"] for s in steps][:2] == ["sidebar", "search"], "non-vacuity: the order is the file's"
     assert len(steps) >= 6 and all(s["title"] for s in steps), steps
     assert any(s["file"].endswith("FolderSidebar.jsx") for s in steps)
-    assert steps[0]["title"] == "Welcome to your Notebook"
+    assert steps[0]["title"] == "Folders and tags"
+    assert "first-run" not in [s["id"] for s in steps]
 
 
 def test_the_sentences_the_walk_compares_against_are_read_from_source(walk):
@@ -542,8 +545,14 @@ def test_the_sentences_the_walk_compares_against_are_read_from_source(walk):
     sample_js = walk["SAMPLE_JS"]
     assert js(sample_js, "refused").startswith("You already have notes")
     assert js(sample_js, "add") == "Add a sample notebook"
-    assert js(sample_js, "remove") == "Remove it"            # never the `removeAnyway`/`removed` keys
+    # go-live wave 1: the removal door is the notes list's More menu row (never the `removeAnyway`/`removed` keys)
+    assert js(walk["SAMPLE_KEYS_JS"], "removeRow") == "Remove the sample notebook"
     assert js(sample_js, "removed").startswith("Sample notebook moved to Trash")
+    with pytest.raises(LookupError):              # Research home's strip words are gone from the product
+        js(sample_js, "remove")
+    assert walk["tour_link_text"]() == "Take the tour"
+    item = walk["checklist_tour_item_re"]()
+    assert item.match("Take the Notebook basics tour") and not item.match("Take the tour")
     assert js(walk["TOUR_COPY_JS"], "next") == "Next" and js(walk["TOUR_COPY_JS"], "done") == "Done"
     assert py(walk["SAMPLE_PY"], "REFUSED_SENTENCE").startswith("You already have notes")
     assert py(walk["PUBLIC_PAYLOAD_PY"], "NEUTRAL_LINE").endswith("public pages.")

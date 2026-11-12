@@ -53,7 +53,9 @@ import notebook_w14_onboarding_walk as w  # noqa: E402  -- its probes, recorder 
 PORTS = range(8730, 8735)
 WIDTHS = [(1200, 900), (390, 844)]
 TOURS_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding" / "tours"
-TRACKS = ["b1Core.js", "b2Trading.js", "b3Research.js"]
+# b4Styles.js (Templates, Template library) joined the registry after this list was written; go-live wave 2 added it, so
+# Help's Walkthroughs list and the walked tours are the registry's whole set (tours/index.js spreads all four).
+TRACKS = ["b1Core.js", "b2Trading.js", "b3Research.js", "b4Styles.js"]
 
 # Plain lists (the ledger convention). The switch, then every capability a registered tour rides on
 # (plus find-similar, which the setups-board tour's last steps sit on).
@@ -86,18 +88,33 @@ def read_registry() -> list[dict]:
             if not tid:
                 continue
             mod = re.search(r"import\('\./([^']+)'\)", block)
+            # b4Styles: one module for two tours, each picking its own array (`m.JOURNAL_STYLES_STEPS`)
+            pick = re.search(r"steps:\s*m\.([A-Z_]+)", block)
+            if not mod and pick:
+                shared = re.search(r"import\('\./([^']+)'\)", src)
+                mod = shared
             title = re.search(r"title: '([^']+)'", block)
             repl = re.search(r"replayable: (true|false)", block)
             steps = []
             if mod:
                 ssrc = (TOURS_DIR / f"{mod.group(1)}.js").read_text(encoding="utf-8")
-                body = ssrc.split("STEPS", 1)[1] if "STEPS" in ssrc else ssrc
-                body = body.split("COPY", 1)[0]
+                if pick and f"{pick.group(1)} = " in ssrc:
+                    body = ssrc.split(f"{pick.group(1)} = ", 1)[1].split("])", 1)[0]
+                else:
+                    body = ssrc.split("STEPS", 1)[1] if "STEPS" in ssrc else ssrc
+                    body = body.split("COPY", 1)[0]
                 for m in re.finditer(r"step\('([^']+)',\s*'([^']+)'|id: '([^']+)', anchor: '([^']+)'(?:, file: [A-Z_]+)?(?:, waitFor: '([^']+)')?", body):
+                    # Go-live wave 1 added a step `tier` (onboarding/tourTiers.js), written on the step's own line
+                    # in either form ({ ..., tier: 'wide' } or step(id, anchor, file?, { waitFor, tier })).
+                    rest = body[m.end():].split("\n", 1)[0]
+                    tier = re.search(r"tier: '(\w+)'", rest)
                     if m.group(1):
-                        steps.append({"id": m.group(1), "anchor": m.group(2), "waitFor": None})
+                        wf = re.search(r"waitFor: '([^']+)'", rest)
+                        steps.append({"id": m.group(1), "anchor": m.group(2), "waitFor": wf.group(1) if wf else None,
+                                      "tier": tier.group(1) if tier else None})
                     else:
-                        steps.append({"id": m.group(3), "anchor": m.group(4), "waitFor": m.group(5)})
+                        steps.append({"id": m.group(3), "anchor": m.group(4), "waitFor": m.group(5),
+                                      "tier": tier.group(1) if tier else None})
             out.append({"id": tid.group(1), "title": title.group(1) if title else tid.group(1),
                         "replayable": (repl.group(1) == "true") if repl else True, "steps": steps,
                         "module": mod.group(1) if mod else None})
@@ -264,22 +281,38 @@ def skip_reasons(pg, steps: list[dict], idxs: list[int]) -> list[dict]:
 
 # ── one tour ──────────────────────────────────────────────────────────────────────────────
 
+# Help > Walkthroughs names each tour's link "Start the <title> tour" until the member has taken it, then "Replay the
+# <title> tour" (S14, Support.jsx WalkthroughsSection). Either is the door.
+WALK_LINK = re.compile(r"^(Start|Replay) the ")
+
+# The engine's screen tiers (onboarding/tourTiers.js STEP_TIERS over styles/breakpoints.js: 640 and 1024). A step with
+# a tier is not in the tour on a screen of another tier, so "declared" is the count FOR THIS WIDTH.
+TIER_KEEP = {"phone": lambda w: w <= 640, "wide": lambda w: w >= 641,
+             "touch": lambda w: w <= 1024, "desktop": lambda w: w >= 1025}
+
+
+def steps_for_width(steps: list[dict], width: int) -> list[dict]:
+    """The declared steps the engine keeps at this window width (an unknown tier keeps the step, as the engine does)."""
+    return [s for s in steps if not s.get("tier") or TIER_KEEP.get(s["tier"], lambda w: True)(width)]
+
+
 def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dict:
-    tid, title, steps = entry["id"], entry["title"], entry["steps"]
+    tid, title = entry["id"], entry["title"]
+    steps = steps_for_width(entry["steps"], width)
     M = len(steps)
-    row = {"tour": tid, "width": width, "declared": M, "opens": False, "start": None, "shown": [],
-           "skipped": [], "clicked": [], "modes": [], "notes": []}
+    row = {"tour": tid, "width": width, "declared": M, "declared_all_tiers": len(entry["steps"]), "opens": False,
+           "start": None, "shown": [], "skipped": [], "clicked": [], "modes": [], "notes": []}
     pg.goto(base + "/support", wait_until="domcontentloaded", timeout=60000)
     li = (pg.locator("li").filter(has=pg.get_by_text(title, exact=True))
           # not exact: the link is named "Replay the <title> tour" (lane FIN-A11Y, M-14)
-          .filter(has=pg.get_by_role("link", name="Replay")))
+          .filter(has=pg.get_by_role("link", name=WALK_LINK)))
     try:
-        li.first.get_by_role("link", name="Replay").wait_for(timeout=20000)
+        li.first.get_by_role("link", name=WALK_LINK).wait_for(timeout=20000)
     except Exception:  # noqa: BLE001
         record(P, width, tid, "listed in Help > Walkthroughs", False)
         row["notes"].append("not listed in Walkthroughs")
         return row
-    li.first.get_by_role("link", name="Replay").click()
+    li.first.get_by_role("link", name=WALK_LINK).click()
     st = wait_state(pg, title, lambda s: s["kind"] in ("step", "unreachable"), 25)
     row["start"] = st.get("url")
     if st["kind"] == "unreachable":
@@ -303,9 +336,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
     # Finding P6 (GenericTourEngine.numbering.test.jsx): a tour numbers the steps it SHOWS, so the
     # total may be below the declared count only when a declared step is not on screen at open --
     # e.g. the Formulas tour's "no properties yet" branch on a note that has properties.
-    not_shown = skip_reasons(pg, steps, list(range(M))) if st["of"] < M else []
+    # (go-live wave 2: a card whose progress line did not read "Step N of M" has no `of`; it fails this check, it
+    #  never stops the walk)
+    of = st["of"] if isinstance(st.get("of"), int) else 0
+    not_shown = skip_reasons(pg, steps, list(range(M))) if of < M else []
     record(P, width, tid, "progress counts the steps it shows (P6)",
-           st["of"] == M or (0 < st["of"] < M and len(not_shown) >= M - st["of"]),
+           of == M or (0 < of < M and len(not_shown) >= M - of),
            of=st["of"], declared=M, not_shown_at_open=not_shown)
     row["shot"] = snap(pg, f"{tid}-{width}")
     row["battery"] = card_battery(pg, P, width, tid)
@@ -434,6 +470,7 @@ def settle_home(pg) -> None:
     Compass card (Got it), the get-started list (Hide)."""
     pg.wait_for_timeout(2500)
     d = pg.locator("[role=dialog][aria-modal=true]")
+    # (a no-op since go-live wave 1: the base tour no longer starts by itself, and its first step is "Folders and tags")
     if d.count() and "Welcome to your Notebook" in (d.first.inner_text() or ""):
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(600)

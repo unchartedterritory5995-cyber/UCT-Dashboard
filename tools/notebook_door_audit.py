@@ -70,7 +70,7 @@ paid member with the sample notebook added through the UI and five notes opened 
   settled    the nudges dismissed and no notice: recorded beside it, never graded.
 
 R-HON: the POSITIVE CONTROL runs first at each viewport and is not skippable. Six synthetic doors on
-Research Home, each with the verdict it must give: a plain button EASY, an icon-only button
+the notes list (Research Home until go-live wave 2), built around its "View: List" button, each with the verdict it must give: a plain button EASY, an icon-only button
 (its text visually hidden by inline style, not a class) OK, an absent target HIDDEN, a step of the
 path that cannot be made HIDDEN (not NOT_MEASURED), a covered target HARD, a target three screens
 down HARD. The control's verdicts then go through the SAME `exit_code` the real doors go through
@@ -117,6 +117,9 @@ MEASURED = ("EASY", "OK", "HARD", "HIDDEN")
 REASON_VERDICTS = ("HARD", "HIDDEN", "NOT_MEASURED")
 SAMPLE_BUTTON = "Add a sample notebook"
 TOP_PATH = "/journal/notebook"
+# What says a Notebook page has loaded (go-live wave 2): the notes list's toolbar (the bare address), the Daily brief, or
+# an open note. A row whose path is another Journal page names its own `ready` selector.
+READY = "[role='toolbar'][aria-label='Notes list tools'], [data-today-home], .ProseMirror"
 SEEDS = ("find_similar",)
 SEED_TEMPLATE, SEED_CANDIDATE = "AMD", "CRWD"      # both have bars in the c2 sandbox's pre-boot seed
 
@@ -442,7 +445,7 @@ def seed_spec(email: str, today: str, flags: list[str]) -> dict:
 
 OVERLAY_JS = """() => { const d = document.createElement('div'); d.setAttribute('data-door-audit-control', '');
   d.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:transparent'; document.body.appendChild(d) }"""
-SPACER_JS = """() => { const s = document.querySelector('section[aria-label="Ask your Notebook"]');
+SPACER_JS = """() => { const s = document.querySelector('[role="toolbar"][aria-label="Notes list tools"]');
   const d = document.createElement('div'); d.setAttribute('data-door-audit-control', '');
   d.style.cssText = 'height:3000px'; s.parentElement.insertBefore(d, s) }"""
 # An icon-only button whose only text is visually hidden by INLINE style (no class a stylesheet could
@@ -461,12 +464,15 @@ def _crow(feature: str, target: dict, **kw) -> dict:
 
 
 CONTROLS: list[dict] = [
-    _crow(C_EASY, {"role": "button", "name": "New note"}),
+    # Go-live wave 2: the controls stand on the notes list (the Notebook's landing since the simplify branch; Research
+    # home and its New note, setups box and Ask button are gone). The list's "View: List" menu button is drawn, labelled
+    # and above the fold at both widths, so it is the real control every synthetic door is built around.
+    _crow(C_EASY, {"role": "button", "name": "~^View:"}),
     _crow(C_ICON, {"css": "[data-door-audit-icon]"}, inject_js=ICON_JS),
     _crow(C_ABSENT, {"role": "button", "name": "No such control door audit"}),
-    _crow(C_STEP, {"role": "button", "name": "New note"}, steps=[{"click": "button|No such step door audit"}]),
-    _crow(C_COVERED, {"role": "link", "name": "Open the setups board"}, inject_js=OVERLAY_JS),
-    _crow(C_FAR, {"role": "button", "name": "Ask a question about my notebook"}, inject_js=SPACER_JS),
+    _crow(C_STEP, {"role": "button", "name": "~^View:"}, steps=[{"click": "button|No such step door audit"}]),
+    _crow(C_COVERED, {"role": "button", "name": "~^View:"}, inject_js=OVERLAY_JS),
+    _crow(C_FAR, {"role": "button", "name": "~^View:"}, inject_js=SPACER_JS),
 ]
 
 # The feed Research Home's Notices box reads for a resurfaced note (GET /api/voice/insights, which
@@ -671,7 +677,7 @@ def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path,
                                                                    body=resurfacing_body(nid)))
             m["stubbed"] = "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)"
         pg.goto(base + row["path"], wait_until="domcontentloaded", timeout=60000)
-        pg.locator("section[aria-label='Ask your Notebook'], [data-tour='first-run']").first.wait_for(state="visible", timeout=45000)
+        pg.locator(row.get("ready") or READY).first.wait_for(state="visible", timeout=45000)
         from notebook_perf_harness import _dismiss_intro
         _dismiss_intro(pg)
         pg.wait_for_timeout(1500)
@@ -703,6 +709,14 @@ def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path,
         if not first["above_fold"]:
             m["scroll_screens"] = max(1, math.ceil(first["rect"]["bottom"] / first["innerHeight"]) - 1)
         after = first
+        # Go-live wave 2: a control drawn inside the app's inner scroller can be "above the fold" of the window yet
+        # clipped by the scroller's own bottom edge (the hit-test then lands on the scroller). A member scrolls it into
+        # view, so it is measured again after scrollIntoView and counted as one scroll; a control that is still
+        # covered after that (an overlay) stays covered.
+        if first["above_fold"] and not (first["uncovered"] and first["on_screen_x"]):
+            m["scroll_screens"] = 1
+            first = {**first, "above_fold": False, "clipped_by_scroller": True}
+            m["above_fold"] = False
         if not first["above_fold"]:
             el.evaluate("e => e.scrollIntoView({ block: 'center', inline: 'nearest' })")
             pg.wait_for_timeout(500)
@@ -744,7 +758,8 @@ def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path,
 
 
 NUDGES = ("Not now", "Got it", "Dismiss tip")
-# Five notes opened fill Research Home's Recent notes (ResearchHome.jsx RECENT_NOTES_SHOWN = 5).
+# Five notes opened fill the Recent notes (Research Home's RECENT_NOTES_SHOWN = 5 before go-live wave 2; the folders
+# panel keeps a Recents list). Opening them keeps every member in the same stated state.
 OPEN_TO_FILL_RECENTS = ("Research: how a base", "AAPL pullback", "NVDA leadership", "MSFT base breakout", "Pre-market checklist")
 
 
@@ -846,12 +861,17 @@ def member_for(browser, admin_req, base: str, vp: str, dismiss: bool, data_dir: 
     its overnight matches stored). Returns (ctx, email, me, {title: id}, state)."""
     import notebook_fin_walk as C
     ctx, email, me = C.member(browser, admin_req, base, f"da{vp}", vp)
+    # Go-live wave 2: the base tour now waits for the 60-second first run (S16), so its modal card can arrive many
+    # seconds after the page and cover the doors being measured. The audit's members are recorded as having skipped
+    # it, through their own preference route (the write "Skip tour" makes); the first run itself is closed below.
+    ctx.request.post(base + "/api/auth/preferences",
+                     data={"key": "notebook_tour", "value": json.dumps({"v": 1, "state": "dismissed", "step": None})})
     pg = ctx.new_page()
     C.goto(pg, base, TOP_PATH)
     C.settle_first_run(pg)
     btn = pg.get_by_role("button", name=SAMPLE_BUTTON)
     btn.first.wait_for(state="visible", timeout=40000)
-    btn.first.click()
+    C.press_through(pg, btn.first)
     for _ in range(120):
         if len(C.notes_list(ctx, base)) >= 5:
             break

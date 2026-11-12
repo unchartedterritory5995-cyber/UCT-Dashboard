@@ -384,19 +384,61 @@ def member(browser, admin_req, base: str, tag: str, vp: str):
     return ctx, email, me
 
 
+FIRST_RUN_SHEET = "Make the Notebook yours"   # FirstRunSheet.jsx, the 60-second first run (S16)
+
+
 def settle_first_run(pg) -> dict:
-    """Close what a new member meets first, the way a member does. Returns what was there."""
-    seen = {"base_tour": False, "compass": False}
-    d = pg.locator("[role=dialog][aria-modal=true]")
-    try:
-        d.first.wait_for(state="visible", timeout=6000)
-        if "Welcome to your Notebook" in (d.first.inner_text() or ""):
-            seen["base_tour"] = True
-            pg.keyboard.press("Escape")
-            d.first.wait_for(state="hidden", timeout=5000)
-    except Exception:  # noqa: BLE001
-        pass
+    """Close what a new member meets first, the way a member does. Returns what was there.
+    Go-live wave 2: the empty notes list is the first screen. A brand-new member can meet the 60-second first run
+    (a dialog, closed with "Skip for now") and the base tour's card (step one is "Folders and tags" since the
+    Research home's "Welcome to your Notebook" step was removed; closed with "Skip tour"). The tour waits for the first
+    run (S16), so it can arrive a moment AFTER the sheet is closed: the loop keeps looking until nothing new comes."""
+    seen = {"base_tour": False, "compass": False, "first_run_sheet": False, "both_at_once": False}
+    sheet = pg.locator("[role=dialog]").filter(has_text=FIRST_RUN_SHEET)
+    card = pg.locator("[data-tour-card]")
+    # Measured on the c2 sandbox (go-live wave 2): the tour's card can arrive 6 to 10 s after the page, once its chunk
+    # and the preferences have answered and the first run (if any) is closed.
+    quiet_until = time.time() + 15.0
+    while time.time() < quiet_until:
+        try:
+            s_on = sheet.count() > 0 and sheet.first.is_visible()
+            c_on = card.count() > 0 and card.first.is_visible()
+        except Exception:  # noqa: BLE001 -- a navigation mid-read
+            s_on = c_on = False
+        if s_on and c_on:
+            seen["both_at_once"] = True
+        try:
+            if s_on:
+                seen["first_run_sheet"] = True
+                sheet.first.get_by_role("button", name="Skip for now", exact=True).click(timeout=5000)
+                sheet.first.wait_for(state="hidden", timeout=5000)
+                quiet_until = time.time() + 10.0
+                continue
+            if c_on:
+                seen["base_tour"] = True
+                seen["base_tour_title"] = (card.first.locator("h2").first.inner_text() or "").strip()
+                skip = card.first.get_by_role("button", name="Skip tour", exact=True)
+                if skip.count():
+                    skip.first.click(timeout=5000)
+                else:
+                    pg.keyboard.press("Escape")
+                card.first.wait_for(state="hidden", timeout=5000)
+                quiet_until = time.time() + 2.0
+                continue
+        except Exception:  # noqa: BLE001 -- recorded by what `seen` says; the step that needs the page reads it
+            pass
+        pg.wait_for_timeout(300)
     return seen
+
+
+def press_through(pg, loc, timeout: int = 10000) -> None:
+    """Press `loc` the way a member would: if a first-visit card that arrived late (the base tour's card is modal: its
+    layer takes the pointer) is in the way, close it as a member does, then press again. Any other failure raises."""
+    try:
+        loc.click(timeout=timeout)
+    except Exception:  # noqa: BLE001 -- retried once after the member closes what covers the page
+        settle_first_run(pg)
+        loc.click(timeout=timeout)
 
 
 # ── the absence census (c1) -- the same selectors c2 must find PRESENT ─────────────────────
@@ -409,7 +451,8 @@ SURFACES = {
     "tour_explainer": ("css", "[data-tour-explainer]"),
     "reporting_soon": ("css", "[data-reporting-soon]"),
     "passed_setups": ("css", "[data-passed-setups]"),
-    "review_box_home": ("text", "Reviews that write themselves"),
+    # (Research home's "Reviews that write themselves" box was retired by go-live wave 1; its door is the list's New menu
+    #  Reviews group, which is not drawn at rest, so it has no census line: the c2 `reviews` step presses it.)
     "fingerprint_panel": ("css", '[data-testid="fingerprint-panel"]'),
     "chart_plan_panel": ("css", "[data-chart-plan-panel]"),
     "chart_plan_button": ("embedbtn", "Plan"),
@@ -430,7 +473,7 @@ SURFACES = {
     "setups_board_card": ("css", "[data-board-card]"),
     "setups_board_heading": ("heading", "Active setups"),
     "find_similar_button": ("buttonprefix", "Find more like"),
-    "gallery_door": ("button", "Browse the community gallery"),
+    "gallery_door": ("button", "Browse the Template library"),   # S7 renamed "Browse the community gallery"
     "transcript_door": ("button", "Save from a transcript"),
     "help_walkthroughs": ("text", "Walkthroughs"),
     "help_whats_new": ("css", "section[aria-labelledby='support-whats-new']"),
@@ -759,23 +802,29 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
 
     @G("first run")
     def first_run():
+        # Go-live wave 2: Research home's "Welcome to your Notebook" screen is gone; a new member lands on the empty notes list.
         goto(pg, base, "/journal/notebook")
-        ok = vis_loc(pg.get_by_role("heading", name="Welcome to your Notebook", level=2), 30000)
+        ok = vis_loc(pg.get_by_text("Your notebook is empty.", exact=True), 30000)
         seen = settle_first_run(pg)
         pg.wait_for_timeout(2500)
-        shape = pg.evaluate("""() => { const row = document.querySelector("[data-tour='first-run']"); const root = row && row.parentElement;
-            return { children: root ? [...root.children].map(e => e.tagName) : null,
-                     buttons: row ? [...row.querySelectorAll('button')].map(b => b.innerText.trim()) : null } }""")
+        shape = {"buttons": [t.strip() for t in pg.locator("[data-empty], [class*='_empty_']").first.get_by_role("button").all_inner_texts()]
+                 if pg.locator("[class*='_empty_']").count() else None}
         found = census(pg)
-        step(pg, inst, "first run", "empty Notebook: welcome renders, no wave 12-15 surface",
-             "PASS" if ok and not found else "FAIL", welcome=ok, base_tour_autostarted=seen["base_tour"],
-             surfaces_found=found, **shape)
+        step(pg, inst, "first run", "empty Notebook: the empty notes list renders, no wave 12-15 surface",
+             "PASS" if ok and not found else "FAIL", empty_list=ok, base_tour_autostarted=seen["base_tour"],
+             first_run_sheet=seen["first_run_sheet"], surfaces_found=found, **shape)
     first_run()
 
     marker = f"finwalk{vp}zebra"
     @G("note CRUD")
     def crud():
-        pg.get_by_role("button", name="Start a note", exact=True).first.click()
+        # Research home's "Start a note" is gone: the list's "+ New" (not drawn on a phone, where the empty list's
+        # template picker carries the blank page)
+        new_btn = pg.get_by_role("button", name="+ New", exact=True).filter(visible=True)
+        if new_btn.count():
+            new_btn.first.click()
+        else:
+            pg.get_by_role("button", name=re.compile(r"^Blank")).filter(visible=True).first.click()
         pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
         title = pg.locator('input[aria-label="Note title"]').first
         title.fill(f"Fin walk note {vp}")
@@ -897,9 +946,17 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         goto(pg, base, "/journal/notebook?view=all")
         tp_err, door = None, None
         try:
-            pg.get_by_role("button", name="Templates", exact=True).first.click(timeout=15000)
+            # the template sheet: the "+ New" arrow, From a template (the toolbar's Templates button folded into that
+            # menu, simplify Task 3; on a phone the More menu's New from a template)
+            caret = pg.get_by_role("button", name="More ways to start a note", exact=True).filter(visible=True)
+            if caret.count():
+                caret.first.click(timeout=15000)
+                pg.get_by_role("menuitem", name="From a template", exact=True).first.click(timeout=10000)
+            else:
+                pg.get_by_role("button", name="More notebook actions", exact=True).first.click(timeout=15000)
+                pg.get_by_role("menuitem", name="New from a template", exact=True).first.click(timeout=10000)
             pg.wait_for_timeout(1200)
-            door = pg.get_by_role("button", name="Browse the community gallery").count()
+            door = pg.get_by_role("button", name="Browse the Template library").count()
         except Exception as e:  # noqa: BLE001
             tp_err = str(e)[:200]
         step(pg, inst, "editor menus", "template picker: no community gallery door",
@@ -918,7 +975,8 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         step(None, inst, "journal", "one open position and one closed trade exist (member API)",
              "PASS" if s1 in (200, 201) and s3 == 200 and tid else "FAIL", position=s1, close=s3, trade=tid, shot=False)
         pages = [
-            ("Research Home with notes", "/journal/notebook", None),
+            ("the notes list with notes", "/journal/notebook", None),
+            ("the Daily brief", "/journal/notebook?view=today", None),
             ("Open Positions rows", "/journal?j2tab=positions", None),
             ("closed trades table", "/journal/trades?seg=closed", None),
             ("trade page", f"/journal-2-0/trade/{tid}", None),

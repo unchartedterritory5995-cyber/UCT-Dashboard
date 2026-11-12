@@ -1353,16 +1353,21 @@ def s_list(W, pg, view: str | None = None) -> str:
     return root
 
 
+# Go-live wave 2: Research home's "Welcome to your Notebook" screen is gone; a member with no notes lands on the empty
+# notes list, whose own line is this one (NotebookTab.jsx empty state).
+EMPTY_LIST_LINE = "Your notebook is empty."
+
+
 def s_first_run(W, pg) -> str:
     goto(W, pg, "/journal/notebook")
     root = mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
     pg.wait_for_timeout(1500)
     return root
 
 
 def s_home(W, pg) -> str:
-    goto(W, pg, "/journal/notebook")
+    goto(W, pg, "/journal/notebook?view=today")
     root = mark_root(pg)
     pg.wait_for_timeout(2000)
     return root
@@ -1691,7 +1696,8 @@ SURFACES = [
             sweeps=("geometry", "axe"), note="a new member's first visit: the tour auto-starts"),
     Surface("nb-first-run-clicks", s_first_run, account="fresh-new", sweeps=("deadclick",),
             note="the first-run screen's controls, a new member per reset (a click adds notes)"),
-    Surface("nb-home", s_home, manifest=("ResearchHome",)),
+    # go-live wave 2: Research home is gone; the "home" surface is the Daily brief (`?view=today`, TodayHome.jsx)
+    Surface("nb-home", s_home, manifest=("TodayHome",)),
     Surface("nb-list", s_list, manifest=("tab-list", "note-card-states", "folder-sidebar-edit"),
             modes=("desk", "phone")),
     Surface("nb-table", lambda W, pg: s_list(W, pg, "Table"), manifest=("tab-table",)),
@@ -4052,8 +4058,9 @@ def f_first_run(W, door):
     pg, tap = W.page(acct, DOOR_MODE[door])
     goto(W, pg, "/journal/notebook")
     mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
-    tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    # the base tour's card (its first step is "Folders and tags" since go-live wave 1 removed the welcome step)
+    tour = pg.locator("[data-tour-card]").filter(visible=True).first
     tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
     if tour_seen:
