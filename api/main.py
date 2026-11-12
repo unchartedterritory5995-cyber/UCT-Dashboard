@@ -10351,7 +10351,12 @@ async def lifespan(app: FastAPI):
         _boot_mark("S10324")
         try:
             from api import flow_gap_autofill
-            flow_gap_autofill.startup_check()
+            # ⛔ OFF THE BOOT PATH (2026-11-12): measured 7.45 s of the pod's 19.8 s to serving (/api/health
+            # boot, segment S10324) — its archive prune scans flow_fill_archive (no index on archived_at) and
+            # its connection waits up to 30 s on flow.db's write lock. Every deploy is a gap for members
+            # until the pod serves, and nothing needs this before the first request: it is a once-per-boot
+            # cache-bust (a fill in the last 24 h) and a prune, both safe a few seconds later.
+            threading.Thread(target=flow_gap_autofill.startup_check, name="gap-fill-startup-check", daemon=True).start()
             if flow_gap_autofill.register_jobs(_scheduler):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
