@@ -1218,7 +1218,11 @@ function ChartToolbar({
   const [hiddenTools, setHiddenTools] = useState(() => _loadArr(LS_HIDDEN))
   const [favoriteTools, setFavoriteTools] = useState(() => readFavoriteTools())
   // a ★ toggled by another toolbar in this tab, or by UCT Agent, shows here too
-  useEffect(() => onFavoriteToolsChange(setFavoriteTools), [])
+  // favRef is the latest list, written only in handlers (never during render): a toggle builds on it, so two toggles
+  // in one tick compose, and the write + its event run OUTSIDE any setState updater (the event sets every other
+  // mounted toolbar's state, which must not happen while React is processing this one's update)
+  const favRef = useRef(favoriteTools)
+  useEffect(() => onFavoriteToolsChange((list) => { favRef.current = list; setFavoriteTools(list) }), [])
   const [favMenuOpen, setFavMenuOpen] = useState(false)
   const [favMenuRect, setFavMenuRect] = useState(null)
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
@@ -1234,8 +1238,10 @@ function ChartToolbar({
     const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
   }), [])
   const toggleFavoriteTool = useCallback((id) => {
-    // functional update: two toggles in one tick (a click and an Agent star) each build on the other's result
-    setFavoriteTools(prev => { const n = toggledFavorites(prev, id); writeFavoriteTools(n); return n })
+    const n = toggledFavorites(favRef.current, id)
+    favRef.current = n
+    setFavoriteTools(n)
+    writeFavoriteTools(n)
   }, [])
   const moveFavToolbar = useCallback((p) => { setFavPos(p); try { localStorage.setItem(LS_FAVPOS, JSON.stringify(p)) } catch { /* ignore */ } }, [])
   const openFavMenu = useCallback(() => {
