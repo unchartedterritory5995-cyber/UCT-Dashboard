@@ -332,10 +332,57 @@ export function notifyColumnsLanded(key) {
   _notify(key)
 }
 
+// ⭐ A DEGRADED ANSWER IS NOT A FINAL ONE (2026-11-11). The server answers `200` with a
+// blank envelope when it cannot yet compute: `payload.state` `no-bars` (the pod holds no
+// bars for the symbol yet) or `no-benchmark-bars` (none for the benchmark yet, e.g. a
+// custom ticker it is still warming), or the route's own `error` envelope. The server
+// remembers such an answer for at most a minute (`rs_provider`: "a six-hour memory of
+// 'nothing' would outlive the fix") and does not remember a no-bars one at all, but this
+// cache keeps a landed entry for the whole page load, so a chart that asked one moment too
+// early drew nothing until the member reloaded. A degraded entry is therefore dropped on a
+// short, BOUNDED back-off (5 s, 15 s, 45 s after it landed, a little over the server's own
+// minute) and the next paint asks again; after the last try the answer stands, as before.
+// `intraday`, `same-symbol` and `short-history` are real answers and are never re-asked.
+export const DEGRADED_RETRY_MS = Object.freeze([5_000, 15_000, 45_000])
+const DEGRADED_STATES = new Set(['no-bars', 'no-benchmark-bars'])
+const _degradedTries = new Map()   // key -> retries scheduled so far
+const _degradedTimers = new Map()  // key -> the pending timer
+
+function isDegradedWire(wire) {
+  if (!wire || typeof wire !== 'object') return false
+  if (typeof wire.error === 'string' && wire.error) return true
+  const st = wire.payload && typeof wire.payload === 'object' ? wire.payload.state : undefined
+  return typeof st === 'string' && DEGRADED_STATES.has(st)
+}
+
+function _forgetDegraded(key) {
+  const t = _degradedTimers.get(key)
+  if (t !== undefined) clearTimeout(t)
+  _degradedTimers.delete(key)
+}
+
+function _trackDegraded(key, parsed, wire) {
+  if (!isDegradedWire(wire)) { _degradedTries.delete(key); _forgetDegraded(key); return }
+  const tries = _degradedTries.get(key) || 0
+  if (tries >= DEGRADED_RETRY_MS.length) return        // the last answer stands
+  _degradedTries.set(key, tries + 1)
+  _forgetDegraded(key)
+  _degradedTimers.set(key, setTimeout(() => {
+    _degradedTimers.delete(key)
+    // only if it is still THIS answer (a prime or a clear may have replaced it)
+    if (_cache.get(key) !== parsed) return
+    _cache.delete(key)
+    _notify(key)                                       // the next paint asks again
+  }, DEGRADED_RETRY_MS[tries]))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
   _inflight.clear()
+  for (const t of _degradedTimers.values()) clearTimeout(t)
+  _degradedTimers.clear()
+  _degradedTries.clear()
 }
 
 /**
@@ -357,6 +404,7 @@ export function primeServerColumns(defId, sym, tf, inputs, wire) {
     return null
   }
   _cache.set(key, parsed)
+  _degradedTries.delete(key); _forgetDegraded(key)    // a primed answer is somebody else's, final
   return parsed
 }
 
@@ -392,6 +440,7 @@ export function fetchColumns(defId, sym, tf, inputs, fetcher) {
     .then((wire) => {
       const parsed = columnsFromWire(wire)
       _cache.set(key, parsed)
+      _trackDegraded(key, parsed, wire)
       return parsed
     })
     .catch(() => {
