@@ -51,6 +51,17 @@ def _previous_shutdown() -> dict | None:
 
 _PREVIOUS_SHUTDOWN = _previous_shutdown()   # read once, at import, before this pod could overwrite it
 
+# ⚡ BOOT QUIET WINDOW (2026-11-12). After a deploy every member's tab reconnects in the first
+# minute or two; boot-probe `hot=` showed process CPU at 150-430% for five minutes with jobs
+# no member waits for among the top burners. These start later. Seconds after lifespan start.
+# Member-facing warmers (scanner, dashboard, nhnl) stay early on purpose. Rail:
+# tests/api/test_boot_quiet_window.py.
+_BOOT_QUIET_S = {
+    "flow_integrity_probe": 600,
+    "bars_continuous_audit": 300,
+    "breadth_self_heal": 240,
+}
+
 
 def _boot_summary() -> dict:
     marks = list(_BOOT_MARKS)
@@ -5299,8 +5310,17 @@ async def lifespan(app: FastAPI):
     # Start continuous audit thread (5min/1hr/24hr cadences)
     try:
         from api.services import bars_continuous_audit
-        bars_continuous_audit.start()
-        logging.getLogger(__name__).info("[startup] bars_continuous_audit started")
+        # ⚡ BOOT QUIET WINDOW (2026-11-12): the audit is a 5-minute-cadence watchdog and
+        # its first sweep burned ~7 CPU-s inside the window members reconnect in after a
+        # deploy (boot-probe `hot=`). Same watchdog, first sweep 5 minutes later.
+        def _start_bars_continuous_audit():
+            bars_continuous_audit.start()
+        _bca_timer = threading.Timer(_BOOT_QUIET_S["bars_continuous_audit"], _start_bars_continuous_audit)
+        _bca_timer.daemon = True
+        _bca_timer.name = "bars-continuous-audit-delay"
+        _bca_timer.start()
+        logging.getLogger(__name__).info("[startup] bars_continuous_audit scheduled (+%ss)",
+                                         _BOOT_QUIET_S["bars_continuous_audit"])
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
 
@@ -6511,7 +6531,7 @@ async def lifespan(app: FastAPI):
     if os.environ.get("BREADTH_SELF_HEAL", "1") != "0":
         try:
             from api.services import breadth_self_heal
-            breadth_self_heal.start_background_heal(delay_seconds=45)
+            breadth_self_heal.start_background_heal(delay_seconds=_BOOT_QUIET_S["breadth_self_heal"])
 
             def _breadth_heal_loop():
                 interval = int(os.environ.get("BREADTH_SELF_HEAL_SECS", "1800"))
@@ -10573,6 +10593,10 @@ async def lifespan(app: FastAPI):
     try:
         import threading as _thr
         def _flow_integrity_probe():
+            # ⚡ BOOT QUIET WINDOW (2026-11-12): a full PRAGMA scan held one core at 100%
+            # in the first 20 s of every boot, while members reconnect after the deploy
+            # gap. Corruption is still caught and alerted, 10 minutes later.
+            time.sleep(_BOOT_QUIET_S["flow_integrity_probe"])
             try:
                 from api import flow_backup
                 _fb = flow_backup.startup_integrity_check()

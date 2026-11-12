@@ -286,3 +286,41 @@ def test_hot_threads_ranks_groups_by_cpu_and_counts_new_threads_fully():
 def test_hot_threads_names_unknown_tids_native():
     from api.services.boot_probe import hot_threads
     assert hot_threads({9: 0.0}, {9: 1.0}, 2.0, {}) == "native 50%"
+
+
+def test_generic_pool_work_names_the_job_a_nameless_pool_is_running():
+    """A ThreadPoolExecutor with no thread_name_prefix shows up as `ThreadPoolExecutor`;
+    the probe must say what job it runs (outermost own-code frame) and where it is."""
+    import sys
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from api.services import boot_probe as bp
+    from api.services import cache as own_module   # any module under api/: its file path is ours
+
+    gate = threading.Event()
+    started = threading.Event()
+
+    def job():
+        started.set()
+        gate.wait(5)
+
+    # Run `job` with a code object whose filename sits under api/, as a real job would.
+    code = compile("def _api_job(job):\n    return job()\n", own_module.__file__, "exec")
+    ns = {}
+    exec(code, ns)
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        pool.submit(ns["_api_job"], job)
+        assert started.wait(5)
+        threads = threading.enumerate()
+        worker = next(t for t in threads if t.name.startswith("ThreadPoolExecutor"))
+        before = {worker.native_id: 0.0}
+        after = {worker.native_id: 1.0}
+        line = bp.generic_pool_work(before, after, threads, sys._current_frames())
+        assert "_api_job" in line and "x1" in line, line
+        # a named pool is never reported here
+        worker.name = "named-pool_0"
+        assert bp.generic_pool_work(before, after, threading.enumerate(), sys._current_frames()) == ""
+    finally:
+        gate.set()
+        pool.shutdown(wait=True)

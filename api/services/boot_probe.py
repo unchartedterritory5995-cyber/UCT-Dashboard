@@ -304,6 +304,45 @@ def hot_threads(before: Dict[int, float], after: Dict[int, float], wall: float,
     return ",".join(f"{g} {100.0 * d / max(1e-6, wall):.0f}%" for g, d in ranked if d / max(1e-6, wall) >= 0.05)
 
 
+#: Pools whose thread names say nothing about the work (no thread_name_prefix).
+_GENERIC_GROUPS = ("ThreadPoolExecutor", "Thread")
+
+
+def _own_frames(frame, depth: int = 60) -> List[str]:
+    """Innermost-first `file:line fn` for frames in our own code (paths under api/)."""
+    out: List[str] = []
+    f = frame
+    while f is not None and depth > 0:
+        co = f.f_code
+        fn = co.co_filename.replace("\\", "/")
+        if "/api/" in fn:
+            out.append(f"{_short(co.co_filename)}:{f.f_lineno} {co.co_name}")
+        f = f.f_back
+        depth -= 1
+    return out
+
+
+def generic_pool_work(before: Dict[int, float], after: Dict[int, float],
+                      threads: List[threading.Thread], frames: Dict[int, Any], top: int = 2) -> str:
+    """For busy threads in a generically named pool, what they are running: the OUTERMOST
+    own-code frame (the job that was submitted) and the innermost (where it is now), most
+    common first, as `job @ where xN`. Code objects and line numbers only, never locals."""
+    seen: Dict[str, int] = {}
+    for t in threads:
+        tid = getattr(t, "native_id", None)
+        if tid is None or _thread_group(t.name) not in _GENERIC_GROUPS:
+            continue
+        if after.get(tid, 0.0) - before.get(tid, 0.0) <= 0.05:
+            continue
+        own = _own_frames(frames.get(t.ident))
+        if not own:
+            continue
+        key = own[-1] if len(own) == 1 else f"{own[-1]} @ {own[0]}"
+        seen[key] = seen.get(key, 0) + 1
+    ranked = sorted(seen.items(), key=lambda kv: -kv[1])[:top]
+    return " | ".join(f"{k} x{n}" for k, n in ranked)
+
+
 class _Deltas:
     def __init__(self) -> None:
         self.cpu = time.process_time()
@@ -328,6 +367,11 @@ class _Deltas:
             hot = hot_threads(self.threads, threads, dw, names)
             if hot:
                 parts.append(f"hot={hot}")
+            if any(g in hot for g in _GENERIC_GROUPS):
+                work = generic_pool_work(self.threads, threads, threading.enumerate(),
+                                         sys._current_frames())
+                if work:
+                    parts.append(f"pool-work={work}")
         self.cpu, self.wall, self.io, self.threads = cpu, wall, io, threads
         return " ".join(parts)
 
