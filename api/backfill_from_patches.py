@@ -208,6 +208,9 @@ def run_patches_backfill(patches_path: str, target_date: str,
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     import sys
     if len(sys.argv) < 3:
         print("Usage: python backfill_from_patches.py <patches.json> <date>")

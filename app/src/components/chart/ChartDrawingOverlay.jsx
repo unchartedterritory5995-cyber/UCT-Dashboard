@@ -17,7 +17,7 @@ import {
   hitTestDrawing, offsetPoints, pointInBox,
 } from './drawingGeometry'
 import {
-  advanceLines, fieldsFor, inferBarSeconds, labelPosOf, measureLines, measurementFor,
+  advanceLines, inferBarSeconds, measureLines, measurementFor,
 } from './drawingMeasure'
 import { dashFor } from './drawingStyle'
 import { priceFormatterFor } from './drawingLabels'
@@ -32,7 +32,8 @@ import {
 } from './drawingFib'
 import { parseBoundId, POSITION_LEVELS, positionLevelDirection, positionSide } from './drawingAlertAnchors'
 import { toRawUnixView, stampTimeBase, pointChartTime } from './drawingTimeBase'
-import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
+import { sectionsFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
+import { saveDefaultsPayloadFor } from './drawingSaveDefaults'
 import {
   PRICE, VOLUME, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
   toPaneFraction, fromPaneFraction,
@@ -4153,39 +4154,8 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     hide: onToggleHide,
     remove: onDelete,
     saveDefault: () => {
-      // ⛔ EVERY VALUE THE TOOL *COULD* PERSIST IS OFFERED; `defaultsPayloadFor`
-      // decides which of them this tool actually owns. Booleans go through
-      // `drawingProp` so "off" is a real, savable answer; the optional ones are
-      // omitted when unset, because "no fill" is the absence of a choice rather
-      // than a choice to save.
-      const values = {
-        color: curColor, lineWidth: curWidth, lineStyle: curStyle, fontSize: curFontSize,
-        showPriceLabel: !!drawingProp(drawing, 'showPriceLabel'),
-        showPercentChange: !!drawingProp(drawing, 'showPercentChange'),
-      }
-      // ⭐ THE MEASUREMENT TOGGLES GO THROUGH `fieldsFor`, for the same reason
-      // the switches do: a legacy Measure's dollar field is ON without the
-      // property being set, and "save as default" must save what the user is
-      // looking at, not what happens to be stored.
-      const f = fieldsFor(drawing)
-      Object.assign(values, {
-        showDollar: f.dollar, showPercent: f.percent, showBars: f.bars, showTime: f.time,
-        labelPos: labelPosOf(drawing),
-      })
-      // ⛔ TEXT NOTE'S BOOLEANS ARE ALWAYS OFFERED so that "off" is savable; its
-      // two optional colours are offered only when set, because "no background
-      // colour" is the absence of a choice rather than a choice. What keeps
-      // `lineWidth`/`lineStyle` out of the payload is not this list — it is the
-      // schema: the Text Note's colour row declares `persists: ['color']` alone.
-      Object.assign(values, {
-        bold: !!drawing?.bold, italic: !!drawing?.italic,
-        bgEnabled: !!drawing?.bgEnabled, borderEnabled: !!drawing?.borderEnabled,
-        fontFamily: drawing?.fontFamily ?? null,
-      })
-      for (const p of ['fillColor', 'fillOpacity', 'arrowSize', 'bgColor', 'borderColor', 'levels', 'fills']) {
-        if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
-      }
-      onSaveDefaults(defaultsPayloadFor(drawing?.type, values))
+      // the row's payload is drawingSaveDefaults.saveDefaultsPayloadFor — the same one UCT Agent's "make this my default" saves
+      onSaveDefaults(saveDefaultsPayloadFor(drawing, { color: curColor, lineWidth: curWidth, lineStyle: curStyle, fontSize: curFontSize }))
       setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
     },
   }

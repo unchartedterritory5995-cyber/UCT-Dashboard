@@ -68,17 +68,17 @@ export const TOPICS = [
   {
     id: 'widgets', title: 'Adding widgets and charts',
     words: [/\bwidgets?\b/, /\badd (a |another |some |\d+ )?(new )?charts?\b/, /\bremove (a |the |this )?(widget|chart)s?\b/, /\bclose (a |the |this )?(widget|chart)s?\b/],
-    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption', 'widget.readOptions', 'widget.sendToJournal'], productHas: true,
-    canDo: 'add widgets into empty space, set up several charts for the tickers you name in one go (“four daily charts for SPY, QQQ, NVDA and TSLA” — the charts already there are reused and the board is re-tiled into equal cells to make room; nothing else is moved or removed, and one Undo puts the board back), add up to 12 charts at once with their symbols, timeframes and chart types (Undo closes what I added), duplicate a chart (its cell is split and the copy keeps its ticker, timeframe, look and indicators), make a Watchlist widget show one of your lists, and make a Scanner widget show one of UCT’s scans',
+    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption', 'widget.readOptions', 'widget.sendToJournal', 'multiChart.set', 'multiChart.cell'], productHas: true,
+    canDo: 'add widgets into empty space, set up several charts for the tickers you name in one go (“four daily charts for SPY, QQQ, NVDA and TSLA” — the charts already there are reused and the board is re-tiled into equal cells to make room; nothing else is moved or removed, and one Undo puts the board back), add up to 12 charts at once with their symbols, timeframes and chart types (Undo closes what I added), duplicate a chart (its cell is split and the copy keeps its ticker, timeframe, look and indicators), make a Watchlist widget show one of your lists, and make a Scanner widget show one of UCT’s scans; and on Charts (desktop), use Multi Chart the way its Multi Charts menu does — open the grid at a shape or go back to the Charts board, sync crosshair or time range, Groups mode and loading or stepping a group, open, save or delete a saved grid (deleting one is shown to you first) — and a grid cell’s own buttons (maximize it, or Reset to my chart), each with Undo',
     known: () => ['a widget’s look (colours, fonts), and controls that live only on the Watchlists page'],
     planned: null,
   },
   {
     id: 'layouts', title: 'Saved layouts',
     words: [/\blayouts?\b/, /\bworkspaces?\b/],
-    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate'], productHas: true,
-    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open',
-    known: () => ['layout version history', 'dock pins', 'sharing a layout'],
+    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], productHas: true,
+    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open; and on the layout bar along the bottom of Charts (desktop), pin a layout to the bar, take one off it (it stays in your layouts) or move it to another spot',
+    known: () => ['layout version history', 'sharing a layout'],
     planned: null,
   },
   {
@@ -103,10 +103,16 @@ export const TOPICS = [
     caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
       // W1-B: the time-anchored tools, from the dates and prices the member gives
       'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
+      // drawing extras (capabilities/drawingExtras.js): the toolbar's Position Calculator, a drawing's Save as default, a tool's ★
+      'drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool',
       // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
-      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert'], productHas: true,
-    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
-    known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
+      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert',
+      // the menu's Duplicate and a position's Alerts row (capabilities/drawingOps.js)
+      'drawing.duplicate', 'drawing.setPositionAlerts',
+      // Drawing Boards (chart toolbar): named sheets of drawings shared by every chart
+      'drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level, or the entry, stop and target alerts of a position drawing (always shown to you first); duplicate a drawing; show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo; on Charts, switch the Drawing Board you draw on (boards are shared by every chart and symbol), make a new board, rename one, or delete one with all its drawings (always shown to you first; deleting a board cannot be undone, and the last board is never deleted)',
+    known: () => ['Save as default, copying a drawing to a different symbol and reordering drawings — those are done on the chart'],
     planned: null,
   },
   {
@@ -120,9 +126,9 @@ export const TOPICS = [
   {
     id: 'charts', title: 'Chart symbol, timeframe, type, scale and session',
     words: [/\b(timeframe|symbol|ticker|chart type|log scale|percent scale|extended hours|pre-?market|post-?market|weekly|daily|monthly|intraday|tabs?|compare|overlay|go to|scroll)\b/],
-    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chartSetup.setRange', 'chartSetup.resetView', 'chartSetup.stepBars', 'chartSetup.autoScale', 'chartSetup.setIndicatorsHidden', 'chartSetup.setMovingAverages', 'chart.compare', 'chartSetup.compareDisplay', 'chartSetup.compareGroup', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab', 'chartMenu.askAi'], productHas: true,
-    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date, replay it from a date, show a range (3M, 6M, YTD, 1Y, 5Y, Origin), step it back or forward by bars, put its price scale back on auto-scale, or reset the view (views only); hide or show every moving average or every indicator at once; overlay comparison symbols or a whole theme, sector or industry group, set their scale or Group only, and remove a compared group; and add, switch, rename, link and close chart tabs — with Undo; and open Ask AI about a chart’s stock (its right-click Ask AI)',
-    known: () => ['free zooming in or out'],
+    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chartSetup.setRange', 'chartSetup.resetView', 'chartSetup.stepBars', 'chartSetup.zoom', 'chartSetup.autoScale', 'chartSetup.setIndicatorsHidden', 'chartSetup.setMovingAverages', 'chart.compare', 'chartSetup.compareDisplay', 'chartSetup.compareGroup', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab', 'chartMenu.askAi'], productHas: true,
+    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date, replay it from a date, show a range (3M, 6M, YTD, 1Y, 5Y, Origin), step it back or forward by bars, zoom it in or out (like the + / - keys), put its price scale back on auto-scale, or reset the view (views only); hide or show every moving average or every indicator at once; overlay comparison symbols or a whole theme, sector or industry group, set their scale or Group only, and remove a compared group; and add, switch, rename, link and close chart tabs — with Undo; and open Ask AI about a chart’s stock (its right-click Ask AI)',
+    known: () => ['squeezing or stretching the price axis by hand'],
     planned: null,
   },
   {
@@ -136,10 +142,10 @@ export const TOPICS = [
   {
     id: 'screener', title: 'Screener',
     words: [/\bscreen\w*\b/, /\bscan\w*\b/, /\bfilters?\b/, /\bfind (me )?stocks\b/, /\bsort (by|on)\b/],
-    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved'], productHas: true,
-    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there',
-    known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'custom-date (period) sorting', 'preset scans'],
-    planned: { when: 'Batch 9', what: 'advanced conditions, ranking and custom-date sorting' },
+    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved', 'periodSort.run', 'periodSort.dock'], productHas: true,
+    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there; and on Charts, run Period Sort (Tools menu) — rank US stocks, themes, sectors or industries by their % change between two dates you give me, in its results panel (a view, not saved; Undo closes it) — and dock that panel onto the board as a widget',
+    known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'preset scans'],
+    planned: { when: 'Batch 9', what: 'advanced conditions and ranking' },
   },
   {
     id: 'watchlists', title: 'Watchlists',

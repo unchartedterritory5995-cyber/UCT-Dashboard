@@ -53,6 +53,7 @@ hour by `flow_worker_main`, never on the tick path. Expect it to take many minut
 """
 import logging
 import os
+import shutil
 import random
 import sqlite3
 import time
@@ -67,7 +68,19 @@ _ERRORS_TO_REPORT = 1
 # How many of the newest rows the cheap probe actually reads.
 WINDOW_ROWS = int(os.environ.get("FLOW_CANARY_WINDOW_ROWS", "2000"))
 
+# ⛔ 2026-11-12: the read probe said "ok" every 5 minutes while EVERY write failed for
+# hours (index pages damaged, table pages fine), and a full disk was the cause. Two more
+# senses, each shouting once per onset and re-arming on recovery:
+#   * free disk under DISK_FLOOR_BYTES on the volume holding flow.db
+#   * max_id not advancing for STALL_TICKS ticks inside regular trading hours
+DISK_FLOOR_BYTES = int(float(os.environ.get("FLOW_CANARY_DISK_FLOOR_GB", "15")) * (1 << 30))
+STALL_TICKS = int(os.environ.get("FLOW_CANARY_STALL_TICKS", "3"))
+
 _state = {
+    "disk_low": False,
+    "stall_ticks": 0,
+    "stalled": False,
+    "last_seen_max_id": None,
     "last_ok_at": None,
     "last_ok_max_id": None,
     "tripped": False,
@@ -198,11 +211,74 @@ def full_check() -> dict:
     return out
 
 
+def _shout(msg: str) -> None:
+    log.error(msg)
+    try:
+        from api import flow_backup
+        flow_backup._post_discord(msg)
+    except Exception:  # noqa: BLE001 -- the canary never raises
+        pass
+
+
+def _in_regular_session(now=None) -> bool:
+    """09:35-16:00 ET on a trading day (5 minutes of grace after the open)."""
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api import flow_gap_autofill as gf
+        et = now or datetime.now(ZoneInfo("America/New_York"))
+        if not gf._is_trading_day(et.date()):
+            return False
+        mins = et.hour * 60 + et.minute
+        return 9 * 60 + 35 <= mins < 16 * 60
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def check_disk(free_bytes=None) -> None:
+    """Shout once when the volume holding flow.db falls under DISK_FLOOR_BYTES."""
+    try:
+        free = shutil.disk_usage(os.path.dirname(DB_PATH) or "/").free if free_bytes is None else free_bytes
+    except Exception:  # noqa: BLE001
+        return
+    if free < DISK_FLOOR_BYTES:
+        if not _state["disk_low"]:
+            _state["disk_low"] = True
+            _shout("[flow-canary] ⛔ flow-worker volume LOW: %.1f GB free (floor %.0f GB). A full "
+                   "disk corrupted flow.db on 2026-11-11/12; free space before anything else."
+                   % (free / (1 << 30), DISK_FLOOR_BYTES / (1 << 30)))
+    elif _state["disk_low"] and free > DISK_FLOOR_BYTES + (2 << 30):
+        _state["disk_low"] = False
+        log.warning("[flow-canary] volume free space recovered: %.1f GB", free / (1 << 30))
+
+
+def check_stall(max_id, in_session=None) -> None:
+    """Shout once when max_id has not moved for STALL_TICKS ticks during regular hours."""
+    live = _in_regular_session() if in_session is None else in_session
+    if not live or max_id is None:
+        _state.update(stall_ticks=0, last_seen_max_id=max_id)
+        return
+    if _state["last_seen_max_id"] is not None and max_id == _state["last_seen_max_id"]:
+        _state["stall_ticks"] += 1
+    else:
+        if _state["stalled"]:
+            log.warning("[flow-canary] writes are landing again (max_id=%s)", max_id)
+        _state.update(stall_ticks=0, stalled=False)
+    _state["last_seen_max_id"] = max_id
+    if _state["stall_ticks"] >= STALL_TICKS and not _state["stalled"]:
+        _state["stalled"] = True
+        _shout("[flow-canary] ⛔ NO NEW flow rows for %d checks during market hours (max_id=%s): "
+               "the live tape is not being saved. Check `[massive-ws] DB write failed`."
+               % (_state["stall_ticks"], max_id))
+
+
 def run_tick() -> None:
     """Scheduler entry point for the CHEAP probe. Logs loudly on the FIRST failure and
     stays quiet afterwards so a broken database cannot flood the log it is meant to
     make readable."""
     r = check_once()
+    check_disk()
+    check_stall(r.get("max_id"))
     if r["ok"]:
         if _state["tripped"]:
             # recovered (a rotation/restore), so re-arm for the next onset

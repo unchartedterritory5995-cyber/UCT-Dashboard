@@ -27,20 +27,21 @@
 // that; every switch flushes first). A PREBUILT layout is shared with every
 // member, so it is never written automatically.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import UIcon from '../../components/ui/UIcon'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
 import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 import {
   DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock,
-  movePin, removePin, addPin,
+  movePin, removePin, addPin, shiftPin,
 } from './layoutDockPins'
 import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
   entries, activeId, loading = false, merged = false, isAdmin = false,
   onOpen, onCreate, onSave, onDuplicate, onDelete, onRename, onRestored,
+  agentRef = null,
 }) {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const stored = useMemo(() => readDockPref(prefs?.[DOCK_PREF]), [prefs])
@@ -48,9 +49,8 @@ export default function LayoutDock({
   const byId = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries])
   const dock = useMemo(() => reconcilePins(stored, entries), [stored, entries])
 
-  const writeDock = useCallback((next) => {
-    setPref(DOCK_PREF, JSON.stringify(next))
-  }, [setPref])
+  // Returns setPref's answer: true only once the server accepted the write (usePreferences).
+  const writeDock = useCallback((next) => setPref(DOCK_PREF, JSON.stringify(next)), [setPref])
 
   // Persist only a CHANGED reconciliation, and never before both sides have
   // settled — seeding against a half-loaded list would write a rail that is
@@ -234,6 +234,30 @@ export default function LayoutDock({
     closePopovers()
     if (entry.id !== activeId) onOpen?.(entry)
   }, [dock, writeDock, closePopovers, activeId, onOpen])
+
+  // ── UCT Agent's door to the RAIL (C3-037..039) ─────────────────────────
+  // The Agent changes the bar ONLY through this dock's own writer (writeDock) and the same
+  // positional helpers the menu uses (movePin / removePin / addPin; shiftPin is movePin
+  // repeated, one write). It never touches the library: closing a slot never deletes a
+  // layout. Unlike the library's "add to bar", pin() does NOT open the layout (switching
+  // the board is layout.open, a separate step that asks first when edits would be lost).
+  // Every write answers whether the server accepted it; the read is the reconciled rail.
+  useImperativeHandle(agentRef, () => (
+    {
+      snapshot: () => ({
+        ready: !(prefsLoading || loading),
+        hidden: dock.hidden,
+        pins: dock.pins.slice(),
+        names: Object.fromEntries(entries.map(e => [String(e.id), e.name])),
+        library: entries.map(e => ({ id: e.id, name: e.name, scope: e.id === UCT_DEFAULT_ID ? 'built-in' : (e.scope || 'user') })),
+      }),
+      pin: (id) => writeDock({ ...dock, pins: addPin(dock.pins, id) }),
+      unpin: (index) => writeDock({ ...dock, pins: removePin(dock.pins, index) }),
+      shift: (from, to) => writeDock({ ...dock, pins: shiftPin(dock.pins, from, to) }),
+      // Undo of a close: the same layout back in the same slot (addPin, then shifted into place).
+      restore: (id, index) => { const p = addPin(dock.pins, id); return writeDock({ ...dock, pins: shiftPin(p, p.length - 1, index) }) },
+    }
+  ), [dock, entries, prefsLoading, loading, writeDock])
 
   const renderItem = (slot, isProvisional = false) => {
     const { entry, index } = slot

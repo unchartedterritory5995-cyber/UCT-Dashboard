@@ -1051,6 +1051,284 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
 }
 
+// ── OBJECTS v2 — EVERY PAIRED RECORD, FIELD BY FIELD ────────────────────────
+//
+// ⭐⭐ v1 (`compareObjects`) grades a drawing by its COUNTS, its TEXTS and (C44)
+// the colours of objects it pairs BY VALUE. Nothing in v1 asks WHERE a drawing
+// is: a line at the wrong price pairs with nothing, is filed `unpaired`, and the
+// family still grades MATCH when the counts and texts agree. v2 pairs each of
+// our records with the capture's record of the same family by CREATION ORDER
+// and compares every field the capture holds.
+//
+// ⛔⛔ v2 IS A SEPARATE REPORT, NOT THE VERDICT. `compareCapture` and every
+// ratchet keep reading v1; `harness.js::gradeCapture` hands v2 back beside the
+// verdict (`objectsV2`). A stricter grade that silently replaced v1 would turn
+// ratchets red on the progress they measure, or force them to be loosened.
+//
+// THE PAIRING (`vendorHarness/objectRecords.js`, the only reader of records):
+//   lines, labels, boxes, linefills  both sides sorted by id (creation order) and
+//            aligned at the NEWEST end: when the counts differ, the object limit
+//            took the oldest, so the newest are the ones both still hold. The
+//            extra records are counted `unpaired`, never graded.
+//   tables   by creation order; cells by (paired table, column, row).
+//   linefills by their two lines (one fill per pair of lines, Pine's rule), the
+//            lines mapped through the line pairing.
+//
+// ⛔⛔ ONLY THE FIELDS THE CAPTURE HOLDS ARE GRADED, AND A FIELD IT LACKS IS NAMED.
+// `tv_capture.js::readGraphics` records `_primitivesDataById` verbatim. Its `x`,
+// `x1`, `x2` are small integers (0 … a few hundred on a 1,800-bar chart): an
+// index into a coordinate table the capture does not record, not a bar index
+// and not a time. So no x is graded, and every v2 report says so in `ungraded`
+// rather than passing it. The same for `xloc` and the other fields below.
+//
+// ⛔ A VENDOR CODE THIS TABLE CANNOT DECODE IS NOT GRADED (state `undecoded`,
+// counted with the code). Read as a mismatch it would invent a defect; read as
+// a match it would invent a pass.
+//
+// Each field: `vendor` key in the capture's record, `ours` property on our live
+// object, `kind`:
+//   price   `valuesAgree` under the capture's tolerance (na agrees only with na)
+//   number  exact
+//   enum    the vendor code decoded through `codes`, then exact
+//   text    exact string
+//   colour  the C44 reading (`objectColours.js`): theme-relative is not graded
+// `default`: Pine's own default (v6 reference) for a property the script left
+// unset, so our absent property is compared as what Pine draws.
+const EXTEND_CODES = Object.freeze({ n: 'none', r: 'right', b: 'both' })
+// ⛔ EVERY CODE BELOW IS WITNESSED: in the 2026-11-12 re-grade each one met ONLY
+// that value of ours on paired records (docs/pine/evidence/2026-11-12-objects-v2).
+// A code no paired record has shown (`l` for extend, `cir`, `ab`, `al` …) is left out on
+// purpose: it reads `undecoded` (named, not graded) until a capture pairs it.
+const LINE_STYLE_CODES = Object.freeze({ sol: 'solid', dsh: 'dashed', dot: 'dotted', ar: 'arrow_right' })
+const LABEL_STYLE_CODES = Object.freeze({
+  n: 'none', ldn: 'label_down', lup: 'label_up', lcn: 'label_center', llf: 'label_left', lrg: 'label_right',
+})
+const YLOC_CODES = Object.freeze({ pr: 'price', ab: 'abovebar', bl: 'belowbar' })
+const SAME = (...names) => Object.freeze(Object.fromEntries(names.map((n) => [n, n])))
+const SIZE_CODES = SAME('auto', 'tiny', 'small', 'normal', 'large', 'huge')
+const HALIGN_CODES = SAME('left', 'center', 'right')
+const VALIGN_CODES = SAME('top', 'center', 'bottom')
+const WRAP_CODES = SAME('none', 'auto')
+const POSITION_CODES = SAME('top_left', 'top_center', 'top_right', 'middle_left', 'middle_center', 'middle_right',
+  'bottom_left', 'bottom_center', 'bottom_right')
+const FONT_CODES = SAME('default', 'monospace')
+
+const X_UNGRADED = 'the capture records an index into a coordinate table it does not record (tv_capture.js readGraphics), not a bar index or a time'
+export const OBJECTS_V2_FIELDS = Object.freeze({
+  lines: Object.freeze({
+    ourFamily: 'line',
+    fields: Object.freeze([
+      { field: 'y1', vendor: 'y1', ours: 'y1', kind: 'price' },
+      { field: 'y2', vendor: 'y2', ours: 'y2', kind: 'price' },
+      { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
+      { field: 'style', vendor: 'st', ours: 'style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
+      { field: 'width', vendor: 'w', ours: 'width', kind: 'number', default: 1 },
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+    ]),
+    vendorKeysNotGraded: Object.freeze(['x1', 'x2', 'fo']),
+    ungraded: Object.freeze({ x1: X_UNGRADED, x2: X_UNGRADED, xloc: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+  }),
+  labels: Object.freeze({
+    ourFamily: 'label',
+    fields: Object.freeze([
+      // y is graded only where the label is placed BY PRICE on both sides: at
+      // abovebar / belowbar neither platform draws it at y.
+      { field: 'y', vendor: 'y', ours: 'y', kind: 'price', onlyAtPrice: true },
+      { field: 'yloc', vendor: 'yl', ours: 'yloc', kind: 'enum', codes: YLOC_CODES, default: 'price' },
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'style', vendor: 'st', ours: 'style', kind: 'enum', codes: LABEL_STYLE_CODES, default: 'label_down' },
+      { field: 'size', vendor: 'sz', ours: 'size', kind: 'enum', codes: SIZE_CODES, default: 'normal' },
+      { field: 'textalign', vendor: 'ta', ours: 'textalign', kind: 'enum', codes: HALIGN_CODES, default: 'center' },
+      { field: 'tooltip', vendor: 'tt', ours: 'tooltip', kind: 'text', default: '' },
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+      { field: 'textcolor', vendor: 'tci', ours: 'textcolor', kind: 'colour', onlyWithText: true },
+    ]),
+    vendorKeysNotGraded: Object.freeze(['x', 'fo']),
+    ungraded: Object.freeze({ x: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+  }),
+  boxes: Object.freeze({
+    ourFamily: 'box',
+    fields: Object.freeze([
+      { field: 'top', vendor: 'y1', ours: 'top', kind: 'price' },
+      { field: 'bottom', vendor: 'y2', ours: 'bottom', kind: 'price' },
+      { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
+      { field: 'border_style', vendor: 'st', ours: 'border_style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
+      { field: 'border_width', vendor: 'w', ours: 'border_width', kind: 'number', default: 1 },
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: SIZE_CODES, default: 'auto', onlyWithText: true },
+      { field: 'text_halign', vendor: 'tha', ours: 'text_halign', kind: 'enum', codes: HALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_valign', vendor: 'tva', ours: 'text_valign', kind: 'enum', codes: VALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_wrap', vendor: 'tw', ours: 'text_wrap', kind: 'enum', codes: WRAP_CODES, default: 'none', onlyWithText: true },
+      { field: 'border_color', vendor: 'c', ours: 'border_color', kind: 'colour' },
+      { field: 'bgcolor', vendor: 'bc', ours: 'bgcolor', kind: 'colour' },
+      { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
+    ]),
+    vendorKeysNotGraded: Object.freeze(['x1', 'x2']),
+    ungraded: Object.freeze({ left: X_UNGRADED, right: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'not recorded by the capture for boxes' }),
+  }),
+  tables: Object.freeze({
+    ourFamily: 'table',
+    fields: Object.freeze([
+      { field: 'position', vendor: 'pos', ours: 'position', kind: 'enum', codes: POSITION_CODES },
+      { field: 'columns', vendor: 'cols', ours: 'columns', kind: 'number' },
+      { field: 'rows', vendor: 'rows', ours: 'rows', kind: 'number' },
+      { field: 'frame_width', vendor: 'frmw', ours: 'frame_width', kind: 'number', default: 0 },
+      { field: 'border_width', vendor: 'brdw', ours: 'border_width', kind: 'number', default: 0 },
+      { field: 'bgcolor', vendor: 'bgc', ours: 'bgcolor', kind: 'colour' },
+      { field: 'frame_color', vendor: 'frmc', ours: 'frame_color', kind: 'colour', onlyIfVendor: 'frmw' },
+      { field: 'border_color', vendor: 'brdc', ours: 'border_color', kind: 'colour', onlyIfVendor: 'brdw' },
+    ]),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({ force_overlay: 'not recorded by the capture' }),
+  }),
+  tableCells: Object.freeze({
+    ourFamily: 'cell',
+    fields: Object.freeze([
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'text_halign', vendor: 'tha', ours: 'text_halign', kind: 'enum', codes: HALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_valign', vendor: 'tva', ours: 'text_valign', kind: 'enum', codes: VALIGN_CODES, default: 'center', onlyWithText: true },
+      // ⭐ WITNESSED, not the reference's: the reference states `size.normal`, but
+      // TradingView records `auto` for a cell whose script names no size
+      // (k-clustering, 8 cells), and our renderer draws `auto` and `normal` alike.
+      { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: SIZE_CODES, default: 'auto', onlyWithText: true },
+      { field: 'tooltip', vendor: 'tt', ours: 'tooltip', kind: 'text', default: '' },
+      // `tf` is absent from a record whose font is the default (658 of 702 cells)
+      { field: 'text_font_family', vendor: 'tf', ours: 'text_font_family', kind: 'enum', codes: FONT_CODES, default: 'default', vendorDefault: 'default', onlyWithText: true },
+      { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
+      { field: 'bgcolor', vendor: 'bgc', ours: 'bgcolor', kind: 'colour' },
+    ]),
+    // `tid` / `col` / `row` are the cell's address: the pairing, not a graded field
+    pairingKeys: Object.freeze(['tid', 'col', 'row']),
+    vendorKeysNotGraded: Object.freeze(['w', 'h', 'colspan', 'rowspan']),
+    ungraded: Object.freeze({
+      width: 'the capture holds null on every cell record (702 of 702)',
+      height: 'the capture holds null on every cell record (702 of 702)',
+      text_formatting: 'not recorded by the capture',
+      colspan: 'a merge is held on our table, not on the cell; not paired by v2',
+      rowspan: 'a merge is held on our table, not on the cell; not paired by v2',
+    }),
+  }),
+  linefills: Object.freeze({
+    ourFamily: 'linefill',
+    fields: Object.freeze([
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+    ]),
+    // a fill is PAIRED by its two lines (one fill per pair, Pine's rule), so they
+    // are the pairing; a fill between other lines is unpaired, a count difference
+    pairingKeys: Object.freeze(['line1', 'line2']),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({}),
+  }),
+})
+export const OBJECTS_V2_FAMILIES = Object.freeze(Object.keys(OBJECTS_V2_FIELDS))
+
+/** What each field state means for the v2 grade — said ONCE, here. */
+export const V2_AGREES = new Set(['agree'])
+export const V2_DIFFERS = new Set(['differ'])
+/** Not graded, and counted: the capture cannot be decoded, the slot is
+ *  theme-relative, the object is drawn by neither side, or the field does not
+ *  apply (label y off price, text colour of an empty text). */
+export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', 'notApplicable'])
+
+/**
+ * The v2 report for one capture.
+ * @param {object} v1        `compareObjects`' result (the verdict v1 gave)
+ * @param {object|null} pairing  `objectRecords.js::pairRecords`, or null when
+ *        no record could be paired (our object lane did not run, or the capture
+ *        recorded no objects)
+ */
+export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
+  const ungraded = Object.fromEntries(OBJECTS_V2_FAMILIES.map((f) => [f, Object.keys(OBJECTS_V2_FIELDS[f].ungraded)]))
+  if (!v1) return null
+  if (!pairing) {
+    // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
+    return { verdict: v1.verdict, v1: v1.verdict, pairedNothing: true, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
+  }
+  const families = []
+  // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
+  // is a gap with a name, already graded as one; v2 does not pair it again and
+  // never counts its missing records as a difference (the cells go with their
+  // tables, as in v1's RUNTIME_FAMILY, and the fills with their lines).
+  const withheld = new Set((v1.counts || []).filter((r) => r && r.withheld).map((r) => r.family))
+  if (withheld.has('tables')) withheld.add('tableCells')
+  // ⛔ What OUR side withheld by name is read from its own list
+  // (`ourSide.js` withheldFamilies, our family names), never inferred: a fill
+  // our side still holds is graded even when its lines were withheld
+  // (review #1150 note 3).
+  const OUR_TO_V2 = { line: 'lines', label: 'labels', box: 'boxes', table: 'tables', linefill: 'linefills' }
+  for (const fam of oursWithheldFamilies || []) {
+    const f = OUR_TO_V2[fam]
+    if (f) withheld.add(f)
+    if (f === 'tables') withheld.add('tableCells')
+  }
+  // a fill lives between two lines: withheld lines explain fills our side does
+  // NOT hold, and only those. A fill our side still holds is graded.
+  const lf = pairing.families.linefills
+  if (withheld.has('lines') && lf && lf.pairs.length === 0 && lf.unpairedOurs === 0) withheld.add('linefills')
+  for (const f of OBJECTS_V2_FAMILIES) {
+    const p = pairing.families[f]
+    if (!p) continue
+    if (withheld.has(f)) {
+      families.push({ family: f, withheld: true, paired: 0, unpairedVendor: 0, unpairedOurs: 0, graded: 0, agreeing: 0,
+        differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, agree: null, differsOnlyByCreationOrder: false })
+      continue
+    }
+    const row = {
+      family: f, paired: p.pairs.length, unpairedVendor: p.unpairedVendor, unpairedOurs: p.unpairedOurs,
+      graded: 0, agreeing: 0, differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, agree: null,
+    }
+    for (const pair of p.pairs) {
+      for (const r of pair.fields) {
+        const bf = row.byField[r.field] || (row.byField[r.field] = { agree: 0, differ: 0, notGraded: 0 })
+        if (V2_AGREES.has(r.state)) { row.graded += 1; row.agreeing += 1; bf.agree += 1 } else if (V2_DIFFERS.has(r.state)) {
+          row.graded += 1
+          row.differing += 1
+          bf.differ += 1
+          if (!row.first) row.first = { field: r.field, vendor: r.vendor, ours: r.ours, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where }
+        } else if (V2_NOT_GRADED.has(r.state)) {
+          row.notGraded += 1
+          bf.notGraded += 1
+          if (r.state === 'undecoded') row.undecoded[`${r.field}=${r.vendor}`] = (row.undecoded[`${r.field}=${r.vendor}`] || 0) + 1
+        } else {
+          // ⛔ FAIL CLOSED: a state this table does not name is never read as agreeing.
+          throw new Error(`objects v2: unknown field state ${JSON.stringify(r.state)}`)
+        }
+      }
+    }
+    row.agree = row.graded === 0 ? null : row.differing === 0
+    // ⛔ A record one side holds and the other does not is a difference a member
+    // sees (for lines … cells v1's counts already say so; for linefills only v2 does).
+    if (p.unpairedVendor || p.unpairedOurs) {
+      row.agree = false
+      if (!row.first) row.first = { field: 'count', vendor: row.paired + p.unpairedVendor, ours: row.paired + p.unpairedOurs, where: `${f} held` }
+    }
+    row.differsOnlyByCreationOrder = !!p.differsOnlyByCreationOrder
+    families.push(row)
+  }
+  const diverging = families.filter((r) => r.agree === false)
+  const graded = families.reduce((n, r) => n + r.graded, 0)
+  const first = diverging.length ? { family: diverging[0].family, ...diverging[0].first } : null
+  // ⭐ v2 never makes a v1 DIVERGE or INCONCLUSIVE better; it can only find a
+  // MATCH whose records are in the wrong place.
+  let verdict = v1.verdict
+  if (v1.verdict === 'MATCH' && diverging.length) verdict = 'DIVERGE'
+  const fieldsSaid = graded
+    ? (first
+      ? `${diverging.length} object ${diverging.length === 1 ? 'family differs' : 'families differ'} field by field (first: ${first.family} ${first.field} of ${first.where} — vendor ${JSON.stringify(first.vendor)}, ours ${JSON.stringify(first.ours)})${diverging.every((r) => r.differsOnlyByCreationOrder) ? ' — ONLY in creation order: paired by equal ids, every field agrees' : ''}`
+      : `every paired record agrees on ${graded} graded fields`)
+    : 'no field of a paired record was graded'
+  return {
+    verdict,
+    v1: v1.verdict,
+    pairedNothing: false,
+    differsOnlyByCreationOrder: diverging.length > 0 && diverging.every((r) => r.differsOnlyByCreationOrder),
+    reason: `${fieldsSaid}; v1: ${v1.reason}; not graded: x coordinates (the capture holds no bar index or time), xloc`,
+    first,
+    families,
+    ungraded,
+  }
+}
+
 // ── PAINTS (B1, step 61) ─────────────────────────────────────────────────────
 //
 // ⭐⭐ `bgcolor` / `barcolor` JOIN THE VERDICT (integrator ruling 2026-10-02, the

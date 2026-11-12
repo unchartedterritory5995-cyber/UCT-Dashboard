@@ -3747,7 +3747,7 @@
     "name": "app.open",
     "domain": "app",
     "target": "app",
-    "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
+    "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
     "hints": "target = the ref of the app entry. page: one of charts (Charts), terminal (UCT Terminal), morning-wire (Morning Wire), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
     "args": {
      "type": "object",
@@ -11192,8 +11192,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -11208,12 +11216,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -11262,6 +11282,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -11516,8 +11544,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -11532,12 +11568,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -11586,6 +11634,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -11838,8 +11894,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -11854,12 +11918,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -11908,6 +11984,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -12166,8 +12250,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12182,12 +12274,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -12236,6 +12340,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -12487,8 +12599,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12503,12 +12623,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -12557,6 +12689,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -12809,8 +12949,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12825,12 +12973,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -12879,6 +13039,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -13131,8 +13299,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -13147,12 +13323,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -13201,6 +13389,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -13720,8 +13916,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -13736,12 +13940,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -13790,6 +14006,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -14043,8 +14267,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14059,12 +14291,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -14113,6 +14357,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -14364,8 +14616,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14380,12 +14640,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -14434,6 +14706,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -14946,8 +15226,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14962,12 +15250,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -15016,6 +15316,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -15268,8 +15576,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -15284,12 +15600,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -15338,6 +15666,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -15857,8 +16193,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -15873,12 +16217,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -15927,6 +16283,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -16440,8 +16804,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -16456,12 +16828,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -16510,6 +16894,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -17023,8 +17415,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17039,12 +17439,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -17093,6 +17505,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -17345,8 +17765,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17361,12 +17789,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -17415,6 +17855,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -17934,8 +18382,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17950,12 +18406,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -18004,6 +18472,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -18256,8 +18732,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18272,12 +18756,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -18326,6 +18822,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -18584,8 +19088,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18600,12 +19112,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -18654,6 +19178,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -18912,8 +19444,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18928,12 +19468,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -18982,6 +19534,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -19240,8 +19800,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19256,12 +19824,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -19310,6 +19890,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -19562,8 +20150,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19578,12 +20174,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -19632,6 +20240,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -19884,8 +20500,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19900,12 +20524,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -19954,6 +20590,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -20205,8 +20849,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -20221,12 +20873,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -20275,6 +20939,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -20527,8 +21199,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -20543,12 +21223,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -20597,6 +21289,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -21109,8 +21809,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21125,12 +21833,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -21179,6 +21899,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -21693,8 +22421,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21709,12 +22445,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -21763,6 +22511,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -22276,8 +23032,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -22292,12 +23056,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -22346,6 +23122,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -22859,8 +23643,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -22875,12 +23667,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -22929,6 +23733,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -23180,8 +23992,16 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -23196,12 +24016,24 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
       "id": "lists",
@@ -23250,6 +24082,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [

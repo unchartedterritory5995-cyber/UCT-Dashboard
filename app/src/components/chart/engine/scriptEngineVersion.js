@@ -131,7 +131,8 @@
 /** 47 = OZ stack: DIV-3 table.cell replace + W-C22-DEL withheld deletes/collector + OZ silent-zero naming */
 /** 48 = `x = na(x[k]) ? na : U` refuses `pine:cycle` by name in every version and both lanes (LANE2-r1r3 N1 v1/v2, N3 v3+); see docs/pine/evidence/2026-11-11-engine48-na-self-ref/EVIDENCE.md */
 /** 49 = a v3+ declaration that reads its own history (`x = … x[k] …`, not declared before) refuses `pine:cycle` by name in both lanes (review ENG48-1096 note 4, N2); v1/v2 unchanged; see docs/pine/evidence/2026-11-11-engine49-v3-self-ref/EVIDENCE.md */
-export const SCRIPT_ENGINE_VERSION = 49
+/** 50 = the four doors agree on a v3+ self-referencing declaration: the host walk refuses `pine:cycle` by name whether or not anything reads it (an unread one, one read only through `color=`, one in an uncalled function), a variable named after an earlier user function, and a block-valued `x = if/switch …` whose block reads `x[k]` (review ENG49-1122 notes 1-3, 6); a runtime drawing stop with no named guard says one plain sentence (OZ N-2); v1/v2 unchanged; see docs/pine/evidence/2026-11-11-engine50-doors-agree/EVIDENCE.md */
+export const SCRIPT_ENGINE_VERSION = 50
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

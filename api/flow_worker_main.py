@@ -260,6 +260,7 @@ import uvicorn
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s")
+_install_log_redaction()   # put RedactSecretsFilter on the handlers basicConfig just made
 
 # Crash forensics (2026-07-17: three in-place CRASHes — 9:34/10:14/10:26 ET —
 # left NO trace in logs). faulthandler catches C-level deaths (segfault/abort);

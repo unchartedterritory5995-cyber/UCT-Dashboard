@@ -29,6 +29,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Optional
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _log = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def _exchange_for(sym: str) -> Optional[str]:
         try:
             data = _get("/events", {"exchange": ex, "symbol": sym})
         except Exception as exc:
-            _log.debug("[ec] exchange probe failed %s/%s: %s", sym, ex, exc)
+            _log.debug("[ec] exchange probe failed %s/%s: %s", sym, ex, _safe_exc(exc))
             continue
         if data and data.get("events"):
             _cache().set(ck, ex, _TTL_HIT)
@@ -111,7 +112,7 @@ def latest_event(sym: str) -> Optional[dict]:
     try:
         data = _get("/events", {"exchange": ex, "symbol": sym})
     except Exception as exc:
-        _log.debug("[ec] events failed for %s: %s", sym, exc)
+        _log.debug("[ec] events failed for %s: %s", sym, _safe_exc(exc))
         return None
     events = [e for e in ((data or {}).get("events") or [])
               if e.get("is_published")]
@@ -167,7 +168,7 @@ def get_timed_transcript(sym: str, year: Optional[int] = None,
                                     "year": year, "quarter": quarter,
                                     "level": 3})
     except Exception as exc:
-        _log.warning("[ec] transcript failed for %s: %s", sym, exc)
+        _log.warning("[ec] transcript failed for %s: %s", sym, _safe_exc(exc))
         return None
     if not data or not data.get("speakers"):
         _cache().set(ck, "__null__", _TTL_MISS)
@@ -228,7 +229,7 @@ def event_meta(sym: str, year: Optional[int] = None,
     try:
         data = _get("/events", {"exchange": ex, "symbol": sym})
     except Exception as exc:
-        _log.debug("[ec] events failed for %s: %s", sym, exc)
+        _log.debug("[ec] events failed for %s: %s", sym, _safe_exc(exc))
         return None          # a failure is not cached as "no event"
     events = [e for e in ((data or {}).get("events") or []) if e.get("is_published")]
     events.sort(key=lambda e: (e.get("year") or 0, e.get("quarter") or 0), reverse=True)
@@ -284,7 +285,7 @@ def open_audio_stream(sym: str, year: Optional[int] = None,
         r = requests.get(_audio_url(sym, year, quarter, exchange),
                          headers=headers, stream=True, timeout=_TIMEOUT)
     except Exception as exc:
-        _log.warning("[ec] audio open failed for %s: %s", sym, exc)
+        _log.warning("[ec] audio open failed for %s: %s", sym, _safe_exc(exc))
         return None
     if r.status_code not in (200, 206):
         _log.debug("[ec] audio upstream %s for %s", r.status_code, sym)

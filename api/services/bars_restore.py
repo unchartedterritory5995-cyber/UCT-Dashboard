@@ -319,6 +319,9 @@ def repair_at_boot(port: int, run: Callable = subprocess.run,
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO)
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     return 0 if restore() else 1
 
 

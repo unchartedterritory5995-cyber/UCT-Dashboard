@@ -206,15 +206,17 @@ def _rs_rank_method() -> dict:
             "scale": f"1-{p['max']}, higher is stronger",
             "how": (f"Since the two were unified, this column IS the RS Rating: over the "
                     f"stock's daily closes, {_ibd_formula_prose(p)}, ranked as a percentile "
-                    f"across the cap universe excluding ETFs. It is written once a night by "
+                    f"across {_RATED_POPULATION}. It is written once a night by "
                     f"the 04:15 ET rating job and does not move during the session. Where a "
                     f"name has no stored rating for the newest session, the hourly weighted "
                     f"return rank (" + _rs_terms_prose() + ") stands in and the row's "
                     f"source says so."),
-            "caveat": ("The universe is our own coverage list minus ETFs, not the whole "
-                       "market, so the rank is relative to what we screen. RS Ret is still "
-                       "the hourly weighted return, so this column is no longer its "
-                       "percentile; read RS Rating and RS Rank as one number."),
+            "caveat": ("Ranked against every stock we hold a recent daily price for, about "
+                       "6,000 names including warrants, rights, units and thin stocks, as "
+                       "Deepvue's rank does; ETFs are not ranked. IBD-style and our own "
+                       "calculation, not MarketSurge's number. RS Ret is still the hourly "
+                       "weighted return, so this column is no longer its percentile; read RS "
+                       "Rating and RS Rank as one number."),
         }
     return {
         "column": "rs_rank", "label": "RS Rank",
@@ -303,6 +305,7 @@ def _rs_params() -> dict:
         "tol": _rs.DEFAULT_PRICE_TOLERANCE_PCT, "red": abs(_rs.DEFAULT_RED_DAY_PCT),
         "terms": _rsw.IBD_TERMS, "components": _rsw.IBD_COMPONENTS,
         "long_terms": dict(_rsw.IBD_STYLE_COMPONENT_TERMS),
+        "equal_terms": dict(_rsw.EQUAL_WEIGHT_COMPONENT_TERMS),
         "required": _rsw.IBD_REQUIRED_TERM, "max": _rsh.RATING_MAX,
     }
 
@@ -315,6 +318,16 @@ def _long_blend_prose(terms) -> str:
     if len(parts) == 1:
         return "the close over the close " + parts[0]
     return "the close over the close " + ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def _equal_blend_prose(terms) -> str:
+    """The equal weighting of the 3M component rank in words, READ FROM
+    `rs_weighted_return.EQUAL_WEIGHT_COMPONENT_TERMS` (its row): "the close over the
+    close 21, 42 and 63 sessions earlier"."""
+    bars = sorted(n for n, _w in terms)
+    parts = [str(n) for n in bars]
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"the close over the close {joined} sessions earlier"
 
 
 def _ibd_formula_prose(p: dict) -> str:
@@ -330,6 +343,13 @@ _RS_BAR_NOTE = ("Daily bars only, measured at the last completed session, from t
                 "`relative_strength` functions the chart's UCT RS line draws, so a scan and a "
                 "chart dot never disagree. Blank, never 0, when the window is short, SPY has no "
                 "bar at the row's date, or a hole sits inside the lookback.")
+#: Who the nightly rating is ranked against (2026-11-12, owner: "everything"): every stock
+#: holding a recent daily price, ETFs excluded (about 6,000 names), NOT the 3,418-name cap
+#: universe the hourly RS Rank still ranks. Warrants, rights, units and thin names stay in,
+#: as they do in Deepvue's rank: against 61 of its readings this population sits 0.1
+#: points from it on average, the cap universe sat 5 to 8 points below.
+_RATED_POPULATION = "every stock with a recent daily price, ETFs excluded"
+
 _RS_RATING_NOTE = ("Written by the 04:15 ET rating job AFTER the 03:00 ET screener build and "
                    "read by the NEXT build, so the row carries the rating as of the session "
                    "before its bars date. Blank when the job has not rated the name: a dark "
@@ -550,17 +570,17 @@ def _rs_column_methods() -> list:
                      "same number, so this column leaves the picker (saved screens keep it).",
          "scale": rating_scale,
          "how": (f"Over the stock's daily closes: {_ibd_formula_prose(p)}. The score is "
-                 f"ranked across the cap universe excluding ETFs, as a percentile with ties "
+                 f"ranked across {_RATED_POPULATION}, as a percentile with ties "
                  f"sharing the mean position, and the rating is max(1, ceil(percentile x "
                  f"{top})). ETFs receive a rating by interpolating their score into the stock "
                  f"distribution, so SPY or a sector fund can carry a number on the same "
                  f"scale. " + _RS_RATING_NOTE),
          "caveat": (f"IBD-style, our own calculation, not MarketSurge's number: the weighting "
                     f"is the published one, the universe and the data are ours. The "
-                    f"denominator is the cap universe RS Rank already ranks over, minus ETFs, "
-                    f"which is neither the whole market nor every name the screener builds, "
-                    f"so the two ratings agree in population and a name outside it carries "
-                    f"neither. Measured difference to MarketSurge: "
+                    f"population is every stock we hold a recent daily price for, minus ETFs "
+                    f"(about 6,000 names, warrants, rights, units and thin stocks included, "
+                    f"as in Deepvue's rank), not only the liquid names the hourly RS Rank "
+                    f"still ranks. Measured difference to MarketSurge: "
                     f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}; no figure is claimed "
                     f"until it is.")},
         {"column": "rs_rating_chg_5", "label": "RS Rating Change (5 sessions)",
@@ -589,13 +609,34 @@ def _rs_column_methods() -> list:
     for key, bars in p["components"]:
         column, label, words = names[key]
         blend = p["long_terms"].get(key)
+        equal = p["equal_terms"].get(key)
+        if equal is not None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the equal-weighted average of the one-, two- and "
+                            f"three-month returns, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"An equally weighted average of three close ratios, each counting once: "
+                        f"{_equal_blend_prose(equal)}, ranked across the same stocks as the "
+                        f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
+                        f"x {top})). A window the history cannot reach leaves no value: without the "
+                        f"{max(n for n, _w in equal)}-session term there is no rank. " + _RS_RATING_NOTE),
+                "caveat": ("Not the plain three-month return: until 2026-11-12 this rank was taken over "
+                           "the plain 63-session return, so a chart or saved screen from before then "
+                           "reads on a different basis. A stock that rose early in the quarter and has "
+                           "been flat since ranks below one that rose late, which a plain three-month "
+                           "return cannot tell apart. It reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one is "
+                           "a young move, not a leader yet."),
+            })
+            continue
         if blend is None:
             out.append({
                 "column": column, "label": label,
                 "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
                 "scale": rating_scale,
                 "how": (f"The close over the close {bars} sessions earlier, ranked across the "
-                        f"same cap universe minus ETFs as the IBD-style rating and scored the same "
+                        f"same stocks as the IBD-style rating ({_RATED_POPULATION}) and scored the same "
                         f"way, max(1, ceil(percentile x {top})). One window alone, where the "
                         f"rating above weights four of them. " + _RS_RATING_NOTE),
                 "caveat": ("A single-window rank reacts faster and flips more often than the "
@@ -608,8 +649,8 @@ def _rs_column_methods() -> list:
             "one_line": f"Percentile rank of the recency-weighted {words} return, 1-{top}.",
             "scale": rating_scale,
             "how": (f"A weighted average of {_long_blend_prose(blend)}, so the newest quarter "
-                    f"counts double, ranked across the same cap universe minus ETFs as the "
-                    f"IBD-style rating and scored the same way, max(1, ceil(percentile x "
+                    f"counts double, ranked across the same stocks as the IBD-style rating "
+                    f"({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile x "
                     f"{top})). A window the history cannot reach is dropped and the weights "
                     f"renormalised; without the first term there is no value. " + _RS_RATING_NOTE),
             "caveat": ("Not the plain {words} return: until 2026-11-11 this rank was taken over "
@@ -627,8 +668,8 @@ def _rs_column_methods() -> list:
         "one_line": f"Percentile rank of the recency-weighted nine-month return, 1-{top}.",
         "scale": rating_scale,
         "how": (f"A weighted average of {_long_blend_prose(p['long_terms']['m9'])}, so the "
-                f"newest quarter counts double, ranked across the same cap universe minus "
-                f"ETFs as the IBD-style rating and scored the same way, max(1, ceil(percentile "
+                f"newest quarter counts double, ranked across the same stocks as the "
+                f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
                 f"x {top})). It is not one of the rating's own four terms; it sits between the "
                 f"six- and twelve-month ranks so a long move can be read in five steps. "
                 + _RS_RATING_NOTE),
@@ -801,12 +842,13 @@ def rs_columns_section() -> dict:
             f"{p['agree']}-session RS slope against SPY and against equal-weight RSP; the "
             f"nightly build does not read the sector ETF.",
             f"The rating is IBD-style, our own calculation, not MarketSurge's: "
-            f"{_ibd_formula_prose(p)}; percentile across the cap universe minus ETFs; "
+            f"{_ibd_formula_prose(p)}; percentile across {_RATED_POPULATION}; "
             f"max(1, ceil(percentile x {p['max']})). Measured difference to MarketSurge: "
             f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}.",
-            "Denominator: the rating ranks the cap universe RS Rank already ranks over, minus "
-            "ETFs, so the two ratings describe one population; it is not the whole market and "
-            "not every name the screener builds, and a name outside it carries no rating.",
+            "Denominator: the rating ranks every stock we hold a recent daily price for, "
+            "minus ETFs (about 6,000 names), which is wider than the liquid cap universe the "
+            "hourly RS Rank ranks and close to Deepvue's own population; a name with no recent "
+            "price or under a year of history carries no rating or no long-window rank.",
             _rs_phase3_note(),
         ],
         "honesty": (

@@ -31,6 +31,7 @@ from typing import Any, Callable, Optional, Sequence
 import requests
 
 from api.services.cache import cache
+from api.services.log_redaction import safe_exc as _safe_exc
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
 
@@ -155,7 +156,7 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     except requests.exceptions.Timeout as exc:
         raise _ERR.transient(f"FMP {path} timed out") from exc
     except requests.exceptions.RequestException as exc:
-        raise _ERR.transient(f"FMP {path} network error: {exc}") from exc
+        raise _ERR.transient(f"FMP {path} network error: {_safe_exc(exc)}") from exc
 
     if resp.status_code == 429:
         raise _ERR.rate_limited(f"FMP {path} rate-limited", status=429)
@@ -994,7 +995,7 @@ def body_or_none(fn: Callable[..., _pe.ProviderResult], *args: Any,
         return []
     except Exception as exc:  # noqa: BLE001 -- the legacy contract, see above
         _logger.warning("FMP %s failed for %s: %s",
-                        getattr(fn, "__name__", fn), args[0] if args else "?", exc)
+                        getattr(fn, "__name__", fn), args[0] if args else "?", _safe_exc(exc))
         return None
     if result.degraded is not None:
         return None

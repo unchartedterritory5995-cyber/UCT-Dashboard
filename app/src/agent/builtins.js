@@ -4,6 +4,7 @@
 import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
+import { registerLayoutBarCapabilities } from './capabilities/layoutBar'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerListViewCapabilities } from './capabilities/listView'
 import { registerScreenerCapabilities } from './capabilities/screener'
@@ -19,12 +20,14 @@ import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
 import { registerAboutCapabilities } from './capabilities/about'
 import { registerBoardCapabilities } from './capabilities/board'
 import { registerDrawingCapabilities } from './capabilities/drawings'
+import { registerDrawingBoardCapabilities } from './capabilities/drawingBoards'
 import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerCompareGroupCapability } from './capabilities/compareGroup'
 import { registerChartMenuCapabilities } from './capabilities/chartMenu'
+import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
@@ -37,12 +40,15 @@ import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
+import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
 import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
 import { registerCalendarCapabilities } from './capabilities/calendar'
 import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
+// C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
+import { registerPeriodSortCapabilities } from './capabilities/periodSort'
 
 let done = false
 export function registerBuiltins() {
@@ -51,6 +57,7 @@ export function registerBuiltins() {
   registerChartCapabilities()
   registerWorkspaceCapabilities()
   registerLayoutCapabilities()
+  registerLayoutBarCapabilities()
   registerWatchlistCapabilities()
   registerListViewCapabilities()
   registerScreenerCapabilities()
@@ -67,12 +74,14 @@ export function registerBuiltins() {
   registerSavedScreenCapabilities()
   registerBoardCapabilities()
   registerDrawingCapabilities()
+  registerDrawingBoardCapabilities()
   registerIndicatorCapabilities()
   registerIndicatorEditCapabilities()
   registerIndicatorAuthoringCapabilities()
   registerChartSetupCapabilities()
   registerCompareGroupCapability()          // C1-035 / C1-037 / C1-040: the Compare panel's group controls
   registerChartMenuCapabilities()           // C1-178 / C1-061: the chart's right-click Ask AI and watermark Reset
+  registerDrawingExtras()                   // C1-144 / C1-160 / C1-165: Position Calculator, Save as default, tool favourites
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()
   registerDefinitionCapabilities()
@@ -82,6 +91,8 @@ export function registerBuiltins() {
   registerBreadthPageCapabilities()
   registerCalendarCapabilities()
   registerJournalCapabilities()
+  registerPeriodSortCapabilities()
+  registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 
 // SERVER-GATED capabilities: registered only once /api/agent/config has answered, and only when the server

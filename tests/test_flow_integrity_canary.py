@@ -188,3 +188,41 @@ def test_run_full_tick_never_raises(tmp_path, monkeypatch):
     db.write_bytes(b"not a database at all")
     monkeypatch.setattr(C, "DB_PATH", str(db))
     C.run_full_tick()   # the worker must survive its own canary, slow path included
+
+
+# --- disk floor + write stall (2026-11-12) --------------------------------------------------
+
+def _fresh_state(c):
+    c._state.update(disk_low=False, stall_ticks=0, stalled=False, last_seen_max_id=None)
+
+
+def test_disk_floor_shouts_once_and_rearms(monkeypatch):
+    from api import flow_integrity_canary as c
+    _fresh_state(c)
+    said = []
+    monkeypatch.setattr(c, "_shout", said.append)
+    monkeypatch.setattr(c, "DISK_FLOOR_BYTES", 15 << 30)
+    c.check_disk(free_bytes=9 << 30)
+    c.check_disk(free_bytes=8 << 30)
+    assert len(said) == 1 and "LOW" in said[0]
+    c.check_disk(free_bytes=40 << 30)          # recovered: re-armed
+    c.check_disk(free_bytes=9 << 30)
+    assert len(said) == 2
+
+
+def test_write_stall_in_session_shouts_once_out_of_session_never(monkeypatch):
+    from api import flow_integrity_canary as c
+    _fresh_state(c)
+    said = []
+    monkeypatch.setattr(c, "_shout", said.append)
+    monkeypatch.setattr(c, "STALL_TICKS", 3)
+    for _ in range(6):
+        c.check_stall(100, in_session=False)
+    assert said == []
+    for _ in range(6):
+        c.check_stall(100, in_session=True)
+    assert len(said) == 1 and "NO NEW flow rows" in said[0]
+    c.check_stall(101, in_session=True)        # rows landing again: re-armed
+    for _ in range(4):
+        c.check_stall(101, in_session=True)
+    assert len(said) == 2
