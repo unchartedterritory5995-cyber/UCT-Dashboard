@@ -4,7 +4,7 @@
 
 | Run id | What | Args (in `_study-resume\overbuild\`) |
 |---|---|---|
-| `wf_0345faab-94f` | combined VERIFY (verifyR1): SET.13 + wave 3 + wave 4 merged lessons, 202 questions | `verifyR1_args.json`, check files land in `<scratch>gentserifyR1erify\` |
+| `wf_86476db3-939` | wave 6: Foundations F1, F5, F7, F10, F10b (663 questions; the verifyR1 run before it is DONE and committed, 8db1676cdb) | `wave6_args.json` |
 | `wf_ddcf83d9-ddf` | wave 4b: fresh re-run of SET.41, SET.44, SET.46 (175 questions) | `wave4b_args.json` |
 | `wf_d55a56e7-ac0` | wave 5: SET.47 to SET.54 (503 questions) | `wave5_args.json` |
 
