@@ -198,6 +198,9 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  // the Custom-Period Sort's floating panel ({start, end, group} | null) and the Period Sort widgets on the board (their opts)
+  if ('periodSortPanel' in e) expect(ctx.st.periodSort?.panel ?? null, `${label}: the Custom-Period Sort panel`).toEqual(e.periodSortPanel)
+  if (e.periodSortWidgets) expect(board.state.widgets.filter(w => w.type === 'periodsort').map(w => w.opts), `${label}: the Period Sort widgets`).toEqual(e.periodSortWidgets)
   if (e.listView) {
     // what the Watchlist widget shows (the LISTVIEW board): only the fields a case names
     const now = ctx.st.listViewNow()

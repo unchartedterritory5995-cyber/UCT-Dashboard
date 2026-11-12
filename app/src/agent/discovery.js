@@ -140,10 +140,10 @@ export const TOPICS = [
   {
     id: 'screener', title: 'Screener',
     words: [/\bscreen\w*\b/, /\bscan\w*\b/, /\bfilters?\b/, /\bfind (me )?stocks\b/, /\bsort (by|on)\b/],
-    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved'], productHas: true,
-    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there',
-    known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'custom-date (period) sorting', 'preset scans'],
-    planned: { when: 'Batch 9', what: 'advanced conditions, ranking and custom-date sorting' },
+    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved', 'periodSort.run', 'periodSort.dock'], productHas: true,
+    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there; and on Charts, run Period Sort (Tools menu) — rank US stocks, themes, sectors or industries by their % change between two dates you give me, in its results panel (a view, not saved; Undo closes it) — and dock that panel onto the board as a widget',
+    known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'preset scans'],
+    planned: { when: 'Batch 9', what: 'advanced conditions and ranking' },
   },
   {
     id: 'watchlists', title: 'Watchlists',

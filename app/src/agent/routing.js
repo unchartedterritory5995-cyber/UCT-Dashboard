@@ -390,6 +390,17 @@ export const GROUPS = [
     // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
     // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
     words: [] },
+  // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
+  // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
+  // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
+  // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
+  // between); a Dock of the ranking. LAST in the catalog: the server names at most turn.MAX_GROUPS (24) groups and master
+  // sends 24, so until that cap is raised (#1089) this group, not one of master's, is the one left unnamed.
+  { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
+    domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
+    words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
@@ -447,7 +458,11 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  // #1082 re-merge: a docked Period Sort widget's controls (Refresh) never take a date, so "period sort sectors, Oct 1 to Oct 30"
+  // (dates beside the tool's name) asks for a NEW run (the periodSort group), not that widget: it alone does not bring boardEdit
+  const runsPeriodSort = /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/.test(q)
+    && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }

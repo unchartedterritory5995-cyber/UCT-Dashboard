@@ -45,6 +45,8 @@ import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
 import { registerCalendarCapabilities } from './capabilities/calendar'
 import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
+// C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
+import { registerPeriodSortCapabilities } from './capabilities/periodSort'
 
 let done = false
 export function registerBuiltins() {
@@ -85,6 +87,7 @@ export function registerBuiltins() {
   registerBreadthPageCapabilities()
   registerCalendarCapabilities()
   registerJournalCapabilities()
+  registerPeriodSortCapabilities()
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 

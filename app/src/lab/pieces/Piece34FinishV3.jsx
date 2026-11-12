@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import StudyChart from '../StudyChart'
 import { useSample } from '../Lab'
 import { spot } from '../pointers'
-import coach from '../../components/intro/assets/compass-mark.png'
+import coach from '../../components/intro/assets/compass-mark.webp'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
 
