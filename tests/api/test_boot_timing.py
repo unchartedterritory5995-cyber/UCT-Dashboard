@@ -28,3 +28,13 @@ def test_the_marks_stay_in_the_lifespan_from_start_to_serving():
     names = [n for _, n in calls]
     assert names[0] == "lifespan-start" and names[-1] == "ready"
     assert "jobs-start" in names and len(names) >= 10
+
+
+def test_the_previous_pods_shutdown_is_read_from_the_volume(tmp_path, monkeypatch):
+    import json as _json
+    import time as _time
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    assert m._previous_shutdown() is None
+    (tmp_path / "last_shutdown.json").write_text(_json.dumps({"took_s": 12.3, "at": _time.time() - 40}))
+    d = m._previous_shutdown()
+    assert d["took_s"] == 12.3 and 39 <= d["ago_s"] <= 45

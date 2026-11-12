@@ -35,7 +35,10 @@ OK, FAIL = 0, 1
 
 #: ⛔ The ONE place the vitest shard count is written. The workflow's matrix, the
 #: `--shard=i/n` denominator and the publisher's expected-shard list all derive from it.
-COUNT = 4
+#: ⚰️ 4 -> 6 (2026-11-12): measured on run 43048737780 the four shards took 1,975 / 2,136 / 2,747 s and
+#: >3,600 s (shard 4 killed at its 60-minute cap), which made every nightly record INVALID. The
+#: workflow's own rule is "shard it rather than raising the cap": 6 shards ~ 1,750 s each on that load.
+COUNT = 6
 
 
 def shard_ids(count: int = COUNT) -> list:
