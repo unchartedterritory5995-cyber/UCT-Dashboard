@@ -185,12 +185,15 @@ plot(close)
     const { t, cells } = wire(script(
       '    table.cell_set_text_formatting(t, 0, 0, close)',
     ))
-    // ⭐ LINE 8 IS THE SETTER'S OWN LINE in the template above, not the cell's —
-    // the point of a named drop is that it addresses the expression an engineer
-    // has to go and look at.
-    expect(t.objectDiagnostics.droppedPropNames).toContain('cell.text_formatting@8')
-    expect(cells['0,0'].text_formatting).toBe(BASE.cells['0,0'].text_formatting)
-    expect(cells['0,0'].text).toBe('A0')
+    // ⛔⛔ ENGINE 51 (review of #1149, major 3) — `text_formatting` is an enum slot, and a
+    // patch whose enum this door cannot read WITHHOLDS ITS TABLE by name (`enum:unreadable`,
+    // `contentLost`): left alone, the cell would keep the formatting an earlier write gave
+    // it, which is not what TradingView shows after the patch. It used to leave the
+    // property ALONE (`cell.text_formatting@8`); a property left alone is a default kept.
+    expect(t.objectDiagnostics.dropReasons['enum:unreadable']).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['content:lost'] || 0).toBeGreaterThan(0)
+    expect(cells['0,0']).toBeUndefined()
+    expect(BASE.cells['0,0'].text).toBe('A0') // CONTROL — without the patch the table draws
   })
 
   it('⭐⭐ a CONDITIONAL setter value is carried, and patches BOTH ways', () => {

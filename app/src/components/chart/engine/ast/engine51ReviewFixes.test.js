@@ -110,6 +110,18 @@ describe('B1 · a position fixed before bar 0 is read through the four shapes', 
     expect(positionOf(t) || '').not.toContain('bottom_center')
   })
 
+  it('control: an input the member can move (a declared knob, or one handed a value) is never read at its default', () => {
+    const src = '//@version=6\nindicator("r51", overlay = true)\np = input.string("Bottom Left", "where", options = ["Bottom Left", "Top Right"])\n'
+      + 'f(s) =>\n    switch s\n        "Bottom Left" => position.bottom_left\n        => position.top_right\n'
+      + 'var table t = table.new(f(p), 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x")\nplot(close)\n'
+    const folded = translatePine(src, { strict: false, objects: true })
+    expect(positionOf(folded)).toBe(JSON.stringify({ v: 'text', node: { t: 'lit', s: 'bottom_left' } }))
+    for (const opts of [{ declareInputs: ['p'] }, { declareInputs: 'all' }, { inputValues: { p: 'Top Right' } }]) {
+      const t = translatePine(src, { strict: false, objects: true, ...opts })
+      expect(positionOf(t) || '', JSON.stringify(opts)).not.toBe(JSON.stringify({ v: 'text', node: { t: 'lit', s: 'bottom_left' } }))
+    }
+  })
+
   it('control: a position chosen by a bar value is carried as that choice, never folded to one word', () => {
     const t = T('var table t = table.new(close > open ? position.top_right : position.bottom_left, 1, 1)\n' + CELL)
     const pos = JSON.parse(positionOf(t))

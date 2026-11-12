@@ -21642,6 +21642,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  the raw tokens). Unknown (no ledger handed in) is NOT never-reassigned. */
   const neverReassigned = (name) => !!(objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function')
     && !objectOpts.mutableNames.has(name)
+  /** ⛔ Engine 51 — a name the member can move: a DECLARED input (the member door's
+   *  knobs, `declareInputs` — an `input.string` with options is an enum knob there) or
+   *  one the caller hands a value for (`inputValues`). Its default is NOT its only value,
+   *  so the static enum reader leaves it to the per-bar reader, which reads the knob. */
+  const isKnob = (name) => {
+    const d = objectOpts.declareInputs
+    if (d && (d === 'all' || (Array.isArray(d) ? d.includes(name) : typeof d.has === 'function' && d.has(name)))) return true
+    const v = objectOpts.inputValues
+    return !!(v && Object.prototype.hasOwnProperty.call(v, name))
+  }
   /** ⭐ Engine 51 — `var [type] x = <one-line expr>` declared inside a block, the ONLY
    *  declaration of `x` in the script and never reassigned: its initializer, parsed.
    *  The object pass's scope does not hold a block `var` (a mutable local is opaque,
@@ -21772,6 +21782,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const member = enumMemberOf(node.name)
       if (member) return member
       const hit = look(node.name)
+      if (!(hit && hit.local) && isKnob(node.name)) return null
       if (!hit) {
         // a `var` declared once inside a block and never reassigned (`staticBlockVars`)
         const bv = staticBlockVars.get(node.name)
@@ -28068,6 +28079,10 @@ function translatePineResult(source, opts = {}) {
       walkStarts,
       topStatements: new Set(stmts),
       mutableNames: reassigned,
+      // ⭐ Engine 51 — the member's knobs: a declared input (or one the member set) is
+      // never read at its default by the static enum reader (`staticEnumValue`)
+      declareInputs: opts.declareInputs || null,
+      inputValues: opts.inputValues && typeof opts.inputValues === 'object' ? opts.inputValues : null,
       windowAmbiguity: objectWindowAmbiguity,
       runtimeCheck,
       runtimeExclude,

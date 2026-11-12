@@ -161,7 +161,12 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // resolving them through its theme chains costs ONE more Resolver and 65,248
         // steps in each lane. Pre-F: plain [730, 429985, '9817f6afa92980bd'] /
         // manifest [730, 429993, 'b3663793714b5924'].
-        plain: [731, 495233, '746db5aac03f75e8'], manifest: [731, 495241, '2680617189ad5026'] },
+        // ⭐ Engine 51 review (static enum reads): artemis's `posOf` switch and its label
+        // sizes are read before bar 0 now (inputs have no knob), so the object pass stops
+        // resolving those per-bar choices — 87 fewer Resolvers and steps in each lane; plot
+        // outputs byte-identical. Pre: plain [731, 495233, '746db5aac03f75e8'] / manifest
+        // [731, 495241, '2680617189ad5026'].
+        plain: [644, 495146, '5013c426d180b036'], manifest: [644, 495154, '1dfc1e096e164f4f'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
@@ -187,7 +192,11 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // steps; plot outputs byte-identical (engine-51 census). Pre-51: [856, 7194,
       // 'c264e378ba65bd90'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [921, 7239, 'be0be63b6616ba55'], manifest: [921, 7239, 'be0be63b6616ba55'] },
+        // ⭐ Engine 51 review (static enum reads): the label sizes and table position its
+        // helpers pick from input defaults are read before bar 0, not resolved per bar —
+        // 85 fewer Resolvers and steps; plot outputs byte-identical. Pre: [921, 7239,
+        // 'be0be63b6616ba55'] both.
+        plain: [836, 7154, '8441e633c5739170'], manifest: [836, 7154, '8441e633c5739170'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now
