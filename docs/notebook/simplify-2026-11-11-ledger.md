@@ -163,3 +163,28 @@ Behaviour changed on purpose:
 Pre-existing tests changed: none (new cases in `NoteEditorPage.calmToolbar.test.jsx` and `NotebookTab.landing.test.jsx`).
 
 Pre-existing failure seen (not caused here, not changed): `styles/tokens.reachable.test.js` ("re-points an alias target": `pages/study/RevealCard.module.css`), as Task 2 recorded.
+
+## Preview walk (real browser, build 5c3cf93039, local sandbox with production's armed flags)
+
+Counted with the audit's own counter (things you can click that are painted at rest; hover-only controls excluded), sample member with 14 notes in 4 folders.
+
+| Screen | Before (master fd955df630) | After | 
+|---|---|---|
+| Open note, 1920x945 | 103 (rail 22, header 12, panel 38, note 31) | 69 (rail 22, header 7, panel 20, note 20) |
+| Notes list, 1920x945 | 114 | 72 (rail 22, header 7, panel 20, list 23) |
+| Open note, 1025x768 | not measured | 72 |
+| Notes list, 1025x768 | not measured | 71 |
+
+Checked on screen at 1920, 1025 and 390 wide:
+- A bare open of the Notebook lands on the notes list; `?view=home` lands there too; `?view=today` is the Daily brief.
+- No card, toast or dialog appears on the Notebook that the member did not ask for. The app-wide welcome animation is unchanged.
+- Page title reads "Notebook" on the Notebook and "Trade Journal" on Trades; the Trades header keeps its 12 controls.
+- New menu: Blank, From a template, Voice note, Import, then Reviews (Today's recap, This week's review, This month's review).
+- Note More menu: 11 entries. Formatting row: one row at 1025 and 1920, no wrap.
+- View menu (the door to saved views) is on screen at 390. No horizontal scroll at any of the three widths.
+
+Left for the go-live pass (after the owner has looked):
+- Phone: the folders-panel button paints over the top of the note's More menu at 390 wide. Not confirmed whether this predates the branch.
+- Visiting the Daily brief creates today's daily note and a "Daily" folder (the old Today home did the same).
+- The dictate button is drawn taller than its neighbours in the formatting row (it was before, too).
+- Final whole-branch review, walkthrough re-pointing, the fin walk, door audit and first-open byte budget.
