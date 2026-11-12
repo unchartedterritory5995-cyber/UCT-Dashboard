@@ -126,6 +126,8 @@ describe('StockChart wiring', () => {
   const src = readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
   // P3-S0: StockChart's bar data region (with some _liveSane call sites) lives in useLegacyChartBars.js.
   const legacyBars = readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/useLegacyChartBars.js'), 'utf8')
+    // P3-S2: the legacy live writers (most _liveSane call sites) moved into legacyLiveWriters.js.
+    + readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/legacyLiveWriters.js'), 'utf8')
   it('has no direct isSaneLivePrice( call — every site uses _liveSane(sym, ...)', () => {
     expect(src + legacyBars).not.toMatch(/\bisSaneLivePrice\(/)
     expect(((src + legacyBars).match(/_liveSane\(/g) || []).length).toBeGreaterThanOrEqual(10)

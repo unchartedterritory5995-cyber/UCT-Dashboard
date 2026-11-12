@@ -10,7 +10,7 @@
 //
 //   status        intraday frame                         live writers
 //   empty         nothing (the skeleton)                 —
-//   provisional   CONTEXT: the held history minus its    FROZEN (provisionalStaleRef)
+//   provisional   CONTEXT: the held history minus its    FROZEN (developing channel → null)
 //                 last (cached-while-forming) candle
 //   context       the snapshot (legacyBars)              live
 //   current       the snapshot                           live
@@ -52,6 +52,33 @@ export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOv
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
 }
 
+/**
+ * THE developing bar a view paints (P3-S2): snapshot.developing in the legacy shape `{t,o,h,l,c,v}`
+ * plus its `devRev`, or null (no server answer yet / nothing forming / the view is frozen).
+ * A CUSTOM timeframe gets its own forming bucket: the native developing bar folded with the
+ * native rows of the same custom bucket (`resampleForSpec`, the base path's own resampler; its
+ * bucket key is ≤ every member's `t`, so the members are the base's tail from that key on).
+ * @param {object|null} s      the snapshot carrying the developing bar
+ * @param {object|null} base   the base snapshot of the same key (its rows: the legacyBars memo)
+ * @param {{frozen?: boolean, spec?: object|null}} [view]
+ */
+export function viewDevelopingOf(s, base, view = {}) {
+  if (!s?.restSeen || view?.frozen) return null
+  const d = legacyDevelopingOf(s)
+  if (!d) return null
+  if (!view?.spec) return { ...d, devRev: s.devRev }
+  const k = resampleForSpec([d], view.spec)?.[0]?.t
+  if (k == null) return null
+  const rows = base ? legacyBars(base) : []
+  const before = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a < b : String(a) < String(b))
+  let i = rows.length
+  while (i > 0 && !before(rows[i - 1].t, k)) i--
+  const members = rows.slice(i).filter((r) => before(r.t, d.t))
+  const out = resampleForSpec([...members, d], view.spec)
+  const last = out?.length ? out[out.length - 1] : null
+  return last ? { t: last.t, o: last.o, h: last.h, l: last.l, c: last.c, v: last.v, devRev: s.devRev } : null
+}
+
 /** Daily value sanity of a LOCAL copy's last bar (the legacy `_idbDailyLastInsane`). */
 function lastDailyBarInsane(arr) {
   const b = arr?.length ? arr[arr.length - 1] : null
@@ -67,7 +94,7 @@ export function useBarSnapshotBars({
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
   _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount, _intradayDeepArmed,
   _setIntradayDeepArmed, axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
-  _onScreenSrcRef, tfSwitchHoldRef, provisionalStaleRef, _developingBarISO, _effLivePrice,
+  _onScreenSrcRef, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
   _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled,
   // P3-S1 review fix 1 — the developing bar's OWN channel (StockChart's refs; the legacy hook
   // ignores them): `_storeDevRef` holds the newest developing bar (legacy shape), and
@@ -246,36 +273,55 @@ export function useBarSnapshotBars({
   // later one — coalesced by the registry to one call per animation frame — and paints it at
   // once through `_storeDevPaintRef` (series.update). It paints only onto the base it belongs
   // to (same baseRev): a base change re-renders, setData()s and re-tops from this ref anyway.
+  // ⛔ THE LIVE FREEZE, FROM THE SNAPSHOT: CONTEXT (status provisional) is on screen, or the tail
+  // on screen is from a PRIOR session (> 8 h) — no developing bar is painted onto it. P3-S2: the
+  // freeze is the developing channel yielding NULL (the store paint then paints nothing); the
+  // legacy `provisionalStaleRef` belongs to the legacy writers and is not written here.
+  const _barsTailT = (Array.isArray(bars) && bars.length && typeof bars[bars.length - 1]?.t === 'number')
+    ? bars[bars.length - 1].t : null
+  // eslint-disable-next-line react-hooks/purity -- the tail's age is a wall-clock question (as legacy)
+  const _devFrozen = isIntraday && ((_barsTailT != null && (Date.now() / 1000 - _barsTailT) > PRIOR_SESSION_S)
+    || (!!bars && bars === _staleContext))
+  // What the channel callback needs from this render (the view's freeze and custom spec).
+  const _devViewRef = useRef(null)
+  _devViewRef.current = { frozen: _devFrozen, spec: _isCustomTf ? _customSpec : null }
+
   const _devHeldRef = useRef({ key: null, devRev: -1 })
   const _baseSnapRef = useRef(null)
   _baseSnapRef.current = snap
   if (_storeDevRef) {
+    // Review fix (a): the base snapshot's developing bar can be OLDER than the store's newest for
+    // the same base — a dev flush that arrived while this render's base was still pending was
+    // dropped by the channel (baseRev mismatch). So the render takes the store's CURRENT snapshot
+    // whenever it belongs to the same base (same baseRev), else the base's own.
+    const live = key ? store.getSnapshot(key) : null
+    const src = (live && snap && live.key === snap.key && live.baseRev === snap.baseRev && live.devRev >= snap.devRev) ? live : snap
     const h = _devHeldRef.current
-    if (h.key !== key || !snap || snap.devRev >= h.devRev) {
-      _devHeldRef.current = { key, devRev: snap?.devRev ?? -1 }
-      _storeDevRef.current = (snap?.restSeen) ? legacyDevelopingOf(snap) : null
+    if (h.key !== key || !src || src.devRev >= h.devRev) {
+      _devHeldRef.current = { key, devRev: src?.devRev ?? -1 }
+      _storeDevRef.current = viewDevelopingOf(src, snap, _devViewRef.current)
     }
   }
+  const _heldDevRev = _devHeldRef.current.devRev
   useEffect(() => {
     if (!key || !_storeDevRef) return undefined
     return store.subscribeDeveloping(key, (s) => {
       const base = _baseSnapRef.current
+      // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
       if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
       const h = _devHeldRef.current
       if (h.key === key && s.devRev <= h.devRev) return
       _devHeldRef.current = { key, devRev: s.devRev }
-      _storeDevRef.current = legacyDevelopingOf(s)
+      _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
     })
   }, [key, store])  // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ⛔ THE LIVE-WRITER FREEZE, FROM THE SNAPSHOT: CONTEXT (status provisional) is on screen, or
-  // the tail on screen is from a PRIOR session (> 8 h) — never fuse a live print onto it.
-  const _barsTailT = (Array.isArray(bars) && bars.length && typeof bars[bars.length - 1]?.t === 'number')
-    ? bars[bars.length - 1].t : null
-  // eslint-disable-next-line react-hooks/purity -- the tail's age is a wall-clock question (as legacy)
-  provisionalStaleRef.current = isIntraday && ((_barsTailT != null && (Date.now() / 1000 - _barsTailT) > PRIOR_SESSION_S)
-    || (!!bars && bars === _staleContext))
+  // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
+  // (the paint refuses a stale / foreign series and an older frame by itself).
+  useEffect(() => {
+    if (!_storeDevRef || !key) return
+    try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the render */ }
+  }, [key, _heldDevRev, _devFrozen])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── per-key housekeeping ───────────────────────────────────────────────────────
   useEffect(() => {

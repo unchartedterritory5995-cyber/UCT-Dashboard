@@ -46,9 +46,12 @@ describe('single-writer census (shrink-only ratchet)', () => {
   it('sees the known writers (the scan is not blind)', () => {
     const sc = now['components/StockChart.jsx']
     expect(sc, 'StockChart.jsx must be in the census').toBeTruthy()
-    expect(sc.candleWrites).toBeGreaterThan(5)
+    // P3-S2: the legacy live writers MOVED out of StockChart into one gated module.
+    const lw = now['components/chart/legacyLiveWriters.js']
+    expect(lw, 'legacyLiveWriters.js must be in the census').toBeTruthy()
+    expect((sc.candleWrites || 0) + (lw.candleWrites || 0)).toBeGreaterThan(5)
     expect(sc.setData).toBeGreaterThan(5)
-    expect(sc.liveRefAssign).toBeGreaterThan(0)
+    expect(lw.liveRefAssign).toBeGreaterThan(0)
     expect(now['utils/barsIDB.js']?.idbOpen).toBe(1)
   })
 

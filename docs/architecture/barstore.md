@@ -266,3 +266,51 @@ close through Writer D's "live close stands" rule). Railed: `reducer.test.js` IN
    (`ChartWidget` → `useSymbolHandoff`).
 5. **DELAYED** — see the table above.
 6. **Deep history / holes / basis** — see the table above (`persist.test.js` "review fix 6").
+
+## P3-S2 — the store is the ONLY writer of the developing candle (BARSTORE on)
+
+`components/chart/legacyLiveWriters.js` holds every legacy live writer, MOVED out of StockChart
+unchanged: A (livePrices tick effect), B (`onRealtimeBar` + `useRealtimeBars` + reconnect backfill +
+60m grid opt-in), C (realtimeCandle registry), D (`legacyAfterSetData` seed / Finnhub re-top +
+`legacyPushRetop`), E (fast D/W/M 1m tick + the legend's `liveTickRef`), F (custom-tf), the frozen-chart
+watchdog, the per-switch ref reset and the tf-switch push-hold fold. Their state (`liveBarRef`,
+`lastBarRef`, `lastBarSymRef`, `barsPushActiveRef`, `provisionalStaleRef`, `sessionOwnsDailyRef`,
+`gapHealAtRef`, `watchdogTriesRef`, `barStartVolRef`) is written only there.
+
+**One structural gate.** Each export is chosen once at module load: `LEGACY_LIVE = !BARSTORE`; a hook
+export is the writer or an inert stand-in that calls no hook; `liveAfterSetData` /
+`liveAfterVolumeSetData` (updateChart's two post-setData steps) are the legacy step or "call the store
+paint". So under BARSTORE no legacy writer is mounted: no subscription, no effect, no ref write.
+Deleted with the switch (P3-S3).
+
+**The store paint** (StockChart `_storeDevPaintRef`): the only candle / volume `update()` under BARSTORE.
+Triggers: after updateChart's setData (`paint(true)`) and the store's dev channel (one call per frame).
+It paints `_storeDevRef` = `useBarSnapshotBars.viewDevelopingOf(snapshot)`:
+- the view's freeze (provisional CONTEXT on screen, or a tail > 8 h old) is the channel yielding `null`;
+- a custom tf gets its own forming bucket: `resampleForSpec` of the native developing bar with the
+  native rows of the same bucket (= the last bucket of the base path's resample — railed);
+- Heikin-Ashi: `indicators.heikinAshiNext` (the ONE recurrence; `toHeikinAshi` and the adapter's tail
+  step with it) continued from the HA bar before the bucket in `displayBars` (review fix (b));
+- skipped on replay / cutoff, a D/W/M bar the session preview owns, a non-RTH bucket on an RTH view,
+  and (dev channel only) a static chart (`liveUpdates` off);
+- never an older state after a newer: a lower `devRev` or an earlier time than the last paint / the
+  series tail is refused.
+Every reader of "the developing bar on screen" (legend, MA overlay extension, session chip, screenshot
+price, the live-tick sanity baseline) goes through `devOnScreenSource` — the legacy refs or the bar the
+store paint recorded (`_storeDevBarRef`). Under BARSTORE the legend no longer folds a quote feed into
+O/H/L/C, and the D/W/M volume no longer takes the live day volume: both are snapshot.developing's.
+
+**Review fix (a).** A dev flush whose `baseRev` the hook has not rendered yet is dropped by the channel;
+the render of that base now takes `store.getSnapshot(key)`'s developing bar whenever its `baseRev`
+equals the rendered base's, and paints it in an effect — the final developing state paints even when
+no further tick arrives. Railed: `useBarSnapshotBars.devChannel.test.jsx` (deferred render + seeded
+interleavings: the bar handed to the paint never goes back and settles on the store's newest).
+
+**Review fix (c).** `utils/viewSession.resolveShowExtended(cs, forceExtendedHours)` is the one
+showExtended rule (StockChart, ChartWidget's handoff key, ChartPane / GridChartCell EXT toggles).
+
+Rails: `engine/__tests__/r1StoreWriterCensus.test.js` (R1: the candle-write sites of StockChart are the
+base paint, two static Model Book repaints and the store paint; every legacy export is inert under
+BARSTORE), `singleWriterIndex.test.js` (derives writers in both files; StockChart holds only writer S),
+`StockChart.barStoreLive.test.jsx` (painted P1 H↑ L↓ open-once V↑ per bucket, P2 painted = newest, P3 a
+rolled candle = the store's closed row, HA, R1 at runtime with a quote that only the legacy source paints).
