@@ -12647,12 +12647,12 @@
      {
       "accessed": "2026-11-09",
       "name": "Federal Reserve Bank of New York (research): The Yield Curve as a Leading Indicator: Some Practical Issues (Estrella and Trubin, Current Issues in Economics and Finance 12-5, 2006)",
-      "quote": "while some academic researchers have favored the spread between the ten-year Treasury rate and the federal funds rate.",
+      "quote": "rate and the federal funds rate. Other rates explored in the literature vary as to maturity, obligor, and computational basis.",
       "tier": 2,
       "url": "https://www.newyorkfed.org/medialibrary/media/research/current_issues/ci12-5.pdf"
      }
     ],
-    "summary": "FRED's T10Y2Y series is the 10-year Treasury yield minus the 2-year yield. The series is the gap between the 10-year and 2-year Treasury yields. The 10-year minus 2-year Treasury yield gap, called the 2-10 spread, draws outsized attention. The Fed researchers write the 2-10 spread as 2s10s. Some researchers instead pair the 10-year with the fed funds rate (the sentence ends 'Treasury rate and the federal funds rate'). Some academic researchers use the ten-year Treasury rate minus the federal funds rate as their yield-curve spread."
+    "summary": "FRED's T10Y2Y series is the 10-year Treasury yield minus the 2-year yield. The series is the gap between the 10-year and 2-year Treasury yields. The 10-year minus 2-year Treasury yield gap, called the 2-10 spread, draws outsized attention. The Fed researchers write the 2-10 spread as 2s10s. Some researchers instead pair the 10-year with the fed funds rate (the sentence ends 'Treasury rate and the federal funds rate'). The end of the sentence f52 starts: some academic researchers pair the ten-year Treasury rate with the federal funds rate (the full sentence reads 'favored the spread between the ten-year Treasury rate and the federal funds rate')."
    },
    "facts": {
     "given": "What does the 2s10s measure? 10-year yield minus 2-year yield 2-year yield minus 10-year yield Fed funds minus the 10-year yield Average of the 2- and 10-year yields"
@@ -13684,7 +13684,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Federal Reserve Bank of New York (research): The Yield Curve as a Leading Indicator: Some Practical Issues (Estrella and Trubin, Current Issues in Economics and Finance 12-5, 2006)",
-      "quote": "while some academic researchers have favored the spread between the ten-year Treasury rate and the federal funds rate.",
+      "quote": "rate and the federal funds rate. Other rates explored in the literature vary as to maturity, obligor, and computational basis.",
       "tier": 2,
       "url": "https://www.newyorkfed.org/medialibrary/media/research/current_issues/ci12-5.pdf"
      },
@@ -13696,7 +13696,7 @@
       "url": "https://www.newyorkfed.org/medialibrary/media/research/current_issues/ci12-5.pdf"
      }
     ],
-    "summary": "The New York Fed turns a Treasury spread into a recession probability. The spread in the New York Fed's model is the 10-year rate minus the 3-month bill rate. The model's probability is for a recession twelve months ahead. Academic studies of inversions and recessions tend to use the 10-year yield against the 3-month bill (the sentence ends 'and the three-month Treasury bill'). Market participants have more often watched the 10-year minus 2-year spread; academic studies have tended to use 10-year minus 3-month. Some researchers instead pair the 10-year with the fed funds rate (the sentence ends 'Treasury rate and the federal funds rate'). Some academic researchers use the ten-year Treasury rate minus the federal funds rate as their yield-curve spread. The 10-year minus 2-year spread (the subject of this sentence on the page) tends to go negative earlier and more often than the 10-year minus 3-month spread."
+    "summary": "The New York Fed turns a Treasury spread into a recession probability. The spread in the New York Fed's model is the 10-year rate minus the 3-month bill rate. The model's probability is for a recession twelve months ahead. Academic studies of inversions and recessions tend to use the 10-year yield against the 3-month bill (the sentence ends 'and the three-month Treasury bill'). Market participants have more often watched the 10-year minus 2-year spread; academic studies have tended to use 10-year minus 3-month. Some researchers instead pair the 10-year with the fed funds rate (the sentence ends 'Treasury rate and the federal funds rate'). The end of the sentence f52 starts: some academic researchers pair the ten-year Treasury rate with the federal funds rate (the full sentence reads 'favored the spread between the ten-year Treasury rate and the federal funds rate'). The 10-year minus 2-year spread (the subject of this sentence on the page) tends to go negative earlier and more often than the 10-year minus 3-month spread."
    },
    "facts": {
     "given": "The New York Fed's recession-probability model is built on which spread? 10-year minus 3-month 10-year minus 2-year 30-year minus 10-year 10-year minus fed funds"

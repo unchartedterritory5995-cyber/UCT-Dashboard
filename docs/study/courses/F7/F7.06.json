@@ -817,8 +817,8 @@
   {
    "id": "f91",
    "source": "s21",
-   "quote": "while some academic researchers have favored the spread between the ten-year Treasury rate and the federal funds rate.",
-   "claim": "Some academic researchers use the ten-year Treasury rate minus the federal funds rate as their yield-curve spread."
+   "quote": "rate and the federal funds rate. Other rates explored in the literature vary as to maturity, obligor, and computational basis.",
+   "claim": "The end of the sentence f52 starts: some academic researchers pair the ten-year Treasury rate with the federal funds rate (the full sentence reads 'favored the spread between the ten-year Treasury rate and the federal funds rate')."
   },
   {
    "id": "f92",

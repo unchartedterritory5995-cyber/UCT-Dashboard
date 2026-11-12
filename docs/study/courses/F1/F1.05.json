@@ -551,15 +551,15 @@
   },
   {
    "id": "f62",
-   "source": "s15",
-   "quote": "The vast majority of trading occurs during normal business hours, meaning that there is more demand for stock you are selling, and more supply of stock you want to buy.",
-   "claim": "Most trading happens in regular hours, which is where buyers and sellers are deepest."
+   "source": "s14",
+   "quote": "Extended hours trading tends to be riskier, for a handful of reasons. Mainly, fewer stocks are being traded at this time, so what's available is often harder to buy and sell at a price that reflects their true value.",
+   "claim": "Less trading happens outside regular hours, so stocks are harder to buy and sell at a fair price then; the deepest market is the regular session."
   },
   {
    "id": "f63",
-   "source": "s15",
-   "quote": "Because many public companies release quarterly earnings after 4:00 p.m. Eastern Time, investors have the opportunity to immediately place a trade following an announcement",
-   "claim": "Many companies report earnings after 4:00 p.m. ET, so the first reaction trades after hours."
+   "source": "s14",
+   "quote": "Avid investors may use this time to place orders to buy or sell stocks, sometimes in response to news or earnings reports that come out after traditional market hours.",
+   "claim": "Earnings reports often come out after regular hours, and investors can trade on them right away in extended hours."
   },
   {
    "id": "f64",
@@ -792,7 +792,7 @@
    "format": "tf",
    "q": "Most of a normal day's stock trading happens outside regular hours.",
    "answer": "False",
-   "why": "False. FINRA says extended-hours trading is growing but is still dwarfed by the tens of millions of trades in regular hours. Fidelity says the vast majority of trading happens in normal hours. That is why buyers and sellers are deepest from 9:30 a.m. to 4:00 p.m. ET.",
+   "why": "False. FINRA says extended-hours trading is growing but is still dwarfed by the tens of millions of trades in regular hours. Fidelity notes fewer stocks trade outside regular hours. That is why buyers and sellers are deepest from 9:30 a.m. to 4:00 p.m. ET.",
    "lesson_line": "The crowd trades 9:30 to 4:00. Outside those hours you're in a much thinner market.",
    "facts": [
     "f17",
@@ -820,7 +820,7 @@
     "Mid-session, with trading halted"
    ],
    "answer": "Outside regular trading hours",
-   "why": "Outside regular trading hours. FINRA says earnings and other big company announcements normally come out in the extended-hours period. Schwab and Fidelity say many companies report after the regular close, after 4:00 p.m. ET. So the first trades on the news happen in extended hours, not in the regular session. Extended hours also include the pre-market, before the open.",
+   "why": "Outside regular trading hours. FINRA says earnings and other big company announcements normally come out in the extended-hours period. Schwab and Fidelity say many companies report after the regular close. So the first trades on the news happen in extended hours, not in the regular session. Extended hours also include the pre-market, before the open.",
    "lesson_line": "Big news lands while the regular session is shut. That's when the stock starts to reprice.",
    "facts": [
     "f20",
@@ -830,7 +830,7 @@
     "f16"
    ],
    "wrong": {
-    "During regular trading hours": "Not usually. Many companies report after the 4:00 p.m. close, so the first reaction trades after hours.",
+    "During regular trading hours": "Not usually. Many companies report after the regular close, so the first reaction trades after hours.",
     "Right at the 9:30 a.m. open": "The news usually comes out outside the session, not at the bell. By the open it's already out.",
     "Mid-session, with trading halted": "Not usually. FINRA says earnings normally come out in the extended-hours period, when the regular session is already shut."
    },

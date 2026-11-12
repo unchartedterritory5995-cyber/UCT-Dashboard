@@ -174,8 +174,8 @@
   {
    "id": "b06",
    "source": "s16",
-   "quote": "A good rule of thumb is that it should trade above the OR for a period of time equal to half the time period of the OR.",
-   "claim": "Bysshe's clean-break test: price holds above the range for half the range's length, 15 minutes on a 30-minute range."
+   "quote": "a period of time equal to half the time period of the OR.",
+   "claim": "Bysshe's clean-break rule of thumb: after the break, price holds above the range for a period equal to half the range's own length, which is 15 minutes on a 30-minute range."
   },
   {
    "id": "b07",

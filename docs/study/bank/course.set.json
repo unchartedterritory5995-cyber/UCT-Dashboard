@@ -108237,7 +108237,7 @@
      {
       "accessed": "2026-11-09",
       "name": "John J. Murphy, Technical Analysis of the Financial Markets (Internet Archive text): Chapter 5, Major Reversal Patterns (NYIF, 1999; OCR text)",
-      "quote": "At a top, once the neckline has been broken on the downside, any decisive close back above the neckline is a serious warning that the initial breakdown was probably a bad signal",
+      "quote": "At a top, once the neckline has been broken on the down¬ side, any decisive close back above the neckline is a serious warn¬ ing that the initial breakdown was probably a bad signal",
       "tier": 2,
       "url": "https://archive.org/stream/JohnJ.MurphyTechnicalAnalysisOfTheFinancialMarkets/John_J._Murphy_-_Technical_Analysis_Of_The_Financial_Markets_djvu.txt"
      },
@@ -108314,7 +108314,7 @@
      {
       "accessed": "2026-11-09",
       "name": "John J. Murphy, Technical Analysis of the Financial Markets (Internet Archive text): Chapter 5, Major Reversal Patterns (NYIF, 1999; OCR text)",
-      "quote": "Until that downside violation takes place, however, there is always the possibility that the pattern is not really a head and shoulders top and that the uptrend may resume at some point.",
+      "quote": "Until that downside violation takes place, however, there is always the pos¬ sibility that the pattern is not really a head and shoulders top and that the uptrend may resume at some point.",
       "tier": 2,
       "url": "https://archive.org/stream/JohnJ.MurphyTechnicalAnalysisOfTheFinancialMarkets/John_J._Murphy_-_Technical_Analysis_Of_The_Financial_Markets_djvu.txt"
      },
@@ -111279,7 +111279,7 @@
      {
       "accessed": "2026-11-09",
       "name": "John J. Murphy, Technical Analysis of the Financial Markets (Internet Archive text): Chapter 5, Major Reversal Patterns (NYIF, 1999; OCR text)",
-      "quote": "At a top, once the neckline has been broken on the downside, any decisive close back above the neckline is a serious warning that the initial breakdown was probably a bad signal",
+      "quote": "At a top, once the neckline has been broken on the down¬ side, any decisive close back above the neckline is a serious warn¬ ing that the initial breakdown was probably a bad signal",
       "tier": 2,
       "url": "https://archive.org/stream/JohnJ.MurphyTechnicalAnalysisOfTheFinancialMarkets/John_J._Murphy_-_Technical_Analysis_Of_The_Financial_Markets_djvu.txt"
      },
@@ -127286,7 +127286,7 @@
      {
       "accessed": "2026-11-09",
       "name": "MarketGauge (Geoff Bysshe): Trading the 10 O'clock Bulls, first edition (2009), chapters 2, 4 and 5",
-      "quote": "A good rule of thumb is that it should trade above the OR for a period of time equal to half the time period of the OR.",
+      "quote": "a period of time equal to half the time period of the OR.",
       "tier": 2,
       "url": "https://www.marketgauge.com/TradingThe10OclockBulls.pdf"
      },
@@ -127305,7 +127305,7 @@
       "url": "repo:docs/study/setups/criteria/40-opening-range-breakout.json"
      }
     ],
-    "summary": "The A+ row: a clean break that holds above the range high for about 15 minutes. Bysshe's clean-break test: price holds above the range for half the range's length, 15 minutes on a 30-minute range. After the fill the stop decides; a big-volume reversal back into the range is a warning, not an exit rule. The trigger: a trade a cent above the 30-minute high after 10:00, not a close."
+    "summary": "The A+ row: a clean break that holds above the range high for about 15 minutes. Bysshe's clean-break rule of thumb: after the break, price holds above the range for a period equal to half the range's own length, which is 15 minutes on a 30-minute range. After the fill the stop decides; a big-volume reversal back into the range is a warning, not an exit rule. The trigger: a trade a cent above the 30-minute high after 10:00, not a close."
    },
    "facts": {
     "given": "Which grades higher? Two 10:00 breaks. One stays above the range high for 20 minutes. The other goes above it, drops back inside after 3 minutes, then goes above it again. The first, the break that held The second; it broke out twice Equal; both made the trigger Neither; only a close counts"
