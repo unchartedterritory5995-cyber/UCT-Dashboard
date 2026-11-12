@@ -106,6 +106,7 @@ def test_the_envelope_carries_the_pure_columns_the_dots_and_the_plain_words_lege
     # the newest warning is the Quick Break on the newest bar; the line sits below both averages
     assert leg["summary"] == "Last warning: Quick Break, on the latest bar"
     assert leg["chipText"] == "Quick Break · latest bar"
+    assert leg["blankReason"] is None, "a live answer carries no blank reason, so the label never prints the warning twice"
     assert (leg["lastKind"], leg["lastLabel"], leg["barsAgo"]) == ("quickBreak", "Quick Break", 0)
     assert leg["status"] == "belowBoth" and leg["statusLabel"] == "RS is below both averages"
     assert leg["rs"] == pytest.approx(0.4) and leg["fast"] == pytest.approx(0.56)
@@ -144,7 +145,7 @@ def test_a_short_series_says_there_are_not_enough_bars_and_does_not_guess(split_
     assert [v for v in cols["rsLine"] if v is not None], "the RS line itself exists"
     for key in ("fast", "slow", "dotQuick", "dotQuicksand", "dotDead"):
         assert all(v is None for v in cols[key]), key
-    assert env["payload"]["legend"]["summary"] == "not enough bars yet"
+    assert env["payload"]["legend"]["summary"] == env["payload"]["legend"]["blankReason"] == "not enough bars yet"
 
 
 # ── daily and weekly only ────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ def test_every_other_timeframe_is_blank_says_why_and_reads_no_benchmark(tf, spli
     env = _serve(split_rows, tf=tf, fastLength=2, slowLength=3)
     assert all(v is None for col in env["columns"].values() for v in col) and len(env["times"]) == 8
     assert env["payload"]["state"] == "daily-weekly-only"
-    assert env["payload"]["legend"]["summary"] == "daily and weekly charts only"
+    assert env["payload"]["legend"]["summary"] == env["payload"]["legend"]["blankReason"] == "daily and weekly charts only"
     assert [c[0] for c in fetch.calls] == ["XYZ"], "the benchmark is not read where the answer is blank"
 
 

@@ -5715,9 +5715,11 @@ const RS_EXIT_RAW = {
     quickMenu: false,
     timeframes: ['D', 'W'],
     legendParams: ['benchmark'],
-    // The pane label's value while there is nothing to draw: the server's words
-    // (`daily and weekly charts only`, `benchmark is the symbol`, `not enough bars yet`).
-    legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`daily and weekly charts only`, `benchmark is the symbol`, `not enough bars yet`) is
+    // `legend.blankReason`, null on a live answer, so the last warning is printed once (the chip
+    // row), never twice.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
     // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_exit_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
     serverInputs: ['benchmark', 'customBenchmark', 'fastLength', 'slowLength'],
@@ -5760,13 +5762,13 @@ const RS_EXIT_RAW = {
     // Dot size scales all three (`restyle: false`: a sparse dot column restyled as a line
     // draws nothing).
     { key: 'dotQuick', label: 'Quick Break', style: 'markers', color: '$quickColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.9 }, restyle: false, legend: { hide: true },
+      marker: { shape: 'circle', position: 'inBar', size: 0.8 }, restyle: false, legend: { hide: true },
       activeWhen: RS_QUICK_ON },
     { key: 'dotQuicksand', label: 'Quicksand', style: 'markers', color: '$quicksandColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 1.3 }, restyle: false, legend: { hide: true },
+      marker: { shape: 'circle', position: 'inBar', size: 1.1 }, restyle: false, legend: { hide: true },
       activeWhen: RS_QUICKSAND_ON },
     { key: 'dotDead', label: 'Dead Break', style: 'markers', color: '$deadColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 1.8 }, restyle: false, legend: { hide: true },
+      marker: { shape: 'circle', position: 'inBar', size: 1.5 }, restyle: false, legend: { hide: true },
       activeWhen: RS_DEAD_ON },
   ],
   readout: [

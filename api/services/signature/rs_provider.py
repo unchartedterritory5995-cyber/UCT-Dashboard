@@ -2246,6 +2246,7 @@ def _rs_exit_legend(cols: dict, times, params: dict, why: str | None) -> dict:
     two averages at the newest bar it can be judged at, and both averages'
     values. A blank state carries its reason as the summary."""
     out = {"lastKind": None, "lastLabel": None, "barsAgo": None, "lastAsOf": None, "chipText": None,
+           "blankReason": why,
            "status": None, "statusLabel": None, "rs": None, "fast": None, "slow": None,
            "fastLength": params["fastLength"], "slowLength": params["slowLength"],
            "asOf": None, "stale": None, "summary": why}
@@ -2253,7 +2254,7 @@ def _rs_exit_legend(cols: dict, times, params: dict, why: str | None) -> dict:
         return out
     idx = _rs_last_finite(cols["rsLine"], cols["fast"])
     if idx is None:
-        out["summary"] = "not enough bars yet"
+        out["summary"] = out["blankReason"] = "not enough bars yet"
         return out
     rs, fast = float(cols["rsLine"][idx]), float(cols["fast"][idx])
     slow = float(cols["slow"][idx]) if _rs_num(cols["slow"][idx]) else None

@@ -49,6 +49,7 @@ const NEWEST_WARNING = Math.max(...EVENTS.quickBreak, ...EVENTS.quicksand, ...EV
 const PAYLOAD = Object.freeze({
   benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
   legend: {
+    blankReason: null,
     lastKind: 'quicksand', lastLabel: 'Quicksand', barsAgo: BARS.length - 1 - NEWEST_WARNING, lastAsOf: BARS[NEWEST_WARNING].t,
     chipText: `Quicksand · ${BARS.length - 1 - NEWEST_WARNING} bars ago`,
     status: 'aboveBoth', statusLabel: 'RS is above both averages', rs: 0.2477, fast: 0.2301, slow: 0.2102,
@@ -61,7 +62,7 @@ const PAYLOAD = Object.freeze({
 })
 const BLANK = (reason, state) => Object.freeze({
   benchmark: { requested: 'SPY', resolved: null, label: null, fallback: null, note: null, bars: 0 },
-  legend: { lastKind: null, lastLabel: null, barsAgo: null, lastAsOf: null, chipText: null, status: null, statusLabel: null,
+  legend: { blankReason: reason, lastKind: null, lastLabel: null, barsAgo: null, lastAsOf: null, chipText: null, status: null, statusLabel: null,
     rs: null, fast: null, slow: null, fastLength: 21, slowLength: 50, asOf: null, stale: null, summary: reason },
   history: { bars: BARS.length, requested: 852, short: false },
   inputs: { benchmark: 'SPY', customBenchmark: '', fastLength: 21, slowLength: 50, maType: 'SMA' },

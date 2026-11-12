@@ -80,7 +80,7 @@ RS_SPLIT_CONTRACT = {
         "inputs": ["benchmark", "customBenchmark", "fastLength", "slowLength"],
         "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
                   "benchmark.note", "benchmark.bars",
-                  "legend.summary", "legend.chipText", "legend.lastKind", "legend.lastLabel", "legend.barsAgo", "legend.lastAsOf",
+                  "legend.summary", "legend.chipText", "legend.blankReason", "legend.lastKind", "legend.lastLabel", "legend.barsAgo", "legend.lastAsOf",
                   "legend.status", "legend.statusLabel", "legend.rs", "legend.fast", "legend.slow",
                   "legend.fastLength", "legend.slowLength", "legend.asOf", "legend.stale",
                   "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
