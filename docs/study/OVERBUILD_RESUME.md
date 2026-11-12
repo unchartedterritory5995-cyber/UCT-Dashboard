@@ -108,8 +108,11 @@ The server (port 8794) reads data per request, so no restart is needed unless `s
 `cd C:\Users\pgosz\StudyReview ; python server.py --home . --no-browser`, then open http://127.0.0.1:8794/ in Chrome.
 It shows each upgraded question against its pre-overbuild version (`first_pass.py` compares with tag `overbuild-base`), the
 rule behind each question, Part 3 (the 134 open decisions), tags, lesson notes, a feedback summary and copy-as-text.
-Planned for his dedicated review (not built yet): risk-sorted queue, a 10-question random sample per lesson with auto-approve of the rest,
-a daily review budget, and a blind old-versus-new comparison. Build these while the waves run if time allows.
+BUILT 2026-11-11 (commit 8bdd83595d) for his dedicated review: **Part 4 sample review** (10 random upgraded questions per lesson, riskiest
+first; all good approves the lesson; one defect widens the sample to 25; three send it back to the pipeline), a **lesson status board**
+(menu), a **daily review budget** (default 150, shown in the progress line), and a **"Which is better? old / same / new" row** on every
+upgraded question (records `ab:<id>`, kind `ab`; the feedback screen tallies them). `read_feedback.py` does not yet list `ab` records or
+lesson approval status: add that when acting on his feedback. A truly BLIND old-vs-new (hiding which is which) is not built.
 
 ## 8. After all waves (the plan's phases 3 to 5)
 
