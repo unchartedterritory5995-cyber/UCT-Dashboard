@@ -1316,7 +1316,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 70,
+              "est_questions": 69,
               "course_file": "docs/study/courses/V/V.06.json"
             },
             {
@@ -1330,7 +1330,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 63,
+              "est_questions": 65,
               "course_file": "docs/study/courses/V/V.07.json"
             },
             {
@@ -1344,7 +1344,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 68,
+              "est_questions": 69,
               "course_file": "docs/study/courses/V/V.08.json"
             },
             {
@@ -1358,7 +1358,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 63,
+              "est_questions": 66,
               "course_file": "docs/study/courses/V/V.09.json"
             },
             {
@@ -1400,7 +1400,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 64,
               "course_file": "docs/study/courses/V/V.12.json"
             },
             {
@@ -1414,7 +1414,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 63,
               "course_file": "docs/study/courses/V/V.13.json"
             }
           ]

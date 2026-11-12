@@ -483,6 +483,14 @@
    "url": "https://cmtassociation.org/wp-content/uploads/2024/01/0314-pruden-1-1.pdf",
    "accessed": "2026-11-09",
    "why_reliable": "Slides by Henry (Hank) O. Pruden, Golden Gate University professor and long-time Wyckoff teacher, from the CMT Association's educational web series, hosted on cmtassociation.org; written independently of the StockCharts / Wyckoff Analytics tutorial."
+  },
+  {
+   "id": "s58",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1673,6 +1681,24 @@
    "source": "s57",
    "quote": "Trader analyst measures the cause built up during a trading range on P&F chart and then projects a price objective representing the potential effect of it.",
    "claim": "Pruden (CMT Association): the cause is built up during a trading range, and the projected move out of it is its effect."
+  },
+  {
+   "id": "f199",
+   "source": "s58",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62)",
+   "claim": "Our default stop sits a few cents under the day's low or the prior day's low."
+  },
+  {
+   "id": "f200",
+   "source": "s58",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our stop goes a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "f201",
+   "source": "s58",
+   "quote": "the stop usually sits within about 3% of the buy (a loss on the position, not the account)",
+   "claim": "Our stop usually sits within about 3% of the buy price."
   }
  ],
  "walkthroughs": [
@@ -1753,19 +1779,29 @@
    "choices": [
     "A pause, then the trend resumes",
     "A sign the trend is about to flip",
-    "Any pattern that breaks out upward"
+    "Any pattern that breaks out upward",
+    "Any sideways range, whatever follows"
    ],
    "answer": "A pause, then the trend resumes",
-   "why": "A pause, then the old trend resumes. Price goes into the pattern one way and comes out the same way.",
+   "why": "A pause, then the trend resumes. StockCharts: it forms in the middle of a trend, and the old trend resumes once it completes. Bulkowski's test is direction: price enters and leaves the pattern the same way. That works in a downtrend too, where it breaks lower. It does not make every range a continuation. Many patterns, such as a rectangle, can be either kind until price leaves.",
    "lesson_line": "Continuation: in one direction, out the same direction.",
    "facts": [
     "f1",
-    "f2"
+    "f2",
+    "f6"
    ],
    "wrong": {
     "A sign the trend is about to flip": "That's a reversal pattern. The trend changes direction after it.",
-    "Any pattern that breaks out upward": "Direction isn't the test. A continuation inside a downtrend breaks out lower."
-   }
+    "Any pattern that breaks out upward": "Direction isn't the test. A continuation inside a downtrend breaks out lower.",
+    "Any sideways range, whatever follows": "Not every range is one. StockCharts says many patterns, such as a rectangle, can be a reversal or a continuation. How price leaves decides it."
+   },
+   "simple": "A continuation pattern is a pause, and then price keeps going the same way it was going before.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q02",
@@ -1777,23 +1813,31 @@
    "choices": [
     "Reversal pattern",
     "Continuation pattern",
-    "Flag",
-    "Pennant"
+    "Flag pattern",
+    "Pennant pattern"
    ],
    "answer": "Reversal pattern",
-   "why": "Reversal pattern. Price enters it going one way and leaves going the other.",
+   "why": "Reversal pattern. StockCharts: a chart pattern that forms before an existing trend reverses direction. Bulkowski's test: price enters and leaves the pattern in opposite directions. Flags and pennants are the other kind, short continuation patterns. After a continuation, the old trend resumes.",
    "lesson_line": "Reversal: in one way, out the other.",
    "facts": [
     "f3",
     "f4",
     "f187",
-    "f48"
+    "f48",
+    "f1"
    ],
    "wrong": {
     "Continuation pattern": "A continuation is a pause. The old trend resumes after it.",
-    "Flag": "A flag is a continuation pattern: a short pause, then the prior move resumes.",
-    "Pennant": "A pennant is a continuation pattern too: a short pause before the prior move resumes."
-   }
+    "Flag pattern": "A flag is a continuation pattern: a short pause, then the prior move resumes.",
+    "Pennant pattern": "A pennant is a continuation pattern too: a short pause before the prior move resumes."
+   },
+   "simple": "A reversal pattern forms before the trend turns, so price goes in one way and comes out the other.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q03",
@@ -1806,24 +1850,35 @@
     "U-shaped base plus a short pullback",
     "Three peaks, the middle one highest",
     "Two equal lows shaped like a W",
-    "A sharp V-shaped drop and rebound"
+    "Lower highs pressing on a flat floor"
    ],
    "answer": "U-shaped base plus a short pullback",
-   "why": "A U-shaped base plus a short pullback. The cup is a rounded bowl after an advance; the handle is the dip off its right side.",
+   "why": "A U-shaped base plus a short pullback. Fidelity: the cup forms after an advance and looks like a bowl or rounding bottom. StockCharts: the cup should be U-shaped, and after the high on its right side, a pullback forms the handle.",
    "lesson_line": "Cup first, handle second, breakout third.",
    "facts": [
     "f17",
     "f188",
     "f18",
     "f19",
+    "f20",
     "f22",
-    "f30"
+    "f30",
+    "f134",
+    "f111",
+    "f85"
    ],
    "wrong": {
     "Three peaks, the middle one highest": "That's a head and shoulders.",
     "Two equal lows shaped like a W": "That's a double bottom.",
-    "A sharp V-shaped drop and rebound": "A V is too sharp to count. The cup should be a U."
-   }
+    "Lower highs pressing on a flat floor": "That's a descending triangle: a flat lower line under a falling upper one."
+   },
+   "simple": "A cup with handle is a rounded U-shaped bowl, then a short dip on its right side before the breakout.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q04",
@@ -1839,7 +1894,7 @@
     "The day price breaks out of it"
    ],
    "answer": "The short pullback after the cup",
-   "why": "The short pullback after the cup. Once the cup's right side makes its high, price eases back for a while. That dip is the handle.",
+   "why": "The short pullback after the cup. StockCharts: once the high forms on the cup's right side, a pullback forms the handle. It is the final pause before the breakout and usually gives back no more than a third of the cup's advance. Investopedia describes it as sloping down. It is not the cup's low, the run-up before the cup, or the breakout itself.",
    "lesson_line": "The handle is the last pause before the breakout.",
    "facts": [
     "f19",
@@ -1851,7 +1906,14 @@
     "The deepest low of the whole cup": "That's the bottom of the cup.",
     "The run-up before the cup began": "That's the prior advance. The pattern needs one, but it isn't the handle.",
     "The day price breaks out of it": "The breakout comes out of the handle. It isn't the handle."
-   }
+   },
+   "simple": "The handle is the short dip after the cup's right side makes its high, the last pause before the breakout.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q05",
@@ -1861,14 +1923,21 @@
    "term": "cup",
    "q": "A sharp V-shaped bottom is the ideal shape for the cup.",
    "answer": "False",
-   "why": "False. The cup should be a U, a rounded bowl. A V is too sharp a reversal to qualify.",
+   "why": "False. StockCharts says the cup should be U-shaped like a bowl, and a V-shaped bottom is too sharp a reversal to qualify. Bulkowski and Fidelity's guide say the same. The softer U shows a real consolidation with support at its bottom. Bulkowski adds that variations are allowed, so the U need not be perfect.",
    "lesson_line": "U, not V. The rounded bottom is where support gets built.",
    "facts": [
     "f18",
     "f23",
     "f30",
     "f189"
-   ]
+   ],
+   "simple": "False, the cup should be a rounded U because a sharp V turns too fast to count.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q06",
@@ -1878,28 +1947,37 @@
    "term": "flag",
    "q": "What does flag mean on a chart?",
    "choices": [
-    "Brief pause tilting against the move",
+    "A brief pause tilting against a run",
     "A long base shaped like a round bowl",
-    "Lines that meet at a point",
+    "Two lines that meet at a point",
     "The sharp run that comes before it"
    ],
-   "answer": "Brief pause tilting against the move",
-   "why": "A brief pause tilting against the move. It's a small rectangle hanging off a sharp run, usually sloping the other way.",
+   "answer": "A brief pause tilting against a run",
+   "why": "A brief pause tilting against a run. StockCharts calls a flag a small rectangle that slopes against the previous trend, with price held between two parallel lines. Bulkowski adds that it hangs off a flagpole, a quick run. The StockCharts glossary says flags generally last less than three weeks. Converging lines would make it a pennant instead.",
    "lesson_line": "A flag leans against the move it interrupts.",
    "facts": [
     "f40",
+    "f41",
     "f49",
     "f48",
     "f56",
     "f42",
     "f43",
-    "f50"
+    "f50",
+    "f18"
    ],
    "wrong": {
     "A long base shaped like a round bowl": "That's a rounding bottom, or the cup of a cup with handle.",
-    "Lines that meet at a point": "Converging lines make a pennant or a triangle. A flag's lines run parallel.",
-    "The sharp run that comes before it": "That's the flagpole. The flag is the pause that hangs off it."
-   }
+    "The sharp run that comes before it": "That's the flagpole. The flag is the pause that hangs off it.",
+    "Two lines that meet at a point": "Converging lines make a pennant or a triangle. A flag's lines run parallel."
+   },
+   "simple": "A flag is a short pause that leans against the sharp move before it, between two parallel lines.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q07",
@@ -1908,7 +1986,7 @@
    "format": "fill",
    "term": "flagpole",
    "q": "Tap the word that fits the blank.",
-   "sentence": "The sharp, near-straight run that comes before a flag is the ___.",
+   "sentence": "A short pause can hang off a sharp, near-straight run called the ___.",
    "bank": [
     "flagpole",
     "handle",
@@ -1917,7 +1995,7 @@
     "lip"
    ],
    "answer": "flagpole",
-   "why": "Flagpole. No sharp run, no flag. The pole is what the flag hangs off.",
+   "why": "Flagpole. StockCharts: flags and pennants must be preceded by a sharp advance or decline, and the flagpole measures that move. Bulkowski: without a straight-line or quick run, you don't have a flag.",
    "lesson_line": "No pole, no flag.",
    "facts": [
     "f50",
@@ -1925,7 +2003,14 @@
     "f44",
     "f62",
     "f56"
-   ]
+   ],
+   "simple": "It is the flagpole, the sharp run that the flag hangs off, and with no pole there is no flag.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q08",
@@ -1941,7 +2026,7 @@
     "A deep U-shaped base with a handle"
    ],
    "answer": "A tiny triangle after a sharp move",
-   "why": "A tiny triangle after a sharp move. It's a short pause between two lines that come together.",
+   "why": "A tiny triangle after a sharp move. StockCharts calls a pennant a small symmetrical triangle that begins wide and converges. Like a flag, it must follow a sharp advance or decline. Investopedia also describes converging lines that form a small symmetrical triangle.",
    "lesson_line": "Pennant: a small triangle on a flagpole.",
    "facts": [
     "f42",
@@ -1949,13 +2034,23 @@
     "f61",
     "f44",
     "f41",
-    "f18"
+    "f18",
+    "f79",
+    "f157",
+    "f62"
    ],
    "wrong": {
     "A long, flat-topped base of weeks": "That sounds like an ascending triangle or a flat base. A pennant is short and its lines converge.",
     "A flag-like pause with parallel lines": "Parallel lines make a flag. A pennant's lines come together.",
     "A deep U-shaped base with a handle": "That's a cup."
-   }
+   },
+   "simple": "A pennant is a tiny triangle that forms right after a sharp move, with two lines that come together.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q09",
@@ -1965,7 +2060,7 @@
    "term": "pennant",
    "q": "A flag's two lines run parallel. A pennant's two lines come together.",
    "answer": "True",
-   "why": "True. That's the difference. Both hang off a sharp run and both are short pauses.",
+   "why": "True. StockCharts: a flag's price action sits between two parallel lines, while a pennant is a small triangle whose lines converge. Bulkowski allows a flag's lines to be parallel or near parallel. Investopedia: when the lines converge, it's a wedge or pennant, not a flag. Both follow a sharp run and both are short pauses.",
    "lesson_line": "Parallel lines: flag. Converging lines: pennant.",
    "facts": [
     "f41",
@@ -1973,7 +2068,14 @@
     "f51",
     "f53",
     "f57"
-   ]
+   ],
+   "simple": "True, a flag's lines run side by side while a pennant's lines squeeze together toward a point.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q10",
@@ -1989,7 +2091,7 @@
     "A rounded low with a short dip"
    ],
    "answer": "Narrowing lines sloping the same way",
-   "why": "Narrowing lines that slope the same way. Both lines rise in a rising wedge; both fall in a falling wedge.",
+   "why": "Narrowing lines sloping the same way. Fidelity's guide: two trend lines, each headed in the same direction. Bulkowski: a rising wedge has two up-sloping, converging lines, and a falling wedge two down-sloping ones. That separates it from an ascending triangle, whose top line is flat. It also differs from a flag, whose lines run parallel.",
    "lesson_line": "Wedge: both lines point the same way and squeeze together.",
    "facts": [
     "f63",
@@ -1997,13 +2099,22 @@
     "f70",
     "f79",
     "f40",
-    "f17"
+    "f41",
+    "f17",
+    "f19"
    ],
    "wrong": {
     "One flat line and one rising line": "That's an ascending triangle. In a wedge neither line is flat.",
     "Parallel lines tilting against a run": "That's a flag.",
     "A rounded low with a short dip": "That's a cup with handle."
-   }
+   },
+   "simple": "A wedge has two lines that squeeze together while both slope the same way, both up or both down.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q11",
@@ -2019,7 +2130,7 @@
     "Rising wedge"
    ],
    "answer": "Ascending triangle",
-   "why": "Ascending triangle. Sellers cap price at the same level while buyers step in at higher and higher lows.",
+   "why": "Ascending triangle. The upper line is flat and the lower line rises, so the two close in. StockCharts, Bulkowski and Fidelity's guide all draw it this way. The flat top is supply that caps price at one level. The higher lows show buyers stepping in higher, which gives it a bullish bias.",
    "lesson_line": "Flat top, rising lows: ascending triangle.",
    "facts": [
     "f79",
@@ -2035,7 +2146,16 @@
     "Descending triangle": "That's the mirror image: a flat bottom with falling highs.",
     "Symmetrical triangle": "In a symmetrical triangle neither line is flat.",
     "Rising wedge": "In a rising wedge both lines slope up."
-   }
+   },
+   "simple": "It is an ascending triangle, because the top line stays flat while the lows keep rising.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q12",
@@ -2052,13 +2172,24 @@
     "expanding"
    ],
    "answer": "descending",
-   "why": "Descending. The floor stays flat while each rally tops out lower.",
+   "why": "Descending. The lower line is flat and the upper line falls, so the two close in. StockCharts, Bulkowski and Fidelity's guide agree on that shape. The name only says which line slopes. It does not settle the break: Fidelity's guide says most commonly downward, while Bulkowski counts upward breaks 53% of the time.",
    "lesson_line": "Flat floor, falling highs: descending triangle.",
    "facts": [
     "f85",
     "f86",
-    "f87"
-   ]
+    "f87",
+    "f89",
+    "f88"
+   ],
+   "simple": "It is a descending triangle, because the floor stays flat while each rally tops out lower.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q13",
@@ -2069,24 +2200,36 @@
    "q": "Which pattern do some chart books also call a coil?",
    "choices": [
     "Symmetrical triangle",
-    "Head and shoulders",
-    "Double bottom",
-    "Rounding bottom"
+    "Head and shoulders top",
+    "Rounding bottom",
+    "Cup with handle"
    ],
    "answer": "Symmetrical triangle",
-   "why": "The symmetrical triangle. Lower highs and higher lows squeeze price into a narrower and narrower range.",
+   "why": "The symmetrical triangle. StockCharts, Bulkowski and Investopedia all give coil as another name for it. The upper line falls and the lower line rises, so lower highs and higher lows squeeze price toward the apex. Coil names the shape, not a result. Bulkowski says the pattern appears often but its performance is awful.",
    "lesson_line": "Coil is another name for the symmetrical triangle.",
    "facts": [
     "f93",
     "f94",
     "f95",
-    "f96"
+    "f96",
+    "f124",
+    "f149",
+    "f22"
    ],
    "wrong": {
-    "Head and shoulders": "Three peaks with the middle one highest. Nothing narrows to a point.",
-    "Double bottom": "Two lows with a peak between. The range doesn't narrow.",
-    "Rounding bottom": "That's the slow bowl, also called a saucer."
-   }
+    "Rounding bottom": "That's one slow, bowl-shaped low. Nothing narrows to a point.",
+    "Head and shoulders top": "Three peaks with the middle one highest. Nothing narrows to a point.",
+    "Cup with handle": "A rounded cup with a handle on its right. Nothing narrows to a point."
+   },
+   "simple": "The symmetrical triangle is also called a coil, because its two sloping lines squeeze price into a narrower range.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q14",
@@ -2102,7 +2245,7 @@
     "The first low in the pattern"
    ],
    "answer": "Where the two lines meet",
-   "why": "Where the two lines meet. Extend the top and bottom lines forward and the apex is the point where they join.",
+   "why": "Where the two lines meet. StockCharts calls the apex the convergence of the upper and lower lines, and Bulkowski says it is where the trendlines join. Extend both lines forward to find it. It is not the breakout. Bulkowski measures a breakout as part of the way to the apex, so price usually leaves before the lines meet.",
    "lesson_line": "The apex is where a triangle's lines meet.",
    "facts": [
     "f99",
@@ -2112,7 +2255,16 @@
     "The widest part of the pattern": "The widest part is the start of the triangle, the opposite end from the apex.",
     "The breakout day's high": "The breakout is where price leaves the pattern, usually before it reaches the apex.",
     "The first low in the pattern": "That's just the first touch of the lower line."
-   }
+   },
+   "simple": "The apex is the point where the triangle's two lines meet, at the narrow end of the pattern.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q15",
@@ -2124,25 +2276,34 @@
    "choices": [
     "Two similar lows with a peak between",
     "Two similar highs with a dip between",
-    "Three lows, the middle one deepest",
+    "Three lows at about the same price",
     "A slow, rounded low over months"
    ],
    "answer": "Two similar lows with a peak between",
-   "why": "Two similar lows with a peak between. It looks like a W.",
+   "why": "Two similar lows with a peak between. StockCharts describes two roughly equal troughs with a moderate peak between them. Investopedia says it looks like the letter W, with two lows at about the same level. Fidelity's guide calls it two troughs separated by a peak.",
    "lesson_line": "Double bottom: a W, two lows near the same price.",
    "facts": [
     "f106",
     "f109",
     "f111",
-    "f114",
-    "f141",
-    "f147"
+    "f123",
+    "f185",
+    "f149"
    ],
    "wrong": {
-    "Two similar highs with a dip between": "That's a double top.",
-    "Three lows, the middle one deepest": "That's an inverse head and shoulders.",
-    "A slow, rounded low over months": "That's a rounding bottom, or saucer."
-   }
+    "Two similar highs with a dip between": "Those are highs. A double bottom is built from two lows.",
+    "A slow, rounded low over months": "That's a rounding bottom, one slow bowl, not two distinct lows.",
+    "Three lows at about the same price": "That's a triple bottom. A double bottom has two lows."
+   },
+   "simple": "A double bottom is two lows near the same price with a peak between them, so it looks like a W.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q16",
@@ -2151,7 +2312,7 @@
    "format": "fill",
    "term": "double top",
    "q": "Tap the word that fits the blank.",
-   "sentence": "Two roughly equal peaks with a dip between them form a ___ top.",
+   "sentence": "A peak, a dip, then a second peak near the same price form a ___ top.",
    "bank": [
     "double",
     "triple",
@@ -2159,13 +2320,21 @@
     "broadening"
    ],
    "answer": "double",
-   "why": "Double. Two peaks near the same price, a moderate trough between, then a break below that trough.",
-   "lesson_line": "Double top: two peaks, and it isn't done until the low between them breaks.",
+   "why": "Double. StockCharts describes two roughly equal peaks with a moderate trough between. Schwab says the same: two peaks at about one price. Triple would need three peaks.",
+   "lesson_line": "Double top: two peaks near one price, with a dip between.",
    "facts": [
     "f114",
-    "f115",
     "f119"
-   ]
+   ],
+   "simple": "It is a double top, because two peaks at about the same price with a dip between make that shape.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q17",
@@ -2177,11 +2346,11 @@
    "choices": [
     "Head and shoulders",
     "Triple top",
-    "Double top",
+    "Descending triangle",
     "Rising wedge"
    ],
    "answer": "Head and shoulders",
-   "why": "Head and shoulders. The middle peak is the head; the lower peaks either side are the shoulders.",
+   "why": "Head and shoulders. The middle peak is the head, and the two lower, roughly equal peaks on either side are the shoulders. StockCharts, Bulkowski and Fidelity's guide describe it this way. A triple top differs: its three peaks sit at about the same price.",
    "lesson_line": "Head above, shoulders level on either side.",
    "facts": [
     "f124",
@@ -2190,13 +2359,23 @@
     "f134",
     "f120",
     "f121",
-    "f65"
+    "f65",
+    "f85"
    ],
    "wrong": {
-    "Triple top": "A triple top has three peaks at about the same price.",
-    "Double top": "That's only two peaks.",
-    "Rising wedge": "That's two rising lines squeezing together, with no head."
-   }
+    "Triple top": "A triple top has three peaks at about the same price. Here the middle one is higher.",
+    "Rising wedge": "That's two rising lines squeezing together, with no head.",
+    "Descending triangle": "Its highs fall one after another over a flat floor. Here the middle peak is highest."
+   },
+   "simple": "It is a head and shoulders, because the middle peak, the head, stands above the two lower peaks beside it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q18",
@@ -2212,20 +2391,30 @@
     "The uptrend line under the whole move"
    ],
    "answer": "Line through the lows between peaks",
-   "why": "The line through the lows between the peaks. Join the dip after the left shoulder to the dip after the head.",
+   "why": "The line through the lows between the peaks. StockCharts connects the reaction lows of each peak, and Bulkowski says it joins the armpits. Schwab draws it under the troughs just before and after the head. It need not be level: Bulkowski allows an up-sloping or a down-sloping neckline. The pattern isn't complete until price breaks below it.",
    "lesson_line": "The neckline is the floor of the top. The break of it decides the pattern.",
    "facts": [
     "f126",
     "f131",
     "f137",
     "f127",
-    "f129"
+    "f129",
+    "f196"
    ],
    "wrong": {
     "Line across the two shoulder tops": "That line sits above the pattern's lows. The neckline runs through the lows.",
     "The highest point of the head": "That's the head's peak. It's used to measure the target, not to draw the neckline.",
     "The uptrend line under the whole move": "That's a trend line. The neckline is drawn through the pattern's own lows."
-   }
+   },
+   "simple": "The neckline is the line through the low points between the peaks, and its break completes the pattern.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q19",
@@ -2241,7 +2430,7 @@
     "Three equal lows in a row"
    ],
    "answer": "Three lows, the middle one deepest",
-   "why": "Three lows, the middle one deepest. It's a head and shoulders turned upside down, also called a head and shoulders bottom.",
+   "why": "Three lows, the middle one deepest. StockCharts describes three troughs with the middle trough deepest and the outer two shallower. Bulkowski calls it a 3-valley pattern with the middle valley below the others. Investopedia says it is often called a head and shoulders bottom. A triple bottom differs: its three lows sit at about the same price.",
    "lesson_line": "Flip a head and shoulders top and you get the bottom version.",
    "facts": [
     "f141",
@@ -2255,7 +2444,16 @@
     "Three peaks, the middle one highest": "That's the top version.",
     "Two equal lows with a peak between": "That's a double bottom.",
     "Three equal lows in a row": "That's a triple bottom."
-   }
+   },
+   "simple": "It is three lows with the deepest one in the middle, a head and shoulders turned upside down.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q20",
@@ -2272,14 +2470,22 @@
     "flat"
    ],
    "answer": "saucer",
-   "why": "Saucer. It's a slow, bowl-shaped turn, easiest to see on a weekly chart.",
+   "why": "Saucer. The StockCharts glossary: a rounding bottom, also known as a saucer bottom, is a reversal pattern built over a long consolidation. Bulkowski calls its rims saucer lips. He looks for a rounded bowl shape, usually over many months.",
    "lesson_line": "Rounding bottom and saucer: same slow bowl.",
    "facts": [
-    "f147",
     "f151",
     "f150",
-    "f148"
-   ]
+    "f149"
+   ],
+   "simple": "It is a saucer bottom: a long, slow, rounded low shaped like a bowl.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker added f148)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q21",
@@ -2295,13 +2501,15 @@
     "Three peaks, the middle highest"
    ],
    "answer": "Sideways between flat top and bottom",
-   "why": "Sideways between a flat top and a flat bottom. It's also called a trading range or a congestion area.",
+   "why": "Sideways between a flat top and a flat bottom. StockCharts says rectangles are also called trading ranges, consolidation zones or congestion areas. Bulkowski describes flat tops and flat bottoms between two parallel lines. The shape gives no direction by itself. StockCharts says a rectangle can be a reversal or a continuation, and it is incomplete until a breakout.",
    "lesson_line": "Rectangle: flat ceiling, flat floor, price bouncing between.",
    "facts": [
     "f152",
     "f153",
     "f154",
     "f155",
+    "f6",
+    "f9",
     "f72",
     "f18",
     "f125"
@@ -2310,7 +2518,16 @@
     "A narrowing range that slopes upward": "That's a rising wedge.",
     "A U-shaped dip and slow recovery": "That's a cup.",
     "Three peaks, the middle highest": "That's a head and shoulders."
-   }
+   },
+   "simple": "A rectangle is price moving sideways between a flat top and a flat bottom, much like a trading range.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten for variety before (2026-11-10)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q22",
@@ -2320,13 +2537,22 @@
    "term": "confirmation",
    "q": "A chart pattern is confirmed as soon as its shape looks finished, before any breakout.",
    "answer": "False",
-   "why": "False. A pattern isn't complete until price breaks out of it. Before that it's squiggles that might become a pattern.",
+   "why": "False. Fidelity's guide says a pattern is not complete or activated until an actual breakout occurs. Bulkowski defines confirmation as the price where squiggles become a valid pattern, usually a break through its boundary. StockCharts says a rectangle is incomplete until a breakout. Until then it is only a shape that might become a pattern.",
    "lesson_line": "No breakout, no pattern. The shape alone confirms nothing.",
    "facts": [
     "f7",
     "f8",
     "f9"
-   ]
+   ],
+   "simple": "False, because a pattern only counts once price breaks out of it, and a finished look is not enough.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q23",
@@ -2335,24 +2561,40 @@
    "format": "scenario",
    "term": "continuation pattern",
    "story": "A stock runs from $40 to $60 in two months. It then moves sideways in a tight range for three weeks. Next it breaks out above the range.",
-   "q": "Which kind of pattern was the sideways range?",
+   "q": "Which label fits the sideways range?",
    "choices": [
     "Continuation pattern",
-    "Reversal pattern",
-    "Topping pattern"
+    "Trend reversal pattern",
+    "Too soon to name it",
+    "A topping pattern"
    ],
    "answer": "Continuation pattern",
-   "why": "A continuation pattern. Price came in going up and left going up. The range was a pause, not a turn.",
+   "why": "A continuation pattern. Bulkowski defines a continuation as price entering and leaving a pattern in the same direction. Here it came in rising and broke out above. StockCharts says a continuation forms in the middle of a trend, and the old trend resumes when it completes.",
    "lesson_line": "Judge a pattern by how price enters and leaves it.",
    "facts": [
     "f2",
     "f1",
-    "f4"
+    "f4",
+    "f3",
+    "f7"
    ],
    "wrong": {
-    "Reversal pattern": "A reversal leaves in the opposite direction. This one kept going up.",
-    "Topping pattern": "A top ends an uptrend. This range led to higher prices."
-   }
+    "Trend reversal pattern": "A reversal leaves in the opposite direction. This one came in rising and left rising.",
+    "Too soon to name it": "It has already broken out above the range. A pattern is complete once it breaks out, so you can name it.",
+    "A topping pattern": "Price came in rising and left rising, so nothing topped. A top would need it to leave falling."
+   },
+   "simple": "It was a continuation pattern, because price came into the range going up and left it going up.",
+   "deeper": {
+    "counter": "Keep the same three-week range, but picture a long slide into it before the breakout above. Now price entered falling and left rising, and Bulkowski calls that a reversal. The box on the chart looks the same in both cases. The direction in and the direction out decide the name."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q24",
@@ -2360,9 +2602,9 @@
    "rung": 4,
    "format": "tf",
    "term": "reversal pattern",
-   "q": "A pattern that forms after a big advance is automatically a reversal pattern.",
+   "q": "Where a pattern forms decides its type, so one that forms after a big advance is a reversal.",
    "answer": "False",
-   "why": "False. Many patterns after a big run are only pauses. A rectangle or a wedge can be either kind.",
+   "why": "False. StockCharts: a pattern that forms after a big advance or decline is not automatically a reversal. Many patterns, such as a rectangle, can be either kind, and Investopedia says a wedge can be too. Bulkowski's test is how price leaves. The same direction it came in is a continuation. The opposite direction is a reversal.",
    "lesson_line": "Where a pattern forms doesn't decide its type. How price leaves it does.",
    "facts": [
     "f5",
@@ -2370,7 +2612,16 @@
     "f10",
     "f2",
     "f4"
-   ]
+   ],
+   "simple": "False, a pattern after a big run can be just a pause, and how price leaves it decides the type.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (statement reworded by the checker)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q25",
@@ -2390,7 +2641,7 @@
     }
    },
    "prefix": "$",
-   "why": "$60. The cup's depth, $50 less $40, added to the $50 breakout. It's a rough guide, not a promise.",
+   "why": "$60. Measure the cup's depth from the right peak to the bottom, $50 less $40, and add it to the $50 breakout. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there.",
    "lesson_line": "Cup target: the cup's depth added to the breakout. A guide, not a promise.",
    "facts": [
     "f21",
@@ -2398,7 +2649,16 @@
     "f33",
     "f38",
     "f186"
-   ]
+   ],
+   "simple": "Add the cup's depth, $40 up to $50, to the $50 breakout to get $60. Use it only as a guideline.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q26",
@@ -2415,7 +2675,7 @@
     "No, a handle can only go sideways"
    ],
    "answer": "No, it sank into the lower half",
-   "why": "No. The cup runs from $35 to $49, so $38 is deep in its lower half. A handle should stay in the upper half.",
+   "why": "No. The cup runs from a $35 low to $49 on its right side, so $38 sits in its lower half. Bulkowski says the handle forms in the upper half of the cup. Investopedia says to avoid overly deep handles for that reason. A handle may slope down, as Investopedia's own description shows. The fault here is depth, not slope.",
    "lesson_line": "A handle that sinks into the bottom of the cup isn't a handle.",
    "facts": [
     "f24",
@@ -2427,7 +2687,19 @@
     "Yes, any dip after a cup counts": "Where the dip ends matters. The handle should stay in the cup's upper half.",
     "Yes, a deep handle shakes out more": "Depth isn't a virtue here. Overly deep handles are the ones to avoid.",
     "No, a handle can only go sideways": "Handles can drift lower. The problem is how deep this one went."
-   }
+   },
+   "simple": "No, because the dip fell to $38, deep in the lower half of the cup, and a handle should stay up high.",
+   "deeper": {
+    "trap": "Any dip after a cup looks like a handle, so it is tempting to buy its breakout. Check where the dip ended first. Here the cup climbs from $35 to $49, and the dip gives back most of that climb by reaching $38. StockCharts says a handle can retrace up to a third of the cup's advance, but usually not more. This dip took far more."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten for variety before (2026-11-10); Investopedia unreachable for this check, Bulkowski confirmed"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q27",
@@ -2437,13 +2709,13 @@
    "term": "buy point",
    "q": "On a cup with handle, where is the classic buy point?",
    "choices": [
-    "Just above the top of the handle",
+    "Just above the handle's high",
     "At the lowest point of the cup",
     "Halfway down the handle",
     "At the first up day in the cup"
    ],
-   "answer": "Just above the top of the handle",
-   "why": "Just above the top of the handle. IBD puts it at the handle's highest price plus 10 cents; Fidelity at the break through the cup's right side.",
+   "answer": "Just above the handle's high",
+   "why": "Just above the handle's high. IBD puts the entry at the handle's highest price plus 10 cents. Investopedia places a buy stop slightly above the handle's upper trend line. Fidelity uses the break through the cup's right side, and Bulkowski a close above the right cup rim. Before that break, Fidelity's guide says, no pattern is complete.",
    "lesson_line": "Buy the break out of the handle, not a guess inside the pattern.",
    "facts": [
     "f39",
@@ -2456,7 +2728,14 @@
     "At the lowest point of the cup": "That's buying a falling stock before any pattern exists.",
     "Halfway down the handle": "That's a guess inside the pattern, before it breaks out.",
     "At the first up day in the cup": "Far too early. The cup isn't finished and there's no handle yet."
-   }
+   },
+   "simple": "The classic buy point is just above the handle's high, where price breaks out of the pattern.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q28",
@@ -2468,24 +2747,33 @@
    "choices": [
     "A high at the cup's top edge",
     "The lowest point of the cup",
-    "The low of the handle",
+    "The lowest price in the handle",
     "The breakout day's close"
    ],
    "answer": "A high at the cup's top edge",
-   "why": "A high at the cup's top edge. There's one on each side, and the handle forms after the right one.",
+   "why": "A high at the cup's top edge. Fidelity's guide describes two lips, one at each end of the cup. Bulkowski measures his target from the right cup lip and wants the two rims near the same price, with some give. The handle forms after the right lip. The breakout comes after the handle.",
    "lesson_line": "Two lips, one each side of the cup, near the same price.",
    "facts": [
     "f30",
     "f195",
     "f25",
     "f19",
-    "f26"
+    "f197"
    ],
    "wrong": {
     "The lowest point of the cup": "That's the cup's bottom.",
-    "The low of the handle": "That's the handle's low, a common place for the stop.",
-    "The breakout day's close": "That's the breakout. The lips come before it."
-   }
+    "The breakout day's close": "That's the breakout. The lips come before it.",
+    "The lowest price in the handle": "That's the handle's low. The lips are the cup's two top edges."
+   },
+   "simple": "A lip is the high at the top edge of the cup, with one on each side near the same price.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker added f195)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q29",
@@ -2505,13 +2793,22 @@
     }
    },
    "prefix": "$",
-   "why": "$38. The pole's length, $30 less $20, added to the $28 breakout. It's an estimate, nothing more.",
+   "why": "$38. The pole's length, $30 less $20, added to the $28 breakout. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only.",
    "lesson_line": "Flag target: the pole's length added to the breakout.",
    "facts": [
     "f47",
     "f60",
     "f12"
-   ]
+   ],
+   "simple": "The target is $38, the pole's run from $20 to $30 added to the $28 breakout, and it is only an estimate.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q30",
@@ -2524,11 +2821,11 @@
    "choices": [
     "Flag",
     "Pennant",
-    "Rounding bottom",
+    "Rectangle",
     "Double top"
    ],
    "answer": "Flag",
-   "why": "Flag. The sharp run is the pole; the short drift between parallel lines, on lighter volume, is the flag.",
+   "why": "Flag. The sharp, heavy-volume run is the flagpole, and the short drift between parallel lines is the flag. StockCharts calls a flag a small rectangle that slopes against the previous trend, with volume contracting as it forms. Bulkowski says flags are short, less than 3 weeks long, so eight days fits. If the lines converged, it would be a pennant.",
    "lesson_line": "Pole, then a short parallel drift on light volume: that's a flag.",
    "facts": [
     "f49",
@@ -2536,14 +2833,23 @@
     "f41",
     "f46",
     "f58",
-    "f53",
-    "f149"
+    "f52",
+    "f53"
    ],
    "wrong": {
     "Pennant": "A pennant's lines converge. These run parallel.",
-    "Rounding bottom": "That's a slow bowl over many months, not a drift of a few days.",
-    "Double top": "That needs two peaks near the same price. This is one run and a drift."
-   }
+    "Double top": "That needs two peaks near the same price. This is one run and a drift.",
+    "Rectangle": "A flag is a small rectangle that slopes against the trend. This one drifts lower over eight days."
+   },
+   "simple": "It is a flag, because a short drift between two parallel lines on light volume follows a sharp run.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q31",
@@ -2553,12 +2859,24 @@
    "term": "flag",
    "q": "A flag that keeps drifting for four months is still called a flag.",
    "answer": "False",
-   "why": "False. Flags are short pauses. Bulkowski calls longer ones rectangles or channels; StockCharts calls a flag over 12 weeks old a rectangle.",
+   "why": "False. Flags are short pauses. Bulkowski says flags last less than three weeks, and longer patterns are rectangles or channels. StockCharts is looser, but once a flag is over 12 weeks old it calls it a rectangle. Four months is past both limits, so neither source still calls it a flag.",
    "lesson_line": "A long flag stops being a flag. Call it what it has become.",
    "facts": [
     "f52",
     "f45"
-   ]
+   ],
+   "simple": "False, flags are short pauses, so one that drifts for four months has turned into a rectangle.",
+   "deeper": {
+    "trap": "The sources do not agree on where a flag ends. Bulkowski cuts it at under three weeks. StockCharts allows up to 12 weeks before it calls the pattern a rectangle. A drift of two months is a flag to one and a rectangle to the other. That is why this question uses four months: past both limits."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker changed months to four months)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q32",
@@ -2568,13 +2886,22 @@
    "term": "pennant",
    "q": "Volume usually shrinks while a pennant forms.",
    "answer": "True",
-   "why": "True. Volume is heavy on the pole and fades in the pennant. Bulkowski found it trending down 86% of the time.",
-   "lesson_line": "Loud pole, quiet pennant. Watch for volume to return on the break.",
+   "why": "True. Investopedia says the initial move must be met with large volume, while the pennant should have weakening volume. Bulkowski found pennant volume trending down 86% of the time. Usually is not always: that count leaves room for pennants where volume does not fade. In StockCharts' flag example, volume expands again right after the breakout.",
+   "lesson_line": "Loud pole, quiet pennant: volume usually fades as it forms.",
    "facts": [
     "f54",
     "f59",
     "f46"
-   ]
+   ],
+   "simple": "True, because volume is heavy on the sharp run before a pennant and then fades while the pennant forms.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a study count (Bulkowski's 86%) that he updates over time"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q33",
@@ -2582,7 +2909,7 @@
    "rung": 3,
    "format": "numeric",
    "term": "wedge",
-   "q": "At least how many touches, across both lines, do Bulkowski and Fidelity's guide want before calling it a wedge?",
+   "q": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want?",
    "answer": 5,
    "calc": {
     "fn": "arith",
@@ -2592,12 +2919,21 @@
      "other_line": 2
     }
    },
-   "why": "5. Three touches of one line and two of the other.",
-   "lesson_line": "Count the touches: three on one line, two on the other, before you call it a wedge.",
+   "why": "5. On a rising wedge, Bulkowski wants at least five touches: 3 on one trendline and 2 on the other. Fidelity's guide asks the same of a wedge before a breakout. With fewer touches, Bulkowski would not call it a good pattern yet.",
+   "lesson_line": "Count the touches: three on one line, two on the other.",
    "facts": [
     "f66",
     "f63"
-   ]
+   ],
+   "simple": "They want at least 5 touches: three on one line and two on the other.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q34",
@@ -2609,21 +2945,34 @@
    "choices": [
     "Bearish, though prices are rising",
     "Bullish, because prices are rising",
-    "Neutral until it reaches the apex"
+    "Neutral until it reaches the apex",
+    "Bullish, the same as a falling wedge"
    ],
    "answer": "Bearish, though prices are rising",
-   "why": "Bearish. Each push higher loses momentum, and the textbook reads that fading as a warning.",
+   "why": "Bearish, though prices are rising. StockCharts calls the rising wedge bearish: the loss of upside momentum on each new high gives it that bias. Investopedia says it is usually bearish. The falling wedge is the bullish one.",
    "lesson_line": "Rising wedge: higher prices, weaker pushes. Textbooks lean bearish.",
    "facts": [
     "f72",
     "f73",
     "f77",
-    "f74"
+    "f74",
+    "f75",
+    "f78"
    ],
    "wrong": {
     "Bullish, because prices are rising": "Rising prices are the trap. The squeeze shows upside momentum fading.",
-    "Neutral until it reaches the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one."
-   }
+    "Neutral until it reaches the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one.",
+    "Bullish, the same as a falling wedge": "That mixes up the two wedges. The falling wedge is the bullish one. StockCharts calls the rising wedge bearish."
+   },
+   "simple": "Textbooks call the rising wedge bearish, because each push higher has less force even though price is rising.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edited a wrong-note)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q35",
@@ -2631,15 +2980,27 @@
    "rung": 7,
    "format": "tf",
    "term": "rising wedge",
-   "q": "A rising wedge does not always break down; Bulkowski counts downward breakouts 60% of the time.",
+   "q": "Rising wedges break in both directions, not only down.",
    "answer": "True",
-   "why": "True. Textbooks lean bearish, but Bulkowski counts downward breakouts 60% of the time, not every time.",
-   "lesson_line": "A bias is not a forecast. Wait for a close outside one of the lines.",
+   "why": "True. Bulkowski says a rising wedge can break in any direction, but goes down 60% of the time. Investopedia calls it usually bearish, not always. So a large share still break up. Bulkowski counts the pattern as valid only when price closes outside one of the trendlines.",
+   "lesson_line": "A lean is not a forecast. Wait for a close outside one of the lines.",
    "facts": [
     "f67",
     "f77",
     "f69"
-   ]
+   ],
+   "simple": "True, because a rising wedge breaks down more often than not, yet many still break up.",
+   "deeper": {
+    "trap": "Because most rising wedges break down, it is tempting to act before the break. Bulkowski counts downward breaks 60% of the time, so many still break up. He counts a wedge as valid only once price closes outside a trendline. Acting early is a bet on the shape, not on the break."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a study count (Bulkowski's 60%) that he updates over time"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q36",
@@ -2647,30 +3008,41 @@
    "rung": 6,
    "format": "scenario",
    "term": "falling wedge",
-   "story": "A stock slides for four months. Its lower highs and lower lows trace two falling lines that squeeze together. Each new low is only a bit lower.",
+   "story": "A stock slides for four months. Its lower highs and lower lows trace two down-sloping lines that converge. Each new low is only a bit lower.",
    "q": "Which word fits?",
    "choices": [
     "Falling wedge",
     "Descending triangle",
     "Bear flag",
-    "Rising wedge"
+    "Symmetrical triangle"
    ],
    "answer": "Falling wedge",
-   "why": "Falling wedge. Both lines slope down and converge, and the shallower lows show selling pressure easing.",
-   "lesson_line": "Both lines falling and squeezing together: falling wedge. Textbooks lean bullish.",
+   "why": "Falling wedge. Both lines slope down and converge, as Bulkowski describes it. StockCharts says the shallower new lows show selling pressure easing. StockCharts and Investopedia both read it as bullish. Like any pattern, it counts only once price breaks out.",
+   "lesson_line": "Both lines falling and converging: falling wedge. Textbooks lean bullish.",
    "facts": [
     "f70",
     "f75",
     "f76",
     "f78",
+    "f7",
     "f85",
-    "f52"
+    "f52",
+    "f96"
    ],
    "wrong": {
     "Descending triangle": "That needs a flat bottom line. Here the lows keep falling.",
     "Bear flag": "A flag's lines run parallel, and it's a short pause, not four months.",
-    "Rising wedge": "Both lines would slope up."
-   }
+    "Symmetrical triangle": "Its lower line rises. Here both lines slope down."
+   },
+   "simple": "It is a falling wedge, because both lines slope down and converge while each new low is only a bit lower.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q37",
@@ -2687,7 +3059,7 @@
     "Rising wedge"
    ],
    "answer": "Symmetrical triangle",
-   "why": "Symmetrical triangle. One line falls, the other rises, and they converge. Neither line is flat.",
+   "why": "Symmetrical triangle. The upper line falls and the lower line rises, so they converge, as StockCharts, Bulkowski and Fidelity's guide describe it. An ascending or descending triangle has one flat line. A wedge has both lines sloping the same way. StockCharts gives this triangle no bullish or bearish bias, so the break sets the direction.",
    "lesson_line": "Lower highs plus higher lows, closing in: symmetrical triangle.",
    "facts": [
     "f96",
@@ -2695,13 +3067,25 @@
     "f98",
     "f79",
     "f154",
-    "f65"
+    "f65",
+    "f74",
+    "f85",
+    "f63"
    ],
    "wrong": {
     "Ascending triangle": "That needs a flat top line.",
     "Rectangle": "A rectangle's lines are flat and parallel. They never meet.",
     "Rising wedge": "In a wedge both lines slope the same way."
-   }
+   },
+   "simple": "It is a symmetrical triangle, because one line falls, the other rises, and neither line is flat.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q38",
@@ -2712,12 +3096,12 @@
    "q": "In a symmetrical triangle, where does the ideal breakout come?",
    "choices": [
     "Half to three-quarters of the way in",
-    "Right at the apex, where lines meet",
+    "Right at the apex of the triangle",
     "In the first few days of the pattern",
     "Only after price passes the apex"
    ],
    "answer": "Half to three-quarters of the way in",
-   "why": "Half to three-quarters of the way in. StockCharts says a break too close to the apex may mean little. Bulkowski's symmetrical triangles break about 74% of the way to the apex.",
+   "why": "Half to three-quarters of the way in. StockCharts puts the ideal breakout at 1/2 to 3/4 of the pattern's time span. Measure from the start of the lower line to the apex. A break before halfway may be premature, and one too close to the apex may be insignificant. Bulkowski's table puts the breakout 74% of the way to the apex, inside that band.",
    "lesson_line": "Good triangle breaks come before the apex, not at it.",
    "facts": [
     "f99",
@@ -2725,10 +3109,22 @@
     "f101"
    ],
    "wrong": {
-    "Right at the apex, where lines meet": "A break that close to the apex may be insignificant.",
     "In the first few days of the pattern": "Too early. A break before the halfway point may be premature.",
-    "Only after price passes the apex": "Past the apex the lines have met. There's no pattern left to break."
-   }
+    "Only after price passes the apex": "Past the apex the lines have met. There's no pattern left to break.",
+    "Right at the apex of the triangle": "A break that close to the apex may be insignificant."
+   },
+   "simple": "Halfway to three quarters of the way to the apex, because breaks too early or too near the apex mean less.",
+   "deeper": {
+    "example": "Measure the triangle from the first point of its lower line to the apex. A break early in that span may be premature. A break right near the apex may mean little, because the range has nearly run out. The middle zone, half to three-quarters of the way along, is where StockCharts wants the break."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "cites a study figure (Bulkowski's 74%) that he updates over time"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q39",
@@ -2738,13 +3134,13 @@
    "term": "double bottom",
    "q": "When is a double bottom complete?",
    "choices": [
-    "On a break above the middle peak",
+    "When price clears the middle peak",
     "When the second low holds a day",
     "When the second low matches the first",
     "When volume spikes at the second low"
    ],
-   "answer": "On a break above the middle peak",
-   "why": "On a break above the middle peak. Until then you have two lows, not a finished pattern.",
+   "answer": "When price clears the middle peak",
+   "why": "When price clears the middle peak. StockCharts says breaking resistance from the highest point between the troughs completes it. Fidelity's guide says price must break out of the middle peak. Investopedia waits for a daily close above the first rebound's high. Matching lows and a bounce make the pattern possible. They do not finish it.",
    "lesson_line": "A W isn't done until price clears the middle of the W.",
    "facts": [
     "f107",
@@ -2754,8 +3150,17 @@
    "wrong": {
     "When the second low holds a day": "Holding is a start. The middle peak still has to break.",
     "When the second low matches the first": "Matching lows make it possible. They don't complete it.",
-    "When volume spikes at the second low": "Volume can back up a breakout, but the break above the middle peak completes it."
-   }
+    "When volume spikes at the second low": "Volume at the low doesn't complete it. Only the break above the middle peak does."
+   },
+   "simple": "A double bottom is complete only when price breaks above the peak between the two lows.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q40",
@@ -2774,13 +3179,23 @@
     }
    },
    "suffix": "%",
-   "why": "2%. That's within the 3% StockCharts allows, so the two lows count as roughly equal.",
+   "why": "2%. $49.00 sits 2% under the $50.00 first low. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
    "lesson_line": "Two lows within about 3% of each other still count as roughly equal.",
    "facts": [
     "f108",
     "f113",
     "f106"
-   ]
+   ],
+   "simple": "The second low is 2% under the first, inside the 3% gap StockCharts allows, so the lows count as about equal.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (checker edited the lesson line)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q41",
@@ -2797,7 +3212,7 @@
     "No, the peaks must match exactly"
    ],
    "answer": "Not yet, it must break below $70",
-   "why": "Not yet. A double top completes on a break of the low between the peaks, here $70.",
+   "why": "Not yet. StockCharts says breaking support from the lowest point between the peaks completes a double top. Fidelity's guide wants a break of the middle low. Here that low is $70 and the stock sits at $72. The peaks need not match: StockCharts calls a second peak within 3% of the first adequate.",
    "lesson_line": "Don't jump the gun on a double top. Wait for the middle low to break.",
    "facts": [
     "f115",
@@ -2809,7 +3224,19 @@
     "Yes, the second peak failed": "A failed second peak sets it up. It doesn't complete it.",
     "Yes, two peaks at about one price": "Two peaks make it possible. The break of support completes it.",
     "No, the peaks must match exactly": "Exact peaks aren't needed. A second peak within 3% of the first is close enough."
-   }
+   },
+   "simple": "Not yet, because a double top is only complete when price breaks below $70, the low between the two peaks.",
+   "deeper": {
+    "trap": "Two peaks at almost the same price feel like a finished top, and the turn down from $79.50 feels like proof. It is not. Until $70 breaks, the slide is only a pullback inside a range. StockCharts calls avoiding jumping the gun perhaps the most important part of a double top. Wait for support to break with an expansion of volume."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q42",
@@ -2817,28 +3244,38 @@
    "rung": 6,
    "format": "scenario",
    "term": "neckline",
-   "story": "A stock makes three peaks: $48, $55, then $48.50. The dips between them both bottomed near $44. Price now sits at $45.",
+   "story": "After a long climb, a stock makes three peaks: $48, $55, then $48.50. The dips between them both bottomed near $44. Price now sits at $45.",
    "q": "What completes the head and shoulders top?",
    "choices": [
     "A close under the $44 neckline",
-    "A new high above $55",
-    "A third peak near $48",
+    "A new high above the $55 head",
+    "Another peak near the $48 shoulder",
     "Nothing, three peaks complete it"
    ],
    "answer": "A close under the $44 neckline",
-   "why": "A close under the $44 neckline. Until that line breaks, the uptrend isn't reversed.",
+   "why": "A close under the $44 neckline. The neckline joins the lows between the peaks, here both near $44. StockCharts: the pattern isn't complete, and the uptrend isn't reversed, until neckline support breaks. Bulkowski confirms it on a close below the neckline. At $45, the three peaks are only a warning.",
    "lesson_line": "The neckline break is the signal. The shape alone is a warning.",
    "facts": [
     "f127",
     "f135",
     "f196",
-    "f126"
+    "f126",
+    "f130"
    ],
    "wrong": {
-    "A new high above $55": "That would put price above the head. The top completes on a break lower.",
-    "A third peak near $48": "There are already three peaks. The missing piece is the neckline break.",
-    "Nothing, three peaks complete it": "The pattern isn't complete until the neckline breaks."
-   }
+    "Nothing, three peaks complete it": "The pattern isn't complete until the neckline breaks.",
+    "A new high above the $55 head": "That would put price above the head. The top completes on a break lower.",
+    "Another peak near the $48 shoulder": "Both shoulders are already in place. The missing piece is the neckline break."
+   },
+   "simple": "The top completes only when price closes under the $44 neckline, the line through the dips between the peaks.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker swapped f145 for f196)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q43",
@@ -2857,14 +3294,27 @@
     }
    },
    "prefix": "$",
-   "why": "$40. The head sits $60 less $50 above the neckline; take that off the $50 neckline. Any target is a rough guide.",
+   "why": "$40. The head sits $60 less $50 above the neckline. StockCharts subtracts that distance from the neckline, and Fidelity's guide projects it down from the neckline. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks.",
    "lesson_line": "Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
    "facts": [
     "f129",
     "f128",
     "f136",
-    "f14"
-   ]
+    "f14",
+    "f13"
+   ],
+   "simple": "The target is $40, the gap from the $60 head to the $50 neckline taken off the neckline, as a rough guide.",
+   "deeper": {
+    "trap": "A measured target feels precise because it is arithmetic. Bulkowski calls the measure rule usually inaccurate, and StockCharts says any target is a rough guide. Use the $40 as a rough marker, not as a promise of where price will go."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q44",
@@ -2878,24 +3328,35 @@
     "Wait for a close outside a line",
     "Short now, the pattern is bearish",
     "Buy now, the floor will hold",
-    "Buy at the apex before it breaks"
+    "Wait for a bounce off $30, then buy"
    ],
    "answer": "Wait for a close outside a line",
-   "why": "Wait for a close outside a line. Bulkowski's data has descending triangles breaking upward 53% of the time. A textbook bias isn't a breakout.",
+   "why": "Wait for a close outside a line. StockCharts calls descending triangles bearish, and Fidelity's guide says they break most commonly downward. Bulkowski's data has them breaking upward 53% of the time. Bulkowski confirms the pattern only on a close outside a line. A bounce off the floor is not a breakout, so buying it is still a guess.",
    "lesson_line": "Let the breakout pick the direction. The textbook bias doesn't.",
    "facts": [
     "f88",
     "f89",
     "f92",
     "f91",
-    "f90",
-    "f100"
+    "f90"
    ],
    "wrong": {
     "Short now, the pattern is bearish": "That's trading the bias. These can break either way, and the pattern isn't complete until support breaks.",
     "Buy now, the floor will hold": "Floors break too. Nothing is confirmed yet.",
-    "Buy at the apex before it breaks": "That's still a guess before any breakout, and a break too close to the apex may mean little."
-   }
+    "Wait for a bounce off $30, then buy": "A bounce off the floor isn't a breakout. Bulkowski confirms the pattern only on a close outside a line."
+   },
+   "simple": "Wait for a close outside one of the lines, because these can break either way despite the bearish label.",
+   "deeper": {
+    "trap": "The textbook label and the data disagree here. StockCharts calls the descending triangle bearish, yet Bulkowski counts upward breakouts 53% of the time. Shorting on the label alone is a bet on a lean the numbers do not back. The close outside a line removes the guess: it shows which way price actually went."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a statistic that changes as Bulkowski updates his tables (53% upward)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q45",
@@ -2904,26 +3365,38 @@
    "format": "scenario",
    "term": "spring",
    "story": "A stock has traded between $20 and $25 for months. One day it drops to $19.40, then closes back at $20.60.",
-   "q": "In Wyckoff terms, which word fits?",
+   "q": "Which word fits this move?",
    "choices": [
     "Spring",
     "Breakdown",
-    "Double top",
-    "Pennant"
+    "Upthrust",
+    "Throwback"
    ],
    "answer": "Spring",
-   "why": "Spring. Price broke under the range's floor and quickly closed back inside it.",
-   "lesson_line": "A spring dips under support and snaps back inside. A breakdown stays down.",
+   "why": "Spring. Price dipped under the range's $20 floor to $19.40, then closed back inside at $20.60. The StockCharts glossary calls a break below support that soon reverses back above it a spring. The Wyckoff tutorial and the CMT Association say the same: under the low, then a close back within the range.",
+   "lesson_line": "A spring dips under support and closes back inside the range.",
    "facts": [
     "f162",
     "f163",
-    "f164"
+    "f164",
+    "f165",
+    "f182"
    ],
    "wrong": {
-    "Breakdown": "A breakdown stays below support. This closed back inside the range.",
-    "Double top": "That's two peaks near the top of a range, not a dip under the floor.",
-    "Pennant": "A pennant is a short triangle after a sharp run."
-   }
+    "Breakdown": "It did dip under $20, but it closed back inside the range. That close makes it a spring.",
+    "Upthrust": "An upthrust happens at the range's top. This dipped under the floor.",
+    "Throwback": "A throwback returns to the breakout price after an upward breakout. This stock never broke out upward."
+   },
+   "simple": "It is a spring, because price broke under the $20 floor and then closed back inside the range.",
+   "deeper": {
+    "trap": "Not every dip under support is a spring. The test is the close: back inside the range, as here at $20.60. Wait for the close before you name it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q46",
@@ -2934,24 +3407,30 @@
    "q": "What does shakeout mean?",
    "choices": [
     "A sharp dip that scares holders out",
-    "A slow climb on steadily rising volume",
+    "A slow, steady slide over many months",
     "A gap up on strong earnings news",
     "A week of very tiny daily ranges"
    ],
    "answer": "A sharp dip that scares holders out",
-   "why": "A sharp drop that scares holders out. Many investors sell at once, often at a loss, on fear or bad news.",
+   "why": "A sharp dip that scares holders out. The StockCharts glossary: many scared investors exit their positions on bad news or uncertainty. Investopedia: many investors exit at the same time, often at a loss, and shakeouts are usually sharp drops from recent highs.",
    "lesson_line": "A shakeout runs scared holders out, and it's usually fast.",
    "facts": [
     "f171",
     "f172",
-    "f173",
-    "f170"
+    "f173"
    ],
    "wrong": {
-    "A slow climb on steadily rising volume": "That's buyers in control. Nobody is being scared out.",
     "A gap up on strong earnings news": "Holders are rewarded by that, not scared out.",
-    "A week of very tiny daily ranges": "That's a quiet, tight market. A shakeout is sharp."
-   }
+    "A week of very tiny daily ranges": "That's a quiet, tight market. A shakeout is sharp.",
+    "A slow, steady slide over many months": "That's a slow bleed. Investopedia: in a shakeout, many investors exit at the same time, and the drop is usually sharp."
+   },
+   "simple": "A shakeout is a sharp drop that scares many holders into selling at the same time, often at a loss.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
   },
   {
    "key": "q47",
@@ -2967,7 +3446,7 @@
     "The trend before the range began"
    ],
    "answer": "The range's build-up behind a move",
-   "why": "The build-up inside the trading range. In Wyckoff's law of cause and effect, the range builds the cause and the move out of it is the effect.",
+   "why": "The range's build-up behind a move. In Wyckoff's law of cause and effect, the accumulation or distribution inside a trading range is the cause. The move out of the range is the effect. Wyckoff Analytics measures the cause with a point count on a Point-and-Figure chart. Pruden's CMT slides describe the same idea.",
    "lesson_line": "Wyckoff: the range builds the cause; the trend that follows is the effect.",
    "facts": [
     "f176",
@@ -2980,7 +3459,16 @@
     "The news that started the big selloff": "News can start a move, but Wyckoff's cause is built inside the trading range.",
     "The breakout day's volume spike": "That's the move leaving the range, the start of the effect.",
     "The trend before the range began": "That trend comes before the range. The cause is built inside it."
-   }
+   },
+   "simple": "The cause is the build-up inside the trading range, and the move that comes out of the range is its effect.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker added f198)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q48",
@@ -2990,13 +3478,25 @@
    "term": "spring",
    "q": "In Wyckoff's method, an accumulation range needs a spring.",
    "answer": "False",
-   "why": "False. Springs and terminal shakeouts are not required. One Wyckoff accumulation schematic shows a spring and the other doesn't.",
+   "why": "False. The Wyckoff tutorial says springs and terminal shakeouts are not required elements. Its Accumulation Schematic 1 shows a spring, and Schematic 2 shows a trading range without one. So a base with no spring can still be accumulation.",
    "lesson_line": "No spring doesn't mean no base. It's optional.",
    "facts": [
     "f167",
     "f168",
     "f169"
-   ]
+   ],
+   "simple": "False, a spring is optional, and one of the two Wyckoff buildup charts shows a range with no spring at all.",
+   "deeper": {
+    "counter": "Schematic 1 shows a spring, so it is easy to treat one as required. Schematic 2 shows a trading range with no spring at all. The tutorial calls springs not required elements."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one shared text: StockCharts republishes the Wyckoff Analytics tutorial"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q49",
@@ -3012,20 +3512,30 @@
     "A gap that does not fill for weeks"
    ],
    "answer": "Sideways for several weeks or more",
-   "why": "Sideways for several weeks or months. Bulkowski compares it to a rectangle: price keeps touching the same levels.",
+   "why": "Sideways for several weeks or more. Bulkowski says a flat base looks like a rectangle: price touches the same value multiple times over several weeks or months. IBD says the stock moves sideways rather than going on an uptrend or downtrend. A flat base is a pause, not a direction. The breakout decides what comes next.",
    "lesson_line": "Flat base: the stock moves sideways, neither up nor down, for weeks.",
    "facts": [
     "f156",
     "f157",
     "f158",
     "f43",
+    "f50",
     "f18"
    ],
    "wrong": {
-    "A steep, sudden run on heavy volume": "That's a flagpole, the opposite of a base.",
+    "A steep, sudden run on heavy volume": "That's a flagpole, a quick run. A flat base goes sideways.",
     "A V-shaped drop and fast recovery": "A V is a sharp reversal. A base goes sideways.",
-    "A gap that does not fill for weeks": "A gap is a jump between two bars, not a base."
-   }
+    "A gap that does not fill for weeks": "That describes a price gap, not weeks of sideways trading."
+   },
+   "simple": "A flat base is a stock moving sideways for weeks or months, neither rising nor falling much.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten for variety before (2026-11-10); IBD shows only its opening, Bulkowski confirmed"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q50",
@@ -3035,13 +3545,13 @@
    "term": "Darvas box",
    "q": "What does Darvas box mean?",
    "choices": [
-    "A box built from recent highs, lows",
+    "A range set by recent highs and lows",
     "A rounded base with a short handle",
     "A flat top with steadily rising lows",
     "Three peaks, with the middle highest"
    ],
-   "answer": "A box built from recent highs, lows",
-   "why": "A range framed by recent highs and lows. The buy signal is a break above the top of the box.",
+   "answer": "A range set by recent highs and lows",
+   "why": "A range set by recent highs and lows. Investopedia says it places price in a box based on recent highs and lows. The buy signal is a break above the box on strong volume. Bulkowski sets the box top at a high that holds for the next three days. Then he waits for a close outside the box. It is a range, not a shape like a cup.",
    "lesson_line": "Darvas box: a top, a bottom, and a trade on the break.",
    "facts": [
     "f159",
@@ -3055,7 +3565,16 @@
     "A rounded base with a short handle": "That's a cup with handle.",
     "A flat top with steadily rising lows": "That's an ascending triangle.",
     "Three peaks, with the middle highest": "That's a head and shoulders."
-   }
+   },
+   "simple": "A Darvas box is a price range framed by recent highs and lows, and the trade comes on a break above it.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten for variety before (2026-11-10); Investopedia unreachable for this check, Bulkowski confirmed"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q51",
@@ -3065,15 +3584,27 @@
    "term": "measure rule",
    "q": "A pattern's measured target tells you how far price will go.",
    "answer": "False",
-   "why": "False. Bulkowski calls the measure rule an estimate only, and usually inaccurate. StockCharts calls any target a rough guide.",
-   "lesson_line": "Targets are guides. Manage the trade on what price actually does.",
+   "why": "False. The measure rule uses the pattern's height to estimate a move after the breakout. Bulkowski calls the result an estimate only, and says the computation is usually inaccurate. StockCharts says any price target should serve as a rough guide, and other factors should also be considered. A target is a reference point, not a forecast.",
+   "lesson_line": "A measured target is a rough guide, not a forecast.",
    "facts": [
     "f11",
     "f12",
     "f13",
     "f14",
     "f184"
-   ]
+   ],
+   "simple": "False, because a measured target is only a rough guess, and price can stop short of it or run past it.",
+   "deeper": {
+    "trap": "A target printed on the chart looks precise, down to the cent. That precision comes from arithmetic, not from a forecast. Bulkowski says the computation varies from pattern to pattern and is usually inaccurate. StockCharts adds that other parts of technical analysis should help decide when to sell."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q52",
@@ -3083,14 +3614,27 @@
    "term": "cup with handle",
    "q": "Once a cup with handle breaks out, price rarely gives much back.",
    "answer": "False",
-   "why": "False. Fidelity's guide says these often have a throwback, a return to the breakout price. Bulkowski checked 300: 47% dropped substantially within two months.",
+   "why": "False. Fidelity's guide says cups with handles often have a throwback, a return to the breakout price. Bulkowski studied 300 of them from 1990 to March 2024: 47% dropped substantially within two months of the breakout. A breakout is a start, not a safe point. It still needs a stop.",
    "lesson_line": "A clean breakout still needs a stop. Nearly half gave back a lot.",
    "facts": [
     "f197",
     "f182",
     "f27",
     "f28"
-   ]
+   ],
+   "simple": "False, many cup breakouts give back a lot, and in one study 47% dropped hard within two months.",
+   "deeper": {
+    "trap": "A clean breakout feels like proof. Bulkowski's numbers say otherwise: 47% of the 300 cups he studied dropped substantially within two months. A throwback to the breakout price is common too. Plan the stop before the breakout, not after the drop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a study statistic that changes as Bulkowski updates it (47%, 300 patterns)",
+     "fixed before (checker added f197 and f182)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q53",
@@ -3103,21 +3647,38 @@
    "choices": [
     "Just under the handle's low",
     "No stop until the target hits",
-    "Lower it if price gets close"
+    "Lower it if price gets close",
+    "Right at the $50.10 buy price"
    ],
    "answer": "Just under the handle's low",
-   "why": "Just under the handle's low, near $47. Bulkowski names the handle low as a good stop, and Investopedia puts stops below the handle.",
+   "why": "Just under the handle's low, near $47. Bulkowski names the handle low as a good place for a stop. Investopedia puts stops below the handle or the cup, by risk tolerance. Set it before you buy. Then raise it as price rises, as Bulkowski advises.",
    "lesson_line": "Set the stop before you buy. The handle's low is the natural line.",
    "facts": [
     "f26",
     "f37",
     "f28",
-    "f192"
+    "f192",
+    "f197",
+    "f182"
    ],
    "wrong": {
     "No stop until the target hits": "Hope isn't a stop. Bulkowski found 47% of these dropped substantially within two months of the breakout.",
-    "Lower it if price gets close": "That widens the loss you planned for. Bulkowski's advice runs the other way: raise the stop as price rises."
-   }
+    "Lower it if price gets close": "That widens the loss you planned for. Bulkowski's advice runs the other way: raise the stop as price rises.",
+    "Right at the $50.10 buy price": "That leaves no room. Fidelity's guide says cups with handles often have a throwback, a return to the breakout price."
+   },
+   "simple": "The textbook stop goes just under the handle's low near $47, a level Bulkowski names as a good stop.",
+   "deeper": {
+    "trap": "Two mistakes sit on either side of the right stop. With no stop, nothing caps the loss: Bulkowski found 47% of these dropped substantially within two months. A stop right at the buy is so tight that a normal throwback to the breakout price can set it off."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "touches the owner's stop rules (A3, F62, A13): the textbook stop is wider",
+     "fixed before (handle low and a wrong-note changed)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q54",
@@ -3127,13 +3688,26 @@
    "term": "head and shoulders",
    "q": "A head and shoulders top needs an uptrend in front of it.",
    "answer": "True",
-   "why": "True. A reversal needs something to reverse. Without a prior uptrend there's no head and shoulders top.",
+   "why": "True. StockCharts says that without a prior uptrend to reverse, there cannot be a head and shoulders reversal pattern. Bulkowski adds that price must have something to reverse, so a small rise into the pattern means a small expected decline. Schwab says trend reversals require strong trends leading into them.",
    "lesson_line": "No uptrend before it, no head and shoulders top.",
    "facts": [
     "f130",
     "f133",
-    "f139"
-   ]
+    "f139",
+    "f140"
+   ],
+   "simple": "True, because a top is a turn down, and without an uptrend before it there is nothing to turn.",
+   "deeper": {
+    "counter": "Picture three peaks with the middle one highest, drawn after a long slide. The outline matches, but there is no uptrend to reverse, so StockCharts would not call it a head and shoulders top. Schwab warns that people new to technical analysis tend to see head and shoulders patterns everywhere. Check the trend leading in before you name it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q55",
@@ -3145,12 +3719,12 @@
    "q": "Which word fits?",
    "choices": [
     "Inverse head and shoulders",
-    "Triple bottom",
-    "Double bottom",
+    "Triple bottom near $30",
+    "Rounding bottom, or saucer",
     "Head and shoulders top"
    ],
    "answer": "Inverse head and shoulders",
-   "why": "Inverse head and shoulders. The middle low is the deepest, and the two outer lows sit near the same level.",
+   "why": "Inverse head and shoulders. The middle low, $26, is the deepest, and the outer lows at $30 and $30.50 sit near the same level. StockCharts calls this three troughs with the middle one deepest, and Bulkowski a 3-valley pattern with the middle valley below the others. A triple bottom would need three lows at about the same price.",
    "lesson_line": "Deep middle low, level lows either side: the bottom version of head and shoulders.",
    "facts": [
     "f141",
@@ -3158,13 +3732,27 @@
     "f142",
     "f123",
     "f185",
-    "f124"
+    "f124",
+    "f147",
+    "f149"
    ],
    "wrong": {
-    "Triple bottom": "A triple bottom's three lows sit at about the same price. Here the middle one is far lower.",
-    "Double bottom": "There are three lows here, not two.",
-    "Head and shoulders top": "A top is made of peaks, not lows."
-   }
+    "Head and shoulders top": "A top is made of peaks, not lows.",
+    "Triple bottom near $30": "A triple bottom's three lows sit at about the same price. Here the middle low, $26, is far below the others.",
+    "Rounding bottom, or saucer": "A saucer is one slow, rounded low over many months. Here there are three distinct lows."
+   },
+   "simple": "It is an inverse head and shoulders, because the middle low at $26 is deepest and the outer lows sit near $30.",
+   "deeper": {
+    "trap": "A long slide and three lows close together invite the triple bottom label. Look at the depth of the middle low. A triple bottom has three lows at about the same price. Here the middle one, $26, sits well under the $30 and $30.50 lows on either side. So it is the head, not a third equal low."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q56",
@@ -3174,12 +3762,13 @@
    "term": "rounding bottom",
    "q": "Which chart shows a rounding bottom best?",
    "choices": [
-    "The weekly chart",
+    "A weekly chart",
     "An intraday chart",
-    "A one-month daily chart"
+    "A one-month daily chart",
+    "A long daily chart"
    ],
-   "answer": "The weekly chart",
-   "why": "The weekly chart. Rounding bottoms take many months, and Bulkowski says they're hard to spot unless you look on the weekly scale.",
+   "answer": "A weekly chart",
+   "why": "A weekly chart. StockCharts calls the rounding bottom a long-term reversal pattern best suited for weekly charts. Bulkowski says rounding bottoms are difficult to spot unless you look on the weekly scale, and the bowl usually takes many months. A short chart cuts the bowl off. Even a long daily chart is the harder place to spot it.",
    "lesson_line": "Slow patterns need a zoomed-out chart. Check the weekly.",
    "facts": [
     "f147",
@@ -3188,8 +3777,18 @@
    ],
    "wrong": {
     "An intraday chart": "Far too short. This pattern takes many months.",
-    "A one-month daily chart": "A month barely covers part of the bowl."
-   }
+    "A one-month daily chart": "A month barely covers part of the bowl.",
+    "A long daily chart": "More days help, but Bulkowski says rounding bottoms are hard to spot unless you look on the weekly scale."
+   },
+   "simple": "A weekly chart, because a rounding bottom takes many months and its slow curve is easiest to see there.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q57",
@@ -3197,15 +3796,27 @@
    "rung": 8,
    "format": "tf",
    "term": "shakeout",
-   "q": "A shakeout does not always mean the uptrend is over; the prior trend often reasserts.",
+   "q": "As Investopedia uses the word, a shakeout interrupts an uptrend rather than ending it.",
    "answer": "True",
-   "why": "True. Investopedia notes the prior trend often reasserts after a shakeout. In Wyckoff's method, shakeouts can come once an advance has started.",
+   "why": "True. Investopedia uses shakeout almost only for an interruption in a longer-term bullish trend. After one, it says, the previous trend often reasserts. The Wyckoff tutorial adds that shakeouts may come once an advance has started. Often is not always, so a shakeout promises no recovery.",
    "lesson_line": "A shakeout is a scare, not a verdict. Often the prior trend reasserts.",
    "facts": [
+    "f174",
     "f175",
-    "f170",
-    "f174"
-   ]
+    "f170"
+   ],
+   "simple": "True, a shakeout is a scare inside an uptrend, and the prior trend often comes back.",
+   "deeper": {
+    "trap": "Calling a drop a shakeout is no promise. Investopedia says the prior trend often reasserts, not that it must. The Wyckoff tutorial says shakeouts aim to make holders sell to large operators."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (statement rewritten by the checker)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q58",
@@ -3217,11 +3828,12 @@
    "q": "What does Bulkowski call this?",
    "choices": [
     "A busted pattern",
-    "A throwback",
-    "A spring"
+    "A routine throwback",
+    "A Wyckoff spring",
+    "A bullish shakeout"
    ],
    "answer": "A busted pattern",
-   "why": "A busted pattern. Price moved less than 10% after the breakout, then closed through the other side. Fidelity's guide calls it a failed breakout.",
+   "why": "A busted pattern. Bulkowski's rule: price rises less than 10% after the breakout, reverses, and closes below the bottom of the pattern. Here it went from $40 to $41.50, then closed at $36, under the triangle's low. Fidelity's guide calls this a failed breakout, or trap. A throwback only returns to the breakout price.",
    "lesson_line": "When a breakout fails and price exits the other side, respect it.",
    "facts": [
     "f179",
@@ -3232,9 +3844,22 @@
     "f183"
    ],
    "wrong": {
-    "A throwback": "A throwback comes back to the breakout level. This fell through the whole pattern.",
-    "A spring": "A spring dips under support and closes back inside. This closed below and stayed there."
-   }
+    "A routine throwback": "A throwback returns to the breakout price. This fell through the whole pattern.",
+    "A Wyckoff spring": "A spring dips under support and closes back inside. This closed below the whole triangle.",
+    "A bullish shakeout": "Not here. Price gained less than 10%, then closed below the whole triangle. Bulkowski calls that busted."
+   },
+   "simple": "Bulkowski calls it a busted pattern, because price rose less than 10% and then closed below the whole triangle.",
+   "deeper": {
+    "trap": "Calling it a shakeout and waiting for a bounce is the trap. The close below the triangle's low says the breakout failed. Bulkowski adds that a busted pattern can start a trend in the new direction."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker added f183)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q59",
@@ -3247,21 +3872,36 @@
    "choices": [
     "No, reassess: conditions changed",
     "Yes, the target is the plan",
-    "Yes, and add to get there faster"
+    "Yes, and add to get there faster",
+    "No, widen the stop to give it room"
    ],
    "answer": "No, reassess: conditions changed",
-   "why": "No, reassess. Fidelity's pattern guide lists sticking with an original target after conditions change as a dangerous habit. Bulkowski calls targets an estimate only.",
+   "why": "No, reassess: conditions changed. Fidelity's pattern guide lists sticking with a pattern's original target after conditions change as a dangerous habit. Bulkowski calls any target an estimate only, and StockCharts a rough guide. Reassess with your stop in place. That does not mean adding to the trade or widening the stop.",
    "lesson_line": "The target was an estimate made earlier. Trade what's in front of you now.",
    "facts": [
     "f15",
     "f16",
     "f12",
-    "f14"
+    "f14",
+    "f192"
    ],
    "wrong": {
     "Yes, the target is the plan": "A target is an estimate, not a promise from the market.",
-    "Yes, and add to get there faster": "Adding into a selloff to chase a target doubles down on an estimate."
-   }
+    "Yes, and add to get there faster": "Adding into a selloff to chase a target doubles down on an estimate.",
+    "No, widen the stop to give it room": "That raises the loss you planned for. Bulkowski's advice runs the other way: raise the stop as price rises."
+   },
+   "simple": "No, reassess the trade, because the target was only an estimate and the market has changed since you set it.",
+   "deeper": {
+    "trap": "A target set before a market selloff is a guess about a market that has changed. Fidelity's guide calls holding to it a dangerous habit. The disciplined moves cut risk: keep the stop where it is, or sell. Adding or widening the stop does the opposite."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (question reworded by the checker)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q60",
@@ -3274,10 +3914,11 @@
    "choices": [
     "Wait for the close above $34",
     "Buy now, the shape is done",
-    "Buy half now, half at $34"
+    "Buy half now, half at $34",
+    "Wait for a retest of the head's low"
    ],
    "answer": "Wait for the close above $34",
-   "why": "Wait for the close above $34. Bulkowski says wait for confirmation, and Schwab notes many investors have paid a steep price for trading before it.",
+   "why": "Wait for the close above $34. Bulkowski says to wait for confirmation before placing a trade, and he confirms this pattern on a close above the neckline. StockCharts says the neckline break must come convincingly, with an expansion of volume. Fidelity's guide says a pattern is not complete or activated until an actual breakout occurs. That is the textbook view the question asks for.",
    "lesson_line": "Early is a guess. The neckline break is the signal.",
    "facts": [
     "f144",
@@ -3285,12 +3926,28 @@
     "f138",
     "f140",
     "f146",
-    "f7"
+    "f7",
+    "f141",
+    "f200",
+    "f201"
    ],
    "wrong": {
     "Buy now, the shape is done": "A shape isn't a pattern until it breaks out.",
-    "Buy half now, half at $34": "Half a position bought on a guess is still a guess."
-   }
+    "Buy half now, half at $34": "Half bought on a guess is still a guess. Our rule is the full size at one price, with no adding.",
+    "Wait for a retest of the head's low": "A drop back to the head's low would spoil the shape. The signal is a close above $34."
+   },
+   "simple": "Wait for a close above $34, because the pattern is not confirmed until price breaks the neckline.",
+   "deeper": {
+    "trap": "Buying at $33 feels like a better price than the breakout. The cost is that the shape may never confirm. Schwab says many investors have paid a steep price for placing a trade without waiting for signals confirming the pattern. A slightly better fill is little help if the neckline holds and the stock turns down."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "keyed as the textbook view; UCT's own entry timing on a neckline break (close or intraday) is not in the rulebook"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q61",
@@ -3298,14 +3955,27 @@
    "rung": 7,
    "format": "tf",
    "term": "ascending triangle",
-   "q": "An ascending triangle can still break down.",
+   "q": "In Bulkowski's count, ascending triangles break down as well as up.",
    "answer": "True",
-   "why": "True. Bulkowski counts upward breakouts 63% of the time, not always. Fidelity's guide says it can break either way, more often up.",
+   "why": "True. Bulkowski counts upward breakouts 63% of the time, so the rest break down. Fidelity's guide says prices can break in either direction, but more commonly upward. StockCharts gives the pattern a bullish bias from its rising lows. A bias is a lean, not a promise. Wait for the break to show the direction.",
    "lesson_line": "Bullish bias, not a guarantee. Plan for the break you don't expect.",
    "facts": [
     "f83",
-    "f84"
-   ]
+    "f84",
+    "f82"
+   ],
+   "simple": "True, because Bulkowski counts upward breakouts 63% of the time, so the rest break down.",
+   "deeper": {
+    "trap": "The flat top and rising lows look like buyers winning. So it is easy to buy early, hoping for the upside break. Bulkowski's own count still has a share of these breaking down. Let the break show the direction before you act."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a study count (Bulkowski's 63%) that he updates over time"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q62",
@@ -3315,13 +3985,27 @@
    "term": "wedge",
    "q": "Wedges rank among the best-performing chart patterns.",
    "answer": "False",
-   "why": "False. Bulkowski calls rising wedges some of the worst performers and the falling wedge a poor one. Fidelity's guide rates both below average.",
-   "lesson_line": "A pattern's fame isn't its record. Wedges test poorly.",
+   "why": "False. Bulkowski says rising wedges, especially with downward breakouts, are some of the worst performing chart patterns. He calls the falling wedge a poor performer among bullish patterns. Fidelity's guide says performance in both types is below average, and retracements are very common.",
+   "lesson_line": "Wedges test poorly in Bulkowski's and Fidelity's reviews.",
    "facts": [
     "f68",
     "f71",
-    "f64"
-   ]
+    "f64",
+    "f72",
+    "f75"
+   ],
+   "simple": "False, because tests put rising wedges among the worst patterns, and falling wedges do poorly too.",
+   "deeper": {
+    "counter": "Textbooks give the falling wedge a bullish bias and the rising wedge a bearish one, which can sound like a strong edge. The bias only tells you which way the break leans. Performance is a separate measure, and on Bulkowski's and Fidelity's reading both wedges rate below average."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "performance rankings come from study data that is updated over time"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q63",
@@ -3331,13 +4015,13 @@
    "term": "symmetrical triangle",
    "q": "What separates a symmetrical triangle from a pennant?",
    "choices": [
-    "A pennant is short, after a sharp run",
+    "Pennants are short, after sharp runs",
     "Pennants have two parallel lines",
     "Triangles need a long downtrend first",
     "Pennants come with no flagpole"
    ],
-   "answer": "A pennant is short, after a sharp run",
-   "why": "Pennants are short and follow a sharp move. A symmetrical triangle can form without one and runs longer. StockCharts calls one under three weeks a pennant.",
+   "answer": "Pennants are short, after sharp runs",
+   "why": "Pennants are short, after sharp runs. Investopedia: flags and pennants need a sudden shift before they form, and symmetrical triangles can form without one. StockCharts usually calls a symmetrical triangle under three weeks a pennant. Bulkowski says pennants last three weeks or less, and longer ones are symmetrical triangles. Both have converging lines.",
    "lesson_line": "Same shape, different setting: a pennant hangs off a pole.",
    "facts": [
     "f104",
@@ -3351,7 +4035,19 @@
     "Pennants have two parallel lines": "Parallel lines make a flag. A pennant's lines converge, like a triangle's.",
     "Triangles need a long downtrend first": "The trend into a symmetrical triangle can be either direction.",
     "Pennants come with no flagpole": "It's the reverse. A pennant needs a sharp move, its pole, before it."
-   }
+   },
+   "simple": "A pennant is short and comes right after a sharp run, while a symmetrical triangle can form without one.",
+   "deeper": {
+    "trap": "Same shape, different setting. A small triangle with no sharp run before it is not a pennant, however short. A pennant that runs past three weeks becomes a symmetrical triangle in Bulkowski's book. Check the pole first, then the clock."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker removed absolute words from two wrong choices)"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q64",
@@ -3359,7 +4055,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "triple top",
-   "q": "Which word is this: three roughly equal highs, then a break below the lows between them.",
+   "q": "Which word is this: three highs near one price, level lows between them, then a break below those lows.",
    "choices": [
     "Triple top",
     "Head and shoulders",
@@ -3367,20 +4063,29 @@
     "Ascending triangle"
    ],
    "answer": "Triple top",
-   "why": "Triple top. Three tries at the same ceiling fail, and the break of the lows between them completes it.",
+   "why": "Triple top. StockCharts describes three equal highs followed by a break below support. Fidelity's guide describes three peaks at about the same price with two troughs between. It completes on that break. Three equal highs alone are not enough: StockCharts says they can also be found in an ascending triangle or rectangle.",
    "lesson_line": "Triple top: three equal highs, done only when support breaks.",
    "facts": [
     "f120",
     "f121",
     "f124",
-    "f122",
-    "f79"
+    "f79",
+    "f199"
    ],
    "wrong": {
     "Head and shoulders": "Its middle peak is higher than the other two.",
     "Double top": "That's only two peaks.",
-    "Ascending triangle": "Its flat top comes with rising lows, and its bias is bullish."
-   }
+    "Ascending triangle": "Its lows rise toward a flat top. Here the lows are level."
+   },
+   "simple": "It is a triple top, because three tries at the same high fail and then the lows between them break.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
   },
   {
    "key": "q65",
@@ -3396,8 +4101,8 @@
     "Throwback"
    ],
    "answer": "Upthrust",
-   "why": "Upthrust. It's the spring turned upside down: a quick push above resistance that fails and closes back in the range.",
-   "lesson_line": "Upthrust above the range, spring below it. Both fail and snap back.",
+   "why": "Upthrust. The Wyckoff tutorial calls it a price move above trading range resistance that quickly reverses and closes inside the range. The CMT Association describes the same sharp thrust above resistance and a quick close back below it.",
+   "lesson_line": "Upthrust: a push above the range that closes back inside it.",
    "facts": [
     "f165",
     "f166",
@@ -3406,9 +4111,58 @@
    ],
    "wrong": {
     "Spring": "A spring dips below the range's floor, not above its top.",
-    "Breakout": "A breakout holds outside the range. This closed back inside.",
-    "Throwback": "A throwback is a return to the breakout level after a breakout that held."
-   }
+    "Breakout": "Price closed back inside the range. Wyckoff names that failed push an upthrust.",
+    "Throwback": "A throwback comes after an upward breakout climbs, then returns to the breakout price."
+   },
+   "simple": "It is an upthrust, because price pushes above the range's top and then quickly closes back inside it.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; two or more publishers agree"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.pattern_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "handle",
+   "house": true,
+   "story": "You buy a cup with handle breakout at $50.10. Today's low so far is $49.60. The handle bottomed at $47.",
+   "q": "Under UCT's default stop rule, where does your stop go?",
+   "choices": [
+    "A few cents under today's $49.60 low",
+    "Exactly on today's $49.60 low",
+    "A few cents under the $47 handle low",
+    "Exactly on the $47 handle low"
+   ],
+   "answer": "A few cents under today's $49.60 low",
+   "why": "A few cents under today's $49.60 low. Our default stop sits a few cents under the day's low, not exactly on it. Textbooks often use the handle's low instead, which Bulkowski calls a good place for a stop. Our stop usually sits within about 3% of the buy.",
+   "lesson_line": "Our default stop sits a few cents under the day's low, not on it.",
+   "simple": "Under UCT's rule, the stop goes a few cents under today's low, not on it and not at the handle.",
+   "facts": [
+    "f199",
+    "f200",
+    "f201",
+    "f26",
+    "f37"
+   ],
+   "wrong": {
+    "Exactly on today's $49.60 low": "Right level, wrong spot. Our rule puts the stop a few cents under the day's low, not exactly on it.",
+    "A few cents under the $47 handle low": "That's the textbook level. Bulkowski calls the handle low a good place for a stop. Our default starts from the day's low.",
+    "Exactly on the $47 handle low": "That's the textbook level, and placed on the line. Ours sits a few cents under the day's low."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "house rule (A3, F62, A13) replaces the textbook handle-low stop that q53 keyed"
+    ]
+   },
+   "batch": "wave8"
   }
  ],
  "conflicts": [
@@ -3448,393 +4202,399 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key matches f1 (StockCharts glossary) and f2 (Bulkowski glossary), read in context. Both wrong choices are real confusions. No change. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q02": {
    "status": "pass",
-   "notes": "f3 (StockCharts) and f4 (Bulkowski) support the key; f187 and f48 confirm flags and pennants are continuation patterns, so those distractors are really wrong. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f3, f4). The why's 'After a continuation, the old trend resumes' and the Continuation wrong-note rest on f1, which was not cited (f187 covers only flags and pennants). Added f1."
   },
   "q03": {
    "status": "pass",
-   "notes": "f18, f19 (StockCharts), f22 (Bulkowski), f30 (Fidelity) support 'U-shaped base plus a short pullback'. Each wrong choice names another pattern correctly. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right; distractors balanced (35/35/30/36), no tell. 'Short pullback' in the key and simple had no cited support for 'short': f20 (handle usually retraces no more than a third of the cup's advance) added. q03/q04 overlap kept per the Resolver: the handle is in the term's own name."
   },
   "q04": {
    "status": "pass",
-   "notes": "f19 (StockCharts), f22 (Bulkowski), f34 (Investopedia): the handle is the pullback on the cup's right. No change. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "f18 (StockCharts), f23 (Bulkowski), f30 (Fidelity) all reject a V-shaped cup; the lesson's support line is f189. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q06": {
    "status": "pass",
-   "notes": "f40, f48 (StockCharts), f49 (Bulkowski), f56 (Investopedia) support the key; the wrongs map to cup, pennant or triangle, and flagpole. No change. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right, lengths balanced. The wrong-note 'That's a rounding bottom, or the cup of a cup with handle' had no cited fact. Added f18 (the cup should be U-shaped and resemble a bowl or rounding bottom)."
   },
   "q07": {
    "status": "pass",
-   "notes": "Flagpole per f43, f44 (StockCharts), f50 (Bulkowski), f62 (Fidelity). Every bank word is a real pattern part; only 'flagpole' fits. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right, only 'flagpole' names a run, no echo. The last why sentence ('The other bank words name other pattern parts: the handle, the neckline, the apex and the lip') rests on no cited fact. Dropped it rather than cite four more facts."
   },
   "q08": {
    "status": "pass",
-   "notes": "f42 (StockCharts), f53 (Bulkowski), f61 (Investopedia): a small symmetrical triangle; f44 for the sharp move before it. No change. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f42, f44, f61). The flat-base wrong-note says 'A pennant is short', but no cited fact says short (f42/f61 say small). Added f62 (Fidelity: a short consolidation after a sharp move), which carries no three-week number, so q63 stays unanswered by number."
   },
   "q09": {
    "status": "pass",
-   "notes": "Parallel lines for a flag (f41 StockCharts, f51 Bulkowski 'parallel, or near parallel'), converging for a pennant (f42, f53, f57 Investopedia). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "f63 (Fidelity) and f65, f70 (Bulkowski): both lines slope the same way and converge. Wrongs are ascending triangle, flag, cup with handle. No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Decided 'narrowing lines sloping the same way' from f63, f65, f70 before reading the key: match. Lengths 36/33/36/30. Every wrong-note cited (f79, f40/f41, f17/f19). No second answer."
   },
   "q11": {
    "status": "pass",
-   "notes": "f79 (StockCharts), f80 (Bulkowski), f81 (Fidelity) agree. The supply and demand reading in the why is StockCharts' f190 and f82. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key fixed by f79, f80, f81 (three publishers). Supply line from f190, bias from f82. Wrong notes grounded (f85, f96, f65). No longer answers q61."
   },
   "q12": {
    "status": "pass",
-   "notes": "f85 (StockCharts), f86 (Bulkowski), f87 (Fidelity). Only 'descending' fits the sentence. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "'Coil' confirmed in f93 (StockCharts), f94 (Bulkowski), f95 (Investopedia). No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The 'Rounding bottom' wrong note says 'also called a saucer', which is q20's key (q20 is the saucer fill, same rung 2, so it can be shown before or after). Removed the synonym; the note is grounded in f149. All else passes: key from f93, f94, f95; no length tell."
   },
   "q14": {
    "status": "pass",
-   "notes": "Apex = where the lines meet: f99 (StockCharts) and f102 (Bulkowski). The wrong notes are accurate. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "f106 (StockCharts), f109 (Fidelity), f111 (Investopedia). Wrongs are double top, inverse head and shoulders, rounding bottom, each named correctly. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Two cross-reveals. The rounding bottom note says 'or saucer', which is q20's key (q20 is rung 2, q15 rung 1, so q15 is shown first). The why's last sentence and the highs note name 'a double top', which is the answer to q16's fill (rung 2). Rewritten so neither names another question's answer; every note is still grounded (f106, f123, f185, f149)."
   },
   "q16": {
    "status": "pass",
-   "notes": "f114, f115 (StockCharts), f119 (Schwab). Only 'double' fits two peaks. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The sentence fix passes. But the why's last sentence and the lesson_line teach the double top completion rule (a break below the low between the peaks). That is q41's key: q41 is rung 7, q16 rung 2, so q16 is shown first and gives it away. Cut both; f115 dropped."
   },
   "q17": {
    "status": "pass",
-   "notes": "f124, f125 (StockCharts), f132 (Bulkowski), f134 (Fidelity). A triple top has level peaks (f120, f121), so it is really wrong. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The choices pass: the key is not the longest and the notes are grounded. But the why's last sentence ('not complete until the neckline under it breaks') is q42's key, and q42 is rung 6 against q17's rung 1. Cut it; f127 dropped. Not in scope, but the same point stands: q18's why (rung 2) also states that rule."
   },
   "q18": {
    "status": "pass",
-   "notes": "Neckline through the lows: f126 (StockCharts), f131 (Bulkowski), f137 (Schwab, the troughs before and after the head). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q19": {
    "status": "pass",
-   "notes": "f141 (StockCharts), f142 (Investopedia), f143 (Bulkowski). Wrongs: the top, a double bottom, a triple bottom (f123, f185). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "'Saucer' confirmed in f147, f151 (StockCharts) and f150 (Bulkowski's 'saucer lip'). The why's weekly-chart line also rests on Bulkowski, so f148 was added to the cited facts.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only 'saucer' fits (f151). why and simple rest on f151, f150, f149; no weekly-chart giveaway for q56. Note: risk.reasons still says 'checker added f148' though f148 is no longer cited; stale metadata only."
   },
   "q21": {
    "status": "pass",
-   "notes": "f152, f153 (StockCharts), f154 (Bulkowski), f155 (Fidelity). No change. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q22": {
    "status": "pass",
-   "notes": "f7 (Fidelity: not complete or activated until a breakout), f8 (Bulkowski's confirmation), f9 (StockCharts). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q23": {
    "status": "pass",
-   "notes": "In going up, out going up: a continuation per f2 (Bulkowski) and f1 (StockCharts). The prices are the story's own. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Two defects. (1) Nested-choice tell: 'Topping pattern' is a kind of 'Trend reversal pattern' (walkthrough w1 says tops live under reversals), so a test-wise member drops both and only the spring is left against the key. (2) The 'Wyckoff spring' wrong note defines a spring (dip below the low, close back inside), which is q45's key (q45 is rung 7, q23 rung 4, so it is shown first): the same cross-reveal the Resolver removed from q65. Fix: three choices that do not entail each other; the new distractor is answered from the story and f7, defines nothing another question asks."
   },
   "q24": {
    "status": "pass",
-   "notes": "f5, f6 (StockCharts): a pattern after a big move is not automatically a reversal; f10 (Investopedia): a wedge can be either. 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site. variety rewrite checked 2026-11-10; edited: statement now says automatically (f5) so it is unambiguously false without always.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "False per f5 and f6; no absolute word in the statement. why cites f6, f10, f2, f4 correctly. Pass."
   },
   "q25": {
    "status": "pass",
-   "notes": "Recomputed 50 + (50 - 40) = 60; the calc agrees. Method in f21 (StockCharts), f31, f33 (Fidelity), f38 (Investopedia); f186 backs 'a guide, not a promise'. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 50 + (50 - 40) = 60; numbers from the question; f21, f31, f33, f38, f186 support. Lesson-level overlap with q51 (target is a guide) is the theme the Resolver kept across q25/q29/q43/q59; q51 sits outside this chunk."
   },
   "q26": {
    "status": "pass",
-   "notes": "Cup $35 to $49: midpoint $42, so $38 is in the lower half (it gives back 11 of the 14 points). Upper-half rule in f24 (Bulkowski) and f35 (Investopedia). Handles can drift down (f34), so 'only sideways' is really wrong. No change. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
-   "notes": "'Just above the top of the handle' matches f39 (IBD, handle high plus 10 cents; WebFetch refuses investors.com, confirmed with plain curl) and f36 (Investopedia). Fidelity and Bulkowski use the right rim, the same level in a classic cup (conflicts). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q28": {
    "status": "pass",
-   "notes": "Lips at each end: f30 (Fidelity). Bulkowski's cited fact f25 says 'rims', so added f195, his own 'right cup lip' wording on the cup page, as the second publisher using the word.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f30, f195, f25). The why's 'The breakout comes after the handle' and the wrong-note 'The lips come before it' had no cited fact. Added f197 (Fidelity: complete with breakout above both lips)."
   },
   "q29": {
    "status": "pass",
-   "notes": "Recomputed 28 + (30 - 20) = 38; the calc agrees. Method stated in the question and in f47 (StockCharts) and f60 (Investopedia); f12 'an estimate only'. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q30": {
    "status": "pass",
-   "notes": "Sharp run, parallel drift, shrinking volume: a flag per f40, f41, f46 (StockCharts), f49 (Bulkowski), f58 (Investopedia). Each wrong choice is really wrong. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f40, f49, f41, f52 (8 days is under 3 weeks). 'Rectangle' is a close miss, not a second answer: f154 says rectangles are flat and this one slopes. Volume from f46 and f58; the numbers come from the story."
   },
   "q31": {
    "status": "pass",
-   "notes": "Said 'for months', but StockCharts (f45) calls a one to 12 week flag a flag, so a two-month flag still counts there. Now 'four months', past both StockCharts' 12 weeks and Bulkowski's three (f52), so False holds under both.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q32": {
    "status": "pass",
-   "notes": "f54 (Bulkowski: volume trends down 86% of the time) and f59 (Investopedia: weakening volume). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True from f54 and f59. The lesson_line no longer claims volume returns. Lesson-level point: true/false items follow hedged wording means True (q32, q35, q57, q61) and absolute wording means False (q05, q22, q24, q51, q52, q62). Fixing that means rewording several items together, outside this check."
   },
   "q33": {
    "status": "pass",
-   "notes": "3 + 2 = 5; the calc agrees. f66 (Bulkowski) and f63 (Fidelity) read in context; the question names its sources and StockCharts' lower count is in conflicts. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 3 + 2 = 5 is right, but Bulkowski's quote (f66) is from his Rising Wedges page, so 'on a wedge ... Bulkowski' overgeneralizes. Stem narrowed to a rising wedge (Fidelity's f63 covers any wedge, so it still applies). The lesson_line kept 'before you call it a wedge', the very wording the Resolver ruled f66 does not support; trimmed. One why sentence was 23 words."
   },
   "q34": {
    "status": "pass",
-   "notes": "Bearish bias per f72, f73, f74 (StockCharts) and f77 (Investopedia), asked as what textbooks say. The wrong note made 'neutral until the apex' the symmetrical triangle's reading; StockCharts gives it no bias and a break before the apex, so the note now says only that. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f72, f73, f77). But the Resolver's added sentence 'Bulkowski counts downward breakouts 60% of the time' is exactly the fact q35 asks, so q34's reveal answers q35. Dropped that sentence and f67; 'usually bearish' (f77) still keeps the lean a lean."
   },
   "q35": {
    "status": "pass",
-   "notes": "f67 (Bulkowski: down 60% of the time) and f77 (Investopedia: 'usually'). 'Always' is false. No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f67 (any direction, down 60%) with f77 ('usually' bearish) as the agreeing second publisher. The why names the bearish lean, which q34 asks, but q34 is rung 4 and q35 rung 7, and the lean is the point of this item. No longer answers q62."
   },
   "q36": {
    "status": "pass",
-   "notes": "f70 (Bulkowski), f75, f76 (StockCharts), f78 (Investopedia). A descending triangle needs a flat floor (f85); flags run under three weeks (f52). No change. Investopedia wedge page (f10, f77, f78): read in context from today's first fetch; my re-run got 402 for 7 minutes and WebFetch cannot reach the site.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Rising wedge' is a silly choice: the story says 'two down-sloping lines', so it is ruled out by reading alone, and it pairs with the key ('wedge' twice) to steer to the answer. Replaced by 'Symmetrical triangle', a real misread of converging lines, grounded in f96. The key is still not the longest choice. Why, simple and lesson_line unchanged and pass (f70, f75, f76, f78, f7)."
   },
   "q37": {
    "status": "pass",
-   "notes": "f96 (StockCharts), f97 (Bulkowski), f98 (Fidelity). The wrong choices are correctly excluded. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The why and the Rising wedge note say 'a wedge has both lines sloping the same way', but the only cited wedge fact is f65, which covers the rising wedge alone. Add f63 (Fidelity: both lines headed in the same direction). The key is 2 characters longer than 'Ascending triangle'. That is not a real tell among pattern names, so it is left alone."
   },
   "q38": {
    "status": "pass",
-   "notes": "Half to three-quarters per f99, f100 (StockCharts); Bulkowski's average of 74% (f101) sits inside that band. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q39": {
    "status": "pass",
-   "notes": "Completes on a break above the middle peak: f107 (StockCharts), f110 (Fidelity), f112 (Investopedia). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f107 and f110 (two publishers); f112 is cited correctly as an entry rule. All four choices now start 'When', and the key is not the longest. The double top mirror (q41) is only one inference away, which is acceptable."
   },
   "q40": {
    "status": "pass",
-   "notes": "Recomputed (50 - 49) / 50 x 100 = 2; the calc agrees. 2% is inside StockCharts' 3% (f108) and Investopedia's 3% to 4% (f113). The lesson said such lows 'still make a double bottom'; it also needs the breakout (f107), so it now says they 'still count as roughly equal'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q41": {
    "status": "pass",
-   "notes": "Middle low $70; done only when it breaks (f115, f116 StockCharts; f118 Fidelity). $79.50 is 0.6% under $80, inside f117's 3%. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q42": {
    "status": "pass",
-   "notes": "f127 (StockCharts) and f135 (Fidelity): complete only on the neckline break. The 'close' in the key was cited to Bulkowski's bottoms page (f145); replaced by f196, his tops page (confirms on a close below the neckline). The neckline is flat at $44.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Decided 'close under the $44 neckline' from f126, f127, f135 before reading the key: match. Both armpits near $44, so Bulkowski's close rule (f196) gives $44 whichever way the neckline is read. Story opens with the prior uptrend (f130). Lengths balanced."
   },
   "q43": {
    "status": "pass",
-   "notes": "Recomputed 50 - (60 - 50) = 40; the calc agrees. Method in f128, f129 (StockCharts), f136 (Fidelity); f14 'a rough guide'. No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q44": {
    "status": "pass",
-   "notes": "Either direction: f88 (Bulkowski, up 53%) and f89 (Fidelity, most often down); wait for a close outside a line (f92), and StockCharts' 'not complete until support is broken' (f91). The reveal names the conflict. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key right: f92 confirms on a close outside a line; f88 vs f89/f90 shows the bias is not settled. The second wait choice is refuted by f92. Every wrong-note supported. The 53% date-dependence is already in risk.reasons."
   },
   "q45": {
    "status": "pass",
-   "notes": "Below $20, then a close back at $20.60: a spring per f162 (StockCharts glossary), f163 (Wyckoff tutorial), f164 (CMT Association). The story gives no volume, so the volume conflict does not arise. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f162, f163, f164). Three defects. (1) The stem 'In Wyckoff terms' is a tell: Breakdown and Throwback are not Wyckoff words, so only Spring and Upthrust are left. (2) The Upthrust wrong-note ('a poke above the range's top that closes back inside') nearly copies q65's stem, so q45 answers q65. (3) 'A breakdown stays below support' (wrong-note, why, lesson_line, deeper) rests on no cited fact. Rewrote all four from f163, f164, f165."
   },
   "q46": {
    "status": "pass",
-   "notes": "f171 (StockCharts glossary), f172, f173 (Investopedia): many holders exit at once, usually sharply. No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key right (f171, f172, f173). Slow-slide note rests on f172/f173 as the Resolver rewrote it. The gap-up distractor is weak but not absurd, and has a supported note. No second answer."
   },
   "q47": {
    "status": "pass",
-   "notes": "The key rested on one shared text (StockCharts republishes Wyckoff Analytics). Added f198 from independently written slides by Hank Pruden hosted by the CMT Association (s57): the cause is built in the range, its projection is the effect. Key unchanged. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q48": {
    "status": "pass",
-   "notes": "f167 (StockCharts tutorial) and f168 (Wyckoff Analytics, the method's own school) say springs are not required; f169: Schematic 2 has none. Two Tier 2 publishers but one shared text; no independent reliable source found (only vendor blogs). Standard Wyckoff teaching. No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False per f167; f169 grounds the deeper counter. One-shared-text risk is already flagged to the owner."
   },
   "q49": {
    "status": "pass",
-   "notes": "f156, f157 (Bulkowski) and f158 (IBD's opening, confirmed with plain curl; WebFetch refuses investors.com). No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f156 and f158; the wrong notes are grounded in f50 and f18 and the gap note is a plain contrast. The lengths are even (33 to 35)."
   },
   "q50": {
    "status": "pass",
-   "notes": "f159 (Investopedia) and f160, f161 (Bulkowski): a box from recent highs and lows, traded on the break. No change. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f159; the box top and the close rule come from f161 and f160; the number 3 is in f161. The key no longer repeats 'box'. The distractors are real shapes."
   },
   "q51": {
    "status": "pass",
-   "notes": "f12, f13 (Bulkowski: an estimate only, usually inaccurate), f14, f184 (StockCharts: a rough guide). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False from f12, f13, f14, f184. The deeper no longer quotes f15 (q59's key). The lesson_line matches f12 and f14."
   },
   "q52": {
    "status": "pass",
-   "notes": "The key rested on Bulkowski's 300-pattern study (f27, f28) alone; the cited StockCharts line (f183) is not about cups. Added f197 (Fidelity: cups with handles 'often have a throwback') and f182 (Bulkowski's throwback definition). The question now reads 'rarely gives much back'; the why names both.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q53": {
-   "status": "pass",
-   "notes": "Handle-low stop per f26 (Bulkowski) and f37 (Investopedia). The handle low moved from $46 to $47, so the textbook stop sits about 6% under the $50.10 entry, not 8%. A wrong note said Bulkowski's stop 'never moves down'; he does not say that, so it now gives only his 'raise the stop as price rises' (f192).",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave8: see the resolver's notes"
   },
   "q54": {
    "status": "pass",
-   "notes": "f130 (StockCharts), f133 (Bulkowski), f139 (Schwab). No change.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q55": {
    "status": "pass",
-   "notes": "Deepest middle low, outer lows at $30 and $30.50: f141 (StockCharts), f143 (Bulkowski), f142 (Investopedia). Not a triple bottom: the lows are not level (f123, f185). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f141 and f143; triple bottom excluded by f123 and f185 ($26 against $30 and $30.50, all numbers from the story). The key ties for longest choice. The saucer choice reveals q20's 'saucer', but q20 is rung 2, so a member sees it first."
   },
   "q56": {
    "status": "pass",
-   "notes": "f147 (StockCharts: best suited for weekly charts) and f148 (Bulkowski: hard to spot unless weekly). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Weekly is keyed by f147 and f148, which agree. 'Long daily chart' is a close miss and its note quotes f148. The articles are now parallel."
   },
   "q57": {
    "status": "pass",
-   "notes": "Was 'a shakeout usually interrupts a longer uptrend' (True): only Investopedia says that. The Wyckoff tutorial says shakeouts 'may also' come in an advance, and StockCharts' example is the dot-com bust. Rewritten to what both allow: 'means the uptrend is over' is False (f175, f170). variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "True is right (f174, f175). The deeper trap's 'Selling every sharp drop hands shares to the large operators' reads as advice to hold through sharp drops, which runs against rulebook A4 (the stop is the exit). Rewrote it to say the label is no promise, from f175 and f170, with no hold-or-sell advice."
   },
   "q58": {
    "status": "pass",
-   "notes": "$40 to $41.50 is under 10%, then a close below the triangle's low: busted per f179, f180 (Bulkowski); Fidelity's f181 names it a failed breakout. The question asks Bulkowski's own term. Added f183 (StockCharts on false breakouts), freed from q52.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f179, f180: $40 to $41.50 is under the 10% in the quote, then a close below the pattern). Choices balanced. The deeper's 'Holders often call a failed breakout a shakeout and wait for the bounce' claims a trader habit no fact supports, the same defect the Resolver fixed in q48. The shakeout wrong-note's 'the hopeful label' is also opinion, not fact. Both rewritten from f180 and f179."
   },
   "q59": {
    "status": "pass",
-   "notes": "Key per f15, f16 (Fidelity: sticking with original targets after conditions change is a dangerous habit), f12 (Bulkowski), f14 (StockCharts). 'Do you keep holding just to reach $38?' leaned on 'just'; now 'Do you hold on for the $38 target?'",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q60": {
    "status": "pass",
-   "notes": "Wait for confirmation: f144, f145 (Bulkowski), f138 (Schwab), f146 (StockCharts), f7 (Fidelity). Asked as what the textbook says. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Textbook key (wait for the close above the neckline) from f144 and f145; f7 and f200 agree that it must break first. Section 9 has no rule on close against intraday entry, so no rulebook conflict. The 'Buy half now' note is consistent with A5 (f201 matches sizing_rule.md exactly). Open point for the owner, already in owner_flags: a tier-3 house fact cited by a question that is not marked 'house'. Confirm the validator accepts that."
   },
   "q61": {
    "status": "pass",
-   "notes": "f83 (Bulkowski: up 63% of the time) and f84 (Fidelity: either direction). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True from f83 (63% up, so the rest down) with f84 agreeing. The stem's hedge tell is gone and the deeper no longer carries q58's busted answer."
   },
   "q62": {
    "status": "pass",
-   "notes": "f68, f71 (Bulkowski) and f64 (Fidelity: below average). No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False from f68, f71, f64. The fame sentence is gone; the lesson_line is supported by f68, f71, f64."
   },
   "q63": {
    "status": "pass",
-   "notes": "f104 (Investopedia: pennants need a sudden prior move), f105 (StockCharts: under three weeks is a pennant), f55 (Bulkowski). The wrongs are really wrong (f41, f103). No change. variety rewrite checked 2026-11-10; edited: two wrong choices lost only/never (absolute-word tell).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key right (f104, f105, f55). Each wrong-note supported (f41/f42, f103, f44). q08 defining a pennant feeds this rung-7 question, but that is a progression, not a giveaway."
   },
   "q64": {
    "status": "pass",
-   "notes": "f120 (StockCharts), f121 (Fidelity). The ascending triangle note is f122. No change.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Second defensible answer, plus a note that teaches against the rulebook-free lesson of q61. The stem never says the lows are level, and the why itself quotes f199 (an ascending triangle also has three equal highs). Bulkowski's count (q61) has ascending triangles breaking down too, so 'Ascending triangle' fits the stem. The note excluded it by 'its bias is bullish', using a bias as a forecast, which q61 and q35 teach against. Fix: the stem states level lows; the note excludes the triangle by shape (f79); f122 dropped."
   },
   "q65": {
    "status": "pass",
-   "notes": "f165 (CMT Association), f166 (Wyckoff tutorial). The spring and throwback notes match f162 and f182. No change.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from f166 and f165 (two publishers). The notes use f162 and f182. The spring note now only contrasts direction, so it no longer states q45's key. A mirror inference remains, which is acceptable."
+  },
+  "q66": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "The house key is right and follows the rulebook (A3/F62: a few cents under the day's low, not exactly on it; A13: about 3%). But the key and 'Exactly on the $49.60 low' were the only two $49.60 choices, a pair tell: a guesser drops to 50/50. Rebuilt as a balanced 2x2 grid ({a few cents under, exactly on} x {today's $49.60 low, the $47 handle low}, lengths 36/29/36/29), so the learner needs both A3 and F62. The $50.10 choice and its throwback note are gone, and so are f197 and f182."
   }
  }
 }
