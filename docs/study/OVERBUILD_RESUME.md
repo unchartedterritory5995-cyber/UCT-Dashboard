@@ -1,16 +1,12 @@
 # Study overbuild: RESUME GUIDE (read this first in any new window)
 
-## >>> RESUMED 2026-11-12 after the weekly reset. RUNNING NOW: <<<
+## >>> COMPLETE 2026-11-12: every lesson upgraded and verified. Nothing running. <<<
 
-| Run id | What | Args (in `_study-resume\overbuild\`) |
-|---|---|---|
-| `wf_0f8f6381-2aa` | wave 9: F8, F9, F11, F12 (the last content wave). Also running: `wf_f44e5638-246` verifyR2 (waves 4b, 5, 6; 269 questions, checks in scratch agents/verifyR2/verify). Waves 6 (929694e95c) and 7 are DONE and committed; wave 7's verify list `wave7_verify_args.json` is NOT yet run | `wave9_args.json` |
-| `wf_694bda00-276` | wave 7: F6 Options, 17 lessons (wave 4b before it is DONE and committed, a56317f2b2; its verify list `wave4b_verify_args.json` (44 questions) is NOT yet run, send it with wave 5's verify) | `wave7_args.json` |
-| `wf_276b3623-6c2` | wave 8: V Vocabulary, 12 lessons (wave 5 before it is DONE and committed, 6b2156a34f). PENDING, not yet launched: combined verify `verifyR2_args.json` (wave 4b + wave 5, 156 questions) and wave 9 `wave9_args.json` | `wave8_args.json` |
-
-The wave script now HOLDS a chunk when its writer, check, red-team, check+break or resolver agent fails (it returns `held: [...]` and logs it); never merge a held chunk.
-Committed before resuming: pilot, waves 1 to 3, wave 2 verify (9/10), wave 4 for 7/10 lessons. Still to launch after these: waves 6 to 9 (`wave6..9_args.json`).
-If this window dies: resume each run with `resumeFromRunId` + its args file.
+All 9 waves plus the pilot are integrated, verified and committed locally (last content commit 568b618f70). 5,215 of 5,215 live
+questions have a simple answer; 0 choice questions have 3 answers. Final report: `docs/study/OVERBUILD_FINAL_REPORT.md`
+(and `StudyReview\plan\Overbuild-FINAL-report.html`). Nothing is pushed. Next: the owner's sample review (Part 4 of the review
+page), his rulings on the owner flags and open decisions, the optional polish (8 style-flagged lessons, 56 uncovered setup
+criteria), then he merges PR #1046.
 
 ## 1. What this is, in his words
 
