@@ -5929,7 +5929,10 @@ export default function StockChart({
     const feedChg = (lp && Number.isFinite(lp.change)) ? lp.change : null
     const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
     const prevBarClose = (prevBar && prevBar.c != null) ? prevBar.c : null
-    const prevClose = (resolvedTfRef.current === 'D')
+    // BARSTORE (P3-S2b): the shown close is the store's bar, so its prior close is the series'
+    // own bar before it (the feed's prev_close names the feed's day, which is not the shown bar's
+    // before the session's first daily bar exists — pre-market, a holiday's eve).
+    const prevClose = (LEGACY_LIVE && resolvedTfRef.current === 'D')
       ? (feedPrev ?? prevBarClose)
       : (prevBarClose ?? feedPrev)
     // DAILY: trust the feed's SERVER-computed today % (change_pct / change) — the

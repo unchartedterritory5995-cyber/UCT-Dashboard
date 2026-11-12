@@ -49,6 +49,9 @@ export const CANDLE_ACTIVE_MS = 10_000
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 const tMs = (t) => (t > 1e11 ? t : t * 1000)
 
+/** The ET trading date of a ms instant (the day the live day-volume belongs to). */
+function etDay(ms) { return computeBarTime('D', Math.floor(ms / 1000)) }
+
 /** Period (`D`/`W`/`M`) label-unix of a unix second. */
 function periodOf(tf, sec) { return dateLabelToUnix(computeBarTime(tf, sec)) }
 
@@ -77,6 +80,26 @@ export function foldMinute(st, m, tf, rev) {
   }
   st.rev = Math.max(st.rev ?? -Infinity, finite(rev) ? rev : -Infinity)
   return { t_s: st.base.t, bar: { t: st.base.t * 1000, o: st.base.o, h: Math.max(h, c), l: Math.min(l, c), c, v, final: false }, rev: finite(st.rev) ? st.rev : null }
+}
+
+/**
+ * ⭐ THE PERIOD BAR'S VOLUME FROM THE LIVE DAY-VOLUME SOURCE (P3-S2b) — when push is not the
+ * live source (prod: VITE_REALTIME_BARS=0), the D/W/M developing bar's volume moves with the
+ * live-price feed's cumulative DAY volume — but the SERVER's period bar is the definition:
+ *   the server's D bar is the Massive DAILY aggregate (all of the day's trades, extended hours
+ *   included); the feed's day volume is the snapshot's regular-session `day.v` during RTH and a
+ *   summed-aggregates total outside it. Two different definitions — so the feed never REPLACES
+ *   the server's number. It only adds what traded SINCE the server's bar arrived:
+ *   v = base.v + (dayVol − dayVol at arrival), for D, W and M alike. An unknown arrival reading,
+ *   or another trading day than the arrival's, adds nothing (v ≤ truth until the next REST answer,
+ *   as the 1m fold); the reducer never lowers the bar's volume within its period (S4).
+ * Pure; `st` = the fold state ({base, dayVol0, day0}). Returns the volume or null.
+ */
+export function periodTickVolume(st, tf, dayVol, day) {
+  if (!st?.base || !finite(dayVol) || dayVol <= 0) return null
+  if (!finite(st.dayVol0) || st.day0 !== day) return null
+  const bv = finite(st.base.v) ? st.base.v : 0
+  return bv + Math.max(0, dayVol - st.dayVol0)
 }
 
 /**
@@ -111,10 +134,23 @@ export function createLiveFeed({
     registry.dispatch(key, { type: final ? ACTION.PUSH_FINAL : ACTION.PUSH_BAR, key, event: data })
   }
 
-  function _dispatchTick(key, session, price, tsMs) {
+  /** The live-price feed's cumulative day volume for `sym` (or null). */
+  function _dayVol(sym) {
+    try { const v = Number(prices?.getSnapshot?.()?.prices?.[sym]?.volume); return finite(v) && v > 0 ? v : null } catch { return null }
+  }
+
+  function _dispatchTick(key, session, price, tsMs, a = null) {
     const live = isStreamLive(key, session)
     if (live || !finite(price) || !finite(tsMs)) return   // S6: push owns the developing bar
-    registry.dispatch(key, { type: ACTION.TICK_FALLBACK, key, event: { price, ts: tsMs } }, { streamLive: live })
+    const p = parseKey(key)
+    const event = { price, ts: tsMs }
+    if (p && isDateTf(p.tf)) {
+      // The period bar is RTH (TradingView) — the same rule as the 1m fold (foldMinute).
+      if (!isRthBar(Math.floor(tsMs / 1000))) return
+      const v = periodTickVolume(a?.fold, p.tf, _dayVol(p.sym), etDay(tsMs))
+      if (v != null) event.v = v
+    }
+    registry.dispatch(key, { type: ACTION.TICK_FALLBACK, key, event }, { streamLive: live })
   }
 
   function _attach(key, session) {
@@ -125,20 +161,26 @@ export function createLiveFeed({
     const sTf = streamTf(p)
     const sSess = streamSession(p, session)
 
+    // ⭐ THE D/W/M FOLD BASE — one owner for BOTH live sources (the push 1m fold and the tick
+    // fallback's volume): the SERVER's developing period bar; anchor = its arrival (P3-S2b: tracked
+    // whether or not push is on, so the tick fallback folds the same period bar).
+    if (isDateTf(p.tf)) {
+      a.fold = { base: null, anchor: null, minutes: new Map(), rev: null, dayVol0: null, day0: null }
+      const rebase = (d) => {
+        a.fold.base = d; a.fold.anchor = foldAnchor(now()); a.fold.minutes = new Map()
+        a.fold.dayVol0 = _dayVol(p.sym); a.fold.day0 = etDay(now())
+      }
+      off.push(registry.subscribe(key, (s) => {
+        const d = s.developing
+        // (a bar the tick fallback touched is still `src: server` but no longer the server's values)
+        if (d && d.src === DEV_SRC.SERVER && !d.ticked && d !== a.fold.base) rebase(d)
+        else if (!d) { a.fold.base = null; a.fold.minutes = new Map() }
+      }))
+      const d0 = registry.getSnapshot(key).developing
+      if (d0 && d0.src === DEV_SRC.SERVER) rebase(d0)
+    }
     // ⛔ THE PUSH FEED IS DARK UNLESS ITS BUILD GATE IS ON (barsStreamManager does not gate itself).
     if (pushEnabled() && (isIntradayTf(p.tf) || isDateTf(p.tf))) {
-      if (isDateTf(p.tf)) {
-        a.fold = { base: null, anchor: null, minutes: new Map(), rev: null }
-        // Track the SERVER's developing period bar as the fold base; anchor = its arrival.
-        const rebase = (d) => { a.fold.base = d; a.fold.anchor = foldAnchor(now()); a.fold.minutes = new Map() }
-        off.push(registry.subscribe(key, (s) => {
-          const d = s.developing
-          if (d && d.src === DEV_SRC.SERVER && d !== a.fold.base) rebase(d)
-          else if (!d) { a.fold.base = null; a.fold.minutes = new Map() }
-        }))
-        const d0 = registry.getSnapshot(key).developing
-        if (d0 && d0.src === DEV_SRC.SERVER) rebase(d0)
-      }
       off.push(stream.subscribe(p.sym, sTf, {
         session: sSess,
         onBar: (data) => {
@@ -161,14 +203,14 @@ export function createLiveFeed({
         const at = candle.getLastTickAt?.(p.sym) || now()
         // Trade time ≈ receipt, clamped into the candle's own minute.
         const ts = Math.min(Math.max(at, c.t * 1000), c.t * 1000 + 59_999)
-        _dispatchTick(key, session, c.c, ts)
+        _dispatchTick(key, session, c.c, ts, a)
       }))
     }
     if (prices?.subscribe) {
       off.push(prices.subscribe([p.sym], () => {
         if (candle?.getLastTickAt && now() - (candle.getLastTickAt(p.sym) || 0) < CANDLE_ACTIVE_MS) return
         const px = prices.getSnapshot?.()?.prices?.[p.sym]?.price
-        _dispatchTick(key, session, Number(px), now())
+        _dispatchTick(key, session, Number(px), now(), a)
       }))
     }
     return a

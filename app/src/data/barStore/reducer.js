@@ -43,7 +43,8 @@
 //     local row only when its basis is PROVEN — by its stamp, or (unstamped) by `basisVerdict`
 //     over the rows the answer also carries — never by a single close compared to a tolerance.
 
-import { bucketStartUnix, computeBarTime } from '../../components/chart/barTime'
+import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
+import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
@@ -53,7 +54,7 @@ import {
 import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
-import { deriveStatus } from './status'
+import { deriveStatus, tickClosedTail } from './status'
 import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
@@ -79,7 +80,8 @@ export function initialState(key, ctx = {}) {
     cacheKey: null, adjBasis: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
-    gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null,
+    gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
+    tailUnverified: false,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -204,12 +206,61 @@ export const inSealedSpan = (state, t) => _inSpans(state, t)
 /** Where the next `since=` delta must start: the first closed row after the newest sealed
  *  one (a delta from later would leave it un-re-read), else the developing / last bar. */
 function computeDeltaFrom(st) {
+  const d = _deltaFromHeld(st)
+  // A live gap (below) must be re-read: the delta starts no later than its first missing bucket.
+  return (finite(st.liveGapFrom) && (d == null || st.liveGapFrom < d)) ? st.liveGapFrom : d
+}
+function _deltaFromHeld(st) {
   const bars = st.bars
   let i = bars.length
   while (i > 0 && !_isSealed(st, bars[i - 1])) i--
   if (i < bars.length) return bars[i].t
   if (st.developing) return st.developing.t
   return bars.length ? bars[bars.length - 1].t : null
+}
+
+// ── the live gap (P3-S2b) ────────────────────────────────────────────────────
+// A LIVE source (push frame / tick) can open a developing bucket while buckets the SERVER NEVER
+// VOUCHED FOR lie between the newest closed row and it (the closed-bar read stalled, a cold or
+// switched key, a dropped stream). A bucket is missing only if it starts at or after
+// max(verifiedThrough, end of the newest row): a thin name's quiet buckets that the server's
+// verified_through covers are proven EMPTY, not missing. The entry records the first missing
+// bucket (`liveGapFrom`); the delta starts at it (computeDeltaFrom) and the store kicks ONE read
+// (index.js). Nothing else: status is untouched and the forming candle still paints (the chart
+// draws no slot for an absent bucket). ANY server answer clears it. Only a live action that OPENS
+// a new bucket sets it.
+
+/** Is `sec` a minute of the key's session on an exchange trading day? */
+function _sessionMinute(state, sec) {
+  const iso = etDateOf(sec)
+  const dow = new Date(iso + 'T12:00:00Z').getUTCDay()
+  if (dow === 0 || dow === 6 || isHolidayISO(iso)) return false
+  if (_sessionOf(state) === 'eth') { const m = etMinuteOfDay(sec); return m >= 240 && m < 1200 }
+  return isRthBar(sec)
+}
+function _sessionOf(state) {
+  const p = parseKey(state.key)
+  return p?.session === 'eth' ? 'eth' : 'rth'
+}
+/** First EXPECTED bucket start strictly between closed row `lastT` and bucket `devT`, or null. */
+export function liveGapStart(state, lastT, devT) {
+  if (isDateTf(state.tf) || !finite(lastT) || !finite(devT) || devT <= lastT) return null
+  // ⭐ SERVER PROOF FIRST (bar-contract.md §verified_through). A bucket the server VOUCHED for is
+  // not missing when it holds no row — it is a proven-empty bucket (a thin name's quiet minute).
+  // So a bucket is missing only if it starts at or after max(verifiedThrough, end of the newest row).
+  const vt = numOrNull(state.verifiedThrough)
+  const floor = Math.max(bucketEnd(lastT, state), vt != null ? vt : -Infinity)
+  let cur = floor
+  // Bounded walk (a long weekend is ~6k minutes): out-of-session minutes step by one minute.
+  for (let n = 0; cur < devT && n < 8000; n++) {
+    if (_sessionMinute(state, cur)) {
+      const b = bucketOf(cur, state)
+      if (b < floor) { cur = bucketEnd(b, state); continue }   // vouched for by the server
+      return b >= devT ? null : b
+    }
+    cur += 60
+  }
+  return null
 }
 
 const MAX_SPANS = 16
@@ -317,7 +368,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'tailUnverified']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -352,7 +403,18 @@ function finalize(prev, next, ctx) {
   n.baseRev = prev.baseRev + (baseChanged ? 1 : 0)
   n.devRev = prev.devRev + (devChanged ? 1 : 0)
   n.depth = n.bars.length
+  // Live gap: checked only when a LIVE action opens a new developing bucket (a server answer
+  // passes `liveGapFrom` explicitly — null — and so clears it; see liveGapStart).
+  if (!('liveGapFrom' in next) && devChanged && n.developing && n.liveGapFrom == null
+      && n.developing.src !== DEV_SRC.SERVER && n.developing.src !== DEV_SRC.LOCAL
+      && (!prev.developing || prev.developing.t !== n.developing.t) && n.bars.length) {
+    const g = liveGapStart(n, n.bars[n.bars.length - 1].t, n.developing.t)
+    if (g != null) n.liveGapFrom = g
+  }
   n.deltaFrom = computeDeltaFrom(n)
+  // A closed row the TICK fallback produced (after the newest REST row) is the client's observation,
+  // not the server's: a separate flag, NOT a status downgrade (status stays stable across tick rolls).
+  n.tailUnverified = tickClosedTail(n)
   // ⛔ A LOCAL HOLE OLDER THAN THE DELTA START IS NEVER RE-READ by a since= delta (it asks only
   // from deltaFrom): the next request must be a FULL read — a status rule on what is held, not
   // a timer. Cleared by the full answer (applyRest), which re-proves the region it carries.
@@ -664,6 +726,7 @@ function applyRest(state, action, ctx, kind) {
     pendingHistoryRev: kind === 'full' ? null : state.pendingHistoryRev,
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
+    liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
   }, ctx)
 }
 
@@ -914,9 +977,13 @@ function applyTick(state, action, ctx) {
   if (!finite(t)) return state
   // Never a closed / sealed bucket, never an earlier bucket than the developing one.
   if ((last && t <= last.t) || (dev && t < dev.t)) return state
+  // D/W/M (P3-S2b): the live DAY-volume source rides on the tick (liveFeed.periodTickVolume —
+  // the one owner); the period bar's volume only ever rises from it.
+  const tickV = isDateTf(state.tf) ? numOrNull(ev.v) : null
   if (dev && t === dev.t) {
     const r = foldPrice(toChartBar(dev, state.sym), price, null, state.tf)
     if (r.kind !== 'update') return state
+    if (tickV != null && tickV > (Number(r.bar.volume) || 0)) r.bar = { ...r.bar, volume: tickV }
     const nd = fromChartDev(r.bar, dev.rev, dev.src, true)
     if (_sameDev(nd, dev)) return state
     return finalize(state, { developing: nd }, ctx)
@@ -924,6 +991,7 @@ function applyTick(state, action, ctx) {
   let st = state, nb = bars
   if (dev) { ({ bars: nb } = closeDeveloping(st, nb)); st = { ...st, bars: nb } }
   const po = provisionalOpen(t, price)
+  if (tickV != null) po.volume = tickV
   return finalize(state, { bars: nb, developing: fromChartDev(po, null, DEV_SRC.TICK) }, ctx)
 }
 
