@@ -2045,7 +2045,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // …and `toHeikinAshi` is NOT a compute function and is still imported — the
     // control that the extractor is selecting rather than emptying the list.
     expect(read('app/src/components/StockChart.jsx'))
-      .toMatch(/import { toHeikinAshi(, heikinAshiNext)? } from './chart/indicators'/)
+      .toContain("import { toHeikinAshi, heikinAshiNext } from './chart/indicators'")
   })
 
   // ⛔⭐ AND THE TEN `compute*` EXPORTS THEMSELVES MUST NOT BE DELETED, WHICH IS
