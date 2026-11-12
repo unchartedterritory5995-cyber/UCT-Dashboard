@@ -31,14 +31,14 @@ import { loadWithBarStore } from '../../../../testing/barStoreModes'
 vi.mock('../../../../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
 
 const ROOT = (() => {
-  let dir = process.cwd()
+  let dir = globalThis.process.cwd()
   for (let i = 0; i < 8; i++) {
     if (fs.existsSync(path.join(dir, 'app', 'src', 'components', 'StockChart.jsx'))) return dir
     const up = path.dirname(dir)
     if (up === dir) break
     dir = up
   }
-  throw new Error(`r1 census: could not find the repo root from ${process.cwd()}`)
+  throw new Error(`r1 census: could not find the repo root from ${globalThis.process.cwd()}`)
 })()
 const SRC = fs.readFileSync(path.join(ROOT, 'app/src/components/StockChart.jsx'), 'utf8')
 

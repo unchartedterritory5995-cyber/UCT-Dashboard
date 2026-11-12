@@ -8316,9 +8316,10 @@ export default function StockChart({
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
-  // P3-S1: the snapshot's developing bar (legacy shape, unix t) for Writer D under BARSTORE —
-  // written ONLY by useBarSnapshotBars (render: the base snapshot's; its devRev channel: every
-  // newer one, then `_storeDevPaintRef` paints it); null under the legacy source.
+  // P3-S1/S2: the developing bar THIS view paints (useBarSnapshotBars.viewDevelopingOf: legacy
+  // shape, unix t, + devRev; custom tf resampled; null while frozen) — written ONLY by
+  // useBarSnapshotBars (render: the store's newest of the rendered base; its devRev channel: every
+  // newer one), painted ONLY by `_storeDevPaintRef` (the store paint); null under the legacy source.
   const _storeDevRef = useRef(null)
   const _storeDevPaintRef = useRef(null)
   // updateChart's handle on the store paint (stable; reads the ref at call time).
@@ -13983,6 +13984,9 @@ export default function StockChart({
       // The base just set IS this view (or nothing is on screen: no live bar on an empty chart).
       _storeDevSeriesRef.current = displayBars?.length ? sid : null
       if (_storeDevPaintedRef.current?.sid !== sid) _storeDevPaintedRef.current = null
+      if (!displayBars?.length) { _storeDevBarRef.current = null; return }
+    } else if (!liveUpdates) {
+      return   // a static chart (liveUpdates off) moves only with its base, like the legacy writers
     }
     if (_storeDevSeriesRef.current !== sid) return   // a switch repaints by setData first
     const d = _storeDevRef.current
