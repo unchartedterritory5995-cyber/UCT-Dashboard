@@ -597,7 +597,9 @@ def test_backfill_resolves_its_sessions_from_the_calendar_and_the_marker_sits_be
 
 def test_status_shape_on_an_empty_store_and_after_a_run(tmp_db):
     empty = rh.status()
+    # `last_attempt` (2026-11-12): the 'started' row a killed run leaves behind; none yet.
     assert empty == {"table": rh.TABLE, "rows": 0, "sessions": 0, "latest_session": None, "last_run": None,
+                     "last_attempt": None,
                      "backfill": {"path": os.path.join(os.path.dirname(str(tmp_db)), rh.BACKFILL_MARKER),
                                   "present": False, "content": None}}
     reader = make_reader(_universe_series(), date(2026, 11, 5))

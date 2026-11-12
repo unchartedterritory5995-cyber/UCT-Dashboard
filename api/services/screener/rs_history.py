@@ -162,6 +162,7 @@ import logging
 import math
 import os
 import re
+import socket
 import sqlite3
 import time
 from array import array
@@ -846,6 +847,126 @@ def last_run() -> dict | None:
         d["note"] = json.loads(d["note"]) if d.get("note") else None
     except (TypeError, ValueError):
         pass
+    return d
+
+
+def latest_session() -> str | None:
+    """The newest stored session key, or ``None``. One ``MAX(session)`` seek;
+    read-only (no table answers ``None`` and creates nothing). Never raises."""
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, TABLE):
+                return None
+            return conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] latest session read failed: %s", e)
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# attempts: the 'started' receipt and the cross-process run marker
+# --------------------------------------------------------------------------- #
+#
+# ⚰️ 2026-11-12: the 04:15 ET nightly started, read its universe, and was killed ~10
+# minutes in when a deploy swapped the web container. `record_run` only writes at the
+# END, so the killed run left no trace anywhere and the store sat a session behind all
+# day. An ATTEMPT row is written BEFORE the work and closed AFTER it: a row with
+# `started_at` and no `finished_at` is a run that is still going or one that died.
+#
+# The same row is the cross-process guard: `begin_attempt` refuses while an unfinished
+# attempt younger than `RUNNING_STALE_S` exists (checked and inserted under ONE
+# `BEGIN IMMEDIATE`, so two pods sharing the file cannot both claim it). A killed run's
+# row stops counting once it is older than that, so it can never block forever.
+
+ATTEMPTS_TABLE = "rs_history_attempts"
+ATTEMPTS_KEEP = 60
+#: An unfinished attempt older than this is a run that died, not one still going.
+#: Measured runs before PR #1135 took a few minutes; the whole-market universe reads
+#: ~13,600 tickers, and the 2026-11-12 run had not finished after ~10 minutes. 45
+#: minutes is well past a slow run and still lets the hourly retry at the next :15
+#: take over from a run killed near 04:15.
+RUNNING_STALE_S = 45 * 60
+_ATTEMPTS_SQL = f"""
+CREATE TABLE IF NOT EXISTS {ATTEMPTS_TABLE} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT, session TEXT, started_at REAL, finished_at REAL,
+    outcome TEXT, pid INTEGER, host TEXT
+)"""
+
+
+def begin_attempt(source: str, session=None, *, now: float | None = None,
+                  stale_after_s: float = RUNNING_STALE_S) -> dict:
+    """Claim a run: ``{"claimed": True, "id": n}``, or ``{"claimed": False,
+    "running": {row}}`` when an unfinished attempt younger than ``stale_after_s``
+    exists. The check and the insert are one ``BEGIN IMMEDIATE`` transaction.
+
+    Fails OPEN (``{"claimed": True, "id": None, "error": ...}``) when the marker
+    cannot be read or written: the run would fail on the same DB anyway, and the
+    caller's process lock still stops a same-process overlap."""
+    now = time.time() if now is None else float(now)
+    key = session_key(session) if session is not None else None
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            conn.isolation_level = None                      # explicit transaction below
+            conn.execute(_ATTEMPTS_SQL)
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                r = conn.execute(
+                    f"SELECT * FROM {ATTEMPTS_TABLE} WHERE finished_at IS NULL AND started_at > ? "
+                    "ORDER BY id DESC LIMIT 1", (now - stale_after_s,)).fetchone()
+                if r is not None:
+                    conn.execute("ROLLBACK")
+                    return {"claimed": False, "running": dict(r)}
+                cur = conn.execute(
+                    f"INSERT INTO {ATTEMPTS_TABLE} (source, session, started_at, pid, host) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (str(source), key, now, os.getpid(), socket.gethostname()[:64]))
+                attempt_id = cur.lastrowid
+                conn.execute(f"DELETE FROM {ATTEMPTS_TABLE} WHERE id NOT IN (SELECT id FROM "
+                             f"{ATTEMPTS_TABLE} ORDER BY id DESC LIMIT ?)", (ATTEMPTS_KEEP,))
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+        log.info("[rs_history] attempt %s started (source=%s session=%s)", attempt_id, source, key)
+        return {"claimed": True, "id": attempt_id}
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] attempt marker unavailable (%s); running unguarded", e)
+        return {"claimed": True, "id": None, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def finish_attempt(attempt_id, outcome: str, session=None) -> None:
+    """Close an attempt (``finished_at`` now, the outcome, and the session the run
+    resolved). Never raises; ``attempt_id`` ``None`` is a no-op."""
+    if attempt_id is None:
+        return
+    try:
+        key = session_key(session) if session else None
+        with closing(snapshot_db.connect()) as conn:
+            conn.execute(f"UPDATE {ATTEMPTS_TABLE} SET finished_at = ?, outcome = ?, "
+                         "session = COALESCE(?, session) WHERE id = ?",
+                         (time.time(), str(outcome)[:300], key, attempt_id))
+            conn.commit()
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] attempt %s not closed: %s", attempt_id, e)
+
+
+def last_attempt() -> dict | None:
+    """The newest attempt row, or ``None``. ``finished_at`` null means the run is
+    still going or died (``stale`` says which, by :data:`RUNNING_STALE_S`).
+    Read-only and never raises."""
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, ATTEMPTS_TABLE):
+                return None
+            r = conn.execute(f"SELECT * FROM {ATTEMPTS_TABLE} ORDER BY id DESC LIMIT 1").fetchone()
+    except Exception:                                        # noqa: BLE001
+        return None
+    if r is None:
+        return None
+    d = dict(r)
+    d["stale"] = (d.get("finished_at") is None
+                  and (d.get("started_at") or 0) <= time.time() - RUNNING_STALE_S)
     return d
 
 
@@ -2296,7 +2417,8 @@ def status(data_dir=None) -> dict:
     except Exception as e:                                   # noqa: BLE001
         log.warning("[rs_history] status read failed: %s", e)
     return {"table": TABLE, "rows": rows, "sessions": sessions, "latest_session": latest,
-            "last_run": last_run(), "backfill": marker_state(data_dir)}
+            "last_run": last_run(), "last_attempt": last_attempt(),
+            "backfill": marker_state(data_dir)}
 
 
 # --------------------------------------------------------------------------- #
