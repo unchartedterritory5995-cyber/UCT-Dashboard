@@ -97,6 +97,14 @@
    "title": "Holy Grail dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/17-holy-grail.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "c2",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Undercut and rally criteria card (docs/study/setups/criteria/29-undercut-rally.json)",
+   "url": "repo:docs/study/setups/criteria/29-undercut-rally.json",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -927,6 +935,48 @@
    "source": "c1",
    "quote": "If a session makes a lower low and does not trigger, the next trigger is that session's high, while the setup is still alive.",
    "claim": "Card: after a lower low with no trigger, the next trigger is that session's high, while the setup is alive."
+  },
+  {
+   "id": "c43",
+   "source": "c1",
+   "quote": "the highest close of the last 20 sessions within the 10 before the touch: a stand-in for Raschke's momentum high",
+   "claim": "Our card's price test, the highest 20-session close within the 10 sessions before the touch, stands in for Raschke's momentum high."
+  },
+  {
+   "id": "c44",
+   "source": "c1",
+   "quote": "and it sits above the 200-day with RS 80 or more. Green or Yellow market.",
+   "claim": "Our card's context: a leader above the 200-day with RS 80 or more, in a Green or Yellow market."
+  },
+  {
+   "id": "d48",
+   "source": "d1",
+   "quote": "27.2% reached 3R and 17.2% reached 5R before the stop",
+   "claim": "Our scan measured how often hits reached 3R or 5R before the stop."
+  },
+  {
+   "id": "d49",
+   "source": "d1",
+   "quote": "The touch is a session whose range reaches the 20-day EMA (low at or below it, high at or above it) with the low above the 50-day SMA and the close above the 200-day SMA",
+   "claim": "Every touch in our scan, including the ten examples, had its low above the 50-day and its close above the 200-day."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%",
+   "claim": "A8: under a 6% drawdown the normal position cap applies; at 6% down the cap is 10%."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "E50: grading a setup is a judgment; no fixed grade checklist is taught as ours."
+  },
+  {
+   "id": "u01",
+   "source": "c2",
+   "quote": "A level everyone can see (a bounced swing low, the 10-session range low, a rising 20 EMA or 50-day, a prior high or round number) is undercut",
+   "claim": "The U&R undercuts a level everyone can see, such as a bounced swing low or the 10-session range low."
   }
  ],
  "walkthroughs": [
@@ -1008,24 +1058,34 @@
    "choices": [
     "The 20-day EMA of closes",
     "The 20-day simple average",
-    "The 21-day EMA",
-    "The 50-day average"
+    "The 21-day EMA of closes",
+    "The 50-day simple average"
    ],
    "answer": "The 20-day EMA of closes",
-   "why": "The 20-day EMA of closes. Raschke names the exponential average every time. A 20 SMA is a web page's rewrite; the 21 EMA belongs to other scans.",
+   "why": "The 20-day EMA of closes. Raschke says she uses a 20-period exponential moving average on all her markets. Our card says the same: not a 20 SMA, not the 21 EMA. Woods' page uses a 20-period simple average instead. The 50-day has a different job: the touch low holds above it.",
    "lesson_line": "Twenty-day, exponential, closes. Draw the right line before you judge the touch.",
    "facts": [
     "c06",
     "r30",
     "w02",
-    "c32"
+    "c32",
+    "c10"
    ],
    "wrong": {
-    "The 20-day simple average": "Some web pages say simple. Raschke says exponential, and so does our card.",
-    "The 21-day EMA": "The 21 is the line on our other pullback scans, not this one.",
-    "The 50-day average": "The 50-day is the floor under the touch, not the line it touches."
+    "The 20-day simple average": "Woods' page says simple. Raschke names the exponential average every time, and so does our card.",
+    "The 21-day EMA of closes": "Our card says it plainly: not a 20 SMA, not the 21 EMA. Raschke uses a 20-period line.",
+    "The 50-day simple average": "The 50-day is the floor under the touch, not the line it touches."
    },
-   "house": true
+   "house": true,
+   "simple": "It pulls back to the 20-day EMA of closes, because Raschke names the exponential average and so does our card.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Raschke's own words and the card agree"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q02",
@@ -1035,14 +1095,23 @@
    "criterion": "hg.direction_from_price",
    "q": "The ADX tells you the trend's direction as well as its strength.",
    "answer": "False",
-   "why": "False. The ADX measures strength; a strong downtrend also has a high ADX. Direction comes from price: the close above a rising 20 EMA.",
+   "why": "False. The ADX measures strength, not direction. A strong downtrend also has a high ADX. Our card takes direction from price. On the ADX session the close sits above the 20 EMA, and the EMA is higher than 10 sessions earlier. +DI over -DI is not a gate on our card. Raschke states the buy rules and says sells are the reverse.",
    "lesson_line": "The ADX says how hard the trend is pushing, not which way. Price says which way.",
    "facts": [
     "c02",
     "c28",
     "r05"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The ADX shows how strong a trend is, not which way it goes, so price gives the direction.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the direction test is the card's proposal, awaiting the owner"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q03",
@@ -1058,20 +1127,31 @@
     "At the 50-day moving average"
    ],
    "answer": "A few cents under the swing low",
-   "why": "A few cents under the newly formed swing low: the lowest low from the touch session through the trigger session. Raschke's rule 4 says the same.",
+   "why": "A few cents under the swing low. The swing low is the lowest low from the touch session through the trigger session. Raschke's rule 4 puts the protective stop at the newly formed swing low. Our rule sets it a few cents under the low, not exactly on it. It usually sits within about 3% of the buy. A full ATR under the low is the scanner's stop, not ours.",
    "lesson_line": "Stop first: a few cents under the low the pullback just made.",
    "facts": [
     "c15",
     "r04",
     "h24",
-    "h04"
+    "h04",
+    "c16"
    ],
    "wrong": {
-    "A full ATR under the pullback low": "That is a scanner's stop, not ours. It puts the risk past 4% before the bar's own range.",
-    "At the 20-day EMA, where it touched": "The line is where it touched, not where the trade is wrong. The swing low is.",
-    "At the 50-day moving average": "Too far. A few cents under the swing low, usually within about 3%."
+    "A full ATR under the pullback low": "That is the scanner's stop, not ours. Our stop is a few cents under the swing low, not a full ATR.",
+    "At the 20-day EMA, where it touched": "The line is where it touched. Raschke puts the stop at the newly formed swing low, not at the line.",
+    "At the 50-day moving average": "Too far. Our stop sits a few cents under the swing low, usually within about 3% of the buy."
    },
-   "house": true
+   "house": true,
+   "simple": "The stop goes a few cents under the swing low the pullback just made, not exactly on the low.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62)",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q04",
@@ -1081,11 +1161,13 @@
    "criterion": "hg.depth",
    "q": "Tap the number that fits the blank.",
    "answer": "50",
-   "why": "50. The touch session's low holds above the 50-day. If it does not, it is a 50-day pullback, a different setup.",
+   "why": "50. The touch session's low holds above the 50-day SMA. If it does not, it is a 50-day pullback, setup 12, not a Holy Grail. Our card sets no depth rule beyond that. The 20-day EMA is the line it touches, and the 200-day is the location check.",
    "lesson_line": "The touch holds the line, and the low holds the 50. Both, or it is not this.",
    "facts": [
     "c10",
-    "c42"
+    "c42",
+    "c06",
+    "c04"
    ],
    "sentence": "The touch session's low must hold above the ___-day average, or it is a different pullback.",
    "bank": [
@@ -1095,7 +1177,16 @@
     "10",
     "100"
    ],
-   "house": true
+   "house": true,
+   "simple": "The touch day's low must stay above the 50-day, or the setup is a 50-day pullback instead.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the 50-day floor is the card's proposal, awaiting the owner"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q05",
@@ -1103,14 +1194,29 @@
    "rung": 1,
    "format": "tf",
    "criterion": "hg.pullback_volume",
-   "q": "Light volume on a Holy Grail pullback is a grade plus, but heavy volume does not rule it out.",
-   "answer": "True",
-   "why": "True. Volume is not a gate; no source requires it. Lighter volume on the pullback is a grade plus, nothing more.",
-   "lesson_line": "Quiet volume into the line is a plus, not a must.",
+   "q": "In our scan, quiet Holy Grail pullbacks reached 3R clearly more often than heavy ones.",
+   "answer": "False",
+   "why": "False. In our scan, pullbacks under 0.8x the prior 20 days' volume reached 3R 27.6% of the time. At 1.0x or more, it was 26.7%. Volume is not a gate.",
+   "lesson_line": "Volume is never a gate. Our scan found a quiet pullback did not change the odds.",
    "facts": [
-    "c11"
+    "c11",
+    "d46",
+    "d48"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because in our scan quiet and heavy pullbacks reached 3R about as often.",
+   "deeper": {
+    "counter": "Our card still counts lighter volume on the pullback as a grade plus. That is the card's grade cue, not an edge our scan found. Heavy volume never voids the setup."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 the key rests on one cited fact (c11)",
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.pullback_volume)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q06",
@@ -1118,15 +1224,15 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "hg.market_reading",
-   "q": "The market reading is Orange. Which Holy Grails may you buy?",
+   "q": "The market reading is Orange. By our guide, which Holy Grails do you buy?",
    "choices": [
-    "Only A+ setups",
+    "Only A+ grade setups",
     "Any setup at full size",
     "None, Orange means cash",
     "Any setup at half size"
    ],
-   "answer": "Only A+ setups",
-   "why": "Only A+ setups. Green is full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts.",
+   "answer": "Only A+ grade setups",
+   "why": "Only A+ setups. Our market reading is a guide, and in Orange the guide is only A+ setups. Green is full risk per grade. Yellow is smaller and fewer. Red is mostly cash and shorts. A B setup in Orange waits for a better market.",
    "lesson_line": "Read the market before the line. Orange buys A+ and nothing else.",
    "facts": [
     "h26",
@@ -1135,9 +1241,18 @@
    "wrong": {
     "Any setup at full size": "That is Green. Orange narrows you to A+.",
     "None, Orange means cash": "Red is mostly cash. Orange still allows the best setups.",
-    "Any setup at half size": "Orange is about grade, not size. A B setup stays on the bench."
+    "Any setup at half size": "Our Orange guide names the grade, not a size: only A+ setups. A B setup waits."
    },
-   "house": true
+   "house": true,
+   "simple": "Only A+ setups, because in an Orange market our guide narrows the buys to the very best setups.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F65, a guide under A10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q07",
@@ -1147,14 +1262,23 @@
    "criterion": "hg.leadership",
    "q": "We buy Holy Grails in leaders: an RS rating of 80 or more, in a strong group.",
    "answer": "True",
-   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups. Raschke picks the up-trending stocks with the best relative strength.",
+   "why": "True. Our rule is to buy leaders: an RS rating of 80 or more, in one of the strongest groups. The rule names only two exceptions, parabolic and mean-reversion trades. Raschke also picks the up-trending stocks with the best relative strength.",
    "lesson_line": "A pullback in a laggard is a laggard pulling back. Buy the leaders.",
    "facts": [
     "h14",
     "c24",
     "r40"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. We buy leaders, stocks with an RS rating of 80 or more in one of the strongest groups.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C31)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q08",
@@ -1170,18 +1294,32 @@
     "Anywhere in the last 20 sessions"
    ],
    "answer": "In the 10 sessions before the touch",
-   "why": "Within the 10 sessions before the touch. A new momentum high comes first; Raschke buys the pullback from a new momentum high.",
+   "why": "In the 10 sessions before the touch. Our card's test: find the highest close of the last 20 sessions. It must have been made within the 10 sessions before the touch. The 20 sessions only pick which close is highest. The 10 sessions set how fresh it must be. Raschke lists the 3-10 oscillator making new momentum highs as a confirming factor. Our card's price test is a stand-in for her momentum high.",
    "lesson_line": "Fresh strength first, then the rest. A stale high is not momentum.",
    "facts": [
     "c03",
-    "r06"
+    "r06",
+    "r50",
+    "c09",
+    "c43"
    ],
    "wrong": {
-    "On the touch session or just after": "The touch is the pullback. The high has to come before it.",
-    "Within the 5 sessions before the touch": "The window is 10 sessions, not 5. A 5-session length is the A+ row, a different test.",
-    "Anywhere in the last 20 sessions": "The 20 sessions only set which close is the highest. That high must sit inside the last 10."
+    "On the touch session or just after": "The momentum high comes first, then the pullback. Raschke buys a pullback from a new momentum high.",
+    "Within the 5 sessions before the touch": "The window is 10 sessions, not 5. A high 6 to 10 sessions back still counts. A shorter pullback only grades higher.",
+    "Anywhere in the last 20 sessions": "The 20 sessions only pick which close is the highest. That close must sit inside the 10 sessions before the touch."
    },
-   "house": true
+   "house": true,
+   "simple": "The highest close of the last 20 sessions must come in the 10 sessions before the touch, so the strength is fresh.",
+   "tier": "core",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "+3 the key rests on one cited fact (c03)",
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.momentum_high)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q09",
@@ -1191,13 +1329,28 @@
    "criterion": "hg.adx_history",
    "q": "An ADX reading built on a few weeks of bars is as good as one built on a long history.",
    "answer": "False",
-   "why": "False. It can take around 150 periods of data to get true ADX values. Our ADX is computed on at least 150 sessions, never a home-made average.",
+   "why": "False. It can take around 150 periods of data to get true ADX values. Our card computes the ADX on at least 150 sessions of history. A few weeks of bars falls far short of that. The card also uses the real Wilder ADX, not a home-made average.",
    "lesson_line": "A short-window ADX is a guess. Use the real Wilder ADX on a long history.",
    "facts": [
     "k02",
-    "c01"
+    "c01",
+    "c01b",
+    "k01"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. It can take around 150 bars of data to get a true ADX, and a few weeks of bars falls far short.",
+   "deeper": {
+    "example": "The method is a second trap, apart from the history. Our card's example: a home-made, plain-sum ADX read 29.9 on a chop chart where the real Wilder ADX read 17.7. Wilder puts a strong trend above 25 and no trend below 20. So the method alone moved the reading across both of his lines."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "one web source for the 150 periods (ChartSchool, re-read 2026-11-12)",
+     "the history rule is the card's proposal"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q10",
@@ -1207,12 +1360,13 @@
    "criterion": "hg.depth",
    "q": "What is it?",
    "choices": [
-    "A 50-day pullback, not a Holy Grail",
+    "A 50-day pullback, its own setup",
     "A Holy Grail; it closed back above",
-    "A Remount of the 50-day"
+    "A Remount of the 50-day average",
+    "A Holy Grail; there is no depth rule"
    ],
-   "answer": "A 50-day pullback, not a Holy Grail",
-   "why": "A 50-day pullback. The touch low must hold above the 50-day; this one went under it. It was stopped at 0R.",
+   "answer": "A 50-day pullback, its own setup",
+   "why": "A 50-day pullback, not a Holy Grail. The card has no depth rule beyond the line itself. But the touch session's low must hold above the 50-day. Here the low printed 106.26, under the 50-day at 107.16. Closing back above does not undo the low. This was CRM in February 2018, and it stopped at 0R.",
    "lesson_line": "Through the 20 and under the 50 is a different setup with its own rules.",
    "facts": [
     "c10",
@@ -1222,10 +1376,24 @@
    ],
    "wrong": {
     "A Holy Grail; it closed back above": "The close does not fix the low. The low broke the 50-day, and that is the gate.",
-    "A Remount of the 50-day": "A Remount needs 5 or more straight closes under the line first. This was one dip."
+    "A Remount of the 50-day average": "A Remount needs 5 or more straight closes under the line first. This was one session that dipped.",
+    "A Holy Grail; there is no depth rule": "There is no depth rule beyond the line, true. But the touch low must still hold above the 50-day, and this one did not."
    },
    "story": "The touch session dips through the 20 EMA. Its low prints 106.26, under the 50-day at 107.16. It closes back above the 50-day.",
-   "house": true
+   "house": true,
+   "simple": "It is a 50-day pullback. The touch low went under the 50-day, and a Holy Grail low must stay above it.",
+   "deeper": {
+    "trap": "Closing back above the 50-day feels like a save. The gate looks at the touch session's low, not its close. CRM's low printed 106.26 against a 50-day at 107.16, a small break, and the trade still stopped at 0R. A small break is still a break. Name it a 50-day pullback and use that setup's rules."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.depth)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q11",
@@ -1241,7 +1409,7 @@
     "Neither of the two stocks"
    ],
    "answer": "Only the one 13% above",
-   "why": "Only the one 13% above. A long more than 10% above its 10-day average is too stretched to buy, and 7% is inside that line. All ten of our examples filled within 2.5% of the 10-day.",
+   "why": "Only the one 13% above. Our rule skips a long that is more than 10% above its 10-day average. 7% is inside that line, so that stock still passes this check. The other checks still apply to it. All ten of our examples filled within 2.5% of the 10-day.",
    "lesson_line": "A stock at its line is rarely stretched. When it is, pass.",
    "facts": [
     "h13",
@@ -1252,7 +1420,17 @@
     "Only the one 7% above": "Backwards. The further above the 10-day, the more stretched the entry.",
     "Neither of the two stocks": "13% is past the 10% line, so that one is skipped."
    },
-   "house": true
+   "house": true,
+   "simple": "Skip only the stock 13% above, because more than 10% over the 10-day average is too stretched to buy.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C29)",
+     "fixed before: flagged-question fix 2026-11-11"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q12",
@@ -1262,7 +1440,7 @@
    "criterion": "hg.no_chase",
    "q": "Tap the number that fits the blank.",
    "answer": "4",
-   "why": "4%. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays put and the shares shrink.",
+   "why": "4. Never buy more than 4% above the buy point, gap or no gap. Chasing costs size, not risk. The stop stays under the swing low, so the distance grows and the shares shrink. Our card names chasing a gap over the trigger by more than 4% as a mistake.",
    "lesson_line": "Four percent over the trigger and I am done. I would rather miss it than chase it.",
    "facts": [
     "h11",
@@ -1277,7 +1455,16 @@
     "8",
     "10"
    ],
-   "house": true
+   "house": true,
+   "simple": "Never buy more than 4% above the trigger, because a chase pushes the stop farther away and shrinks the size.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q13",
@@ -1287,13 +1474,24 @@
    "criterion": "hg.stop_broker",
    "q": "The Holy Grail stop is a real stop order with the broker, not a level you watch in your head.",
    "answer": "True",
-   "why": "True. Every position has a real stop order with the broker, not a stop kept in your head. It only moves up.",
+   "why": "True. Every position has a real stop order with the broker, not a stop kept in your head. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule.",
    "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
    "facts": [
     "h18",
-    "c37"
+    "c37",
+    "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. The stop is a real order placed with the broker, and it only ever moves up.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D41, A4)",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q14",
@@ -1305,22 +1503,33 @@
    "choices": [
     "2 to 10 sessions",
     "1 session at most",
-    "10 to 20 sessions",
+    "11 to 20 sessions",
     "Six weeks or more"
    ],
    "answer": "2 to 10 sessions",
-   "why": "2 to 10 sessions from the momentum high to the touch. Raschke's first two- to three-day retracement sits inside it.",
-   "lesson_line": "Days, not weeks. A pullback that drags on has lost the thrust.",
+   "why": "2 to 10 sessions, from the momentum high to the touch. That is our card's range. Raschke's first two- to three-day retracement sits inside it. A one-day dip is too short to count. More than 10 sessions is past the card's limit.",
+   "lesson_line": "Two to ten sessions, momentum high to touch. Past ten, it is no Holy Grail.",
    "facts": [
     "c08",
-    "r31"
+    "r31",
+    "d24"
    ],
    "wrong": {
-    "1 session at most": "A one-day dip is too short to count. The card starts at 2.",
-    "10 to 20 sessions": "Past 10 sessions the thrust has gone. That is a base, not a Grail.",
-    "Six weeks or more": "Six weeks is a base. A Holy Grail is a rest of days."
+    "1 session at most": "The card starts at 2 sessions. A one-day dip is too short to count.",
+    "Six weeks or more": "Far past the card's 10-session limit, so it is no Holy Grail.",
+    "11 to 20 sessions": "The card stops at 10. Even ten days, our dossier says, is a flag that has lost its urgency."
    },
-   "house": true
+   "house": true,
+   "simple": "By our card, the pullback runs 2 to 10 sessions, counted from the momentum high to the touch.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 2 to 10 range rests on the card alone",
+     "proposed criterion awaiting the owner"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q15",
@@ -1330,13 +1539,22 @@
    "criterion": "hg.above_200",
    "q": "A Holy Grail touch under the 200-day is still a buy if the trend is strong enough.",
    "answer": "False",
-   "why": "False. No longs below the 200-day simple moving average, unless it is a parabolic long. The close is above the 200-day, or it is no trade.",
+   "why": "False. No longs below the 200-day simple moving average, unless it is a parabolic long. Trend strength is not an exception. Our card puts the same rule as a location check: the close is above the 200-day SMA. Under it, there is no Holy Grail to buy.",
    "lesson_line": "Under the 200-day, there is no Holy Grail to buy.",
    "facts": [
     "h10",
     "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We never buy a long under the 200-day, however strong it looks, unless it is a parabolic long.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q16",
@@ -1348,10 +1566,11 @@
    "choices": [
     "The plain 20 EMA pullback",
     "A Holy Grail, ADX or no ADX",
-    "A Remount of the 50-day"
+    "A Remount of the 50-day",
+    "No setup; a slow trend is weak"
    ],
    "answer": "The plain 20 EMA pullback",
-   "why": "The plain 20 EMA pullback. Both are a pullback to a rising 20 EMA bought on the turn. Only the Holy Grail needs an ADX push before the touch.",
+   "why": "The plain 20 EMA pullback. Both setups are a pullback to a rising 20 EMA, bought on the turn. The one difference is the ADX. A Holy Grail needs an ADX push before the touch. With no push, the card names it the plain 20 EMA pullback. Woods notes that slow, steady trends can run without the ADX ever crossing its level.",
    "lesson_line": "Same picture, one difference: the ADX. Check it before you name it.",
    "facts": [
     "c18",
@@ -1361,9 +1580,23 @@
    ],
    "wrong": {
     "A Holy Grail, ADX or no ADX": "The Grail is the 20 EMA pullback with an ADX push in front of it. No push, no Grail.",
-    "A Remount of the 50-day": "A Remount has lost its 50 or 200-day for five or more closes. This stock touched a rising 20 EMA."
+    "A Remount of the 50-day": "A Remount has lost its 50 or 200-day for 5 or more straight closes. This stock touched a rising 20 EMA.",
+    "No setup; a slow trend is weak": "A slow, steady trend can run without an ADX push. With no push, this is still a setup: the plain 20 EMA pullback."
    },
-   "house": true
+   "house": true,
+   "simple": "It is the plain 20 EMA pullback, because only a Holy Grail needs an ADX push before the dip.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.inv_no_adx; the ADX gate is held as D-079)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "depends_on": [
+    "D-079"
+   ],
+   "batch": "wave4b"
   },
   {
    "key": "q17",
@@ -1373,26 +1606,42 @@
    "criterion": "hg.after_entry_stop",
    "q": "What do you do?",
    "choices": [
-    "Sell at the stop; a planned loss",
+    "Take the loss at the stop",
     "Hold; the line will catch it",
     "Widen the stop under the 50-day",
-    "Add; it is cheaper now"
+    "Add more; it is cheaper now"
    ],
-   "answer": "Sell at the stop; a planned loss",
-   "why": "Sell at the stop. The stop is the exit; it only moves up, never wider. This one went on day 1 and the low 20 sessions later sat 7.9% under the buy.",
+   "answer": "Take the loss at the stop",
+   "why": "Take the loss at the stop. The stop is the exit. It only moves up, never down or wider. This was BAC in May 2006. The stop held the loss to 2.5%. The low 20 sessions later sat 7.9% under the buy. The one exception is a gap down through the stop at the open. Then the low of the first 30-minute bar becomes the new stop.",
    "lesson_line": "A loss taken at plan is the system working.",
    "facts": [
     "h02",
     "d29",
-    "d30"
+    "d30",
+    "h03b",
+    "h06",
+    "h07"
    ],
    "wrong": {
-    "Hold; the line will catch it": "The line already failed to hold. Holding and hoping is the named mistake.",
-    "Widen the stop under the 50-day": "The stop only moves up, never wider.",
-    "Add; it is cheaper now": "Full size at one price with one stop; no adding."
+    "Hold; the line will catch it": "The line already failed to hold. The stop is the exit, and BAC's low 20 sessions later sat 7.9% under the buy.",
+    "Widen the stop under the 50-day": "The stop only moves up, never down or wider.",
+    "Add more; it is cheaper now": "The full size goes on at one price with one stop. There is no adding."
    },
    "story": "You bought at 49.79 with the stop at 48.55 after a first touch of the 20 EMA. The next session trades through the stop.",
-   "house": true
+   "house": true,
+   "simple": "You take the loss at the stop, because the stop is the exit and it never moves lower.",
+   "deeper": {
+    "trap": "The gap rule is the one exception. If the stock opens below the stop, the first 30 minutes decide. The low of the first 30-minute bar becomes the new stop. If those 30 minutes take the loss past 2R, get out. A stock that trades down through the stop during the session is simply a stop-out."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q18",
@@ -1408,7 +1657,7 @@
     "All of it, at 3R"
    ],
    "answer": "A third, at 3R",
-   "why": "A third, at 3R. That is the hard rule; the plan sells in thirds. The next third comes at 5R and the last third rides the trail.",
+   "why": "A third, at 3R. That is the hard rule for the first trim. The next third comes off at 5R, and the last third rides the trail. Ideally the first trim lands anywhere from 3R to 6R, but the rule you plan with is a third at 3R.",
    "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
    "facts": [
     "h05",
@@ -1417,9 +1666,19 @@
    "wrong": {
     "Half, at 3R": "Too much. The plan sells in thirds, so the first trim is a third.",
     "A quarter, at 3R": "The plan sells in thirds, not quarters.",
-    "All of it, at 3R": "That sells the whole position. The last third rides the trail."
+    "All of it, at 3R": "That ends the trade at 3R. Another third comes off at 5R, and the last third rides the trail."
    },
-   "house": true
+   "house": true,
+   "simple": "You sell a third at 3R, because our plan sells in thirds: 3R, then 5R, then the trail.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q19",
@@ -1438,7 +1697,7 @@
     },
     "round": 2
    },
-   "why": "38.79. One R is the fill minus the stop. Add three of those to the fill. CI reached it in 2 sessions.",
+   "why": "38.79. One R is the fill minus the stop: 36.72 minus 36.03. Add three of those R to the fill, never to the stop. That is where the first third comes off. In this CI trade from October 2000, price reached 3R in 2 sessions.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1446,7 +1705,17 @@
     "d02"
    ],
    "prefix": "$",
-   "house": true
+   "house": true,
+   "simple": "3R is 38.79, because one R is the fill minus the stop, and you add three of those to the fill.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q20",
@@ -1454,14 +1723,24 @@
    "rung": 3,
    "format": "tf",
    "criterion": "hg.earnings_window",
-   "q": "A Holy Grail that triggers two sessions before an earnings report is still a buy.",
-   "answer": "False",
-   "why": "False. No new buys in the 3 days before an earnings report. If it is still a setup after the report, it can trigger again.",
-   "lesson_line": "A trigger inside the earnings window is a coin flip with a story. Wait.",
+   "q": "Our rule skips a Holy Grail that triggers the day before an earnings report.",
+   "answer": "True",
+   "why": "True. No new buys in the 3 days before an earnings report. The day before the report sits inside that window, so the trigger is skipped. The rule is no new buy, not a smaller one.",
+   "lesson_line": "Inside the 3 days before a report, there is no new buy. Wait.",
    "facts": [
     "h08"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we make no new buys in the 3 days before an earnings report.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 one cited fact (h08)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q21",
@@ -1471,24 +1750,42 @@
    "criterion": "hg.setup_void",
    "q": "Take it?",
    "choices": [
+    "Yes; the fifth session still counts",
     "No; setup void after 5 sessions",
-    "Yes; the trigger just fired today",
-    "Yes, but at half the usual size"
+    "No; it had to trigger on touch day",
+    "Yes; it can trigger within 10 sessions"
    ],
-   "answer": "No; setup void after 5 sessions",
-   "why": "No. Five sessions from the first touch with no trigger and the setup is void. This one reached 4.4R anyway; the rule is about staleness, not prediction.",
-   "lesson_line": "A trigger that takes a week to come is not the thrust you measured.",
+   "answer": "Yes; the fifth session still counts",
+   "why": "Yes. The setup goes void after 5 sessions from the first touch with no trigger, or after a close below the 50-day. A trigger on the fifth session after the touch is the last one allowed.",
+   "lesson_line": "The trigger has five sessions after the touch. The fifth still counts; the sixth does not.",
    "facts": [
     "c14",
-    "d44",
-    "d45"
+    "d22",
+    "d23",
+    "d13",
+    "c08",
+    "d44"
    ],
    "wrong": {
-    "Yes; the trigger just fired today": "It fired late. The setup went void after five sessions with no trigger.",
-    "Yes, but at half the usual size": "Size does not fix a stale setup. The rule is no trade."
+    "No; setup void after 5 sessions": "The setup goes void only after 5 sessions pass with no trigger. A trigger on the fifth session is the last one allowed.",
+    "No; it had to trigger on touch day": "The trigger may come on any session up to the fifth. Eight of our ten examples triggered the session after the touch.",
+    "Yes; it can trigger within 10 sessions": "Right call, wrong rule. The 2 to 10 sessions measure the pullback, momentum high to touch. The trigger gets 5 sessions after the touch."
    },
-   "story": "The touch of the 20 EMA was six sessions ago. Price never cleared the prior day's high. Today it finally does.",
-   "house": true
+   "story": "The touch of the 20 EMA was five sessions ago. It has not closed under the 50-day or cleared a prior day's high. Today it trades over the prior day's high.",
+   "house": true,
+   "simple": "Yes, because the fifth session after the touch is the last one the setup allows.",
+   "deeper": {
+    "counter": "Our LULU example triggered on the fifth session after the touch, the last one allowed. Our notes still doubt it: a stock that needs five days to clear a prior high is no longer in the thrust. COST triggered on the sixth session, and the rule voided it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.setup_void)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q22",
@@ -1498,13 +1795,14 @@
    "criterion": "hg.failed_grail",
    "q": "Tap the word that fits the blank.",
    "answer": "momentum",
-   "why": "Momentum. After a failed Grail, no more pullback buys in that stock until it makes a new momentum high. Raschke: if a grail buy fails, she stops buying pullbacks in that market.",
+   "why": "Momentum. After a failed Grail, our card stops pullback buys in that stock until a new momentum high. Its full rule also wants a fresh ADX push. A failed Grail is a long that stops out, or a close back under the EMA and then under the touch low. Raschke's own rule covers the stop: if a grail buy fails, she stops buying pullbacks in that market. A re-buy is only a fresh trigger with its own stop.",
    "lesson_line": "A failed Grail closes the door on that stock until it proves strength again.",
    "facts": [
     "c17",
-    "r20"
+    "r20",
+    "c17b"
    ],
-   "sentence": "After a failed Grail, no more pullback buys in that stock until it makes a new ___ high.",
+   "sentence": "After a failed Grail, our card wants a new ___ high before the next pullback buy.",
    "bank": [
     "momentum",
     "52-week",
@@ -1512,7 +1810,16 @@
     "intraday",
     "weekly"
    ],
-   "house": true
+   "house": true,
+   "simple": "After a failed Grail, skip pullback buys in that stock until a new momentum high and a fresh ADX push.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the re-arm condition (a new momentum high) is the card's proposal"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q23",
@@ -1522,12 +1829,23 @@
    "criterion": "hg.one_price",
    "q": "A Holy Grail is bought at one price with one stop; adding on a second dip is not our way.",
    "answer": "True",
-   "why": "True. The full size at one price with one stop; no adding.",
+   "why": "True. The full size goes on at one price with one stop. There is no adding, so a second dip is not a buy for this position. After a stop-out, a fresh trigger is a new trade with its own stop, not an add.",
    "lesson_line": "One price, one stop, full size. The second dip is a different decision.",
    "facts": [
-    "h03b"
+    "h03b",
+    "h28"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we buy the full size at one price with one stop and never add.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 the key rests on one cited fact (h03b)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q24",
@@ -1546,7 +1864,7 @@
     },
     "round": 2
    },
-   "why": "3.02%. The fill minus the stop, divided by the fill. About the 3% the stop usually sits within; AMBA's line held to the cent.",
+   "why": "3.02%. Take the fill minus the stop, then divide by the fill. Our stop usually sits within about 3% of the buy, and this one sits right at that habit. It is a habit, not a hard cap. This was AMBA in June 2016, where the line held to the cent.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
@@ -1554,7 +1872,20 @@
     "d08"
    ],
    "suffix": "%",
-   "house": true
+   "house": true,
+   "simple": "The stop is 3.02% below the fill, because you divide the distance from fill to stop by the fill.",
+   "deeper": {
+    "trap": "Divide by the fill, not by the stop. The percent is the loss on what you paid. Dividing by the stop makes the stop look a little wider than it is."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9) (the about 3% habit, A13)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q25",
@@ -1565,24 +1896,38 @@
    "q": "Where is the stop now?",
    "choices": [
     "69.40, the first 30-minute low",
-    "Sell at the open, 69.90",
+    "Sell it at the open, at 69.90",
     "No stop until it reclaims 70.50",
     "Get out, the gap is past 2R"
    ],
    "answer": "69.40, the first 30-minute low",
-   "why": "69.40. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop.",
+   "why": "69.40, the first 30-minute low. A gap against the stop is the one exception to a fixed stop. The first 30 minutes of the gap-down day decide, and the low of the first 30-minute bar is the new stop. There is a ceiling: if the first 30 minutes take the loss past 2R, get out. Here R is 72.00 less 70.50, and 69.40 sits above the 2R line.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "facts": [
     "h06",
-    "h07"
+    "h07",
+    "h02"
    ],
    "wrong": {
-    "Sell at the open, 69.90": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision, not the open.",
     "No stop until it reclaims 70.50": "There is always a stop. The new one is the 30-minute low.",
-    "Get out, the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit."
+    "Get out, the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit.",
+    "Sell it at the open, at 69.90": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision, not the open."
    },
    "story": "You bought at 72.00 with the stop at 70.50. It gaps open at 69.90, under your stop. The first 30-minute bar's low is 69.40.",
-   "house": true
+   "house": true,
+   "simple": "The new stop is 69.40, the first 30-minute low, because a gap through the stop lets the first 30 minutes decide.",
+   "deeper": {
+    "trap": "The trap is acting on fear at the open, or on hope with no stop at all. The rule does neither. It hands the stop to the first 30-minute low, then checks the ceiling. Had that low been past 2R, the answer would be to get out. Here it was not, so 69.40 is the stop and the order sits with the broker."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B20)",
+     "the key depends on an R arithmetic check against the 2R ceiling"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q26",
@@ -1593,26 +1938,43 @@
    "q": "What do you check before you buy?",
    "choices": [
     "Bracco's parabolic signs",
-    "Nothing; every box ticks",
+    "The ADX level; higher is safer",
     "The volume on the touch day",
-    "The 50-day's slope"
+    "The slope of the 50-day line"
    ],
    "answer": "Bracco's parabolic signs",
-   "why": "Bracco's parabolic signs. A very high ADX after a near-vertical climb can mean the trend is overdone. Here the first touch was the start of April's correction.",
+   "why": "Bracco's parabolic signs. Our card says not to buy right after a climax run: check Bracco's parabolic signs first. A very high ADX after a near-vertical climb can mean the trend is overdone. Woods gives the same caution. In our NVDA case the stock was up 86.4% in the 60 sessions before the touch. That first touch was the start of the April correction, and it stopped out on day 1.",
    "lesson_line": "The first rest after a vertical run is often the top, not a rest.",
    "facts": [
     "c05",
     "w03",
     "d20",
-    "d21"
+    "d21",
+    "c11",
+    "c10",
+    "h31",
+    "c41"
    ],
    "wrong": {
-    "Nothing; every box ticks": "The boxes do not see a climax. Woods: a high ADX can mean the trend is overdone.",
-    "The volume on the touch day": "Volume is a grade cue here, not the risk. The run itself is the risk.",
-    "The 50-day's slope": "The 50-day is rising after a run like that. It cannot warn you."
+    "The volume on the touch day": "Volume is not a gate here; lighter volume is only a grade plus. The run itself is the risk.",
+    "The ADX level; higher is safer": "Not after a vertical run. A very high ADX there can mean the trend is overdone.",
+    "The slope of the 50-day line": "The 50-day is the floor under the touch, not a climax check. The card says check Bracco's signs."
    },
    "story": "Every box ticks: a strong ADX push and a 5-day pullback to the 20 EMA. The stop is 87.57 against a 90.11 buy, 2.8%. The stock is in the third month of a near-vertical run.",
-   "house": true
+   "house": true,
+   "simple": "Check for a climax run first, because a very high ADX after a near-vertical climb can mean the trend is overdone.",
+   "deeper": {
+    "example": "Bracco's parabolic burst is a 3-5 day final leg. The boxes are three straight up days and two straight overnight gap ups. Then two of three days of range expansion, two days of rising volume, and a gap up on the climax day. A Grail touch that comes right after a burst like that, with several boxes ticked, is the B- row on our card."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the not-a-climax check is the card's proposal",
+     "the example rests on our own scan (d1), not yet reviewed by the owner"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q27",
@@ -1622,23 +1984,35 @@
    "criterion": "hg.breakeven",
    "q": "When does the stop move to breakeven on a Holy Grail winner?",
    "choices": [
-    "2R to 5R, often at the first trim",
+    "Once it is between 2R and 5R",
     "The morning after the entry session",
     "Never; the stop is the stop",
     "As soon as it reaches 1R"
    ],
-   "answer": "2R to 5R, often at the first trim",
-   "why": "Between 2R and 5R, ideally. The first trim at 3R is the natural moment.",
-   "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
+   "answer": "Once it is between 2R and 5R",
+   "why": "Between 2R and 5R. Our rulebook moves the stop to breakeven at 2R to 5R, ideally. It is not set by the calendar, and 1R is too soon. The stop only ever moves up, so breakeven is a move up, not a widening.",
+   "lesson_line": "Breakeven between 2R and 5R. The stop only ever moves up.",
    "facts": [
-    "h05"
+    "h05",
+    "h02"
    ],
    "wrong": {
-    "The morning after the entry session": "Too early. Breakeven waits until 2R at the earliest.",
-    "Never; the stop is the stop": "The stop only moves up. Moving it up to breakeven is allowed.",
-    "As soon as it reaches 1R": "Too soon. Breakeven waits until 2R at the earliest."
+    "The morning after the entry session": "Breakeven is set by R, not by the calendar. The rule says 2R to 5R.",
+    "Never; the stop is the stop": "The stop only moves up, and breakeven is a move up. The rule moves it there at 2R to 5R.",
+    "As soon as it reaches 1R": "Too soon. The rule moves the stop to breakeven at 2R to 5R."
    },
-   "house": true
+   "house": true,
+   "simple": "You move the stop to breakeven once the trade is up between 2R and 5R, as our rule says.",
+   "tier": "core",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "+3 the key rests on one cited fact (h05)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q28",
@@ -1648,25 +2022,35 @@
    "criterion": "hg.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Sell a third at the open",
-    "Wait for the close",
-    "Sell everything",
+    "Sell a third of the shares",
+    "Wait for the close to decide",
+    "Sell the whole position",
     "Move the stop up and hold"
    ],
-   "answer": "Sell a third at the open",
-   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there.",
+   "answer": "Sell a third of the shares",
+   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. Our hard rule for the first trim is a third at 3R. The open at 3.4R is past it, so the third comes off at once. The next third waits for 5R, and the last third trails.",
    "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
    "facts": [
     "h25",
-    "h05"
+    "h05",
+    "h20"
    ],
    "wrong": {
-    "Wait for the close": "The level is already passed. Waiting gives the gap a chance to fill.",
-    "Sell everything": "A third at 3R. The rest waits for 5R and the trail.",
-    "Move the stop up and hold": "The stop moves up too, but the trim is the rule at the open."
+    "Move the stop up and hold": "The stop can go to breakeven at 2R to 5R, but the trim at the open is still the rule.",
+    "Wait for the close to decide": "The level is already passed. Our rule takes that trim at the open, not at the close.",
+    "Sell the whole position": "The first trim is a third at 3R. Another third comes off at 5R, then the rest trails."
    },
    "story": "Your Holy Grail long sits at 2.5R at Thursday's close. Friday it gaps open to 3.4R.",
-   "house": true
+   "house": true,
+   "simple": "Sell a third at the open, because it opened past the 3R trim level and our rule takes that trim there.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F63, B19, E51)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q29",
@@ -1674,15 +2058,28 @@
    "rung": 4,
    "format": "tf",
    "criterion": "hg.length_a_plus",
-   "q": "A shallow, orderly pullback of 2 to 5 sessions is the A+ version; 6 to 10 sessions grades A or B.",
-   "answer": "True",
-   "why": "True. A shallow, orderly pullback of 2 to 5 sessions is the A+ version; 6 to 10 sessions is an A or B. Raschke wants only shallow retracements.",
-   "lesson_line": "Short and shallow is the best Grail. Long and sloppy still trades, smaller.",
+   "q": "Our card grades a deep pullback with big red days as an A or B setup.",
+   "answer": "False",
+   "why": "False. Our card lists a deep or sloppy pullback with big red days in its B- row. B- or lower is sized down. The card has no depth rule beyond the line, so depth grades it down rather than ending it. Its A+ version is a shallow, orderly pullback. Grading stays a judgment: no fixed checklist is taught as ours.",
+   "lesson_line": "Short and orderly is the best Grail. Deep or sloppy, with big red days, is graded down.",
    "facts": [
+    "c38",
+    "c10",
     "c09",
-    "r41"
+    "h17",
+    "h32"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. Our card puts a deep or sloppy pullback with big red days in its B- row, and B- is sized down.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "the grade row is the card's proposal",
+     "E50: grading is discretionary, the owner should confirm the card's grade rows"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q30",
@@ -1690,27 +2087,44 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "hg.failed_grail",
-   "q": "Buy this touch?",
+   "q": "Is this touch a Holy Grail buy?",
    "choices": [
     "No; wait for a new momentum high",
-    "Yes; the ADX is still high",
-    "Yes; it is the same setup"
+    "Yes; the ADX is still reading high",
+    "Yes; it is the same clean setup",
+    "No; wait two weeks after a stop-out"
    ],
    "answer": "No; wait for a new momentum high",
-   "why": "No. After a failed Grail, no more pullback buys until a new momentum high. The 3R level did print 32 sessions later, but only after that new high.",
+   "why": "No. This was a failed Grail, stopped the next morning. Our card wants a new momentum high and a fresh ADX push before the next pullback buy in that stock. Raschke's own rule: after a failed grail buy, she stops buying pullbacks in that market. It has not closed above its old highs, so there is no new momentum high. This touch is not a buy. In our MELI case the 3R level printed 32 sessions later, after a new momentum high.",
    "lesson_line": "The stock has to earn the next pullback buy with new strength.",
    "facts": [
     "c17",
     "r20",
+    "c03",
     "d25",
-    "d26"
+    "d26",
+    "c40"
    ],
    "wrong": {
-    "Yes; the ADX is still high": "The ADX alone does not reopen it. Price has to make a new momentum high first.",
-    "Yes; it is the same setup": "It is the same stock after a failed Grail. That is the named mistake."
+    "Yes; the ADX is still reading high": "The ADX alone does not reopen it. Price has to make a new momentum high first.",
+    "Yes; it is the same clean setup": "It is the same stock after a failed Grail. Buying pullbacks again then is a named mistake.",
+    "No; wait two weeks after a stop-out": "Our card names no wait in days. It waits for a new momentum high, however long that takes."
    },
-   "story": "You bought at 113.96, stop 111.34. Stopped the next morning. Nine of the next ten closes sit under the 20 EMA. No new high since; now it dips to the line again.",
-   "house": true
+   "story": "You bought at 113.96, stop 111.34, and were stopped the next morning. Nine of the next ten closes sat under the 20 EMA. It has not closed above its old highs since. Now it is back at the line.",
+   "house": true,
+   "simple": "Do not buy it yet: after a failed Grail, our card wants a new momentum high first, and none has printed.",
+   "deeper": {
+    "trap": "The trap is the touch that looks just like last time: same line, same trend, same stock. Raschke's point is that a failed grail tells you something, so she stops buying pullbacks in that market. Our card turns that into a gate. The stock has to make a new momentum high before the next pullback is worth a buy."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the re-arm condition is the card's proposal",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q31",
@@ -1723,10 +2137,10 @@
     "The 10-day, on a close below",
     "The 21-day; it is steadier",
     "The 20 EMA, Raschke's line",
-    "The 50-day"
+    "The 50-day, to give it more room"
    ],
    "answer": "The 10-day, on a close below",
-   "why": "The 10-day, sold on a close below it. Our default trail is the 10-day for fast movers; a stock that just pushed its ADX is usually moving fast.",
+   "why": "The 10-day, sold on a close below it. Our rulebook's default trail is the 10-day average for fast movers and the 21-day for steadier ones. The card picks the 10-day here, for a stock that has just pushed its ADX. It is a close below the line, not a touch during the day.",
    "lesson_line": "Trail the 10-day. Sell the close below it, not the touch.",
    "facts": [
     "c19",
@@ -1734,11 +2148,21 @@
     "h21"
    ],
    "wrong": {
-    "The 21-day; it is steadier": "The 21-day is for steadier names. A fresh ADX push is a fast mover.",
-    "The 20 EMA, Raschke's line": "The line is the entry's line. The trail is the 10-day.",
-    "The 50-day": "Too far behind. The trail is the 10-day, sold on a close below it."
+    "The 21-day; it is steadier": "The 21-day is for steadier names. The card picks the 10-day for a stock that just pushed its ADX.",
+    "The 20 EMA, Raschke's line": "The 20 EMA is the entry's line. The card trails the last third on the 10-day.",
+    "The 50-day, to give it more room": "Our default trail is the 10-day or the 21-day, not the 50-day. The card uses the 10-day here."
    },
-   "house": true
+   "house": true,
+   "simple": "Trail the last third on the 10-day, sold on a close below it. Our rule trails fast movers on the 10-day.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.trail)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q32",
@@ -1778,25 +2202,36 @@
     "No; a planned loss at the stop",
     "Yes; sell at +0.54R next time",
     "Yes; the stop was too tight",
-    "Yes; never buy a slow pullback"
+    "No; so buy it back the next day"
    ],
    "answer": "No; a planned loss at the stop",
-   "why": "No. The stop is the exit, and the loss was 1R. The 3R level printed 18 sessions later without us; a re-buy needs its own fresh trigger.",
+   "why": "No. The stop is the exit, and the loss was the planned 1R. In all four of our failure examples the stop sat 2.3% to 3.0% wide, so each loss was 1R. Nothing in them argues for a wider stop. This MRVL trade reached 3R 18 sessions after the buy, without us. A re-buy would have needed its own fresh trigger.",
    "lesson_line": "You will take this loss again. It is the cost of being there for the ones that work.",
    "facts": [
     "h02",
     "d27",
     "d28",
     "d28b",
-    "d31"
+    "d31",
+    "h05"
    ],
    "wrong": {
-    "Yes; sell at +0.54R next time": "The first trim is a third at 3R. Selling at half an R is fear, not a rule.",
-    "Yes; the stop was too tight": "A few cents under the swing low is the rule, about 3% here. Nothing argues for wider.",
-    "Yes; never buy a slow pullback": "The pullback was fine. The trade just did not work, and the stop kept it small."
+    "Yes; sell at +0.54R next time": "The first trim is a third at 3R. No rule sells at half an R.",
+    "Yes; the stop was too tight": "The stop was 3.0% wide, inside our habit. Nothing in our four failures argues for a wider stop.",
+    "No; so buy it back the next day": "Right that it was no mistake, wrong on the next step. A stop-out is not a signal to chase. A re-buy needs its own fresh trigger."
    },
    "story": "Bought at 56.66, stop 54.95. It reached +0.54R, then five sessions of drift. On day five the stop goes.",
-   "house": true
+   "house": true,
+   "simple": "No, because the stop is the exit, and a loss taken at the stop is the plan working.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q34",
@@ -1804,27 +2239,41 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "hg.leadership",
-   "q": "Two Holy Grails, same picture. One has an RS rating of 92 in a top group; the other lags its group. Which grades A+?",
+   "q": "Two Holy Grails, same picture. One has an RS rating of 92 in a top group; the other lags its group. Which shows our A+ cue?",
    "choices": [
-    "The RS 92 leader",
+    "The leader with the RS of 92",
     "The laggard; it has room to run",
-    "Both; RS is not on the card"
+    "Both; the shape is what grades it",
+    "Neither; an RS of 92 is overbought"
    ],
-   "answer": "The RS 92 leader",
-   "why": "The RS 92 leader. Our A+ row is RS 90 or more in a top group; lagging its group is the B- row. Raschke picks the best relative strength.",
+   "answer": "The leader with the RS of 92",
+   "why": "The RS 92 leader. Our card's A+ row asks for an RS rating of 90 or more in a top group. Lagging its group is the B- row. Our rule to buy leaders sets the floor at an RS of 80. Raschke also picks the stocks with the best relative strength. RS is one cue, and grading stays a judgment with no fixed checklist.",
    "lesson_line": "Same shape, different stock. The leader gets the size.",
    "facts": [
     "c25",
     "c26",
     "r40",
     "h17",
-    "c24"
+    "c24",
+    "h13",
+    "h32"
    ],
    "wrong": {
     "The laggard; it has room to run": "Room to run is a story. Lagging its group is the B- row.",
-    "Both; RS is not on the card": "RS is on the card twice: the gate at 80 and the A+ cue at 90."
+    "Neither; an RS of 92 is overbought": "A high RS is what the A+ row asks for. Stretch is a different check: more than 10% over the 10-day.",
+    "Both; the shape is what grades it": "The shape is the same here, so it cannot split them. Our card's A+ row asks for RS 90 or more, top group."
    },
-   "house": true
+   "house": true,
+   "simple": "The RS 92 leader, because our card's A+ cue is an RS rating of 90 or more in a top group.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "the A+ and B- rows are the card's proposal",
+     "E50: grading is discretionary, the owner should confirm the card's grade rows"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q35",
@@ -1834,12 +2283,22 @@
    "criterion": "hg.position_adv",
    "q": "A Holy Grail position may be up to 5% of the stock's average daily volume if the stop is tight.",
    "answer": "False",
-   "why": "False. Never own more than 1% of a stock's average daily volume; a tight stop cannot catch an overnight gap.",
+   "why": "False. Never own more than 1% of a stock's average daily volume. The rule has no exception for a tight stop. Illiquid stocks are not even on our watch list.",
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "facts": [
     "h19"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because we never own more than 1% of a stock's daily volume, whatever the stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 one cited fact (h19)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q36",
@@ -1847,7 +2306,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "hg.stop",
-   "q": "Account 50,000. Risk 0.5%. Fill 38.93, stop 38.14. How many shares?",
+   "q": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares?",
    "answer": 316,
    "calc": {
     "fn": "shares_from_risk",
@@ -1859,16 +2318,28 @@
     },
     "round": 0
    },
-   "why": "316. Account times risk percent, divided by the fill minus the stop, rounded down. That is about a quarter of the account, under the 40% cap. The stop sets the size.",
+   "why": "316 shares. Take the account times the risk percent. Divide by the fill minus the stop. Round down, never up. The account is at its high, so the normal 40% position cap applies, and this size sits well under it. The stop sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
     "h01",
     "d03",
-    "h30"
+    "h30",
+    "h31"
    ],
    "suffix": " shares",
-   "house": true
+   "house": true,
+   "simple": "Buy 316 shares, because the dollars you risk divided by the fill minus the stop gives the size, rounded down.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 computed key",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q37",
@@ -1879,22 +2350,36 @@
    "q": "Which touch is the A+ cue?",
    "choices": [
     "The one closing in its upper half",
-    "The one closing on its low",
-    "Neither; the close does not matter"
+    "The one closing right on its low",
+    "Neither; the close does not matter",
+    "Wait; the next day's close decides"
    ],
    "answer": "The one closing in its upper half",
-   "why": "The one closing in its upper half. The A+ cue is a touch session that shows buyers, closing in its upper half or showing the intraday turn.",
+   "why": "The one closing in its upper half. Our card's A+ cue is a touch session that shows buyers. It closes in its upper half, or it shows the intraday turn. A close on the low does not show those buyers on the touch day. Grading stays a judgment, and this cue is one part of it.",
    "lesson_line": "A touch that closes strong is buyers stepping in at the line. That is the picture.",
    "facts": [
     "c12",
-    "c39"
+    "c39",
+    "r03",
+    "h32"
    ],
    "wrong": {
-    "The one closing on its low": "A close on the low is sellers still in charge at the line.",
-    "Neither; the close does not matter": "The close is the one thing the touch day tells you about the buyers."
+    "Neither; the close does not matter": "The close matters here. On our card, a touch that closes in its upper half shows buyers.",
+    "The one closing right on its low": "A close on the low does not show buyers. The A+ cue is a touch that closes in its upper half.",
+    "Wait; the next day's close decides": "The cue is on the touch session itself. The next day is for the trigger, a trade over the prior high."
    },
    "story": "Two touches of the 20 EMA on the same kind of trend. One closes near the top of its range. The other closes on its low.",
-   "house": true
+   "house": true,
+   "simple": "The touch that closes in the upper half of its range, because it shows buyers stepping in at the line.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "the A+ cue is the card's proposal",
+     "E50: grading is discretionary, the owner should confirm the card's grade rows"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q38",
@@ -1904,13 +2389,27 @@
    "criterion": "hg.direction_from_price",
    "q": "The ADX turning down while the stock pulls back to the line kills the setup.",
    "answer": "False",
-   "why": "False. Raschke expects the pullback to be accompanied by a turndown in the ADX. Treating that turndown as a sell is a named mistake.",
-   "lesson_line": "The ADX cools on every rest. That is the rest, not the end.",
+   "why": "False. Raschke's rule 2 says the retracement to the 20-period EMA will usually come with a turndown in the ADX. Our card names treating that turndown as a sell as a mistake. The ADX push has to come before the pullback. Without that push, it is the plain 20 EMA pullback.",
+   "lesson_line": "The ADX often cools on a rest. That is the rest, not the end.",
    "facts": [
     "r02",
-    "c29"
+    "c29",
+    "c18b",
+    "c28"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The ADX usually turns down while the stock rests, and Raschke expects that, so it does not end the setup.",
+   "deeper": {
+    "trap": "The trap is reading every dip in the ADX as the trend dying. The ADX measures how hard the trend pushes, so it usually cools in the pullback. Raschke expects that turndown. What matters is that the push came first. Selling because the ADX ticked down sells the very rest the setup is built to buy."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Raschke's own rule and the card agree"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q39",
@@ -1922,22 +2421,35 @@
    "choices": [
     "A few cents under 48.75",
     "46.75; give it some room",
-    "At the 20 EMA line"
+    "At the 20 EMA line",
+    "Right on 48.75, the low"
    ],
    "answer": "A few cents under 48.75",
-   "why": "A few cents under 48.75, the swing low. A full ATR under the low puts the risk past 4% before the bar's own range is added.",
+   "why": "A few cents under 48.75, the swing low. The stop goes a few cents under the newly formed swing low, the lowest low from the touch through the trigger. Not exactly on it, and not a full ATR under it. Here 1 ATR is 2.00, so the scan's stop sits at 46.75. A full ATR under the low puts the risk past 4% before the bar's own range is added.",
    "lesson_line": "The stop is where the setup is wrong, not a volatility cushion under it.",
    "facts": [
     "c15",
     "c16",
-    "c33"
+    "c33",
+    "h24"
    ],
    "wrong": {
-    "46.75; give it some room": "Room is a bigger loss, not a better trade. The named mistake is a stop a full ATR under the low.",
-    "At the 20 EMA line": "The line is where it touched, not where the setup is wrong. The swing low is."
+    "46.75; give it some room": "Room is a bigger loss, not a better trade. A stop a full ATR under the low is a named mistake.",
+    "At the 20 EMA line": "The line is where it touched, not where the setup is wrong. The swing low is.",
+    "Right on 48.75, the low": "Not exactly on it. Our stop sits a few cents under the low."
    },
    "story": "The swing low is 48.75 and the ATR is 2.00. A scan suggests a stop at 46.75, a full ATR under the low.",
-   "house": true
+   "house": true,
+   "simple": "Put the stop a few cents under 48.75, because the swing low is where the setup is wrong.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.stop_not_atr)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q40",
@@ -1947,24 +2459,37 @@
    "criterion": "hg.market_reading",
    "q": "What do you do?",
    "choices": [
-    "Pass; Red is mostly cash and shorts",
+    "Pass; our card wants Green or Yellow",
     "Buy it; A+ setups trade in any market",
-    "Buy half size"
+    "Buy it if it is over its 200-day",
+    "Pass; Red means no trades at all"
    ],
-   "answer": "Pass; Red is mostly cash and shorts",
-   "why": "Pass. Red means mostly cash and shorts. Raschke found Grails in stocks riding the market's advance, and a Red market is not one.",
-   "lesson_line": "The best pullback in a Red market is a pullback. Sit on your hands.",
+   "answer": "Pass; our card wants Green or Yellow",
+   "why": "Pass. Our card takes Holy Grails in a Green or Yellow market. Our rulebook reads Red as mostly cash and shorts. Even Orange takes only A+ setups. Shorts below the 200-day are still allowed.",
+   "lesson_line": "Our card takes Holy Grails in Green or Yellow. In Red, it is mostly cash and shorts.",
    "facts": [
     "h26",
     "c27",
-    "r07"
+    "h10",
+    "c44"
    ],
    "wrong": {
-    "Buy it; A+ setups trade in any market": "Orange allows A+. Red is mostly cash and shorts.",
-    "Buy half size": "Half size in a Red market is half a mistake."
+    "Buy it; A+ setups trade in any market": "Orange allows only A+ setups. Red is mostly cash and shorts, and our card takes this setup in Green or Yellow.",
+    "Buy it if it is over its 200-day": "Every long must be over its 200-day. That does not lift a Red reading, which is mostly cash and shorts.",
+    "Pass; Red means no trades at all": "Right to pass, wrong on the rule. Red is mostly cash plus shorts, so shorts below the 200-day are still on the table."
    },
    "story": "The reading is Red. A leader shows a clean first touch of its 20 EMA after a strong push and trades over the prior day's high.",
-   "house": true
+   "house": true,
+   "simple": "Pass, because our card takes this setup in a Green or Yellow market, and Red is mostly cash and shorts.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9) (F65, a guide under A10)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q41",
@@ -1976,23 +2501,40 @@
    "choices": [
     "Yes, as a fresh trade, own stop",
     "No; one try per stock per month",
-    "Yes, with a wider stop this time"
+    "Yes, with a wider stop this time",
+    "No; a failed Grail is done for good"
    ],
    "answer": "Yes, as a fresh trade, own stop",
-   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. The new momentum high and fresh ADX push reopened the door.",
-   "lesson_line": "A stop-out is not a verdict on the setup. A fresh trigger after new strength is a new trade.",
+   "why": "Yes, as a new trade with its own stop. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. A failed Grail closes the stock to pullback buys until it makes a new momentum high. This one did, pulled back to the line and triggered again. The limit is 3 tries in a week and 6 in a month.",
+   "lesson_line": "After a failed Grail, wait for a new momentum high. Then a fresh trigger is a new trade.",
    "facts": [
     "h28",
     "h29",
     "c17",
-    "c17b"
+    "c17b",
+    "c15",
+    "r20"
    ],
    "wrong": {
     "No; one try per stock per month": "The limit is 3 tries in a week and 6 in a month, not one.",
-    "Yes, with a wider stop this time": "The stop is the new swing low again. A wider stop to avoid a repeat is the mistake."
+    "Yes, with a wider stop this time": "A new trade gets its stop by the usual rule, a few cents under the swing low. A wider stop to avoid a repeat is not a rule.",
+    "No; a failed Grail is done for good": "Not for good. Pullback buys reopen once the stock makes a new momentum high, and this one did."
    },
-   "story": "Your Holy Grail stopped out last week. Since then the stock made a new momentum high, the ADX pushed up again, and it pulled back to the line. Today it trades over the prior day's high.",
-   "house": true
+   "story": "Your Holy Grail stopped out last week. Since then the stock made a new momentum high, the ADX pushed up again, and it pulled back to the line. The market reading is still Green. Today it trades over the prior day's high.",
+   "house": true,
+   "simple": "Yes, because a new momentum high reopens the stock, and a fresh trigger is a new trade with its own stop.",
+   "deeper": {
+    "counter": "Raschke is stricter. After a failed Grail, she stops buying pullbacks in that market. Our card reopens the stock once it makes a new momentum high. Our rulebook then allows a fresh trigger as a new trade."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9); the re-arm is a card proposal (hg.failed_grail)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q42",
@@ -2002,12 +2544,22 @@
    "criterion": "hg.climax",
    "q": "A climax run in your Holy Grail position is the moment to sell a big part into it.",
    "answer": "True",
-   "why": "True. A climax run on your own long, Bracco's parabolic burst: sell a big part into it, a judgment call.",
-   "lesson_line": "Sell partials into strength. A vertical leg is strength to sell into.",
+   "why": "True. A climax run on your own long, Bracco's parabolic burst, is the moment to sell a big part into it. How much is a judgment call. It is a big part, not the whole position.",
+   "lesson_line": "A climax run on your own long is strength to sell into. How much is your call.",
    "facts": [
     "h16"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because our rule is to sell a big part of a long into a climax run, using judgment.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 one cited fact (h16)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q43",
@@ -2015,28 +2567,50 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "hg.no_chase",
-   "q": "Buy or pass?",
+   "q": "At the open, which call and reason fit our rules?",
    "choices": [
-    "Pass; over 4% past the trigger",
+    "Pass; it is 6.2% past the trigger",
     "Buy; the news gap confirms the move",
-    "Buy at half the normal size",
-    "Buy, with a much wider stop"
+    "Buy it at half the normal size",
+    "Pass; a gap up voids the setup"
    ],
-   "answer": "Pass; over 4% past the trigger",
-   "why": "Pass. 60.00 is more than 4% over 56.50. Chasing costs size, not risk: the stop stays under the swing low, so the shares shrink.",
+   "answer": "Pass; it is 6.2% past the trigger",
+   "why": "Pass. 60.00 is 6.2% over the 56.50 trigger, past our 4% line. We never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. The gap does not void the setup. It only puts the price past the chase line.",
    "lesson_line": "A gap over the trigger is a gift you decline. Four percent and done.",
    "facts": [
     "h11",
     "h12",
-    "c34"
+    "c34",
+    "c14"
    ],
    "wrong": {
-    "Buy; the news gap confirms the move": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Buy at half the normal size": "Half of a bad entry is still a bad entry.",
-    "Buy, with a much wider stop": "A wider stop to fit a late entry is the mistake, not the fix."
+    "Buy; the news gap confirms the move": "News does not move the line. Never buy more than 4% above the buy point.",
+    "Buy it at half the normal size": "Size is not the problem. The rule is the 4% line, and 60.00 is past it.",
+    "Pass; a gap up voids the setup": "A gap does not void the setup. It only puts the price past the 4% chase line, so you pass."
    },
    "story": "The trigger is the prior day's high at 56.50. News hits and the stock opens at 60.00, straight through it.",
-   "house": true
+   "house": true,
+   "simple": "Pass, because 60.00 is 6.2% over the 56.50 trigger, and we never buy more than 4% above the buy point.",
+   "deeper": {
+    "example": "Chasing costs size, not risk. The stop sits under 56.50 either way. Buy at 60.00 instead, and the distance to the stop grows by everything paid above 56.50. With the same risk in dollars, the share count shrinks. You end up holding fewer shares at a worse price, for the same dollar loss if it fails."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C28)",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 56.5,
+     "end": 60.0
+    },
+    "round": 1
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q44",
@@ -2054,14 +2628,23 @@
     },
     "round": 1
    },
-   "why": "6.0%. The high minus the low, divided by the high. Our card sets no depth rule beyond the line; the touch low holds the 50-day. AMBA's 7.8% was the deepest of our ten.",
+   "why": "6.0%. Take the momentum-high close less the swing low, then divide by the high: 40.00 less 37.60, divided by 40.00, is 6.0%. Our card sets no depth rule beyond the line itself, and the touch low must hold above the 50-day. AMBA's 7.8% was the deepest of our ten examples, and the line still held to the cent.",
    "lesson_line": "Measure the dip, then look at the 50-day. Depth is a picture, not a gate.",
    "facts": [
     "c10",
     "d08"
    ],
    "suffix": "%",
-   "house": true
+   "house": true,
+   "simple": "The pullback is 6.0% deep: 40.00 less 37.60, divided by 40.00.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (drawdown_pct)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q45",
@@ -2071,12 +2654,13 @@
    "criterion": "hg.setup_void",
    "q": "Before the trigger comes, the stock closes under its 50-day. The setup?",
    "choices": [
-    "Void; no trade",
+    "Void; no Holy Grail trade",
     "Still live for 5 sessions",
-    "A buy at the 50-day instead"
+    "A buy at the 50-day instead",
+    "Live while the 20 EMA rises"
    ],
-   "answer": "Void; no trade",
-   "why": "Void. Before the trigger, a close below the 50-day SMA ends the setup.",
+   "answer": "Void; no Holy Grail trade",
+   "why": "Void. Before the trigger, our card voids the setup after a close below the 50-day SMA. The 5-session limit is a separate test, for a trigger that never comes. A rising 20 EMA does not save it. There is no Holy Grail trade.",
    "lesson_line": "The 50-day is the floor. Lose it before the trigger and the Grail is gone.",
    "facts": [
     "c14",
@@ -2084,9 +2668,20 @@
    ],
    "wrong": {
     "Still live for 5 sessions": "The 5 sessions are for a trigger that never comes. A close under the 50-day ends it at once.",
-    "A buy at the 50-day instead": "That is a different setup with its own rules. It is not a Holy Grail."
+    "A buy at the 50-day instead": "Our card calls that a 50-day pullback, a different setup with its own rules. The Grail is void.",
+    "Live while the 20 EMA rises": "A rising line does not save it. A close below the 50-day SMA voids the setup."
    },
-   "house": true
+   "house": true,
+   "simple": "The setup is void, because a close under the 50-day before the trigger ends the Holy Grail at once.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the void rule is the card's proposal (hg.setup_void)",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q46",
@@ -2096,22 +2691,40 @@
    "criterion": "hg.depth",
    "q": "Which setup is it?",
    "choices": [
-    "A Remount, not a Holy Grail",
-    "A Holy Grail; the line was retaken",
-    "A 20 EMA pullback"
+    "A Remount of its 50-day line",
+    "A Holy Grail; it retook the line",
+    "A plain pullback to the 20 EMA",
+    "A 50-day pullback to the line"
    ],
-   "answer": "A Remount, not a Holy Grail",
-   "why": "A Remount. A Holy Grail touch holds the 20 EMA with its low above the 50-day. A Remount lost its 50 or 200-day for 5 or more straight closes.",
+   "answer": "A Remount of its 50-day line",
+   "why": "A Remount. Count the closes under the line. A Holy Grail touch holds the 20 EMA, and its low stays above the 50-day. A Remount has lost its 50-day or 200-day for 5 or more straight closes and is buying it back. Six straight closes under the 50-day make this one a Remount.",
    "lesson_line": "Count the closes under the line. Five or more straight and it is a Remount.",
    "facts": [
-    "c20"
+    "c20",
+    "c10",
+    "d43"
    ],
    "wrong": {
-    "A Holy Grail; the line was retaken": "The Grail never loses the 50-day. Six closes under it is a Remount.",
-    "A 20 EMA pullback": "This stock lost its 50-day, a far deeper break than a dip to the 20 EMA."
+    "A Holy Grail; it retook the line": "A Holy Grail's low never loses the 50-day. Six closes under it is a Remount.",
+    "A plain pullback to the 20 EMA": "This stock lost its 50-day for six closes, a far deeper break than a dip to the 20 EMA.",
+    "A 50-day pullback to the line": "Five or more straight closes under the 50-day, then buying it back, is the Remount tell. Our CRM 50-day pullback dipped under for one session."
    },
    "story": "The stock closed under its 50-day for six straight sessions. Then it closed back over it on volume.",
-   "house": true
+   "house": true,
+   "simple": "It is a Remount, because the stock closed under its 50-day for 5 or more straight sessions before getting back over.",
+   "deeper": {
+    "trap": "The trap is the close back over the line. It looks like a Holy Grail holding, so count first. Five or more straight closes under the line, then buying it back, is the Remount tell."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "+3 the key rests on one cited fact (c20)",
+     "+2 rests on a card criterion still proposed, awaiting the owner (the Remount tell)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q47",
@@ -2121,23 +2734,39 @@
    "criterion": "hg.line",
    "q": "Which setup is it?",
    "choices": [
-    "A Slingshot",
-    "A Holy Grail",
-    "A Remount"
+    "A Slingshot setup",
+    "A Holy Grail setup",
+    "A Remount setup",
+    "An Oops reversal"
    ],
-   "answer": "A Slingshot",
-   "why": "A Slingshot. Its closes slip under the 4-day EMA of the highs for a few sessions. The buy is the close back over it. A Grail touches the 20-day EMA.",
+   "answer": "A Slingshot setup",
+   "why": "A Slingshot. Its closes slip under the 4-day EMA of the highs for 3 to 7 sessions. The buy is the close back over it. Here that took four sessions. A Holy Grail needs a touch of the 20-day EMA, and this stock never got there. A Remount buys back a 50-day or 200-day lost for 5 or more closes.",
    "lesson_line": "Name the line that was lost. The 4-day line is the Slingshot; the 20-day is the Grail.",
    "facts": [
     "c21",
-    "c20"
+    "c20",
+    "c22"
    ],
    "wrong": {
-    "A Holy Grail": "The Grail needs a touch of the 20-day EMA. This stock never got there.",
-    "A Remount": "A Remount buys back a lost 50 or 200-day. This was a 4-day line."
+    "A Holy Grail setup": "The Grail needs a touch of the 20-day EMA. This stock never got there.",
+    "A Remount setup": "A Remount has lost its 50-day or 200-day for 5 or more closes. This lost a 4-day line.",
+    "An Oops reversal": "An Oops is one day: open under the prior close, under the prior low, back over the close. This took four sessions."
    },
    "story": "Closes slipped under the 4-day EMA of the highs for four sessions. The stock never touched its 20 EMA. Then it closed back over the 4-day line.",
-   "house": true
+   "house": true,
+   "simple": "It is a Slingshot, because its closes slipped under the 4-day line of the highs and it never touched the 20 EMA.",
+   "deeper": {
+    "trap": "The trap is calling every dip that recovers a Holy Grail. Name the line first. Closes under the 4-day EMA of the highs that come back over it make a Slingshot. A touch of the rising 20-day EMA, bought over the prior day's high, makes a Grail. Five or more closes under the 50-day or 200-day, then a reclaim, make a Remount. The name sets the plan."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the lookalike tells are the card's proposal",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q48",
@@ -2145,27 +2774,44 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "hg.length",
-   "q": "What was the grade going in?",
+   "q": "By our card's length cue, what grade was it going in?",
    "choices": [
     "A or B; 10 sessions, not A+",
     "A+; all the boxes are ticked",
-    "Not a setup; it ran too long"
+    "Not a setup; it ran too long",
+    "B-; the loss proves it was weak"
    ],
    "answer": "A or B; 10 sessions, not A+",
-   "why": "An A or B. Our A+ is 2 to 5 sessions; 6 to 10 is an A or B. Ten days is a flag that has already lost its urgency, and the loss was a planned 1R.",
+   "why": "An A or B. Our card grades a shallow, orderly pullback of 2 to 5 sessions as A+. It grades 6 to 10 sessions as an A or B. Ten sessions is the far end of the card's 2 to 10 range, so it still trades. Our dossier calls ten days a flag that has already lost its urgency. The grade is set going in, before the result.",
    "lesson_line": "Ten days is a flag that has already lost its urgency.",
    "facts": [
     "c08",
     "c09",
     "d24",
-    "d31"
+    "h17",
+    "h32"
    ],
    "wrong": {
     "A+; all the boxes are ticked": "A+ is 2 to 5 sessions, shallow and orderly. Ten days is the far end of the range.",
-    "Not a setup; it ran too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down."
+    "Not a setup; it ran too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down.",
+    "B-; the loss proves it was weak": "The grade sets the size, so it is fixed before the buy. A stop-out after it does not change it."
    },
-   "story": "A strong ADX push, then a 10-day pullback to the 20 EMA, the longest the rule allows. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R.",
-   "house": true
+   "story": "A strong ADX push, then a 10-day pullback to the 20 EMA. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R.",
+   "house": true,
+   "simple": "It was an A or B going in, because 10 sessions is past the 2 to 5 our card grades A+.",
+   "deeper": {
+    "trap": "The trap is grading by the result. A loss feels like proof the setup was bad. But the grade sets the size, so it is fixed before the buy. A ten-day pullback reads A or B on the card's length cue. Your journal records what happened after."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the grade row is the card's proposal",
+     "E50: grading is discretionary, the owner should confirm the card's grade rows",
+     "fixed before: flagged-question fix 2026-11-11"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q49",
@@ -2226,21 +2872,35 @@
     "A third once it reaches 10R"
    ],
    "answer": "A third at 5R, sell the burst",
-   "why": "A third at 5R, then a big part into the climax run. After the first third at 3R: another third at 5R, then trail the last third. A climax run is sold into.",
+   "why": "A third at 5R, then sell a big part into the climax run. After the first third at 3R, our rule takes another third at 5R and trails the last third. A climax run on your own long, Bracco's parabolic burst, is sold into. How much is a judgment call. LITE in 2025 began this kind of leg right after its 3R.",
    "lesson_line": "Two trims by rule, then judgment: sell a big part into a vertical leg.",
    "facts": [
     "h20",
     "h16",
     "d05",
-    "d06"
+    "d06",
+    "h25"
    ],
    "wrong": {
-    "Nothing; let the whole leg run": "Sell partials into strength. A vertical leg is the strength to sell into.",
+    "Nothing; let the whole leg run": "Sell into strength. A climax run is the strength our rule sells a big part into.",
     "All of it, sold at the 5R line": "5R is the second third, not the exit. The last third rides the trail or the climax sale.",
-    "A third once it reaches 10R": "The second third comes at 5R, not 10R. Waiting is giving it back."
+    "A third once it reaches 10R": "The second third comes at 5R, not 10R."
    },
-   "story": "Bought at 91.78, stop 88.88. 3R in five sessions, a third off. Then the parabolic leg: three straight up days with gaps.",
-   "house": true
+   "story": "Bought at 91.78, stop 88.88. 3R in five sessions, a third off. Then a parabolic leg carries it well past 5R.",
+   "house": true,
+   "simple": "Take a third at 5R and sell a big part into the burst, because our rule sells into a climax run.",
+   "deeper": {
+    "example": "Gaps can jump a trim level. If the stock opens above 5R, our rule takes that trim at the open. It does not wait for price to come back to the level."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q52",
@@ -2276,22 +2936,42 @@
    "choices": [
     "Tighten the stop to 3% to fit",
     "Skip the trade and keep cash",
-    "Wait for a tighter trigger bar"
+    "Let the stop set the share count",
+    "Place the stop under the swing low"
    ],
    "answer": "Tighten the stop to 3% to fit",
-   "why": "Never raise the stop to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "why": "Tightening the stop to fit is the one thing you never do. Stop first, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade. Never raise the stop to make it fit. The about 3% is a habit, not a cap.",
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "facts": [
     "h01",
     "h04",
-    "c36"
+    "c36",
+    "c15"
    ],
    "wrong": {
-    "Skip the trade and keep cash": "Skipping is allowed. If the honest stop does not fit the risk, skip.",
-    "Wait for a tighter trigger bar": "Waiting is fine. The mistake is moving the stop, not the entry."
+    "Skip the trade and keep cash": "Skipping is allowed. If the honest stop does not fit the risk, skip the trade.",
+    "Let the stop set the share count": "That is our rule: the size comes from the stop. The mistake is moving the stop to fit a size.",
+    "Place the stop under the swing low": "That is the honest stop, and it belongs there. The mistake is moving it up to fit."
    },
-   "story": "The swing low sits 5.5% under your fill. The honest stop breaks the about 3% habit.",
-   "house": true
+   "story": "The swing low sits 5.5% under your planned entry. The honest stop breaks the about 3% habit.",
+   "house": true,
+   "simple": "Never move the stop up just to make it fit, because the stop comes first and the size comes from it.",
+   "deeper": {
+    "trap": "The trap is the 3% habit. Our stop usually sits within about 3% of the buy, but that is a habit, not a cap. When the honest stop is wider, the fix is never a tighter stop. A stop raised inside the swing low no longer marks where the setup is wrong. If it does not fit, skip."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+2 the what-to-do-when-wider choice is held (D-005)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave4b"
   },
   {
    "key": "q54",
@@ -2346,20 +3026,36 @@
    "choices": [
     "No; under $10 and $20 million",
     "Yes; a clean setup is the setup",
-    "Yes, at half the normal size"
+    "Yes, at half the normal size",
+    "No; only the $7 price fails here"
    ],
    "answer": "No; under $10 and $20 million",
-   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one fails both: $7 a share and about $4 million a day. A clean chart does not change that. Illiquid stocks are not even on our watch list.",
    "lesson_line": "A clean touch in a thin stock is still a thin stock.",
    "facts": [
-    "h09"
+    "h09",
+    "h19"
    ],
    "wrong": {
     "Yes; a clean setup is the setup": "The setup is fine and the stock is not ours. The liquidity rule comes before the chart.",
-    "Yes, at half the normal size": "Size does not make a thin stock liquid."
+    "Yes, at half the normal size": "Size does not make a thin stock liquid. The rule is no trade.",
+    "No; only the $7 price fails here": "It fails twice. About $4 million a day is also under the $20 million floor."
    },
    "story": "A clean first touch of the 20 EMA on a $7 stock. It trades about $4 million a day.",
-   "house": true
+   "house": true,
+   "simple": "No, because we only trade stocks at $10 or more that trade at least $20 million a day.",
+   "deeper": {
+    "trap": "The trap is a perfect chart. The liquidity rule comes before the chart: $10 or more, and $20 million a day. A stock under either line is not one we trade, however clean the setup looks."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+3 the key rests on one cited fact (h09)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q57",
@@ -2424,20 +3120,38 @@
    "choices": [
     "A few, then add as they work",
     "All seven; Green means full risk",
-    "None; wait a week to be sure"
+    "None; wait a week to be sure",
+    "One, and add to it on strength"
    ],
    "answer": "A few, then add as they work",
-   "why": "A few. After a correction, when the reading turns Green again, start with a few positions and add as they work.",
+   "why": "A few. After a market correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. The adds are new positions, not more shares in the same trade. Green allows full risk per grade and up to 10 positions, but that is the ceiling, not the first day.",
    "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
    "facts": [
-    "h27"
+    "h27",
+    "h26",
+    "h03b"
    ],
    "wrong": {
-    "All seven; Green means full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
-    "None; wait a week to be sure": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+    "All seven; Green means full risk": "Full risk is the ceiling in Green. After a correction you start with a few and add as they work.",
+    "None; wait a week to be sure": "The rule starts with a few when the reading turns Green. Waiting a week is not the rule.",
+    "One, and add to it on strength": "Adds are new positions, not more shares. Each trade goes on at full size, one price, no adding."
    },
-   "story": "After a correction the reading just turned Green. Your list shows seven leaders at their first touch of the 20 EMA after a strong push.",
-   "house": true
+   "story": "After a correction the reading just turned Green. Seven leaders on your list trigger today after a first touch of the 20 EMA.",
+   "house": true,
+   "simple": "Start with a few, because after a correction our rule adds new positions only as the first ones work.",
+   "deeper": {
+    "trap": "The trap is reading 'add as they work' as adding shares. The rule counts positions. Start with a few, then open more as the first ones work. Each position still goes on at full size, at one price, with one stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "+3 the key rests on one cited fact (h27)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q60",
@@ -2447,29 +3161,48 @@
    "criterion": "hg.stop",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "Market; swing-low stop; third at 3R",
-    "Limit order; ATR stop; out at 2R",
-    "Buy the touch; line stop; hold"
+    "Market; under swing low; third at 3R",
+    "Market; 1 ATR under low; third at 3R",
+    "Market; under swing low; half at 2R",
+    "Market; 1 ATR under low; half at 2R"
    ],
-   "answer": "Market; swing-low stop; third at 3R",
-   "why": "A market order as it trades over the prior day's high. The stop sits a few cents under the swing low, and a third comes off at 3R. EXPD got to 3R in three sessions.",
+   "answer": "Market; under swing low; third at 3R",
+   "why": "A market order, a stop under the swing low, a third at 3R. The entry is a market order as it trades over the prior day's high. The stop sits a few cents under the swing low, the lowest low from the touch through the trigger. The first trim is a third at 3R. EXPD reached 3R in three sessions.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
    "facts": [
     "h22",
     "r22",
+    "r03",
     "c15",
     "h05",
     "d03",
     "d04",
-    "c30",
     "c33"
    ],
    "wrong": {
-    "Limit order; ATR stop; out at 2R": "Entries are market orders, and a stop a full ATR under the low is the named mistake. Out at 2R skips the 3R trim.",
-    "Buy the touch; line stop; hold": "Buying the touch is the named mistake, and a stop at the line sits inside the pullback."
+    "Market; 1 ATR under low; third at 3R": "The trim is right. A stop a full ATR under the low is a named mistake. Ours sits a few cents under the swing low.",
+    "Market; under swing low; half at 2R": "The stop is right. The hard rule for the first trim is a third at 3R, not half at 2R.",
+    "Market; 1 ATR under low; half at 2R": "Two misses. A stop a full ATR under the low is a named mistake, and the first trim is a third at 3R."
    },
    "story": "EXPD, March 2006: a three-day, 3.6% rest to the 20 EMA after a fresh momentum high. This morning it trades over the prior day's high.",
-   "house": true
+   "house": true,
+   "simple": "Market order, stop a few cents under the swing low, a third off at 3R, because those are our rules.",
+   "deeper": {
+    "example": "Raschke's own rule is a buy stop above the previous bar's high. Our rulebook says entries are market orders, so we buy at market as it trades over the prior day's high. Raschke also says that in a trending market you should use market orders."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 the trigger narrated here is held (D-003)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave4b"
   },
   {
    "key": "q61",
@@ -2477,24 +3210,29 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hg.depth",
-   "q": "Hidden ticker, the touch day. A first pullback to the rising 20 EMA after a strong push. Take the trigger or pass?",
+   "q": "Hidden ticker, the touch day. Assume a Green market, RS 80 or more. A first pullback to its rising 20 EMA after an ADX push. Buy or pass?",
    "choices": [
-    "Take it; the low holds the 50-day",
+    "Buy the trigger; the 50-day held",
     "Pass; the touch broke the 50-day",
-    "Pass; price is under the 200-day"
+    "Pass; price is under the 200-day",
+    "Buy at the close, on the touch"
    ],
-   "answer": "Take it; the low holds the 50-day",
-   "why": "Take it. The first touch since the push, the low holding over the 50-day, the close above the 200-day. A strong October thrust, seven quiet red days into the line; it triggered the next morning and never looked back.",
-   "lesson_line": "Young trend, first touch, floor intact: that is the context. Then wait for the trigger.",
+   "answer": "Buy the trigger; the 50-day held",
+   "why": "Buy, on the trigger. The touch low holds above the 50-day, and the close sits above the 200-day. Our scan required both for every example, and this was CI in October 2000. It had a strong thrust off the 50-day, then seven quiet red days into the line. It triggered the morning after the touch.",
+   "lesson_line": "First touch, low over the 50-day, close over the 200-day. Then wait for the trigger.",
    "facts": [
     "c10",
     "c04",
+    "d49",
+    "d01",
     "d02",
-    "d01"
+    "c30",
+    "c44"
    ],
    "wrong": {
-    "Pass; the touch broke the 50-day": "Look again: the low sits well above the 50-day here.",
-    "Pass; price is under the 200-day": "Price sits well above the 200-day, resting on its 20 EMA."
+    "Pass; the touch broke the 50-day": "The touch low held above the 50-day. This chart is one of our scan's examples, and the scan required it.",
+    "Pass; price is under the 200-day": "The close sits above the 200-day. Our scan required that for every example, this one included.",
+    "Buy at the close, on the touch": "Right setup, wrong entry. Today is the touch, and buying the touch instead of the trigger is a named mistake."
    },
    "chart": {
     "sym": "CI",
@@ -2502,7 +3240,20 @@
     "window": 120,
     "forward": 20
    },
-   "house": true
+   "house": true,
+   "simple": "Buy on the trigger, because the low holds above the 50-day and price sits above the 200-day.",
+   "deeper": {
+    "trap": "Seven red days into the line can look like weakness. Check what the rules check: the low over the 50-day and the close over the 200-day. Then wait for the trigger. Buying the touch itself is the named mistake."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on a card criterion still proposed, awaiting the owner (hg.depth)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q62",
@@ -2510,23 +3261,27 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hg.above_200",
-   "q": "Hidden ticker, the day it touches the 20 EMA and holds. Is the touch above the 200-day? Take it or pass.",
+   "q": "Hidden ticker, the day it touches the 20 EMA and holds. Assume a Green market and RS 80 or more. Buy or pass?",
    "choices": [
     "Pass; it is under the 200-day SMA",
     "Take it; the 20 EMA held the touch",
-    "Take it; the ADX is strong"
+    "Take it; the ADX is strong",
+    "Pass; volume must dry up first"
    ],
    "answer": "Pass; it is under the 200-day SMA",
-   "why": "Pass. The touch closed at 51.44 under the 200-day at 52.79. The trade that followed ran to 5.4R and the rule still says no; location is a rule, not a prediction.",
+   "why": "Pass. No longs below the 200-day simple moving average, unless it is a parabolic long, and this is a pullback. The touch closed at 51.44, under the 200-day at 52.79. The trade that followed ran to 5.4R, and the rule still says no. The 200-day gate is a location rule, not a prediction.",
    "lesson_line": "A setup that works is not always our setup. The 200-day decides before the line does.",
    "facts": [
     "h10",
     "d40",
-    "d41"
+    "d41",
+    "c28",
+    "c11"
    ],
    "wrong": {
     "Take it; the 20 EMA held the touch": "The line held and the location failed. No longs under the 200-day.",
-    "Take it; the ADX is strong": "A sharp rally can push the ADX up under the 200-day. The location rule still says no."
+    "Take it; the ADX is strong": "The ADX measures strength, not location. No longs under the 200-day, whatever the ADX.",
+    "Pass; volume must dry up first": "Volume is not a gate. Lighter volume is only a grade plus. The reason to pass is the 200-day."
    },
    "chart": {
     "sym": "RIG",
@@ -2534,7 +3289,20 @@
     "window": 120,
     "forward": 20
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the touch closed under the 200-day line, and we take no longs below it.",
+   "deeper": {
+    "counter": "RIG is the counter-example. The pullback held its 20 EMA, and the trade that followed ran to 5.4R. It was a bear-market rally under a falling 200-day, so the rule still says no. One winner on the wrong side of the line does not make the line wrong."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9) (B26, a hard rule)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q63",
@@ -2544,12 +3312,26 @@
    "criterion": "hg.earnings_window",
    "q": "Your Holy Grail long is up 2R and earnings are tomorrow. You hold through the report.",
    "answer": "False",
-   "why": "False. We hold through a report only if the trade is up 5R. At 2R it is not.",
-   "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
+   "why": "False. We hold through an earnings report only if the trade is up 5R. At 2R it is not, so it comes off before the report. A breakeven stop does not change that rule.",
+   "lesson_line": "Hold through a report only at 5R or more. At 2R, it comes off first.",
    "facts": [
     "h08"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because we hold through earnings only when the trade is up 5R, and 2R is not enough.",
+   "deeper": {
+    "trap": "The trap is feeling safe at 2R with the stop at breakeven. The rule does not look at the stop. Only a trade up 5R is held through a report. Anything less comes off before it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "+3 one cited fact (h08)",
+     "+2 rests on the owner's rulebook (sizing_rule.md section 9)",
+     "+1 fixed before (cold check 2026-11-10)"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q64",
@@ -2561,21 +3343,38 @@
    "choices": [
     "An Oops reversal day",
     "A Holy Grail pullback",
-    "A U&R at a swing low"
+    "A U&R at a swing low",
+    "A Slingshot reclaim"
    ],
    "answer": "An Oops reversal day",
-   "why": "An Oops. It opens under the prior close, trades under the prior day's low and reclaims the prior close the same day. A Grail's trigger comes after a touch of the 20 EMA.",
+   "why": "An Oops. It opens under the prior close, trades under the prior day's low and reclaims the prior close the same day. A Holy Grail's trigger comes after a touch of the 20 EMA, and this stock never touched it. A U&R undercuts a level everyone can see, such as a bounced swing low or the range low. A Slingshot needs 3 to 7 closes under the 4-day EMA of the highs, then a close back over it. Nothing here shows that.",
    "lesson_line": "Read the trigger. One day's open-and-reclaim is the Oops; a touch and a push over the high is the Grail.",
    "facts": [
     "c22",
-    "c23"
+    "c23",
+    "c21",
+    "u01"
    ],
    "wrong": {
     "A Holy Grail pullback": "It never touched its 20 EMA, so there is no Grail. The Grail is bought after a touch of the line.",
-    "A U&R at a swing low": "A U&R dips under a bigger prior low, a swing low, and can take up to 3 sessions to reclaim it. This was one candle under yesterday's low."
+    "A U&R at a swing low": "A U&R undercuts a level everyone can see, like a swing low or range low. Yesterday's low here was neither.",
+    "A Slingshot reclaim": "A Slingshot needs 3 to 7 closes under the 4-day EMA of the highs, then a close back over it. Nothing here shows that."
    },
-   "story": "The stock opens under yesterday's close and trades under yesterday's low. By the bell it has reclaimed yesterday's close. It never touched its 20 EMA.",
-   "house": true
+   "story": "The stock opens under yesterday's close and trades under yesterday's low. By the bell it has reclaimed yesterday's close. Yesterday's low was no swing low or range low. It never touched its 20 EMA.",
+   "house": true,
+   "simple": "It is an Oops, because it opened under yesterday's close, dipped under yesterday's low and won back the close the same day.",
+   "deeper": {
+    "counter": "Many dips that recover look alike, so name the level that was lost and how long it took. One day under yesterday's low, back over yesterday's close, is the Oops. A dip under a level everyone can see, won back within 3 sessions, is the U&R. A touch of the rising 20 EMA, then a trade over the prior day's high, is the Grail."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the lookalike tells are the card's proposal",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave4b"
   },
   {
    "key": "q65",
@@ -2599,26 +3398,47 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "hg.trigger_rolls",
-   "q": "By our card, where does the buy stop sit for Wednesday?",
+   "q": "By our card, where is the trigger for Wednesday?",
    "choices": [
     "Just over 52.00, Tuesday's high",
     "Still over 52.40, Monday's high",
-    "Cancel it; a lower low ends the setup"
+    "None; a lower low ends the setup",
+    "Buy at the 20 EMA touch instead"
    ],
    "answer": "Just over 52.00, Tuesday's high",
-   "why": "Just over 52.00. Raschke puts the buy stop above the previous bar's high, and our card rolls it down while the setup is alive.",
-   "lesson_line": "The buy stop follows the latest high down.",
+   "why": "Just over 52.00, Tuesday's high. Raschke puts a buy stop above the high of the previous bar. Our card adds a rule for a session that makes a lower low and does not trigger. The next trigger is that session's high, while the setup is still alive. When price trades there, we buy at market. A lower low alone does not end the setup.",
+   "lesson_line": "The trigger follows the latest high down.",
    "facts": [
     "c50",
     "r03",
-    "c14"
+    "c14",
+    "c30",
+    "h22"
    ],
    "wrong": {
-    "Still over 52.40, Monday's high": "Monday's level is stale. The buy stop follows the latest bar's high while the setup is alive.",
-    "Cancel it; a lower low ends the setup": "A lower low does not end it. A close under the 50-day does, or 5 sessions from the first touch with no trigger."
+    "Still over 52.40, Monday's high": "Monday's level is stale. The trigger follows the latest session's high while the setup is alive.",
+    "None; a lower low ends the setup": "A lower low alone does not end it. The card rolls the trigger to that session's high while the setup is alive.",
+    "Buy at the 20 EMA touch instead": "Buying the touch instead of the trigger is a named mistake. The buy waits for a trade over the latest high."
    },
    "house": true,
-   "story": "Monday touched the 20 EMA. Your buy stop for Tuesday sat over Monday's high of 52.40. Tuesday made a lower low and traded up to 52.00 without a trigger. The setup is still alive."
+   "story": "Monday touched the 20 EMA. The trigger for Tuesday sat just over Monday's high of 52.40. Tuesday made a lower low, topped out at 52.00 and never triggered. There is no close under the 50-day.",
+   "simple": "Just over 52.00, because our card rolls the trigger down to the latest session's high.",
+   "deeper": {
+    "example": "Monday touches the line, so Tuesday's trigger sits just over Monday's high, 52.40. Tuesday makes a lower low and tops out at 52.00 with no trigger. Wednesday's trigger moves to just over 52.00. If Wednesday also makes a lower low with no trigger, it rolls again to Wednesday's high. The count of 5 sessions from the first touch keeps running."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the held trigger decision (D-003)",
+     "the rolling trigger is the card's proposal",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave4b"
   },
   {
    "key": "q67",
@@ -2628,13 +3448,27 @@
    "criterion": "hg.trigger_rolls",
    "q": "By our card, after a lower low with no trigger, the buy stop stays over the touch day's high until it fills.",
    "answer": "False",
-   "why": "False. The next trigger is that session's high, while the setup is still alive. The setup voids after 5 sessions from the first touch with no trigger.",
+   "why": "False. Our card covers a session that makes a lower low and does not trigger. The next trigger is that session's high, while the setup is still alive. So the buy stop follows the latest high down. The setup voids after 5 sessions from the first touch with no trigger, or on a close below the 50-day SMA.",
    "lesson_line": "The trigger rolls to the latest session's high.",
    "facts": [
     "c50",
     "c14"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. After a lower low with no trigger, the buy stop moves down to that session's high while the setup is alive.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the held trigger decision (D-003)",
+     "the rolling trigger is the card's proposal",
+     "fixed before: checker rewrite 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave4b"
   }
  ],
  "conflicts": [
@@ -2679,189 +3513,189 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key from the card (hg.line, proposed) and Raschke's 'I personally use a 20-period exponential moving average' (r30, verbatim in s3); Woods' SMA (w02) is quoted as the drift it is. Wrong notes true. Choices under 40 characters.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived the 20-day EMA of closes from r30/c06 before reading the key; matches. Choices balanced (24-26 chars), Woods' SMA shown as his (w02), 50-day note rests on c10. No second answer, no tell."
   },
   "q02": {
    "status": "pass",
-   "notes": "hg.direction_from_price (proposed) and the named mistake c28; r05 verbatim. Strength versus direction is textbook (ChartSchool says the same).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "hg.stop (settled, A3/F62); c15 verbatim on the card, r04 verbatim in s1. Wrong notes true (an ATR stop is the scanner's, c16). variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (c15, r04, h24). Fixed the simple: 'the point where the trade is wrong' is in no cited fact and not in the why (the simple may not claim more than the proper answer)."
   },
   "q04": {
    "status": "pass",
-   "notes": "hg.depth (proposed, c10 verbatim). Fill of 50 with bank 50/20/200/10/100 is not led. Overlaps q10 (same gate, but q10 is the real CRM near-miss as a case), so kept as the recall half.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "hg.pullback_volume (proposed): 'Volume is not a gate' (c11 verbatim). Kept over q54, which asked the same fact. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key False re-derived from d46 (27.6% quiet vs 26.7% heavy); 'clearly' is needed since 27.6 > 26.7. Note: the d46 quote shows the two rates, but the words 'to 3R' sit in the page sentence around it (dossier lines 975-977), not inside the quote; acceptable, flagged for the integrator."
   },
   "q06": {
    "status": "pass",
-   "notes": "F65 verbatim (h26) and the card's c27: Orange is A+ only. Wrong notes true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived 'only A+' from h26/c27 (F65) first; matches. Stem scoped 'by our guide' fits A10/F65. Half-size note rests on F65 naming the grade. Choices 20-23 chars, no tell."
   },
   "q07": {
    "status": "pass",
-   "notes": "C31 (h14 verbatim, settled) and r40 verbatim in s4. 'RS 80 or more, in a strong group' is a rulebook line, no number outside the facts.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q08": {
    "status": "pass",
-   "notes": "hg.momentum_high (proposed): c03 verbatim, r06 verbatim. Two distractors ('more than 20 sessions back', 'any time in the last year') were obviously silly and contradicted the question's own 20-session wording; replaced with 'within the 5 sessions' and 'anywhere in the last 20 sessions', both real misreadings with true wrong notes. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c03 (within the 10 sessions before the touch). Note: q57 (not upgraded) applies the same window with the same 5-session distractor; recall vs application, kept as a pair, but they should not be dealt back to back."
   },
   "q09": {
    "status": "pass",
-   "notes": "hg.adx_history (proposed): k02 verbatim in ChartSchool (one Tier 2 source; the claim is a technical caution about the indicator, not a trading rule) and c01 verbatim on the card. Kept over q55, which asked the same fact.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key False right (k02, c01). Fixed the simple: 'needs around 150 bars' drops ChartSchool's hedge 'it can take around 150 periods'; the why keeps the hedge, so the simple must too."
   },
   "q10": {
    "status": "pass",
-   "notes": "CRM 2018-02-12 near-miss: touch low 106.26 under the 50-day 107.16 verbatim (d42/d43, card near_misses). Story said it 'closes back above both'; the dossier only says 'closing back above it', so now 'above the 50-day'. Remount wrong note said 'weeks of closes'; the card says 5 or more straight closes (c20), fixed. Rung 2 to 7 (a real near-miss case) to balance the spread after the cuts.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c10 + d42/d43 (CRM low 106.26 under the 50-day 107.16, a 50-day pullback). Remount distractor correctly ruled out by c20 (5+ closes). Numbers grounded."
   },
   "q11": {
    "status": "pass",
-   "notes": "C29 (h13 verbatim, settled): skip a long more than 10% above its 10-day. d14 verbatim: all ten fills were within 2.5% of the 10-day. flagged-question fix checked 2026-11-11",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "C28 (h11/h12 verbatim, settled). Fill answer 4 with bank 4/2/5/8/10 is rule recall; q43 applies it with numbers.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "D41 (h18 verbatim, settled) and hg.stop_broker (c37). True. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "hg.length (proposed): c08 verbatim, r31 verbatim in s3. The wrong 'six weeks or more' is weak but not false. Kept over q65, which asked the same fact.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key 2 to 10 sessions right (c08). Fixed: lesson_line 'Days, not weeks' and simple 'a rest of days, not weeks' contradict the key, since 10 sessions is two trading weeks; the six-weeks note's 'rest of days' trimmed for the same reason. (q48's story also gave this key away: fixed there.)"
   },
   "q15": {
    "status": "pass",
-   "notes": "B26 (h10 verbatim, settled): no longs below the 200-day unless a parabolic long; a Grail is not a parabolic long. Kept over q52, which asked the same fact.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "notes": "hg.inv_no_adx (proposed): c18/c18b verbatim. Keys 'no ADX push' with no threshold, so D-079 (pending) is not used. Rung 3 to 6 (a lookalike judgment). variety rewrite checked 2026-11-10; edited: wrong note: Remount is five or more closes (c20), not weeks.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c18b. The Woods line paraphrases w04 without keying the 30 level (D-079 respected). The Remount distractor is weak but a real setup confusion, grounded by c20."
   },
   "q17": {
    "status": "pass",
-   "notes": "BAC 2006-05-16: buy 49.79, stop 48.55 (2.5%), stopped the next session, low 20 sessions later 7.9% under the buy (d29/d30 verbatim in section 13). A4 (h02 verbatim): the stop is the exit, only moves up. A real-case loss described plainly. Rung 3 to 7 to balance the spread.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (h02, A4). The deeper trap had a 23-word sentence (voice limit 22); split it. Nothing else changed."
   },
   "q18": {
    "status": "pass",
-   "notes": "B19 (h05 verbatim, settled): the hard rule is a third at 3R; E51 (h20) the next third at 5R. A wrong note on 1R claimed '1R is a normal day's swing on a fast stock', which no source gives; now 'Too early. The first trim waits for 3R.' flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h05 hard rule and h20 thirds; matches B19/E51."
   },
   "q19": {
    "status": "pass",
-   "notes": "Re-derived: 36.72 + 3 x (36.72 - 36.03 = 0.69) = 36.72 + 2.07 = 38.79. CI buy 36.72, stop 36.03 and 3R in 2 sessions verbatim (d01); the CI chart sheet draws '3R 38.79'.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 36.72 + 3 x 0.69 = 38.79 correct; '3R in 2 sessions' is d01's (2)."
   },
   "q20": {
    "status": "pass",
-   "notes": "B22 (h08 verbatim, settled): no new buys in the 3 days before a report. Story says two sessions, inside it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from h08 (B22): the day before the report is inside the 3 days."
   },
   "q21": {
    "status": "pass",
-   "notes": "COST 2009-10-29 near-miss: trigger 6 sessions after the touch, void after 5 (hg.setup_void, proposed; d44/d45 verbatim). It reached 4.4R, so the 5-session limit is a dossier proposal the owner should weigh. Kept over q32 (the same fact). Rung 3 to 7 (a real case). Keyed on a proposed line only. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c14 + d22 ('the fifth session after the touch (the last one allowed)'); consistent with q32 (sixth session void) and COST d44. 'Five sessions ago' = the fifth session after the touch. The second Yes is a wrong-reason choice, clearly false by c08 vs c14."
   },
   "q22": {
    "status": "pass",
-   "notes": "hg.failed_grail (proposed, B21 settled): c17 verbatim, r20 verbatim in s2. The fill leaves out the card's 'and the ADX rises again' clause, so no ADX number is keyed.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key 'momentum' right. Fixed a truncated rule: the card's full re-arm is a new momentum high AND the ADX rising above 30 again (17-holy-grail.json hg.failed_grail); the sentence, why and simple taught the momentum high as the whole condition. The sentence now asks what the card wants before the next buy, the why names a fresh ADX push with no number (30 stays inside the quote, per the lesson's D-079 policy), new fact c17c verified verbatim on the card. Key unchanged, so the D-079 owner flag stands."
   },
   "q23": {
    "status": "pass",
-   "notes": "A5 (h03b verbatim, settled): the full size at one price with one stop, no adding. True.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from h03b (A5: no adding); h28 for the re-buy line."
   },
   "q24": {
    "status": "pass",
-   "notes": "Re-derived: (50.27 - 48.75) / 50.27 = 1.52 / 50.27 = 3.02%. AMBA buy 50.27, stop 48.75 (3.0%) verbatim (d07). The 3% line is A13 (h04, settled); hg.stop_width's what-to-do-when-wider (pending, D-005) is not keyed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc 1.52 / 50.27 = 3.02% correct; AMBA date and 'to the cent' from d07/d08; 'a habit, not a hard cap' is a fair reading of h04's 'usually'."
   },
   "q25": {
    "status": "pass",
-   "notes": "B20 (h06/h07 verbatim, settled). Re-derived: R = 72.00 - 70.50 = 1.50; the 69.90 open is 1.4R down, the 30-minute low 69.40 is 1.73R down, inside 2R, so 69.40 is the stop. Distractors true.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q26": {
    "status": "pass",
-   "notes": "NVDA 2024-04-03: buy 90.11, stop 87.57 = 2.82%, 5-day pullback, up 86.4% in 60 sessions, stopped day 1 (d20/d21 verbatim; section 12). hg.not_climax (proposed, c05 verbatim; Woods w03 verbatim). The story gives the near-vertical run, so it points at the answer more than a pure 'ask' would; 'Nothing; every box ticks' is the weakest distractor. Passes; the owner may want a less pointed story.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
-   "notes": "B19 (h05 verbatim): breakeven between 2R and 5R, at the first trim by default. Two wrong notes claimed '1R is a normal day's swing' and 'a normal day would hit it', neither sourced; both now say breakeven waits until 2R at the earliest. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h05 (B19: breakeven at 2R to 5R)."
   },
   "q28": {
    "status": "pass",
-   "notes": "F63 (h25 verbatim, settled). Story 2.5R at the close, 3.4R at the open: past the 3R level, so the third comes off at the open. Distractors true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived 'sell a third at the open' from h25 (F63) + h05 (B19 hard rule a third at 3R) before the key; matches. 3.4R past 3R is a given. Key no longer echoes the stem. B19's 'mostly waits for 5R' is his practice, not the taught hard rule; the card's trim_1 is a third at 3R. (h05's quote differs from the rulebook only by markdown bold around 'a third at 3R'.)"
   },
   "q29": {
    "status": "pass",
-   "notes": "hg.length_a_plus (proposed): c09 verbatim, r41 verbatim in s4. The TF restates the card line; that is the point of the question.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key False right (c38 B- row), but the statement was a tell by tone: 'sloppy ... big red days ... A+' is false on its face to a beginner. Retargeted to a real misconception on the same fact: the card has no depth rule beyond the line (c10), so a member may think a deep, red pullback is still an A or B. The card's b_minus row lists it (c38); B- is sized down (h17). Still does not state the 2-5 / 6-10 map (q48) or the 2 and 10 (q14)."
   },
   "q30": {
    "status": "pass",
-   "notes": "MELI 2014-09-17: buy 113.96, stop 111.34 (2.3%), stopped day 1, 9 of the next 10 closes under the 20 EMA, 3R printed 32 sessions later after a new momentum high (d25/d26, section 13). The story never said there was no new high since; now 'No new high since'. The why's 'after that new high' was muddled and a wrong note called the ADX 'strength that left' (unsourced); both rewritten.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key 'No; wait for a new momentum high' right. Fixed: (1) the story's 'No new high since' was echoed by the key (tell), and 'nine of ten closes under the EMA ... now it dips to the line' read oddly; the story now says it has not closed above its old highs, so the member must infer no momentum high (c03 cited). (2) The why truncated the card's re-arm (it also needs the ADX back up, c17c); it now says the card wants both, with no number. (3) 'Nine of the next ten closes' is presented as our MELI case but no cited quote held it: new fact d25b, verbatim in the dossier's MELI row."
   },
   "q31": {
    "status": "pass",
-   "notes": "hg.trail (proposed): c19/c19b verbatim; E52 (h21) allows the 10 or the 21-day, and the 10-day for this setup is the dossier's proposal. A wrong note said the 50-day 'gives back most of the move' (unsourced); now 'Too far behind'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c19/c19b, consistent with E52 (h21). Not against the rulebook."
   },
   "q32": {
    "status": "cut",
@@ -2871,99 +3705,99 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "MRVL 2021-07-09: buy 56.66, stop 54.95 = 3.02% (d27/d28/d31 verbatim); +0.54R then stopped day 5; 3R printed 18 sessions after the buy. A wrong note said the stop was 'inside 3%'; 3.02% is about 3%, so now 'about 3%'. The loss is correctly framed as no mistake (the rules were followed).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h02 + d31; MRVL numbers from d27/d28; 3.0% is in the d27 quote."
   },
   "q34": {
    "status": "pass",
-   "notes": "hg.leadership: RS 80 gate (settled, C31); RS 90 or more in a top group is the A+ cue (c25), lagging its group the B- cue (c26), both verbatim on the card.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived the RS 92 leader from c25 (A+ row RS 90+, top group) and c26 (laggard = B-) first; matches. Stem scoped to 'our A+ cue', h32 carried in the why. Distractors are real misconceptions (room to run, overbought) with h13 for stretch; choices 28-34 chars, no tell."
   },
   "q35": {
    "status": "pass",
-   "notes": "D42 (h19 verbatim, settled): never more than 1% of average daily volume. True.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from h19 (D42, 1% of ADV); the 5% is the question's own number."
   },
   "q36": {
    "status": "pass",
-   "notes": "WRONG KEY, fixed. A5 says the size is the SMALLER of the risk-based size and the position cap, and A7 caps a position at 40% of the account. At 1% risk: 500 / 0.79 = 632 shares x 38.93 = 24,604 = 49% of 50,000, over the 40% cap (the capped answer would be 513). Changed to 0.5% risk: 250 / 0.79 = 316 shares x 38.93 = 12,303 = about 25%, under the cap; answer 316, calc re-derived, fact h30 (A7 verbatim) added.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calc floor(50000 x 0.5% / 0.79) = 316 correct; 316 x 38.93 is about 25% of the account, under the 40% cap (h30/h31); 0.5% risk is inside A1."
   },
   "q37": {
    "status": "pass",
-   "notes": "c12 and c39 verbatim (A+ cue, hg.touch_buyers, proposed). 'Neither; the close does not matter' is a weak distractor but its wrong note is true enough.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Derived the upper-half close from c12/c39 first; matches. The story paraphrases (near the top of its range) rather than echoing the key. The 'Wait' note correctly places the trigger next (r03). E50 scoping in the why; the owner flag on card grade rows stands."
   },
   "q38": {
    "status": "pass",
-   "notes": "r02 verbatim in s1 ('usually be accompanied by a turndown in the ADX'); c29 named mistake. Tagged hg.direction_from_price but really tests hg.adx_gate's 'may turn down'; the key is the same.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key False right (r02 'usually accompanied by a turndown', c29). Fixed facts only: the deeper's 'The ADX measures how hard the trend pushes' needs c28 ('It measures strength'), which the question did not cite."
   },
   "q39": {
    "status": "pass",
-   "notes": "c15/c16/c33 verbatim on the card. Story: ATR 2.00 on a 48.75 low = 4.1%, so 'past 4%' holds. The 48.75 swing low echoes AMBA's stop in q24; harmless. variety rewrite checked 2026-11-10; edited: wrong note no longer asserts where the 20 EMA sits against the swing low (not given).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c15/h24; 46.75 and 2.00 come from the story; 2.00 is over 4% of 48.75, so c16's 'past 4%' holds here. Overlaps q03 (same stop fact) but with numbers and F62's 'not exactly on it' choice; acceptable."
   },
   "q40": {
    "status": "pass",
-   "notes": "F65 (h26): Red is 'mostly cash and shorts'. The key said 'Nothing long; Red is cash and shorts', stronger than 'mostly'; now 'Pass; Red is mostly cash and shorts'. The why used r07 (Raschke found the pattern in stocks that took part in an advance) as if it said no Grails in a Red market; reworded to what it says.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (c44: Green or Yellow; h26: Red is mostly cash and shorts), but the key was the lone hedged choice ('mostly') against two absolutes ('any', 'no trades at all'), a known tell. The key now names the card's market rule, the stronger reason; the Orange note also said 'allows A+ setups', now 'only A+'."
   },
   "q41": {
    "status": "pass",
-   "notes": "B21 (h28 verbatim, settled) and E56 (h29 verbatim): 3 tries a week, 6 a month. The story gave a new momentum high but not the new ADX push the failed-Grail line also wants (hg.failed_grail); added 'the ADX pushed up again' with no threshold. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c17 (re-arm on a new momentum high, which the story gives) + h28 (B21: fresh trigger, new trade) + h29 (3 a week, 6 a month). Raschke's stricter r20 is shown as a counter, not keyed. Mirror of q30 by design."
   },
   "q42": {
    "status": "pass",
-   "notes": "C34 (h16 verbatim, settled): sell a big part into a climax run, a judgment call. True.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key True from h16 (C34). The lesson_line 'Sell partials into strength' is A11, which no cited fact carries; rewritten from h16's own words."
   },
   "q43": {
    "status": "pass",
-   "notes": "C28 (h11/h12 verbatim, settled). Re-derived: 60.00 / 56.50 - 1 = 6.2%, over 4%. Distractors true. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key and calc right: pct_change(56.50, 60.00) = 6.19, rounds to 6.2, past the 4% line (h11, c34). Fixed two wording faults: the why's 'stop stays under the swing low' is c15 (not cited), while h12 says 'under the buy point'; the deeper's 'the distance grows by the whole gap' is wrong, since it grows by what is paid above 56.50, not by the gap from the prior close."
   },
   "q44": {
    "status": "pass",
-   "notes": "Re-derived: (40.00 - 37.60) / 40.00 = 6.0%; the dossier measures depth from the momentum-high close to the swing low, same as here. AMBA 7.8% deepest of ten (d08 verbatim).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q45": {
    "status": "pass",
-   "notes": "hg.setup_void (proposed): c14 verbatim ('void after a close below the 50-day SMA'). The why added 'If it comes back, that is a new setup to judge', which no source says; removed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Derived 'void' from c14 first; matches. The 5-session note separates the two void tests; the 50-day note rests on c10 (setup 12). Choices 25-27 chars, no tell. q66's restatement of this rule is fixed there."
   },
   "q46": {
    "status": "pass",
-   "notes": "Remount tell c20 verbatim (5 or more straight closes under the 50 or 200-day). The story's six closes fit. The lesson said 'Weeks under it'; now 'Five or more straight'. The 'lost long before the 50-day' note was an inference; replaced with the plain point.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (c20: 5 or more straight closes under the 50-day, then buying it back). Two defects: the wrong note on '50-day pullback' claimed 'a pullback does not lose its line for six straight closes', which no cited fact states (setup 12 is not cited); and the deeper trap restated q10's key (a Grail touch under the 50-day is a 50-day pullback), so the two questions answered each other. Both rewritten from c20 and d43."
   },
   "q47": {
    "status": "pass",
-   "notes": "Slingshot tell c21 verbatim (closes under the 4-day EMA of the highs for 3 to 7 sessions; the buy is the close back over it). Story: four sessions, never touched the 20 EMA. The Remount wrong note said 'lost for weeks'; now 'buys back a lost 50 or 200-day'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q48": {
    "status": "pass",
-   "notes": "CELH 2024-04-01: 10-day pullback, buy 84.24, stop 81.37 = 3.41%, no excursion past 0.5R (d24 verbatim). c09: 6 to 10 sessions is an A or B. The lesson 'the weakest one it allows' overreached one example; now the dossier's own line. The question grades on length alone, so the story gives no other grade cues. Overlaps q29 (same grade line, applied here); kept. flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key 'A or B; 10 sessions, not A+' right (c09). Fixed: the story's 'the longest the rule allows' handed q14 its upper bound (10) and made the 'Not a setup' choice silly; removed, so the member must know the 2 to 10 range (q14 teaches it). 'No excursion past 0.5R' was presented as our CELH case but no cited quote held it: new fact d24b, verbatim in the dossier's CELH paragraph."
   },
   "q49": {
    "status": "cut",
@@ -2979,9 +3813,9 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "E51 (h20 verbatim) and C34 (h16): a third at 5R, then trail, and sell a big part into a climax run. LITE buy 91.78, stop 88.88 (d05/d06). The first choice was exactly 40 characters; shortened to 'A third at 5R, then sell into the burst'. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h20 (a third at 5R) + h16 (sell a big part into a climax run); LITE from d05/d06; deeper from h25. 'Sell the burst' is read with the why ('a big part'); acceptable."
   },
   "q52": {
    "status": "cut",
@@ -2991,9 +3825,9 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "A3 (h01 verbatim, settled) and c36 'Never raise the stop to make it fit'; D-005's wider-stop choice is not keyed (skip and wait both allowed). A wrong note cited 'A3 says so', a rulebook code in member text; now plain words. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from c36 + h01; the story's 5.5% is the question's. The lone negative key is what the stem asks for. Respects D-005 (skip and keep cash allowed)."
   },
   "q54": {
    "status": "cut",
@@ -3009,9 +3843,9 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "B23 (h09 verbatim, settled): $10 or more and $20 million a day. Story: $7 and $4 million, fails both. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from h09 (B23); $7 and $4 million come from the story."
   },
   "q57": {
    "status": "cut",
@@ -3027,39 +3861,39 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "F68 (h27 verbatim, settled): after a correction, start with a few positions and add as they work. The why's r07 clause (Raschke's advance remark) was off-topic; removed. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h27 (F68); 10 positions from h26, and seven is under it. 'Adds are new positions' is F68's own text."
   },
   "q60": {
    "status": "pass",
-   "notes": "The key was right but not derivable: the story gave no prior high or swing low, so 'Market 38.93; stop 38.14' could only be picked by elimination, and 38.93 is the scan's fill, not a number a market order carries. Rewrote the three plans without prices: market order (E57, r22), stop a few cents under the swing low (A3/F62), a third at 3R (B19). EXPD 3R in 3 sessions kept (d03). Choices under 40 characters.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Stop and trim axes right (c15, c33, h05). But the entry axis keyed 'Buy stop' as wrong ('Our entries are market orders, not a buy stop') while q66/q67 in the same lesson teach 'by our card, the buy stop sits over...', and the conflicts say the card's trigger is r03's buy stop (D-003 held). The lesson contradicted itself and keyed a held decision. All four choices now enter at market (E57, h22, as the walk-throughs narrate) and differ only on the stop and the first trim, the two settled axes. The key ties for the longest choice; it is not the lone longest."
   },
   "q61": {
    "status": "pass",
-   "notes": "CI 2000-10-25 (the touch day): the chart sheet shows the touch low over the 50-day (about 36 against 34) and the price far over the 200-day (about 29). The stem said 'above the 200-day', which made the third choice false by its own words; removed so the member reads it off the chart. Needs the owner's eye on the real chart.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right on the cited facts (c10, c04, d49, d01/d02, c30), but the stem no longer said there was an ADX push, so 'Buy' leaned on a gate the member is never given (without a push it is the plain 20 EMA pullback, c18b). Added 'after an ADX push' (the stem is now 139 characters). Nothing else changed."
   },
   "q62": {
    "status": "pass",
-   "notes": "Moved the chart as-of from the buy day (2012-03-07, where the bar closes at 53.02 over the 200-day at 52.71) to the touch day 2012-03-06, read on our bars: open 51.13, high 51.74, low 50.45, close 51.44 against a 200-day SMA of 52.79 (matches d40), so the whole bar sits under the line; the 20 EMA is 50.93 and the low pierced it. The stem now asks about the touch day, not the buy day. The 5.4R run is d41's number for the trade that followed. variety rewrite checked 2026-11-10; edited: why: dropped the whole-range clause, which no cited fact states.",
-   "fixed": true,
-   "by": "resolver"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h10 (B26, a hard rule); 51.44 vs 52.79 from d40; the chart as-of 2012-03-06 was verified on our bars as the touch day by the earlier resolver (close 51.44 vs 200-day 52.79). Volume and ADX distractors grounded by c11 and c28."
   },
   "q63": {
    "status": "pass",
-   "notes": "B22 (h08 verbatim, settled): hold through a report only if up 5R. The why's 'the gap risk is bigger than the cushion' was an unsourced claim; now 'At 2R it is not.'",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h08 (hold through a report only if up 5R)."
   },
   "q64": {
    "status": "pass",
-   "notes": "Key confirmed against the Oops card (30-oops-reversal): oops.scanner_oops (settled) is open under the prior close, low under the prior day's low, close over the prior close; the story fits and never touches the 20 EMA. c22 verbatim. The U&R wrong note leaned on the Grail card's loose U&R line (any prior low within 3 sessions), which the story's candle also fits; now it uses the Oops card's tell (a U&R needs a bigger level and may take up to 3 sessions), with c23 added to the facts. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key Oops right: the story meets every part of c22, and the U&R and the Grail are excluded by the story. Fixed: the Slingshot note and the why claimed 'this was one day', but the story says nothing about prior closes under the 4-day EMA of the highs; now they say nothing here shows the 3 to 7 closes and the close back over it (c21). u01 verified verbatim on the U&R card."
   },
   "q65": {
    "status": "cut",
@@ -3069,15 +3903,15 @@
   },
   "q66": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: question now says 'by our card' so it reads as the card's trigger (D-003 held); story says the 52.40 stop was Tuesday's; why names the card; a wrong note gives the 5 sessions as 'from the first touch' as the card does",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key 'Just over 52.00, Tuesday's high' right (c50; Raschke's r03 previous bar agrees). Fixed by the Resolver's own q43 standard: the why and the lower-low note restated the full void rule (close under the 50-day, or 5 sessions) that keys q45; trimmed to what q66 needs. The D-003 owner flag stands."
   },
   "q67": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: question now says 'by our card' (reads as the card's trigger, D-003 held); the 5-session void now reads 'from the first touch' as the card does",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4b: see the resolver's notes"
   }
  }
 }

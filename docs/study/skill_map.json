@@ -2419,7 +2419,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 58,
+              "est_questions": 59,
               "course_file": "docs/study/courses/SET/SET.41.json"
             },
             {
@@ -2461,7 +2461,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 61,
+              "est_questions": 60,
               "course_file": "docs/study/courses/SET/SET.44.json"
             },
             {
@@ -2489,7 +2489,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 64,
               "course_file": "docs/study/courses/SET/SET.46.json"
             },
             {
