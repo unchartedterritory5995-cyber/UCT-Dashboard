@@ -904,6 +904,12 @@
    "source": "s6",
    "quote": "the more volatile markets can have a decline of up to 50%.",
    "claim": "MarketSmith India: in volatile markets an IPO base can decline up to 50%."
+  },
+  {
+   "id": "c16depth",
+   "source": "c1",
+   "quote": "Depth from the left-side high to the base's lowest low",
+   "claim": "The card measures depth from the left-side high to the base's lowest low."
   }
  ],
  "walkthroughs": [
@@ -978,23 +984,34 @@
     "A rest under a ten-year-old record high",
     "A new issue's first rest under its high",
     "A bounce up off the listing-day low",
-    "A spike that doubles in a few weeks"
+    "A spike that doubles in only a few weeks"
    ],
    "answer": "A new issue's first rest under its high",
-   "why": "A new issue's first rest under its high. IBD: let the stock build some trading history, then wait for its first base.",
+   "why": "A new issue's first rest under its high. The top is its highest high since listing, with no close above it. IBD says to let the stock build some trading history and wait for its first base. An old stock resting under a record high is a regular base.",
    "lesson_line": "An IPO base is a young stock's first rest under its own post-listing high.",
    "facts": [
     "i13",
     "c02",
     "c30",
-    "m07"
+    "m07",
+    "c13",
+    "i08"
    ],
    "wrong": {
     "A rest under a ten-year-old record high": "That is an old stock's regular base. An IPO base belongs to a young stock and its own post-listing high.",
-    "A bounce up off the listing-day low": "That is a bounce from the bottom. The base sits under the high, near the top of the range.",
-    "A spike that doubles in a few weeks": "That is a pole. The base is the rest that comes after the early run."
+    "A bounce up off the listing-day low": "That is a bounce from the low. The IPO base is the rest under the high.",
+    "A spike that doubles in only a few weeks": "That is a run, not a rest. The base is the pause under the high, and IBD says to avoid a new issue right after a massive run."
    },
-   "house": true
+   "house": true,
+   "simple": "An IPO base is a young stock's first rest under its own high, after it has traded a while.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q02",
@@ -1004,14 +1021,26 @@
    "criterion": "ipo.never_listing_week",
    "q": "We can buy an IPO breakout on its listing day.",
    "answer": "False",
-   "why": "False. Never buy on the listing day or in the listing week. MarketSmith India says the same: not on the day, not in the week of listing.",
+   "why": "False. Never buy on the listing day or in the listing week. MarketSmith India says the same: not on the day, not in the week of listing. It adds that it is best to pass on the first heated days and wait for the base. Stockbee agrees: let the flipping phase end. Even after that week, a buy needs a base and a trade through the IPO high.",
    "lesson_line": "No buys on the listing day or in the listing week. Let the first heated days pass.",
    "facts": [
     "c05",
     "m01",
-    "i18"
+    "i18",
+    "b03",
+    "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We never buy on the listing day or in the listing week, because the first heated days have no base yet.",
+   "deeper": {
+    "trap": "A hot debut feels like a breakout. But the early days are driven by quick flips and show no base, no pivot and no honest stop. Waiting costs little. The first buy we want is the trade through the IPO high after a base has formed."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave1"
   },
   {
    "key": "q03",
@@ -1020,7 +1049,7 @@
    "format": "fill",
    "criterion": "ipo.pivot",
    "q": "Tap the word that fits the blank.",
-   "sentence": "The pivot of an IPO base is the highest ___ since listing.",
+   "sentence": "The pivot of an IPO base is the IPO ___, the top of the left side.",
    "bank": [
     "high",
     "low",
@@ -1029,13 +1058,23 @@
     "volume"
    ],
    "answer": "high",
-   "why": "High. The pivot is the left-side high, the IPO high. IBD adds 10 cents to it; with a market order the 10 cents does not matter.",
+   "why": "High. The pivot is the IPO high: the highest high since listing. MarketSmith India calls it the highest point on the left side of the base.",
    "lesson_line": "The pivot is the IPO high: the highest high since listing.",
    "facts": [
     "c03",
-    "m03"
+    "m03",
+    "c02"
    ],
-   "house": true
+   "house": true,
+   "simple": "The pivot is the IPO high, the highest high the stock has made since listing.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the 10 cents is IBD's convention"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q04",
@@ -1045,14 +1084,24 @@
    "criterion": "ipo.trigger",
    "q": "The buy is a market order, placed once price trades through the IPO high in regular hours.",
    "answer": "True",
-   "why": "True. Price trades above the IPO high in regular hours, and entries are market orders. No buys outside regular hours.",
+   "why": "True. The trigger is price trading above the IPO high during regular hours, and the entry is a market order. We take no new buys outside regular trading hours. We also never buy more than 4% above the buy point.",
    "lesson_line": "Trade through the IPO high, regular hours, market order.",
    "facts": [
     "c04",
     "h22",
-    "h23"
+    "h23",
+    "h11"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. We buy at market once price trades through the IPO high, and only during regular hours.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: lesson line corrected"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q05",
@@ -1060,7 +1109,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ipo.stop",
-   "q": "Where does the stop go on an IPO base breakout?",
+   "q": "Where does the stop go on the day of an IPO base breakout?",
    "choices": [
     "A few cents under the IPO price",
     "A few cents under the day's low",
@@ -1068,19 +1117,33 @@
     "A few cents under the base low"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the breakout day's low. The prior day's low is the other default. Not exactly on it.",
+   "why": "A few cents under the breakout day's low. The prior day's low is the other default. Not exactly on it: the stop sits a few cents under the low. Not at the base low: widening the stop to sit through the base's depth is a named mistake. It is a real stop order with the broker.",
    "lesson_line": "Stop first: a few cents under the day's low, never at the base low.",
    "facts": [
     "c10",
     "h24",
-    "h01"
+    "h01",
+    "c42",
+    "h18"
    ],
    "wrong": {
-    "A few cents under the IPO price": "That is a level to watch, not our stop. The stop comes from the breakout day's low.",
-    "Exactly on the breakout day's low": "A stop exactly on the low gets hit by the first wiggle. We sit a few cents under it.",
+    "A few cents under the IPO price": "The stop comes from the breakout day's low, not from the IPO price.",
+    "Exactly on the breakout day's low": "The rule is a few cents under the low, not exactly on it.",
     "A few cents under the base low": "The base low can be far away. Widening the stop to sit through the base's depth is a named mistake."
    },
-   "house": true
+   "house": true,
+   "simple": "Put the stop a few cents under the breakout day's low, not on it and not down at the base low.",
+   "deeper": {
+    "trap": "Pulling the stop in to fit a size and pushing it out to the base low both break the plan. Stop first, then size from it: shares equal account times risk percent, divided by entry minus stop, rounded down."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q06",
@@ -1090,13 +1153,23 @@
    "criterion": "ipo.market_reading",
    "q": "When the market stumbles into a correction, new issues often pull back the hardest.",
    "answer": "True",
-   "why": "True. IBD says it is often the new issues that pull back the hardest. Buying in a weak market is a named mistake.",
+   "why": "True. IBD says it is often the new issues that pull back the hardest when the general market stumbles into a correction. Buying in a weak market, where new issues fall hardest, is a named mistake.",
    "lesson_line": "New issues are sold first when the market weakens. Respect the market reading.",
    "facts": [
     "i11",
-    "c44"
+    "c44",
+    "h30"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. IBD says new issues often pull back the hardest when the market falls into a correction.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "one outside quote (IBD, reproduced by Stockbee) plus the card"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q07",
@@ -1104,16 +1177,23 @@
    "rung": 1,
    "format": "tf",
    "criterion": "ipo.volume_in_base",
-   "q": "In a healthy IPO base, volume is light on the pullbacks and heavy on the up days.",
-   "answer": "True",
-   "why": "True. IBD wants quiet action during declines and heavy volume on the upside. On the right half, up-day volume beats down-day volume.",
-   "lesson_line": "Quiet on the way down, busy on the way up. That is accumulation.",
+   "q": "In a healthy IPO base, volume is heavy on the pullbacks and light on the up days.",
+   "answer": "False",
+   "why": "False. IBD wants quiet action during declines and heavy volume on the upside. The statement has it backwards.",
+   "lesson_line": "Quiet on the way down, busy on the way up.",
    "facts": [
     "i09",
     "i10",
     "c18"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. A healthy base is quiet on the pullbacks and busy on the up days.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave1"
   },
   {
    "key": "q08",
@@ -1123,24 +1203,40 @@
    "criterion": "ipo.structure",
    "q": "Is this resting zone an IPO base?",
    "choices": [
-    "No, it must hold the listing-day low",
+    "No, it must be at least 20% deep",
     "Yes, the first rest under the high",
-    "No, it needs a rising 200-day first"
+    "No, it needs a rising 200-day first",
+    "Yes, but only after it breaks out"
    ],
    "answer": "Yes, the first rest under the high",
-   "why": "Yes. The top is the stock's own highest high since listing and nothing has closed above it. IBD says to wait for the first base.",
-   "lesson_line": "A young stock has no 200-day. The IPO high is its reference.",
+   "why": "Yes. The top is the stock's own highest high since listing, and nothing has closed above it. IBD says to let the stock build some trading history and wait for its first base. Its low holds above the IPO price, as IBD and MarketSmith India want. A young stock has no 200-day yet, so the card does not ask for one.",
+   "lesson_line": "A young stock has no 200-day yet. Its first rest under its own high is the base.",
    "facts": [
     "c02",
     "i13",
-    "c32"
+    "c32",
+    "m02",
+    "i19",
+    "i02",
+    "c11"
    ],
    "wrong": {
-    "No, it must hold the listing-day low": "The listing-day low is a level to watch. The base is the rest under the high, not a bounce off the low.",
-    "No, it needs a rising 200-day first": "A young listing has no 200-day yet. That is why this card uses the IPO high instead."
+    "No, it needs a rising 200-day first": "A young listing has no 200-day yet, so the card cannot ask for one.",
+    "No, it must be at least 20% deep": "IBD says IPO bases usually correct less than 20%. A 12% rest is not too shallow.",
+    "Yes, but only after it breaks out": "The base is the rest under the high, with no close above it. The breakout is the trigger, not part of the base."
    },
    "house": true,
-   "story": "A stock listed six weeks ago. Its highest high came in week two. It has rested under that high for four weeks, 12% deep. Its low holds above the IPO price, and nothing has closed above the high."
+   "story": "A stock listed six weeks ago. Its highest high came in week two. It has rested under that high for four weeks, 12% deep. Its low holds above the IPO price, and nothing has closed above the high.",
+   "simple": "Yes. It is the stock's first rest under its own high, and nothing has closed above that high.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "fixed before: story rewritten",
+     "the structure line is a proposed card line"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q09",
@@ -1152,10 +1248,11 @@
    "choices": [
     "Three to six months",
     "Two to five weeks",
-    "Under a week"
+    "Less than one week",
+    "A full year or so"
    ],
    "answer": "Two to five weeks",
-   "why": "Two to five weeks. IBD adds that in rare cases they can be as short as seven days.",
+   "why": "Two to five weeks. IBD says IPO bases can be shorter than regular bases and usually run two to five weeks. In rare cases they can be as short as seven days. The first year is the window an IPO base forms in, not how long it lasts.",
    "lesson_line": "IPO bases run short: usually two to five weeks, not months.",
    "facts": [
     "i01",
@@ -1163,10 +1260,24 @@
     "c30"
    ],
    "wrong": {
-    "Three to six months": "That is a regular base on a seasoned stock. IBD says IPO bases run shorter.",
-    "Under a week": "That is a pause, not a base. IBD's shortest rare case is seven days."
+    "Three to six months": "That is not IBD's range. IBD says IPO bases can be shorter than regular bases.",
+    "A full year or so": "The first year is the window an IPO base forms in, not its length. IBD says usually two to five weeks.",
+    "Less than one week": "IBD's shortest rare case is seven days, so less than a week is below even that."
    },
-   "house": true
+   "house": true,
+   "simple": "IPO bases usually run two to five weeks, which is short. A few rare ones run as short as seven days.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the length minimum is a held decision, D-056",
+     "rests mainly on one outside source (IBD)"
+    ]
+   },
+   "depends_on": [
+    "D-056"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q10",
@@ -1174,14 +1285,24 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ipo.right_side_top_half",
-   "q": "A healthy IPO base ends with its last close in the top half of its range.",
+   "q": "A healthy IPO base ends with its last close in the top half of the base's range.",
    "answer": "True",
-   "why": "True. The base's last close sits in the top half of its range. A base still hugging its lows is not ready.",
+   "why": "True. The base's last close sits in the top half of its range. A base still hugging its lows is not ready. It is one check among several. The buy still needs a trade through the IPO high.",
    "lesson_line": "The right side should be back in the top half of the range.",
    "facts": [
-    "c20"
+    "c20",
+    "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. A ready base ends with its last close in the top half of its range.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only, a proposed card gate"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q11",
@@ -1195,15 +1316,24 @@
     "listing",
     "breakout",
     "earnings",
-    "pivot"
+    "gap"
    ],
    "answer": "listing",
-   "why": "Listing. The IPO AVWAP is the volume-weighted average price anchored at the listing day.",
+   "why": "Listing. The IPO AVWAP is the volume-weighted average price anchored at the listing day. It is not anchored at the breakout, an earnings date or a gap day. The card checks that the close sits above it.",
    "lesson_line": "The IPO AVWAP starts counting on the listing day.",
    "facts": [
     "c19"
    ],
-   "house": true
+   "house": true,
+   "simple": "The IPO AVWAP is an average price, weighted by volume, that starts counting on the listing day.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only, the card definition"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q12",
@@ -1214,23 +1344,34 @@
    "q": "Where does IBD put the buy point on an IPO base?",
    "choices": [
     "10 cents over the left-side high",
-    "At the bottom of the base",
+    "At the right-side low of the base",
     "At the listing-day close, plus 10 cents",
     "At the 21-day average, on a pullback"
    ],
    "answer": "10 cents over the left-side high",
-   "why": "10 cents above the left-side high, the same as most bases. With a market order we do not need the 10 cents.",
+   "why": "10 cents over the left-side high. IBD says the buy point is 10 cents above the high on the left side, as in most regular bases. With a market order we do not need the 10 cents. We buy on the trade through the IPO high.",
    "lesson_line": "IBD adds 10 cents to the IPO high. A market order makes it moot.",
    "facts": [
     "i05",
-    "c03"
+    "c03",
+    "m03"
    ],
    "wrong": {
-    "At the bottom of the base": "That is where the base ends, not where it breaks out.",
-    "At the listing-day close, plus 10 cents": "The listing-day close is a level to watch. The buy point is the high on the left side.",
-    "At the 21-day average, on a pullback": "An average is a trail and a location check, not the buy point."
+    "At the listing-day close, plus 10 cents": "The buy point is the high on the left side, not the listing-day close.",
+    "At the 21-day average, on a pullback": "An average is a trail and a location check, not the buy point.",
+    "At the right-side low of the base": "IBD puts the buy point above the high on the left side, not at a low."
    },
-   "house": true
+   "house": true,
+   "simple": "IBD puts the buy point 10 cents above the left-side high. With a market order, we do not need the 10 cents.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 10 cents is IBD's convention and can change",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q13",
@@ -1238,16 +1379,24 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ipo.inv_market_red",
-   "q": "A textbook IPO base in a Red market is still a buy.",
+   "q": "A textbook IPO base in a Red market is a normal buy for us.",
    "answer": "False",
-   "why": "False. In a Red market we hold mostly cash. A Red reading ends the setup before the trigger.",
+   "why": "False. In a Red market we hold mostly cash, plus shorts below the 200-day. A Red reading ends the IPO base before the trigger, however clean the base looks.",
    "lesson_line": "Red market: mostly cash. A clean base can wait for a better market.",
    "facts": [
     "h30",
-    "c16",
-    "i11"
+    "c16"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. In a Red market we hold mostly cash, and a Red reading ends the IPO base before the trigger.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's market reading, Red means mostly cash"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q14",
@@ -1259,10 +1408,11 @@
    "choices": [
     "No floor while it is a new listing",
     "$10 a share and $20 million a day",
-    "$5 a share and $5 million a day"
+    "$5 a share and $5 million a day",
+    "$10 a share, with no volume floor"
    ],
    "answer": "$10 a share and $20 million a day",
-   "why": "$10 a share and $20 million a day. A new issue gets no pass on liquidity.",
+   "why": "$10 a share and $20 million a day. We trade only stocks at $10 or more that trade at least $20 million a day. A new issue gets no pass. The card measures the floor over the base's sessions and leaves out the first three sessions after listing. Thin, low-priced new issues are a named mistake.",
    "lesson_line": "Thin, cheap new issues are off the list. The floor is the same for every setup.",
    "facts": [
     "h09",
@@ -1271,9 +1421,20 @@
    ],
    "wrong": {
     "No floor while it is a new listing": "A new issue gets no pass. The same liquidity floor applies to every setup.",
-    "$5 a share and $5 million a day": "Too thin. Thin, low-priced new issues are a named mistake."
+    "$5 a share and $5 million a day": "Too thin. Thin, low-priced new issues are a named mistake.",
+    "$10 a share, with no volume floor": "The floor has two parts. The stock must also trade at least $20 million a day."
    },
-   "house": true
+   "house": true,
+   "simple": "We trade only stocks at $10 or more that trade at least $20 million a day, and new issues get no pass.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook, B23",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q15",
@@ -1292,14 +1453,24 @@
     },
     "round": 2
    },
-   "why": "61.53. One R is the fill minus the stop. Add three of those to the fill. This trade reached it the next day.",
+   "why": "61.53. One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill. R is a distance in dollars, not a fixed percent of price. Our hard rule is to sell a third at 3R. KRMN reached it the next day.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
     "d01"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "The target is 61.53, because one R is the fill minus the stop and 3R is three of those added to the fill.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (B19, a third at 3R)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q16",
@@ -1318,14 +1489,28 @@
     },
     "round": 1
    },
-   "why": "29.3. Depth runs from the high down to the base's lowest low, divided by the high. BSY sat 29% deep.",
+   "why": "29.3. Depth runs from the IPO high down to the base's lowest low, divided by the IPO high. Here the high is 54.62 and the low is 38.63, so the base is 29.3% deep. On our card, divide by the high, not the low. Use the lowest low of the base, not the last close. BSY sat 29% deep.",
    "lesson_line": "Depth is high minus low, divided by the high. Read charts in percents.",
    "facts": [
     "m09",
-    "d06"
+    "d06",
+    "c16depth"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "The base is 29.3% deep, because depth is the drop from the IPO high to the base's lowest low, divided by the high.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "the depth line on the card is proposed and its cap is held (D-055)"
+    ]
+   },
+   "depends_on": [
+    "D-055"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q17",
@@ -1344,14 +1529,28 @@
     },
     "round": 1
    },
-   "why": "7.3. The stop is 7.3% under the fill. Our stop usually sits within about 3%, so this one is wide and the size must shrink.",
+   "why": "7.3. The stop is 7.3% under the fill: the gap divided by the fill, not by the stop. Our stop usually sits within about 3% of the buy, so this one is wide. The size comes from the stop, so a wide stop means fewer shares. If the honest stop does not fit the risk, we skip the trade.",
    "lesson_line": "Measure the stop in percent. A wide stop means fewer shares, not a tighter stop.",
    "facts": [
     "h04",
-    "d05"
+    "d05",
+    "h01"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "The stop is 7.3% under the fill, which is wide for us, so the position must be smaller.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (A13) and the held stop-width decision (D-005)"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q18",
@@ -1359,7 +1558,7 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "ipo.no_chase",
-   "q": "The IPO high is 57.32. What is the most we would pay under the 4% chase limit?",
+   "q": "The buy point is the IPO high, 57.32. What is the most we would pay under the 4% chase limit?",
    "answer": 59.61,
    "calc": {
     "fn": "arith",
@@ -1369,15 +1568,30 @@
     },
     "round": 2
    },
-   "why": "59.61. Add 4% to the buy point. Above that, the stop distance grows and the shares shrink.",
+   "why": "59.61. The chase limit is 4% above the buy point, and the buy point is the IPO high, 57.32. With a market order IBD's extra 10 cents does not matter. Never buy above 59.61. Chasing costs size: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Know the chase limit before the open: 4% over the buy point.",
    "facts": [
     "c08",
     "h11",
-    "d01"
+    "d01",
+    "h12",
+    "c03"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "The most we would pay is 59.61, because the chase limit is 4% above the buy point, which is the IPO high.",
+   "deeper": {
+    "example": "KRMN was bought at 57.42 on an IPO high of 57.32, ten cents over, far inside the limit. The 4% line is a ceiling for the fill, not a target. Past it, the stop stays put, the risk per share grows and the shares shrink."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (C28, the 4% limit)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q19",
@@ -1388,11 +1602,12 @@
    "q": "Buy at the market?",
    "choices": [
     "Yes, heavy volume confirms it",
-    "Yes, with a tighter stop",
-    "No, it is over 4% past the pivot"
+    "Yes, if you use a tighter stop",
+    "No, it is over 4% past the pivot",
+    "No, the gap moved the pivot higher"
    ],
    "answer": "No, it is over 4% past the pivot",
-   "why": "No. 60.10 is more than 4% above 57.32. Heavy volume is a cue, not a license to chase.",
+   "why": "No. 26.10 is more than 4% above 24.80. Heavy volume is a cue, not a license to chase. Chasing costs size, not risk: the stop stays put, the distance grows and the shares shrink.",
    "lesson_line": "Past 4% over the pivot you are chasing. Wait for another setup.",
    "facts": [
     "c08",
@@ -1401,10 +1616,24 @@
    ],
    "wrong": {
     "Yes, heavy volume confirms it": "Volume is a cue. It does not lift the 4% chase limit.",
-    "Yes, with a tighter stop": "Pulling the stop in to fit the size is a trap. The honest stop stays where it is."
+    "Yes, if you use a tighter stop": "The stop stays where the setup puts it. Chasing costs size, not risk: the distance grows and the shares shrink.",
+    "No, the gap moved the pivot higher": "The pivot is the IPO high, 24.80, and a gap does not move it. The price is simply too far past it."
    },
    "house": true,
-   "story": "A new issue's IPO high is 57.32. It gaps through and trades at 60.10 at 10:20 on heavy volume."
+   "story": "A new issue's IPO high is 24.80. It gaps through and trades at 26.10 at 10:20 on heavy volume.",
+   "simple": "No. At 26.10 the price is more than 4% past the 24.80 pivot, so we do not chase it.",
+   "deeper": {
+    "trap": "Volume and a gap feel like proof, but they put the price farther from the pivot, not safer. The honest stop stays under the pivot area, so the stop distance grows and the shares shrink. Past 4% we skip."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key: the 4% limit is 25.79 against 26.10",
+     "rests on the owner's rulebook, C28"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q20",
@@ -1458,23 +1687,35 @@
    "choices": [
     "Buy now with a wide stop",
     "Wait; no buys in the listing week",
-    "Buy the close; momentum is proof"
+    "Buy the close; the momentum is proof",
+    "Wait one more day, then buy it"
    ],
    "answer": "Wait; no buys in the listing week",
-   "why": "Wait. Never buy in the listing week. Wait for the base to emerge; Stockbee says let the flipping phase be over.",
+   "why": "Wait. Never buy on the listing day or in the listing week, and Thursday is still the listing week. MarketSmith India says the same. Buying the first heated days is a named mistake. Stockbee says to let the flipping phase end and then look for the base.",
    "lesson_line": "A hot debut is not a setup. Wait for the first base.",
    "facts": [
     "c05",
     "m01",
     "b03",
-    "c43"
+    "c43",
+    "i18"
    ],
    "wrong": {
-    "Buy the close; momentum is proof": "Buying the first heated days is a named mistake. Momentum has no base and no stop.",
-    "Buy now with a wide stop": "A wide stop does not fix a buy with no base. Wait for the pivot."
+    "Buy now with a wide stop": "A wide stop does not fix a buy made in the listing week. Wait for the base.",
+    "Wait one more day, then buy it": "One more day is still the listing week. Wait for the base to emerge, not for a day count.",
+    "Buy the close; the momentum is proof": "Buying the first heated days is a named mistake. A hot run is not a base."
    },
    "house": true,
-   "story": "A hot IPO lists on Tuesday and rips all day. By Thursday it is up another 20% on huge volume."
+   "story": "A hot IPO lists on Tuesday and rips all day. By Thursday it is up another 20% on huge volume.",
+   "simple": "Wait. We never buy in the listing week, and a hot debut is not a base.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before: a wrong choice was replaced"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q23",
@@ -1509,7 +1750,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ipo.breakout_volume",
-   "q": "The base averaged 1,200,000 shares a day. How many shares must trade on breakout day for 1.4x?",
+   "q": "The base averaged 1,200,000 shares a day. Our card wants 1.4 times that on breakout day. How many shares?",
    "answer": 1680000.0,
    "calc": {
     "fn": "arith",
@@ -1519,14 +1760,26 @@
     },
     "round": 0
    },
-   "why": "1,680,000. Multiply the base's average by 1.4. The listing week stays out of that average.",
+   "why": "1,680,000. Our card wants breakout-day volume of at least 1.4 times the average of the base's sessions: 1,200,000 times 1.4. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
    "lesson_line": "Measure breakout volume against the base's own sessions, not the listing week.",
    "facts": [
     "c06",
-    "i07",
-    "i17"
+    "i07"
    ],
-   "house": true
+   "house": true,
+   "simple": "It takes 1,680,000 shares, because our card wants at least 1.4 times the base's average of 1,200,000 a day.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "the 1.4 times line is a proposed card gate that D-006 may turn into a grade cue"
+    ]
+   },
+   "depends_on": [
+    "D-006"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q25",
@@ -1536,24 +1789,39 @@
    "criterion": "ipo.after_entry_stop",
    "q": "What now?",
    "choices": [
-    "Sell it all; the breakout failed",
-    "Sell half; it is back in the base",
-    "Hold; the stop is the exit"
+    "Sell all; the breakout failed",
+    "Sell half; it slipped back in",
+    "Hold; the stop is the exit",
+    "Hold; widen the stop for room"
    ],
    "answer": "Hold; the stop is the exit",
-   "why": "Hold. The stop is the exit. A breach of the pivot back into the base is a warning, not an exit by itself.",
-   "lesson_line": "A close back inside the base is a warning. Only the stop sells.",
+   "why": "Hold. The stop is the exit. A breach of the pivot back into the base is a warning, not an exit by itself. MarketSmith India would rather not see price breach the pivot and go back to the base. The stop only moves up, never down or wider.",
+   "lesson_line": "A close back inside the base is a warning, not a sell signal. The stop is the exit.",
    "facts": [
     "c17",
     "m05",
-    "h02"
+    "h02",
+    "c42"
    ],
    "wrong": {
-    "Sell half; it is back in the base": "The stop is our exit. Selling half on a warning is not a rule.",
-    "Sell it all; the breakout failed": "A warning is not an exit. Wait for the stop or the plan to decide."
+    "Sell all; the breakout failed": "A warning is not an exit. The stop is the exit.",
+    "Sell half; it slipped back in": "The stop is our exit. Selling half on a warning is not a rule.",
+    "Hold; widen the stop for room": "The stop only moves up, never down or wider."
    },
    "house": true,
-   "story": "You bought the IPO-high break at 19.53. Two days later it closes back inside the base, but still above your stop."
+   "story": "You bought the IPO-high break at 19.53. Two days later it closes back inside the base, but still above your stop.",
+   "simple": "Hold. The stop is the exit, and a close back inside the base is only a warning.",
+   "deeper": {
+    "trap": "A warning asks you to look harder, not to sell on a hunch. If price keeps sinking, the stop does the selling. Decide the exit before the buy, then let the stop or the trail do the work."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, A4: the stop is the exit"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q26",
@@ -1561,26 +1829,38 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ipo.breakout_volume_a_plus",
-   "q": "Which breakout day is the A+ one?",
+   "q": "Which breakout day has A+ volume?",
    "choices": [
-    "Day A, because it is closer to 1.4x",
-    "Day B: the most volume since listing",
-    "Neither; volume does not grade it"
+    "Day A only",
+    "Day B only",
+    "Both days",
+    "Neither day"
    ],
-   "answer": "Day B: the most volume since listing",
-   "why": "Day B. A+ volume is 2 times the 10-day average or the highest since listing, and IBD wants a close near the highs. Day B closed at the high.",
-   "lesson_line": "A+ breakouts show the heaviest volume since listing and a close near the high.",
+   "answer": "Day B only",
+   "why": "Day B only. A+ volume is 2 times or more the 10-day average, or the highest volume of any session after the listing day. Neither day is the heaviest since listing, so the 10-day average decides. Day B is at 2.2x and Day A at 1.5x. Both clear the 1.4x trigger line, so that line does not separate them. Grading stays a judgment call; this is the volume cue only.",
+   "lesson_line": "The A+ volume cue is 2 times the 10-day average. The 1.4x line is only the minimum.",
    "facts": [
     "c07",
-    "i20",
-    "b02"
+    "c06",
+    "h35"
    ],
    "wrong": {
-    "Day A, because it is closer to 1.4x": "Day A is acceptable on volume but closes mid-range. Day B shows more demand.",
-    "Neither; volume does not grade it": "Volume is a grade cue. A+ shows the heaviest volume and a close near the high."
+    "Day A only": "Day A is at 1.5x its 10-day average. A+ volume starts at 2 times that average.",
+    "Both days": "Both clear the 1.4x trigger line, but that line is only the minimum. Day A stops short of 2 times its 10-day average.",
+    "Neither day": "Day B is at 2.2x its 10-day average, over the 2 times that A+ volume asks for."
    },
    "house": true,
-   "story": "Same base, two breakout days. Day A trades 1.6x the base's volume and closes mid-range. Day B trades the heaviest volume since listing and closes at the high."
+   "story": "Same base, two breakout days. Day A trades 1.6x the base's average volume and 1.5x its 10-day average. Day B trades 1.8x the base's average and 2.2x its 10-day average. Neither is the heaviest day since listing.",
+   "simple": "Day B. It trades 2.2x its 10-day average, and A+ volume starts at 2 times that average.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the A+ volume line is a proposed card cue",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q27",
@@ -1592,21 +1872,33 @@
    "choices": [
     "No; wait until after the report",
     "Yes, the base is clean and tight",
-    "Yes, but at half size, to be safe"
+    "Yes, but at half size, to be safe",
+    "No; wait one day, then buy it"
    ],
    "answer": "No; wait until after the report",
-   "why": "No. No new buy in the 3 sessions before an earnings report. A new issue's first report can come soon after listing, so check the date.",
+   "why": "No. We make no new buy in the 3 sessions before an earnings report, and this report is 2 sessions away. A new issue's first report can come soon after listing, so check the date. The rule covers only those 3 sessions before the report.",
    "lesson_line": "Check the report date on a new issue. Inside 3 sessions, wait.",
    "facts": [
     "h08",
     "c24"
    ],
    "wrong": {
-    "Yes, the base is clean and tight": "A clean base does not lift the earnings rule. A report is a gap risk.",
-    "Yes, but at half size, to be safe": "The rule is no new buy in that window, not a smaller one."
+    "Yes, the base is clean and tight": "A clean base does not lift the earnings rule. There is no new buy in the 3 sessions before a report.",
+    "Yes, but at half size, to be safe": "The rule is no new buy in that window, not a smaller one.",
+    "No; wait one day, then buy it": "Tomorrow is still inside the 3 sessions before the report. Wait until after it."
    },
    "house": true,
-   "story": "The base is tight under the IPO high and breaks out this morning. The first quarterly report is in 2 sessions."
+   "story": "The base is tight under the IPO high and breaks out this morning. The first quarterly report is in 2 sessions.",
+   "simple": "No. The report is 2 sessions away, inside the 3-session no-buy window, so wait until after it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook, B22",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q28",
@@ -1642,24 +1934,45 @@
    "criterion": "ipo.window",
    "q": "Which card is it?",
    "choices": [
-    "Neither; it needs a 200-day",
+    "None; no 200-day yet",
     "The flat base card",
-    "The IPO base card"
+    "The IPO base card",
+    "The VCP setup card"
    ],
    "answer": "The IPO base card",
-   "why": "The IPO base card. The stock is young and this is its first rest under its post-listing high. The shape alone does not decide; the listing date does.",
+   "why": "The IPO base card. The stock is young and this is its first rest under its post-listing high. Many IPO bases look like cups or flat bases, so the shape alone does not decide. The listing date does. A young listing has no 200-day, and that does not cancel the setup.",
    "lesson_line": "Shape alone does not decide. A young stock's first rest is an IPO base.",
    "facts": [
     "c30",
     "c30b",
-    "i06"
+    "i06",
+    "c32",
+    "d21",
+    "c13"
    ],
    "wrong": {
-    "The flat base card": "A flat base belongs to a seasoned leader. This stock is three months old.",
-    "Neither; it needs a 200-day": "A young listing has no 200-day yet. That does not cancel the setup."
+    "The flat base card": "The shape can look flat, but the listing date decides. A young stock's first rest is an IPO base.",
+    "None; no 200-day yet": "A young listing has no 200-day yet. That does not cancel the setup.",
+    "The VCP setup card": "Nothing in the story shows shrinking swings. Tightening inside an IPO base is only a grade cue, not a VCP."
    },
    "house": true,
-   "story": "A stock listed three months ago rests for 16 sessions, 18% deep, under its post-listing high. It is the first rest, and it looks like a flat base."
+   "story": "A stock listed three months ago rests for 16 sessions, 18% deep, under its post-listing high. It is the first rest, and it looks like a flat base.",
+   "simple": "The IPO base card. The stock is young and this is its first rest, so the listing date decides, not the shape.",
+   "deeper": {
+    "counter": "Shape is not the label. While the stock is young, a rest that looks like a flat base is judged by the IPO base card. Past its first year, a stock is a regular base candidate and a different card judges it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the window is a held decision, D-002",
+     "fixed before: story rewritten"
+    ]
+   },
+   "depends_on": [
+    "D-002"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q30",
@@ -1669,22 +1982,38 @@
    "criterion": "ipo.above_200",
    "q": "Which setup is it?",
    "choices": [
-    "A VCP, shrinking swings",
-    "A bull flag after a sharp pole",
-    "An IPO base with a grade cue"
+    "A VCP, because the swings shrink",
+    "A bull flag, because it is a pause",
+    "An IPO base; tightening is a cue",
+    "A failed breakout, now retesting"
    ],
-   "answer": "An IPO base with a grade cue",
-   "why": "An IPO base with a grade cue. A young listing has no 200-day and one rest; tightening inside an IPO base is a grade cue, not a VCP.",
+   "answer": "An IPO base; tightening is a cue",
+   "why": "An IPO base, and the tightening is only a grade cue. The stock is four months old and resting under its post-listing high, so the listing date decides. A young listing has no 200-day and one rest. Tightening inside an IPO base is a grade cue, not a VCP.",
    "lesson_line": "Tightening inside an IPO base is a grade cue. It does not change the card.",
    "facts": [
-    "c32"
+    "c32",
+    "c30b",
+    "c30"
    ],
    "wrong": {
-    "A VCP, shrinking swings": "A VCP is a seasoned stock with shrinking pullbacks above its long averages. This listing has one rest.",
-    "A bull flag after a sharp pole": "A flag follows a sharp pole. This is a rest under the IPO high."
+    "A VCP, because the swings shrink": "Tightening inside an IPO base is a grade cue, not a VCP. A young listing has no 200-day and one rest.",
+    "A failed breakout, now retesting": "Nothing has closed above the high, so there has been no breakout to fail. It is a first rest under the high.",
+    "A bull flag, because it is a pause": "The story has no sharp run before the rest. It is a first rest under the post-listing high, and on a stock this young that is an IPO base."
    },
    "house": true,
-   "story": "A stock listed four months ago rests under its IPO high. The weekly swings inside the rest get smaller each week."
+   "story": "A stock listed four months ago rests under its highest price since listing for the first time. Nothing has closed above it. The weekly swings inside the rest get smaller each week.",
+   "simple": "It is an IPO base, because the stock is young and resting under its own high, and shrinking swings only help the grade.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card line; the 200-day rule for young stocks is held (D-034)"
+    ]
+   },
+   "depends_on": [
+    "D-034"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q31",
@@ -1692,26 +2021,41 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ipo.inv_v_shape",
-   "q": "Is this a buyable IPO base?",
+   "q": "How does this base look?",
    "choices": [
-    "No, a V into the pivot is off",
-    "Yes, it is back in the top half",
-    "Yes, the dip was shallow"
+    "Weak; the V leaves no right side",
+    "Strong; buyers took it right back",
+    "Strong; it is back near the high",
+    "Weak; it must close above the high"
    ],
-   "answer": "No, a V into the pivot is off",
-   "why": "No. A V ends the base. It runs from the base low to within 5% of the pivot in 5 sessions or fewer, with no pause. Kedia: that kind of time compression fails often.",
-   "lesson_line": "A fast V straight into the pivot is not a base. It has no right side.",
+   "answer": "Weak; the V leaves no right side",
+   "why": "Weak. A fast V is a poor sign. The price ran from the low back to within 5% of the pivot in 5 sessions or fewer, with no pause. Here it went from 25% under the high to within 3% in four sessions. That leaves no right side to judge.",
+   "lesson_line": "A fast V straight into the pivot is a poor sign. It has no right side.",
    "facts": [
     "c15",
-    "k01",
-    "c35"
+    "c35",
+    "c04"
    ],
    "wrong": {
-    "Yes, the dip was shallow": "The depth is not the issue. The straight V leaves no right side to judge.",
-    "Yes, it is back in the top half": "Being back near the top is the problem here: there was no tightening on the way."
+    "Strong; buyers took it right back": "A quick rebound looks bullish, but with no pause there is no quiet right side to judge.",
+    "Strong; it is back near the high": "Being near the high is only the end point. With no pause there was no right side to judge.",
+    "Weak; it must close above the high": "The trigger is a trade through the IPO high, not a close above it. It is weak because the V leaves no right side."
    },
    "house": true,
-   "story": "A new issue drops 25% off its IPO high. Then in four sessions, with no pause, it climbs back within 3% of that high."
+   "story": "A new issue drops 25% off its IPO high. Then in four sessions, with no pause, it climbs back within 3% of that high.",
+   "simple": "Weak. The price shot back up to the pivot in a few days with no pause, so there is no right side to judge.",
+   "deeper": {
+    "trap": "Being back near the high looks bullish. But a V in a few sessions leaves nothing to judge: no quiet pullbacks, no proof the sellers are done. A base earns its buy by resting, not by racing."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the V line is a proposed card line",
+     "the card also lists a fast V as a B- cue (c35): owner to rule which wins"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q32",
@@ -1723,23 +2067,39 @@
    "choices": [
     "Fewer shares; size from the stop",
     "Set the stop at the low of the base",
-    "Pull the stop in to 3% to keep size"
+    "Pull the stop in to 3% to keep size",
+    "Risk more to keep the same size"
    ],
    "answer": "Fewer shares; size from the stop",
-   "why": "Fewer shares. The size comes from the stop, and a wide honest stop means fewer shares. If it does not fit the risk, skip it.",
+   "why": "Fewer shares. Stop first, a few cents under the day's low. The size comes from the stop, so a wide honest stop means fewer shares. Shares equal account times risk percent, divided by entry minus stop, rounded down. This stop is wider than the usual 3%. If the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "Never pull the stop in to fit the size. Cut the shares or skip.",
    "facts": [
     "h01",
     "h03",
-    "d05",
+    "h04",
     "c42"
    ],
    "wrong": {
     "Set the stop at the low of the base": "The base low is not our stop, and it is farther still.",
-    "Pull the stop in to 3% to keep size": "Pulling the stop in to fit the size is a trap. The honest stop stays."
+    "Pull the stop in to 3% to keep size": "Pulling the stop in to fit the size is a trap. The honest stop stays.",
+    "Risk more to keep the same size": "The size comes from the stop, not the other way round. A wide stop means fewer shares, not more risk."
    },
    "house": true,
-   "story": "A breakout fills at 19.53. The honest stop is 18.10, which is 7.3% away. Your risk budget is fixed."
+   "story": "A breakout fills at 41.20. The honest stop is 38.95, well beyond the usual 3%.",
+   "simple": "Buy fewer shares. The stop sets the size, so a wide honest stop means a smaller position.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "wide-stop sizing is tied to the held decision D-005",
+     "rests on the owner's rulebook, A3 and A5",
+     "fixed before: variety rewrite 2026-11-10"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q33",
@@ -1747,25 +2107,41 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ipo.trim_gap_open",
-   "q": "When do you take the first third?",
+   "q": "What do you do with the first third?",
    "choices": [
-    "At the open",
+    "Take the trim at the open",
     "Sell the whole position",
-    "Wait for a higher price"
+    "Wait for a higher price",
+    "Wait for the first half hour"
    ],
-   "answer": "At the open",
-   "why": "At the open. If a stock opens above a trim level, take that trim at the open. 3R was the level here.",
+   "answer": "Take the trim at the open",
+   "why": "At the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. 3R is 61.53 and the open at 62.00 is above it. The first trim is a third at 3R, and the rest stays on the plan.",
    "lesson_line": "A gap past your trim level means take the trim at the open.",
    "facts": [
     "h25",
-    "h05"
+    "h05",
+    "h06"
    ],
    "wrong": {
-    "Wait for a higher price": "The rule says take it at the open. Waiting turns a plan into a hope.",
-    "Sell the whole position": "We trim a third and trail the rest."
+    "Wait for a higher price": "The rule is that a trim level the day opens past is taken at the open.",
+    "Sell the whole position": "We trim a third and keep the rest on the plan.",
+    "Wait for the first half hour": "The 30-minute wait is for a gap down through the stop. A gap up past a trim level is taken at the open."
    },
    "house": true,
-   "story": "You bought at 57.42 with the stop at 56.05. Next morning the stock opens at 62.00, above 3R at 61.53."
+   "story": "You bought at 57.42 with the stop at 56.05. Next morning the stock opens at 62.00, above 3R at 61.53, your first trim level.",
+   "simple": "Take the trim at the open. The stock gapped past 3R, and the rule is to take that trim at the open.",
+   "deeper": {
+    "example": "Gaps skip levels. If you wait for a price you have already passed, you may watch the gain shrink with no rule to act on. The plan said 3R, the open is above it, so the plan says act now."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook, F63 and B19",
+     "computed level, 61.53 is given in the story"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q34",
@@ -1776,21 +2152,35 @@
    "q": "Which backdrop do new issues like best?",
    "choices": [
     "A market turning up after a correction",
-    "A long, crowded advance",
-    "A Red market with strong volume"
+    "A long, crowded advance for new IPOs",
+    "A Red market with very strong volume",
+    "A market that has just started to fall"
    ],
    "answer": "A market turning up after a correction",
-   "why": "A market turning up after a correction. That is a cue, not a rule. Be careful when the IPO calendar is crowded late in a long advance.",
+   "why": "A market turning up after a correction. That is a cue, not a rule. Be careful when the IPO calendar is crowded late in a long advance. IBD says new issues often pull back the hardest when the market stumbles into a correction. A weak market is no place for a new issue.",
    "lesson_line": "New issues lead best out of a correction. Be careful when the calendar is crowded.",
    "facts": [
     "c40",
-    "c25"
+    "c25",
+    "i11",
+    "c44"
    ],
    "wrong": {
-    "A long, crowded advance": "Be careful there. A crowded IPO calendar late in a long advance is a warning.",
-    "A Red market with strong volume": "Red means mostly cash. New issues are sold first when the market weakens."
+    "A long, crowded advance for new IPOs": "Be careful there. A crowded IPO calendar late in a long advance is a warning.",
+    "A Red market with very strong volume": "Red means mostly cash, and new issues often pull back the hardest when the market weakens.",
+    "A market that has just started to fall": "IBD says new issues often pull back the hardest when the market stumbles into a correction."
    },
-   "house": true
+   "house": true,
+   "simple": "New issues do best when the market turns up after a correction. It is a cue, not a rule.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's cue line",
+     "key was the longest choice before"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q35",
@@ -1800,13 +2190,26 @@
    "criterion": "ipo.after_entry_stop",
    "q": "In our scan, most IPO base breakouts were stopped before reaching 3R.",
    "answer": "True",
-   "why": "True. 36 of the 57 scan hits were stopped before 3R. It is a probability trade with a quick answer.",
+   "why": "True. 36 of the 57 scan hits were stopped before 3R. The scan used a fixed stop and no trims, so it is a base rate, not a forecast for one trade. It is a probability trade. That is why we size from the stop and keep each loss small.",
    "lesson_line": "Most IPO breakouts stop out first. Size from the stop and keep the losses small.",
    "facts": [
     "c29",
     "d23"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. In our scan, 36 of the 57 IPO base hits were stopped before they reached 3R.",
+   "deeper": {
+    "trap": "Do not read a base rate as a promise. In the same scan 26.3% reached 3R and 17.5% reached 5R before the stop. The plan lives on small losses and on letting the few winners run."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "a number from our own scan that changes when the scan is rerun",
+     "one source family, the research dossier"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q36",
@@ -1814,7 +2217,7 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "ipo.stop",
-   "q": "Account 100,000, risk 0.5%, buy 57.42, stop 56.05. How many shares?",
+   "q": "Account 100,000, risk 0.5%, buy 57.42, stop 56.05. Ignore the position cap. How many shares?",
    "answer": 364.0,
    "calc": {
     "fn": "shares_from_risk",
@@ -1826,14 +2229,28 @@
     },
     "round": 0
    },
-   "why": "364. Divide the dollars at risk by the risk per share and round down. The shares come from the stop.",
+   "why": "364. Risk dollars are the account times the risk percent. Risk per share is the buy minus the stop, 57.42 minus 56.05. Divide the dollars by the risk per share and round down, never to the nearest. The size comes from the stop. Widening the stop to sit through the base's depth is a named mistake. In real life the position cap is checked too, and the smaller size wins.",
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "facts": [
     "h03",
     "h01",
-    "d01"
+    "d01",
+    "c42"
    ],
-   "house": true
+   "house": true,
+   "simple": "The answer is 364 shares, because risk dollars divided by the risk per share, rounded down, gives the size.",
+   "deeper": {
+    "trap": "Rounding to the nearest share gives one share too many. That share risks a few cents more than the dollars we planned. Round down, so the risk never goes past the limit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (A5, shares from the stop)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q37",
@@ -1845,20 +2262,31 @@
    "choices": [
     "The 200-day",
     "The 50-day",
-    "The 10-day"
+    "The 10-day",
+    "The 21-day"
    ],
    "answer": "The 10-day",
-   "why": "The 10-day. IPOs are fast movers, so we sell on a close below the 10-day. A steady mover can use the 21-day.",
-   "lesson_line": "Fast mover: trail the 10-day. Steady mover: trail the 21-day.",
+   "why": "The 10-day. The default trail for a fast mover is the 10-day average, and we sell on a close below it. Our card treats a new issue as a fast mover by default.",
+   "lesson_line": "A new issue is a fast mover by default: trail the 10-day and sell on a close below it.",
    "facts": [
     "h21",
     "c26"
    ],
    "wrong": {
-    "The 50-day": "That is too slow for a fast mover. It gives back too much.",
-    "The 200-day": "A young listing may not have one, and it is far too slow to trail."
+    "The 50-day": "The default trail for a fast mover is the 10-day, not the 50-day.",
+    "The 200-day": "A young listing may not have a 200-day yet, and the default for a fast mover is the 10-day.",
+    "The 21-day": "The 21-day is not the default for a fast-moving new issue. We trail the 10-day."
    },
-   "house": true
+   "house": true,
+   "simple": "The 10-day. A new issue is a fast mover by default, so we sell when the price closes below its 10-day average.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, E52"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q38",
@@ -1869,22 +2297,34 @@
    "q": "What is the plan?",
    "choices": [
     "Sell it and free the money",
-    "Add more; it is cheap",
-    "Hold; the base was clean"
+    "Sell half now and hold the rest",
+    "Hold; the base was clean",
+    "Move the stop up to breakeven"
    ],
    "answer": "Sell it and free the money",
-   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "why": "Sell it and free the money. Time stop: a trade still under 1R after 10 trading days is sold. This one is up only 0.4R after 10 trading days. A clean base does not change the rule. The stop moves to breakeven between 2R and 5R, not at 0.4R.",
    "lesson_line": "A trade that does nothing for 10 days is sold. Capital is for working trades.",
    "facts": [
     "h15",
-    "c27"
+    "c27",
+    "h05"
    ],
    "wrong": {
     "Hold; the base was clean": "The time stop does not care about the base. Under 1R after 10 days, we sell.",
-    "Add more; it is cheap": "We do not add. The full size goes in at one price with one stop."
+    "Sell half now and hold the rest": "The time stop sells the whole trade. Our trims come at 3R and 5R, not at 0.4R.",
+    "Move the stop up to breakeven": "Breakeven comes between 2R and 5R, not at 0.4R. A trade under 1R after 10 trading days is sold."
    },
    "house": true,
-   "story": "You bought an IPO breakout 10 trading days ago. It has drifted sideways and is up only 0.4R."
+   "story": "You bought an IPO breakout 10 trading days ago. It has drifted sideways and is up only 0.4R.",
+   "simple": "Sell it. A trade still under 1R after 10 trading days is sold to free the money.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, C33"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q39",
@@ -1894,25 +2334,37 @@
    "criterion": "ipo.after_entry_stop",
    "q": "What do you do?",
    "choices": [
-    "Move the stop lower and wait",
-    "Take the loss; re-buy on a new trigger",
-    "Buy again at once; the base was clean"
+    "Skip it; that is the weekly limit",
+    "Take it; each trigger is a new trade",
+    "Take it at half size to be safe",
+    "Skip it; wait a month before trying"
    ],
-   "answer": "Take the loss; re-buy on a new trigger",
-   "why": "Take the loss. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. MA ran for years afterwards, and the stop was still right.",
-   "lesson_line": "A stop-out on a textbook base is the system working. Re-buy only on a new trigger.",
+   "answer": "Skip it; that is the weekly limit",
+   "why": "Skip it. The same stock gets at most 3 tries in a week and 6 in a month. Three tries this week are used up, so a fourth is over the limit. A re-buy is always a new trade with its own stop and every rule, but the limit comes first.",
+   "lesson_line": "The same stock gets 3 tries a week and 6 a month. After that, skip it.",
    "facts": [
-    "d09",
-    "d10",
-    "d11",
+    "h29",
     "h28"
    ],
    "wrong": {
-    "Buy again at once; the base was clean": "A re-buy needs a new trigger, a new stop and every rule again.",
-    "Move the stop lower and wait": "The stop never moves down or wider. It is the exit."
+    "Take it; each trigger is a new trade": "A new trigger is a new trade, but the same stock still gets at most 3 tries in a week.",
+    "Take it at half size to be safe": "The limit is on tries, not size. A fourth try in the week is over it at any size.",
+    "Skip it; wait a month before trying": "The limits are 3 tries in a week and 6 in a month. They are not a month-long wait."
    },
    "house": true,
-   "story": "A textbook IPO base breaks out on 1.6x volume and closes near its high. The next session it falls through your stop."
+   "story": "Three times this week you bought the same new issue's breakout and the stop took you out. A fourth trigger fires on Friday morning.",
+   "simple": "Skip it. The same stock gets at most 3 tries in a week, and you have used all three.",
+   "deeper": {
+    "trap": "Each stop-out was a planned loss. The pull is to try once more to win it back. The limit says no. Move on to the next setup."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, B21 and E56"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q40",
@@ -1936,24 +2388,35 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "ipo.trim_2",
-   "q": "After the first third at 3R, what comes next?",
+   "q": "Under our plan, what comes after the first third at 3R?",
    "choices": [
-    "Sell everything at 5R and move on",
+    "Sell it all at 5R and move on",
     "Add a third at 5R if it acts well",
-    "Another third at 5R, then the trail"
+    "Another third at 5R, then a trail",
+    "Hold the rest with no more trims"
    ],
-   "answer": "Another third at 5R, then the trail",
-   "why": "Another third at 5R, then trail the last third. The stop goes to breakeven by default at the first trim.",
-   "lesson_line": "Thirds at 3R and 5R, then a trail. Breakeven comes at the first trim.",
+   "answer": "Another third at 5R, then a trail",
+   "why": "Another third at 5R, then trail the last third. The first third comes off at 3R. The 5R step is adjustable.",
+   "lesson_line": "Thirds at 3R and 5R, then a trail.",
    "facts": [
     "h20",
     "h05"
    ],
    "wrong": {
-    "Sell everything at 5R and move on": "The plan keeps a third on the trail for the big runners.",
-    "Add a third at 5R if it acts well": "We do not add to a trade."
+    "Add a third at 5R if it acts well": "A third at 5R comes off, not on. After the first third, the plan is another third off at 5R, then the trail.",
+    "Hold the rest with no more trims": "The plan takes another third off at 5R. Holding the rest with no more trims skips that step.",
+    "Sell it all at 5R and move on": "The plan keeps the last third on the trail."
    },
-   "house": true
+   "house": true,
+   "simple": "Under our plan, after the first third at 3R, take another third at 5R and trail the last third.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E51, B19)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q42",
@@ -1961,24 +2424,42 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ipo.climax",
-   "q": "What do you do with your long?",
+   "q": "What does our rule say to do with your long?",
    "choices": [
-    "Add; trends keep going",
-    "Hold everything for the 10-day",
-    "Sell a big part into the burst"
+    "Sell a big part into the gap",
+    "Add a little on the gap up",
+    "Hold it all and trail the 10-day",
+    "Raise the stop and sell nothing"
    ],
-   "answer": "Sell a big part into the burst",
-   "why": "Sell a big part into it. A climax run on your own long is a judgment call, and selling into strength is the plan.",
+   "answer": "Sell a big part into the gap",
+   "why": "Sell a big part into it. A climax run on your own long is a judgment call, and our rule is to sell a big part into the strength. This one fits: 400% in seven weeks, then a gap up on huge volume. The rest stays on the trail, and the stop only moves up.",
    "lesson_line": "When a new issue goes parabolic, sell a big part into the strength.",
    "facts": [
-    "h16"
+    "h16",
+    "h20",
+    "h21",
+    "h02"
    ],
    "wrong": {
-    "Add; trends keep going": "We do not add. A climax is when we sell, not buy.",
-    "Hold everything for the 10-day": "The 10-day trail is the floor. A climax run is a reason to sell a big part."
+    "Add a little on the gap up": "A climax run on your own long is when we sell a big part into it, not when we buy more.",
+    "Raise the stop and sell nothing": "Raising the stop is fine, but on a climax run the plan is to sell a big part, not only to tighten the stop.",
+    "Hold it all and trail the 10-day": "The 10-day trail is the exit for what is left. A climax run is a reason to sell a big part first."
    },
    "house": true,
-   "story": "Your new-issue long has run 400% in seven weeks. It was up three days running, and today it gaps up again on huge volume."
+   "story": "Your new-issue long has run 400% in seven weeks. Today it gaps up again on huge volume.",
+   "simple": "Sell a big part into the burst, because on a climax run our rule is to sell into strength.",
+   "deeper": {
+    "trap": "A big part is not all of it. The rule calls it a judgment call, so the size of the sale is yours to weigh. The rest still trails under the 10-day average for a fast mover, and a close below it is the exit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (C34, 'yes but depends')"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q43",
@@ -1986,28 +2467,47 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ipo.above_ipo_price",
-   "q": "What is the call?",
+   "q": "What fails this base?",
    "choices": [
-    "Take half size, it broke out",
-    "Pass; it undercut the IPO price",
-    "Take it; a shakeout is healthy"
+    "It undercut the IPO price at its low",
+    "It broke out through the IPO high",
+    "It opened a dollar above the IPO price",
+    "It is a new issue on its first base"
    ],
-   "answer": "Pass; it undercut the IPO price",
-   "why": "Pass. A base that undercuts the IPO price is off. IBD and MarketSmith India want the base to hold above it. Our SPOT case, a direct listing, undercut its opening price by 18% and its breakout reached 0.0R.",
+   "answer": "It undercut the IPO price at its low",
+   "why": "It undercut the IPO price. IBD and MarketSmith India want a base to hold above that price. Here the closes sat under 20.00 for two weeks, with a low of 19.00. That is under both the offer price and the opening price. Our SPOT case, a direct listing, undercut its opening price by 18% and its breakout reached 0.0R.",
    "lesson_line": "A base that sinks under the IPO price has a hole in its floor.",
    "facts": [
     "d19",
     "d20",
     "m02",
     "i19",
-    "c14"
+    "c14",
+    "i01"
    ],
    "wrong": {
-    "Take half size, it broke out": "Size is not the fix. The base failed the floor.",
-    "Take it; a shakeout is healthy": "This is no shakeout. The base sat under the IPO price for two weeks."
+    "It broke out through the IPO high": "Trading through the IPO high is the trigger, not a flaw. The fault is the base before it.",
+    "It opened a dollar above the IPO price": "Opening above the price is normal. The fault is the later low, which sank under it.",
+    "It is a new issue on its first base": "A new issue's first base is what this card covers. The fault is the floor under it."
    },
    "house": true,
-   "story": "A new issue priced its IPO at 20.00 and opened at 21.00. Its IPO high is 23.50. The first base closes under 20.00 for two weeks, with a low of 19.00, before the stock trades through 23.50."
+   "story": "A new issue priced its IPO at 20.00 and opened at 21.00. Its IPO high is 23.50. The first base closes under 20.00 for two weeks, with a low of 19.00, before the stock trades through 23.50.",
+   "simple": "The base failed because it sank under the IPO price, and a good base holds above it.",
+   "deeper": {
+    "trap": "Do not judge the floor by the breakout alone. A stock can clear its IPO high after the base has already broken its floor. Check the base low against the IPO price before you look at volume or the trigger."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-057: which price counts as the IPO price)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-057"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q44",
@@ -2019,21 +2519,39 @@
    "choices": [
     "No card; skip it, it is too old",
     "The IPO base card, it listed lately",
-    "A regular base, on its own rules"
+    "A regular base, on its own rules",
+    "The IPO base card, it lacks a 200-day"
    ],
    "answer": "A regular base, on its own rules",
-   "why": "A regular base. The stock is past its first year, so it is judged by its own rules, flat base or cup.",
+   "why": "A regular base. The stock is past its first year, so the IPO base card no longer applies. The breakout came 318 sessions after listing, far past the card's first-year cutoff. The shelf itself is clean. Only the card changes.",
    "lesson_line": "Past the first year, an IPO base turns into a regular base.",
    "facts": [
     "d21",
-    "c13"
+    "c13",
+    "c32"
    ],
    "wrong": {
     "No card; skip it, it is too old": "The base can still be good. It just needs the right card.",
-    "The IPO base card, it listed lately": "318 sessions is past a year. The IPO base card has timed out."
+    "The IPO base card, it listed lately": "318 sessions is past a year. The IPO base card has timed out.",
+    "The IPO base card, it lacks a 200-day": "At 318 sessions the stock is old enough for a 200-day. Its age, not its averages, decides the card."
    },
    "house": true,
-   "story": "A clean 3.6-week, 14% shelf under the high breaks out on 2.2x volume. The breakout comes 318 sessions after listing."
+   "story": "A clean 3.6-week, 14% shelf under the high breaks out on 2.2x volume. The breakout comes 318 sessions after listing.",
+   "simple": "A regular base, because the stock is past its first year, so the IPO base card no longer applies.",
+   "deeper": {
+    "example": "CAVA is the case. It was a clean 3.6-week, 14% shelf on 2.2x volume. But it came 318 sessions after listing, past its first year. The shelf was fine. Only the card was wrong."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a held decision (D-002: the first-year window)"
+    ]
+   },
+   "depends_on": [
+    "D-002"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q45",
@@ -2045,22 +2563,41 @@
    "choices": [
     "Strong; spin-offs run",
     "Strong; the base was tight",
+    "Weak; the base was too deep",
     "Weak; no demand on the day"
    ],
    "answer": "Weak; no demand on the day",
-   "why": "Weak. Volume of 0.75x the base's average is below average. IBD wants heavy volume on the breakout day and week. Best was 0.82R.",
+   "why": "Weak. The breakout traded 0.75x the base's average volume, which is below average. IBD wants heavy volume on the breakout day and week. The spin-off label and the shallow base do not change that. This one's best was 0.82R.",
    "lesson_line": "A breakout on below-average volume has no demand behind it.",
    "facts": [
     "d22",
     "i20",
-    "c06"
+    "c06",
+    "i02"
    ],
    "wrong": {
     "Strong; the base was tight": "A tight base helps, but the breakout day still needs buyers.",
-    "Strong; spin-offs run": "The listing type does not matter. The volume on the day does."
+    "Strong; spin-offs run": "Being a spin-off does not make a breakout strong. The volume on the day does.",
+    "Weak; the base was too deep": "A 10% base is shallow. IBD says most IPO bases correct less than 20%, so depth is not the problem."
    },
    "house": true,
-   "story": "A spin-off listed in June. A 6-week, 10% base at the high breaks out in October on 0.75x the base's average volume."
+   "story": "A spin-off listed in June. A 6-week, 10% base at the high breaks out in October on 0.75x the base's average volume.",
+   "simple": "Weak, because the breakout came on less volume than the base averaged, so buyers were not there.",
+   "deeper": {
+    "trap": "Do not read a clean base as proof of demand. NWSA had a 6-week, 10% base at the high, yet the breakout came on 0.75x the base's volume. Check the volume on the day before you buy."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on held decisions (D-006: volume as a gate or a cue; D-054: spin-offs)"
+    ]
+   },
+   "depends_on": [
+    "D-006",
+    "D-054"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q46",
@@ -2099,10 +2636,11 @@
    "choices": [
     "Full risk on clean bases",
     "Smaller and fewer positions",
-    "Only A+ setups"
+    "Only A+ setups",
+    "Mostly cash and shorts, no longs"
    ],
    "answer": "Smaller and fewer positions",
-   "why": "Smaller and fewer positions. Yellow is not Green. APTV broke out twice on clean bases in a flat market and stopped out both times.",
+   "why": "Smaller and fewer positions. Under our market reading, Green is full risk and Yellow is smaller and fewer. Orange is only A+ setups. Red is mostly cash and shorts. APTV broke out twice on clean bases in a flat 2012 market and stopped out both times. The Yellow reading is this story's own.",
    "lesson_line": "In a flat market, clean bases still fail. Yellow means smaller and fewer.",
    "facts": [
     "d12",
@@ -2111,11 +2649,24 @@
     "h26"
    ],
    "wrong": {
-    "Full risk on clean bases": "Full risk is for Green, a market that is working.",
-    "Only A+ setups": "That is Orange. Yellow means smaller and fewer, not A+ only."
+    "Full risk on clean bases": "Full risk is the Green reading, not Yellow.",
+    "Only A+ setups": "That is Orange. Yellow means smaller and fewer, not A+ only.",
+    "Mostly cash and shorts, no longs": "That is Red. Yellow means smaller and fewer positions, not mostly cash."
    },
    "house": true,
-   "story": "APTV's first base stops out. Months later a second clean base breaks out on 2.8x volume in the same flat market and stops out the next session. Your market reading says Yellow."
+   "story": "APTV's first base stops out. Months later a second clean base breaks out on 2.8x volume in the same flat market and stops out the next session. Your market reading says Yellow.",
+   "simple": "Yellow means we take smaller and fewer positions. It does not mean full risk, and it is not the Orange rule of only A+ setups.",
+   "deeper": {
+    "trap": "A clean base does not make the market Green. APTV's two clean-looking failures came in a flat 2012 market. Read the market first, then the chart."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F65 market reading)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q48",
@@ -2152,24 +2703,42 @@
    "criterion": "ipo.depth_a_plus",
    "q": "Two IPO bases are otherwise similar. Which one grades higher on depth?",
    "choices": [
-    "The 12% deep base",
-    "The 33% deep base",
-    "Neither; depth does not grade"
+    "The 12% deep base, it fell less",
+    "The 33% deep base, it has more upside",
+    "Neither; depth does not grade",
+    "The base with the longer rest"
    ],
-   "answer": "The 12% deep base",
-   "why": "The 12% deep base. Shallower bases grade higher: under 20% is the A+ version, and 30% to 35% sits down at B-. Grading stays a judgment call.",
-   "lesson_line": "Shallower bases grade higher. Under 20% leans A+, 30% to 35% is B-.",
+   "answer": "The 12% deep base, it fell less",
+   "why": "The 12% deep base. Shallower bases grade higher. IBD says most IPO bases correct less than 20%. Grading is a judgment call, so depth is one sign among several.",
+   "lesson_line": "Shallower bases grade higher. Depth is one sign, and grading stays a judgment call.",
    "facts": [
     "c11",
     "i02",
     "h35"
    ],
    "wrong": {
-    "The 33% deep base": "That has it backwards. Shallower bases grade higher.",
-    "Neither; depth does not grade": "Depth is one of the signs. It helps decide the grade."
+    "Neither; depth does not grade": "Depth is one of the signs. It helps decide the grade.",
+    "The 33% deep base, it has more upside": "A deeper fall grades lower, not higher. Shallower bases grade higher.",
+    "The base with the longer rest": "Length is a separate sign. This question asks about depth, and the shallower base grades higher."
    },
    "house": true,
-   "story": "Two IPO bases are otherwise similar. One is 12% deep. The other is 33% deep."
+   "story": "Two IPO bases are otherwise similar. One is 12% deep. The other is 33% deep.",
+   "simple": "The shallower base grades higher, because a smaller fall from the high is a healthier sign.",
+   "deeper": {
+    "trap": "Do not treat a grade line as a gate. The rulebook says grading is discretionary, with no fixed checklist taught as ours. Depth moves the grade. It does not decide it alone."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-055: the depth cap and grade lines)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-055"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q50",
@@ -2205,24 +2774,45 @@
    "criterion": "ipo.not_stretched",
    "q": "Was the breakout buyable?",
    "choices": [
-    "Yes, it broke out on volume",
+    "Yes, it cleared the IPO high",
     "Yes, if you use a tight stop",
-    "No; too stretched and past 4%"
+    "No; too stretched and past 4%",
+    "No; it needs a close above first"
    ],
    "answer": "No; too stretched and past 4%",
-   "why": "No. We skip a long more than 10% above its 10-day average. A gap this size is also past 4% over the pivot. Skip it and wait for a new setup.",
+   "why": "No. We skip a long more than 10% above its 10-day average, and this one opens 18% over it. It also opens 12% above the IPO high, past the 4% chase limit. Skip it and wait for a new setup. Clearing the high or a tighter stop does not change the rule.",
    "lesson_line": "A gap-and-go is not a buy. Skip it and let the next setup come.",
    "facts": [
     "h13",
     "c09",
-    "h11"
+    "h11",
+    "h12",
+    "c04"
    ],
    "wrong": {
-    "Yes, it broke out on volume": "A breakout is the start of the test, not the whole rule. The stretch limit still applies.",
-    "Yes, if you use a tight stop": "The stop stays honest. A bigger stop distance shrinks the shares and does not make a stretched entry fine."
+    "Yes, if you use a tight stop": "The stop stays honest. A bigger stop distance shrinks the shares and does not make a stretched entry fine.",
+    "Yes, it cleared the IPO high": "Clearing the high is the trigger, not the whole rule. The stretch limit still applies.",
+    "No; it needs a close above first": "The trigger is a trade through the IPO high in regular hours, not a close above it. The stretch and the 4% limit are the problem."
    },
    "house": true,
-   "story": "A new issue gaps up and opens 12% above its IPO high. At the open it is 18% over its 10-day average."
+   "story": "A new issue gaps up and opens 12% above its IPO high. At the open it is 18% over its 10-day average.",
+   "simple": "No, it opened more than 4% past the pivot and is over 10% above its 10-day, so we skip it.",
+   "deeper": {
+    "trap": "A gap can look like a strong breakout and still be too late. The 4% chase limit and the 10% stretch limit are separate checks, and this entry fails both. Chasing costs size: the stop stays put, the distance grows and the shares shrink."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C28, C29)",
+     "held decision D-017 on exceptions",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-017"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q52",
@@ -2234,21 +2824,36 @@
    "choices": [
     "No; hold only if up 5R",
     "Yes; the stop covers it",
-    "Yes; it is a winner"
+    "Yes; hold if it is up 2R",
+    "No; sell half and hold half"
    ],
    "answer": "No; hold only if up 5R",
-   "why": "No. We hold through a report only if the trade is up 5R. At 2R, plan to be out before the report.",
+   "why": "No. We hold through a report only if the trade is up 5R, and this one is up 2R. Plan to be out before the report. A smaller position still goes through it.",
    "lesson_line": "Hold through a report only when you are up 5R. Otherwise, be out.",
    "facts": [
     "h08",
     "c24"
    ],
    "wrong": {
-    "Yes; it is a winner": "Being up 2R is not enough. The bar is 5R.",
-    "Yes; the stop covers it": "A gap can jump a stop. That is why the rule exists."
+    "Yes; the stop covers it": "The rule has no exception for a stop. Up 2R is below the 5R bar.",
+    "Yes; hold if it is up 2R": "Being up 2R is not enough. The bar is 5R.",
+    "No; sell half and hold half": "Half a position still goes through the report. The rule is to hold only if up 5R, so below that we are out."
    },
    "house": true,
-   "story": "You hold an IPO winner that is up 2R. Its first report as a public company comes after the close tomorrow."
+   "story": "You hold an IPO winner that is up 2R. Its first report as a public company comes after the close tomorrow.",
+   "simple": "No, because we hold through a report only if the trade is up 5R, and this one is up only 2R.",
+   "deeper": {
+    "trap": "Do not mix up the two earnings rules. No new buys in the 3 days before a report is about entries. Holding through a report only if up 5R is about trades you already own. A new issue's first report can come soon after listing, so check the date."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B22)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q53",
@@ -2260,10 +2865,11 @@
    "choices": [
     "Take it; the chart is perfect",
     "Take it at half size to be safe",
-    "Pass; too thin and too cheap"
+    "Pass; too thin and too cheap",
+    "Wait for its next report, then buy"
    ],
    "answer": "Pass; too thin and too cheap",
-   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day. Trading thin, low-priced new issues is a named mistake.",
+   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day. At 7.40 and 3 million dollars a day this one fails both, however perfect the chart looks. Trading thin, low-priced new issues is a named mistake.",
    "lesson_line": "A perfect chart on a thin stock is still a pass.",
    "facts": [
     "h09",
@@ -2273,10 +2879,23 @@
    ],
    "wrong": {
     "Take it; the chart is perfect": "The chart comes after the floor. Thin names are not even watched.",
-    "Take it at half size to be safe": "Size does not fix a liquidity failure. The floor is the same for every setup."
+    "Take it at half size to be safe": "Size does not fix a liquidity failure. The floor is the same for every setup.",
+    "Wait for its next report, then buy": "A report does not fix the floor. A stock under $10 or under $20 million a day fails whatever the report says."
    },
    "house": true,
-   "story": "A new issue trades at 7.40 and averages 3 million dollars a day. Its base and breakout both look perfect."
+   "story": "A new issue trades at 7.40 and averages 3 million dollars a day. Its base and breakout both look perfect.",
+   "simple": "Pass, because the stock trades under $10 and under $20 million a day, which is below our floor.",
+   "deeper": {
+    "trap": "A perfect chart on a thin stock is a trap, not a bargain. We do not even watch illiquid stocks, and we never own more than 1% of a stock's average daily volume."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B23, D42)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q54",
@@ -2286,23 +2905,39 @@
    "criterion": "ipo.stop_gap",
    "q": "What do you do?",
    "choices": [
-    "Add; it is much cheaper than before",
+    "Cut it in half and hold the rest",
     "Get out; the loss is past 2R",
-    "Hold; wait for it to recover"
+    "Hold; wait for it to recover",
+    "Hold, with 52.40 as the new stop"
    ],
    "answer": "Get out; the loss is past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. If the first 30 minutes take the loss past 2R, we get out.",
+   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. With a ceiling: if the first 30 minutes take the loss past 2R, we get out. Here 1R is 1.37 and the low is 52.40, so the loss is far past 2R.",
    "lesson_line": "A gap through the stop gets 30 minutes. Past 2R, get out.",
    "facts": [
     "h06",
     "h07"
    ],
    "wrong": {
-    "Add; it is much cheaper than before": "We never add to a trade, least of all one that has gapped through its stop.",
-    "Hold; wait for it to recover": "The gap rule sets the new stop at the first 30-minute low. Past 2R, we do not wait."
+    "Hold; wait for it to recover": "The gap rule sets the new stop at the first 30-minute low. Past 2R, we do not wait.",
+    "Cut it in half and hold the rest": "The ceiling says get out, not trim. Half a position still carries the loss.",
+    "Hold, with 52.40 as the new stop": "The first 30-minute low is the new stop only with a ceiling. Past 2R the rule is to get out, and this loss is past 2R."
    },
    "house": true,
-   "story": "You bought at 57.42 with the stop at 56.05, so 1R is 1.37. The stock gaps down and the first 30-minute low is 52.40. That loss is more than 2R."
+   "story": "You bought at 57.42 with the stop at 56.05, so 1R is 1.37. The stock gaps down through the stop. The low of the first 30-minute bar is 52.40.",
+   "simple": "Get out, because the gap took the loss past 2R in the first 30 minutes, and that is our limit.",
+   "deeper": {
+    "trap": "The new-stop rule has a ceiling. Many people remember that the first 30-minute low becomes the stop and stop reading there. The ceiling is the part that matters in a deep gap: past 2R, get out. Do not wait for a recovery."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B20)",
+     "computed key (the loss against 1R)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q55",
@@ -2314,10 +2949,11 @@
    "choices": [
     "Nothing; fundamentals are ignored here",
     "It voids the setup and the grade",
-    "A miss lowers it; chart comes first"
+    "A miss lowers it; chart comes first",
+    "It lowers it; fundamentals come first"
    ],
    "answer": "A miss lowers it; chart comes first",
-   "why": "A miss lowers the grade. We prefer growing sales and earnings, and the chart comes first. It does not void the setup.",
+   "why": "A miss lowers the grade. We prefer growing sales and earnings: the latest quarter's sales and EPS up year over year. Here sales rose but earnings fell, so the grade is lowered. The chart comes first, so it does not void the setup.",
    "lesson_line": "Growth is a grade cue. The chart stays the boss.",
    "facts": [
     "c41",
@@ -2325,10 +2961,24 @@
    ],
    "wrong": {
     "Nothing; fundamentals are ignored here": "They do matter for the grade. A miss lowers it.",
-    "It voids the setup and the grade": "Fundamentals are a preference, not a gate. The chart comes first."
+    "It voids the setup and the grade": "Fundamentals are a preference, not a gate. The chart comes first.",
+    "It lowers it; fundamentals come first": "The chart comes first. A miss lowers the grade, but growth is a preference, not the lead signal."
    },
    "house": true,
-   "story": "A clean IPO base breaks out in a leading group. Its latest quarter shows sales up but earnings down year over year."
+   "story": "A clean IPO base breaks out. Its latest quarter shows sales up but earnings down year over year.",
+   "simple": "A miss lowers the grade, but the chart still comes first, so the setup stays valid.",
+   "deeper": {
+    "trap": "Do not turn a preference into a gate. Growing sales and earnings are preferred and a miss lowers the grade, but the chart comes first. A weak quarter does not void a clean base on its own."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D40 preference)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q56",
@@ -2338,14 +2988,30 @@
    "criterion": "ipo.no_special_size",
    "q": "We have a separate size cut written for new listings.",
    "answer": "False",
-   "why": "False. The rulebook has no rule for new listings. Size comes from the stop and the grade: B- or lower is sized down.",
+   "why": "False. The rulebook has no rule for new listings (IPOs). Size comes from the stop and the grade: A+ is sized up, and B- or lower is sized down to 0.25% to 0.5% risk.",
    "lesson_line": "No special IPO size rule. The stop and the grade set the size.",
    "facts": [
     "h32",
     "h33",
     "h34"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because the rulebook has no rule for new listings, so the stop and the grade set the size.",
+   "deeper": {
+    "trap": "Do not invent a rule the rulebook does not have. A new issue gets no special size cut here. The stop sets the share count, and the grade sets the risk."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E53, D38, E49)",
+     "held decision D-034"
+    ]
+   },
+   "depends_on": [
+    "D-034"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q57",
@@ -2353,15 +3019,27 @@
    "rung": 8,
    "format": "tf",
    "criterion": "ipo.right_side_orderly",
-   "q": "A right side with two days of 4% or more in the last 5 sessions is orderly.",
+   "q": "A right side with two days of 4% or more in the last 5 sessions is a tight right side.",
    "answer": "False",
-   "why": "False. The last 5 sessions should hold no two days of 4% or more in either direction. Stockbee uses the same test.",
+   "why": "False. The last 5 sessions should hold no two days of 4% or more in either direction. Stockbee uses the same test: no two 4% breakouts, up or down, in the 5 days before the breakout day.",
    "lesson_line": "Wide swings on the right side mean the base is not tight yet.",
    "facts": [
     "c21",
     "b01"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because a tight right side holds no two days of 4% or more in the last 5 sessions.",
+   "deeper": {
+    "trap": "The test counts both directions. A 4% drop is as disorderly as a 4% jump, so two of either, or one of each, fail the check."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "proposed criteria-card line, backed by one practitioner"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q58",
@@ -2369,24 +3047,40 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "ipo.tight_right_side",
-   "q": "Which right side marks the best IPO base?",
+   "q": "Which right side is the best sign for an IPO base?",
    "choices": [
     "Wide swings with heavy volume",
-    "A fast V into the pivot",
-    "Inside days on very low volume"
+    "A fast V straight into the pivot",
+    "Inside days on very low volume",
+    "A tight range down near the base low"
    ],
    "answer": "Inside days on very low volume",
-   "why": "Inside days on very low volume, with weekly ranges under 10%. IBD described CBRE's base as tight trading with weekly ranges under 10%.",
+   "why": "Inside days on very low volume, with weekly ranges under 10%. IBD described CBRE's three-week base as tight trading with weekly ranges of less than 10%. A fast V into the pivot leaves no right side to judge, and wide swings are a loose base.",
    "lesson_line": "The best right side is quiet: inside days, low volume, tight weekly ranges.",
    "facts": [
     "c34",
-    "i15"
+    "i15",
+    "c35",
+    "c20"
    ],
    "wrong": {
-    "A fast V into the pivot": "That is a B- sign. The V leaves no right side to judge.",
-    "Wide swings with heavy volume": "That is a loose base, not a tight one."
+    "Wide swings with heavy volume": "That is a loose base, not a tight one.",
+    "A fast V straight into the pivot": "That is a B- sign. The V leaves no right side to judge.",
+    "A tight range down near the base low": "Tight is not enough. The base's last close should sit in the top half of its range, not near the low."
    },
-   "house": true
+   "house": true,
+   "simple": "The best right side is quiet and tight, with inside days on very low volume and weekly ranges under 10%.",
+   "deeper": {
+    "example": "IBD's CBRE base. The buy point was 20.10, 10 cents above the left-side high. It was a three-week base with tight trading and weekly ranges of less than 10%."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "proposed criteria-card line, backed by one IBD example"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q59",
@@ -2398,19 +3092,23 @@
    "choices": [
     "Take it; a tight rest under the high",
     "Pass; a new issue cannot form a base",
-    "Pass; it has no 200-day"
+    "Pass; it has no 200-day",
+    "Take it; any rest under a high is fine"
    ],
    "answer": "Take it; a tight rest under the high",
-   "why": "Take it. A 6.8-week, 22% deep first base under the IPO high, with the low held above the IPO open. It broke out the next day on 2.2x volume and reached 3R the day after.",
+   "why": "Take it. This is a 6.8-week, 22% deep first base under the IPO high, with the low held above the IPO open. It broke out the next day on 2.2x volume and reached 3R the day after. A young stock has no 200-day, so the IPO high is its landmark.",
    "lesson_line": "Find the IPO high first. Then look for a quiet rest under it.",
    "facts": [
     "d01",
     "d02",
-    "c02"
+    "c02",
+    "c29",
+    "d11"
    ],
    "wrong": {
-    "Pass; a new issue cannot form a base": "IBD says new issues do form bases, short and shallow ones. This is exactly that.",
-    "Pass; it has no 200-day": "A young stock has no 200-day yet. The IPO high and the IPO price are its landmarks."
+    "Pass; a new issue cannot form a base": "IBD says to let a new issue build some trading history and wait for its first base. New issues do form bases.",
+    "Pass; it has no 200-day": "A young stock has no 200-day yet. The IPO high and the IPO price are its landmarks.",
+    "Take it; any rest under a high is fine": "Not any rest. It must be a first base under the IPO high with the low held above the IPO open, and the buy is a trade through the high."
    },
    "house": true,
    "chart": {
@@ -2418,7 +3116,23 @@
     "asof": "2025-09-04",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Take it, because this is the stock's first tight rest under its IPO high, with the low held above the IPO open.",
+   "deeper": {
+    "example": "After the reveal: KRMN. Buy 57.42, stop 56.05 (2.4%), and 3R came the next day. Even so, 36 of the 57 scan hits were stopped before 3R. A clean base is a probability, not a promise."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a held decision (D-055: the 22% depth against a possible 20% cap)",
+     "key read from our own bars"
+    ]
+   },
+   "depends_on": [
+    "D-055"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q60",
@@ -2462,21 +3176,36 @@
    "choices": [
     "Check base, stop and size first",
     "Buy half now, decide the rest later",
-    "Buy now before it runs away"
+    "Buy now before it runs away",
+    "Copy the post's entry, stop and size"
    ],
    "answer": "Check base, stop and size first",
-   "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size. Write the plan before the open.",
+   "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules. Write the plan before the open: every planned buy has its entry, stop and size written down first.",
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "facts": [
     "h36",
-    "h39"
+    "h39",
+    "h01"
    ],
    "wrong": {
     "Buy half now, decide the rest later": "Half a gamble is still a gamble. The plan comes first.",
-    "Buy now before it runs away": "A buy with no stop and no size is a gamble."
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble.",
+    "Copy the post's entry, stop and size": "A post's plan is not your plan. We build our own entry, stop and size by these rules before the open."
    },
    "house": true,
-   "story": "A post says a new issue is breaking out right now. You have not looked at its base, its stop or its size."
+   "story": "A post says a new issue is breaking out right now. You had not planned to trade it.",
+   "simple": "Check the base, stop and size yourself first, because we never trade from a post without our own plan.",
+   "deeper": {
+    "trap": "A post can be right and still not be your trade. If the stop is not yours, the size is not yours either, because the size comes from the stop. Build all three before the open."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F66, D39)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q62",
@@ -2516,10 +3245,11 @@
    "choices": [
     "Neither; volume does not matter here",
     "Base A: selling shakes out weak hands",
-    "Base B: heavy volume on up days"
+    "Base B: buyers show up when it rises",
+    "Whichever base has more total volume"
    ],
-   "answer": "Base B: heavy volume on up days",
-   "why": "Base B. Light volume on the pullbacks and heavy on the up days is the healthy pattern. On the right half, up-day volume should exceed down-day volume.",
+   "answer": "Base B: buyers show up when it rises",
+   "why": "Base B. Light volume on the pullbacks and heavy on the up days is the healthy pattern. On the right half, up-day volume should exceed down-day volume. Base A shows the reverse.",
    "lesson_line": "Two bases can look alike. Volume on the right half tells them apart.",
    "facts": [
     "c18",
@@ -2527,11 +3257,24 @@
     "i10"
    ],
    "wrong": {
-    "Neither; volume does not matter here": "Volume in the base is a gate on the right half, and it matters.",
-    "Base A: selling shakes out weak hands": "Selling on the right half is distribution, not a shakeout."
+    "Neither; volume does not matter here": "Volume on the right half of the base matters. Up days should carry the heavy volume.",
+    "Base A: selling shakes out weak hands": "On the right half, up-day volume should exceed down-day volume. Base A shows the reverse.",
+    "Whichever base has more total volume": "Total volume hides the side. Heavy volume on down days is selling, and we look for it on up days."
    },
    "house": true,
-   "story": "Two IPO bases have the same depth and length. In Base A the right-half down days carry the heavy volume. In Base B the up days do."
+   "story": "Two IPO bases have the same depth and length. In Base A the right-half down days carry the heavy volume. In Base B the up days do.",
+   "simple": "Base B, because buyers show up on the up days, while Base A has its heavy volume on the down days.",
+   "deeper": {
+    "trap": "Two bases with the same depth and length can still differ. Compare the volume on up-close days with the volume on down-close days on the right half. The shape of the price alone will not show it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "card line agrees with IBD, proposed gate"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q64",
@@ -2541,24 +3284,39 @@
    "criterion": "ipo.above_avwap",
    "q": "What does the location tell you?",
    "choices": [
-    "A good sign; the grade rises",
+    "A good sign; it lifts the grade",
     "Nothing; the averages do not matter",
-    "It is stretched; skip it"
+    "It is stretched; skip the trade",
+    "A good sign; it replaces the trigger"
    ],
-   "answer": "A good sign; the grade rises",
-   "why": "A good sign, so the grade rises. The A+ location is above the IPO AVWAP and the rising 10-day and 21-day.",
+   "answer": "A good sign; it lifts the grade",
+   "why": "A good sign, so it lifts the grade. The A+ location is above the IPO AVWAP and the rising 10-day and 21-day averages. The IPO AVWAP is the volume-weighted average price anchored at the listing day. Sitting above the 10-day is normal, and we skip a long only when it is more than 10% above it.",
    "lesson_line": "Above the IPO AVWAP and the rising short averages is the best location.",
    "facts": [
     "c37",
     "c19",
-    "c22"
+    "c22",
+    "h13"
    ],
    "wrong": {
-    "It is stretched; skip it": "Stretched is measured against the 10-day. Sitting above it is normal.",
-    "Nothing; the averages do not matter": "Location is part of the grade. Above all three is the A+ version."
+    "Nothing; the averages do not matter": "Location is part of the grade. Above all three is the A+ version.",
+    "It is stretched; skip the trade": "Stretched means more than 10% over the 10-day. At 4% over it, this is not stretched.",
+    "A good sign; it replaces the trigger": "Location is a grade cue, not a trigger. The buy still needs a trade through the IPO high."
    },
    "house": true,
-   "story": "A breakout candidate sits above its IPO AVWAP. It is also above its rising 10-day and 21-day averages."
+   "story": "A breakout candidate sits above its IPO AVWAP. It is also above its rising 10-day and 21-day averages, and 4% over the 10-day.",
+   "simple": "A good sign, because sitting above the IPO AVWAP and the rising 10-day and 21-day is the best location.",
+   "deeper": {
+    "trap": "Above the averages is a good place to be, not a reason to chase. Location is one grade cue. We still skip a long that is more than 10% above its 10-day average."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card, a proposed grade cue"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q65",
@@ -2566,27 +3324,47 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ipo.no_special_size",
-   "q": "Does it change the plan?",
+   "q": "Does a new issue need its own exit plan?",
    "choices": [
     "Yes; sell everything at 2R",
     "Yes; take a smaller trim at 1R",
-    "No; the full plan stands"
+    "No; the usual exit plan applies",
+    "No; but give it a wider stop"
    ],
-   "answer": "No; the full plan stands",
-   "why": "No. The plan is the same: stop under the breakout day's low, thirds at 3R and 5R, trail the rest. There is no special rule for a new issue.",
-   "lesson_line": "A new issue gets the same plan as any setup. Entry, stop, trim, trail, advance.",
+   "answer": "No; the usual exit plan applies",
+   "why": "No. Our rulebook has no separate rule for new listings. The stop sits a few cents under the day's low and only moves up. A third comes off at 3R and another at 5R. Then trail the rest.",
+   "lesson_line": "A new issue gets the same exit plan as any setup. Entry, stop, trim, trail, advance.",
    "facts": [
     "h40",
     "h32",
     "h05",
-    "h20"
+    "h20",
+    "h24",
+    "h02"
    ],
    "wrong": {
     "Yes; sell everything at 2R": "The trims are thirds at 3R and 5R, then a trail.",
-    "Yes; take a smaller trim at 1R": "There is no 1R trim. The first third is at 3R."
+    "Yes; take a smaller trim at 1R": "There is no 1R trim. The first third is at 3R.",
+    "No; but give it a wider stop": "The stop only moves up, never wider. It sits a few cents under the day's low, as for any setup."
    },
    "house": true,
-   "story": "You buy an IPO base breakout. A friend says new issues need a different exit plan from every other setup."
+   "story": "You buy an IPO base breakout. A friend says new issues need a different exit plan from every other setup.",
+   "simple": "No, because a new issue gets the same exit plan: the same stop, thirds at 3R and 5R, then a trail.",
+   "deeper": {
+    "trap": "A friend's view is not a rule. The rulebook says plan every trade as Entry, Stop, Trim, Trail, Advance, and it has no separate rule for new listings."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A12, E53)",
+     "held decision D-034"
+    ]
+   },
+   "depends_on": [
+    "D-034"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q66",
@@ -2625,10 +3403,11 @@
    "choices": [
     "From its first day of trading",
     "From the first bar that we hold",
-    "From the heaviest-volume session"
+    "From the heaviest-volume session",
+    "From the day the company filed"
    ],
    "answer": "From its first day of trading",
-   "why": "From its first trading day on record. Our card does not date a listing from the first bar we hold. That only shows how far our history goes.",
+   "why": "From its first trading day on record. Our card dates the listing from the stock's first trading day, not from the first bar we hold. Here our history covers only 30 sessions. The company listed six years ago, so the bar count says nothing about its age.",
    "lesson_line": "Date the listing from the record, never from where our price history starts.",
    "facts": [
     "c46",
@@ -2636,9 +3415,19 @@
    ],
    "wrong": {
     "From the first bar that we hold": "A short history only shows how little data we hold. This company listed years before that bar.",
-    "From the heaviest-volume session": "A volume spike is a guess at the listing. The record gives the actual first trading day."
+    "From the heaviest-volume session": "A volume spike is a guess at the listing. The record gives the actual first trading day.",
+    "From the day the company filed": "A filing comes before the stock trades. Our card dates the listing from the first trading day on record."
    },
-   "house": true
+   "house": true,
+   "simple": "We date the listing from the stock's first trading day on record, not from where our own price history starts.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card (c46), a proposed line"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q68",
@@ -2646,7 +3435,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "ipo.position_adv",
-   "q": "A new issue trades 650,000 shares a day on average. What is the most shares our volume rule lets us hold?",
+   "q": "A new issue at $40 averages 650,000 shares a day. We cap ourselves at 1% of that. What is the most shares we can own?",
    "answer": 6500,
    "calc": {
     "fn": "arith",
@@ -2657,12 +3446,23 @@
     "round": 0
    },
    "suffix": "shares",
-   "why": "6,500 shares. We never own more than 1% of a stock's average daily volume. Thin new issues reach that ceiling first.",
+   "why": "6,500 shares. We never own more than 1% of a stock's average daily volume, and 1% of 650,000 is 6,500. The ceiling holds even when the stop would allow more shares. A thin stock reaches it quickly, and illiquid stocks are not even watched.",
    "lesson_line": "One percent of the average daily volume is the ceiling, whatever the stop allows.",
    "facts": [
     "h19"
    ],
-   "house": true
+   "house": true,
+   "simple": "The most is 6,500 shares, because we never own more than 1% of a stock's average daily volume.",
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only",
+     "a computed key",
+     "rests on the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q69",
@@ -2672,13 +3472,22 @@
    "criterion": "ipo.position_adv",
    "q": "A tight stop on a clean IPO base lets us own more than 1% of its average daily volume.",
    "answer": "False",
-   "why": "False. We never own more than 1% of a stock's average daily volume, however tight the stop is.",
+   "why": "False. We never own more than 1% of a stock's average daily volume, however tight the stop is. A tight stop makes the risk-based share count larger, but it never lifts the volume ceiling.",
    "lesson_line": "A tight stop sets the size from risk. It never lifts the volume ceiling.",
    "facts": [
     "h19",
     "h03"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because we never own more than 1% of a stock's average daily volume, however tight the stop is.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (D42, A5)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q70",
@@ -2691,20 +3500,30 @@
    "choices": [
     "The one in the top-quarter group",
     "The one in the bottom-half group",
-    "Neither; the group has no say in grade"
+    "Neither; the group has no say in grade",
+    "The one whose group has more stocks"
    ],
    "answer": "The one in the top-quarter group",
-   "why": "The top-quarter group. Our card prefers an IPO base in a leading group or a hot theme. It lifts the grade; the chart still comes first.",
+   "why": "The top-quarter group. Our card prefers an IPO base in a leading group or a hot theme. That means the group sits in the top quarter of the app's group ranking. It breaks a tie between equal charts.",
    "lesson_line": "A leading group or a hot theme lifts an IPO base's grade.",
    "facts": [
-    "c47",
-    "h17"
+    "c47"
    ],
    "wrong": {
     "The one in the bottom-half group": "Our card prefers the leading group, so the weaker group cannot grade higher.",
-    "Neither; the group has no say in grade": "The group is a grade cue on our card. Equal charts are separated by it."
+    "Neither; the group has no say in grade": "The group is a grade cue on our card. Equal charts are separated by it.",
+    "The one whose group has more stocks": "Group size is not the measure. Our card looks at where the group ranks, in the top quarter of the app's group ranking."
    },
-   "house": true
+   "house": true,
+   "simple": "The base in the top-quarter group grades higher, because our card prefers a leading group or a hot theme.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card (c47), a proposed grade cue"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q71",
@@ -2713,14 +3532,15 @@
    "format": "scenario",
    "criterion": "ipo.location_averages",
    "q": "What does the location check ask of it?",
-   "story": "A new issue listed 30 sessions ago and is breaking out. Its close sits above the rising 10-day and 21-day averages. It has no 50-day yet.",
+   "story": "A new issue listed 30 sessions ago and is breaking out. It has no 50-day yet.",
    "choices": [
     "The 10 and 21-day; the 50-day later",
     "The 50-day, so wait until it has formed",
-    "The 200-day first, then the 21-day"
+    "The 200-day first, then the 21-day",
+    "No averages yet; judge the chart alone"
    ],
    "answer": "The 10 and 21-day; the 50-day later",
-   "why": "The 10-day and 21-day now. Our card asks for a close above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "why": "The 10-day and 21-day now. Our card asks for a close above the rising 10-day and 21-day averages, and above the 50-day once it exists. At 30 sessions this stock has no 50-day yet, and a young listing has no 200-day.",
    "lesson_line": "A young stock is judged on the averages it has. The 50-day joins later.",
    "facts": [
     "c22",
@@ -2728,9 +3548,19 @@
    ],
    "wrong": {
     "The 50-day, so wait until it has formed": "The 50-day is asked for only once it exists. A young stock does not have to wait for it.",
-    "The 200-day first, then the 21-day": "A young listing has no 200-day, and our card does not ask for one here."
+    "The 200-day first, then the 21-day": "A young listing has no 200-day, and our card does not ask for one here.",
+    "No averages yet; judge the chart alone": "At 30 sessions it already has a 10-day and a 21-day. Our card asks for a close above both."
    },
-   "house": true
+   "house": true,
+   "simple": "It needs a close above the rising 10-day and 21-day averages now, and above the 50-day only once it exists.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card (c22), a proposed gate"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q72",
@@ -2740,12 +3570,22 @@
    "criterion": "ipo.location_averages",
    "q": "Our card wants an IPO base buy to close above its rising 10-day and 21-day averages.",
    "answer": "True",
-   "why": "True. The close sits above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "why": "True. The close sits above the rising 10-day and 21-day averages, and above the 50-day once it exists. A young listing is judged on the averages it already has.",
    "lesson_line": "Buy the IPO breakout from strength: above the rising 10-day and 21-day.",
    "facts": [
-    "c22"
+    "c22",
+    "c32"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, our card wants the close above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card (c22), a proposed gate"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q73",
@@ -2755,12 +3595,23 @@
    "criterion": "ipo.stop_broker",
    "q": "On a fresh IPO breakout, a stop kept in your head is fine if you watch the screen.",
    "answer": "False",
-   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head. Watching the screen does not change that. A new issue is no exception: the stop is the exit.",
    "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
    "facts": [
-    "h18"
+    "h18",
+    "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because every position needs a real stop order with the broker, not a stop kept in your head.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (D41)",
+     "the no-special-IPO-rule reading comes from E53"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q74",
@@ -2773,10 +3624,11 @@
    "choices": [
     "Keep it where it is or raise it",
     "Lower it a little for a new issue",
-    "Cancel it and watch the price by eye"
+    "Cancel it and watch the price by eye",
+    "Lower it, but only after a trim"
    ],
    "answer": "Keep it where it is or raise it",
-   "why": "Keep it where it is, or raise it. The stop only moves up, never down or wider, and it stays a real order with the broker.",
+   "why": "Keep it where it is, or raise it. The stop only moves up, never down or wider, and it stays a real order with the broker. Dropping it to 32.00 would turn a planned loss into a larger one.",
    "lesson_line": "Pick the stop before the buy. It only goes up from there.",
    "facts": [
     "h02",
@@ -2784,10 +3636,20 @@
     "d03"
    ],
    "wrong": {
-    "Lower it a little for a new issue": "A wider stop turns a planned loss into a bigger one. Widening the stop is a named mistake.",
-    "Cancel it and watch the price by eye": "A stop kept in your head is not a stop. It stays a real order with the broker."
+    "Lower it a little for a new issue": "A wider stop turns a planned loss into a bigger one. The stop only moves up, never down or wider.",
+    "Cancel it and watch the price by eye": "A stop kept in your head is not a stop. It stays a real order with the broker.",
+    "Lower it, but only after a trim": "The stop only moves up, never down or wider. A trim does not change that."
    },
-   "house": true
+   "house": true,
+   "simple": "Keep the stop or raise it, because it only moves up and stays a real order with the broker.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, D41)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q75",
@@ -2798,23 +3660,32 @@
    "q": "When does the stop move to breakeven on an IPO base winner?",
    "choices": [
     "Between 2R and 5R, at first trim",
-    "At 1R, once it clears the pivot",
+    "Between 0.5R and 1R, at the pivot",
     "Only after the last third is sold",
     "After the first higher close in a row"
    ],
    "answer": "Between 2R and 5R, at first trim",
-   "why": "Between 2R and 5R, ideally, and at the first trim by default.",
+   "why": "Between 2R and 5R, ideally, and at the first trim by default. The first trim is a third at 3R. It does not come before 2R, and it does not wait for the last third to be sold.",
    "lesson_line": "Breakeven comes between 2R and 5R, at the first trim.",
    "facts": [
     "c49",
     "h05"
    ],
    "wrong": {
-    "At 1R, once it clears the pivot": "Too soon. Our rule starts at 2R.",
     "Only after the last third is sold": "The stop moves long before the last third goes. It follows the first trim.",
-    "After the first higher close in a row": "A close is not a measure of R. The move is set in R, from 2R."
+    "After the first higher close in a row": "A close is not a measure of R. The move is set in R, from 2R.",
+    "Between 0.5R and 1R, at the pivot": "Too soon. Our rule starts at 2R."
    },
-   "house": true
+   "house": true,
+   "simple": "The stop goes to breakeven anywhere from 2R to 5R, and at the first trim by default.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "wave1"
   },
   {
    "key": "q76",
@@ -2822,25 +3693,40 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ipo.breakeven",
-   "q": "Bought at 33.38, stop 32.62. At what price may the stop first go to breakeven?",
-   "answer": 34.9,
+   "q": "Bought at 22.81, stop 21.73. At what price does our breakeven window open?",
+   "answer": 24.97,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 2 * (a - b)",
-     "a": 33.38,
-     "b": 32.62
+     "a": 22.81,
+     "b": 21.73
     },
     "round": 2
    },
-   "suffix": "R",
-   "why": "34.90. The earliest breakeven is 2R, the fill plus two times the distance to the stop. Our rule runs from 2R to 5R.",
+   "suffix": "",
+   "why": "24.97. Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill. The window runs from 2R to 5R, and by default the stop moves at the first trim.",
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "facts": [
     "h05",
-    "d03"
+    "c49",
+    "d07"
    ],
-   "house": true
+   "house": true,
+   "simple": "The window opens at 24.97, which is 2R, the start of our 2R to 5R breakeven window.",
+   "deeper": {
+    "trap": "2R is where the window opens, not the required spot. The default is the first trim, at 3R, which sits one more R above this price. Moving earlier leaves the trade less room; moving at the trim is the usual plan."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (B19, 2R to 5R)"
+    ]
+   },
+   "prefix": "$",
+   "batch": "wave1"
   },
   {
    "key": "q77",
@@ -2853,10 +3739,11 @@
    "choices": [
     "It ends the base before the trigger",
     "It is a normal shakeout; keep waiting",
-    "It resets the base to a fresh day one"
+    "It resets the base to a fresh day one",
+    "It lowers the grade but the base stays"
    ],
    "answer": "It ends the base before the trigger",
-   "why": "It ends the base. Our card voids it when the low undercuts the IPO price and no close gets back above within 3 sessions.",
+   "why": "It ends the base before the trigger. Our card voids a base when the low undercuts the IPO price and the stock does not close back above it soon after. Here the low hit $18.60 against a $20 price, and the closes stayed under $19 for two weeks. MarketSmith India says the base should not undercut the IPO price.",
    "lesson_line": "A base that sinks under the IPO price and stays there is over.",
    "facts": [
     "c14",
@@ -2864,9 +3751,26 @@
    ],
    "wrong": {
     "It is a normal shakeout; keep waiting": "The base should not undercut the IPO price. Two weeks of closes under it is not a shakeout.",
-    "It resets the base to a fresh day one": "The listing day does not move. This rest is over as an IPO base."
+    "It resets the base to a fresh day one": "The listing day does not move. This rest is over as an IPO base.",
+    "It lowers the grade but the base stays": "A grade cue is not an end. Our card ends the base when the low undercuts the IPO price and no close gets back above it soon after."
    },
-   "house": true
+   "house": true,
+   "simple": "It ends the base, because the low went under the IPO price and the stock never closed back above it.",
+   "deeper": {
+    "trap": "Three prices matter in this story: the $20 offer, the $21 open and the $22 first close. The low of $18.60 is under all three, and the closes stayed under $19, so the call does not depend on which one you count."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on held decisions (D-057 which price counts, D-002)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-057"
+   ],
+   "batch": "wave1"
   },
   {
    "key": "q78",
@@ -2877,23 +3781,42 @@
    "q": "What is the best read of it?",
    "story": "A new issue falls 60% from its IPO high, then rests there for four weeks. The rest looks quiet and neat.",
    "choices": [
-    "Too deep to be an IPO base",
-    "A bargain: deeper means cheaper",
-    "Fine, if you cut the size in half"
+    "Too deep to count as an IPO base",
+    "Too short; it needs five weeks",
+    "Fine, if you cut the size in half",
+    "Fine; volatile bases go to 50%"
    ],
-   "answer": "Too deep to be an IPO base",
-   "why": "Too deep. IPO bases usually do not top 20%, and MarketSmith India sees up to 50% in volatile markets. At 60% our card ends the base.",
+   "answer": "Too deep to count as an IPO base",
+   "why": "Too deep. IPO bases usually do not top 20%, and MarketSmith India sees up to 50% in volatile markets. A 60% fall is past both, and at 60% our card ends the base.",
    "lesson_line": "Too deep is not a base, however quiet the rest looks.",
    "facts": [
     "m09",
     "m10",
-    "c48"
+    "c48",
+    "i01"
    ],
    "wrong": {
-    "A bargain: deeper means cheaper": "A fall that deep is damage, not a discount. Our card ends the base.",
-    "Fine, if you cut the size in half": "Size cannot rescue a base that is already over."
+    "Fine, if you cut the size in half": "Size cannot rescue a base that is already over.",
+    "Too short; it needs five weeks": "Four weeks is a normal length. IBD says IPO bases usually run two to five weeks, so length is not the problem.",
+    "Fine; volatile bases go to 50%": "MarketSmith India sees up to 50% in volatile markets. A 60% fall is past even that."
    },
-   "house": true
+   "house": true,
+   "simple": "It is too deep to be an IPO base, because most correct under 20% and even volatile markets see up to 50%.",
+   "deeper": {
+    "trap": "Quiet is not the same as sound. A rest can look neat on the chart and still sit on a 60% fall. Read the depth before the tidiness."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-055: the depth cap)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-055"
+   ],
+   "batch": "wave1"
   }
  ],
  "conflicts": [
@@ -2930,90 +3853,120 @@
    "fixed": false,
    "by": "checker"
   },
-  "q01": {"status": "pass", "notes": "IBD i13 plus the card's structure line; wrong notes are true. Proposed criteria only. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q01": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave1; awaiting cold re-read"
+  },
   "q02": {
    "status": "pass",
-   "notes": "Card c05 (settled never_listing_week) plus MarketSmith India m01. Key right.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "Pivot = left-side high, card c03 and MSI m03. Fill sentence reads 'highest high'; fine.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Blank is the high; only one bank word fits 'top of the left side'. Quotes c03 and m03 support it."
   },
   "q04": {
    "status": "pass",
-   "notes": "Trigger and market order: settled card line, E57, E58. Lesson line ended on 'Alert at the pivot', which no source teaches: removed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
-  "q05": {"status": "pass", "notes": "Stop a few cents under the breakout day's low: F62 and the settled card stop. Wrong notes true (c42 for the base-low mistake). variety rewrite checked 2026-11-10: the right choice began 'Just under' while two wrong choices began 'A few cents under' (odd one out); now all three share the stem.", "fixed": false, "by": "checker"},
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stem now says breakout day; key unique. Supported by c10, h24, c42. Choice C differs only by 'exactly', fine."
+  },
   "q06": {
    "status": "pass",
-   "notes": "IBD i11 (new issues pull back hardest in a correction), c44. Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "i11 quote supports the TF; hedge 'often' is IBD's own."
   },
   "q07": {
    "status": "pass",
-   "notes": "IBD i09/i10 and card c18; key is the IBD wording, which two sources agree on.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Reversed statement is False per i09 and i10. Does not answer q21 beyond teaching."
   },
-  "q08": {"status": "pass", "notes": "Story said 'listed four months ago' and 'rested for three weeks', which leaves about 14 weeks unaccounted for, and gave no depth or floor: the key (a first rest) depended on facts the story did not give. Story now: listed six weeks ago, high in week two, rested four weeks, 12% deep, low above the IPO price, no close above. Uses no pending number (12% is under every D-055 option; 4 weeks is over every D-056 option). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story supports a first rest under the high, 12% deep, low above the IPO price, nothing closed above. Distractors are grounded (i02, c32, c02). No second answer."
+  },
   "q09": {
    "status": "pass",
-   "notes": "IBD i01/i03: usually two to five weeks, rare seven days. Not keyed on the pending 10-session minimum. 'Under a week' wrong note true (shortest rare case is seven days).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q10": {
    "status": "pass",
-   "notes": "Card ipo.right_side_top_half (proposed gate). Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c20 supports it. Single proposed card line, already carried as a risk note."
   },
   "q11": {
    "status": "pass",
-   "notes": "Card c19: AVWAP anchored at the listing day. Definitional, true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c19 quote gives 'listing day'. Bank is sound."
   },
-  "q12": {"status": "pass", "notes": "IBD i05 verbatim: 10 cents above the left-side high; the card's market-order note c03. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "IBD page quote (10 cents above the left-side high) confirmed on the cited Yahoo-hosted IBD page; c03 and m03 confirmed. No second answer, no tell (key not longest), no rulebook conflict (E57 market orders handled in why)."
+  },
   "q13": {
    "status": "pass",
-   "notes": "D46 (Red: mostly cash) and the settled card line inv_market_red. Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h30 and c16 support it; 'normal buy' is false under mostly cash. Owner flag already raised (rulebook calls Red a guide)."
   },
-  "q14": {"status": "pass", "notes": "B23 and the settled card liquidity line. Right; wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q14": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave1; awaiting cold re-read"
+  },
   "q15": {
    "status": "pass",
-   "notes": "Arithmetic: 57.42 + 3 x (57.42 - 56.05) = 61.53. KRMN fills match the dossier and the bars. Not a sizing item. The why named KRMN, the hidden ticker of chart question q59: now anonymous.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "57.42 + 3 x 1.37 = 61.53. Third at 3R is B19. KRMN next-day 3R is d01."
   },
   "q16": {
    "status": "pass",
-   "notes": "Arithmetic: (54.62 - 38.63) / 54.62 = 29.27 -> 29.3. BSY row matches the dossier. Computes depth only; the 35% cap (D-055) is not asked.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "(54.62-38.63)/54.62 = 29.3. Card formula divides by the IPO high. Computation only, no cap keyed."
   },
   "q17": {
    "status": "pass",
-   "notes": "Arithmetic: (19.53 - 18.10) / 19.53 = 7.32 -> 7.3. LULU row matches. A13 'usually within about 3%' is the settled line used; the 8% skip line (D-005) is not asked.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "1.43/19.53 = 7.3. A13 'about 3%' and A3/A5 support the wide-stop reading."
   },
   "q18": {
    "status": "pass",
-   "notes": "Arithmetic: 57.32 x 1.04 = 59.61. C28 settled.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "57.32 x 1.04 = 59.61. Question states the buy point, so the 10-cent ambiguity is settled."
   },
-  "q19": {"status": "pass", "notes": "60.10 / 57.32 = 1.0485, so 4.8% past the pivot: over C28's 4%. Key right and settled. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on almost every edited question of the unit).", "fixed": false, "by": "checker"},
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "4% over 24.80 is 25.79; 26.10 is past it, and still past it if the buy point is 24.90. C28/h11 and h12 match the repo text. Key is not the longest choice, 2 Yes vs 2 No. The gap-moves-pivot choice is a false-premise No, so the key is unique. Mild overlap with q51 (also a gap over the 4% line) and the q18 stem names the 4% limit; acceptable."
+  },
   "q20": {
    "status": "cut",
    "notes": "Duplicate of q05: both key 'the stop is under the breakout day's low, not the base low' (q05 keeps it, with the base-low mistake as a wrong choice).",
@@ -3027,10 +3980,10 @@
    "by": "checker"
   },
   "q22": {
-   "status": "pass",
-   "notes": "Rule: no buys on the listing day or in the listing week (c05, m01). One wrong choice was 'Buy Thursday' in a story already set on Thursday, which is the same as 'Buy now': now 'Buy the close; momentum is proof'.",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave1: see the resolver's notes"
   },
   "q23": {
    "status": "cut",
@@ -3040,18 +3993,28 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "Arithmetic: 1,200,000 x 1.4 = 1,680,000. The 1.4x is the card's proposed breakout-volume line (c06), not pending; D-006 may turn it into a cue and the answer would still be the card's arithmetic.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "1,200,000 x 1.4 = 1,680,000. Asked as 'our card wants', which matches c06; consistent with IBD 40% over."
   },
   "q25": {
    "status": "pass",
-   "notes": "Settled card after_entry_stop: the stop is the exit, a pivot breach is a warning (c17, MSI m05). Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c17 and h02 support: warning, stop is the exit. Choices balanced, no tell."
   },
-  "q26": {"status": "pass", "notes": "Card c07 (A+ volume: 2x the 10-day or the highest since listing) and IBD i20 (close near the highs). Proposed cue; key right. variety rewrite checked 2026-11-10: lengthened the right choice by one word (inverted-tell fix).", "fixed": false, "by": "checker"},
-  "q27": {"status": "pass", "notes": "B22: a report 2 sessions away is inside the 3-session window. Right. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story numbers are enough: Day B 2.2x clears 2x, Day A 1.5x does not, and neither is the heaviest since listing. Rests on a proposed card cue (c07) while E50 says grading is discretionary; the why says so and the owner flag is already raised."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave1; awaiting cold re-read"
+  },
   "q28": {
    "status": "cut",
    "notes": "Near-duplicate of q29: both key 'a young stock's rest under its post-listing high is an IPO base, the listing date decides'. q29 keeps the fuller case.",
@@ -3060,59 +4023,69 @@
   },
   "q29": {
    "status": "pass",
-   "notes": "Story said 12 sessions and 22% deep: both numbers sit on pending-owner options (D-056 minimum 7/10/15; D-055 cap 20/35/50), so a 15-session minimum or a 20% cap would flip the key. Story now 16 sessions, 18% deep, first rest: an IPO base under every option, and still not a flat base. Key rests on c30/c30b (the listing date decides).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story supports the IPO base card (young, first rest, listing date decides). 'None' choice and wrong notes grounded in c30b, c32."
   },
-  "q30": {"status": "pass", "notes": "Card c32: a young listing has no 200-day and one rest; tightening is a grade cue. A 4-month-old stock has about 80 sessions, so no 200-day. Right. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Young stock, first rest under post-listing high, c30/c32: tightening is a grade cue. Nothing closed above, so not a failed breakout. Shares its lesson with q29 but tests a different distractor set."
+  },
   "q31": {
    "status": "pass",
-   "notes": "Card c15 (V into the pivot ends it, proposed) with 4 sessions and 3%, inside the card's 5 and 5%; Kedia k01. A 25% drop is not 'shallow', so the wrong choice 'the dip was shallow' is a weak distractor but not a false note. Why had a 24-word sentence: split.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "The card contradicts itself: c15 (inv_v_shape, marked proposed) says a fast V ends the base, c35 (grading cue) says a fast V into the pivot is B-, i.e. still gradeable. 'Buyable? No, a V ends it' therefore rests on an unruled line. Reword to ask how the base looks (weak), which both card lines support, and drop the shallow-dip choice because '25% is not shallow' has no cited fact."
   },
-  "q32": {"status": "pass", "notes": "A3/A5: size from the stop, never pull the stop in; 7.3% from q17. No share count asked, so no 40% cap check needed. D-005 (8% skip line) is not keyed. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "41.20 and 38.95 give about 5.5% stop, beyond the usual 3% (h04). Key follows h01 and h03. Risk-more distractor is live and refuted by the sizing formula."
+  },
   "q33": {
    "status": "pass",
-   "notes": "F63 and B19. 62.00 opens above 3R 61.53 (57.42 + 3 x 1.37). Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "3R = 57.42 + 3 x 1.37 = 61.53, open 62.00 is above it; h25 gives take the trim at the open."
   },
   "q34": {
    "status": "pass",
-   "notes": "Card c40 (a cue, not a rule), proposed. Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c40 supports the key as a cue; distractors grounded in c40, c25, i11. Lengths level."
   },
   "q35": {
    "status": "pass",
-   "notes": "Dossier base rate: 36 of 57 stopped before 3R (63%), 26.3% reached 3R. The question says 'in our scan', which is right; the scan used a fixed stop and no trims.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q36": {
    "status": "pass",
-   "notes": "Arithmetic: 100,000 x 0.5% = 500; risk per share 1.37; 500 / 1.37 = 364.96 -> 364 shares. Cap check A7: 364 x 57.42 = 20,901 = 20.9% of the account, under 40%.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "500 / 1.37 = 364.96, rounded down 364 (A5). Cap ignored by the question; 364 shares is about 21% of the account."
   },
   "q37": {
    "status": "pass",
-   "notes": "E52 settled: 10-day for fast movers, 21-day for steadier ones, sell on a close below. Right.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right (h21, c26). But the why/simple/lesson_line say 'IPOs are fast movers' as a universal, which q50 contradicts (a steady new issue late in its first year trails the 21-day). Soften to 'a new issue is a fast mover by default'."
   },
   "q38": {
    "status": "pass",
-   "notes": "C33 settled: under 1R after 10 trading days, sell. 0.4R is under 1R.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h15 and c27: still under 1R after 10 trading days, sell. 0.4R is under 1R. Wrong notes grounded in h05 and h20."
   },
   "q39": {
    "status": "pass",
-   "notes": "B21 settled plus the dossier's MA failure (stopped one session later, then ran for years). Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "h29 gives 3 tries a week; three used, so skip. Choice B is true as B21 but loses to E56. Note: this is the first place the 3-tries limit is taught, and its why/wrong note restates q40's key (new trade) while q40's why restates the limit, so the pair is mildly linked; acceptable because each teaches in its explanation."
   },
   "q40": {
    "status": "cut",
@@ -3120,20 +4093,35 @@
    "fixed": false,
    "by": "checker"
   },
-  "q41": {"status": "pass", "notes": "E51 and B19: another third at 5R, trail the last third; breakeven at the first trim is the card default. Right. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem is not tied to our plan, so 'Hold the rest with no more trims' is defensible for a generic trader (the plan is also called adjustable). Add 'Under our plan'. Key is also the longest choice and the only one with 'trail'; shorten key and even out neighbours."
+  },
   "q42": {
    "status": "pass",
-   "notes": "C34 settled ('sell a big part into it, a judgment call'). The story gave only a 400% run and 'jumping several percent a day', not a climax: it now adds three straight up days and a gap up today (Bracco's burst boxes in sizing_rule B26).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Story says you already sold two thirds and trail the rest, so 'sell a big part' is muddled (a big part of one third?) and 'hold it all and trail the 10-day' becomes a second defensible answer. Also 400% is far past 3R and 5R, so the trims story is inconsistent. Drop the trims sentence and ask what our rule says (C34 is a judgment call)."
   },
-  "q43": {"status": "pass", "notes": "The key leaned on SPOT's opening price as the 'IPO price' (D-057, pending: offer price, IPO open or listing-day close; SPOT's own reference price was lower than its base low, from memory, unverified), and the story used SPOT's numbers. Story now a plain priced IPO (20.00 price, base closing under it two weeks, low 19.00, depth 19%), which fails the floor under every D-057 option (MSI m02, IBD i19). SPOT stays in the why as the dossier's case. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": true, "by": "checker"},
-  "q44": {"status": "pass", "notes": "CAVA is 318 sessions after listing (dossier near-miss 2); past every D-002 option (25 or 252). Right under either. variety rewrite checked 2026-11-10.", "fixed": false, "by": "checker"},
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from m02/i19/c14; story has low under both prices; other choices true and harmless. Single failure."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "318 > 252 (c13/d21); B and D both false; key fine."
+  },
   "q45": {
    "status": "pass",
-   "notes": "NWSA row matches the dossier (spin-off 2013-06-19, 6 weeks, 10%, 0.75x, best 0.82R). Key rests on volume below the base's own average (IBD i20), not on the spin-off question (D-054).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "0.75x is below the base average, so no demand on the day; d22, i20, i02 support it, and the 10% base is shallow so 'too deep' is wrong. Story numbers match d22 (spin-off, 6 weeks, 10%, 0.75x; 0.82R best). Two Strong, two Weak, key not longest. Verdict holds whether volume is a gate or a cue (D-006). Mild lead-in from the q24 stem (1.4x) but not an answer."
   },
   "q46": {
    "status": "cut",
@@ -3143,9 +4131,9 @@
   },
   "q47": {
    "status": "pass",
-   "notes": "F65/D46: Yellow = smaller and fewer; Orange = A+ only. APTV rows match the dossier (first base 0.99R, second 2.8x, 2.3% stop). The 'Yellow' reading is the story's hypothetical, not a 2012 fact. Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "F65/h26 gives Yellow = smaller and fewer; the three wrong choices are exactly Green, Orange and Red. APTV story matches the research (first base Feb 2012 stopped, second base 2012-11-02 on 2.8x, stopped next session, flat 2012 market). Why says the Yellow reading is the story's own. Key is the moderate option among three absolutes, but that is the design of the four readings."
   },
   "q48": {
    "status": "cut",
@@ -3155,9 +4143,9 @@
   },
   "q49": {
    "status": "pass",
-   "notes": "The old key ('33% is B-') rests on the 35% cap (D-055 pending: a 20% cap would exclude a 33% base, not grade it). Rewritten as a comparison that holds under every option: the 12% base grades higher. Grade lines are proposed; E50 says grading is discretionary, so the why says 'a judgment call'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Shallower grades higher by c11/i02; hedge in why matches h35."
   },
   "q50": {
    "status": "cut",
@@ -3165,39 +4153,59 @@
    "fixed": false,
    "by": "checker"
   },
-  "q51": {"status": "pass", "notes": "C29 settled (skip a long more than 10% above the 10-day). The story gave only the close (up 21%) and the close's stretch, not the stretch at entry, so the 'past 4%' half was not given. Story now: opens 12% above the IPO high and 18% over the 10-day. Why had a 23-word sentence: split. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": true, "by": "checker"},
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "12% over pivot breaks 4% (h11/c08), 18% over 10-day breaks 10% (h13/c09). One answer."
+  },
   "q52": {
    "status": "pass",
-   "notes": "B22 settled: hold through a report only if up 5R. The why said 'sell or trim before the report': a trim leaves a position through the report, so it now says be out.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "h08: hold only if up 5R; story is up 2R. Key correct."
   },
-  "q53": {"status": "pass", "notes": "B23: 7.40 and 3 million a day fail both floors. Right. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q54": {"status": "pass", "notes": "B20: 1R = 1.37; the first 30-minute low 52.40 is 3.7R down (57.42 - 52.40 = 5.02), past 2R, so out. Why had a 28-word sentence: split. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
-  "q55": {"status": "pass", "notes": "Card c41 / D40: a miss lowers the grade, the chart comes first. The question 'What does it do' had no 'it': now names the earnings dip. variety rewrite checked 2026-11-10: dropped the absolute word 'never' from a wrong choice.", "fixed": true, "by": "checker"},
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Fails $10 and $20M floor (h09/c23). One answer."
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1R=1.37; 57.42-52.40=5.02 = 3.7R, past 2R ceiling (h07). Key correct."
+  },
+  "q55": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "c41/h17: miss lowers grade, chart first. One answer."
+  },
   "q56": {
    "status": "pass",
-   "notes": "E53, D38, E49. Right; no IPO size cut taught.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q57": {
    "status": "pass",
-   "notes": "Card c21 and Stockbee b01 (two or more 4% days in the last five before the breakout). Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c21/b01 support False."
   },
   "q58": {
    "status": "pass",
-   "notes": "Card c34 and IBD's CBRE line i15 (weekly ranges under 10%). Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c34 supports key; D fails c20."
   },
   "q59": {
-   "status": "pass",
-   "notes": "Chart check on the sandbox bars.db: KRMN has 140 daily bars on or before 2025-09-04 (first 2025-02-13), so the 120-bar window is met. IPO high 57.315 and the 2025-09-05 range 56.10 to 63.30 match d01. Question names no ticker. Flag for the owner: the 22% depth would fail a 20% cap (D-055 option); the card recommends 35%. Note: w1 walks this same trade (KRMN, 2025-09-05), so the question is weaker as a test; flagged.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave1: see the resolver's notes"
   },
   "q60": {
    "status": "cut",
@@ -3205,25 +4213,35 @@
    "fixed": false,
    "by": "checker"
   },
-  "q61": {"status": "pass", "notes": "F66 and D39 settled. Right. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h36/h39 support key; B, C, D reckless or copying."
+  },
   "q62": {
    "status": "cut",
    "notes": "Near-duplicate of q13: both key 'Red market, mostly cash, pass on a clean base' (D46, c16). q13 kept as the recall.",
    "fixed": false,
    "by": "checker"
   },
-  "q63": {"status": "pass", "notes": "Card c18 / IBD i09-i10. Why had a 26-word sentence: split. variety rewrite checked 2026-11-10: dropped the absolute word 'never' from a wrong choice.", "fixed": true, "by": "checker"},
+  "q63": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "c18/i09/i10 support Base B."
+  },
   "q64": {
    "status": "pass",
-   "notes": "Card c37 / c22: above the IPO AVWAP and the rising 10- and 21-day is the A+ location (proposed cue). Right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c37 A+ location; 4% over 10-day is under the 10% line (h13); D false by c04."
   },
   "q65": {
    "status": "pass",
-   "notes": "A12, E53, B19, E51: no IPO-specific exit plan. Right.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Does it change the plan?' is ambiguous: the IPO base has its own entry rules (no listing week, IPO high trigger), so 'the full plan stands' is false if read broadly. Scope to the exit plan. Also the why/wrong say 'the breakout day's low', but cited h24 only says 'the day's low' (the card also allows the prior day's low). Key also repeated the stem word 'plan'."
   },
   "q66": {
    "status": "cut",
@@ -3233,75 +4251,75 @@
   },
   "q67": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Key follows the card line c46 (proposed); wrong notes true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c46 supports key; owner already flagged the app-data reliance."
   },
   "q68": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the question now says it asks the volume rule, since the risk size and the 40% cap could also bind. 650,000 x 1% = 6,500 (D42).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "1% of 650,000 = 6,500 (D42). The why's 'ceiling holds even when the stop allows more' is implied by 'never'. Price of $40 is a harmless extra."
   },
   "q69": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. D42 settled; tf False not marked by an absolute word.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q70": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Group in the top quarter is a proposed grade cue (c47); the story holds the charts equal.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c47 supports key; tie-break wording is the logical result of 'prefers'."
   },
   "q71": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. c22 verbatim; 30 sessions is under 50 so no 50-day yet, and no 200-day (c32).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c22/c32 support key."
   },
   "q72": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10. c22 verbatim; True.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave1: see the resolver's notes"
   },
   "q73": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. D41 settled.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "D41 settled. False is clear; no tell."
   },
   "q74": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the right choice began unlike the two wrong ones (\"It only moves up\"); now \"Keep it where it is or raise it\", same shape as \"Lower it\" and \"Cancel it\". A4 and D41 settled.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "A4 and D41 match the repo text; story prices 33.38/32.62 match d03, and 34.60/32.00 are in the question itself. Lowering to 32.00 widens the loss, so the key is unique. The other three choices each break one rule (A4, D41). Key is not the longest. Not answered by any stem in the lesson (q73 only names the stop-in-head topic)."
   },
   "q75": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. B19 and the card line c49, both settled; wrong notes true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c49/h05 support key; A no longer the lone range."
   },
   "q76": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"how many R\" (the R arithmetic, a neighbour); re-aimed at the breakeven price so it tests ipo.breakeven (B19, 2R to 5R). 33.38 + 2 x (33.38 - 32.62) = 34.90.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "22.81 + 2 x 1.08 = 24.97. Window 2R to 5R is B19; default at the first trim is c49. 3R = 26.05 is one R above 24.97 as the trap says."
   },
   "q77": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the story named one \"IPO price\" ($20), so the key leaned on which price D-057 picks; it now gives the offer ($20), the open ($21) and the first close ($22), the low undercuts all three and nothing closes back over any for two weeks, so every option and any reclaim window up to 9 sessions give the same call. The \"fresh day one\" wrong note no longer says no later base can form (D-002 is held).",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave1: see the resolver's notes"
   },
   "q78": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: removed the sentence \"Our card ends one past 35%\" (the 35% cap waits on D-055; 60% is past 20%, 35% and 50% alike, so the key does not need it); the right choice was the odd one out in opening (\"Too deep\" against \"A bargain\" and \"A base\"), so choice 3 now opens \"Fine,\".",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "60% past 35% (c48), 50% (m10) and 20% (m09). Key holds under any depth-cap ruling."
   }
  }
 }
