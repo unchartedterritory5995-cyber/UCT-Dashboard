@@ -373,6 +373,11 @@ describe('Q-O1 — the door on the wave-16 tree (O1 merged), graded', () => {
     const v = grade(ATL)
     expect(v.plots.filter((p) => p.verdict === 'MATCH').length).toBe(6)
     expect(v.objects.verdict).toBe('DIVERGE')
-    expect(v.objects.reason).toMatch(/withheld by name \(pine:object-removal-lost\)/)
+    // ⭐ Engine 51 — still withheld whole, now by an earlier name: both lines' `extend`
+    // is `str_extend`, a `var` chosen from an input by a comparison this door does not
+    // read under an enum slot, so each create is withheld (`enum:unreadable`, never
+    // drawn with the default `extend.none` where TradingView records `r`) and the
+    // program has no op left (`pine:object-ops-refused`).
+    expect(v.objects.reason).toMatch(/withheld by name \(pine:object-ops-refused\)/)
   })
 })

@@ -181,8 +181,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // program and every output are byte-identical (translation census: the
       // script is not among the changed rows). Pre-C47: [856, 7174,
       // 'ff55463c3a36e466'] both.
+      // ⭐ Engine 51 moved htf-liquidity: the TEXT reader now takes the same
+      // `objectLane` door for those helpers, so its label sizes are the words the
+      // switches pick (formerly dropped to the default) — 65 more Resolvers, 45 more
+      // steps; plot outputs byte-identical (engine-51 census). Pre-51: [856, 7194,
+      // 'c264e378ba65bd90'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [856, 7194, 'c264e378ba65bd90'], manifest: [856, 7194, 'c264e378ba65bd90'] },
+        plain: [921, 7239, 'be0be63b6616ba55'], manifest: [921, 7239, 'be0be63b6616ba55'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now

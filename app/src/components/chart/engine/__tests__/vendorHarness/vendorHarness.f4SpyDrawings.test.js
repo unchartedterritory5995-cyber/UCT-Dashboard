@@ -359,9 +359,14 @@ describe('F4 — what is withheld by name on the SPY captures, and whose it is',
   }, T)
 
   it('auto-trendline and dual-view: the door already withholds the whole drawing by name (`pine:object-removal-lost`)', () => {
-    for (const id of ['auto-trendline-dojiemoji-spy-1d-2026-10-03', 'dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03']) {
+    // ⭐ Engine 51 — auto-trendline is withheld whole by an earlier name: its creates' `extend`
+    // is unreadable under an enum slot (`enum:unreadable`, never the default), so no op is left
+    // (`pine:object-ops-refused`). dual-view keeps its removal refusal.
+    const want = { 'auto-trendline-dojiemoji-spy-1d-2026-10-03': 'pine:object-ops-refused',
+      'dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03': 'pine:object-removal-lost' }
+    for (const [id, guard] of Object.entries(want)) {
       const v = graded(id)
-      expect(v.objects.withheld, id).toBe('pine:object-removal-lost')
+      expect(v.objects.withheld, id).toBe(guard)
     }
   }, T)
 })

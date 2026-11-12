@@ -124,13 +124,17 @@ describe('C45 — atr-bands (door-attached): its `input.color(title = …, defva
     expect(norm(a)).toBe(norm(b))
   }, 120000)
 
-  it('⭐ and the table\'s colours are the author\'s — not a default', () => {
+  it('⭐ and the table is WITHHELD by name — never drawn in a default corner (engine 51)', () => {
+    // ⚰️ Before engine 51 this asserted the table's colours (`#00afc8`, `#00ff00`,
+    // `#ff0000`) — on a table drawn at the renderer's default `top_right`. Its
+    // `position` is `getTablePosition(tablePosition)`, whose body reassigns
+    // `posOut` in each `switch` arm (`posOut := position.top_right`), a shape this
+    // door does not follow; the input's default is "Bottom Right", so the table was
+    // drawn in the wrong corner. An enum slot this door cannot read now withholds
+    // its drawing by name (`enum:unreadable`), and the cells go with their table.
     const d = programOf(source)
-    const text = JSON.stringify(d.definition.objects).toLowerCase()
-    // `tableColor = color.rgb(0, 175, 200, 20)`
-    expect(text).toContain('#00afc8')
-    // `tableLongBGColor = color.rgb(0, 255, 0, 90)`, `tableShortBGColor = color.rgb(255, 0, 0, 80)`
-    expect(text).toContain('#00ff00')
-    expect(text).toContain('#ff0000')
+    const ops = (d.definition.objects && d.definition.objects.ops) || []
+    expect(ops.filter((o) => o.k === 'create' && o.family === 'table')).toHaveLength(0)
+    expect(d.translation.objectDiagnostics.dropReasons['enum:unreadable']).toBe(1)
   }, 120000)
 })
