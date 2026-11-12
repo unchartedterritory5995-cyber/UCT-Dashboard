@@ -484,7 +484,15 @@ export function excludedCharts(text, charts = [], sel = null) {
   for (const k of String(text || '').matchAll(EXC_KW)) {
     const w = normPhrase(k[1])
     if (placed.some(ph => ph && (w.startsWith(ph) || ph.startsWith(w)))) continue
-    if (CHARTISH.test(k[1])) add(UNPLACED)
+    if (!CHARTISH.test(k[1])) continue
+    // a TICKER in the excepted words is the board's to place (master policy: a ticker the board does not show excludes nothing)
+    // — only a PLAIN ticker reference ("the TSLA one"); a ticker's possessive or a relation from it ("SPY's neighbour", "the one
+    // beside SPY") names ANOTHER chart and stays unplaced
+    if (/\b[A-Z]{1,5}\b(?!['’]s)/.test(k[1].replace(/\bI\b/g, '')) && !/['’]s\b|\b(?:next|beside|above|below|beneath|under|over|near|around|across|opposite|diagonal\w*|kitty|adjacent|neighbou?rs?|left|right)\b/i.test(k[1])) continue
+    // a RELATION from the click that the relation reader resolves ("the one above this one", "diagonally across from this one",
+    // "kitty-corner from this one") is placed by spatialConstraints' relation readers (agentEveryExceptSet) — not unplaced here
+    if (sel && relativeChart(k[1], charts, sel)?.hits?.length) continue
+    add(UNPLACED)
   }
   out.add = add
   return out
@@ -531,7 +539,9 @@ export function excludedCharts(text, charts = [], sel = null) {
 }
 // an exception KEYWORD and the words it governs, up to the clause's end, on the words AS SAID. "but" is a keyword only glued to a
 // WHOLE-BOARD word ("everything but …", "every chart but …") — never after "row" / "column" (a line relation) or a value.
-const EXC_KW = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|besides|aside\s+from|save\s+for|minus|but\s+not|instead\s+of|rather\s+than|(?:everything|all|them|these|(?:every|each)\s+chart)\s+but)\s+([^,.;!?—–]{1,60})/gi
+// NOT "instead of" / "rather than": measured, those are value contrasts or target swaps ("the weekly timeframe instead of the
+// chart one", "a line instead of candles"), never an exclusion from a set.
+const EXC_KW = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|besides|aside\s+from|save\s+for|minus|but\s+not|(?:everything|all|them|these|(?:every|each)\s+chart)\s+but)\s+([^,.;!?—–]{1,60})/gi
 const normPhrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 // those words name a CHART: a chart noun, a neighbour / relation, the click's own names, a place word, or a possessive 's OF A
 // CHART — after a chart noun / "mine" ("this one's neighbour") or an all-caps TICKER ("SPY's neighbour"); never any word's 's
