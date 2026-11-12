@@ -820,6 +820,65 @@ def _serve_gxw(s: str) -> dict:
 # data without the handler — so the data path is only reachable from a module
 # whose every route declares `Depends(require_paid)` individually.
 
+# ⚡ ONE READ PER (symbol, timeframe, depth) PER FEW SECONDS (2026-11-12).
+# A chart's RS pane asks for five server definitions at once (rsLine, rsRating,
+# rsPhases, rsVsEma, rsExit) and each reads the stock AND its benchmarks (SPY,
+# RSP, the sector ETF) from bars.db on its own: a 12-chart board is ~60 reads of
+# SPY in one burst. Measured on prod 13:59-14:05 UTC, one desk after a deploy:
+# 129 /api/signature/columns calls in 6 minutes, 17.5 s median, 112 s worst;
+# Server-Timing put it all in `rs-bars` (8.6-28.6 s) with compute in ms. Rows
+# are shared for `_BARS_SHARE_TTL_S` and concurrent misses wait for the first
+# read instead of repeating it. Rows are immutable tuples; each caller still
+# gets its own list of fresh dicts. Keyed on the db path and the reader too, so
+# a test that swaps either never sees another's rows.
+_BARS_SHARE_TTL_S = 10.0
+_BARS_SHARE_MAX = 256
+_bars_share: dict = {}          # key -> (monotonic at, rows)
+_bars_share_inflight: dict = {}  # key -> threading.Event
+_bars_share_lock = threading.Lock()
+
+
+def _bars_rows_shared(sym_u: str, store: str, count: int):
+    from api.services import bars_sqlite
+    reader = bars_sqlite.get_bars
+    key = (bars_sqlite._DB_PATH, id(reader), sym_u, store, count)
+    while True:
+        now = time.monotonic()
+        with _bars_share_lock:
+            hit = _bars_share.get(key)
+            if hit is not None and 0 <= now - hit[0] < _BARS_SHARE_TTL_S:
+                return hit[1]
+            ev = _bars_share_inflight.get(key)
+            if ev is None:
+                ev = threading.Event()
+                _bars_share_inflight[key] = ev
+                leader = True
+            else:
+                leader = False
+        if not leader:
+            # Someone is reading these rows right now: wait for theirs (bounded, so
+            # a stuck reader can never hold a chart), then look again.
+            ev.wait(30.0)
+            with _bars_share_lock:
+                hit = _bars_share.get(key)
+            if hit is not None:
+                return hit[1]
+            continue
+        try:
+            rows = reader(sym_u, store, count)
+            with _bars_share_lock:
+                if len(_bars_share) >= _BARS_SHARE_MAX:
+                    cutoff = time.monotonic() - _BARS_SHARE_TTL_S
+                    for k in [k for k, (at, _r) in _bars_share.items() if at < cutoff] or list(_bars_share)[:_BARS_SHARE_MAX // 4]:
+                        _bars_share.pop(k, None)
+                _bars_share[key] = (time.monotonic(), rows)
+            return rows
+        finally:
+            with _bars_share_lock:
+                _bars_share_inflight.pop(key, None)
+            ev.set()
+
+
 def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
     """Bars at an arbitrary timeframe, for the lane.
 
@@ -829,8 +888,7 @@ def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
     job SILENTLY. `test_the_sweep_still_imports_the_two_router_symbols_it_needs`
     asserts that import, and this function is deliberately additive.
     """
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(sym.upper(), registry_defs.store_tf(tf), int(count))
+    rows = _bars_rows_shared(sym.upper(), registry_defs.store_tf(tf), int(count))
     out = []
     for r in rows:
         try:
@@ -940,12 +998,18 @@ def _rs_vs_ema_provider(sym: str, tf: str, inputs: dict) -> dict:
                                           warm=lambda ticker: _rs_warm_bars(ticker, tf))
 
 
-#: The RS split's three tenants by row id (unit U4). Tests install a row and
-#: plug the matching wrapper in by hand; production registers them below only
-#: when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS` (`register_provider`
-#: refuses an id with no row, so the two cannot be armed apart).
+def _rs_exit_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """UCT RS Exit Warnings (2026-11-12): `rsExit`."""
+    return rs_provider.rs_exit_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                        warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: The RS split's four tenants by row id (unit U4, and `rsExit` 2026-11-12). Tests
+#: install a row and plug the matching wrapper in by hand; production registers
+#: them below only when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS`
+#: (`register_provider` refuses an id with no row, so the two cannot be armed apart).
 RS_SPLIT_PROVIDERS: dict = {"rsRating": _rs_rating_provider, "rsPhases": _rs_phases_provider,
-                            "rsVsEma": _rs_vs_ema_provider}
+                            "rsVsEma": _rs_vs_ema_provider, "rsExit": _rs_exit_provider}
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)

@@ -137,6 +137,7 @@ describe('soft expansion, pins and limits', () => {
     expect(odd.pins).toEqual([])
   })
 
+  // ⛔ KEEP: agentNl1SelectionCoverage (#1134) no longer tables every 3-group reroute; this rail is the guard against a PARTIAL one.
   it('a reroute carries every group the model asked for — or says it cannot; never part of them', () => {
     const f = full()
     const one = selectNl1(f, { text: 'hmm', need: ['workspace'] })

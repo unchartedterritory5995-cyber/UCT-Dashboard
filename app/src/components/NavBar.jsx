@@ -8,7 +8,7 @@ import { FREE_PAGES } from '../constants/freePages'
 import { useTerminalNavPath } from '../pages/terminal/TerminalRoutes'
 import { TERMINAL_PATH } from '../pages/terminal/terminalGate'
 import styles from './NavBar.module.css'
-import uctLogo from './intro/assets/compass-mark.png'
+import uctLogo from './intro/assets/compass-mark.webp'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))

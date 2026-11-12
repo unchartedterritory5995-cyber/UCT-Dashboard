@@ -54,7 +54,9 @@ KILL_SWITCH = "PERF_BEACON_ENABLED"
 _OFF_VALUES = frozenset({"0", "false", "no", "off"})
 
 CLIENTS = frozenset({"browser", "desktop"})
-TIMINGS = ("ttfb", "fcp", "lcp", "dom_ready", "load", "long_task_ms")
+# `candles` = when the page's first chart had its bars (the `uct:first-chart-paint` mark); absent on
+# pages without a chart. Added after the first deploy: `_connect` adds the column to an older store.
+TIMINGS = ("ttfb", "fcp", "lcp", "dom_ready", "load", "long_task_ms", "candles")
 MAX_MS = 120_000
 MAX_LONG_TASKS = 10_000
 MAX_API = 40
@@ -78,7 +80,7 @@ CREATE TABLE IF NOT EXISTS perf_loads (
     client       TEXT NOT NULL,
     country      TEXT NOT NULL DEFAULT '',
     ttfb         INTEGER, fcp INTEGER, lcp INTEGER, dom_ready INTEGER, load INTEGER,
-    long_task_ms INTEGER, long_tasks INTEGER,
+    long_task_ms INTEGER, long_tasks INTEGER, candles INTEGER,
     rate_key     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_perf_loads_created ON perf_loads(created_at);
@@ -94,6 +96,7 @@ CREATE INDEX IF NOT EXISTS ix_perf_api_load ON perf_api(load_id);
 
 _lock = threading.Lock()
 _last_prune = 0.0
+_migrated: set[str] = set()  # store paths already checked for columns added after the first deploy
 
 
 def enabled() -> bool:
@@ -115,6 +118,11 @@ def _connect() -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout=2000")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
+    if path not in _migrated:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(perf_loads)")}
+        if "candles" not in cols:
+            conn.execute("ALTER TABLE perf_loads ADD COLUMN candles INTEGER")
+        _migrated.add(path)
     return conn
 
 
@@ -191,10 +199,10 @@ def record(report: Any, *, ip: str | None, country_header: str | None, now: floa
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             with conn:
                 cur = conn.execute(
-                    "INSERT INTO perf_loads (created_at,page,client,country,ttfb,fcp,lcp,dom_ready,load,long_task_ms,long_tasks,rate_key)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (now, row["page"], row["client"], country_from(country_header), row["ttfb"], row["fcp"], row["lcp"],
-                     row["dom_ready"], row["load"], row["long_task_ms"], row["long_tasks"], key))
+                    f"INSERT INTO perf_loads (created_at,page,client,country,{','.join(TIMINGS)},long_tasks,rate_key)"
+                    f" VALUES (?,?,?,?,{','.join('?' * len(TIMINGS))},?,?)",
+                    (now, row["page"], row["client"], country_from(country_header), *(row[k] for k in TIMINGS),
+                     row["long_tasks"], key))
                 load_id = cur.lastrowid
                 conn.executemany("INSERT INTO perf_api (load_id,route,ms,ok) VALUES (?,?,?,?)",
                                  [(load_id, r, ms, ok) for r, ms, ok in row["api"]])
@@ -225,7 +233,7 @@ def summary(hours: int = 24, now: float | None = None) -> dict[str, Any]:
     conn = _connect()
     try:
         loads = conn.execute(
-            "SELECT page, client, country, ttfb, fcp, lcp, dom_ready, load, long_task_ms FROM perf_loads WHERE created_at > ?",
+            f"SELECT page, client, country, {', '.join(TIMINGS)} FROM perf_loads WHERE created_at > ?",
             (since,)).fetchall()
         api = conn.execute(
             "SELECT a.route, a.ms, a.ok FROM perf_api a JOIN perf_loads l ON l.id = a.load_id WHERE l.created_at > ?",
@@ -240,7 +248,7 @@ def summary(hours: int = 24, now: float | None = None) -> dict[str, Any]:
     page_rows = []
     for (page, client), rows in sorted(pages.items(), key=lambda kv: -len(kv[1])):
         entry: dict[str, Any] = {"page": page, "client": client, "loads": len(rows)}
-        for i, name in enumerate(("ttfb", "fcp", "lcp", "dom_ready", "load", "long_task_ms")):
+        for i, name in enumerate(TIMINGS):
             col = [r[i] for r in rows]
             entry[name] = {"p50": _pct(col, 50), "p75": _pct(col, 75), "p95": _pct(col, 95)}
         page_rows.append(entry)

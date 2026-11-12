@@ -2397,6 +2397,66 @@
     }
    }
   },
+  "layout.pinToBar": {
+   "digest": "18d1777c1ce27d93",
+   "phrasings": {
+    "pin my Breadth layout to the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the Breadth layout to the dock": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout on the layout bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.moveOnBar": {
+   "digest": "5b2de85e1344a543",
+   "phrasings": {
+    "move Breadth to the front of the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout first on the layouts bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the Breadth layout to spot 1 on the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.unpinFromBar": {
+   "digest": "8b5193f315f73691",
+   "phrasings": {
+    "take Main Trading off the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unpin my Main Trading layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove Main Trading from the layout bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "layout.duplicate": {
    "digest": "b57cbb8ad820e8c1",
    "phrasings": {
@@ -2891,6 +2951,56 @@
      "modes": {}
     },
     "start replay mode on 2026-03-02": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "periodSort.run": {
+   "digest": "8aadd94b35628dbd",
+   "phrasings": {
+    "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "periodSort.dock": {
+   "digest": "7cdc88865497796f",
+   "phrasings": {
+    "dock that period sort onto the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock the ranking as a widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep that period sort on my board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the custom period sort results to the board": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -4062,6 +4172,46 @@
     }
    }
   },
+  "drawing.duplicate": {
+   "digest": "8d5c7e8ac3961968",
+   "phrasings": {
+    "duplicate this trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate that drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a duplicate of the trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setPositionAlerts": {
+   "digest": "e5b1a99d6dccea5a",
+   "phrasings": {
+    "set the stop and target alerts on my position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me on my position's stop and target": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the stop and target alerts for that position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setRange": {
    "digest": "c7d636cd12bccc5a",
    "phrasings": {
@@ -4285,6 +4435,176 @@
      "modes": {}
     }
    }
+  },
+  "multiChart.grid.layout": {
+   "digest": "20021a750af90a29",
+   "phrasings": {
+    "can you split my screen into a two by three grid of charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open Multi Chart with two rows and three columns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multiChart.grid.syncCrosshair": {
+   "digest": "e260682e60609d94",
+   "phrasings": {
+    "link the crosshairs across the multi chart grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on crosshair sync for the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setActiveBoard": {
+   "digest": "48dd7e99f9b9ba07",
+   "phrasings": {
+    "switch to my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch to the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw on my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.createBoard": {
+   "digest": "f8f8a31f6fe78acb",
+   "phrasings": {
+    "create a new drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new drawing board named Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.renameBoard": {
+   "digest": "25c50932ca7843f2",
+   "phrasings": {
+    "rename Board 2 to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename my Board 2 drawing board to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call drawing Board 2 Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.deleteBoard": {
+   "digest": "66044a6a393bf91b",
+   "phrasings": {
+    "delete the Breakouts board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete my Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.positionCalculator": {
+   "digest": "ae39380cbdbe0412",
+   "phrasings": {
+    "open the position calculator with entry 50 stop 48 target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "size this trade: entry 50, stop 48, target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a position calculator on the chart, entry 50, stop 48 and target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.saveDefaults": {
+   "digest": "f9f30761c1779e5c",
+   "phrasings": {
+    "make this trendline my default style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this trendline's style as the default for new drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use that line's look as my default drawing style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.favoriteTool": {
+   "digest": "53410fdea7505f5e",
+   "phrasings": {
+    "add the fib tool to my favourites": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "star the fibonacci retracement tool": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the fib tool on my favorites toolbar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -4495,6 +4815,11 @@
   },
   "refuse.arrangeColumns-standin": {
    "digest": "bb2d172e740d8613",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.multiChart.cell-grid-closed": {
+   "digest": "0638b246c841cc2a",
    "gap": false,
    "mode": null
   }

@@ -36,6 +36,7 @@ import styles from './MultiChartGrid.module.css'
 import { TF_ORDER, shortcutClaimsKey } from '../../../components/chart/keyboardShortcuts'
 import { chordById, matchesChord } from '../../command/chords.js'
 import TF_LABELS from '../../../components/chart/engine/ast/timeframeLabels.json'
+import { resolveShowExtended } from '../../../utils/viewSession'
 
 // ⛔ Resolved ONCE at module scope: a lookup inside the handler would re-scan the
 // table on every keystroke, and a miss would silently disable the binding.
@@ -238,7 +239,7 @@ function GridChartCell({
     const base = mergeChartSettings(prefs.chart_settings)
     return settingsOverride ? mergeSettingsOverride(base, settingsOverride) : base
   }, [prefs.chart_settings, settingsOverride])
-  const extHoursOn = effectiveCs.extendedHoursShading ?? true
+  const extHoursOn = resolveShowExtended(effectiveCs)
   const setExtHours = useCallback((on) => {
     persistCellSettings({ ...effectiveCs, extendedHoursShading: on, preset: 'custom' })
   }, [effectiveCs, persistCellSettings])

@@ -40,7 +40,7 @@ export const GLOSSARY = Object.freeze([
     // ⭐ MEASURED 2026-11-08 (design round; `tests/fixtures/indicators/rs_parity_deepvue.json`,
     // railed by `tests/test_rs_parity_deepvue.py`): 21 names, Spearman 1.00 against
     // Deepvue's 12M, mean |diff| 1.4 at 75 and above, ours 11.1 lower below 75.
-    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue\'s RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.',
+    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranked against every stock we hold a recent price for, the way Deepvue\'s is: across 61 of its readings at 1, 3, 6, 9 and 12 months, ours sit about 3 points away on average with no lean either way; it has not been measured against MarketSurge.',
     aliases: ['relative strength rating', 'IBD-style rating'] },
   { key: 'rsNewHigh', term: 'RS new high',
     definition: 'The RS line closes higher than at any point in its lookback. The stock is outperforming the market by the most it has in that window.',
@@ -94,6 +94,20 @@ export const GLOSSARY = Object.freeze([
   { key: 'uctRsVsEma', term: 'UCT RS vs 21 EMA',
     definition: 'An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line\'s readout prints as its distance from the average.',
     aliases: ['RS vs 21 EMA', 'Webby RS line'] },
+  // ─── the fifth RS indicator and its three warnings (2026-11-12, RS Exit Warnings): from
+  // `meta.description` and the readout card in `nativeRegistry.js` (`RS_EXIT_RAW`); the
+  // lengths are `relative_strength.EXIT_AUTO_LENGTHS`, which `RsGlossary.test.jsx` pins.
+  // The names and one-line meanings are Mike Webster's; the exact rules are UCT's reading.
+  { key: 'uctRsExit', term: 'UCT RS Exit Warnings',
+    definition: 'An indicator that draws the RS line with a fast and a slow simple average of it, and marks three warnings on the line: Quick Break, Quicksand and Grateful Dead Break, Mike Webster\'s method for noticing a leader weaken. The averages are 21 and 50 bars on a daily chart and 8 and 21 on a weekly one, and both can be changed.',
+    aliases: ['RS exit warnings', 'Webby Quick and Grateful Dead'] },
+  { key: 'quickBreak', term: 'Quick Break',
+    definition: 'The first warning on the RS line: it drops below its fast average. It asks you to look at the position again, not to act by itself.' },
+  { key: 'quicksand', term: 'Quicksand',
+    definition: 'The second warning: after a Quick Break, the RS line falls lower than it was at that break. The weakness has deepened rather than recovered.' },
+  { key: 'gratefulDeadBreak', term: 'Grateful Dead Break',
+    definition: 'The third warning, drawn as the largest dot: the RS line drops below its slow average. It does not need a Quick Break first.',
+    aliases: ['Dead Break'] },
 ].map((t) => Object.freeze(t)))
 
 // ─── misconceptions: the 8 of 04 §e, each with its one-line correction ──────────

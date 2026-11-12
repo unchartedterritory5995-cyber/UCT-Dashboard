@@ -152,12 +152,12 @@ RS_V3_ENABLED: bool = _os.environ.get("RS_V3_ENABLED", "0") == "1"
 
 # ⭐ THE RS SPLIT (engineering map projects/rs-split-handoff-2026-11-09/
 # engineering-map.md, unit U4; flags §(e) step 1). One import-time flag adds
-# THREE server rows and their providers beside `rsLine`: `rsRating`, `rsPhases`
-# and `rsVsEma`. It never touches the rsLine row (rev 5 stays byte-identical
-# with the flag off AND on; `tests/test_rs_split_rows.py` is the control), so
-# arming it only makes `/api/signature/definitions` list seven ids where it
-# listed four, and the client's definition-level gate (unit U1,
-# `meta.requiresServer`) shows the three new indicators once it does. Import
+# FOUR server rows and their providers beside `rsLine`: `rsRating`, `rsPhases`,
+# `rsVsEma` and (2026-11-12) `rsExit`. It never touches the rsLine row (rev 5 stays
+# byte-identical with the flag off AND on; `tests/test_rs_split_rows.py` is the
+# control), so arming it only makes `/api/signature/definitions` list eight ids
+# where it listed four, and the client's definition-level gate (unit U1,
+# `meta.requiresServer`) shows the four new indicators once it does. Import
 # time, so arming and rollback are the variable plus
 # `railway redeploy --service web --yes`.
 RS_SPLIT_ENABLED: bool = _os.environ.get("RS_SPLIT_ENABLED", "0") == "1"
@@ -550,6 +550,12 @@ RS_PHASES_WIRE_COLUMNS: tuple[str, ...] = ("phase", "divergence")
 #: UCT RS vs 21 EMA's wire columns: the percent distance histogram and the
 #: EMA 3 / EMA 13 lines of it.
 RS_VS_EMA_WIRE_COLUMNS: tuple[str, ...] = ("dist", "fast", "slow")
+#: UCT RS Exit Warnings' wire columns (2026-11-12): the RS line, the two simple
+#: averages of it, and the three dots (the RS value on the bar a warning fired,
+#: null elsewhere, so a glyph sits exactly on the line). The three 0/1 event
+#: columns stay off the wire: the legend, the alerts and the tests read them from
+#: `relative_strength` directly (the `rsPhases` flip precedent).
+RS_EXIT_WIRE_COLUMNS: tuple[str, ...] = ("rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead")
 
 
 def _rs_split_benchmark_inputs() -> list[dict]:
@@ -620,9 +626,27 @@ def _rs_vs_ema_row() -> dict:
         _rs_split_benchmark_inputs(), RS_VS_EMA_WIRE_COLUMNS)
 
 
-#: The three rows, always built (tests install them by hand), served only
+def _rs_exit_row() -> dict:
+    """`rsExit` (2026-11-12): Mike Webster's Quick Break / Quicksand / Grateful Dead
+    Break on the RS line. Two LENGTH inputs, 0 meaning AUTO (daily 21 / 50, weekly
+    8 / 21, `relative_strength.EXIT_AUTO_LENGTHS`): the provider resolves them for
+    the timeframe, so the row can only declare 0 .. the range's top. Daily and
+    weekly charts; the provider blanks every other timeframe and says so."""
+    from api.services import relative_strength as rsm
+    return _rs_split_row(
+        "rsExit", "rsExit", "UCT RS Exit Warnings", "RS Exit Warnings",
+        "Three warnings on the RS line: it drops below its fast average (Quick Break), falls "
+        "lower than at that break (Quicksand), or drops below its slow average (Grateful Dead Break).",
+        _rs_split_benchmark_inputs() + [
+            {"key": "fastLength", "type": "int", "default": 0, "min": 0, "max": rsm.EXIT_LENGTH_RANGE[1]},
+            {"key": "slowLength", "type": "int", "default": 0, "min": 0, "max": rsm.EXIT_LENGTH_RANGE[1]},
+        ],
+        RS_EXIT_WIRE_COLUMNS)
+
+
+#: The four rows, always built (tests install them by hand), served only
 #: when `RS_SPLIT_ENABLED`.
-RS_SPLIT_DEFS: tuple[dict, ...] = (_rs_rating_row(), _rs_phases_row(), _rs_vs_ema_row())
+RS_SPLIT_DEFS: tuple[dict, ...] = (_rs_rating_row(), _rs_phases_row(), _rs_vs_ema_row(), _rs_exit_row())
 RS_SPLIT_DEF_IDS: tuple[str, ...] = tuple(d["id"] for d in RS_SPLIT_DEFS)
 
 SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE) + (RS_SPLIT_DEFS if RS_SPLIT_ENABLED else ())

@@ -71,15 +71,17 @@ DOMAIN_TOOLS = ("chart", "board", "watchlist", "layout", "indicator", "drawing",
 _DOMAIN_OF = {
     "chart": "chart", "chartSetup": "chart", "chartGrid": "chart", "volume": "chart", "pane": "chart",
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
+    "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities
+    "multiChart": "board",                                # the Multi Chart grid: the workspace as a whole (#1030)
 }
 _DOMAIN_TITLE = {
     "chart": "a chart's symbol, timeframe, type, scale, session, theme, colours, display settings, volume, templates, panes",
-    "board": "the Charts workspace: widgets, tabs, arrangement, app settings, guides",
+    "board": "the Charts workspace: widgets, tabs, arrangement, the Multi Chart grid, app settings, guides",
     "watchlist": "the member's saved watchlists and watchlist widgets",
     "layout": "saved layouts (open, create, save, rename, delete)",
     "indicator": "indicators on charts: add, remove, style, copy, drafts and saved definitions",

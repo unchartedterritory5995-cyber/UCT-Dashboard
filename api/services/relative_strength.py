@@ -1184,3 +1184,146 @@ def compute_rs_vs_ema_columns(bars: Sequence[dict], benchmark_bars: Sequence[dic
         "fast": rs_moving_average(dist, int(fast), "EMA"),
         "slow": rs_moving_average(dist, int(slow), "EMA"),
     }
+
+
+# ── RS Exit Warnings (2026-11-12): UCT RS Exit Warnings (`rsExit`) ──────────
+#
+# Mike Webster's three warnings on the RS line (Quick Break, Quicksand, Grateful
+# Dead Break), as a fifth RS indicator beside `rsLine`, `rsRating`, `rsPhases`
+# and `rsVsEma`. Same contract as everything above: aligned to ``bars``, no I/O,
+# ``None`` (never 0) in the warm-up and on any bar the benchmark does not carry.
+#
+# ⭐ OUR READING OF A PUBLISHED IDEA, NOT A PUBLISHED FORMULA. The three names and
+# their one-line meanings are public (the TradingView script "Webby's Quick &
+# Grateful Dead RS" by Amphibiantrading, a community summary of Webster's video):
+#   Quick Break          the RS line drops below its fast moving average
+#   Quicksand            the RS line falls lower than it was at the Quick Break
+#   Grateful Dead Break  the RS line drops below its slow moving average
+# The exact mechanics (bar-close or intraday, how a cycle ends, whether a signal
+# repeats) are NOT published, so the rules below are ours, stated once here and
+# in the PR so they can be argued with. The averages are SIMPLE averages OF THE
+# RS LINE (not of price): daily 21 and 50, weekly 8 and 21, the lengths the same
+# community summary credits to Webster; both are inputs.
+#
+# THE RULES, on closed bars, left to right. ``below(t)`` is ``rs[t] < fast[t]``;
+# "at or above" is everything else, so a flat line sitting exactly on its average
+# is NOT below it (the `above_column` convention, ``rs >= ma``).
+#   quickBreak[t]  = 1 if below(t) and not below(t-1)           (a fresh cross down)
+#                    and remembers ``level = rs[t]``
+#   quicksand[t]   = 1 on the FIRST bar after a quickBreak, in the same cycle,
+#                    where below(t) and rs[t] < level; once per cycle
+#   cycle ends     on the first bar that is at or above the fast average: the
+#                    level is forgotten and both warnings are armed again
+#   deadBreak[t]   = 1 if rs[t] < slow[t] and rs[t-1] >= slow[t-1]
+#                    (a fresh cross down through the slow average; it does not need
+#                    a Quick Break first and has no cycle of its own)
+# {0, 1, None}: None where the bar or the one before it cannot be judged (warm-up,
+# a bar the benchmark lacks). A gap bar inside a cycle abandons the cycle (the
+# level is forgotten) because continuity cannot be vouched for: a missing Quicksand
+# is the safe error, an invented one is not. A series that STARTS below its fast
+# average has no Quick Break (nothing to cross from) and so no Quicksand until it
+# has been at or above the average once and crossed down again.
+
+EXIT_AUTO_LENGTHS: Dict[str, tuple] = {"D": (21, 50), "W": (8, 21)}
+EXIT_LENGTH_RANGE = (2, 400)
+#: Closed bars of cycle history the alert lane reads beyond the slow average, so a
+#: Quicksand can see the Quick Break it is measured from. A break older than this
+#: before the alert bar is not seen (documented in the alert's help text).
+EXIT_CYCLE_HISTORY = 120      # about six months of sessions; NOT 126, which beside 63 is the RS weighting table's fingerprint
+
+#: Every column `compute_rs_exit_columns` returns. The wire carries the line, the
+#: two averages and the three dots (`registry_defs.RS_EXIT_WIRE_COLUMNS`); the
+#: three 0/1 event columns stay here for the legend, the alerts and the tests.
+RS_EXIT_COLUMNS = ("rsLine", "fast", "slow", "quickBreak", "quicksand", "deadBreak",
+                   "dotQuick", "dotQuicksand", "dotDead")
+RS_EXIT_EVENT_COLUMNS = ("quickBreak", "quicksand", "deadBreak")
+
+
+def resolve_exit_lengths(store_tf: str, fast=0, slow=0) -> tuple:
+    """``(fast, slow)`` in bars for a store timeframe. 0 (or anything that is not
+    a number of at least 1) means AUTO: daily 21 / 50, weekly 8 / 21 (`EXIT_AUTO_LENGTHS`;
+    any other timeframe reads the daily pair). A given length is rounded and clamped
+    to `EXIT_LENGTH_RANGE`; the slow average is kept longer than the fast one (a
+    slow average at or under the fast one cannot mean "slow"), raised to fast + 1."""
+    auto_fast, auto_slow = EXIT_AUTO_LENGTHS.get(str(store_tf or "").upper(), EXIT_AUTO_LENGTHS["D"])
+    lo, hi = EXIT_LENGTH_RANGE
+
+    def one(v, auto):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return auto
+        if not math.isfinite(f) or f < 1:
+            return auto
+        return int(round(min(hi, max(lo, f))))
+
+    f, s = one(fast, auto_fast), one(slow, auto_slow)
+    if f >= hi:
+        f = hi - 1
+    if s <= f:
+        s = f + 1
+    return f, s
+
+
+def rs_exit_events(rs: Column, fast_ma: Column, slow_ma: Column) -> Dict[str, Column]:
+    """``{quickBreak, quicksand, deadBreak}`` over an RS line and its two averages
+    (all aligned, ``None`` where unknown). The rules are the section header's."""
+    n = len(rs)
+    quick: Column = [None] * n
+    sand: Column = [None] * n
+    dead: Column = [None] * n
+    level = None
+    sand_done = False
+    for i in range(n):
+        r, f, s = rs[i], fast_ma[i], slow_ma[i]
+        prev_ok = i > 0 and _is_num(rs[i - 1])
+        # ── the fast average: Quick Break and Quicksand, with the cycle ──
+        if _is_num(r) and _is_num(f):
+            if prev_ok and _is_num(fast_ma[i - 1]):
+                below = r < f
+                prev_below = rs[i - 1] < fast_ma[i - 1]
+                q = 0.0
+                qs = 0.0
+                if below:
+                    if not prev_below:
+                        q = 1.0
+                        level = float(r)
+                        sand_done = False
+                    elif level is not None and not sand_done and r < level:
+                        qs = 1.0
+                        sand_done = True
+                else:
+                    level = None
+                    sand_done = False
+                quick[i], sand[i] = q, qs
+            else:
+                level, sand_done = None, False      # continuity unknown: abandon the cycle
+        else:
+            level, sand_done = None, False
+        # ── the slow average: Grateful Dead Break, no cycle ──
+        if _is_num(r) and _is_num(s) and prev_ok and _is_num(slow_ma[i - 1]):
+            dead[i] = 1.0 if (r < s and rs[i - 1] >= slow_ma[i - 1]) else 0.0
+    return {"quickBreak": quick, "quicksand": sand, "deadBreak": dead}
+
+
+def compute_rs_exit_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                            fast: int = 21, slow: int = 50) -> Dict[str, Column]:
+    """UCT RS Exit Warnings, aligned to ``bars``: the RS line (`rs_line`), a SIMPLE
+    average of it at each of the two lengths (`rs_moving_average`, gaps skipped),
+    the three events (`rs_exit_events`) and the three dot columns (the RS value on
+    an event bar, ``None`` elsewhere: a dot sits exactly on the line). The lengths
+    are taken as given: `resolve_exit_lengths` resolves them first."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_EXIT_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    fast_ma = rs_moving_average(rs, int(fast), "SMA")
+    slow_ma = rs_moving_average(rs, int(slow), "SMA")
+    ev = rs_exit_events(rs, fast_ma, slow_ma)
+    return {
+        "rsLine": rs, "fast": fast_ma, "slow": slow_ma,
+        "quickBreak": ev["quickBreak"], "quicksand": ev["quicksand"], "deadBreak": ev["deadBreak"],
+        "dotQuick": dot_column(rs, ev["quickBreak"]),
+        "dotQuicksand": dot_column(rs, ev["quicksand"]),
+        "dotDead": dot_column(rs, ev["deadBreak"]),
+    }

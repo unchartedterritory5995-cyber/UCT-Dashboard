@@ -177,6 +177,10 @@ _DEFAULT_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 _DATES_CACHE_TTL_S = float(os.environ.get("FLOW_DATES_CACHE_TTL_S", "60"))
 
 
+
+#: The -wal file is truncated back to this after each checkpoint reset (see FlowDB._conn).
+WAL_SIZE_LIMIT_BYTES = 256 * 1024 * 1024
+
 class FlowDB:
     def __init__(self, db_path: str = _DEFAULT_DB_PATH):
         self.db_path = db_path
@@ -188,6 +192,12 @@ class FlowDB:
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        # ⛔ WAL SIZE CAP (2026-11-12). SQLite never shrinks the -wal file on its own:
+        # after a bulk write it stays at its peak size forever (measured 6.9 GB holding
+        # 427 live frames). On a volume that has already corrupted from running out of
+        # space, a WAL that keeps its peak is dead disk. 256 MB: when a checkpoint
+        # resets the log, it is truncated back to this.
+        conn.execute(f"PRAGMA journal_size_limit={WAL_SIZE_LIMIT_BYTES}")
         try:
             yield conn
             conn.commit()
@@ -1015,9 +1025,20 @@ class FlowDB:
         if hit is not None:
             return list(hit)
 
+        # ⚡ SKIP-SCAN (2026-11-12). `SELECT DISTINCT` walked every index entry for the
+        # source (679k for stocks) to find ~53 dates: /api/flow/dates p50 2.8 s, p95 5.9 s
+        # in the member beacon, and the TTL above is short, so most calls missed. This
+        # recursive CTE seeks `idx_flow_source_date` once per distinct date instead:
+        # same set of values (NULL excluded, which `_parse_date_mdy` dropped anyway),
+        # ~53 index seeks. Rail: tests/test_flow_dates_skipscan.py.
         with self._conn() as conn:
             cursor = conn.execute(
-                "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
+                "WITH RECURSIVE d(x) AS ("
+                " SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1)"
+                " UNION ALL"
+                " SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x)"
+                " FROM d WHERE d.x IS NOT NULL"
+                ") SELECT x FROM d WHERE x IS NOT NULL",
                 (source,),
             )
             all_dates_raw = [r[0] for r in cursor.fetchall()]

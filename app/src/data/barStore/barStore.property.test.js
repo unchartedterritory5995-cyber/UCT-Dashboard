@@ -75,7 +75,8 @@ function run(sim, events, { nowMs, stepClock = false } = {}) {
     }
     // S10: a change ⇒ new identity with bumped revs; no change ⇒ same identity.
     if (s !== prev) check(s.baseRev > prev.baseRev || s.devRev > prev.devRev || s.status !== prev.status
-      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull || s.gen !== prev.gen, 'S10 new identity without a change')
+      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull || s.gen !== prev.gen
+      || s.liveGapFrom !== prev.liveGapFrom, 'S10 new identity without a change')
     // S10 idempotence: re-applying the same action is a no-op.
     if (e.action.type !== 'invalidate' && e.action.type !== 'tick-fallback') {
       check(reduce(s, e.action, ctx) === s, () => `S10 re-applying ${e.action.type} changed the snapshot`)
@@ -293,4 +294,65 @@ it('sanity: the generator covers every tf, both sessions, DST edges and half-day
   for (const tf of INTRADAY) expect(seen.has(`tf${tf}`)).toBe(true)
   expect(seen.has('rth') && seen.has('eth')).toBe(true)
   expect(DATES).toEqual(expect.arrayContaining(['2026-03-09', '2026-11-02', '2026-11-27', '2026-12-24']))
+})
+
+// ⭐ S4 ACROSS A CACHE RESTORE (P3-S1 review fix 3). A forming bar restored from a cache copy
+// (read at `seenAt`, the record's savedAt) meets the server's first answer for the same bucket,
+// read at some other instant — fresh, or LAGGING the copy (an unverified / delta-deadline /
+// stale-swr serve), with `verified_through` absent, older than the copy, or covering it.
+// Invariant: the developing bar never loses an extreme or volume the copy saw (S4, checked by
+// `run` on every step), its open / close are the server's, and a server answer VERIFIED through
+// the copy's read time is the truth as of that answer (it saw everything the copy saw).
+describe('S4 across a cache restore (seeded)', () => {
+  it(`a restored forming bar never shrinks on an unverified / lagging server answer (${N} seeds)`, () => {
+    forSeeds(N, 91000, (r) => {
+      const tf = r.pick(INTRADAY), session = r.pick(['rth', 'eth']), date = r.pick(DATES)
+      const key = keyOf({ sym: 'SIMR', tf, session })
+      const grid = tf === '60' ? (session === 'eth' ? 'clock' : 'session') : undefined
+      const t0 = bucketStartUnix(etUnix(date, r.int(600, 900)), Number(tf), { grid })
+      const end = bucketEnd(t0, { key, tf, grid: tf === '60' ? (session === 'eth' ? 'eth-clock' : 'rth-tv') : null })
+      const prior = bucketStartUnix(t0 - 1, Number(tf), { grid })
+      // Trades inside the bucket; truth(τ) = the bar as of τ.
+      let px = r.float(20, 400)
+      const trades = []
+      for (let ms = t0 * 1000 + r.int(0, 2000); ms < end * 1000 - 1000; ms += r.int(200, Math.max(400, (end - t0) * 1000 / 8))) {
+        px = Math.max(1, px * (1 + r.float(-0.006, 0.006)))
+        trades.push({ ms, p: Math.round(px * 100) / 100, s: r.int(1, 900) })
+      }
+      if (trades.length < 2) return
+      const truth = (sec) => {
+        const ts = trades.filter((x) => x.ms <= sec * 1000)
+        if (!ts.length) return null
+        return { t: t0, o: ts[0].p, h: Math.max(...ts.map((x) => x.p)), l: Math.min(...ts.map((x) => x.p)), c: ts[ts.length - 1].p, v: ts.reduce((n, x) => n + x.s, 0) }
+      }
+      const tradeSec = (i) => Math.ceil(trades[i].ms / 1000)
+      const nowSec = Math.min(end - 1, tradeSec(trades.length - 1) + r.int(1, 30))
+      const tc = tradeSec(r.int(0, trades.length - 1))            // the copy's read
+      const ts = tradeSec(r.int(0, trades.length - 1))            // the server's read (may lag)
+      const copy = truth(tc), srv = truth(ts)
+      if (!copy || !srv) return
+      const vtKind = r.pick(['none', 'old', 'read'])
+      const vt = vtKind === 'none' ? null : (vtKind === 'old' ? ts - r.int(60, 3600) : ts)
+      const priorRow = { t: prior, o: copy.o, h: copy.o, l: copy.o, c: copy.o, v: 1 }
+      const sim = { key, grid }
+      const nowMs = nowSec * 1000
+      vi.setSystemTime(nowMs)
+      const ck = `b1:SIMR:${tf}:${tf === '60' && session === 'rth' ? 'rth-tv' : 'eth-clock'}`
+      const events = [
+        { action: { type: 'idb-hit', payload: { bars: [priorRow, copy], saved_at: tc * 1000 } } },
+        { action: { type: 'rest-full', payload: r.chance(0.5)
+          ? { bars: [priorRow, srv], ...(vt != null ? { verified_through: vt } : {}) }
+          : { contract: 1, cache_key: ck, series_rev: nowMs, history_rev: 1, complete_through: null,
+            verified_through: vt, bars: [priorRow, srv], developing: { ...srv, rev: ts * 1000 } } } },
+      ]
+      const s = run(sim, events, { nowMs })   // S4 (H↑ L↓ open-once V↑) is checked on every step
+      const d = s.developing
+      check(d && d.t === t0, 'the forming bucket is developing')
+      check(d.o === srv.o && d.c === srv.c, 'open / close are the server answer\'s')
+      check(d.h >= copy.h && d.l <= copy.l && d.v >= copy.v, 'S4: the copy\'s extremes / volume survive')
+      if (vt != null && vt >= tc) {
+        check(d.h === srv.h && d.l === srv.l && d.v === srv.v, 'a verified-through-the-copy answer is the truth')
+      }
+    })
+  })
 })

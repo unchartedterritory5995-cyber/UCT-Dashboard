@@ -9,7 +9,7 @@
 // page's exact DOM.
 
 import { domToCanvas } from 'modern-screenshot'
-import compassMark from '../../components/intro/assets/compass-mark.png'
+import compassMark from '../../components/intro/assets/compass-mark.webp'
 
 const BG = '#0c0d10'
 const GOLD = '#c9a84c'

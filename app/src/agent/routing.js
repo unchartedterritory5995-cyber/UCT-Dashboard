@@ -121,11 +121,42 @@ export const GROUPS = [
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
+  // ⭐ pl-grid (C3-042..061): the Multi Chart GRID itself — its shape, entering / leaving it, the sync toggles, Groups, saved
+  // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
+  // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
+  { id: 'multiChart', title: 'The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart', domains: ['multiChart'], fillLast: true,
+    // #1030 re-merge (Lead 2026-11-11): WORDS-ONLY (never v2 filler, as watchlistShow / compareGroups), and every word needs GRID
+    // context: a bare "group(s)", "row(s)", "sync" or "crosshair" never selects it alone (the frozen no-lookbehind rows stay master's)
+    wordsOnly: true,
+    // a bare \"grid\" / \"2x2\" is chartGrid's (charts tiled on the board): this group needs the grid AS a thing the member acts on
+    words: [/\bmulti[\s-]?charts?\b/, /\bsplit (?:my|the) screen\b/,
+      /\b(?:open|save|delete|apply|load|close|exit|leave|restore|fill|refresh|rename) (?:the |this |that |my |a )?(?:[\w’'&-]+ ){0,3}?grids?\b/,
+      /\b(?:show|give) me an? (?:\d\s*(?:x|by|×)\s*\d|(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)) grid\b/, /\b(?:in|of|across) the (?:whole )?grid\b/,
+      // a shape said as rows AND columns ("three rows and four columns")
+      /\b(?:\d|one|two|three|four)\s+rows?\b.*\b(?:\d|one|two|three|four)\s+columns?\b|\b(?:\d|one|two|three|four)\s+columns?\b.*\b(?:\d|one|two|three|four)\s+rows?\b/,
+      // sync WITH what it syncs (the crosshair, the time range, the charts / cells); link / lock only the crosshair or time range
+      // ("link the top two charts" is widget.setLink's)
+      /\bsync\w*\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?|charts|cells)\b|\b(?:link\w*|lock\w*)\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?)\b|\bcross[\s-]?hairs?\s+(?:[\w’'-]+\s+){0,3}?(?:sync\w*|link\w*|across)\b/,
+      /\b(?:every|all(?: the| my)?|each) (?:charts?|cells?) (?:\w+ ){0,3}?(?:to |on )?the same (?:dates|time ?range)\b/,
+      // Groups mode, or stepping the grid's group
+      /\bgroups mode\b|\b(?:next|previous|prev) group\b|\brefresh (?:the |this |my )?group\b|\bswitch (?:over )?to (?:the |my )?[\w&’' -]{1,40}? group\b(?! (?:comparisons?|overlays?|scale))/,
+      /\bmaximi[sz]e|\bfull[\s-]?(?:size|screen)\b|\bblow (?:it |that |the \w+ )?up\b|\bwhole grid\b|\bun-?maximi[sz]e\b/,
+      /\bshared (?:chart )?settings\b|\bmy (?:own )?(?:chart|normal) settings\b|\breset\b.*\bmy chart\b|\bback to my (?:own )?chart\b/,
+      /\bnormal (?:board|charts? board)\b|\bback to (?:the |my )?(?:normal |regular )?(?:board|workspace)\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
     // W1.1 R-03 (LT-9): "rename <X> to <Y>" names a layout as often as a tab or a list — the group rides along (routing only ADDS)
     words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/, /\brename\b(?!.*\b(?:watch ?lists?|lists?|tabs?|screens?|scans?|indicators?|drafts?|alerts?)\b).*\bto\b/] },
+  // C3-037..039 (#1074): the Layout Dock's BAR — pin a layout to it, take one off, move one along it. Its OWN three-action group by
+  // action name, WORDS-ONLY (never a filler), like watchlistShow (#1027): #1074 re-merge onto 64421f770d — with the three in
+  // `layouts`, that group grew past what NL-1's budget fits beside the core + another group (corpus ws-11, layout.duplicate, lost
+  // its first call), and the bar words made `layouts` ride on the chart header's bar-info readout (C1-065, chart.setSetting).
+  // Words: a place on the bar or dock ("take Swing off the bar", "move Swing to the left on the bar"), but never a bar-info noun
+  // after "bar" ("hide the close in the bar info": the chart's readout, not the dock); "unpin"; "pin" with "layout".
+  { id: 'layoutBar', title: 'The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it',
+    domains: [], actions: ['layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b(?! (?:info|readouts?|data|values?|legend|strip)\b)/, /\bunpin\b/, /\bpin\b.*\blayout/] },
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
@@ -173,6 +204,15 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
+  // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's Alerts row in their OWN group, WORDS-ONLY
+  // (as #1027's watchlistShow / #1073's compareGroups), so `alerts` and `drawings` keep master's exact size: one more action in
+  // either moved the nothing-recognised fill, which sits exactly at the 55-action budget (data / boardEdit / screener / undo cut).
+  // Its words: a duplicate / copy / clone verb with a drawing noun; an alert word with a position's entry / stop / target.
+  // Plain "alert at 150" stays `alerts` and "draw a line" stays `drawings` (no position or duplicate word).
+  { id: 'drawingOps', title: 'Duplicate a drawing on its chart; set a position drawing\'s entry / stop / target alerts', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.duplicate', 'drawing.setPositionAlerts'],
+    words: [/\b(?:duplicate|copy|clone)\b.*\b(?:drawings?|trend ?lines?|lines?|rays?|shapes?|rectangles?|boxe?s?|fib\w*|channels?|pitchforks?|arrows?|annotations?|positions?)\b/,
+      /\balerts?\b.*\b(?:entry|stops?|targets?|positions?)\b|\b(?:entry|stops?|targets?|positions?)\b.*\balerts?\b|\b(?:alert|notify|ping|tell) me\b.*\b(?:entry|stops?|targets?)\b/] },
   { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap', 'drawing.add'],
     // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
@@ -185,6 +225,27 @@ export const GROUPS = [
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+  // drawing extras (C1-144 / C1-160 / C1-165): the Position Calculator with entry / stop / target, a drawing's "Save as
+  // default", and a drawing tool's ★ — their OWN group, WORDS-ONLY (as #1027's watchlistShow / #1073's compareGroups), so
+  // `drawings` keeps master's exact size and the nothing-recognised fill (exactly at the 55-action budget) does not move.
+  // Its words: a position-calculator / position-size word, or entry + stop + target with no alert word; "default" with a
+  // save / make / set verb and a drawing noun (or "default style"); a favourite / star word with a TOOL noun. Plain "draw a
+  // line" stays `drawings`, "set an alert at my stop" stays `alerts`, and "favourite NVDA" (a ticker flag) is not this.
+  { id: 'drawingExtras', title: 'Position Calculator with an entry, stop and target on a chart; make a drawing\'s style the chart\'s default for new drawings; star / unstar a drawing tool as a favourite', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'],
+    words: [/\bposition (?:calculator|calc|sizer|sizing)\b|\bsize (?:the|my|a|this) (?:position|trade)\b|^(?!.*\b(?:alerts?|notify|ping)\b)(?=.*\bentry\b)(?=.*\bstops?\b).*\btargets?\b/,
+      /\bdefault (?:drawing )?style\b|^(?=.*\b(?:save|make|set|use)\b)(?=.*\b(?:drawings?|trend ?lines?|lines?|rays?|rectangles?|boxe?s?|fib\w*|arrows?|notes?|circles?|channels?|pitchforks?)\b).*\bdefaults?\b/,
+      /\b(?:favou?rit\w*|star|unstar|starred)\b.*\b(?:tools?|toolbar)\b|\b(?:tools?|toolbar)\b.*\bfavou?rit\w*\b/] },
+  // C1-167..170: the four Drawing Boards actions in their OWN group, WORDS-ONLY (as #1027's watchlistShow, #1073's compareGroups), so the
+  // drawings group keeps master's size and routing v2's unrecognised-request fill (at its 55-action budget) is unchanged
+  { id: 'drawingBoards', title: 'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'],
+    // a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings"), the verb governing the board noun within
+    // two words — a bare "board" is the workspace ("remove everything from the board" is not a Drawing Board)
+    words: [/\b(?:switch|change|go|flip|jump|move)\s+(?:back\s+|over\s+)?to\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -309,6 +370,9 @@ export const GROUPS = [
       /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
+      // #1076: an undo is MATCHED by its own words whatever the pack size (v1's fallback fill can reach the budget and
+      // cut the 1-action undo group): "scratch that", "never mind", "go back to how it was (before)", "put it back"
+      /\bscratch (?:that|it|this)\b|\bnever ?mind\b|\bgo back to (?:how|the way|what) (?:it|they|things|everything) (?:was|were)\b|\bput (?:it|that|them) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
   // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)
@@ -349,6 +413,17 @@ export const GROUPS = [
       /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
       /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
       /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
+  // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
+  // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
+  // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
+  // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
+  // between); a Dock of the ranking. LAST in the catalog: the server names at most turn.MAX_GROUPS (24) groups and master
+  // sends 24, so until that cap is raised (#1089) this group, not one of master's, is the one left unnamed.
+  { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
+    domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
+    words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
@@ -406,7 +481,11 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  // #1082 re-merge: a docked Period Sort widget's controls (Refresh) never take a date, so "period sort sectors, Oct 1 to Oct 30"
+  // (dates beside the tool's name) asks for a NEW run (the periodSort group), not that widget: it alone does not bring boardEdit
+  const runsPeriodSort = /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/.test(q)
+    && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }

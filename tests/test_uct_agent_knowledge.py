@@ -1679,3 +1679,50 @@ def test_r751_nit1_two_builds_in_the_same_second_have_different_ids(kn):
     b = index.build()
     assert a["ok"] and b["ok"] and a["build_id"] != b["build_id"]
     assert index.build_id(index.built_info()) == b["build_id"]
+
+
+# ── #1074 Layout Dock: the bar's action names are withheld when a passage names them bare ──────────
+@pytest.mark.parametrize("name", ["layout.pinToBar", "layout.unpinFromBar", "layout.moveOnBar"])
+def test_guard_withholds_the_layout_bar_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Pin your best setups to the top of the list so you see them first.",
+    "I unpin a name once it breaks the 50-day line.",
+    "Keep the layout pinned while you scan, then move on.",
+])
+def test_guard_still_passes_ordinary_prose_about_pinning(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1082 Custom-Period Sort: its action names are withheld when a passage names them bare ──────────────────────────
+@pytest.mark.parametrize("name", ["periodSort.run", "periodSort.dock"])
+def test_guard_withholds_the_period_sort_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Dock your watchlist on the left so it stays visible while you scan.",
+    "Run a period sort on the leaders from the March low to see who held up.",
+    "I sort my themes by the period since the last FOMC meeting.",
+    "Once the ranking looks right, dock it next to the chart.",
+])
+def test_guard_still_passes_ordinary_prose_about_period_sorts_and_docking(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1110 drawing extras: its action names are withheld when a passage names them bare ──────────────────────────────
+@pytest.mark.parametrize("name", ["drawing.favoriteTool", "drawing.positionCalculator", "drawing.saveDefaults"])
+def test_guard_withholds_the_drawing_extras_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Work out your position size before you click buy.",
+    "My favorite setups are tight flags after a base.",
+    "Position the stop under the low of the breakout day.",
+    "Save your default risk per trade as one percent.",
+])
+def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
+    assert guard.suspicious(text) is False

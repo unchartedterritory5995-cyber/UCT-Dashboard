@@ -4999,6 +4999,160 @@
       }
     },
     {
+      "id": "layout.pinToBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.pinToBar"
+      ],
+      "board": "LAYOUT_BAR",
+      "needs": [
+        "layout.pinToBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.pinToBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "pin my Breadth layout to the bar",
+        "pin the Breadth layout to the dock",
+        "put my Breadth layout on the layout bar"
+      ]
+    },
+    {
+      "id": "layout.moveOnBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.moveOnBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.moveOnBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.moveOnBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2",
+              "to": "first"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[2,1,3],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "move Breadth to the front of the bar",
+        "put my Breadth layout first on the layouts bar",
+        "move the Breadth layout to spot 1 on the bar"
+      ]
+    },
+    {
+      "id": "layout.unpinFromBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.unpinFromBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.unpinFromBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.unpinFromBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "take Main Trading off the bar",
+        "unpin my Main Trading layout",
+        "remove Main Trading from the layout bar"
+      ]
+    },
+    {
       "id": "layout.duplicate",
       "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
       "capabilities": [
@@ -6077,6 +6231,134 @@
         "replay the chart from march 2 2026",
         "go back to march 2 2026 and hide what came after",
         "start replay mode on 2026-03-02"
+      ]
+    },
+    {
+      "id": "periodSort.run",
+      "source": "C3-205/C3-206 (pl-exec6): Tools → Custom-Period Sort, the popover's own Sort (runPeriodSort)",
+      "capabilities": [
+        "periodSort.run"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "periodSort.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.run",
+            "target": "$periodSort",
+            "args": {
+              "start": "2026-10-01",
+              "end": "2026-10-30",
+              "group": "sector",
+              "replay": true,
+              "markStart": "line"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": {
+          "start": 20261001,
+          "end": 20261030,
+          "group": "sector"
+        },
+        "replay": "2026-10-30",
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": null,
+          "replay": null
+        }
+      },
+      "phrasings": [
+        "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked",
+        "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line",
+        "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start",
+        "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start"
+      ]
+    },
+    {
+      "id": "periodSort.dock",
+      "source": "C3-207 (pl-exec6): the Custom-Period Sort panel's own Dock (handleDockPeriodSort)",
+      "capabilities": [
+        "periodSort.dock"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "rank stocks from oct 1 to oct 30",
+          "model": {
+            "ops": [
+              {
+                "action": "periodSort.run",
+                "target": "$periodSort",
+                "args": {
+                  "start": "2026-10-01",
+                  "end": "2026-10-30",
+                  "group": "stocks",
+                  "replay": false,
+                  "markStart": "off"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "periodSortPanel": {
+              "start": 20261001,
+              "end": 20261030,
+              "group": null
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "periodSort.run"
+      ],
+      "needs": [
+        "periodSort.dock"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.dock",
+            "target": "$periodSort",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": null,
+        "periodSortWidgets": [
+          {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          }
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          },
+          "periodSortWidgets": []
+        }
+      },
+      "phrasings": [
+        "dock that period sort onto the board",
+        "dock the ranking as a widget",
+        "keep that period sort on my board",
+        "pin the custom period sort results to the board"
       ]
     },
     {
@@ -10208,6 +10490,156 @@
       ]
     },
     {
+      "id": "drawing.duplicate",
+      "source": "C1-157 (pl-exec5): the drawing menu's Duplicate",
+      "board": "TIMED",
+      "needs": [
+        "drawing.duplicate"
+      ],
+      "capabilities": [
+        "drawing.duplicate"
+      ],
+      "before": [
+        {
+          "say": "draw a trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.duplicate",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 2,
+          "has": {
+            "type": "trendline"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "type": "trendline"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "duplicate this trendline",
+        "duplicate that drawing",
+        "make a duplicate of the trendline"
+      ]
+    },
+    {
+      "id": "drawing.setPositionAlerts",
+      "source": "C1-118 (pl-exec5): a position drawing's Alerts row (stop and target)",
+      "board": "DRAW",
+      "seed": {
+        "drawings": {
+          "NVDA": [
+            {
+              "type": "position",
+              "points": [
+                {
+                  "time": "2026-10-01",
+                  "price": 100
+                },
+                {
+                  "time": "2026-10-01",
+                  "price": 90
+                },
+                {
+                  "time": "2026-10-20",
+                  "price": 120
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "needs": [
+        "drawing.setPositionAlerts"
+      ],
+      "capabilities": [
+        "drawing.setPositionAlerts"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.setPositionAlerts",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "levels": [
+                "stop",
+                "target"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"direction\":\"below\"",
+          "^POST /api/watchlist-alerts .*\"direction\":\"above\""
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "set the stop and target alerts on my position",
+        "alert me on my position's stop and target",
+        "turn on the stop and target alerts for that position"
+      ]
+    },
+    {
       "id": "chartSetup.setRange",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
@@ -10619,6 +11051,517 @@
       },
       "phrasings": [
         "keep a copy of that one"
+      ]
+    },
+    {
+      "id": "multiChart.grid.layout",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "layout",
+              "rows": 2,
+              "cols": 3,
+              "on": null,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "mode": "grid",
+          "layout": "2x3",
+          "cellCount": 6
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "mode": "workspace",
+            "layout": "2x2",
+            "cellCount": 4
+          }
+        }
+      },
+      "phrasings": [
+        "can you split my screen into a two by three grid of charts",
+        "open Multi Chart with two rows and three columns"
+      ]
+    },
+    {
+      "id": "multiChart.grid.syncCrosshair",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "syncCrosshair",
+              "rows": null,
+              "cols": null,
+              "on": true,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "syncCrosshair": true,
+          "mode": "workspace"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "syncCrosshair": false
+          }
+        }
+      },
+      "phrasings": [
+        "link the crosshairs across the multi chart grid",
+        "turn on crosshair sync for the grid"
+      ]
+    },
+    {
+      "id": "drawing.setActiveBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.setActiveBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": 1
+        }
+      },
+      "needs": [
+        "drawing.setActiveBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setActiveBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Swing"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "active": "Earnings"
+          }
+        }
+      },
+      "phrasings": [
+        "switch to my Swing board",
+        "switch to the Swing drawing board",
+        "draw on my Swing board"
+      ]
+    },
+    {
+      "id": "drawing.createBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.createBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.createBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.createBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "name": "Earnings"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Earnings"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing"
+            ],
+            "active": "Swing"
+          }
+        }
+      },
+      "phrasings": [
+        "create a new drawing board called Earnings",
+        "make a new drawing board named Earnings",
+        "add a drawing board called Earnings"
+      ]
+    },
+    {
+      "id": "drawing.renameBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.renameBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            ""
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.renameBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.renameBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Board 2",
+              "to": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing",
+              "Board 2"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "rename Board 2 to Breakouts",
+        "rename my Board 2 drawing board to Breakouts",
+        "call drawing Board 2 Breakouts"
+      ]
+    },
+    {
+      "id": "drawing.deleteBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.deleteBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": 0,
+          "drawings": {
+            "1": 2
+          }
+        }
+      },
+      "needs": [
+        "drawing.deleteBoard"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.deleteBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "receipt": false,
+        "proposalSays": [
+          "Delete the drawing board “Breakouts”",
+          "2 drawings",
+          "can.t be undone"
+        ],
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete the Breakouts board",
+        "delete my Breakouts drawing board",
+        "remove the Breakouts drawing board"
+      ]
+    },
+    {
+      "id": "drawing.positionCalculator",
+      "source": "C1-144 (drawing extras): the toolbar's Position tool — the Position Calculator with entry, stop and target",
+      "board": "TIMED",
+      "needs": [
+        "drawing.positionCalculator"
+      ],
+      "capabilities": [
+        "drawing.positionCalculator"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.positionCalculator",
+            "target": "$charts[0]",
+            "args": {
+              "entry": 50,
+              "stop": 48,
+              "target": 56,
+              "side": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "positionCalc": {
+            "can": true,
+            "open": true,
+            "entry": "50",
+            "stop": "48",
+            "target": "56",
+            "direction": "long"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "positionCalc": {
+              "can": true,
+              "open": false,
+              "entry": "",
+              "stop": "",
+              "target": "",
+              "direction": "long"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "open the position calculator with entry 50 stop 48 target 56",
+        "size this trade: entry 50, stop 48, target 56",
+        "put a position calculator on the chart, entry 50, stop 48 and target 56"
+      ]
+    },
+    {
+      "id": "drawing.saveDefaults",
+      "source": "C1-160 (drawing extras): a drawing menu's Save as default, onto the chart's drawing defaults",
+      "board": "TIMED",
+      "needs": [
+        "drawing.saveDefaults"
+      ],
+      "capabilities": [
+        "drawing.saveDefaults"
+      ],
+      "before": [
+        {
+          "say": "draw a dashed trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": "dashed"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.saveDefaults",
+            "target": "$charts[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "drawingDefaults.style",
+          "value": "dashed"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "setting": {
+            "key": "drawingDefaults.style",
+            "value": "solid"
+          }
+        }
+      },
+      "phrasings": [
+        "make this trendline my default style",
+        "save this trendline's style as the default for new drawings",
+        "use that line's look as my default drawing style"
+      ]
+    },
+    {
+      "id": "drawing.favoriteTool",
+      "source": "C1-165 (drawing extras): the ★ in the drawing toolbar's tools menu",
+      "board": "DRAW",
+      "needs": [
+        "drawing.favoriteTool"
+      ],
+      "capabilities": [
+        "drawing.favoriteTool"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.favoriteTool",
+            "target": "$charts[0]",
+            "args": {
+              "tool": "fib",
+              "favorite": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "favoriteTools": [
+          "fib"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "favoriteTools": []
+        }
+      },
+      "phrasings": [
+        "add the fib tool to my favourites",
+        "star the fibonacci retracement tool",
+        "put the fib tool on my favorites toolbar"
       ]
     }
   ],
@@ -12387,6 +13330,43 @@
             "receipt": false
           }
         }
+      ]
+    },
+    {
+      "id": "refuse.multiChart.cell-grid-closed",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js): a cell button with Multi Chart closed: no grid cell is a target, nothing changes",
+      "capabilities": [
+        "multiChart.cell"
+      ],
+      "board": "GRID",
+      "steps": [
+        {
+          "say": "maximize the top-left chart in the multi chart grid",
+          "model": {
+            "ops": [
+              {
+                "action": "multiChart.cell",
+                "target": "$charts[0]",
+                "args": {
+                  "op": "maximize"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "multiChart.cell",
+            "grid": {
+              "maxId": null,
+              "mode": "workspace"
+            }
+          }
+        }
+      ],
+      "refuses": [
+        "multiChart.cell"
       ]
     }
   ]

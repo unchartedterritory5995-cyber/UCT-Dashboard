@@ -693,6 +693,10 @@ THRESHOLD_OPERAND: dict[tuple[str, str], dict] = {
     ("rs_phases.flipRed", "above"): {"kind": "const", "value": 0.5},
     ("rs_vs_ema.crossUp", "above"): {"kind": "const", "value": 0.5},
     ("rs_vs_ema.crossDown", "above"): {"kind": "const", "value": 0.5},
+    # 2026-11-12 -- UCT RS Exit Warnings' three events, {0, 1, None}, the same 0.5 decoder.
+    ("rs_exit.quickBreak", "above"): {"kind": "const", "value": 0.5},
+    ("rs_exit.quicksand", "above"): {"kind": "const", "value": 0.5},
+    ("rs_exit.deadBreak", "above"): {"kind": "const", "value": 0.5},
     # Mansfield RS is a percent whose zero is where the RS line sits exactly on
     # its own long average, so "above zero" / "below zero" are declared STATES
     # beside the unsigned `cross_zero` rule (which needs no operand at all).
@@ -1006,6 +1010,16 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     "rs_vs_ema.crossDown": [
         {"value": "above", "label": "RS line crossed below its 21 EMA this bar", "needs_threshold": False},
     ],
+    # ── 2026-11-12: UCT RS Exit Warnings (Mike Webster's three warnings), one EVENT rule each ──
+    "rs_exit.quickBreak": [
+        {"value": "above", "label": "RS line dropped below its fast average this bar (Quick Break)", "needs_threshold": False},
+    ],
+    "rs_exit.quicksand": [
+        {"value": "above", "label": "RS line fell lower than at its Quick Break this bar (Quicksand)", "needs_threshold": False},
+    ],
+    "rs_exit.deadBreak": [
+        {"value": "above", "label": "RS line dropped below its slow average this bar (Grateful Dead Break)", "needs_threshold": False},
+    ],
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -1072,6 +1086,10 @@ ALERT_LABELS: dict[str, str] = {
     "rs_phases.flipRed": "RS Phase turned red",
     "rs_vs_ema.crossUp": "RS line crossed above its 21 EMA",
     "rs_vs_ema.crossDown": "RS line crossed below its 21 EMA",
+    # 2026-11-12: UCT RS Exit Warnings.
+    "rs_exit.quickBreak": "RS Quick Break",
+    "rs_exit.quicksand": "RS Quicksand",
+    "rs_exit.deadBreak": "RS Grateful Dead Break",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -1091,6 +1109,7 @@ ALERT_BASE_LABELS: dict[str, str] = {
     # 2026-11-10 (RS split, lane S2): the chart definitions' own names.
     "rs_phases": "UCT RS Phases",
     "rs_vs_ema": "UCT RS vs 21 EMA",
+    "rs_exit": "UCT RS Exit Warnings",
 }
 
 _DEFAULT_THRESHOLDS: dict[str, float] = {

@@ -35,10 +35,16 @@
 //     Ticks fold in only while the stream is NOT delivering (ctx.streamLive false) and never
 //     move an authoritative open (foldPrice) — S6.
 //   • Identity: a payload/frame whose sym / cache_key ticker+tf name another series is
-//     ignored (S7); a changed cache_key (grid) or a risen history_rev on a FULL answer
-//     resets the entry before applying it; on a DELTA it invalidates + sets needsFull.
+//     ignored (S7); a changed cache_key (grid), a changed adj_basis (P4: the price basis) or a
+//     risen history_rev on a FULL answer resets the entry before applying it; on a DELTA it
+//     invalidates + sets needsFull.
+//   • BASIS (P4, bar-contract.md §2 adj_basis): every LOCAL row carries the adj_basis stamp of
+//     the copy it came from (`ab`; absent = an unstamped legacy copy). A server answer keeps a
+//     local row only when its basis is PROVEN — by its stamp, or (unstamped) by `basisVerdict`
+//     over the rows the answer also carries — never by a single close compared to a tolerance.
 
-import { bucketStartUnix, computeBarTime } from '../../components/chart/barTime'
+import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
+import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
@@ -49,6 +55,7 @@ import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
 import { deriveStatus } from './status'
+import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
 const RANK = Object.freeze({ local: 0, tick: 1, push: 2, final: 3, rest: 4 })
@@ -70,10 +77,10 @@ export function initialState(key, ctx = {}) {
     key, sym: p.sym, tf: p.tf,
     bars: EMPTY_BARS, developing: null,
     completeThrough: null, verifiedThrough: null, seriesRev: null, historyRev: null,
-    cacheKey: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
+    cacheKey: null, adjBasis: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
-    gen: 0, pendingHistoryRev: null, depthFloor: 0,
+    gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -198,12 +205,61 @@ export const inSealedSpan = (state, t) => _inSpans(state, t)
 /** Where the next `since=` delta must start: the first closed row after the newest sealed
  *  one (a delta from later would leave it un-re-read), else the developing / last bar. */
 function computeDeltaFrom(st) {
+  const d = _deltaFromHeld(st)
+  // A live gap (below) must be re-read: the delta starts no later than its first missing bucket.
+  return (finite(st.liveGapFrom) && (d == null || st.liveGapFrom < d)) ? st.liveGapFrom : d
+}
+function _deltaFromHeld(st) {
   const bars = st.bars
   let i = bars.length
   while (i > 0 && !_isSealed(st, bars[i - 1])) i--
   if (i < bars.length) return bars[i].t
   if (st.developing) return st.developing.t
   return bars.length ? bars[bars.length - 1].t : null
+}
+
+// ── the live gap (P3-S2b) ────────────────────────────────────────────────────
+// A LIVE source (push frame / tick) can open a developing bucket while buckets the SERVER NEVER
+// VOUCHED FOR lie between the newest closed row and it (the closed-bar read stalled, a cold or
+// switched key, a dropped stream). A bucket is missing only if it starts at or after
+// max(verifiedThrough, end of the newest row): a thin name's quiet buckets that the server's
+// verified_through covers are proven EMPTY, not missing. The entry records the first missing
+// bucket (`liveGapFrom`); the delta starts at it (computeDeltaFrom) and the store kicks ONE read
+// (index.js). Nothing else: status is untouched and the forming candle still paints (the chart
+// draws no slot for an absent bucket). ANY server answer clears it. Only a live action that OPENS
+// a new bucket sets it.
+
+/** Is `sec` a minute of the key's session on an exchange trading day? */
+function _sessionMinute(state, sec) {
+  const iso = etDateOf(sec)
+  const dow = new Date(iso + 'T12:00:00Z').getUTCDay()
+  if (dow === 0 || dow === 6 || isHolidayISO(iso)) return false
+  if (_sessionOf(state) === 'eth') { const m = etMinuteOfDay(sec); return m >= 240 && m < 1200 }
+  return isRthBar(sec)
+}
+function _sessionOf(state) {
+  const p = parseKey(state.key)
+  return p?.session === 'eth' ? 'eth' : 'rth'
+}
+/** First EXPECTED bucket start strictly between closed row `lastT` and bucket `devT`, or null. */
+export function liveGapStart(state, lastT, devT) {
+  if (isDateTf(state.tf) || !finite(lastT) || !finite(devT) || devT <= lastT) return null
+  // ⭐ SERVER PROOF FIRST (bar-contract.md §verified_through). A bucket the server VOUCHED for is
+  // not missing when it holds no row — it is a proven-empty bucket (a thin name's quiet minute).
+  // So a bucket is missing only if it starts at or after max(verifiedThrough, end of the newest row).
+  const vt = numOrNull(state.verifiedThrough)
+  const floor = Math.max(bucketEnd(lastT, state), vt != null ? vt : -Infinity)
+  let cur = floor
+  // Bounded walk (a long weekend is ~6k minutes): out-of-session minutes step by one minute.
+  for (let n = 0; cur < devT && n < 8000; n++) {
+    if (_sessionMinute(state, cur)) {
+      const b = bucketOf(cur, state)
+      if (b < floor) { cur = bucketEnd(b, state); continue }   // vouched for by the server
+      return b >= devT ? null : b
+    }
+    cur += 60
+  }
+  return null
 }
 
 const MAX_SPANS = 16
@@ -310,8 +366,15 @@ function isForeign(state, obj) {
 
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
-const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor']
+const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom']
+
+function _sameFields(a, b) {
+  if (!a || !b) return false
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  return ka.every((k) => a[k] === b[k] || (Number.isNaN(a[k]) && Number.isNaN(b[k])))
+}
 
 function finalize(prev, next, ctx) {
   const n = { ...prev, ...next }
@@ -330,13 +393,28 @@ function finalize(prev, next, ctx) {
   }
   // Same rows (by identity) => same array: a no-op trim / merge never bumps baseRev.
   if (n.bars !== prev.bars && n.bars.length === prev.bars.length && n.bars.every((b, i) => b === prev.bars[i])) n.bars = prev.bars
+  // ...and the same developing VALUES => the same developing object (S10: a re-applied answer
+  // that rebuilds an identical bar is a no-op, never a devRev bump).
+  if (n.developing !== prev.developing && _sameFields(n.developing, prev.developing)) n.developing = prev.developing
   const baseChanged = n.bars !== prev.bars || BASE_FIELDS.some((f) => n[f] !== prev[f])
   const devChanged = n.developing !== prev.developing
   if (baseChanged && n.bars !== prev.bars && !Object.isFrozen(n.bars)) Object.freeze(n.bars)
   n.baseRev = prev.baseRev + (baseChanged ? 1 : 0)
   n.devRev = prev.devRev + (devChanged ? 1 : 0)
   n.depth = n.bars.length
+  // Live gap: checked only when a LIVE action opens a new developing bucket (a server answer
+  // passes `liveGapFrom` explicitly — null — and so clears it; see liveGapStart).
+  if (!('liveGapFrom' in next) && devChanged && n.developing && n.liveGapFrom == null
+      && n.developing.src !== DEV_SRC.SERVER && n.developing.src !== DEV_SRC.LOCAL
+      && (!prev.developing || prev.developing.t !== n.developing.t) && n.bars.length) {
+    const g = liveGapStart(n, n.bars[n.bars.length - 1].t, n.developing.t)
+    if (g != null) n.liveGapFrom = g
+  }
   n.deltaFrom = computeDeltaFrom(n)
+  // ⛔ A LOCAL HOLE OLDER THAN THE DELTA START IS NEVER RE-READ by a since= delta (it asks only
+  // from deltaFrom): the next request must be a FULL read — a status rule on what is held, not
+  // a timer. Cleared by the full answer (applyRest), which re-proves the region it carries.
+  if (finite(n.localHoleFrom) && finite(n.deltaFrom) && n.localHoleFrom < n.deltaFrom) n.needsFull = true
   const p = parseKey(n.key)
   n.status = deriveStatus(n, { ...ctx, session: p?.session === 'eth' ? 'eth' : (ctx?.session ?? 'rth') })
   if (!baseChanged && !devChanged && n.status === prev.status && META_FIELDS.every((f) => n[f] === prev[f])) {
@@ -362,6 +440,63 @@ function settleDeveloping(state, bars, dev) {
     return { bars: mergeRows({ ...state, bars }, [devToRow(dev)]), developing: null }
   }
   return { bars, developing: dev }
+}
+
+// ── price basis (P4) ─────────────────────────────────────────────────────────
+
+/** Relative tolerance of the basis test: a row pair's four price ratios must agree to it
+ *  (one uniform rescale), and |r - 1| must exceed it for a rescale to count. Wide enough for
+ *  4-decimal rounding on a cheap name, far below any split / re-adjustment. */
+export const BASIS_EPS = 0.005
+/** Volume tolerance of a rescaled pair: server v / local v ≈ 1/r (a split moves volume) or
+ *  ≈ 1 (a price-only re-adjustment). */
+export const BASIS_VOL_TOL = 0.05
+const BASIS_MAX_PAIRS = 64
+
+/**
+ * THE client basis test for rows WITHOUT a usable stamp (legacy copies). `local` = held
+ * rows, `ref` = the server's rows (array or Map t → row). Pairs rows by `t`, oldest first
+ * (at most 64):
+ *   • 'changed' — at least TWO pairs whose o/h/l/c ALL share one ratio r (to BASIS_EPS) with
+ *     |r − 1| > BASIS_EPS, the same r on both, and volume ≈ 1/r (or unchanged): the copy is on
+ *     another price basis (a split / re-adjustment since it was written);
+ *   • 'same'    — no such rescale and at least one pair whose four prices agree (r ≈ 1);
+ *   • 'unknown' — no evidence either way (no overlap, or only rows that differ non-uniformly:
+ *     a bucket the copy caught while forming, a corrected print).
+ * Why not the old "oldest overlap close differs > 2%" rule: a closed row the copy caught
+ * while it was still forming differs on its close alone (a volatile name easily > 2%) — a
+ * false positive that threw away the whole cache; and a uniform rescale is the ONLY shape a
+ * basis change has. Pure.
+ */
+export function basisVerdict(local, ref) {
+  const byT = ref instanceof Map ? ref : new Map((ref || []).map((r) => [r.t, r]))
+  let same = 0, n = 0
+  const scaled = []
+  for (const a of local || []) {
+    const b = byT.get(a.t)
+    if (!b) continue
+    if (++n > BASIS_MAX_PAIRS) break
+    const rs = [b.o / a.o, b.h / a.h, b.l / a.l, b.c / a.c]
+    if (!rs.every((x) => finite(x) && x > 0)) continue
+    const lo = Math.min(...rs), hi = Math.max(...rs)
+    if (hi / lo - 1 > BASIS_EPS) continue                // not ONE rescale of the row
+    const r = Math.sqrt(lo * hi)
+    if (Math.abs(r - 1) <= BASIS_EPS) { same++; continue }
+    const va = Number(a.v), vb = Number(b.v)
+    if (va > 0 && vb > 0) {
+      const q = vb / va
+      if (!(Math.abs(q * r - 1) <= BASIS_VOL_TOL || Math.abs(q - 1) <= BASIS_VOL_TOL)) continue
+    }
+    scaled.push(r)
+  }
+  scaled.sort((x, y) => x - y)
+  for (let i = 1; i < scaled.length; i++) if (scaled[i] / scaled[i - 1] - 1 <= BASIS_EPS) return 'changed'
+  return same > 0 ? 'same' : 'unknown'
+}
+
+const _stampOf = (p) => {
+  const ab = p?.adj_basis ?? p?.adjBasis
+  return typeof ab === 'string' && ab ? ab : null
 }
 
 // ── one guard for every server-sourced action ────────────────────────────────
@@ -393,6 +528,7 @@ function applyRest(state, action, ctx, kind) {
   const inHist = numOrNull(p.history_rev)
   const inSeries = numOrNull(p.series_rev)
   const inGrid = p.grid ?? null
+  const inAdj = _stampOf(p)
 
   // S8: seals RESTORED from a persisted copy (spans held before any server answer) are only
   // as good as the identity they were proven under. An answer that cannot confirm it — legacy
@@ -410,8 +546,11 @@ function applyRest(state, action, ctx, kind) {
     }
   }
 
-  // Identity / history change.
-  const ckChanged = inCk != null && state.cacheKey != null && inCk !== state.cacheKey
+  // Identity / history change. A different price basis (P4 adj_basis) is a different row
+  // series exactly like a different cache_key: nothing held on the old one is kept.
+  const ckChanged = (inCk != null && state.cacheKey != null && inCk !== state.cacheKey) ||
+    (inAdj != null && state.adjBasis != null && inAdj !== state.adjBasis)
+  const ckWhy = inCk != null && state.cacheKey != null && inCk !== state.cacheKey ? 'cache_key' : 'adj_basis'
   const histRose = inHist != null && state.historyRev != null && inHist > state.historyRev
   if ((ckChanged || histRose) && kind === 'delta') {
     // The held window is no longer the server's history. Keep showing it (no blank chart)
@@ -419,7 +558,7 @@ function applyRest(state, action, ctx, kind) {
     // generation so requests issued against the old history are dropped.
     if (state.pendingHistoryRev != null && !ckChanged && inHist <= state.pendingHistoryRev) return state
     return finalize(state, {
-      needsFull: true, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev',
+      needsFull: true, invalidatedFor: ckChanged ? ckWhy : 'history_rev',
       pendingHistoryRev: inHist ?? state.pendingHistoryRev, gen: state.gen + 1,
     }, ctx)
   }
@@ -427,7 +566,7 @@ function applyRest(state, action, ctx, kind) {
   if (ckChanged || histRose) {
     // The full answer of the new history replaces the entry ATOMICALLY (one snapshot).
     state = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
-      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev' })
+      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? ckWhy : 'history_rev' })
   }
   // A grid the rows were not built on cannot merge (the server owns row identity).
   const stGrid = inGrid ?? state.grid
@@ -436,6 +575,40 @@ function applyRest(state, action, ctx, kind) {
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   const rev = inSeries
   let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'rest' })
+
+  // ⛔ SPLIT SAFETY (P4). LOCAL rows are a cache copy on the price basis of when it was written;
+  // the server's answer is on today's. A local row stays only when its basis is PROVEN:
+  //   • stamped (`ab`, the copy's adj_basis) — equal to the answer's adj_basis: kept, no test;
+  //     another stamp: every local row is on an old basis;
+  //   • unstamped (a legacy copy) or an answer without adj_basis — `basisVerdict` over the rows
+  //     the answer also carries: 'changed' (≥ 2 rows uniformly rescaled) ⇒ every local row is on
+  //     the old basis; 'same' ⇒ the copy is proven (re-stamped with the answer's basis);
+  //     'unknown' (no overlap evidence) ⇒ a FULL answer that names its basis discards the
+  //     unproven rows once (a delta keeps them for the next full read to judge).
+  // Rows on an old basis LEFT of the answer would draw a cliff that never traded: all local rows
+  // go (a full answer resets the entry, then applies; a delta asks for that full read).
+  const localRows = rows.length ? state.bars.filter((b) => b.src === 'local') : EMPTY_BARS
+  if (localRows.length) {
+    const trusted = (b) => inAdj != null && b.ab === inAdj
+    const unproven = localRows.filter((b) => !trusted(b))
+    const verdict = (inAdj != null && localRows.some((b) => b.ab != null && b.ab !== inAdj)) ? 'changed'
+      : (unproven.length ? basisVerdict(unproven, rows) : 'same')
+    if (verdict === 'changed') {
+      if (kind === 'delta') return finalize(state, { needsFull: true, invalidatedFor: 'basis', gen: state.gen + 1 }, ctx)
+      const reset = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
+        gen: state.gen, invalidatedFor: 'basis' })
+      return applyRest(reset, action, ctx, kind)
+    }
+    if (inAdj != null && unproven.length && (verdict === 'same' || kind === 'full')) {
+      const keep = verdict === 'same'
+      const bars = Object.freeze(state.bars.flatMap((b) => {
+        if (b.src !== 'local' || trusted(b)) return [b]
+        return keep ? [freezeBar({ ...b, ab: inAdj })] : []
+      }))
+      state = Object.freeze({ ...state, bars, baseRev: state.baseRev + 1, ...(keep ? {} : { invalidatedFor: 'basis' }) })
+      working.bars = bars
+    }
+  }
 
   // The forming bar of this answer.
   let devIn = null
@@ -495,7 +668,24 @@ function applyRest(state, action, ctx, kind) {
       const nb = mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym })
       dev = nb.kind === 'drop' ? null : fromChartDev(nb.bar, devIn.rev, DEV_SRC.SERVER)
     } else if (devIn.t === dev.t) {
-      if (devIn.legacy && !finite(dev.rev)) {
+      if (dev.src === DEV_SRC.LOCAL && !dev.ticked) {
+        // A forming bar RESTORED from the caches is a copy taken while the bucket was forming
+        // (its close is as old as the copy), not a live observation. The server's answer takes
+        // its open and close. Its EXTREMES replace the copy's only when the answer is
+        // AUTHORITATIVE for everything the copy saw — `verified_through` (the provider was asked
+        // and every row it returned had reached the store) at or after the copy's read time
+        // (`seenAt`, the cache record's savedAt). Otherwise the answer may lag the copy (an
+        // unverified / delta-deadline / stale-swr serve): H/L merge monotonically (S4 — a
+        // developing bar's high never falls, its low never rises), volume never falls. Only a
+        // bar live ticks have touched since (`ticked`) keeps its close (Writer D's rule below).
+        const nb = mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym })
+        const srv = nb.kind === 'drop' ? null : fromChartDev(nb.bar, devIn.rev, DEV_SRC.SERVER)
+        const vt = numOrNull(p.verified_through)
+        const covers = finite(dev.seenAt) && vt != null && vt >= dev.seenAt
+        dev = (!srv || covers) ? srv : Object.freeze({
+          ...srv, h: Math.max(srv.h, dev.h), l: Math.min(srv.l, dev.l), v: Math.max(srv.v, dev.v),
+        })
+      } else if (devIn.legacy && !finite(dev.rev)) {
         // Writer D's rule (no revs to order by): server open, H/L union, live close stands.
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)
@@ -521,11 +711,18 @@ function applyRest(state, action, ctx, kind) {
     seriesRev: inSeries != null ? Math.max(inSeries, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: inHist != null ? Math.max(inHist, state.historyRev ?? -Infinity) : state.historyRev,
     cacheKey: inCk ?? state.cacheKey,
+    // D4 (review of #1144): an answer that CARRIES rows but names no basis (an unhealed /
+    // fallback store) leaves them unproven — the entry's stamp is NOT carried onto them (the
+    // persisted copy is then unstamped and re-judged by basisVerdict). Row-less answers keep it.
+    adjBasis: inAdj != null ? inAdj : (Array.isArray(p.bars) && p.bars.length ? null : state.adjBasis),
     // The tail judgement of the NEWEST answer (by series_rev) stands — order-independent.
     tailStatus: (p.tail_status != null && (inSeries == null || state.seriesRev == null || inSeries >= state.seriesRev))
       ? p.tail_status : state.tailStatus,
     source: 'rest', restSeen: true, needsFull: false, error: null,
     pendingHistoryRev: kind === 'full' ? null : state.pendingHistoryRev,
+    // A full answer re-proves what it carries: a local hole it did not fill is the server's.
+    localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
+    liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
   }, ctx)
 }
 
@@ -536,6 +733,14 @@ function _unseal(state) {
 }
 
 function _clean(r) { const { legacy: _legacy, ...b } = r; return b }
+
+/** Is the hole after the held bar at `t` (up to the next held bar) inside ONE sealed span? */
+function _absenceSealed(spans, bars, t) {
+  if (!spans?.length) return false
+  const next = bars.find((b) => b.t > t)
+  if (!next) return false
+  return spans.some(([a, c]) => a <= t && c >= next.t)
+}
 const _maxOrKeep = (held, inc) => (inc == null ? held : (held == null ? inc : Math.max(held, inc)))
 
 // ── local hits (pack / IDB / mem) ────────────────────────────────────────────
@@ -545,8 +750,11 @@ function applyLocal(state, action, ctx, source) {
   if (isForeign(state, p)) return state
   const ck = p.cache_key ?? p.cacheKey ?? null
   const hist = numOrNull(p.history_rev ?? p.historyRev)
-  // S8: a copy of another row series / of older sealed history is discarded whole.
+  const ab = _stampOf(p)
+  // S8: a copy of another row series / of older sealed history / on another price basis
+  // (P4 adj_basis — the same refusal as a cache_key mismatch) is discarded whole.
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
+  if (ab != null && state.adjBasis != null && ab !== state.adjBasis) return state
   if (staleReason(state, p, action)) return state
   const rev = numOrNull(p.series_rev ?? p.seriesRev)
   // Two local copies (mem, then IDB) before any server answer: one of a NEWER history replaces
@@ -559,8 +767,32 @@ function applyLocal(state, action, ctx, source) {
   // add deeper rows (never its seals, never its tail).
   const olderCopy = !state.restSeen && rev != null && state.seriesRev != null && rev < state.seriesRev
   const working = { ...state, grid: p.grid ?? state.grid }
-  let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local' })
+  let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local', ...(ab != null ? { ab } : {}) })
   if (!rows.length) return state
+  // The basis of what is held, and whether this copy is PROVEN to be on it: by its stamp, or
+  // (unstamped) by `basisVerdict` over the rows it shares with what is held.
+  const heldBasisProof = (held) => {
+    if (ab != null && (state.adjBasis == null || ab === state.adjBasis)) return true
+    return basisVerdict(rows, held) === 'same'
+  }
+
+  // ⭐ THE PERSISTED DEEP-HISTORY SEGMENT (persist.js `@hist`: scroll-back windows a reload kept).
+  // It only PREPENDS — rows strictly older than everything held — and only when it reaches the
+  // held oldest bar (historyReachesTail: a gap is never drawn as contiguous; persist cut it at
+  // its newest interior hole) on the SAME basis: stamped (adj_basis / history_rev / cache_key,
+  // refused above when another; a history_rev that is not EXACTLY the one held is another
+  // history) or, unstamped, proven by `basisVerdict` over its overlap with the held rows.
+  if (p.history) {
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (!held.length || !historyReachesTail(rows, held)) return state
+    if (hist != null && state.historyRev != null && hist !== state.historyRev) return state
+    if (!heldBasisProof(held)) return state
+    const older = rows.filter((r) => r.t < held[0].t)
+    if (!older.length) return state
+    const bars = mergeRows(state, older)
+    if (bars === state.bars) return state
+    return finalize(state, { bars, depthFloor: Math.max(state.depthFloor || 0, bars.length) }, ctx)
+  }
 
   // S8 PROVENANCE: a persisted copy (persist.js) may carry the seals it held. They are
   // restored only before any server answer, only with the row-series identity and history
@@ -578,7 +810,10 @@ function applyLocal(state, action, ctx, source) {
   }
 
   if (state.restSeen || olderCopy) {
-    // A server answer (or a newer copy) is held: a local copy only adds DEEPER history.
+    // A server answer (or a newer copy) is held: a local copy only adds DEEPER history, and
+    // only on the held basis (stamped, or proven over its overlap with the held rows).
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (state.restSeen && held.length && !heldBasisProof(held)) return state
     const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
     rows = rows.filter((r) => r.t < first)
     if (!rows.length) return state
@@ -600,8 +835,18 @@ function applyLocal(state, action, ctx, source) {
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
     dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.LOCAL)
+    // When the copy was READ (the cache record's savedAt, unix s): what a server answer must be
+    // verified through to replace its extremes (applyRest, restored forming bar).
+    const seenMs = numOrNull(p.saved_at ?? p.savedAt)
+    if (seenMs != null) dev = Object.freeze({ ...dev, seenAt: Math.floor(seenMs / 1000) })
   }
   ;({ bars, developing: dev } = settleDeveloping(st, bars, dev))
+  // An interior HOLE in the copy (barsIDB `_intradayGapStart`, reported by persist as
+  // `repair_from` = the bar before it) that no restored seal explains (a sealed absence is the
+  // server's): remembered, so finalize's rule asks for a full read when a delta could not reach it.
+  const holeIn = numOrNull(p.repair_from)
+  const localHoleFrom = (holeIn != null && !_absenceSealed(spans, bars, holeIn))
+    ? Math.min(state.localHoleFrom ?? Infinity, holeIn) : state.localHoleFrom
   // A persisted contract (hydrate ∘ persist = base, S8) restores its claims.
   const C = numOrNull(p.complete_through ?? p.completeThrough)
   return finalize(state, {
@@ -612,7 +857,9 @@ function applyLocal(state, action, ctx, source) {
     seriesRev: rev != null ? Math.max(rev, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: hist ?? state.historyRev,
     cacheKey: ck ?? state.cacheKey,
+    adjBasis: ab ?? state.adjBasis,
     sealedSpans: spans,
+    localHoleFrom,
     // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
     ...(spans !== state.sealedSpans ? { needsFull: false } : {}),
     source,
@@ -726,9 +973,13 @@ function applyTick(state, action, ctx) {
   if (!finite(t)) return state
   // Never a closed / sealed bucket, never an earlier bucket than the developing one.
   if ((last && t <= last.t) || (dev && t < dev.t)) return state
+  // D/W/M (P3-S2b): the live DAY-volume source rides on the tick (liveFeed.periodTickVolume —
+  // the one owner); the period bar's volume only ever rises from it.
+  const tickV = isDateTf(state.tf) ? numOrNull(ev.v) : null
   if (dev && t === dev.t) {
     const r = foldPrice(toChartBar(dev, state.sym), price, null, state.tf)
     if (r.kind !== 'update') return state
+    if (tickV != null && tickV > (Number(r.bar.volume) || 0)) r.bar = { ...r.bar, volume: tickV }
     const nd = fromChartDev(r.bar, dev.rev, dev.src, true)
     if (_sameDev(nd, dev)) return state
     return finalize(state, { developing: nd }, ctx)
@@ -736,6 +987,7 @@ function applyTick(state, action, ctx) {
   let st = state, nb = bars
   if (dev) { ({ bars: nb } = closeDeveloping(st, nb)); st = { ...st, bars: nb } }
   const po = provisionalOpen(t, price)
+  if (tickV != null) po.volume = tickV
   return finalize(state, { bars: nb, developing: fromChartDev(po, null, DEV_SRC.TICK) }, ctx)
 }
 
@@ -752,6 +1004,11 @@ function applyScrollBack(state, action, ctx) {
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
   if (staleReason(state, p, action)) return state
   const h = numOrNull(p.history_rev)
+  const ab = _stampOf(p)
+  if (ab != null && state.adjBasis != null && ab !== state.adjBasis) {
+    // Deeper history on ANOTHER price basis (P4): what we hold is on an old one — re-read it.
+    return finalize(state, { needsFull: true, invalidatedFor: 'adj_basis', gen: state.gen + 1 }, ctx)
+  }
   if (h != null && state.historyRev != null && h > state.historyRev) {
     // Deeper history from a NEWER history: the window we hold is stale — re-read it whole.
     if (state.pendingHistoryRev != null && h <= state.pendingHistoryRev) return state
@@ -818,4 +1075,20 @@ export function reduce(state, action, ctx = {}) {
 /** Re-derive only the time-dependent status (a clock tick, no data change). */
 export function refreshStatus(state, ctx = {}) {
   return finalize(state, {}, ctx)
+}
+
+/**
+ * True when `next` differs from `prev` ONLY in the developing bar (`developing` / `devRev`):
+ * no closed row, seal, identity, status or meta field moved. The registry's split notify keys
+ * on it — a subscriber that renders the BASE (setData, indicators, resample) is not woken by
+ * it; the developing-bar channel (series.update) is. Generic over every snapshot field, so a
+ * field added later is base by default.
+ */
+export function isDevOnlyChange(prev, next) {
+  if (!prev || !next || prev === next || prev.developing === next.developing) return false
+  for (const k of Object.keys(next)) {
+    if (k === 'developing' || k === 'devRev') continue
+    if (next[k] !== prev[k]) return false
+  }
+  return Object.keys(prev).length === Object.keys(next).length
 }

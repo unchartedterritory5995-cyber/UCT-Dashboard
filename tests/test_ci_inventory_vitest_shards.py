@@ -33,8 +33,11 @@ import vitest_shards  # noqa: E402
 WORKFLOW = REPO / ".github" / "workflows" / "full-suite-report.yml"
 
 #: one shard's real-shaped log: (collected, failed, skipped, files)
-SHARDS = {"1": (1000, 2, 30, 300), "2": (1100, 0, 40, 290),
-          "3": (900, 1, 25, 280), "4": (1200, 0, 35, 275)}
+#: Derived from vitest_shards.COUNT (the one place the count is written), so changing the count never
+#: leaves a fixture describing a different partition.
+_SHAPES = [(1000, 2, 30, 300), (1100, 0, 40, 290), (900, 1, 25, 280), (1200, 0, 35, 275)]
+IDS = vitest_shards.shard_ids()
+SHARDS = {sid: _SHAPES[i % len(_SHAPES)] for i, sid in enumerate(IDS)}
 
 
 def _log(collected, failed, skipped, files):
@@ -96,8 +99,8 @@ def _verdict(v):
 
 # ── totals ───────────────────────────────────────────────────────────────────────────
 
-def test_all_four_shards_is_valid_and_the_totals_are_the_sum(tmp_path):
-    v = _vitest_record(tmp_path, ["1", "2", "3", "4"])
+def test_all_shards_is_valid_and_the_totals_are_the_sum(tmp_path):
+    v = _vitest_record(tmp_path, IDS)
     assert v["collected"] == sum(s[0] for s in SHARDS.values())
     assert v["failed"] == sum(s[1] for s in SHARDS.values())
     assert v["skipped"] == sum(s[2] for s in SHARDS.values())
@@ -106,7 +109,7 @@ def test_all_four_shards_is_valid_and_the_totals_are_the_sum(tmp_path):
     assert v["totals_line_found"] is True
     assert v["shards_missing"] == [] and v["shards_without_totals"] == []
     # each shard keeps its OWN line, and its runner wall time
-    assert sorted(v["shard_totals"]) == ["1", "2", "3", "4"]
+    assert sorted(v["shard_totals"]) == sorted(IDS)
     for sid, (collected, *_rest) in SHARDS.items():
         assert v["shard_totals"][sid]["collected"] == collected
         assert "(%d)" % collected in v["shard_totals"][sid]["tests_line"]
@@ -116,13 +119,13 @@ def test_all_four_shards_is_valid_and_the_totals_are_the_sum(tmp_path):
     assert ci_inventory.vitest_shard_problems(v) == []
 
 
-def test_three_of_four_shards_is_invalid(tmp_path):
-    v = _vitest_record(tmp_path, ["1", "2", "3"])
-    assert v["shards_missing"] == ["4"]
+def test_all_but_one_shard_is_invalid(tmp_path):
+    v = _vitest_record(tmp_path, IDS[:-1])
+    assert v["shards_missing"] == [IDS[-1]]
     assert v["totals_line_found"] is False
     assert v["ok"] is False
     # the count it DID see is three shards' worth — it must not pass for the suite
-    assert v["collected"] == sum(SHARDS[s][0] for s in "123")
+    assert v["collected"] == sum(SHARDS[s][0] for s in IDS[:-1])
     d = _verdict(v)
     assert d["verdict"] == "INVALID"
     assert any("shards_missing" in r for r in d["invalid_because"])
@@ -132,7 +135,7 @@ def test_three_of_four_shards_is_invalid(tmp_path):
 
 def test_a_shard_log_without_a_totals_line_is_invalid(tmp_path):
     killed = "  RUN  v4.0.18\n ✓ src/a.test.js (3 tests)\n"   # cut at the cap, no totals
-    v = _vitest_record(tmp_path, ["1", "2", "3", "4"], logs={"2": killed})
+    v = _vitest_record(tmp_path, IDS, logs={"2": killed})
     assert v["shards_without_totals"] == ["2"]
     assert v["totals_line_found"] is False
     d = _verdict(v)
@@ -143,7 +146,7 @@ def test_a_shard_log_without_a_totals_line_is_invalid(tmp_path):
 def test_a_single_shard_line_never_passes_for_the_whole_suite(tmp_path):
     # Only shard 1 reported, with a perfectly good totals line of its own.
     v = _vitest_record(tmp_path, ["1"])
-    assert v["shards_missing"] == ["2", "3", "4"]
+    assert v["shards_missing"] == IDS[1:]
     assert v["totals_line_found"] is False
     assert _verdict(v)["verdict"] == "INVALID"
 
@@ -163,7 +166,7 @@ def test_an_empty_plan_output_falls_back_to_the_tools_own_shard_list(tmp_path):
 
 def test_a_queued_run_cancelled_before_it_started_is_not_run():
     run = {"status": "completed", "conclusion": "cancelled"}
-    jobs = _jobs(["1", "2", "3", "4"], started=False)
+    jobs = _jobs(IDS, started=False)
     r = ci_inventory.classify_run(run, jobs)
     assert r["state"] == "NOT_RUN"
     # and each of its jobs is "not run", NOT a timeout
@@ -179,10 +182,10 @@ def test_a_queued_run_cancelled_before_it_started_is_not_run():
 
 
 def test_a_never_started_shard_is_named_not_run_and_the_record_is_invalid(tmp_path):
-    jobs = _jobs(["1", "2", "3"])
-    jobs["jobs"] += _jobs(["4"], started=False)["jobs"]
-    v = _vitest_record(tmp_path, ["1", "2", "3"], jobs=jobs)
-    assert v["shards_not_run"] == ["4"]
+    jobs = _jobs(IDS[:-1])
+    jobs["jobs"] += _jobs([IDS[-1]], started=False)["jobs"]
+    v = _vitest_record(tmp_path, IDS[:-1], jobs=jobs)
+    assert v["shards_not_run"] == [IDS[-1]]
     assert _verdict(v)["verdict"] == "INVALID"
 
 
@@ -225,11 +228,11 @@ def test_failed_on_attempt_one_and_passed_later_is_flaky_not_green(tmp_path):
 # ── the plan proof ───────────────────────────────────────────────────────────────────
 
 def test_the_partition_proof_accepts_a_partition_and_refuses_everything_else():
-    full = ["f%02d" % i for i in range(10)]
-    good = {"count": 4, "full": full, "shards": {"1": full[0:3], "2": full[3:6],
-                                                 "3": full[6:8], "4": full[8:10]}}
+    n = vitest_shards.COUNT
+    full = ["f%02d" % i for i in range(2 * n)]
+    good = {"count": n, "full": full, "shards": {sid: full[2 * i:2 * i + 2] for i, sid in enumerate(IDS)}}
     assert vitest_shards.prove(good)["ok"] is True
-    lost = dict(good, shards=dict(good["shards"], **{"4": full[8:9]}))
+    lost = dict(good, shards=dict(good["shards"], **{IDS[-1]: full[-2:-1]}))
     twice = dict(good, shards=dict(good["shards"], **{"1": full[0:4]}))
     absent = dict(good, shards={k: v for k, v in good["shards"].items() if k != "2"})
     copies = dict(good, shards={s: list(full) for s in vitest_shards.shard_ids()})
@@ -264,7 +267,7 @@ def test_the_workflow_shards_vitest_from_the_plan_with_one_artifact_per_shard():
           if "download-artifact" in (s.get("uses") or "")
           and (s.get("with") or {}).get("pattern") == "vitest-log-*"]
     assert len(dl) == 1 and dl[0]["with"].get("merge-multiple") is False
-    assert vitest_shards.COUNT == 4
+    assert vitest_shards.COUNT == 6   # 4 -> 6 on 2026-11-12: shard 4 hit the 60-minute cap
 
 
 def test_one_nightly_queue_not_cancel_and_no_retry_automation():

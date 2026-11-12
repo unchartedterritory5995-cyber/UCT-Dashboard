@@ -48,6 +48,18 @@ export function movePin(pins, index, delta) {
   return next
 }
 
+/**
+ * Move one SLOT from `from` to `to` by repeating movePin one step at a time —
+ * exactly what pressing "Move left" / "Move right" that many times does. Out of
+ * range leaves the rail as it was.
+ */
+export function shiftPin(pins, from, to) {
+  if (from < 0 || from >= pins.length || to < 0 || to >= pins.length) return pins
+  let next = pins
+  for (let i = from; i !== to; i += (to > i ? 1 : -1)) next = movePin(next, i, to > i ? 1 : -1)
+  return next
+}
+
 /** Take one SLOT off the bar. Never touches the library. */
 export function removePin(pins, index) {
   if (index < 0 || index >= pins.length) return pins

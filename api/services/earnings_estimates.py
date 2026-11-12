@@ -11,6 +11,7 @@ import time as _time
 import requests
 
 from api.services.cache import cache
+from api.services.log_redaction import safe_exc as _safe_exc
 from api.services.cache_policy import set_by_completeness
 from api.services import yf_util
 from api.services import fmp_client
@@ -388,7 +389,7 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
         r.raise_for_status()
         return r.json()
     except Exception as exc:
-        _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
+        _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), _safe_exc(exc))
         return None
 
 
