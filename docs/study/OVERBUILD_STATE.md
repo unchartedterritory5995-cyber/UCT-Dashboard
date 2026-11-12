@@ -42,3 +42,13 @@ Then integrate with `apply_upgrade <lesson> upgraded.json final.json --check che
    resolve red-team blockers, run `gen_courses`, the strict audit and the tests.
 3. Show the pilot to the owner in the review page (it highlights every upgraded question with "was / now"); blind old-versus-new.
 4. Fix the briefs from his feedback, then Wave 1 (see the plan, section 5).
+
+## PILOT DONE (2026-11-11), commit 8d38c1f902 (local, not pushed)
+- Rounds: 1 (research/write/check/red team + 30-defect test), 2 (resolve + recheck), 3 (final verify of the 24 questions edited since).
+  Workflows wf_e70513a7-597, wf_87fab828-c56, wf_fd3d02b2-9b6. 33 agents, 6.03M tokens, about 45 min.
+- Result: 113 live questions with `simple` (66 SET.07, 25 F9.02, 22 F6.04); 27 three-answer questions now four; 55 deeper notes; 8 cut,
+  4 new. Validator, strict audit, quote check (0 missing) and 231 tests green. Cost about 44k tokens per question (51k with the one-off test).
+- Finding: four independent rounds still left small fixes (round 3 found 10 of 24), so the owner's sampled review is required; the
+  full library at this cost is about 230M tokens, risk-routed about 120-150M. Report for the owner: StudyReview/plan/Pilot-report.html.
+- Tool facts: apply_upgrade applies cuts LAST; it can set calc and chart; it cannot change `format` (change by hand, as for SET.07 q33).
+- Open: the owner's choice of scale (A all / B risk-routed / C priority first) and his pilot review. Do NOT launch a full wave before he picks.
