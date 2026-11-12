@@ -2474,6 +2474,11 @@ def main(argv=None) -> int:
     """The CLI. Exit 0 when the run finished (or had nothing to do), 1 when it did
     not, 2 on a usage error. The receipt prints as one ``receipt {json}`` line."""
     import sys
+    # ⛔ This CLI runs over ssh in a process that never imported the web app, so nothing
+    # else installed the credential redaction (2026-11-11: the FMP key reached the pod's
+    # logs from here). Idempotent: factory + filter on whatever root handlers exist now.
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     try:
         args = _parser().parse_args(list(argv) if argv is not None else None)
     except SystemExit as e:                                  # argparse: 2 on error, 0 on --help
@@ -2563,4 +2568,7 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     raise SystemExit(main())

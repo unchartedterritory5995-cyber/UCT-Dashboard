@@ -97,6 +97,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     force=True,
 )
+_install_log_redaction()   # basicConfig(force=True) replaced the handlers: re-attach the filter
 # Quiet down third-party libs that flood INFO with request-level noise.
 for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):

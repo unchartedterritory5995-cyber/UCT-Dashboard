@@ -393,6 +393,7 @@ def _build_app() -> FastAPI:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    _install_log_redaction()   # filter on the handlers basicConfig just made
     # Quiet httpx/httpcore like web and worker do (api/main.py). At INFO httpx
     # logs every request URL, and the Massive URLs carry `apiKey=` in the query
     # string, so this tier was writing the provider key into its logs.
