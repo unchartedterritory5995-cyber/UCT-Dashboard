@@ -23,7 +23,7 @@ def store(tmp_path, monkeypatch):
 
 def _report(**over):
     r = {"page": "/charts", "client": "browser", "ttfb": 120, "fcp": 600, "lcp": 900, "dom_ready": 700,
-         "load": 1500, "long_task_ms": 80, "long_tasks": 2,
+         "load": 1500, "long_task_ms": 80, "long_tasks": 2, "candles": 640,
          "api": [{"route": "/api/bars", "ms": 140, "ok": True}, {"route": "/api/breadth-monitor/session", "ms": 60, "ok": False}]}
     r.update(over)
     return r
@@ -148,3 +148,30 @@ def test_the_admin_read_needs_an_admin(client, store):
     app.dependency_overrides[authmw.require_admin] = lambda: {"id": "admin", "role": "admin"}
     pb.record(_report(), ip="1.1.1.1", country_header="US")
     assert c.get("/api/admin/perf").json()["loads"] == 1
+
+
+def test_time_to_first_candles_is_stored_summarised_and_optional(store):
+    now = time.time()
+    for i, c in enumerate([500, 600, 700]):
+        pb.record(_report(candles=c), ip=f"10.0.3.{i}", country_header="US", now=now)
+    no_chart = _report(page="/journal")
+    del no_chart["candles"]
+    assert pb.record(no_chart, ip="10.0.3.9", country_header="US", now=now)["stored"] == 1
+    s = pb.summary(now=now + 1)
+    charts = next(p for p in s["pages"] if p["page"] == "/charts")
+    assert charts["candles"] == {"p50": 600, "p75": 700, "p95": 700}
+    journal = next(p for p in s["pages"] if p["page"] == "/journal")
+    assert journal["candles"] == {"p50": None, "p75": None, "p95": None}
+
+
+def test_a_store_from_before_candles_gains_the_column_and_keeps_its_rows(store, monkeypatch):
+    conn = sqlite3.connect(store)
+    conn.executescript(pb._SCHEMA.replace(" candles INTEGER,", ""))
+    conn.execute("INSERT INTO perf_loads (created_at,page,client,lcp,rate_key) VALUES (?,?,?,?,?)", (time.time(), "/charts", "browser", 900, "k"))
+    conn.commit()
+    conn.close()
+    assert "candles" not in {r[1] for r in sqlite3.connect(store).execute("PRAGMA table_info(perf_loads)")}
+    monkeypatch.setattr(pb, "_migrated", set())
+    assert pb.record(_report(candles=432), ip="10.0.4.1", country_header="US")["stored"] == 1
+    rows = _rows(store)
+    assert [r["candles"] for r in rows] == [None, 432] and rows[0]["lcp"] == 900

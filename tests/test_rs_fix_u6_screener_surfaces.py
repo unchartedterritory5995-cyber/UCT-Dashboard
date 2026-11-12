@@ -277,8 +277,13 @@ def test_rank_1m_does_not_claim_the_rating_weights_21_sessions():
     for col in ("rs_rating_6m", "rs_rating_9m", "rs_rating_12m"):
         assert "recency-weighted" in _desc(col), col
         assert "63-session close ratio counts double" in _desc(col), col
-    assert "recency-weighted" not in d and "counts double" not in d, "1M and 3M stay plain returns"
-    assert "plain 63-session" in _desc("rs_rating_3m")
+    assert "recency-weighted" not in d and "counts double" not in d, "1M stays a plain return"
+    # 3M is the equal-weighted average of the 1-, 2- and 3-month returns (2026-11-12): said in words, and not
+    # dressed as the recency-weighted blend or as the plain 63-session return it used to be
+    d3 = _desc("rs_rating_3m")
+    assert "equal-weighted average of the 1-, 2- and 3-month returns" in d3
+    assert "21-, 42- and 63-session" in d3
+    assert "recency-weighted" not in d3 and "counts double" not in d3 and "plain 63-session" not in d3
 
 
 def test_no_unmeasured_frequency_claims_on_the_rs_highs():

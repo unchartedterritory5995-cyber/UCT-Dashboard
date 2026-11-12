@@ -396,7 +396,9 @@ def _unify(items: list, *, append_missing: bool = True) -> list:
     one without gets ``rs_rank_source = "fast"`` and nothing else changes. With
     ``append_missing`` (the by-symbol MAP, :func:`cached_rank_map`), a name rated
     in the nightly but absent from the hourly list (an ETF, which the nightly
-    rates by interpolation and the chart shows a rating for) is appended with
+    rates by interpolation, or, since 2026-11-12, any stock outside the cap
+    universe the hourly rank covers: the nightly ranks every stock with a recent
+    price, so about 3,200 more names carry a rating) is appended with
     ``rs_score None`` and empty ``returns``, so the badge and the chart agree on
     it too. The ranked LIST (:func:`unified_rankings`) passes ``False``: such a
     row has no score and no returns, so in the RS leaders panel it is a blank

@@ -71,7 +71,8 @@ IBD_TERMS: Tuple[Tuple[str, int, float], ...] = (
 #: The IBD-style term that cannot be missing.
 IBD_REQUIRED_TERM = "q1"
 #: ``(column, bars_back)`` for the rating history's component percentiles
-#: (plan §7 item 19): plain 1/3/6/12-month returns.
+#: (plan §7 item 19): the 1/3/6/12-month windows (only ``m1`` is still a plain return
+#: now: ``m3`` is an equal-weighted blend and ``m6``/``m12`` IBD-style blends, below).
 IBD_COMPONENTS: Tuple[Tuple[str, int], ...] = (
     ("m1", 21),
     ("m3", 63),
@@ -89,7 +90,7 @@ IBD_M9_COMPONENT: Tuple[str, int] = ("m9", 189)
 #: 2026-11-11, from the 61-name Deepvue fit). ``(column, ((bars_back, weight), ...))``:
 #: the newest quarter counts double, each older quarter once, so ``m6`` blends the
 #: 63- and 126-bar ratios 2:1, ``m9`` adds the 189-bar ratio and ``m12`` the
-#: 252-bar one. ``m1`` and ``m3`` stay plain returns (``IBD_COMPONENTS``). A rank
+#: 252-bar one. ``m1`` stays a plain return and ``m3`` is the equal-weighted blend below (``IBD_COMPONENTS``). A rank
 #: needs the component's WHOLE window (its last term): a 150-bar stock has no 9M or
 #: 12M rank, as before, and is not given its 6M blend under a longer label. Inside a
 #: covered window an unusable term (a non-positive reference close) is dropped and
@@ -98,6 +99,28 @@ IBD_STYLE_COMPONENT_TERMS: Tuple[Tuple[str, Tuple[Tuple[int, int], ...]], ...] =
     ("m6", ((63, 2), (126, 1))),
     ("m9", ((63, 2), (126, 1), (189, 1))),
     ("m12", ((63, 2), (126, 1), (189, 1), (252, 1))),
+)
+
+#: The 3M component rank is an EQUALLY WEIGHTED average of the 1-, 2- and 3-month
+#: returns (owner decision 2026-11-12, from the production fit against 61 Deepvue
+#: readings: Spearman 0.856 -> 0.994 and mean miss 10.2 -> 6.9 points over the plain
+#: 63-bar return; Deepvue's docs call its 3M "equal weighted"). Same row shape and
+#: the same rules as :data:`IBD_STYLE_COMPONENT_TERMS`: each term is the ratio
+#: ``close / close[-n]``, a rank needs the WHOLE window (its longest term, 63 bars), an
+#: unusable later term is dropped with the weights renormalised, and an unusable FIRST
+#: term leaves no value. The 63-bar term is listed first because it is the one that
+#: must be usable (the order does not change the mean). Averaging the ratios ``1 + r / 100`` and averaging the returns
+#: ``r`` order the stocks identically (one is a linear map of the other), so the
+#: ratio form is used to match the IBD-style blends. ``m1`` stays the plain 21-bar
+#: return and ``m6``/``m9``/``m12`` are unchanged.
+EQUAL_WEIGHT_COMPONENT_TERMS: Tuple[Tuple[str, Tuple[Tuple[int, int], ...]], ...] = (
+    ("m3", ((63, 1), (42, 1), (21, 1))),
+)
+
+#: Every blended component rank (the IBD-style three and the equal-weighted one),
+#: the rows :func:`ibd_style_component` is called with.
+BLENDED_COMPONENT_TERMS: Tuple[Tuple[str, Tuple[Tuple[int, int], ...]], ...] = (
+    EQUAL_WEIGHT_COMPONENT_TERMS + IBD_STYLE_COMPONENT_TERMS
 )
 
 
@@ -122,14 +145,15 @@ def period_return(closes: Sequence[float], bars_back: int) -> Optional[float]:
 def ibd_style_component(closes: Sequence[float], terms: Sequence[Tuple[int, int]]) -> Optional[float]:
     """The weighted close-ratio a long component rank is taken over, or ``None``.
 
-    ``terms`` is one row of :data:`IBD_STYLE_COMPONENT_TERMS`. Each term is the
-    ratio ``close / close[-n]`` (``1 + period_return / 100``); the weighted mean
-    over the terms the series can supply is returned, and ``None`` when the series
-    does not reach the LAST term's window (so a young stock has no 12M value built
-    from its 6M terms) or the first term (63 bars) is unusable. A rank only needs the
-    order, so the ratio, not a percentage, is the value ranked.
+    ``terms`` is one row of :data:`IBD_STYLE_COMPONENT_TERMS` or
+    :data:`EQUAL_WEIGHT_COMPONENT_TERMS`. Each term is the ratio ``close / close[-n]``
+    (``1 + period_return / 100``); the weighted mean over the terms the series can
+    supply is returned, and ``None`` when the series does not reach the LONGEST
+    term's window (so a young stock has no 12M value built from its 6M terms) or the
+    first term (63 bars, in every row) is unusable. A rank only needs the order, so
+    the ratio, not a percentage, is the value ranked.
     """
-    if not terms or len(closes or ()) <= terms[-1][0]:
+    if not terms or len(closes or ()) <= max(n for n, _w in terms):
         return None
     parts: List[Tuple[float, float]] = []
     for i, (bars_back, weight) in enumerate(terms):
