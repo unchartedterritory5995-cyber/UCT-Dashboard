@@ -3221,6 +3221,14 @@
       "values": ["0", "1"],
       "note": "Desktop plan 5.1 (v2 Task 30): the KILL SWITCH for the desktop app's telemetry door, POST /api/desktop/event (api/routers/desktop_events.py, mounted in api/main.py). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means the web service stores reports; 0/false/no/off answers {enabled: false}, writes nothing, and the hourly alert job (desktop_events_alerts) posts nothing. Read per request in api/services/desktop_events.py::enabled(). Turning it off stops COLLECTION and never deletes a stored row. ENUM-ONLY: every stored field is a fixed set or a digits-and-dots pattern (event, shell_version, os, error_code), an optional random install id stored only as a salted hash, and a signed-in flag; never a message, URL, path, member id or IP. Session optional because launch and crash events happen before sign-in. Own store DESKTOP_EVENTS_DB_PATH (default /data/desktop_events.db), 90-day retention, hard cap 100,000 rows. Halt triggers (same crash or update_error on 2+ machines in 24 h, or a launch-failure loop) post once to the OPS destination; one digest a day after 07:00 ET. Rails: tests/test_desktop_events.py."
     },
+    "PERF_BEACON_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-11",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "Desktop speed plan Step 10.1: the KILL SWITCH for real-user speed measurement, POST /api/perf/beacon (api/routers/perf_beacon.py, mounted in api/main.py; client app/src/lib/perfBeacon.js, loaded only after the page load event). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means reports are stored; 0/false/no/off answers {enabled: false} and writes nothing. Read per request in api/services/perf_beacon.py::enabled(). Never deletes a stored row. NUMBERS AND ENUMS ONLY: page = first path segment, client browser|desktop, timings in ms, API calls as /api/<word>[/<word without digits>], country from CF-IPCountry; never a URL, ticker, id, member id or IP (rate limit keys on a salted IP hash). Own store PERF_BEACON_DB_PATH (default <DATA_DIR>/perf_beacon.db), 30-day retention, cap 300,000 loads. Admin read GET /api/admin/perf."
+    },
     "PRECOMPRESSED_ASSETS_ENABLED": {
       "status": "dark",
       "since": "2026-11-10",
@@ -3592,10 +3600,10 @@
       ],
       "owner": "pine parity programme",
       "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON. Same day the owner set '0' on Railway web as a HOLD before the build-arg fix (recorded in e2fe145fcb on fix/pine-610-build-flag, which never reached master). The hold is lifted by REMOVING the variable (unset = ON) once F-15 (#617) is live: F-15 is the defect that bites once the upgrade is ON (an Agent delete -> Undo restored a saved Pine indicator without its stored script and engine stamp, and reported it confirmed, so that indicator silently stopped picking up engine upgrades).",
-      "railway_value": "'0' on web (owner hold since 2026-11-01); removal follows this PR's deploy (#617, F-15). Unset on every other service.",
-      "baked_value": "'0' expected in the live bundle (set on web and declared as a Dockerfile.web ARG by f7c55f0383); NOT re-measured by #617 - measure the served JS after the variable is removed",
-      "baked_measured_on": "not measured since the 2026-11-01 hold; the 2026-11-01 entry was read from Dockerfile.web's ARG list, not the served bundle",
-      "last_changed": "2026-11-01 (owner set '0' on web as a hold; ledger corrected 2026-11-10 in #617)",
+      "railway_value": "unset on every service. The owner removed the web hold on 2026-11-11 after F-15 (#617) went live (`railway variable delete` then `railway redeploy`, deploy 86cea38b SUCCESS 12:59Z).",
+      "baked_value": "'' (empty string), which reads as ON. Dockerfile.web's ENV line turns an unset ARG into an empty string, so the bundle inlines `VITE_SAVED_SCRIPT_UPGRADE:\"\"`, not an absent key. The single reader does `(x ?? '1') !== '0'` and `'' !== '0'` is true. Before the removal the served bundle read `VITE_SAVED_SCRIPT_UPGRADE:\"0\"`.",
+      "baked_measured_on": "2026-11-11, from the served main bundle (/assets/index-*.js) before (index-DZQQI9J1.js: \"0\") and after (index-Bre-B7a9.js: \"\") the redeploy",
+      "last_changed": "2026-11-11 (owner removed the web hold after #617 went live; the hold was set 2026-11-01)",
       "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },

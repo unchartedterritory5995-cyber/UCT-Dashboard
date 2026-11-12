@@ -779,6 +779,39 @@ const AWAITING_A_DECISION = {
   // deleting is the owner's call.
   'app/src/pages/study/ui/MarkBubble.jsx':
     'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
+  // ── BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11) ──────────
+  // Chart-data consolidation program (ARCH-PLAN, BARSTORE-SPEC). Step 1 is owner-approved
+  // as NEW FILES ONLY with no live behavior change; StockChart starts consuming these in P3
+  // (S1 source switch, S3 diffRenderer + framing). types/reducer/status/registry land with
+  // P2a (PR #1105) — this PR (#1108) must merge with or after it.
+  'app/src/components/chart/rightMargin.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): right-margin policy owner; framing.js imports it, StockChart adopts it (W-R / P3-S3).',
+  'app/src/data/barStore/adapter.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): snapshot → series adapter.',
+  'app/src/data/barStore/diffRenderer.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only future setData/update site.',
+  'app/src/data/barStore/framing.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): framing contract.',
+  'app/src/data/barStore/types.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): keys + shapes (P2a).',
+  'app/src/data/barStore/reducer.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only merge path (P2a).',
+  'app/src/data/barStore/status.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): status derivation (P2a).',
+  'app/src/data/barStore/registry.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): key → store registry (P2a).',
+  'app/src/data/barStore/persist.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only cache reader/writer of the store (P2b).',
+  'app/src/data/barStore/network.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): per-key request loop + the store URL owner (P2b).',
+  'app/src/data/barStore/liveFeed.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): push / tick-fallback / D-W-M fold subscriptions (P2b).',
+  'app/src/data/barStore/index.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): public API (P2b).',
+  'app/src/data/barStore/useBarSnapshot.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): React binding (P2b).',
+  'app/src/data/barStore/prefetch.js':
+    'BarStore P2 — wired in P3 S1 (ARCH-PLAN): ensure/prefetch/peek + the prefetchBars drop-in facade (P2c).',
   }
 
 /**
@@ -832,6 +865,7 @@ const PARKING_EXPIRES = {
   // (W9-T13a STRATEGY REPORT METRICS' expiry, 2026-12-31, was deleted 2026-11-08 with its block:
   // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch

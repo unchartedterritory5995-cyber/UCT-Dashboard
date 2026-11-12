@@ -218,7 +218,7 @@ def test_put_bars_triggers_recovery_on_malformed(tmp_path, monkeypatch):
     with pytest.raises(sqlite3.DatabaseError):
         bars_sqlite.put_bars(
             "AAPL", "D",
-            [{"t": 20240101, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+            [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
         )
 
     assert triggered["count"] == 1, "recovery should be scheduled exactly once"
@@ -265,7 +265,7 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
 
     n = bars_sqlite.put_bars(
         "AAPL", "D",
-        [{"t": 20240101, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+        [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
     )
     assert n == 1
     assert flaky.calls == 2, "expected one retry after a single locked error"

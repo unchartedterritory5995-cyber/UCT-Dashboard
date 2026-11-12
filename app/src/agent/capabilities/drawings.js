@@ -74,6 +74,9 @@ const anchorsOf = (d) => ((d.points || []).some(p => p?.time != null)
 
 export const drawingKind = {
   name: 'drawing',
+  source: 'drawings',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Drawings aren't available on this page — open Charts to draw on a chart.",
+  empty: "There are no drawings on these charts yet.",
   // Drawings are keyed by SYMBOL (and Drawing Board), not by the open layout: a layout switch
   // does not change what a drawing id means, so it neither pins a proposal nor blocks an Undo.
   boardScoped: false,

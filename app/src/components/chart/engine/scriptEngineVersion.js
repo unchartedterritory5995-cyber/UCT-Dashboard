@@ -129,7 +129,9 @@
 /** 45 = DIV-4 paint/colour: translator output changes for paints with a foldable non-literal offset (HP-1 does not digest paints); runtime colour reasons name their limit */
 /** 46 = LANE2 (fix/pine-b0-na-seed): the B0 `na` seed lane, with its N1 version gate; see docs/pine/evidence/2026-11-10-lane2-b0/EVIDENCE.md */
 /** 47 = OZ stack: DIV-3 table.cell replace + W-C22-DEL withheld deletes/collector + OZ silent-zero naming */
-export const SCRIPT_ENGINE_VERSION = 47
+/** 48 = `x = na(x[k]) ? na : U` refuses `pine:cycle` by name in every version and both lanes (LANE2-r1r3 N1 v1/v2, N3 v3+); see docs/pine/evidence/2026-11-11-engine48-na-self-ref/EVIDENCE.md */
+/** 49 = a v3+ declaration that reads its own history (`x = … x[k] …`, not declared before) refuses `pine:cycle` by name in both lanes (review ENG48-1096 note 4, N2); v1/v2 unchanged; see docs/pine/evidence/2026-11-11-engine49-v3-self-ref/EVIDENCE.md */
+export const SCRIPT_ENGINE_VERSION = 49
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
