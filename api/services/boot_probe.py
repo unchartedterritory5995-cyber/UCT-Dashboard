@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -44,7 +45,7 @@ _log = logging.getLogger("boot_probe")
 #: i.e. seconds after the process starts -- close enough for a boot-window gate.
 _T0 = time.monotonic()
 
-BOOT_WINDOW_S = 300.0        # `[boot-probe]` summary lines only inside this window
+BOOT_WINDOW_S = 420.0        # `[boot-probe]` summary lines only inside this window
 ENTRY_LOG_WINDOW_S = 600.0   # route-entry lines only inside this window
 TICK_S = 5.0
 STACK_AT_S = (10.0, 30.0, 90.0, 180.0, 360.0)
@@ -251,11 +252,64 @@ def _io_pressure() -> Optional[str]:
     return None
 
 
+_CLK_TCK = 100.0
+try:
+    _CLK_TCK = float(os.sysconf("SC_CLK_TCK"))
+except Exception:  # noqa: BLE001 -- not Linux
+    pass
+_GROUP_TAIL = re.compile(r"[-_]\d+$")
+_DEFAULT_NAME = re.compile(r"^Thread-\d+ \((.+)\)$")
+
+
+def _thread_cpu_ticks() -> Optional[Dict[int, float]]:
+    """{native tid: utime+stime seconds} for every thread of this process (Linux only)."""
+    try:
+        out: Dict[int, float] = {}
+        for tid in os.listdir("/proc/self/task"):
+            try:
+                with open(f"/proc/self/task/{tid}/stat", "r") as fh:
+                    rest = fh.read().rsplit(")", 1)[1].split()
+                out[int(tid)] = (int(rest[11]) + int(rest[12])) / _CLK_TCK
+            except Exception:  # noqa: BLE001 -- the thread ended mid-read
+                continue
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _thread_group(name: str) -> str:
+    """`ThreadPoolExecutor-3_7` and `ThreadPoolExecutor-3_2` are one pool: strip index tails."""
+    m = _DEFAULT_NAME.match(name)
+    if m:  # an unnamed `Thread(target=f)` is "Thread-12 (f)": the target is the useful part
+        name = m.group(1)
+    prev = None
+    while prev != name:
+        prev, name = name, _GROUP_TAIL.sub("", name)
+    return name or "?"
+
+
+def hot_threads(before: Dict[int, float], after: Dict[int, float], wall: float,
+                names: Dict[int, str], top: int = 4) -> str:
+    """The thread groups that burned the most CPU between two readings, as `name 85%`.
+    `names` maps native tid -> Python thread name; a tid Python does not know (a native
+    library's own thread) is reported as `native`."""
+    groups: Dict[str, float] = {}
+    for tid, t in after.items():
+        d = t - before.get(tid, 0.0)  # a thread born inside the interval: all of its CPU is new
+        if d <= 0:
+            continue
+        g = _thread_group(names.get(tid, "native"))
+        groups[g] = groups.get(g, 0.0) + d
+    ranked = sorted(groups.items(), key=lambda kv: -kv[1])[:top]
+    return ",".join(f"{g} {100.0 * d / max(1e-6, wall):.0f}%" for g, d in ranked if d / max(1e-6, wall) >= 0.05)
+
+
 class _Deltas:
     def __init__(self) -> None:
         self.cpu = time.process_time()
         self.wall = time.monotonic()
         self.io = _read_proc_io()
+        self.threads = _thread_cpu_ticks()
 
     def step(self) -> str:
         cpu, wall, io = time.process_time(), time.monotonic(), _read_proc_io()
@@ -268,7 +322,13 @@ class _Deltas:
         psi = _io_pressure()
         if psi:
             parts.append(f"io-full {psi}")
-        self.cpu, self.wall, self.io = cpu, wall, io
+        threads = _thread_cpu_ticks()
+        if threads is not None and self.threads is not None:
+            names = {getattr(t, "native_id", None): t.name for t in threading.enumerate()}
+            hot = hot_threads(self.threads, threads, dw, names)
+            if hot:
+                parts.append(f"hot={hot}")
+        self.cpu, self.wall, self.io, self.threads = cpu, wall, io, threads
         return " ".join(parts)
 
 
