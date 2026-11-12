@@ -97,3 +97,11 @@ def test_a_cut_beats_an_upgrade_and_a_pass_and_a_calc_can_be_replaced():
                          "q": "The bid is 20.00 and the ask is 20.10. What is the spread in dollars?",
                          "why": "0.10. Ask minus bid."}}, "b")
     assert cl.unit_problems(d2) == []
+
+
+def test_a_fact_shipped_inside_a_checker_fix_is_added_to_the_lesson():
+    d = copy.deepcopy(_unit())
+    fact = {"id": "f9", "source": "s1", "quote": "The bid price is the highest price a buyer will pay.", "claim": "Bid."}
+    au.apply(d, {}, "b", {"q01": {"status": "fix", "notes": "x", "fix": {"facts": ["f1", "f9"], "new_fact": fact, "house": True}}})
+    assert any(f["id"] == "f9" for f in d["facts"]) and _first(d, "q01")["facts"] == ["f1", "f9"]
+    assert "new_fact" not in _first(d, "q01") and "house" not in _first(d, "q01")

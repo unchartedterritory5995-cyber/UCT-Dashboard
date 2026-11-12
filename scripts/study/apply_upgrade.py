@@ -85,7 +85,17 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
             verify[key] = {"status": "cut", "by": "checker", "fixed": False, "notes": text}
         elif status == "fix":
             if isinstance(ck.get("fix"), dict) and ck["fix"]:
-                _set_fields(q, ck["fix"])
+                fx = dict(ck["fix"])
+                # a checker sometimes ships the fact its fix cites inside the fix itself: add it to the lesson
+                embedded = ([fx.pop("new_fact")] if isinstance(fx.get("new_fact"), dict) else []) + list(fx.pop("new_facts", None) or [])
+                fx.pop("new_fact", None)
+                fx.pop("house", None)
+                have = {x.get("id") for x in doc.get("facts") or []}
+                for fact in embedded:
+                    if isinstance(fact, dict) and fact.get("id") and fact["id"] not in have:
+                        doc.setdefault("facts", []).append(fact)
+                        have.add(fact["id"])
+                _set_fields(q, fx)
             verify[key] = {"status": "pass", "by": "checker", "fixed": True, "notes": text}
         elif status == "pass":
             verify[key] = {"status": "pass", "by": "checker", "fixed": False, "notes": text}
