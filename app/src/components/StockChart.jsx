@@ -8302,6 +8302,11 @@ export default function StockChart({
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
+  // P3-S1: the snapshot's developing bar (legacy shape, unix t) for Writer D under BARSTORE —
+  // written ONLY by useBarSnapshotBars (render: the base snapshot's; its devRev channel: every
+  // newer one, then `_storeDevPaintRef` paints it); null under the legacy source.
+  const _storeDevRef = useRef(null)
+  const _storeDevPaintRef = useRef(null)
   // ── Bar DATA region → chart/useLegacyChartBars.js | chart/useBarSnapshotBars.js (P3-S1 `useChartBars`) ──
   const {
     bars, data, error, mutate, isValidating, compareData, idbReadyForRef, idbBarsRef,
@@ -8319,12 +8324,8 @@ export default function StockChart({
     _IDB_TAIL_WAIT_MS, _barsHistorySplitEnabled, _correctFirstPaintEnabled, _developingBarISO,
     _effLivePrice, _etPeriodStartISO, _firstPaintEdgeEnabled, _historyLoader,
     _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled, _persistHistorySoon,
-    barsSwrOnErrorRetry, fetcher,
+    barsSwrOnErrorRetry, fetcher, _storeDevRef, _storeDevPaintRef,
   })
-  // P3-S1: the snapshot's developing bar (legacy shape, unix t) for Writer D's re-top under
-  // BARSTORE; null under the legacy source (its re-top keeps the reconcile path).
-  const _storeDevRef = useRef(null)
-  _storeDevRef.current = (BARSTORE && data?.developing && (!data.ticker || data.ticker === _symU)) ? data.developing : null
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -12344,10 +12345,7 @@ export default function StockChart({
         // the server's developing bar, the push frames and the tick fallback — reducer I1–I4), so
         // it is seeded verbatim and the re-top below re-applies exactly it. No reconcile here: the
         // store already is the reconcile. A D/W/M bar the session preview owns is left to it.
-        const _sd = BARSTORE ? _storeDevRef.current : null
-        const _storeDev = (_sd && !(['D', 'W', 'M'].includes(resolvedTf) && sessionOwnsDailyRef.current))
-          ? { time: adjustTime(_sd.t), open: _sd.o, high: _sd.h, low: _sd.l, close: _sd.c, volume: Number(_sd.v) || 0, sym }
-          : null
+        const _storeDev = BARSTORE ? _writerDRef.current.storeBar() : null
         // lib/liveBarMerge.reconcileWithServerTail — the same rules as the comment below,
         // PLUS: a developing bar ONE bucket past the fetched tail (the live writer opened it,
         // the poll hasn't ingested it) is KEPT and re-appended by the re-top, never replaced
@@ -12378,7 +12376,7 @@ export default function StockChart({
           //   the price genuinely traded to, blinking while the candle is developing, then
           //   stable once it closes). Take the max/min of BOTH so a real live extension
           //   stays put and a server correction (higher/lower) is still respected.
-          liveBarRef.current = BARSTORE ? _storeDev : _rec.bar
+          _writerDRef.current.seed(BARSTORE ? _storeDev : _rec.bar)
         }
       }
     }
@@ -12421,41 +12419,9 @@ export default function StockChart({
     // P3-S1: under BARSTORE this branch is THE re-top — from the snapshot's developing bar
     // (seeded into liveBarRef above); the Finnhub re-top below is never taken.
     if ((BARSTORE || barsPushActiveRef.current) && !provisionalStaleRef.current) {
-      // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
-      // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
-      // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
-      // the ~30s-stale server developing bar from _applyData would seam every SWR poll
-      // (review #7). Guard time-regress (server tail may be ahead of the last push bar).
-      const lb = liveBarRef.current
-      if (lb && lb.time != null && Number.isFinite(lb.close) && lb.close > 0) {
-        try {
-          if (isOhlcType(cs.chartType)) {
-            candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
-          } else {
-            candleSeriesRef.current.update({ time: lb.time, value: lb.close })
-          }
-          // The series tail is now the live bar (same bucket, or one re-appended past the
-          // fetched tail) — keep lastBarRef in step so B's contiguity/merge and A/C see it.
-          if (!lastBarRef.current || lb.time >= lastBarRef.current.time) {
-            lastBarRef.current = { time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close,
-              volume: Number.isFinite(lb.volume) ? lb.volume : (lastBarRef.current?.volume || 0) }
-          }
-          // Restore the push-owned volume too — else the volume bar shows ~30s-stale server
-          // volume until the next AM push (a flicker every SWR poll, retro-audit #5).
-          if (volumeSeriesRef.current && Number.isFinite(lb.volume)) {
-            const _pbD = prevBarsRef.current
-            const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
-            const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
-            // Full-opacity default color (same derivation as volData) — no lighter tint.
-            const _vUpD = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDownD = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
-            volumeSeriesRef.current.update({
-              time: lb.time, value: lb.volume,
-              color: _upD ? _vUpD : _vDownD,
-            })
-          }
-        } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
-      }
+      // Writer D's re-top: ONE function, two triggers — this setData and the store's devRev
+      // channel (`_writerDRef`, next to the updateChart effect).
+      _writerDRef.current.retop()
     } else if (_retopLive?.price && lastBarRef.current
                && !(['D', 'W', 'M'].includes(resolvedTf)
                     && (sessionOwnsDailyRef.current
@@ -14875,6 +14841,70 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // ⭐ WRITER D — THE DEVELOPING BAR'S PAINT (P3-S1 review fix 1). ONE function, two triggers:
+  //   • after every setData (updateChart → `retop`), as before;
+  //   • under BARSTORE, the store's devRev channel (`_storeDevPaintRef`, coalesced by the registry
+  //     to one call per animation frame): seed liveBarRef from the snapshot's developing bar and
+  //     update() the candle + volume. A tick that moves only the developing bar costs no React
+  //     render, no setData and no indicator recompute — the base path runs on baseRev only.
+  // Refs, reassigned each render: they always close over this render's settings.
+  const _writerDRef = useRef(null)
+  _writerDRef.current = {
+    /** The snapshot's developing bar in chart shape, or null (a D/W/M bar the session preview owns). */
+    storeBar() {
+      const _sd = _storeDevRef.current
+      return (_sd && !(['D', 'W', 'M'].includes(resolvedTf) && sessionOwnsDailyRef.current))
+        ? { time: adjustTime(_sd.t), open: _sd.o, high: _sd.h, low: _sd.l, close: _sd.c, volume: Number(_sd.v) || 0, sym }
+        : null
+    },
+    /** THE seed of the held developing bar (legacy reconcile result, or the store's). */
+    seed(bar) { liveBarRef.current = bar },
+    retop() {
+      // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
+      // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
+      // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
+      // the ~30s-stale server developing bar from _applyData would seam every SWR poll
+      // (review #7). Guard time-regress (server tail may be ahead of the last push bar).
+      const lb = liveBarRef.current
+      if (lb && lb.time != null && Number.isFinite(lb.close) && lb.close > 0) {
+        try {
+          if (isOhlcType(cs.chartType)) {
+            candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
+          } else {
+            candleSeriesRef.current.update({ time: lb.time, value: lb.close })
+          }
+          // The series tail is now the live bar (same bucket, or one re-appended past the
+          // fetched tail) — keep lastBarRef in step so B's contiguity/merge and A/C see it.
+          if (!lastBarRef.current || lb.time >= lastBarRef.current.time) {
+            lastBarRef.current = { time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close,
+              volume: Number.isFinite(lb.volume) ? lb.volume : (lastBarRef.current?.volume || 0) }
+          }
+          // Restore the push-owned volume too — else the volume bar shows ~30s-stale server
+          // volume until the next AM push (a flicker every SWR poll, retro-audit #5).
+          if (volumeSeriesRef.current && Number.isFinite(lb.volume)) {
+            const _pbD = prevBarsRef.current
+            const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
+            const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
+            // Full-opacity default color (same derivation as volData) — no lighter tint.
+            const _vUpD = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownD = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            volumeSeriesRef.current.update({
+              time: lb.time, value: lb.volume,
+              color: _upD ? _vUpD : _vDownD,
+            })
+          }
+        } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
+      }
+    },
+  }
+  _storeDevPaintRef.current = () => {
+    if (!BARSTORE || !candleSeriesRef.current) return
+    // Only onto the series updateChart seeded for THIS (sym, tf): a switch repaints by setData.
+    if (liveBarSeriesRef.current !== `${sym}|${resolvedTf}`) return
+    _writerDRef.current.seed(_writerDRef.current.storeBar())
+    if (!provisionalStaleRef.current) _writerDRef.current.retop()
+  }
   // Fold push frames buffered during a timeframe-switch hold (see onRealtimeBar) onto the new
   // tf's first real paint — the subscribe seed is never lost. Runs after the updateChart effect
   // above (same commit), so the developing-bar refs are already seeded from the painted series.

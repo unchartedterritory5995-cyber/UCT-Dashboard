@@ -42,7 +42,7 @@ export function createBarStore(o = {}) {
   const now = o.timers?.now ?? (() => Date.now())
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
-  const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }) })
+  const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
   const network = o.network ?? createNetwork({
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
@@ -52,6 +52,7 @@ export function createBarStore(o = {}) {
     registry, now, onReconnect: (key) => network.kick(key),
     ...(o.stream ? { stream: o.stream } : {}), ...(o.candle !== undefined ? { candle: o.candle } : {}),
     ...(o.prices !== undefined ? { prices: o.prices } : {}),
+    ...(o.pushEnabled ? { pushEnabled: o.pushEnabled } : {}),
   })
 
   /** key → { n, stops: Function[] } for keys with at least one subscriber */
@@ -95,13 +96,19 @@ export function createBarStore(o = {}) {
 
   const api = {
     registry, network, persist, live,
+    // `opts.wake` ('all' | 'base'): the registry's split notify — a 'base' subscriber is not
+    // woken by a developing-bar-only change (read it with getBaseSnapshot).
     subscribe(key, cb, opts) {
-      const off = registry.subscribe(key, cb)
+      const off = registry.subscribe(key, cb, { wake: opts?.wake === 'base' ? 'base' : 'all' })
       const stop = _start(key, opts)
       let done = false
       return () => { if (done) return; done = true; off(); stop() }
     },
     getSnapshot: (key) => registry.getSnapshot(key),
+    getBaseSnapshot: (key) => registry.getBaseSnapshot(key),
+    /** Developing-bar changes of `key`, coalesced to one call per frame (no life cycle: the
+     *  key's `subscribe` owns that). */
+    subscribeDeveloping: (key, cb) => registry.subscribe(key, cb, { wake: 'dev' }),
     peek: (key) => registry.peek(key),
     // `hydrated`: the caller already hydrated the key (prefetch.js) — never read the caches twice.
     // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank.
