@@ -1,0 +1,30 @@
+import { it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { excludedCharts as now } from './spatialCheck'
+import { excludedCharts as was } from './zz_spatialMaster'
+import { SETS } from './testing/sets'
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const B=[{ref:'a',symbol:'SPY',position:'top-left',cell:{x:0,y:0,w:8,h:10}},{ref:'b',symbol:'QQQ',position:'top-right',cell:{x:8,y:0,w:8,h:10}},{ref:'c',symbol:'NVDA',position:'bottom-left',cell:{x:0,y:10,w:8,h:10}},{ref:'d',symbol:'AMD',position:'bottom-right',cell:{x:8,y:10,w:8,h:10}}]
+const show = (s) => JSON.stringify([...s].map(x => x.startsWith('\u0000') ? 'UNPLACED' : x).sort())
+function walk(o, id, out) {
+  if (Array.isArray(o)) { o.forEach((x, i) => walk(x, `${id}[${i}]`, out)); return }
+  if (o && typeof o === 'object') { const nid = o.id ? `${id}:${o.id}` : id; for (const [k, v] of Object.entries(o)) { if (typeof v === 'string' && /^(text|say|request|utterance|input|prompt|message)$/.test(k)) out.push([`${nid}.${k}`, v]); else walk(v, nid, out) } }
+}
+it('measure', () => {
+  const rows = []
+  for (const s of SETS.filter(s => s.split !== 'sealed')) walk(JSON.parse(fs.readFileSync(path.join(HERE, '__fixtures__/nlIntent', s.file), 'utf8')), s.file, rows)
+  for (const f of ['qa/capabilityRegression/baseline/corpus.json','qa/capabilityRegression/baseline/reachPhrasings.json','qa/capabilityRegression/baseline/goldenWorkflows.json','qa/capabilityRegression/baseline/regressionEntries.json','qa/capabilityRegression/baseline/routingCollisions.json']) { const p = path.join(HERE, f); if (fs.existsSync(p)) walk(JSON.parse(fs.readFileSync(p, 'utf8')), f, rows) }
+  const v2 = path.join(HERE, '../../../tests/fixtures/agent_v2_corpus_requests.json'); if (fs.existsSync(v2)) walk(JSON.parse(fs.readFileSync(v2, 'utf8')), 'v2corpus', rows)
+  const kw = rows.filter(([, t]) => /\b(?:except|apart from|other than|excluding|besides|aside from|save for|minus|but not|instead of|rather than)\b/i.test(t)); console.log('WITH_KEYWORD', kw.length); kw.slice(0, 8).forEach(([id, t]) => console.log('KW', id, JSON.stringify(t)))
+  // every quoted string with an exception keyword in every Agent test file (the phrasings the suites already hold)
+  const KWS = /\b(?:except|apart from|other than|excluding|besides|aside from|save for|minus|but not|instead of|rather than)\b/i
+  const files = []; const walkDir = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'node_modules' && e.name !== '__fixtures__') walkDir(p) } else if (/\.test\.jsx?$/.test(e.name) && !/^zz_/.test(e.name) && !/agentUnplacedException|agentNegatedClickPossessive/.test(e.name)) files.push(p) } }
+  walkDir(HERE)
+  for (const f of files) { const src = fs.readFileSync(f, 'utf8'); for (const m of src.matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.){6,200})\1/g)) { if (KWS.test(m[2]) && !/[${}]/.test(m[2])) rows.push([`${path.basename(f)}`, m[2].replace(/\\'/g, "'")]) } }
+  const bySrc = {}; for (const [id] of rows) { const k = id.split(/[:[]/)[0]; bySrc[k] = (bySrc[k] || 0) + 1 }; console.log('SOURCES', JSON.stringify(bySrc))
+  let changed = 0
+  for (const [id, t] of rows) { for (const sel of ['a', null]) { const w = show(was(t, B, sel)), n = show(now(t, B, sel)); if (w !== n) { changed++; console.log('DIFF', id, 'sel=' + sel, JSON.stringify(t), w, '->', n) } } }
+  console.log('MEASURED', rows.length, 'requests;', changed, 'changed (×2 selections)')
+})
