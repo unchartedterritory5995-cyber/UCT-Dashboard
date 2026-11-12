@@ -179,6 +179,34 @@ export function _hasOldSixtyMinGrid(bars, tf) {
 // chart open instead of all at once.
 // ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
 // The caller no longer discards the cache on a hole — see idbGet.
+/** The largest same-ET-day spacing (sec) an intraday `tf` series may show without a hole. */
+function _maxOkGapSec(tf) {
+  return { '1': 900, '5': 600, '15': 3600, '30': 5400, '60': 7200 }[tf]
+}
+const _etDay = (t) => new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+
+/**
+ * P4 — the deep-history segment's hole rule (persist.js hydrate). Scans the WHOLE series
+ * (a `@hist` segment is read once, after first paint) for interior holes — the same rule as
+ * `_intradayGapStart` (a same-ET-day spacing wider than the tf's limit) — and returns the
+ * index of the first row after the NEWEST one (0 = contiguous). The rows from there on are
+ * the run that reaches the tail; anything older would be drawn across a gap as if
+ * contiguous, so it is not handed to the store (scroll-back re-reads it).
+ */
+export function _newestInteriorHoleEnd(bars, tf) {
+  tf = logicTfOf(tf)
+  const max = _maxOkGapSec(tf)
+  if (!max || !Array.isArray(bars) || bars.length < 2) return 0
+  for (let i = bars.length - 1; i >= 1; i--) {
+    const a = bars[i - 1]?.t, b = bars[i]?.t
+    if (typeof a !== 'number' || typeof b !== 'number') return i
+    if (b - a <= max) continue
+    if (_etDay(a) !== _etDay(b)) continue
+    return i
+  }
+  return 0
+}
+
 export function _intradayGapStart(bars, tf) {
   tf = logicTfOf(tf)
   if (!['1','5','15','30','60'].includes(tf)) return null
@@ -195,7 +223,7 @@ export function _intradayGapStart(bars, tf) {
   // the routine sub-minute sparseness of a thin ticker). Real halts / genuinely
   // sparse names just cost one harmless full refetch on open (idbGet runs per
   // mount, not per render — no refetch loop).
-  const MAX_OK_GAP_SEC = { '1': 900, '5': 600, '15': 3600, '30': 5400, '60': 7200 }[tf]
+  const MAX_OK_GAP_SEC = _maxOkGapSec(tf)
 
   // Scan only the recent window. Old corruption is rarely user-visible and
   // a full-array scan adds avoidable latency on the hot cache-hit path.
@@ -401,16 +429,21 @@ export async function idbPut(sym, tf, bars) {
 /** Compare-and-write in ONE readwrite transaction (no read/await/write gap). Returns the
  *  series now stored (capped as idbPut caps it), or null when nothing was written. */
 // `meta`: the BarStore's provenance envelope (data/barStore/persist.js — seals, history_rev,
-// cache_key). Stored only by the writer that passes it; every other write (idbPut, a
-// monotonic write without it, a pack import, a pack delta) puts a record WITHOUT it, so a
-// series another writer changed never carries a stale seal claim. NEVER on the `@hist`
-// segment: the envelope describes the tail record's rows only.
+// cache_key, adj_basis). Stored only by the writer that passes it; every other write (idbPut,
+// a monotonic write without it, a pack import, a pack delta) puts a record WITHOUT it, so a
+// series another writer changed never carries a stale seal claim. On the `@hist` segment it is
+// the segment's own STAMP (cache_key / history_rev / adj_basis of the rows written).
+// ⛔ P4: a stamp describes EVERY row of the record. A stamped write onto a record stamped
+// differently (another history / basis / row series) — or onto an unstamped one, when the
+// write names a basis or is the @hist segment — REPLACES it (never merges its rows under the
+// new stamp); if that record was written after this request began, nothing is written.
+const _stampKey = (m) => (m ? `${m.cacheKey ?? ''}|${m.historyRev ?? ''}|${m.adjBasis ?? ''}` : null)
 export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null, segment = 'tail', meta: metaIn = null } = {}) {
   if (!bars?.length) return null
   // `segment: 'history'` writes the deep-history record (`<key>@hist`, see below) by the
   // SAME rule; only its key and its cap differ.
   const history = segment === 'history'
-  const meta = history ? null : metaIn
+  const meta = metaIn
   if (history && !['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
   try {
     const db = await _open()
@@ -427,8 +460,12 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt 
         // guard — or the retired 60m grid) is NOT a base: a full answer REPLACES it, a
         // delta writes nothing. Merging into it would keep its bad bars and re-stamp
         // savedAt, so the age eviction would never fire again.
-        const cur = _entryReadable(e, tf, Date.now(), { history }) ? e.bars : null
+        let cur = _entryReadable(e, tf, Date.now(), { history }) ? e.bars : null
         const curIsNewer = !!cur && Number.isFinite(startedAt) && Number.isFinite(e.savedAt) && e.savedAt > startedAt
+        if (cur && meta && (history || meta.adjBasis != null || e.meta) && _stampKey(e.meta) !== _stampKey(meta)) {
+          if (curIsNewer || delta) { out = null; return }
+          cur = null                                    // another stamp: replace, never merge
+        }
         const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
         if (next && next === cur && meta) store.put({ ...e, meta })   // same rows, newer provenance
         if (!next?.length || next === cur) { out = cur; return }
@@ -492,7 +529,8 @@ export function _capHistoryForWrite(bars) {
   return bars.length > HISTORY_SEGMENT_MAX ? bars.slice(bars.length - HISTORY_SEGMENT_MAX) : bars
 }
 
-export async function idbGetHistory(sym, tf) {
+/** The readable `@hist` record as `{bars, meta}` (meta = its stamp, or null), or null. */
+export async function idbGetHistoryEntry(sym, tf) {
   if (!['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
   try {
     const db = await _open()
@@ -500,7 +538,7 @@ export async function idbGetHistory(sym, tf) {
       const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(_histKey(sym, tf))
       req.onsuccess = () => {
         const e = req.result
-        resolve(_entryReadable(e, tf, Date.now(), { history: true }) ? e.bars : null)
+        resolve(_entryReadable(e, tf, Date.now(), { history: true }) ? { bars: e.bars, meta: e.meta ?? null } : null)
       }
       req.onerror = () => resolve(null)
     })
@@ -509,14 +547,19 @@ export async function idbGetHistory(sym, tf) {
   }
 }
 
+export async function idbGetHistory(sym, tf) {
+  const e = await idbGetHistoryEntry(sym, tf)
+  return e ? e.bars : null
+}
+
 /** Persist a deep series' history through THE one write path (`idbPutMonotonic`,
  *  barsMerge `mergeMonotonic`): `bars` is a full, contiguous answer over its range, so it
  *  wins that range, older stored history is kept only across a clean seam, and the record
  *  is capped to the newest HISTORY_SEGMENT_MAX. A series the tail entry holds whole
  *  (≤ INTRADAY_MAX_BARS) writes nothing. */
-export async function idbPutHistory(sym, tf, bars) {
+export async function idbPutHistory(sym, tf, bars, { meta = null } = {}) {
   if (!Array.isArray(bars) || bars.length <= INTRADAY_MAX_BARS) return null
-  return idbPutMonotonic(sym, tf, bars, { segment: 'history' })
+  return idbPutMonotonic(sym, tf, bars, { segment: 'history', meta })
 }
 
 /**

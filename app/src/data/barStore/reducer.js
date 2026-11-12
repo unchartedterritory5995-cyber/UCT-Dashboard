@@ -35,8 +35,13 @@
 //     Ticks fold in only while the stream is NOT delivering (ctx.streamLive false) and never
 //     move an authoritative open (foldPrice) — S6.
 //   • Identity: a payload/frame whose sym / cache_key ticker+tf name another series is
-//     ignored (S7); a changed cache_key (grid) or a risen history_rev on a FULL answer
-//     resets the entry before applying it; on a DELTA it invalidates + sets needsFull.
+//     ignored (S7); a changed cache_key (grid), a changed adj_basis (P4: the price basis) or a
+//     risen history_rev on a FULL answer resets the entry before applying it; on a DELTA it
+//     invalidates + sets needsFull.
+//   • BASIS (P4, bar-contract.md §2 adj_basis): every LOCAL row carries the adj_basis stamp of
+//     the copy it came from (`ab`; absent = an unstamped legacy copy). A server answer keeps a
+//     local row only when its basis is PROVEN — by its stamp, or (unstamped) by `basisVerdict`
+//     over the rows the answer also carries — never by a single close compared to a tolerance.
 
 import { bucketStartUnix, computeBarTime } from '../../components/chart/barTime'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
@@ -49,8 +54,7 @@ import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
 import { deriveStatus } from './status'
-import { _closeMismatch } from '../../utils/barsMerge'
-import { prependOlder, historyReachesTail } from '../../utils/historyPrepend'
+import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
 const RANK = Object.freeze({ local: 0, tick: 1, push: 2, final: 3, rest: 4 })
@@ -72,7 +76,7 @@ export function initialState(key, ctx = {}) {
     key, sym: p.sym, tf: p.tf,
     bars: EMPTY_BARS, developing: null,
     completeThrough: null, verifiedThrough: null, seriesRev: null, historyRev: null,
-    cacheKey: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
+    cacheKey: null, adjBasis: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null,
@@ -312,7 +316,7 @@ function isForeign(state, obj) {
 
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
-const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'grid', 'restFrom', 'sealedSpans']
+const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
 const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom']
 
 function _sameFields(a, b) {
@@ -380,6 +384,63 @@ function settleDeveloping(state, bars, dev) {
   return { bars, developing: dev }
 }
 
+// ── price basis (P4) ─────────────────────────────────────────────────────────
+
+/** Relative tolerance of the basis test: a row pair's four price ratios must agree to it
+ *  (one uniform rescale), and |r - 1| must exceed it for a rescale to count. Wide enough for
+ *  4-decimal rounding on a cheap name, far below any split / re-adjustment. */
+export const BASIS_EPS = 0.005
+/** Volume tolerance of a rescaled pair: server v / local v ≈ 1/r (a split moves volume) or
+ *  ≈ 1 (a price-only re-adjustment). */
+export const BASIS_VOL_TOL = 0.05
+const BASIS_MAX_PAIRS = 64
+
+/**
+ * THE client basis test for rows WITHOUT a usable stamp (legacy copies). `local` = held
+ * rows, `ref` = the server's rows (array or Map t → row). Pairs rows by `t`, oldest first
+ * (at most 64):
+ *   • 'changed' — at least TWO pairs whose o/h/l/c ALL share one ratio r (to BASIS_EPS) with
+ *     |r − 1| > BASIS_EPS, the same r on both, and volume ≈ 1/r (or unchanged): the copy is on
+ *     another price basis (a split / re-adjustment since it was written);
+ *   • 'same'    — no such rescale and at least one pair whose four prices agree (r ≈ 1);
+ *   • 'unknown' — no evidence either way (no overlap, or only rows that differ non-uniformly:
+ *     a bucket the copy caught while forming, a corrected print).
+ * Why not the old "oldest overlap close differs > 2%" rule: a closed row the copy caught
+ * while it was still forming differs on its close alone (a volatile name easily > 2%) — a
+ * false positive that threw away the whole cache; and a uniform rescale is the ONLY shape a
+ * basis change has. Pure.
+ */
+export function basisVerdict(local, ref) {
+  const byT = ref instanceof Map ? ref : new Map((ref || []).map((r) => [r.t, r]))
+  let same = 0, n = 0
+  const scaled = []
+  for (const a of local || []) {
+    const b = byT.get(a.t)
+    if (!b) continue
+    if (++n > BASIS_MAX_PAIRS) break
+    const rs = [b.o / a.o, b.h / a.h, b.l / a.l, b.c / a.c]
+    if (!rs.every((x) => finite(x) && x > 0)) continue
+    const lo = Math.min(...rs), hi = Math.max(...rs)
+    if (hi / lo - 1 > BASIS_EPS) continue                // not ONE rescale of the row
+    const r = Math.sqrt(lo * hi)
+    if (Math.abs(r - 1) <= BASIS_EPS) { same++; continue }
+    const va = Number(a.v), vb = Number(b.v)
+    if (va > 0 && vb > 0) {
+      const q = vb / va
+      if (!(Math.abs(q * r - 1) <= BASIS_VOL_TOL || Math.abs(q - 1) <= BASIS_VOL_TOL)) continue
+    }
+    scaled.push(r)
+  }
+  scaled.sort((x, y) => x - y)
+  for (let i = 1; i < scaled.length; i++) if (scaled[i] / scaled[i - 1] - 1 <= BASIS_EPS) return 'changed'
+  return same > 0 ? 'same' : 'unknown'
+}
+
+const _stampOf = (p) => {
+  const ab = p?.adj_basis ?? p?.adjBasis
+  return typeof ab === 'string' && ab ? ab : null
+}
+
 // ── one guard for every server-sourced action ────────────────────────────────
 
 /**
@@ -409,6 +470,7 @@ function applyRest(state, action, ctx, kind) {
   const inHist = numOrNull(p.history_rev)
   const inSeries = numOrNull(p.series_rev)
   const inGrid = p.grid ?? null
+  const inAdj = _stampOf(p)
 
   // S8: seals RESTORED from a persisted copy (spans held before any server answer) are only
   // as good as the identity they were proven under. An answer that cannot confirm it — legacy
@@ -426,8 +488,11 @@ function applyRest(state, action, ctx, kind) {
     }
   }
 
-  // Identity / history change.
-  const ckChanged = inCk != null && state.cacheKey != null && inCk !== state.cacheKey
+  // Identity / history change. A different price basis (P4 adj_basis) is a different row
+  // series exactly like a different cache_key: nothing held on the old one is kept.
+  const ckChanged = (inCk != null && state.cacheKey != null && inCk !== state.cacheKey) ||
+    (inAdj != null && state.adjBasis != null && inAdj !== state.adjBasis)
+  const ckWhy = inCk != null && state.cacheKey != null && inCk !== state.cacheKey ? 'cache_key' : 'adj_basis'
   const histRose = inHist != null && state.historyRev != null && inHist > state.historyRev
   if ((ckChanged || histRose) && kind === 'delta') {
     // The held window is no longer the server's history. Keep showing it (no blank chart)
@@ -435,7 +500,7 @@ function applyRest(state, action, ctx, kind) {
     // generation so requests issued against the old history are dropped.
     if (state.pendingHistoryRev != null && !ckChanged && inHist <= state.pendingHistoryRev) return state
     return finalize(state, {
-      needsFull: true, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev',
+      needsFull: true, invalidatedFor: ckChanged ? ckWhy : 'history_rev',
       pendingHistoryRev: inHist ?? state.pendingHistoryRev, gen: state.gen + 1,
     }, ctx)
   }
@@ -443,7 +508,7 @@ function applyRest(state, action, ctx, kind) {
   if (ckChanged || histRose) {
     // The full answer of the new history replaces the entry ATOMICALLY (one snapshot).
     state = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
-      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev' })
+      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? ckWhy : 'history_rev' })
   }
   // A grid the rows were not built on cannot merge (the server owns row identity).
   const stGrid = inGrid ?? state.grid
@@ -453,20 +518,37 @@ function applyRest(state, action, ctx, kind) {
   const rev = inSeries
   let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'rest' })
 
-  // ⛔ SPLIT SAFETY (the legacy `_idbBasisMismatch` purge, kept). LOCAL rows are a cache copy on
-  // the price basis of when it was written; the server's answer is on today's. When the OLDEST
-  // local row this answer also carries disagrees on its close by > 2% (barsMerge `_closeMismatch`
-  // — the one seam rule; a split / re-adjustment since the copy), every local row is on the old
-  // basis and the ones LEFT of the answer would draw a cliff that never traded: they are dropped
-  // whole (a full answer resets the entry, then applies; a delta asks for that full read).
-  if (rows.length && state.bars.some((b) => b.src === 'local')) {
-    const inc = new Map(rows.map((r) => [r.t, r]))
-    const seam = state.bars.find((b) => b.src === 'local' && inc.has(b.t))
-    if (seam && _closeMismatch(seam, inc.get(seam.t))) {
+  // ⛔ SPLIT SAFETY (P4). LOCAL rows are a cache copy on the price basis of when it was written;
+  // the server's answer is on today's. A local row stays only when its basis is PROVEN:
+  //   • stamped (`ab`, the copy's adj_basis) — equal to the answer's adj_basis: kept, no test;
+  //     another stamp: every local row is on an old basis;
+  //   • unstamped (a legacy copy) or an answer without adj_basis — `basisVerdict` over the rows
+  //     the answer also carries: 'changed' (≥ 2 rows uniformly rescaled) ⇒ every local row is on
+  //     the old basis; 'same' ⇒ the copy is proven (re-stamped with the answer's basis);
+  //     'unknown' (no overlap evidence) ⇒ a FULL answer that names its basis discards the
+  //     unproven rows once (a delta keeps them for the next full read to judge).
+  // Rows on an old basis LEFT of the answer would draw a cliff that never traded: all local rows
+  // go (a full answer resets the entry, then applies; a delta asks for that full read).
+  const localRows = rows.length ? state.bars.filter((b) => b.src === 'local') : EMPTY_BARS
+  if (localRows.length) {
+    const trusted = (b) => inAdj != null && b.ab === inAdj
+    const unproven = localRows.filter((b) => !trusted(b))
+    const verdict = (inAdj != null && localRows.some((b) => b.ab != null && b.ab !== inAdj)) ? 'changed'
+      : (unproven.length ? basisVerdict(unproven, rows) : 'same')
+    if (verdict === 'changed') {
       if (kind === 'delta') return finalize(state, { needsFull: true, invalidatedFor: 'basis', gen: state.gen + 1 }, ctx)
       const reset = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
         gen: state.gen, invalidatedFor: 'basis' })
       return applyRest(reset, action, ctx, kind)
+    }
+    if (inAdj != null && unproven.length && (verdict === 'same' || kind === 'full')) {
+      const keep = verdict === 'same'
+      const bars = Object.freeze(state.bars.flatMap((b) => {
+        if (b.src !== 'local' || trusted(b)) return [b]
+        return keep ? [freezeBar({ ...b, ab: inAdj })] : []
+      }))
+      state = Object.freeze({ ...state, bars, baseRev: state.baseRev + 1, ...(keep ? {} : { invalidatedFor: 'basis' }) })
+      working.bars = bars
     }
   }
 
@@ -571,6 +653,10 @@ function applyRest(state, action, ctx, kind) {
     seriesRev: inSeries != null ? Math.max(inSeries, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: inHist != null ? Math.max(inHist, state.historyRev ?? -Infinity) : state.historyRev,
     cacheKey: inCk ?? state.cacheKey,
+    // D4 (review of #1144): an answer that CARRIES rows but names no basis (an unhealed /
+    // fallback store) leaves them unproven — the entry's stamp is NOT carried onto them (the
+    // persisted copy is then unstamped and re-judged by basisVerdict). Row-less answers keep it.
+    adjBasis: inAdj != null ? inAdj : (Array.isArray(p.bars) && p.bars.length ? null : state.adjBasis),
     // The tail judgement of the NEWEST answer (by series_rev) stands — order-independent.
     tailStatus: (p.tail_status != null && (inSeries == null || state.seriesRev == null || inSeries >= state.seriesRev))
       ? p.tail_status : state.tailStatus,
@@ -605,8 +691,11 @@ function applyLocal(state, action, ctx, source) {
   if (isForeign(state, p)) return state
   const ck = p.cache_key ?? p.cacheKey ?? null
   const hist = numOrNull(p.history_rev ?? p.historyRev)
-  // S8: a copy of another row series / of older sealed history is discarded whole.
+  const ab = _stampOf(p)
+  // S8: a copy of another row series / of older sealed history / on another price basis
+  // (P4 adj_basis — the same refusal as a cache_key mismatch) is discarded whole.
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
+  if (ab != null && state.adjBasis != null && ab !== state.adjBasis) return state
   if (staleReason(state, p, action)) return state
   const rev = numOrNull(p.series_rev ?? p.seriesRev)
   // Two local copies (mem, then IDB) before any server answer: one of a NEWER history replaces
@@ -619,17 +708,26 @@ function applyLocal(state, action, ctx, source) {
   // add deeper rows (never its seals, never its tail).
   const olderCopy = !state.restSeen && rev != null && state.seriesRev != null && rev < state.seriesRev
   const working = { ...state, grid: p.grid ?? state.grid }
-  let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local' })
+  let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local', ...(ab != null ? { ab } : {}) })
   if (!rows.length) return state
+  // The basis of what is held, and whether this copy is PROVEN to be on it: by its stamp, or
+  // (unstamped) by `basisVerdict` over the rows it shares with what is held.
+  const heldBasisProof = (held) => {
+    if (ab != null && (state.adjBasis == null || ab === state.adjBasis)) return true
+    return basisVerdict(rows, held) === 'same'
+  }
 
   // ⭐ THE PERSISTED DEEP-HISTORY SEGMENT (persist.js `@hist`: scroll-back windows a reload kept).
   // It only PREPENDS — rows strictly older than everything held — and only when it reaches the
-  // held oldest bar (historyReachesTail: a gap is never drawn as contiguous) on the SAME basis
-  // (prependOlder's seam rule, barsMerge `_closeMismatch`: a split since it was written refuses
-  // it whole). Its rows are local: the split-safety rule above re-judges them on every answer.
+  // held oldest bar (historyReachesTail: a gap is never drawn as contiguous; persist cut it at
+  // its newest interior hole) on the SAME basis: stamped (adj_basis / history_rev / cache_key,
+  // refused above when another; a history_rev that is not EXACTLY the one held is another
+  // history) or, unstamped, proven by `basisVerdict` over its overlap with the held rows.
   if (p.history) {
     const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
-    if (!held.length || !historyReachesTail(rows, held) || prependOlder(held, rows) === held) return state
+    if (!held.length || !historyReachesTail(rows, held)) return state
+    if (hist != null && state.historyRev != null && hist !== state.historyRev) return state
+    if (!heldBasisProof(held)) return state
     const older = rows.filter((r) => r.t < held[0].t)
     if (!older.length) return state
     const bars = mergeRows(state, older)
@@ -653,7 +751,10 @@ function applyLocal(state, action, ctx, source) {
   }
 
   if (state.restSeen || olderCopy) {
-    // A server answer (or a newer copy) is held: a local copy only adds DEEPER history.
+    // A server answer (or a newer copy) is held: a local copy only adds DEEPER history, and
+    // only on the held basis (stamped, or proven over its overlap with the held rows).
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (state.restSeen && held.length && !heldBasisProof(held)) return state
     const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
     rows = rows.filter((r) => r.t < first)
     if (!rows.length) return state
@@ -697,6 +798,7 @@ function applyLocal(state, action, ctx, source) {
     seriesRev: rev != null ? Math.max(rev, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: hist ?? state.historyRev,
     cacheKey: ck ?? state.cacheKey,
+    adjBasis: ab ?? state.adjBasis,
     sealedSpans: spans,
     localHoleFrom,
     // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
@@ -838,6 +940,11 @@ function applyScrollBack(state, action, ctx) {
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
   if (staleReason(state, p, action)) return state
   const h = numOrNull(p.history_rev)
+  const ab = _stampOf(p)
+  if (ab != null && state.adjBasis != null && ab !== state.adjBasis) {
+    // Deeper history on ANOTHER price basis (P4): what we hold is on an old one — re-read it.
+    return finalize(state, { needsFull: true, invalidatedFor: 'adj_basis', gen: state.gen + 1 }, ctx)
+  }
   if (h != null && state.historyRev != null && h > state.historyRev) {
     // Deeper history from a NEWER history: the window we hold is stale — re-read it whole.
     if (state.pendingHistoryRev != null && h <= state.pendingHistoryRev) return state

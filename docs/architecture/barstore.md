@@ -29,7 +29,7 @@ IDB / mem caches already use. Only 60m differs by session: `AAPL_60` (TradingVie
 ## Snapshot (frozen, identity-stable)
 
 `{key, sym, tf, bars, developing, completeThrough, verifiedThrough, seriesRev, historyRev,
-cacheKey, grid, tailStatus, sealedSpans, restFrom, deltaFrom, status, baseRev, devRev, depth,
+cacheKey, adjBasis, grid, tailStatus, sealedSpans, restFrom, deltaFrom, status, baseRev, devRev, depth,
 source, restSeen, needsFull, error, invalidatedFor, gen, pendingHistoryRev, depthFloor, localHoleFrom}`
 
 - `bars`: CLOSED buckets, strictly increasing unique `t`, UNIX SECONDS (intraday: bucket start;
@@ -57,6 +57,25 @@ source, restSeen, needsFull, error, invalidatedFor, gen, pendingHistoryRev, dept
 - `localHoleFrom`: an interior hole a hydrated copy reported (`repair_from`) that no restored
   seal explains; while it is older than `deltaFrom`, `needsFull` is forced (a delta could never
   re-read it). A full answer clears it.
+- `adjBasis` (P4): the server's `adj_basis` (bar-contract.md §2) of the held rows — the price
+  basis. A LOCAL row carries the stamp of the copy it came from (`ab`; absent = unstamped).
+
+### Price basis (P4) — one rule, replaces the 2% close test
+- Identity: an answer / copy / scroll-back window whose `adj_basis` differs from the held one
+  (both non-null) is another row series — the `cache_key` mechanism: a full answer resets the
+  entry, a delta / window sets `needsFull` (gen + 1), a local copy is refused whole.
+- A server answer keeps a local row only when its basis is PROVEN: stamped with the answer's
+  `adj_basis`, or (unstamped legacy copy / answer without `adj_basis`) by
+  `reducer.basisVerdict` over the rows the answer also carries — 'changed' iff ≥ 2 rows are ONE
+  uniform rescale (o/h/l/c share r, |r − 1| > 0.5%, volume ≈ 1/r or unchanged) ⇒ every local
+  row goes; 'same' ⇒ re-stamped with the answer's basis; 'unknown' (no overlap) ⇒ a FULL answer
+  naming its basis discards those rows once. Chosen over "discard every unstamped record": it
+  keeps a legacy copy's depth whenever its overlap proves it, and a close-only difference (a
+  bucket the copy caught while forming — a volatile name's > 2%) is never a basis change
+  (the 2% rule's false positive). Railed: `reducer.test.js` "P4 price basis" (B1–B4, B2 a
+  seeded property).
+- A local copy that lands after a server answer adds deeper rows only on the held basis
+  (stamped, or proven 'same').
 
 ### One guard for every server-sourced action
 `staleReason` refuses a payload whole when its `gen` is stale or its `history_rev` is OLDER than
@@ -138,7 +157,7 @@ absence rule, the rev gate, the stream-live tick gate or the foreign check each 
 
 ### Persist
 - Writes on a `baseRev` change only, only for a server-backed snapshot (`restSeen` — a copy read FROM the cache is never written back, which would re-stamp its `savedAt`), debounced 1 s then at idle, ≤1 write per key in flight. Rows in the cache's legacy shape (`{t,o,h,l,c,v}`, D/W/M `t` = 'YYYY-MM-DD'); the developing bar is not persisted. Windowed keys never.
-- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row.
+- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, adj_basis (P4), complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row. The `@hist` segment carries only its stamp (cache_key, history_rev, adj_basis). A stamped write onto a record of another stamp (or onto an unstamped one, when it names a basis / is `@hist`) REPLACES it — rows are never merged under a stamp that does not describe them (`barsIDB.idbPutMonotonic`).
 - Invalidation: any other writer's put replaces the record WITHOUT `meta`; on hydrate a span survives only if the stored rows inside it (clipped to the stored depth) are exactly the sealed rows, same fingerprints; the reducer then refuses another key / cache_key / older history_rev / stale gen. Restored seals clear `needsFull`, so the first request after a reload is a `since=` delta — and they must be RE-PROVEN by the first server answer: a legacy answer, a null or different history_rev / cache_key voids them (rows drop to local; a delta is refused, a full read follows). Two local copies: one of a newer history replaces the other; one with an older series_rev only adds deeper rows.
 
 ### Network
@@ -206,11 +225,11 @@ close through Writer D's "live close stands" rule). Railed: `reducer.test.js` IN
 | fresh / behind / gapped + `isCacheCurrentForView` (`_idbNotCurrent`, mem refused) | `status.js` (one freshness contract): provisional vs context |
 | `_staleContext`, `_idbProvisional` (+ Part 2 drop-last) | status provisional → context minus last, writers frozen |
 | daily paint authority, `idbStaleDaily`, `_memTailStaleDaily`, `_idbDailyLastInsane` | same predicates on a local-only D snapshot |
-| `_idbBasisMismatch` close-compare + `idbDelete` purge | server rows replace local rows over the answer span; `history_rev` / `cache_key` reset; **review fix 6**: the oldest local row an answer also carries disagreeing > 2% (`barsMerge._closeMismatch`) drops EVERY local row (full: reset + apply; delta: needsFull). `_idbBasisMismatch` stays `false` (the reducer owns it) |
+| `_idbBasisMismatch` close-compare + `idbDelete` purge | server rows replace local rows over the answer span; `history_rev` / `cache_key` / `adj_basis` reset; **P4**: a local row is kept only on a proven basis (its `adj_basis` stamp, or `basisVerdict` — see §Price basis), else EVERY local row is dropped (full: reset + apply; delta: needsFull). `_idbBasisMismatch` stays `false` (the reducer owns it) |
 | keep deeper IDB over a shallow full set; `spliceDeepLeftOfFresh` | reducer: local rows OLDER than the server-covered region are kept |
 | delta merged in render; no-op poll skip | reducer merge (one snapshot); a no-op returns the same snapshot |
 | split-fetch `/api/bars-history` (edge, `d=` date), Fix 2 cold-tail paint, fp dwell | **dropped**: D/W/M depth = `ensure({depth})` on the store's one URL builder; edge history is a follow-up |
-| intraday `@hist` IDB segment | **review fix 6**: persist.js writes it (`idbPutHistory`) for a series deeper than the tail record when history grew / `historyLagsTail`; hydrate reads it (`idbGetHistory`) as a prepend-only `history` copy (reach + seam basis rule) |
+| intraday `@hist` IDB segment | **review fix 6**: persist.js writes it (`idbPutHistory`) for a series deeper than the tail record when history grew / `historyLagsTail`; hydrate reads it (`idbGetHistoryEntry`) as a prepend-only `history` copy (reach + basis). **P4**: the segment is STAMPED (`histStamp`: cache_key, history_rev, adj_basis); the reducer refuses it on another cache_key / adj_basis or a history_rev that is not exactly the held one; unstamped needs a proven seam (`basisVerdict` 'same'); hydrate cuts it at its newest interior hole (`barsIDB._newestInteriorHoleEnd`); a write under another stamp replaces it |
 | left windows (`_loadOlder`), 900 ms dwell, PREFETCH_WINDOWS warm | `store.scrollBack` (#1116 seam rule); same dwell + loop |
 | background warm of the other tfs (sequential, abort on switch, `&warm=1`) | facade `prefetch` at background rank, `&warm=1`, aborted on switch (the lane gate bounds concurrency) |
 | SWR poll cadence / dedupe / Retry-After / catch-up budget | network.js (same modules); **review fix 5**: `network.tailExhausted(key)` / `subscribeTailBudget` → `_tailCatchupRef` (DELAYED) |
