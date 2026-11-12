@@ -43,6 +43,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
 )
+_install_log_redaction()   # put RedactSecretsFilter on the handlers basicConfig just made
 # Quiet the per-request httpx/httpcore noise. The prewarmer fires thousands
 # of Massive aggs requests per pass; at INFO each one logs a "GET … 200 OK"
 # line. Railway tags all worker stderr as severity=error, so that firehose

@@ -156,4 +156,7 @@ def main(argv: Optional[Sequence[str]] = None, *, bars_reader: Optional[Callable
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     sys.exit(main())
