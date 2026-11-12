@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 188,
-  "withProductionKinds": 179,
+  "all": 190,
+  "withProductionKinds": 181,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 188,
-  "withAnyRegressionCase": 136,
+  "capabilities": 190,
+  "withAnyRegressionCase": 138,
   "perProtection": {
    "nl": {
-    "covered": 133,
-    "applicable": 188
+    "covered": 135,
+    "applicable": 190
    },
    "routing": {
-    "covered": 130,
-    "applicable": 188
+    "covered": 132,
+    "applicable": 190
    },
    "args": {
-    "covered": 136,
-    "applicable": 188
+    "covered": 138,
+    "applicable": 190
    },
    "execution": {
-    "covered": 133,
-    "applicable": 188
+    "covered": 135,
+    "applicable": 190
    },
    "receipt": {
-    "covered": 105,
-    "applicable": 188
+    "covered": 107,
+    "applicable": 190
    },
    "refusal": {
     "covered": 34,
-    "applicable": 188
+    "applicable": 190
    },
    "permission": {
-    "covered": 181,
-    "applicable": 188
+    "covered": 183,
+    "applicable": 190
    },
    "undo": {
-    "covered": 62,
-    "applicable": 120
+    "covered": 63,
+    "applicable": 122
    },
    "multiStep": {
-    "covered": 36,
-    "applicable": 188
+    "covered": 37,
+    "applicable": 190
    },
    "phrasings": {
-    "covered": 129,
-    "applicable": 188
+    "covered": 131,
+    "applicable": 190
    }
   }
  },
@@ -3628,6 +3628,62 @@
     "phrasings": []
    }
   },
+  "drawing.duplicate": {
+   "domain": "drawing",
+   "group": "drawingOps",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.duplicate: \"duplicate this trendline\"",
+     "drawing.duplicate: \"duplicate that drawing\"",
+     "drawing.duplicate: \"make a duplicate of the trendline\""
+    ],
+    "routing": [
+     "drawing.duplicate: \"duplicate this trendline\"",
+     "drawing.duplicate: \"duplicate that drawing\"",
+     "drawing.duplicate: \"make a duplicate of the trendline\""
+    ],
+    "args": [
+     "corpus drawing.duplicate"
+    ],
+    "execution": [
+     "drawing.duplicate (c)"
+    ],
+    "receipt": [
+     "drawing.duplicate (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.duplicate: undo restores"
+    ],
+    "multiStep": [
+     "drawing.duplicate: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
   "drawing.list": {
    "domain": "drawing",
    "group": "drawings",
@@ -4055,6 +4111,60 @@
     "multiStep": [
      "drawing.setLevel: after an earlier turn"
     ],
+    "phrasings": []
+   }
+  },
+  "drawing.setPositionAlerts": {
+   "domain": "drawing",
+   "group": "drawingOps",
+   "target": "drawing",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setPositionAlerts: \"set the stop and target alerts on my position\"",
+     "drawing.setPositionAlerts: \"alert me on my position's stop and target\"",
+     "drawing.setPositionAlerts: \"turn on the stop and target alerts for that position\""
+    ],
+    "routing": [
+     "drawing.setPositionAlerts: \"set the stop and target alerts on my position\"",
+     "drawing.setPositionAlerts: \"alert me on my position's stop and target\"",
+     "drawing.setPositionAlerts: \"turn on the stop and target alerts for that position\""
+    ],
+    "args": [
+     "corpus drawing.setPositionAlerts"
+    ],
+    "execution": [
+     "drawing.setPositionAlerts (c)"
+    ],
+    "receipt": [
+     "drawing.setPositionAlerts (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "drawing.setPositionAlerts: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
     "phrasings": []
    }
   },
