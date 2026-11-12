@@ -927,6 +927,14 @@ async def _worker_lifespan(app):
         logging.getLogger("uvicorn.error").warning("[worker] consumer stop failed: %s", e)
 
 
+def _chart_monitor_health():
+    try:
+        from api.services.chart_monitor import runner as _cm
+        return _cm.status()
+    except Exception as e:  # noqa: BLE001 -- health must answer
+        return {"error": type(e).__name__}
+
+
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None,
                   lifespan=_worker_lifespan)
@@ -988,6 +996,8 @@ def _build_app() -> FastAPI:
             # UCT RS evidence job (unit 2b-02): the latest nightly pass, every
             # field None while RS_EVIDENCE_ENABLED is off or before the first run.
             "rs_evidence": _rs_evidence_health(),
+            # Chart-data synthetic monitor (P0a): last cycle, open alerts, age.
+            "chart_monitor": _chart_monitor_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -1150,6 +1160,13 @@ def main():
     _start_prewarmer()
     _start_universe_crawler()
     _start_bars_freshness_watchdog()
+    # Chart-data synthetic monitor (P0a): probes the PUBLIC edge every ~5 min in market hours,
+    # pages ops on N consecutive failures. ON by default; CHART_MONITOR_ENABLED=0 stops it.
+    try:
+        from api.services.chart_monitor import runner as _chart_monitor
+        _chart_monitor.start()
+    except Exception as e:
+        log.warning(f"chart monitor did not start (non-fatal): {type(e).__name__}")
     try:   # Chart IQ pack backup builder: OFF unless CHART_IQ_PACK_WORKER_ENABLED=1 (api/services/chart_iq/pack_backup.py)
         from api.services.chart_iq import pack_backup as _ciq_backup
         _ciq_backup.start_loop()

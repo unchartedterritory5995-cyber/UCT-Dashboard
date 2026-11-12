@@ -18,11 +18,18 @@ const AFTER_CLOSE = new Date('2026-09-22T21:00:00Z').getTime()   // 17:00 ET
 const preload = vi.fn()
 vi.mock('swr', () => ({ preload: (...a) => preload(...a) }))
 const idb = vi.hoisted(() => ({ entries: new Map(), puts: [] }))
-vi.mock('./barsIDB', () => ({
+vi.mock('./barsIDB', async () => { const { mergeMonotonic } = await vi.importActual('./barsMerge'); return {
   idbGet: vi.fn(async (sym, tf) => idb.entries.get(`${sym}_${tf}`) ?? null),
   idbPut: vi.fn(async (sym, tf, bars) => { idb.puts.push(`${sym}_${tf}`); idb.entries.set(`${sym}_${tf}`, { bars, lastT: bars[bars.length - 1].t, savedAt: Date.now() }) }),
   mergeDelta: (a, b) => b,
-}))
+  idbPutMonotonic: vi.fn(async (sym, tf, bars, opts) => {
+    const key = `${sym}_${tf}`
+    const next = mergeMonotonic(idb.entries.get(key)?.bars ?? null, bars, opts)
+    if (!next?.length) return null
+    idb.puts.push(key); idb.entries.set(key, { bars: next, lastT: next[next.length - 1].t, savedAt: Date.now() })
+    return next
+  }),
+} })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 const todaySet = () => [{ t: '2026-09-21', o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }, { t: '2026-09-22', o: 1.5, h: 2.5, l: 1, c: 2, v: 12 }]

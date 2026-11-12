@@ -90,3 +90,17 @@ describe('applyTick — late prior-minute print at the boundary', () => {
     expect(rc.getLastTickAt('syn')).toBeGreaterThan(0)
   })
 })
+
+describe('W-O I6: a minute is authoritative only when the registry tracked the previous one', () => {
+  it('first tick → partial; contiguous next minute → not partial; after a feed gap → partial again', () => {
+    rc._reset()
+    const m = 1794400200
+    rc.applyTick('GAPX', 10, 1, m + 30)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+    rc.applyTick('GAPX', 10.1, 1, m + 61)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(false)
+    // the feed dropped the symbol for minutes; _state survived — the rejoined minute is partial
+    rc.applyTick('GAPX', 10.4, 1, m + 60 * 7 + 20)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+  })
+})

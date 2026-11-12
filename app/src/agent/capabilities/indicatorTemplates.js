@@ -76,6 +76,8 @@ const WHY = {
 
 export const indicatorTemplatesKind = {
   name: 'indicatorTemplates',
+  source: (host) => !!host?.prefs?.merge,             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicator templates aren't available on this page — open Charts to use an indicator template.",
   boardScoped: false,                // a member's templates are the same in every layout
   selfDescribing: true,
   list: (host) => (host?.prefs?.merge ? [snap(host)] : []),

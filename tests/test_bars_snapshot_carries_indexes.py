@@ -86,7 +86,15 @@ def test_the_snapshot_ships_every_expected_index_even_when_the_source_lacks_one(
         shutil.rmtree(os.path.dirname(tar_path), ignore_errors=True)
 
     shipped = _indexes(out / "bars.db")
-    missing = sorted(set(bars_sqlite.BARS_INDEX_DDL) - shipped)
+    # Every index the SHIPPED layout needs (a clustered ohlcv's PK replaces the lookup
+    # index; tests/test_bars_clustered_snapshot.py), and always the by-date index.
+    _c = sqlite3.connect(str(out / "bars.db"))
+    try:
+        expected = set(bars_sqlite.expected_index_ddl(_c))
+    finally:
+        _c.close()
+    assert bars_sqlite.DAILY_BYDATE_INDEX in expected
+    missing = sorted(expected - shipped)
     assert not missing, (
         f"the snapshot would install a bars.db WITHOUT {missing}; every web boot "
         "after that install pays for it (incident 2026-10-02)"

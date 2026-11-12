@@ -42,6 +42,8 @@ const withValues = (st, set) => (Object.entries(set).every(([k, v]) => st.values
 
 export const settingsKind = {
   name: 'settings',
+  source: 'prefs',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Settings aren't available on this page — open Settings to change them.",
   boardScoped: false,
   selfDescribing: true,
   list: (host) => (host?.prefs ? [snap(host)] : []),

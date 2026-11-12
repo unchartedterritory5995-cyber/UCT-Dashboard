@@ -15,6 +15,12 @@ export { POPULAR_RESULTS }
 
 // Render `text` with every case-insensitive occurrence of the typed query wrapped in
 // a gold `.hit` span (TradingView highlights the matched term; ours is gold).
+// How long the typed text must hold still before the host is told (see onTypedIntent).
+// LONGER than a typist's inter-key gap (~70-120 ms) on purpose: a prefix on the way to the
+// ticker (G, GO, GOO, GOOG) is not intent, and warming it is cache churn plus, when the
+// today-pack is unusable, a wasted /api/bars request.
+export const TYPED_INTENT_SETTLE_MS = 140
+
 function highlighted(text, query, styles) {
   if (!text) return null
   const q = (query || '').trim()
@@ -34,7 +40,19 @@ function highlighted(text, query, styles) {
   return parts
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null }, ref) {
+// T3 integrated chart header only (splitLabel): "SPY (State Street …)" renders as a ticker
+// span + a name span so the header can style them apart. Same text content order, so the
+// label still reads "SPY State Street …" to assistive tech. Anything that does not match
+// the "TICKER (Name)" shape renders unchanged.
+function splitSymLabel(label, customColor = false) {
+  const m = typeof label === 'string' ? /^(\S+) \((.+)\)$/.exec(label) : null
+  if (!m) return label
+  // customColor: the member set a title colour — mark the spans so the header leaves it alone.
+  const c = customColor ? { 'data-sym-custom': '' } : null
+  return <><span data-sym-ticker="" {...c}>{m[1]}</span> <span data-sym-name="" {...c}>{m[2]}</span></>
+}
+
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, splitLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -66,6 +84,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // this is true — a mouse hovering a row must NOT hijack Enter away from the typed
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
+  const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
 
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -200,6 +219,27 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     return () => { clearTimeout(t); ctl.abort() }
   }, [query, open, chip, breadthAll, econ, chips])
 
+  // ⭐ TYPE-TO-SEARCH WARM (2026-11-11): tell the host what is being typed, so the chart can
+  // start fetching that symbol BEFORE Enter (see `warmTypedSymbol`), once the text has held
+  // still for TYPED_INTENT_SETTLE_MS (prefixes typed through are not reported). Plain-ticker text only.
+  useEffect(() => {
+    if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth') return undefined
+    const q = query.trim()
+    if (!q) return undefined
+    const clean = canonicalTicker(q, breadthAll)
+    if (!clean || !/^[A-Z0-9][A-Z0-9.^-]{0,11}$/i.test(clean) || clean.toUpperCase() === String(sym || '').toUpperCase()) return undefined
+    const text = clean.toUpperCase()
+    // Once per text: a re-run for another reason (the breadth catalogue landing) is not new intent.
+    if (lastIntentRef.current === text) return undefined
+    const t = setTimeout(() => {
+      lastIntentRef.current = text
+      try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
+    }, TYPED_INTENT_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [query, open, chip, onTypedIntent, breadthAll, sym])
+  // A new search session may warm the same text again.
+  useEffect(() => { if (!open) lastIntentRef.current = null }, [open])
+
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {
     const el = listRef.current?.children?.[activeIdx]
@@ -261,7 +301,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
             style={{ ...(fullLabel ? { maxWidth: 'none' } : null), ...(labelColor ? { color: labelColor } : null) }}
           >
             {logoSym ? (
-              <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>
+              <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={splitLabel ? 20 : 16} round /></span>
             ) : brandLogo ? (
               <span className={styles.labelLogo}>
                 <img src={uctMark} alt="Uncharted Territory" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
@@ -273,7 +313,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                 workspace always takes THIS branch, so any probe of the visible
                 identity silently found nothing. Making the comment true costs one
                 attribute and makes the member-visible ticker addressable. */}
-            <span data-testid="sym-label" className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
+            <span data-testid="sym-label" className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{splitLabel ? splitSymLabel(displayLabel, !!labelColor) : displayLabel}</span>
           </span>
         ) : sym}
         {!hideIcon && (

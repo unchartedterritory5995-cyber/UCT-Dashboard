@@ -167,7 +167,7 @@ def store(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", _fmt)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda *a, **k: False)
     monkeypatch.setattr(bars_router, "_is_carried", lambda t: True)
     now = {"t": et(*TUE, 20, 30)}
@@ -186,7 +186,7 @@ def test_default_60m_is_still_the_rth_grid(store):
     ts = [b["t"] for b in body["bars"]]
     assert et(*TUE, 9, 30) in ts and et(*TUE, 10, 30) in ts
     assert et(*TUE, 10, 0) not in ts
-    assert "session" not in body
+    assert body.get("session") is None   # legacy (no param): bar contract `session: null`
     # explicit rth is the same series
     assert [b["t"] for b in _body(bars_router.serve_bars("THIN", "60", 50, session="rth"))["bars"]] == ts
 
