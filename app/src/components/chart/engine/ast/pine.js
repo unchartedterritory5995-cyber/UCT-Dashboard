@@ -891,7 +891,7 @@ const OWN_SYMBOL_NAMES = new Set([
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
 import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
-import { OBJECT_ENUM_VALUES, OBJECT_ENUM_TABLE } from '../objectEnums.js'
+import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -19351,12 +19351,6 @@ function staticBuiltin(name, v) {
     default: return null
   }
 }
-/** The words a position or size slot carries (`objectEnums.js`), for a folded string. */
-const STATIC_SLOT_WORDS = Object.freeze({
-  position: new Set(Object.values(OBJECT_ENUM_TABLE.position)),
-  size: new Set(Object.values(OBJECT_ENUM_TABLE.size)),
-  text_size: new Set(Object.values(OBJECT_ENUM_TABLE.size)),
-})
 /** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
 const STATIC_HELPER_MAX_PASSES = 1000
 
@@ -22074,6 +22068,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       const { b, local } = hit
       const sub = local ? frame : null
+      // ⛔⛔ Engine 52 — A NAME THE SCRIPT REASSIGNS IS NOT ITS DECLARATION. The scope can
+      // hold the declaration's binding for a name a later `:=` (in a loop, a block, a
+      // helper) moves (C28: artemis's `knnVal = 0.0`, written in the kNN loop): reading the
+      // declaration drew `◈ NEUTRAL` where TradingView draws `▼ BEAR`. Measured once numbers
+      // became readable here; a local of a helper frame is the frame's own.
+      if (!local && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+        && objectOpts.mutableNames.has(node.name)) return null
       if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
         return staticEnumValue(b.node, b.env || scope, sub, depth + 1)
       }
@@ -22324,10 +22325,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       let st = null
       try { st = staticEnumValue(node, scope) } catch { st = null }
       if (st && 'w' in st) return { t: 'lit', s: st.w }
-      // ⭐ Engine 52 — a STRING folded before bar 0 (`str.lower` / `str.split` / a join
-      // loop over an input) that spells a constant's word is that word, as a string
-      // literal in the slot already is (`table.new("top_right", …)`, the text reader's).
-      if (st && 's' in st && slot && STATIC_SLOT_WORDS[slot] && STATIC_SLOT_WORDS[slot].has(st.s)) return { t: 'lit', s: st.s }
+      // ⛔ Engine 52 — a STRING folded before bar 0 (`str.lower` / `str.split` / a join loop
+      // over an input) that SPELLS a constant's word is NOT that word: no capture shows that
+      // spelling in an enum slot (C47, `vendorHarness.c47PositionSize`), so it is not served.
       let ho = null
       try { ho = hoistEnumChoice(node, scope) } catch { ho = null }
       if (ho) return ho

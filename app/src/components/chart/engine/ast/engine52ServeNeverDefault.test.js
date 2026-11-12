@@ -107,7 +107,7 @@ describe('2. a value fixed before bar 0 is SERVED by the static reader', () => {
     expect(bg.then).toEqual({ c: 'lit', hex: '#00ff9cA6' })
   })
 
-  it('str.* over an input and a bounded helper loop fold to a position / size word', () => {
+  it('str.* over an input and a bounded helper loop fold to a text; a spelled word is NOT an enum (C47)', () => {
     const t = tr([
       'tablePos = input.string("Middle Right", "Table Location ")',
       'tableSiz = input.string("Tiny", "")',
@@ -123,10 +123,26 @@ describe('2. a value fixed before bar 0 is SERVED by the static reader', () => {
       'if barstate.islast',
       '    table.cell(tbl, 0, 0, text = "a", text_size = locNsze(tableSiz), tooltip = str.upper(str.replace_all(tablePos, " ", "-")))',
     ].join('\n'))
-    expect(firstOf(t, 'create', 'table').props.position).toEqual({ v: 'text', node: { t: 'lit', s: 'middle_right' } })
-    const cell = firstOf(t, 'cell').props
-    expect(cell.text_size).toEqual({ v: 'text', node: { t: 'lit', s: 'tiny' } })
-    expect(cell.tooltip).toEqual({ v: 'text', node: { t: 'lit', s: 'MIDDLE-RIGHT' } })
+    // the helper's string (`middle_right`) spells a position, which no capture witnesses in an
+    // enum slot: the table is withheld by name, never drawn in a default corner
+    expect(firstOf(t, 'create', 'table')).toBeUndefined()
+    expect(diag(t).dropReasons['enum:unreadable']).toBe(2) // the table's position and the cell's size
+    // …while the same fold serves a TEXT (a tooltip is the string itself)
+    const t2 = tr([
+      'tablePos = input.string("Middle Right", "Table Location ")',
+      'locNsze(x) =>',
+      '    y   = str.split(str.lower(x), " ")',
+      '    out = ""',
+      '    for i = 0 to array.size(y) - 1',
+      '        out := out + array.get(y, i)',
+      '        if i != array.size(y) - 1',
+      '            out := out + "_"',
+      '    out',
+      'var tbl = table.new(position.top_right, 1, 1)',
+      'if barstate.islast',
+      '    table.cell(tbl, 0, 0, text = "a", tooltip = str.upper(str.replace_all(tablePos, " ", "-")) + "|" + locNsze(tablePos))',
+    ].join('\n'))
+    expect(firstOf(t2, 'cell').props.tooltip).toEqual({ v: 'text', node: { t: 'lit', s: 'MIDDLE-RIGHT|middle_right' } })
   })
 
   it('a folded string that is not a word of the slot is NOT served as one', () => {

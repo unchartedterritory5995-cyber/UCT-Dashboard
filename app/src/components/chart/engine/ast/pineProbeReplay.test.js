@@ -166,7 +166,12 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // resolving those per-bar choices — 87 fewer Resolvers and steps in each lane; plot
         // outputs byte-identical. Pre: plain [731, 495233, '746db5aac03f75e8'] / manifest
         // [731, 495241, '2680617189ad5026'].
-        plain: [644, 495146, '5013c426d180b036'], manifest: [644, 495154, '1dfc1e096e164f4f'] },
+        // ⭐ Engine 52 (serve, never default): the colour reader now follows a `bound` binding
+        // and reads a choice's test in the binding's own scope, so artemis's cell colours are
+        // resolved (one more cell drawn, TradingView's text) — 274 more Resolvers and steps in
+        // each lane; plot outputs byte-identical (census `outputs` hash). Pre: plain
+        // [644, 495146, '5013c426d180b036'] / manifest [644, 495154, '1dfc1e096e164f4f'].
+        plain: [918, 495420, '59ff1f72cf67d49f'], manifest: [918, 495428, '33cdbd16923ad35a'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
@@ -196,7 +201,9 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // helpers pick from input defaults are read before bar 0, not resolved per bar —
         // 85 fewer Resolvers and steps; plot outputs byte-identical. Pre: [921, 7239,
         // 'be0be63b6616ba55'] both.
-        plain: [836, 7154, '8441e633c5739170'], manifest: [836, 7154, '8441e633c5739170'] },
+        // ⭐ Engine 52: its colours read through a `bound` binding cost 12 more Resolvers and
+        // steps per lane; plot outputs byte-identical. Pre: [836, 7154, '8441e633c5739170'].
+        plain: [848, 7166, '42633e7b31f8d177'], manifest: [848, 7166, '42633e7b31f8d177'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now
