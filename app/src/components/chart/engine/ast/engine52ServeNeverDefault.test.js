@@ -222,3 +222,8 @@ describe('4. the objects-v2 grader, field by field', () => {
     expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'small' }).state).toBe('differ')
   })
 })
+
+// ⭐ The C28 guard (a reassigned name is not its declaration) is railed by the CAPTURES that
+// found it: `w3CapturedCells.vendor` and `vendorHarness.c28StaleSnapshot` (artemis) go RED 4
+// without it. A synthetic `k = 0.0` / loop `:=` does not reproduce the stale binding, so it
+// is not kept as a rail that cannot fail.
