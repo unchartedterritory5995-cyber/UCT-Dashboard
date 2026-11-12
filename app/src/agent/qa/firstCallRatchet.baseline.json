@@ -2,7 +2,7 @@
  "header": {
   "rule": "shrink-only first-call ratchet: an id listed here that is OUT of its first call fails CI; new IN ids are printed, never auto-added",
   "generatedFrom": "origin/master",
-  "masterSha": "acc72739f29af33f5f7d1c7ddce9d1da7b75b518",
+  "masterSha": "8dba68b056fcba2564d3c397cbb07715588ae396",
   "generatedAt": "2026-11-12",
   "regen": "git fetch origin; cd app; UPDATE_FIRST_CALL_RATCHET=1 npx vitest run src/agent/qa/firstCallRatchet.test.js (only with the Lead's / AUDIT's OK)",
   "withExpectation": 789,
