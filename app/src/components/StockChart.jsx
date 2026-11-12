@@ -1529,6 +1529,7 @@ import { anyAverageOn, withAveragesShown } from './chart/averageVisibility'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
+import { mergeDrawingDefaults } from './chart/drawingSaveDefaults'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 // ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
@@ -6129,6 +6130,9 @@ export default function StockChart({
   const activeToolRef = useRef(activeTool)
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
+  // ⭐ UCT Agent (drawing extras): the Position Calculator's read-back (getDateMeta.positionCalc) reads the live values
+  const positionToolRef = useRef(positionTool)
+  positionToolRef.current = positionTool
   const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color || UCT_DRAW_GOLD)
   // THE COLOUR FOLLOWS THE USER'S SAVED DEFAULT AND NOTHING ELSE.
@@ -18516,7 +18520,20 @@ export default function StockChart({
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
       fullyLoaded: barCount === _fullTarget,
       loading: originLoading,
+      // ⭐ UCT Agent (drawing extras): the Position Calculator as the toolbar's 'position' tool shows it — open, and the
+      // panel's own entry / stop / target strings (PositionPanel onChange writes the same state)
+      positionCalc: { can: !!showDrawingToolsRef.current, open: !!showDrawingToolsRef.current && activeToolRef.current === 'position', entry: positionToolRef.current.entry, stop: positionToolRef.current.stop,
+        target: positionToolRef.current.target, direction: positionToolRef.current.direction },
     }
+  }
+  // ⭐ UCT Agent (drawing extras): the Position Calculator through the tool's OWN state — the toolbar button's
+  // setActiveTool('position') and PositionPanel's onChange (setPositionTool). Its Undo writes back what it read before
+  // (closed = the tool disarmed only while it is still the calculator). A view; nothing is saved.
+  const positionCalc = (arg) => {
+    if (!arg || typeof arg !== 'object' || !showDrawingToolsRef.current) return
+    setPositionTool(p => ({ ...p, entry: String(arg.entry ?? ''), stop: String(arg.stop ?? ''), target: String(arg.target ?? ''), direction: arg.direction || p.direction }))
+    if (arg.open) setActiveTool('position')
+    else if (activeToolRef.current === 'position') setActiveTool(null)
   }
   // UCT Agent's Undo of a range button: the `frame` getDateMeta read before it, and the view lock as it was (storage too).
   const restoreView = (f) => {
@@ -18533,7 +18550,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.() })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), positionCalc })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -20909,18 +20926,8 @@ export default function StockChart({
                last week. The flat half (color/width/style/fontSize) keeps its
                shipped shared behaviour; only the per-tool half is nested. */
             onSaveDefaults={(d) => {
-              const { byTool, ...flat } = d || {}
-              const prev = cs.drawingDefaults || {}
-              const nextByTool = byTool
-                ? Object.entries(byTool).reduce(
-                  (acc, [tool, props]) => ({ ...acc, [tool]: { ...(acc[tool] || {}), ...props } }),
-                  { ...(prev.byTool || {}) },
-                )
-                : prev.byTool
-              handleUpdateChartSettings({
-                ...cs,
-                drawingDefaults: { ...prev, ...flat, ...(nextByTool ? { byTool: nextByTool } : {}) },
-              })
+              // the merge is drawingSaveDefaults.mergeDrawingDefaults — the same one UCT Agent's "make this my default" writes
+              handleUpdateChartSettings({ ...cs, drawingDefaults: mergeDrawingDefaults(cs.drawingDefaults, d) })
             }}
             onSetAlert={handleSetDrawingAlert}
             boundAlerts={boundAlerts}

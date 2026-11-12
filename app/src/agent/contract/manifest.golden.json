@@ -6571,6 +6571,144 @@
    "shape": null
   },
   {
+   "name": "drawing.positionCalculator",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Open the Position Calculator on ONE chart (the drawing toolbar's Position tool) with an entry, a stop and a target price: its panel sizes the trade from the account size and risk % saved there, and the chart shows the three price lines. Long or short comes from the stop being below or above the entry. A view: nothing is saved. Undo puts the calculator back as it was.",
+   "hints": "target = the chart. entry, stop, target = the member's prices; a price they did not give is null (then ask — never guess one, never use the current price). side = \"long\" / \"short\" only when they said it, else null (it is read from entry vs stop). The old 3-point position DRAWING is retired: this is the only way to place a position.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "entry": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "stop": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "target": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "side": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "long",
+       "short",
+       null
+      ]
+     }
+    },
+    "required": [
+     "entry",
+     "stop",
+     "target",
+     "side"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.saveDefaults",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Make ONE drawing's style the default for new drawings on ONE chart (the drawing menu's \"Save as default\"): its colour, width, line style, text size and that tool's own settings become the chart's drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.",
+   "hints": "target = the chart the member means (the one showing the drawing); drawing = the id from that symbol's drawings entry (the recent one for \"this line\"). To restyle a drawing itself use drawing.style; to change the defaults by name use chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "drawing"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.favoriteTool",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar's tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Undo puts the favourites back.",
+   "hints": "target = the chart whose toolbar they mean (the selected one; the list is the same on every chart); tool = the toolbar tool's id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist's flag (watchlist.setFlag), never this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "tool": {
+      "type": "string",
+      "enum": [
+       "trendline",
+       "extended",
+       "horizontal",
+       "hray",
+       "vertical",
+       "rect",
+       "circle",
+       "arrow",
+       "fib",
+       "fibext",
+       "pitchfork",
+       "channel",
+       "cup",
+       "avwap",
+       "text",
+       "measure",
+       "dateRange",
+       "advance",
+       "position"
+      ]
+     },
+     "favorite": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "tool",
+     "favorite"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",

@@ -136,6 +136,40 @@ describe('undo rides on its own words, never on the words of its description', (
   })
 })
 
+// DRAWING EXTRAS (drawingExtras, words-only): its words never take a plain drawing, a price alert or a ticker's flag — and
+// they DO reach each action in the FIRST call on both routers (the action is in the manifest sent)
+describe('drawingExtras: its own words, and the controls that must stay where they were, v1 and v2', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const BY = { v1: routeManifest, v2: routeManifestV2 }
+  const first = (v, msg) => {
+    const r = BY[v](full(), msg, opts())
+    return { selected: r.routing ? r.routing.selected : ['FULL'], names: new Set(r.manifest.map(c => c.name)) }
+  }
+  const OWN = [
+    ['open the position calculator with entry 50 stop 48 target 56', 'drawing.positionCalculator'],
+    ['size this trade: entry 20, stop 19, target 23', 'drawing.positionCalculator'],
+    ['make this trendline my default style', 'drawing.saveDefaults'],
+    ['save this rectangle as the default for new drawings', 'drawing.saveDefaults'],
+    ['add the fib tool to my favourites', 'drawing.favoriteTool'],
+    ['unstar the measure tool', 'drawing.favoriteTool'],
+  ]
+  it.each(['v1', 'v2'].flatMap(v => OWN.map(o => [v, ...o])))('%s "%s" carries %s in the first call', (v, msg, action) => {
+    expect(wordsSelect('drawingExtras', msg)).toBe(true)
+    expect(first(v, msg).names.has(action)).toBe(true)
+  })
+  // [request, group it must keep, action it must keep]
+  const CONTROLS = [['draw a line', 'drawings', null], ['set an alert at my stop', 'alerts', 'alert.create'], ['favourite NVDA', null, null],
+    ['flag NVDA as a favorite', null, null], ['star NVDA in my watchlist', 'lists', null], ['save this layout as default', null, null], ['reset the chart to its defaults', null, null]]
+  it.each(['v1', 'v2'].flatMap(v => CONTROLS.map(c => [v, ...c])))('%s control "%s" never selects drawingExtras', (v, msg, group, action) => {
+    const { selected, names } = first(v, msg)
+    expect(wordsSelect('drawingExtras', msg)).toBe(false)
+    expect(selected).not.toContain('drawingExtras')
+    if (group) expect(selected).toContain(group)
+    if (action) expect(names.has(action)).toBe(true)
+  })
+})
+
 // AUDIT (wordsOnly fill, post-#1027): a `wordsOnly` group (routing.js) is chosen by its OWN words only. v1's fallback already
 // left it out of the filler (selectGroups `filler`); v2's step-6 fill packed EVERY group, so on a request nothing recognised
 // watchlistShow rode the fill and took the room `definitions` / `indicatorAlerts` had before #1027. The rail is generic over
@@ -146,6 +180,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
   const wordsOnly = GROUPS.filter(g => g.wordsOnly)
   const OWN_WORDS = {
+    // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
+    drawingExtras: ['open the position calculator with entry 50 stop 48 target 56', 'make this trendline my default style', 'add the fib tool to my favourites'],
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],

@@ -15,6 +15,7 @@ import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabil
 import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
+import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -223,6 +224,8 @@ export function checkExpect(ctx, e, label) {
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // C1-165: the member's favourite drawing tools, as the toolbar's ★ stores them (drawToolFavorites)
+  if (e.favoriteTools) expect(readFavoriteTools(), `${label}: favourite drawing tools`).toEqual(e.favoriteTools)
   // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
   if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)

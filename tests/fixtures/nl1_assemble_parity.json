@@ -161,6 +161,9 @@
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
   "chartSetup.compareGroup": "compareGroups",
+  "drawing.positionCalculator": "drawingExtras",
+  "drawing.saveDefaults": "drawingExtras",
+  "drawing.favoriteTool": "drawingExtras",
   "indicatorStyle.set": "indicatorSetup",
   "indicatorStyle.placeIn": "indicatorSetup",
   "pane.move": "indicatorSetup",
@@ -245,6 +248,10 @@
   {
    "id": "drawings",
    "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+  },
+  {
+   "id": "drawingExtras",
+   "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
   },
   {
    "id": "drawingBoards",
@@ -412,6 +419,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "drawingBoards",
@@ -597,6 +608,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "drawingBoards",
@@ -796,6 +811,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "drawingBoards",
@@ -1007,6 +1026,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
@@ -1188,6 +1211,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
@@ -1271,6 +1298,7 @@
     "drawingOps",
     "drawingTools",
     "drawings",
+    "drawingExtras",
     "drawingBoards",
     "lists",
     "screener",
@@ -1441,6 +1469,9 @@
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
     "chartSetup.compareGroup",
+    "drawing.positionCalculator",
+    "drawing.saveDefaults",
+    "drawing.favoriteTool",
     "indicatorStyle.set",
     "indicatorStyle.placeIn",
     "pane.move",

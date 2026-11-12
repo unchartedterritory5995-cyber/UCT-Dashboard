@@ -83,6 +83,7 @@ import Input from '../ui/Input'
 import Select from '../ui/Select'
 import Checkbox from '../ui/Checkbox'
 import { routeIndicatorAuthoring } from '../../agent/indicatorEntry'
+import { onFavoriteToolsChange, readFavoriteTools, toggledFavorites, writeFavoriteTools } from './drawToolFavorites'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
 const I = (children) => (
@@ -152,7 +153,7 @@ export const TOOL_ICONS = {
 // `favorites` = tool ids surfaced on the floating quick-toolbar. All tools are
 // visible by default (empty hidden set).
 const LS_HIDDEN = 'uct.chart.drawtools.hidden.v1'
-const LS_FAV = 'uct.chart.drawtools.favorites.v1'
+// the favourites' key and writer live in drawToolFavorites.js (shared with UCT Agent's drawingExtras.favoriteTool)
 const LS_FAVPOS = 'uct.chart.drawtools.favpos.v1'
 const _loadArr = (k) => { try { const a = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(a) ? a : [] } catch { return [] } }
 const _saveArr = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)) } catch { /* ignore */ } }
@@ -1215,7 +1216,9 @@ function ChartToolbar({
 
   // ── Drawing-tools customization (show/hide + favorites) ──
   const [hiddenTools, setHiddenTools] = useState(() => _loadArr(LS_HIDDEN))
-  const [favoriteTools, setFavoriteTools] = useState(() => _loadArr(LS_FAV))
+  const [favoriteTools, setFavoriteTools] = useState(() => readFavoriteTools())
+  // a ★ toggled by another toolbar in this tab, or by UCT Agent, shows here too
+  useEffect(() => onFavoriteToolsChange(setFavoriteTools), [])
   const [favMenuOpen, setFavMenuOpen] = useState(false)
   const [favMenuRect, setFavMenuRect] = useState(null)
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
@@ -1230,9 +1233,10 @@ function ChartToolbar({
   const toggleHiddenTool = useCallback((id) => setHiddenTools(prev => {
     const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
   }), [])
-  const toggleFavoriteTool = useCallback((id) => setFavoriteTools(prev => {
-    const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_FAV, n); return n
-  }), [])
+  const toggleFavoriteTool = useCallback((id) => {
+    const n = toggledFavorites(favoriteTools, id)
+    setFavoriteTools(n); writeFavoriteTools(n)
+  }, [favoriteTools])
   const moveFavToolbar = useCallback((p) => { setFavPos(p); try { localStorage.setItem(LS_FAVPOS, JSON.stringify(p)) } catch { /* ignore */ } }, [])
   const openFavMenu = useCallback(() => {
     const r = favBtnRef.current?.getBoundingClientRect()

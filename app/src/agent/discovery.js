@@ -103,6 +103,8 @@ export const TOPICS = [
     caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
       // W1-B: the time-anchored tools, from the dates and prices the member gives
       'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
+      // drawing extras (capabilities/drawingExtras.js): the toolbar's Position Calculator, a drawing's Save as default, a tool's ★
+      'drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool',
       // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
       'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert',
       // the menu's Duplicate and a position's Alerts row (capabilities/drawingOps.js)

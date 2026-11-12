@@ -1710,3 +1710,19 @@ def test_guard_withholds_the_period_sort_action_names_bare(name):
 ])
 def test_guard_still_passes_ordinary_prose_about_period_sorts_and_docking(text):
     assert guard.suspicious(text) is False
+
+
+# ── #1110 drawing extras: its action names are withheld when a passage names them bare ──────────────────────────────
+@pytest.mark.parametrize("name", ["drawing.favoriteTool", "drawing.positionCalculator", "drawing.saveDefaults"])
+def test_guard_withholds_the_drawing_extras_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Work out your position size before you click buy.",
+    "My favorite setups are tight flags after a base.",
+    "Position the stop under the low of the breakout day.",
+    "Save your default risk per trade as one percent.",
+])
+def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
+    assert guard.suspicious(text) is False

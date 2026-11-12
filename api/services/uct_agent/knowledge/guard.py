@@ -35,7 +35,8 @@ _INJECTION = re.compile(
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
     # #1074 Layout Dock: layout.pinToBar / layout.unpinFromBar as bare names (layout.moveOnBar is "move"); stricter only
-    r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin|dock)[A-Za-z]*\b"
+    # #1110 drawing extras: drawing.favoriteTool / drawing.positionCalculator as bare names (saveDefaults is "save"); stricter only
+    r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin|dock|favorite|position)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
