@@ -710,6 +710,17 @@
       ]
     },
     {
+      "key": "uct.signedIn.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Whether this browser was signed in last time, so your settings load alongside the sign-in check",
+      "files": [
+        "app/src/lib/bootFetch.js"
+      ]
+    },
+    {
       "key": "volume_scan_lists",
       "store": "server-preference",
       "scope": "cross-device",

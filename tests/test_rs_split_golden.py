@@ -120,10 +120,35 @@ def build_case(name: str) -> dict:
             "relTol": REL_TOL, "bars": stock, "benchmarkBars": bench,
             "expected": {k: list(cols[k]) for k in rsm.RS_VS_EMA_COLUMNS},
         }
+    if name == "rs_exit_spy":
+        fast, slow = rsm.EXIT_AUTO_LENGTHS["D"]
+        cols = rsm.compute_rs_exit_columns(stock, bench, fast, slow)
+        wire = rd_wire_columns()
+        return {
+            "case": name, "kind": "rs_exit",
+            "note": ("UCT RS Exit Warnings (2026-11-12): compute_rs_exit_columns over the SAME seeded series "
+                     "as rs_phases_spy (one series, three fixtures), at the daily auto pair, a 21 and a 50 "
+                     "bar SIMPLE average of the RS line. expected holds the six wire columns (the RS line, "
+                     "the two averages and the three dots: the RS value on a warning bar, null elsewhere); "
+                     "eventBars lists the bars each warning fired on (Quick Break, Quicksand, Grateful Dead "
+                     f"Break), the 0/1 columns the alerts read. Stock index {GAP_INDEX} has no benchmark bar "
+                     "and is None in every column, skipped by the averages. Regenerated and compared by "
+                     "tests/test_rs_split_golden.py; read by the JS lane's rsExitDef.test.js."),
+            "params": {"fast": fast, "slow": slow},
+            "relTol": REL_TOL, "bars": stock, "benchmarkBars": bench,
+            "expected": {k: list(cols[k]) for k in wire},
+            "eventBars": {k: [i for i, v in enumerate(cols[k]) if v == 1.0] for k in rsm.RS_EXIT_EVENT_COLUMNS},
+        }
     raise KeyError(name)
 
 
-CASES = ("rs_phases_spy", "rs_vs_ema_spy")
+def rd_wire_columns() -> tuple:
+    """The six wire columns of the `rsExit` row, read from the row so the fixture can never name others."""
+    from api.services.signature import registry_defs as rd
+    return tuple(rd.RS_EXIT_WIRE_COLUMNS)
+
+
+CASES = ("rs_phases_spy", "rs_vs_ema_spy", "rs_exit_spy")
 
 
 def write_cases() -> None:
@@ -140,6 +165,7 @@ def test_the_series_and_every_column_regenerate_to_the_committed_bytes(name):
     fresh = build_case(name)
     assert case["case"] == name and case["kind"] == fresh["kind"]
     assert case["params"] == fresh["params"] and case["relTol"] == REL_TOL
+    assert case.get("eventBars") == fresh.get("eventBars"), "the warning bars moved"
     assert case["bars"] == fresh["bars"], "the synthetic stock series moved"
     assert case["benchmarkBars"] == fresh["benchmarkBars"], "the synthetic benchmark series moved"
     assert set(case["expected"]) == set(fresh["expected"]), "the column set drifted"
@@ -150,9 +176,9 @@ def test_the_series_and_every_column_regenerate_to_the_committed_bytes(name):
             assert _close(g, e, REL_TOL), f"{name}.{col}[{i}]: {g!r} != {e!r}"
 
 
-def test_the_two_fixtures_share_one_series():
-    a, b = load_case("rs_phases_spy"), load_case("rs_vs_ema_spy")
-    assert a["bars"] == b["bars"] and a["benchmarkBars"] == b["benchmarkBars"]
+def test_the_three_fixtures_share_one_series():
+    a, b, c = load_case("rs_phases_spy"), load_case("rs_vs_ema_spy"), load_case("rs_exit_spy")
+    assert a["bars"] == b["bars"] == c["bars"] and a["benchmarkBars"] == b["benchmarkBars"] == c["benchmarkBars"]
     assert len(a["bars"]) == N and len(a["benchmarkBars"]) == N - 1
     bench_t = {bar["t"] for bar in a["benchmarkBars"]}
     assert [i for i, bar in enumerate(a["bars"]) if bar["t"] not in bench_t] == [GAP_INDEX]
@@ -186,6 +212,25 @@ def test_vs_ema_seeds_where_the_averages_do_and_is_signed_both_ways():
         assert col[GAP_INDEX] is None and col[GAP_INDEX + 1] is not None
 
 
+def test_exit_has_all_three_warnings_the_stated_warm_ups_and_the_gap():
+    case = load_case("rs_exit_spy")
+    exp, ev = case["expected"], case["eventBars"]
+    assert set(exp) == {"rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead"}
+    assert case["params"] == {"fast": 21, "slow": 50}
+    assert exp["fast"][:20] == [None] * 20 and exp["fast"][20] is not None, "a 21-bar average seeds at index 20"
+    assert exp["slow"][:49] == [None] * 49 and exp["slow"][49] is not None, "a 50-bar average seeds at index 49"
+    # all three warnings are on the table, the Quicksand always on a bar AFTER a Quick Break
+    assert ev["quickBreak"] and ev["quicksand"] and ev["deadBreak"], "every warning must occur at least once"
+    assert all(any(q < s for q in ev["quickBreak"]) for s in ev["quicksand"])
+    # the dots are the RS value on exactly those bars, nothing elsewhere
+    for dot, key in (("dotQuick", "quickBreak"), ("dotQuicksand", "quicksand"), ("dotDead", "deadBreak")):
+        assert [i for i, v in enumerate(exp[dot]) if v is not None] == ev[key], dot
+        assert all(exp[dot][i] == exp["rsLine"][i] for i in ev[key]), f"{dot} rides the line"
+    for col in exp.values():
+        assert col[GAP_INDEX] is None, "a bar the benchmark lacks is None in every column"
+    assert exp["rsLine"][GAP_INDEX + 1] is not None and exp["fast"][GAP_INDEX + 1] is not None
+
+
 def test_the_defaults_the_fixtures_were_built_with_are_the_rows_defaults():
     from api.services.signature import registry_defs as rd
     phases = load_case("rs_phases_spy")["params"]
@@ -193,6 +238,8 @@ def test_the_defaults_the_fixtures_were_built_with_are_the_rows_defaults():
     assert (phases["short"], phases["long"]) == (by_key["shortEma"]["default"], by_key["longEma"]["default"])
     vs = load_case("rs_vs_ema_spy")["params"]
     assert vs == {"ema": rsm.DEFAULT_MA_LENGTH, "fast": 3, "slow": 13}
+    exit_ = load_case("rs_exit_spy")["params"]
+    assert (exit_["fast"], exit_["slow"]) == rsm.EXIT_AUTO_LENGTHS["D"], "the daily auto pair"
 
 
 if __name__ == "__main__":

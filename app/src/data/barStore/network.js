@@ -41,6 +41,7 @@ import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/
 import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
+  tailRetriesExhausted,
 } from '../../utils/intradayTailPoll'
 import { classifyIntradayTail } from '../../utils/marketSession'
 import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
@@ -163,6 +164,13 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   let requests = 0
+  /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
+  const budgetSubs = new Map()
+  const _exhausted = (r) => !!r && tailRetriesExhausted(r.pollSt, r.key)
+  function _noteBudget(key, before, after) {
+    if (before === after) return
+    for (const cb of [...(budgetSubs.get(key) || [])]) { try { cb() } catch { /* ignore */ } }
+  }
 
   function _rec(key) {
     let r = keys.get(key)
@@ -339,7 +347,9 @@ export function createNetwork({
     if (res?.delta && s.needsFull) return 0
     if (!isIntradayTf(p.tf) || p.window) return p.window ? Infinity : dailyPollMs
     const tailT = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
+    const spent0 = _exhausted(r)
     const ms = nextTailPollMs(r.pollSt, r.key, { tailT, tf: p.tf, tailStatus: s.tailStatus, retryAfterSec: res?.retryAfterSec ?? null })
+    _noteBudget(r.key, spent0, _exhausted(r))
     const floor = intradayDedupMs({ tailClass: tailT ? classifyIntradayTail(tailT, p.tf) : null, tailStatus: s.tailStatus })
     return Math.max(ms, Math.min(floor, INTRADAY_POLL_MS))
   }
@@ -376,7 +386,9 @@ export function createNetwork({
       if (r.timer != null) { clearTimer(r.timer); r.timer = null }
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
+      const spent = _exhausted(r)
       keys.delete(key)
+      _noteBudget(key, spent, false)
     },
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
@@ -431,6 +443,21 @@ export function createNetwork({
       const out = r.inflight ? new Promise((resolve) => { r.queue.push({ run, resolve }) }) : run()
       out.finally(() => _gc(r))
       return out
+    },
+    /**
+     * ⭐ THE DELAYED SIGNAL. True while `key`'s fast catch-up budget (intradayTailPoll
+     * TAIL_CATCHUP_MAX_TRIES) is SPENT: the tail is still behind / unverified after every fast
+     * retry and the loop has fallen back to the 30 s cadence. It clears when a poll finds the
+     * tail current (nextTailPollMs resets the budget) or the key stops. The chart maps it onto
+     * its currentness badge (UPDATING → DELAYED).
+     */
+    tailExhausted(key) { return _exhausted(keys.get(key)) },
+    /** Listen to `tailExhausted(key)` flips. Returns the unsubscribe function. */
+    subscribeTailBudget(key, cb) {
+      let set = budgetSubs.get(key)
+      if (!set) { set = new Set(); budgetSubs.set(key, set) }
+      set.add(cb)
+      return () => { set.delete(cb); if (!set.size && budgetSubs.get(key) === set) budgetSubs.delete(key) }
     },
     /** Requests in flight for `key` (0|1), or across all keys. */
     inflight(key) {

@@ -6,26 +6,34 @@
   "totals": {
     "setData": 25,
     "seriesUpdate": 37,
-    "candleWrites": 22,
+    "candleWrites": 20,
     "liveRefAssign": 23,
-    "barCacheImports": 23,
+    "barCacheImports": 27,
     "swrCaches": 12,
     "idbOpen": 1
   },
   "files": {
     "components/StockChart.jsx": {
       "setData": 20,
-      "seriesUpdate": 37,
-      "candleWrites": 22,
-      "liveRefAssign": 23,
+      "seriesUpdate": 6,
+      "candleWrites": 2,
       "barCacheImports": 5,
-      "swrCaches": 10
+      "swrCaches": 6
     },
     "components/chart/ChartSettingsIndicators.jsx": {
       "setData": 2
     },
     "components/chart/engine/binder.js": {
       "setData": 3
+    },
+    "components/chart/legacyLiveWriters.js": {
+      "seriesUpdate": 31,
+      "candleWrites": 18,
+      "liveRefAssign": 23
+    },
+    "components/chart/useLegacyChartBars.js": {
+      "barCacheImports": 4,
+      "swrCaches": 4
     },
     "hooks/useNeighborWarm.js": {
       "barCacheImports": 1

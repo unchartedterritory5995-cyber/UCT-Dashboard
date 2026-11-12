@@ -52,6 +52,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import useGridAgentControl from './grid/useGridAgentControl'
 import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
@@ -2766,6 +2767,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // authority for which shell renders (a single MQL, deliberately), so the
   // device class is derived from it rather than from a second opinion.
   const mc = useMultiChartState(deviceClassOf(isMobile))
+  // ⭐ UCT Agent: the grid's own writers, for the Agent host below (useGridAgentControl — stable, read live)
+  const gridAgentControl = useGridAgentControl(mc)
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -3391,6 +3394,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
   // are dropped by a switch — the manual product does the same, silently.
   const agentLayoutsRef = useRef(null)
+  // C3-037..039: the Layout Dock's own door to its RAIL (pin, move, take off the bar) — set by
+  // LayoutDock itself on every render (LayoutDock.jsx agentRef), read through host.layoutDock.
+  const agentDockRef = useRef(null)
   // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
@@ -3503,6 +3509,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
+    layoutDock: () => agentDockRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
@@ -3548,7 +3555,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       read: () => agentReplayRef.current?.cutoff ?? null,
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
-  }), [])
+    gridControl: gridAgentControl,
+  }), [])   // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
   useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
@@ -4163,6 +4171,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           onDelete={handleDockDelete}
           onRename={handleDockRename}
           onRestored={handleDockRestored}
+          agentRef={agentDockRef}
         />
         </div>
         {agentAllowed && (

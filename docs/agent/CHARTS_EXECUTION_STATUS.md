@@ -12,11 +12,11 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 > **Since the re-measure:** it confirmed **225/484** on master `75421184a3`. #1029 (merged as `4dacc81529`) then verified C3-166, giving the **226** below; that one row rests on #1029's own evidence, not on the re-measure run.
 
-**243 of 484 actions, 50.2%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 85 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips, 17 from the data-widget actions and watchlist groups A–D). A further 11 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**259 of 484 actions, 53.5%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 101 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips, 17 from the data-widget actions and watchlist groups A–D, 16 from the Multi Chart grid execution, see "Update 2026-11-10: Multi Chart grid execution (pl-grid)"). A further 11 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 28 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 243. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 28 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 259. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
 
 ## Re-measurement 2026-11-11 (owner decision 4, 2026-11-10)
@@ -37,6 +37,22 @@ Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a cor
 | **Total** | 484 | 225 | 188 | 37 | 225 | 188 | 37 | 0 |
 
 OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
+
+## Update 2026-11-11: Drawing Boards execution (agent/pl/drawing-boards-exec)
+
+The Agent switches, creates, renames and deletes Drawing Boards through the Boards panel's own store writers (drawingsStore setActiveTracing / createTracing / renameTracing / deleteTracing, via host.drawingBoards), reads the result back and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its drawing count, with no Undo. An unnamed or ambiguous board is asked about. A board request aimed at one chart is answered and not run. Test: `app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx` (real panel, scripted model, jsdom, SIMULATED), plus `app/src/agent/agentDrawingBoards.test.jsx` (runtime). PR doc: `docs/agent/program/PR-exec-drawing-boards.md`.
+
+- VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
+- Counts are not changed here: the summary numbers and tables are recounted at merge (rows C1-167..170 above are the only change).
+## Update 2026-11-10: Multi Chart grid execution (pl-grid)
+
+Branch `agent/pl/exec-multichart-grid`. PRODUCT change: the grid's own writers reach the Agent through `multiChart.set` (the grid) and `multiChart.cell` (one cell, chart-backed so the deixis / P2-B / hidden-behind-maximized rules apply), over `pages/charts/grid/useGridAgentControl.js`. The menu, the Groups picker and the cells call the same functions (`gridGroupActions.js`, lifted `maxId`, `gridTemplateLayout`). Evidence: vitest, jsdom, scripted model, fixture server; not a real browser and not the real model. PR doc: `docs/agent/program/PR-exec-multichart-grid.md`.
+
+- VERIFIED (16), each through the real AgentPanel, end state read back from the grid (`useMultiChartState` / the saved `multichart_state` / `gridBoard` / the layouts book), other cells byte-identical, Undo restoring the persisted board byte for byte: C3-042, C3-043, C3-044, C3-045, C3-046, C3-047, C3-048, C3-049, C3-050, C3-051, C3-052, C3-053, C3-055, C3-059, C3-060, C3-061. Was MISSING (2): C3-042, C3-043; was BLOCKED (14): the rest.
+- Unchanged: C3-054 (save a grid as global, admin) stays BLOCKED, an owner decision. The Agent saves only the member's own grids and refuses to delete a prebuilt one (a boundary case in the outcome test).
+- Held-out family (`multiChartGrid.family.test.jsx`, 2×2 / 2×3 / 3×3, written before the fix: pre-fix `Tests 60 failed | 8 passed | 1 todo (69)` with the outcome file): maximize by position and number, the click as ANCHOR never the target, an excluded click, ambiguity asked, hidden cell refused, grow and shrink (a shrink that drops charts is proposed), sync toggles.
+- KNOWN GAP, pinned (it.fails + a test asserting today's outcome): "…not the one I clicked" is not a negation in deixis `NEG_POINTER`, so a plan on the clicked cell runs. Shared deixis machinery, routed to #988.
+- Recount: by script from the "All actions" table into "Counts by area", "The number", "Combined counts" and the runtime-only bullet; the method reproduced the previous 225 / 484 exactly before the change. Re-merged onto master `64421f770d` (2026-11-11): the same 16 rows applied to master's table (master's Multi Chart rows were unchanged since the branch point) and recounted by script from the "All actions" table: 243 → 259 VERIFIED, MISSING 107 → 105, BLOCKED 43 → 29.
 
 ## Update 2026-11-10 (3): data-widget actions and watchlist groups A–D (agent/pl/exec-widget-actions)
 
@@ -94,6 +110,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
 | after the data-widget actions + watchlist A–D (agent/pl/exec-widget-actions) | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
+| after Multi Chart grid execution (pl-grid, #1030, re-merged onto 64421f770d) | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -225,7 +242,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Widget tabs | 3 | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
 | C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Layout Dock | 8 | 0 | 2 | 5 | 2 | 0 | 17 | 0 |
-| C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
+| C3 | Multi Chart | 19 | 1 | 0 | 0 | 1 | 0 | 21 | 0 |
 | C3 | Watchlist | 25 | 1 | 3 | 5 | 5 | 1 | 40 | 4 |
 | C3 | Scanner | 10 | 0 | 0 | 2 | 2 | 0 | 14 | 0 |
 | C3 | Volume Surge | 1 | 0 | 2 | 3 | 0 | 0 | 6 | 0 |
@@ -252,8 +269,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
 | C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 101 | 7 | 19 | 59 | 27 | 3 | 216 | 7 |
-| | **Total** | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 117 | 7 | 19 | 57 | 13 | 3 | 216 | 7 |
+| | **Total** | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -549,10 +566,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
 | C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "switch to my Earnings board" | pass 6/6 | panel, scripted model |
+| C1-168 | Boards | Create a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: a planned new board called Breakouts | pass 6/6 | panel, scripted model |
+| C1-169 | Boards | Rename a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "rename my Earnings board to Gaps" | pass 6/6 | panel, scripted model |
+| C1-170 | Boards | Delete a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: the card, Dismiss, Apply; "delete my board" asks | pass 6/6 | panel, scripted model |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |
@@ -700,27 +717,27 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-039 | Layout Dock | Remove a layout from the bar | MISSING | none | n/a | none |
 | C3-040 | Layout Dock | View a layout's version history | MISSING | none | n/a | none |
 | C3-041 | Layout Dock | Restore a layout version | MISSING | none | n/a | none |
-| C3-042 | Multi Chart | Enter a preset grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-043 | Multi Chart | Apply a custom rows × columns grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-049 | Multi Chart | Step or switch group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-050 | Multi Chart | Refresh the group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-051 | Multi Chart | Exit Groups | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-052 | Multi Chart | Apply a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-053 | Multi Chart | Save a grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-042 | Multi Chart | Enter a preset grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-042 "can you split my screen into a two by three grid of charts" (from the board); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-043 | Multi Chart | Apply a custom rows × columns grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-043 "I want three rows and four columns"; C3-043 past the cap, refused; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-044 | Multi Chart | Exit Multi Chart | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-044 "close the multi chart view and take me back to my normal board"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-045 | Multi Chart | Toggle crosshair sync | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-045 "link the crosshairs across all four charts"; family: "sync the crosshair on all of these" (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-046 | Multi Chart | Toggle time-range sync | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-046 "keep every chart scrolled to the same dates"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-047 | Multi Chart | Turn on Groups mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-047 "switch groups mode on"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-048 "fill the grid with the space stocks"; C3-048 ambiguous name asked; C3-048 nothing chartable, rolled back; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-049 | Multi Chart | Step or switch group | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-049 "go to the next group"; C3-049 "switch over to the memory & HBM group" (also-in chip); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-050 | Multi Chart | Refresh the group | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-050 "refresh the group"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-051 | Multi Chart | Exit Groups | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-051 "get out of groups mode"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-052 | Multi Chart | Apply a saved grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-052 "open my Momentum Nine grid"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-053 | Multi Chart | Save a grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-053 "save this grid as Chip Watch"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
 | C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED | none; owner decision (admin/global scope): docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-055 | Multi Chart | Delete a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-056 "could you flip the top-right one over to a weekly view"; C3-056 (pre-model path) "make the top-right chart weekly" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-057 "turn the bottom-left chart into plain bars" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-058 | Multi Chart | Toggle a cell's session | PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas | multiChart.outcome.test.jsx: C3-058 (intraday) "regular hours only on the top-left chart"; C3-058 (D/W/M) "include extended hours on the top-left chart" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 8/8 (17 todo) | panel, scripted model |
+| C3-055 | Multi Chart | Delete a saved grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-055 "delete my Old Grid layout" (proposed, then Apply); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-056 "could you flip the top-right one over to a weekly view"; C3-056 (pre-model path) "make the top-right chart weekly" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-057 "turn the bottom-left chart into plain bars" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-058 | Multi Chart | Toggle a cell's session | PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas | multiChart.outcome.test.jsx: C3-058 (intraday) "regular hours only on the top-left chart"; C3-058 (D/W/M) "include extended hours on the top-left chart" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-059 "put the top-right chart back to my own chart settings"; family: reset by position, excluded click (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-060 "blow up the bottom-left chart to full size" + "restore the grid"; family: maximize by position / number / anchor, ambiguous asked, hidden refused (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-061 | Multi Chart | Open shared grid settings | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-061 "open the shared chart settings for the grid"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 29/29 (1 todo) | panel, scripted model |
 | C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-063 held-out x6 (own lists, as the picker writes them; Undo restores the previous watchKey exactly) | pass 35/35 | panel, scripted model |
 | C3-064 | Watchlist | Open a prebuilt or community list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-064 held-out x12 (prebuilt and community); NEGATIVE near names | pass 35/35 | panel, scripted model |
 | C3-065 | Watchlist | Open the Flagged list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-065 held-out x3 (Flagged) | pass 35/35 | panel, scripted model |
