@@ -107,7 +107,8 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     }, {})
     // ⛔ Engine 51: ONE `table.new` — the Volume table's create is withheld by name
     // (`enum:unreadable`, its position below), never drawn in a default corner.
-    expect(kinds).toEqual({ 'create:table': 1, cell: 6, update: 1 })
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(kinds).toEqual({ 'create:table': 1, cell: 5, update: 1 })
   })
 
   it('⛔⛔ and every object tree EVALUATES — wires 2 and 3, measured as a count', () => {
@@ -139,9 +140,10 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     // ⛔ Engine 51: the Volume table (one of the four) is withheld by name, so the
     // member sees the Range table's three and no table in a guessed corner.
     expect(state.tables).toHaveLength(1)
-    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(stats).toEqual({ tables: 1, cells: 2, skipped: 0 })
     expect(root.querySelectorAll('table')).toHaveLength(1)
-    expect(root.querySelectorAll('td')).toHaveLength(3)
+    expect(root.querySelectorAll('td')).toHaveLength(2)
   })
 
   it('⛔ the two switched-off cells are ABSENT, not blank', () => {
@@ -208,13 +210,17 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     // survived that (an earlier branch answers a bare enum name), so the hole
     // only opened for a script that COMPUTED its size, and it stayed open
     // because six silent fallbacks to `normal` look exactly like a design.
-    const names = built.translation.objectDiagnostics.droppedPropNames
+    // ⛔⛔ ENGINE 52 — NOTHING IS DROPPED TO A DEFAULT ANY MORE. `dcrColor` is read now (the
+    // colour reader follows a reassigned default, `bound`); `atrMultColor` is not, and its cell
+    // is WITHHELD by name (`withheldPropNames`, STOP item in the engine-52 EVIDENCE).
+    const names = built.translation.objectDiagnostics.droppedPropNames || []
     expect(names.filter((n) => n.startsWith('cell.text_size@')),
       'a computed `text_size` should resolve through ENUM_SLOTS, not drop').toHaveLength(0)
-    expect(names.filter((n) => n.startsWith('cell.text_color@'))).toHaveLength(2)
+    expect(names).toEqual([])
+    expect(built.translation.objectDiagnostics.withheldPropNames).toEqual(['cell.text_color@576'])
     // ⛔ AND NOTHING ELSE IS DROPPED SILENTLY — the named list accounts for the
     // whole count, so a tenth drop cannot appear without a name.
-    expect(names).toHaveLength(built.translation.objectDiagnostics.droppedProps)
+    expect(names).toHaveLength(built.translation.objectDiagnostics.droppedProps || 0)
   })
 })
 

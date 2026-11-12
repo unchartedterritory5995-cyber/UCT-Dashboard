@@ -373,6 +373,10 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         // draws for it is not captured (Q-HS1): the family is withheld by name, as
         // the host object program withholds the drawing (`enum:na`).
         if (isNa(raw)) { withhold(fam, ENUM_NA_SENTENCE); return undefined }
+        // ⭐⭐ ENGINE 52 — Pine v6's INTEGER text size, in typographic points (`text_size = 11`):
+        // carried as that number, as the host lane carries it; the renderers size it
+        // (`objectCanvas.js::textSizePx`, the reference's word ↔ point table). 0 is `size.auto`.
+        if ((prop === 'size' || prop === 'text_size') && isNum(raw) && Number.isFinite(raw) && raw >= 0) return raw
         if (typeof raw !== 'string') throw new ObjectRunError(`\`${name}\`: \`${prop}\` takes a constant`)
         return raw.replace(/^(position|xloc|yloc|extend|size|text)\./, '')
       }

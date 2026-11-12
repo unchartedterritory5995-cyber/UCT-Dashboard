@@ -195,7 +195,10 @@ describe('M3 · an unreadable setter or cell patch withholds its object by name'
   })
 })
 
-describe('m4 · an integer point size is withheld by name', () => {
+// ⭐⭐ ENGINE 52 — m4 IS NOW SERVED: an int point size fixed before bar 0 is carried as that
+// number and drawn on the words' scale (`engine52ServeNeverDefault.test.js`); these rails
+// pin the program side. (Engine 51 withheld it as `enum:points`: the renderers had no int.)
+describe('m4 · an integer point size is SERVED (engine 52)', () => {
   for (const [what, body] of [
     ['label size = 11', 'if barstate.islast\n    label.new(bar_index, close, "x", size = 11)\n'],
     ['cell text_size = input.int(12)', 'var table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = input.int(12))\n'],
@@ -203,8 +206,12 @@ describe('m4 · an integer point size is withheld by name', () => {
   ]) {
     it(what, () => {
       const t = T(body)
-      expect(drops(t)[ENUM_DROPS.points.drop]).toBe(1)
-      expect(opsOf(t, 'cell').concat(opsOf(t, 'create').filter((o) => o.family === 'label'))).toHaveLength(0)
+      expect(drops(t)[ENUM_DROPS.points.drop] || 0).toBe(0)
+      const drawn = opsOf(t, 'cell').concat(opsOf(t, 'create').filter((o) => o.family === 'label'))
+      expect(drawn).toHaveLength(1)
+      const p = drawn[0].props
+      expect((p.size || p.text_size).v).toBe('const')
+      expect(typeof (p.size || p.text_size).value).toBe('number')
     })
   }
   it('control: size.large is served', () => {
@@ -216,12 +223,14 @@ describe('m4 · an integer point size is withheld by name', () => {
 
 describe('m5 · a withheld drawing that leaves nothing is named in the headline', () => {
   const bare = (body) => translatePine(`//@version=6\nindicator("r51", overlay = true)\n${body}`, { strict: true, objects: true })
-  it('the label withheld for its point size is the headline, with its line', () => {
-    const t = bare('if barstate.islast\n    label.new(bar_index, close, "x", size = 11)\n')
+  // ⭐ Engine 52 — a point size is served now, so the headline's withheld label is one
+  // whose colour this door cannot read (`pine:prop-unreadable`), the same headline rule.
+  it('the label withheld for an unreadable colour is the headline, with its line', () => {
+    const t = bare('if barstate.islast\n    label.new(bar_index, close, "x", textcolor = color.r(chart.bg_color) < 128 ? #FFFFFF : #000000)\n')
     expect(t.ok).toBe(false)
-    expect(t.refusal.guard).toBe(ENUM_DROPS.points.guard)
+    expect(t.refusal.guard).toBe(ENUM_DROPS.value.guard)
     expect(t.refusal.message).toContain('the label it draws at line 4 is withheld')
-    expect(t.refusal.message).toContain(ENUM_DROPS.points.sentence)
+    expect(t.refusal.message).toContain(ENUM_DROPS.value.sentence)
   })
   it('control: a script that draws nothing at all still says so', () => {
     const t = bare('x = close\n')

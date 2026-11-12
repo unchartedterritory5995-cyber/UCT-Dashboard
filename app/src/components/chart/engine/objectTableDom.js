@@ -41,7 +41,7 @@
 // repo keeps paying for, and here it would have been VISIBLE: two dashboards,
 // one under the other, a few pixels apart. `layoutTables` stays where it is.
 import { cssColourOrNone } from './objectColour.js'
-import { TEXT_SIZE_PX, TABLE_ANCHORS, TABLE_MARGIN } from './objectCanvas'
+import { TEXT_SIZE_PX, TABLE_ANCHORS, TABLE_MARGIN, textSizePx } from './objectCanvas'
 import CLOSED_TABLE from './ast/closedTable.json'
 
 /** ⭐ THE FONT STACK IS THE CANVAS PAINTER'S, VERBATIM. The two adapters draw
@@ -176,7 +176,8 @@ export function buildTable(tb, doc) {
         tr.appendChild(td)
         continue
       }
-      const px = TEXT_SIZE_PX[(cell && cell.text_size) || 'normal'] || TEXT_SIZE_PX.normal
+      // ⭐ Engine 52 — a v6 int `text_size` (points) on the words' scale (`textSizePx`)
+      const px = textSizePx((cell && cell.text_size !== undefined && cell.text_size !== null) ? cell.text_size : 'normal', 'boxTable')
       // ⭐⭐ THE AUTHOR'S `text_formatting`, AND IT IS TWO INDEPENDENT AXES.
       //
       // ⚰️ THERE WAS NO `fontWeight` IN THIS FILE AT ALL. Pine's
