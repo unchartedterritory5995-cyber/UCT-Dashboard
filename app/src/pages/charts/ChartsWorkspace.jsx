@@ -3371,6 +3371,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
   // are dropped by a switch — the manual product does the same, silently.
   const agentLayoutsRef = useRef(null)
+  // C3-037..039: the Layout Dock's own door to its RAIL (pin, move, take off the bar) — set by
+  // LayoutDock itself on every render (LayoutDock.jsx agentRef), read through host.layoutDock.
+  const agentDockRef = useRef(null)
   // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
@@ -3463,6 +3466,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
+    layoutDock: () => agentDockRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
@@ -4110,6 +4114,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           onDelete={handleDockDelete}
           onRename={handleDockRename}
           onRestored={handleDockRestored}
+          agentRef={agentDockRef}
         />
         </div>
         {agentAllowed && (

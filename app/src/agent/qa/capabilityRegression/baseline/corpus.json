@@ -4999,6 +4999,160 @@
       }
     },
     {
+      "id": "layout.pinToBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.pinToBar"
+      ],
+      "board": "LAYOUT_BAR",
+      "needs": [
+        "layout.pinToBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.pinToBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "pin my Breadth layout to the bar",
+        "pin the Breadth layout to the dock",
+        "put my Breadth layout on the layout bar"
+      ]
+    },
+    {
+      "id": "layout.moveOnBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.moveOnBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.moveOnBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.moveOnBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2",
+              "to": "first"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[2,1,3],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "move Breadth to the front of the bar",
+        "put my Breadth layout first on the layouts bar",
+        "move the Breadth layout to spot 1 on the bar"
+      ]
+    },
+    {
+      "id": "layout.unpinFromBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.unpinFromBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.unpinFromBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.unpinFromBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "take Main Trading off the bar",
+        "unpin my Main Trading layout",
+        "remove Main Trading from the layout bar"
+      ]
+    },
+    {
       "id": "layout.duplicate",
       "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
       "capabilities": [
