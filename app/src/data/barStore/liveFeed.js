@@ -93,13 +93,37 @@ export function foldMinute(st, m, tf, rev) {
  *   v = base.v + (dayVol − dayVol at arrival), for D, W and M alike. An unknown arrival reading,
  *   or another trading day than the arrival's, adds nothing (v ≤ truth until the next REST answer,
  *   as the 1m fold); the reducer never lowers the bar's volume within its period (S4).
- * Pure; `st` = the fold state ({base, dayVol0, day0}). Returns the volume or null.
+ * ⛔ THE FEED'S VOLUME CHANGES DEFINITION AT THE OPEN AND THE CLOSE (P3-S2c): pre-market it is a
+ * summed-aggregates total, at 09:30 it becomes the regular-session `day.v` — which restarts BELOW the
+ * pre-market total. A delta across that switch would freeze the bar (dayVol < dayVol0) and
+ * under-count for the whole morning. So the anchor records the feed's definition (`def0`: 'rth' |
+ * 'ext', from the snapshot's ext_session, else the clock) and `anchorTick` RE-ANCHORS when the
+ * definition, the day, or a falling reading says the old anchor is not comparable: dayVol0 = the
+ * reading now, vBase = the volume already shown (never lower), and the first RTH tick after a
+ * pre-market anchor asks the server for the bar (what traded between 09:30 and that tick).
+ * Pure; `st` = the fold state ({base, vBase, dayVol0, day0, def0}). Returns the volume or null.
  */
 export function periodTickVolume(st, tf, dayVol, day) {
   if (!st?.base || !finite(dayVol) || dayVol <= 0) return null
   if (!finite(st.dayVol0) || st.day0 !== day) return null
-  const bv = finite(st.base.v) ? st.base.v : 0
+  const bv = finite(st.vBase) ? st.vBase : (finite(st.base.v) ? st.base.v : 0)
   return bv + Math.max(0, dayVol - st.dayVol0)
+}
+
+/**
+ * Re-anchor the fold when the feed's reading is no longer comparable with its anchor (another
+ * definition / day, a falling reading, no anchor yet). Mutates `st`. `heldV` = the period bar's
+ * volume on screen. Returns {reanchored, toRth} — toRth: an anchor taken under another definition
+ * (pre-market) met the first regular-session reading (the caller asks the server once).
+ */
+export function anchorTick(st, { dayVol, day, def, heldV }) {
+  if (!st?.base || !finite(dayVol) || dayVol <= 0) return { reanchored: false, toRth: false }
+  if (finite(st.dayVol0) && st.day0 === day && st.def0 === def && dayVol >= st.dayVol0) return { reanchored: false, toRth: false }
+  const toRth = def === 'rth' && finite(st.dayVol0) && st.def0 != null && st.def0 !== 'rth'
+  const bv = finite(st.vBase) ? st.vBase : (finite(st.base.v) ? st.base.v : 0)
+  st.vBase = Math.max(bv, finite(heldV) ? heldV : 0)
+  st.dayVol0 = dayVol; st.day0 = day; st.def0 = def
+  return { reanchored: true, toRth }
 }
 
 /**
@@ -109,13 +133,15 @@ export function periodTickVolume(st, tf, dayVol, day) {
  * @param {object} [o.candle]  realtimeCandle-shaped ({subscribe, getCandle, getLastTickAt})
  * @param {object} [o.prices]  priceStreamManager-shaped ({subscribe, getSnapshot})
  * @param {(key:string, lastBarT:number|null) => void} [o.onReconnect]  gap-backfill hook (network.kick)
+ * @param {(key:string) => void} [o.onReanchor]  a D/W/M fold re-anchored into the regular session
+ *   (network.kick: one read of the period bar)
  * @param {() => boolean} [o.pushEnabled]  the push feed build gate (lib/realtimeBarsGate, the
  *   ONE owner legacy Writer B's useRealtimeBars reads). Off ⇒ no stream subscription and the push
  *   feed never counts as delivering, so the tick fallback is the live source (as legacy).
  */
 export function createLiveFeed({
   registry, stream = barsStream, candle = candleFeed, prices = priceStream,
-  onReconnect = null, now = () => Date.now(), pushEnabled = realtimeBarsEnabled,
+  onReconnect = null, onReanchor = null, now = () => Date.now(), pushEnabled = realtimeBarsEnabled,
 } = {}) {
   const attached = new Map()   // key → { refs, off: Function[], fold? }
 
@@ -139,6 +165,15 @@ export function createLiveFeed({
     try { const v = Number(prices?.getSnapshot?.()?.prices?.[sym]?.volume); return finite(v) && v > 0 ? v : null } catch { return null }
   }
 
+  /** The feed volume's definition right now: the snapshot's ext_session, else the clock. */
+  function _feedDef(sym, tsMs) {
+    try {
+      const x = prices?.getSnapshot?.()?.prices?.[sym]
+      if (x && typeof x.ext_session === 'boolean') return x.ext_session ? 'ext' : 'rth'
+    } catch { /* fall through to the clock */ }
+    return isRthBar(Math.floor(tsMs / 1000)) ? 'rth' : 'ext'
+  }
+
   function _dispatchTick(key, session, price, tsMs, a = null) {
     const live = isStreamLive(key, session)
     if (live || !finite(price) || !finite(tsMs)) return   // S6: push owns the developing bar
@@ -147,8 +182,17 @@ export function createLiveFeed({
     if (p && isDateTf(p.tf)) {
       // The period bar is RTH (TradingView) — the same rule as the 1m fold (foldMinute).
       if (!isRthBar(Math.floor(tsMs / 1000))) return
-      const v = periodTickVolume(a?.fold, p.tf, _dayVol(p.sym), etDay(tsMs))
-      if (v != null) event.v = v
+      const f = a?.fold
+      const sec = Math.floor(tsMs / 1000)
+      // Volume only for the base's own period (a tick of a NEW period opens it at the next answer).
+      if (f?.base && periodOf(p.tf, sec) === f.base.t) {
+        const dayVol = _dayVol(p.sym), day = etDay(tsMs)
+        const held = registry.getSnapshot(key).developing
+        const r = anchorTick(f, { dayVol, day, def: _feedDef(p.sym, tsMs), heldV: held && held.t === f.base.t ? held.v : null })
+        if (r.toRth) { try { onReanchor?.(key) } catch { /* never break the feed */ } }
+        const v = periodTickVolume(f, p.tf, dayVol, day)
+        if (v != null) event.v = v
+      }
     }
     registry.dispatch(key, { type: ACTION.TICK_FALLBACK, key, event }, { streamLive: live })
   }
@@ -165,10 +209,10 @@ export function createLiveFeed({
     // fallback's volume): the SERVER's developing period bar; anchor = its arrival (P3-S2b: tracked
     // whether or not push is on, so the tick fallback folds the same period bar).
     if (isDateTf(p.tf)) {
-      a.fold = { base: null, anchor: null, minutes: new Map(), rev: null, dayVol0: null, day0: null }
+      a.fold = { base: null, anchor: null, minutes: new Map(), rev: null, dayVol0: null, day0: null, def0: null, vBase: null }
       const rebase = (d) => {
         a.fold.base = d; a.fold.anchor = foldAnchor(now()); a.fold.minutes = new Map()
-        a.fold.dayVol0 = _dayVol(p.sym); a.fold.day0 = etDay(now())
+        a.fold.dayVol0 = _dayVol(p.sym); a.fold.day0 = etDay(now()); a.fold.def0 = _feedDef(p.sym, now()); a.fold.vBase = null
       }
       off.push(registry.subscribe(key, (s) => {
         const d = s.developing

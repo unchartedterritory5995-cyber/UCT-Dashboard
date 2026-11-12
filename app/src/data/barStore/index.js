@@ -49,7 +49,7 @@ export function createBarStore(o = {}) {
   })
   const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
-    registry, now, onReconnect: (key) => network.kick(key),
+    registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
     ...(o.stream ? { stream: o.stream } : {}), ...(o.candle !== undefined ? { candle: o.candle } : {}),
     ...(o.prices !== undefined ? { prices: o.prices } : {}),
     ...(o.pushEnabled ? { pushEnabled: o.pushEnabled } : {}),

@@ -13,11 +13,15 @@
 //       row) — the server never vouched for it. A thin name's proven-empty buckets: no gap, no
 //       read, no status change, the candle paints. A true gap: ONE read; the candle still paints;
 //       status is not touched; a server answer clears it. (seeded)
-//   V1  rows the tick fallback CLOSED set `tailUnverified` until a REST answer replaces them; the
-//       status never flaps across tick bucket rolls.
+//   V1  rows the tick fallback CLOSED never move the status (no flap across tick bucket rolls); a
+//       REST answer replaces them (status.tickClosedTail turns false).
+//   O1  (P3-S2c) across the feed's definition switches at 09:30 / 16:00 the period bar's painted
+//       volume never falls and never under-counts the feed's regular-session gain after the first
+//       post-open tick; the first RTH tick after a pre-market anchor asks the server ONCE. (seeded)
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
-import { createLiveFeed, periodTickVolume } from './liveFeed'
+import { createLiveFeed, periodTickVolume, anchorTick } from './liveFeed'
+import { tickClosedTail } from './status'
 import { liveGapStart } from './reducer'
 import { keyOf, STATUS } from './types'
 import { etUnix, rng } from './__fixtures__/seededSeries'
@@ -34,7 +38,10 @@ function pricesWithVolume() {
   return {
     subscribe(_t, cb) { subs.add(cb); return () => subs.delete(cb) },
     getSnapshot: () => snap,
-    set(sym, price, volume) { snap = { prices: { ...snap.prices, [sym]: { price, volume } } }; for (const cb of subs) cb() },
+    set(sym, price, volume, ext) {
+      snap = { prices: { ...snap.prices, [sym]: { price, volume, ...(typeof ext === 'boolean' ? { ext_session: ext } : {}) } } }
+      for (const cb of subs) cb()
+    },
   }
 }
 
@@ -222,7 +229,7 @@ describe('G1 — a bucket is missing only if the server never vouched for it', (
   })
 })
 
-describe('V1 — tick-closed rows are a flag (tailUnverified), not a status', () => {
+describe('V1 — tick-closed rows never move the status', () => {
   it('N tick bucket rolls never flap the status; the flag holds until a REST answer replaces the rows', () => {
     let nowMs = minute(13 * 60 + 7) * 1000
     vi.setSystemTime(nowMs)
@@ -233,14 +240,14 @@ describe('V1 — tick-closed rows are a flag (tailUnverified), not a status', ()
     registry.dispatch(key, { type: 'rest-full', key, payload: { bars: rows, verified_through: minute(13 * 60 + 5), tail_status: 'verified',
       developing: { t: minute(13 * 60 + 5), o: 10.5, h: 10.6, l: 10.4, c: 10.5, v: 10 } } }, { nowMs })
     expect(registry.getSnapshot(key).status).toBe(STATUS.CURRENT)
-    expect(registry.getSnapshot(key).tailUnverified).toBe(false)
+    expect(tickClosedTail(registry.getSnapshot(key))).toBe(false)
     const seen = new Set()
     for (let k = 0; k < 8; k++) {
       nowMs += 300_000; vi.setSystemTime(nowMs)
       registry.dispatch(key, { type: 'tick-fallback', key, event: { price: 10.5 + k * 0.01, ts: nowMs } }, { nowMs, streamLive: false })
       const s = registry.getSnapshot(key)
       seen.add(s.status)
-      if (s.bars.at(-1).src === 'tick') expect(s.tailUnverified, `roll ${k}`).toBe(true)
+      if (s.bars.at(-1).src === 'tick') expect(tickClosedTail(s), `roll ${k}`).toBe(true)
     }
     expect([...seen], 'status across tick rolls').toEqual([STATUS.CURRENT])
     // REST replaces the tick rows (rest > tick): the flag clears.
@@ -249,7 +256,59 @@ describe('V1 — tick-closed rows are a flag (tailUnverified), not a status', ()
       bars: registry.getSnapshot(key).bars.filter((b) => b.src === 'tick').map((b) => ({ t: b.t, o: b.o, h: b.h + 0.1, l: b.l, c: b.c, v: 420 })) } }, { nowMs })
     const s = registry.getSnapshot(key)
     expect(s.bars.find((b) => b.t === last.t)).toMatchObject({ v: 420, src: 'rest' })
-    expect(s.tailUnverified).toBe(false)
+    expect(tickClosedTail(s)).toBe(false)
     expect(s.status).toBe(STATUS.CURRENT)
+  })
+})
+
+describe('O1 — the feed volume definition switch at the open / close (P3-S2c)', () => {
+  it('pure: a pre-market anchor meeting the first RTH reading re-anchors on the shown volume and asks once', () => {
+    const st = { base: { v: 1000 }, vBase: null, dayVol0: 500, day0: DAY, def0: 'ext' }
+    const r = anchorTick(st, { dayVol: 800, day: DAY, def: 'rth', heldV: 1000 })
+    expect(r).toEqual({ reanchored: true, toRth: true })
+    expect(periodTickVolume(st, 'D', 800, DAY)).toBe(1000)
+    expect(periodTickVolume(st, 'D', 1100, DAY)).toBe(1300)          // the RTH gain counts in full
+    expect(anchorTick(st, { dayVol: 1200, day: DAY, def: 'rth', heldV: 1300 }).reanchored).toBe(false)
+    expect(anchorTick(st, { dayVol: 700, day: DAY, def: 'rth', heldV: 1400 })).toEqual({ reanchored: true, toRth: false })  // a falling reading
+    expect(st.vBase).toBe(1400)
+  })
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])('seed %i: painted v never falls; never under-counts the RTH gain after the first post-open tick', (seed) => {
+    const r = rng(seed * 6007)
+    const clock = { ms: minute(8 * 60) * 1000 }
+    vi.setSystemTime(clock.ms)
+    const key = keyOf({ sym: 'OPX', tf: 'D' })
+    const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }) })
+    const prices = pricesWithVolume()
+    const kicks = []
+    let pre = 200 + r.int(0, 800), rth = 0, post = 0, rev = 1
+    const feedNow = (m) => (m < 570 ? [pre, true] : m < 960 ? [rth, false] : [pre + rth + post, true])
+    prices.set('OPX', 100, pre, true)
+    createLiveFeed({ registry, pushEnabled: () => false, stream: fakeStream(), candle: fakeCandle(), prices,
+      now: () => clock.ms, onReanchor: (k) => kicks.push(k) }).attach(key)
+    // the server's developing daily bar, read pre-market (its volume = the pre-market trades so far)
+    const serverV = () => pre + rth + post
+    registry.dispatch(key, { type: 'rest-full', key, payload: {
+      bars: [{ t: '2026-11-09', o: 90, h: 95, l: 89, c: 94, v: 90000 }, { t: DAY, o: 100, h: 100, l: 100, c: 100, v: serverV() }],
+      contract: 1, grid: 'plain', cache_key: 'b1:OPX:D:plain', series_rev: rev, history_rev: 1, complete_through: null,
+      developing: { t: DAY, o: 100, h: 100, l: 100, c: 100, v: serverV(), rev },
+    } }, { nowMs: clock.ms })
+    let prevV = registry.getSnapshot(key).developing.v
+    let first = null
+    for (let m = 8 * 60 + 1; m < 16 * 60 + 40; m += 1 + r.int(0, 6)) {
+      clock.ms = minute(m) * 1000 + r.int(0, 59) * 1000; vi.setSystemTime(clock.ms)
+      if (m < 570) pre += r.int(0, 50); else if (m < 960) rth += r.int(0, 400); else post += r.int(0, 40)
+      const [dv, ext] = feedNow(m)
+      prices.set('OPX', Math.round((100 + r.float(-2, 2)) * 100) / 100, dv, ext)
+      const v = registry.getSnapshot(key).developing.v
+      expect(v, `m=${m} never falls`).toBeGreaterThanOrEqual(prevV)
+      prevV = v
+      if (m >= 570 && m < 960) {
+        if (!first) first = { v, dv }
+        else expect(v - first.v, `m=${m} RTH gain since the first post-open tick`).toBeGreaterThanOrEqual(dv - first.dv)
+      }
+    }
+    expect(first, 'the session was crossed').toBeTruthy()
+    expect(kicks, 'one server read at the first RTH tick').toEqual([key])
   })
 })
