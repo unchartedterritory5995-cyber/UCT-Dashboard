@@ -995,6 +995,12 @@
    "source": "d1",
    "quote": "It stopped out within the 60-session window with no excursion past 0.5R.",
    "claim": "CELH stopped out with no excursion past 0.5R."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups",
+   "claim": "B26: Bracco's parabolic burst is a 3-5 day final leg, with three straight up days and two straight overnight gap ups."
   }
  ],
  "walkthroughs": [
@@ -2302,15 +2308,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "hg.position_adv",
-   "q": "A Holy Grail position may be up to 5% of the stock's average daily volume if the stop is tight.",
-   "answer": "False",
-   "why": "False. Never own more than 1% of a stock's average daily volume. The rule has no exception for a tight stop. Illiquid stocks are not even on our watch list.",
+   "q": "However tight the stop, a Holy Grail position stays at or under 1% of the stock's average daily volume.",
+   "answer": "True",
+   "why": "True. Never own more than 1% of a stock's average daily volume. A tighter stop buys more shares for the same risk, but the cap still holds. Illiquid stocks are not even watched.",
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "facts": [
-    "h19"
+    "h19",
+    "h12"
    ],
    "house": true,
-   "simple": "False, because we never own more than 1% of a stock's daily volume, whatever the stop.",
+   "simple": "True, because we never own more than 1% of a stock's average daily volume, whatever the stop.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2319,7 +2326,7 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "polish"
   },
   {
    "key": "q36",
@@ -3491,6 +3498,47 @@
     "D-003"
    ],
    "batch": "wave4b"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.holy_grail",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hg.climax",
+   "story": "You hold the last third of a Holy Grail winner on your trail. Then it goes vertical: three straight up days, the last two on overnight gap ups. Ranges widen and volume rises each day.",
+   "q": "What do you do with the last third?",
+   "choices": [
+    "Sell a big part into the strength",
+    "Hold it until the trail sells it",
+    "Add shares while the move is strong",
+    "Lower the stop to give it more room"
+   ],
+   "answer": "Sell a big part into the strength",
+   "why": "Sell a big part into the strength. Our rule sells a big part into a climax run on your own long. That is Bracco's parabolic burst. Its boxes include three straight up days, two straight gap ups, wider ranges and rising volume. The more boxes checked, the stronger, and this run checks most. How much to sell is a judgment call.",
+   "lesson_line": "A burst on your own long is strength to sell into. How much is your call.",
+   "facts": [
+    "h16",
+    "h33",
+    "h21",
+    "h03b",
+    "h02"
+   ],
+   "wrong": {
+    "Add shares while the move is strong": "No adding. The full size goes on at one price with one stop.",
+    "Lower the stop to give it more room": "The stop only moves up, never down or wider.",
+    "Hold it until the trail sells it": "The trail is the default exit. A climax run on your own long is sold into first, a big part, by judgment."
+   },
+   "house": true,
+   "simple": "Sell a big part into the burst, because our rule sells into a climax run on your own long.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C34, and B26's reading of Bracco's burst)",
+     "+1 how much to sell is a judgment call, so the key stays at a big part"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3740,8 +3788,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from h19 (D42, 1% of ADV); the 5% is the question's own number."
+   "fixed": true,
+   "notes": "Key True is right from h19 (D42 verbatim, sizing_rule.md line 192); the flip from False balances the lesson's true/false count to 9 False, 8 True. Two defects. The why's 'a tight stop can make the risk-based size bigger' was not grounded in any cited fact: h12 (C28/A5, 'the distance grows and the shares shrink') is added for it. The simple dropped 'average' from 'average daily volume', which changes the rule; restored. Risk unchanged: the key still rests on h19 alone."
   },
   "q36": {
    "status": "pass",
@@ -3934,6 +3982,12 @@
    "by": "writer",
    "fixed": false,
    "notes": "cut in wave4b: see the resolver's notes"
+  },
+  "q68": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key from C34 (h16) agrees: sell a big part into a climax run on your own long. Three defects. (1) New fact h33 truncates B26 mid-list, so its claim and the why present two boxes as Bracco's whole definition; B26 lists five boxes and says 'the more boxes checked, the stronger'. With only two boxes ticked and the owner's 'yes but depends' on C34, holding on the trail was a second defensible answer. Widen h33 (below) and make the story tick most boxes. (2) The story, the why ('The 10-day trail stays the default') and a wrong note taught the 10-day trail as settled, but card criterion hg.trail is "
   }
  }
 }

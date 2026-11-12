@@ -49466,12 +49466,12 @@
  },
  {
   "answer_json": {
-   "answer": "False"
+   "answer": "True"
   },
   "difficulty": 3,
   "id": "si_5be581176c1f",
   "lesson_origin": "session",
-  "lesson_text": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters. Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
+  "lesson_text": "True. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters. Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -49479,7 +49479,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The exact number on an A/D line matters more than its direction.",
+   "q": "An A/D line's shape and direction matter more than its exact number.",
    "subject": "Advance-decline line"
   },
   "reveal_json": {
@@ -49527,13 +49527,13 @@
     "summary": "What matters on the A/D line is its shape and direction, not its number. The A/D line's number depends on its start date and is not important. The A/D line is a running total of net advances. An A/D line making new highs with the index shows strong participation. An A/D line that fails to confirm the index's new highs shows narrowing participation."
    },
    "facts": {
-    "given": "The exact number on an A/D line matters more than its direction."
+    "given": "An A/D line's shape and direction matter more than its exact number."
    },
    "lesson_line": "Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
-   "simple": "False, because the number depends on the day the count began, so you read the line's shape and direction instead.",
+   "simple": "True, because the number depends on the day the count began, so you read the line's shape and direction instead.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters."
+   "why": "True. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters."
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -51799,12 +51799,12 @@
  },
  {
   "answer_json": {
-   "answer": "False"
+   "answer": "True"
   },
   "difficulty": 3,
   "id": "si_3565a7f155e1",
   "lesson_origin": "session",
-  "lesson_text": "False. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term. Adding things up slows them down. The Summation Index is the patient one.",
+  "lesson_text": "True. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term. Adding things up slows them down. The Summation Index is the patient one.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -51812,7 +51812,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The Summation Index reacts faster than the McClellan Oscillator.",
+   "q": "The McClellan Oscillator reacts faster than the Summation Index.",
    "subject": "McClellan Summation Index"
   },
   "reveal_json": {
@@ -51860,13 +51860,13 @@
     "summary": "The Summation Index is the slower of the two. The oscillator serves short and medium term; the Summation Index medium and long term. The oscillator suits shorter-term trends, the Summation Index longer-term ones. The Summation Index is for the intermediate and long term. The Summation Index is a running total of the McClellan Oscillator."
    },
    "facts": {
-    "given": "The Summation Index reacts faster than the McClellan Oscillator."
+    "given": "The McClellan Oscillator reacts faster than the Summation Index."
    },
    "lesson_line": "Adding things up slows them down. The Summation Index is the patient one.",
-   "simple": "False, because adding up every day's reading makes the Summation Index slow, so it is the slower of the two.",
+   "simple": "True, because adding up every day's reading makes the Summation Index slow, so the oscillator is the quicker of the two.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "False. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term."
+   "why": "True. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term."
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",

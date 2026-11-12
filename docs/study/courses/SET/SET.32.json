@@ -830,6 +830,12 @@
    "source": "d1",
    "quote": "DE | 2026-11-02 | long at 10:00 | 677.21 | 663.33 (2.05%) | 12:00 the same day",
    "claim": "DE 2026-11-02: fill 677.21, stop 663.33 (2.05%), stopped at 12:00 the same day."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "The nearest source is Bysshe (source 16): the 20 and 50-day rising and the stock above the 20-day. The 50-day is the dossier's proposal.",
+   "claim": "The 50-day line is the card's own proposal; Bysshe, the nearest source, wants rising 20 and 50-day averages."
   }
  ],
  "walkthroughs": [
@@ -1312,6 +1318,12 @@
    "notes": "c05/c06/c07/c32 and v01 to v03 verbatim; JBI 2023-12-14 re-derived: first entry 11.05 with stop 10.80 = 0.25/11.05 = 2.3%; ORB fill 11.21 = 0.41/11.21 = 3.7%; 11.21 x 0.965 = 10.82 = the Kicker low; close 2.3R and 1.0R. Right as written.",
    "fixed": false,
    "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Solved cold from c14: 63.90 prior close > 63.30 50-day, so Yes; the key matches and c35 is verbatim on the card (evidence, orb.above_50). Break: the item's whole teaching point ('today's open does not change it', the lesson_line 'not this morning's open') is the exact case the writer's own owner flag 2 says is unruled, and the card's B- row ('orb.above_50: a counter-trend break') makes 'No; it opened under the 50-day' defensible for an owner who reads a 62.80 open and a 10:05 break possibly under 63.30 as counter-trend. That decides an unruled point. Fix: drop the open from the story and repla"
   }
  },
  "questions": [
@@ -3742,6 +3754,53 @@
     ]
    },
    "batch": "wave4"
+  },
+  {
+   "key": "q65",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "orb.above_50",
+   "story": "A leader closed yesterday at 63.90. Its 20-day sits at 64.40, its 50-day at 63.30 and its 200-day at 55.60. At 10:05 it breaks its 30-minute high.",
+   "q": "Does it pass the moving-average lines on our card?",
+   "choices": [
+    "Yes; the prior close clears both",
+    "No; it is under its 20-day",
+    "No; it must clear the 50-day by 5%",
+    "Yes; only the 200-day line counts"
+   ],
+   "answer": "Yes; the prior close clears both",
+   "why": "Yes. Our card wants the prior close above the 50-day and the 200-day simple moving averages. Yesterday's 63.90 sits above 63.30 and above 55.60. Price over the 20-day is Bysshe's test, not our card's. The card names no margin over either line.",
+   "lesson_line": "Our card's trend test reads the prior close against the 50-day and the 200-day.",
+   "facts": [
+    "c14",
+    "c29",
+    "h10",
+    "h10b",
+    "b04",
+    "d06",
+    "c35"
+   ],
+   "wrong": {
+    "Yes; only the 200-day line counts": "The 200-day is a hard rule, and our card adds the 50-day as well.",
+    "No; it is under its 20-day": "Price over the 20-day is Bysshe's test. Our card reads the 50-day and the 200-day.",
+    "No; it must clear the 50-day by 5%": "The card names no margin. 63.90 is under 1% over 63.30 and still passes. OVV sat only 1% over its 50-day."
+   },
+   "house": true,
+   "simple": "Yes, because yesterday's 63.90 close sits above both the 50-day at 63.30 and the 200-day at 55.60.",
+   "deeper": {
+    "counter": "The nearest outside source is Bysshe. He wants rising 20 and 50-day averages, with the stock above the 20-day. The 50-day close test is our card's own proposal."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 50-day line is the card's proposed criterion, not the rulebook's",
+     "the card lists it both as a gate and as a B- grade row; the owner has not ruled which",
+     "the owner has not ruled whether an open under the 50-day after a close above it still passes; the item avoids that case"
+    ]
+   },
+   "batch": "polish"
   }
  ]
 }

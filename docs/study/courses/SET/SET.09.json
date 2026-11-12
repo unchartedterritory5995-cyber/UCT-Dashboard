@@ -1587,7 +1587,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ch.right_side",
-   "q": "On our card, how far below the left-side high may the right side stop before the handle starts?",
+   "q": "How far below the left-side high may the right side stop before the handle starts, on our card?",
    "choices": [
     "About 10% below, at most",
     "About 20% below, at most",
@@ -3574,7 +3574,7 @@
    "rung": 7,
    "format": "tf",
    "criterion": "ch.inv_stale_handle",
-   "q": "On our card, a handle that has run 12 sessions with no breakout is stale.",
+   "q": "A handle that has run 12 sessions with no breakout is stale on our card.",
    "answer": "False",
    "why": "False. On our card a handle goes stale only after it runs past about 6 weeks, 30 sessions, with no breakout. At 12 sessions this one is still young. A dip shorter than five days is not a handle at all.",
    "lesson_line": "A handle is a short pause. Past about 30 sessions with no breakout, it is a stall.",
@@ -4634,6 +4634,48 @@
    "house": true,
    "tier": "extended",
    "batch": "wave1"
+  },
+  {
+   "key": "q93",
+   "skill": "setup.cup_handle",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ch.inv_volume_rises",
+   "q": "On our card, what is your call on this handle?",
+   "story": "A rounded 10-week cup falls 20%, then a handle forms in its upper half. The handle drifts down for eight sessions above the 50-day. Volume rises every session, and the handle's average tops the cup's.",
+   "choices": [
+    "Pass; a loud handle ends the setup",
+    "Buy; rising volume shows demand",
+    "Buy the pivot; the lows drift down fine",
+    "Pass; eight sessions is too short"
+   ],
+   "answer": "Pass; a loud handle ends the setup",
+   "wrong": {
+    "Buy; rising volume shows demand": "A handle should go quiet. On our card, volume rising through the handle ends the setup.",
+    "Buy the pivot; the lows drift down fine": "The drift passes, but volume is a separate test. Rising volume ends the setup on its own.",
+    "Pass; eight sessions is too short": "A handle needs at least 5 sessions, so eight clears it. The volume is what fails."
+   },
+   "why": "Pass. On our card, volume that rises through the handle ends the setup before the buy. The handle should also average below the cup's volume, and this one averages above it. IBD says volume should dry up, evidence that the weak holders are just about gone. Here it climbs instead, so the drift and the 50-day do not save it.",
+   "lesson_line": "A handle should go quiet. Volume that climbs through it ends the setup.",
+   "simple": "A loud handle ends the setup on our card, so you pass even though its shape and the 50-day look fine.",
+   "facts": [
+    "c22",
+    "c12",
+    "i25",
+    "i24",
+    "c09"
+   ],
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the volume gate is a proposed card row, not an owner ruling",
+     "IBD gives the direction of handle volume, no number",
+     "the story fails both readings of the row: a rising trend and an average above the cup's"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -5227,6 +5269,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Stop first, size follows (h01, c42, h03, h24); no percent keyed so D-008 is not leaned on. 'Round up' is refuted by h03, 'risk more' by the formula. Key not the longest. q65 is cut so no duplicate."
+  },
+  "q93": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right: c22 says rising handle volume ends the setup, and every other story fact clears its row (c09 5-session minimum, i14 upper half, c13 50-day, c11 drift). Fixed two defects. (1) The keyed choice \"Pass; it ends the setup before the buy\" has no antecedent for \"it\" and echoes the card row wording rather than naming a reason, while the rival Pass names one. Now \"Pass; a loud handle ends the setup\" (34 chars, not the lone longest; \"loud\" is the lesson's own word from q21, not the story's). (2) \"ends above the cup's average\" was ambiguous (last day or handle average). The story now says t"
   }
  }
 }

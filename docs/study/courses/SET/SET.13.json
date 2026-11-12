@@ -1018,6 +1018,12 @@
    "source": "s27",
    "quote": "All profits and losses can be expressed as a multiple of the initial risk (R) taken.",
    "claim": "Van Tharp: results are measured as multiples of the initial risk, R."
+  },
+  {
+   "id": "c55",
+   "source": "c1",
+   "quote": "flag closes below the 21-day EMA, with the 10-day and 21-day EMAs higher than 5 sessions ago at the trigger",
+   "claim": "The card's measure: count flag closes under the 21-day EMA; rising means both EMAs are higher than 5 sessions ago."
   }
  ],
  "walkthroughs": [
@@ -4001,6 +4007,88 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q78",
+   "skill": "setup.high_tight_flag",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "htf.holds_fast_averages",
+   "q": "On our card, does this flag pass the fast-averages check?",
+   "story": "A stock nearly doubled in seven weeks, then paused 12 sessions a little under its high. One close in that pause sat under the 21-day EMA. Today it trades through the high.",
+   "choices": [
+    "No, the card allows zero such closes",
+    "Yes, one dip is fine above the 50-day",
+    "Yes, if both averages are rising now",
+    "No, it paused too long to count"
+   ],
+   "answer": "No, the card allows zero such closes",
+   "why": "No. On our card, no close in the flag may sit below the 21-day EMA. At the trigger, price must also be above a rising 10-day and a rising 21-day EMA. Rising means higher than 5 sessions ago. Both halves count.",
+   "lesson_line": "On our card, the flag rides rising fast averages and never closes under the 21-day EMA.",
+   "facts": [
+    "c14",
+    "c52",
+    "c55",
+    "c49",
+    "c02"
+   ],
+   "wrong": {
+    "Yes, one dip is fine above the 50-day": "The 50-day is a separate check on our card. The flag line is no close under the 21-day EMA.",
+    "Yes, if both averages are rising now": "Rising averages are only half the line. Our card also wants no flag close under the 21-day EMA.",
+    "No, it paused too long to count": "Our card allows a pause of 5 to 30 sessions. A 12-session pause sits inside that."
+   },
+   "simple": "No, because our card allows no close in the flag below the 21-day EMA.",
+   "house": true,
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 the 21-day EMA line is the card's own proposal (status proposed), not an owner ruling",
+     "+1 no outside high tight flag source asks for it, and the owner once preferred a 20 EMA shakeout (CLS)",
+     "+1 earlier keys on this line (q55, q70, q71) were cut; this one keys only the card's literal statement, worded as our card"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q79",
+   "skill": "setup.high_tight_flag",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "htf.breakeven",
+   "q": "By our rule, may you move the stop to breakeven now?",
+   "story": "You bought a high tight flag breakout. It is now up 2R. You have not sold any shares yet.",
+   "choices": [
+    "Yes, that is inside our window",
+    "No, only after the first trim",
+    "No, it must wait for 5R or more",
+    "Yes, but only on heavy volume"
+   ],
+   "answer": "Yes, that is inside our window",
+   "why": "Yes. Our rule moves the stop to breakeven between 2R and 5R, ideally. By default it happens at the first trim, a third at 3R. But 2R already sits inside the window, so the move is allowed now. The stop only moves up, never down.",
+   "lesson_line": "Breakeven goes in between 2R and 5R. The first trim is the default moment.",
+   "facts": [
+    "h05",
+    "c21",
+    "c20",
+    "h02"
+   ],
+   "wrong": {
+    "No, only after the first trim": "The first trim is only the default moment. Our window opens at 2R.",
+    "No, it must wait for 5R or more": "5R is the late end of the window, not its start. It opens at 2R.",
+    "Yes, but only on heavy volume": "Our rule ties breakeven to how far the trade is up in R, not to volume."
+   },
+   "simple": "Yes, because our rule allows breakeven anywhere from 2R to 5R, and this trade is at 2R.",
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19, breakeven at 2R to 5R ideally) and the card's default (at the first trim)",
+     "+1 the key says the move is allowed at 2R, not that 2R is the default; the MRVL conflict asks whether 2R should become the default"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4505,6 +4593,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "60.00 - 57.50 = 2.50, calc matches; r01 verified verbatim on the Van Tharp page. Does not give away q20's number."
+  },
+  "q78": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Under the card's literal line (c14, c55: zero flag closes under the 21-day EMA) I would also answer 'No', so the key matches the card. It still has to go. That line is the card's own proposal (status proposed, basis 'my proposal'), and no outside high tight flag source asks for it. The card's own evidence says the owner may want to allow an undercut, the 20 EMA shakeout he wrote of on CLS. The resolver cut q55 for this reason and said no honest rewrite keeps the key. q70 and q71 were cut on the same line. q78's story is ONE close under the EMA, which is exactly the undercut case still waiting "
+  },
+  "q79": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "I answered before looking at the key: Yes. B19 (h05) says to move the stop to breakeven at 2R to 5R, ideally. The card's line is settled (c21: between 2R and 5R, at the first trim by default). So at 2R a breakeven move is allowed even before the 3R trim. That matches the key. 'No, only after the first trim' confuses the default with the window, and the stem asks 'may you', so that wrong choice is answered. The key does not decide the open MRVL question (should 2R be the default?), and the owner flag stays. Choices run 29 to 31 characters with 2 Yes and 2 No. The key is not the longest and does"
   }
  }
 }

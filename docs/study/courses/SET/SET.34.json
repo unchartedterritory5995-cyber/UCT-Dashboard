@@ -3402,6 +3402,45 @@
     ]
    },
    "batch": "wave4"
+  },
+  {
+   "key": "q77",
+   "skill": "setup.go_signal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "go.reclaim_candle_green",
+   "story": "The prior close is 50.00. The first hourly candle opens at 50.40, dips to 49.70 and ends the hour at 50.20. Everything else on the card passes.",
+   "q": "On our card, is this a Go Signal buy?",
+   "choices": [
+    "No; the candle closed under its open",
+    "Yes; it closed back over 50.00",
+    "Yes; it traded under, then back over",
+    "No; the dip went too far under 50.00"
+   ],
+   "answer": "No; the candle closed under its open",
+   "wrong": {
+    "Yes; it closed back over 50.00": "Back over 50.00 meets the red-to-green line. Our card also wants the reclaim candle green, above its own 50.40 open.",
+    "Yes; it traded under, then back over": "That is the pattern. But our card also wants the reclaim candle to close above its own open, and this one closed under it.",
+    "No; the dip went too far under 50.00": "The dip under the prior close is part of the pattern. What fails here is the candle's close under its own open."
+   },
+   "why": "No, not on our card. The candle ended at 50.20, back over the 50.00 prior close but under its own 50.40 open. That makes it a red candle. Our card wants the reclaim candle green: it closes above its own open. Red to green itself is still measured against the prior close.",
+   "lesson_line": "Two tests: back over the prior close, and green against its own open.",
+   "simple": "No, because our card wants the reclaim candle to close above its own open, and this one closed under it.",
+   "facts": [
+    "g20",
+    "g01",
+    "g02",
+    "g07"
+   ],
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card line, go.reclaim_candle_green, with no owner question named (+2)"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3890,6 +3929,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Pass. Key from cited quotes; no tell or second answer found."
+  },
+  "q77": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "My answer before the key: under the settled card lines (D-145: first hourly candle trades under the prior close, close back above it by the end of the second candle) this candle passes, so Yes. Only the card's go.reclaim_candle_green line makes it No, and that line is status 'proposed', basis 'my proposal' (the research model's, not an owner ruling, no owner question). README section 3 says a house rule must come from the owner's own rulings. So the key turns a buy/no-buy decision on an unruled proposal, and 'Yes; it closed back over 50.00' is a second defensible answer on the ruled lines. Sec"
   }
  }
 }

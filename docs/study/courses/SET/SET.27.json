@@ -3500,6 +3500,48 @@
     ]
    },
    "batch": "wave3"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.slingshot",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ss.drive_not_trigger",
+   "story": "A stock has traded flat for three months with no gap and no big up day. It then closes under its 4-day EMA of highs four days running. Today it surges on heavy volume, opens flat and closes back over the line near its high.",
+   "q": "Is today's close a Slingshot buy?",
+   "choices": [
+    "No; a drive day is never the trigger",
+    "Yes; four closes under, then back over",
+    "Yes; heavy volume makes it a drive",
+    "No; it needs a gap open to count"
+   ],
+   "answer": "No; a drive day is never the trigger",
+   "wrong": {
+    "Yes; four closes under, then back over": "That is only the pullback and the close back over. No drive came before it, so the shape has nothing to sling from.",
+    "No; it needs a gap open to count": "A trigger that gaps up 2% or more is a named mistake. The card wants a trigger that opens less than 2% over the prior close.",
+    "Yes; heavy volume makes it a drive": "Even if today counts as a drive day, the drive day is never the trigger. The drive has to come before the pullback."
+   },
+   "why": "No. A Slingshot needs a drive before the pullback starts. Three flat months gave none. Today's surge is the first strong day, and the drive day is never the trigger. With no drive before the dip, there is nothing to sling from.",
+   "lesson_line": "A big day after a dip is not the drive. The drive has to come before the pullback.",
+   "simple": "No, because the drive has to come before the pullback, and today's surge cannot be both the drive and the buy.",
+   "facts": [
+    "c02",
+    "c44",
+    "t05",
+    "o04",
+    "c04",
+    "c19"
+   ],
+   "house": true,
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "settled criterion",
+     "no strength before the pullback, so the key holds under every D-106 option"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3953,6 +3995,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "One third of 90 is 30 (calc from the stem); E51 gives the 5R trim and the trail; distractor notes are correct."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key decides pending D-106. The story's stock 'drifts higher for weeks', an uptrend. Option (c) of ss.drive (any strong stock, as Scot1and does) and the owner's own evidence words ('consolidation after a nice uptrend', t02 'upward momentum') could count that uptrend as the drive, so 'No; no drive came before the dip' is not settled under every option; q64 avoided this by using a sideways stock. Fix: flat base with no gap and no big up day (no option makes that a strong stock), and the key now names the settled ss.drive_not_trigger point (c02: the only drive day is the trigger day), not the pend"
   }
  }
 }

@@ -3817,6 +3817,48 @@
     "D-055"
    ],
    "batch": "wave1"
+  },
+  {
+   "key": "q79",
+   "skill": "setup.ipo_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ipo.inv_ipo_price",
+   "story": "Two new issues each priced at $15, opened at $15.20 and closed day one at $15.60. Weeks later, both bases dip to a low of $14.20 before any trigger. Stock A closes at $16.10 the next session. Stock B closes under $15 for the next five sessions.",
+   "q": "Which base does our card end before the trigger?",
+   "choices": [
+    "Only B, which never got back above",
+    "Both, since each undercut the price",
+    "Neither, since no trigger has fired",
+    "Neither; undercuts just lower a grade"
+   ],
+   "answer": "Only B, which never got back above",
+   "why": "Only B. Our card ends a base when the low undercuts the IPO price and does not close back above it within 3 sessions. Stock A closed at $16.10 one session after its dip. Stock B closed under $15 for five sessions, past the 3. MarketSmith India is stricter: it says the base should not undercut the IPO price at all.",
+   "lesson_line": "On our card, a dip under the IPO price gets 3 sessions to close back above it.",
+   "simple": "Only B, because our card ends a base that stays under the IPO price for more than 3 sessions.",
+   "facts": [
+    "c14",
+    "m02"
+   ],
+   "wrong": {
+    "Both, since each undercut the price": "Our card gives an undercut 3 sessions to close back above the IPO price. Stock A did it in one, so this check does not end its base.",
+    "Neither, since no trigger has fired": "This check runs before the trigger. A base can end before it ever breaks out.",
+    "Neither; undercuts just lower a grade": "Stock B did not close back above the price within 3 sessions. On our card that ends the base."
+   },
+   "deeper": {
+    "trap": "The 3-session window is our card's proposal, not a source's. MarketSmith India wants no undercut at all. Stock A's close of $16.10 sits above the offer, the open and the day-one close, so the call holds whichever one counts."
+   },
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on a proposed card line (ipo.inv_ipo_price); the 3 sessions are the dossier's number",
+     "which price counts as the IPO price is held (D-057); the story clears every option on the card",
+     "MarketSmith India is stricter than the card (no undercut at all)"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4320,6 +4362,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "60% past 35% (c48), 50% (m10) and 20% (m09). Key holds under any depth-cap ruling."
+  },
+  "q79": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "CUT. My own answer before the key: on the sources (m02 MarketSmith India: no undercut at all; i19 IBD: base generally above the IPO price) BOTH bases fail, so 'Both' is a second defensible answer; only the card's 3-session line gives 'Only B'. That window is exactly the territory the lesson holds back: the card's ipo.ipo_price_undercut (pending-owner, D-057) says a reclaim within 1 to 3 sessions makes Stock A a U&R of the IPO open, graded B, and lookalike 3 says that trade is 'not the IPO-high breakout'. So the card itself does not keep Stock A's IPO base intact; it reclassifies it, which also"
   }
  }
 }

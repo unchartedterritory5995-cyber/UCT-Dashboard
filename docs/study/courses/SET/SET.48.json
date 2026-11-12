@@ -2088,15 +2088,15 @@
    "rung": 5,
    "format": "tf",
    "criterion": "bg.earnings",
-   "q": "A new short two sessions before an earnings report is fine.",
+   "q": "With earnings four sessions away, the earnings rule blocks a new short.",
    "answer": "False",
-   "why": "False. We take no new short within 3 sessions of a report. Two sessions before the report is inside that window, so the short waits. Check the report date before every new short.",
+   "why": "False. We take no new short within 3 sessions of a report. Four sessions away is outside that window, so this rule does not block it. The other rules still have to pass.",
    "lesson_line": "No new short within 3 sessions of a report.",
    "facts": [
     "c13"
    ],
    "house": true,
-   "simple": "False, because we take no new short within 3 sessions of an earnings report.",
+   "simple": "False, because the rule only blocks a new short within 3 sessions of a report, and four is outside that.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2105,7 +2105,7 @@
      "rests on the owner's rulebook (B22 mirrored)"
     ]
    },
-   "batch": "wave5"
+   "batch": "polish"
   },
   {
    "key": "q39",
@@ -2113,16 +2113,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "bg.borrow",
-   "q": "A bear gap short is fine to take even when its borrow fee is high.",
-   "answer": "False",
-   "why": "False. We skip a short that is hard to borrow or carries a high fee. Popular collapses are often expensive to borrow. So check the borrow before any short.",
+   "q": "When a bear gap short carries a high borrow fee, we skip it.",
+   "answer": "True",
+   "why": "True. We skip a short that is hard to borrow or carries a high fee. Popular collapses are often expensive to borrow. So check the borrow before any short.",
    "lesson_line": "Hard to borrow or a high fee means skip.",
    "facts": [
     "c27",
     "h17"
    ],
    "house": true,
-   "simple": "False, because we skip a short that is hard to borrow or carries a high fee.",
+   "simple": "True, because we skip a short that is hard to borrow or carries a high fee.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2130,7 +2130,7 @@
      "rests on the owner's rulebook (D48)"
     ]
    },
-   "batch": "wave5"
+   "batch": "polish"
   },
   {
    "key": "q40",
@@ -3677,15 +3677,15 @@
   },
   "q38": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key True is right on c13 (card bg.earnings, settled, B22 mirrored; measure: sessions until report > 3). But the story repeats q66's exact case (report in 2 sessions blocks the short), so q38 hands the learner half of q66's answer. Fixed to test the boundary instead: 4 sessions is outside the window (4 > 3 per the card's measure), key False. The 4 comes from the question; every other number from c13. Lesson_line unchanged."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False by c27/h17 (D48). Statement has no lone absolute or hedge. Why supported."
+   "notes": "Decided True from h17 (D48, owner-ruled 'yes') and c27 (card bg.borrow, settled); both quotes verified in sizing_rule.md line 201 and 27-bear-gap.json line 700. No second defensible answer, no other borrow item in the lesson, why and simple grounded and within limits. Framed as a guard, consistent with the D-001 conflict note."
   },
   "q40": {
    "status": "pass",

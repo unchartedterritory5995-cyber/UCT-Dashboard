@@ -746,6 +746,18 @@
    "source": "h1",
    "quote": "Leveraged ETFs are preferred; no extra rules.",
    "claim": "E54: leveraged ETFs are preferred, with no extra rules."
+  },
+  {
+   "id": "cLE",
+   "source": "c1",
+   "quote": "Leveraged ETFs are the preferred vehicles for form B; no extra rules.",
+   "claim": "The card: leveraged ETFs are the preferred vehicles for form B, with no extra rules."
+  },
+  {
+   "id": "cFB",
+   "source": "c1",
+   "quote": "(B) the index or group flush, an index, sector ETF or leveraged ETF stretched down in a fear spike",
+   "claim": "Form B is the index or group flush: an index, sector ETF or leveraged ETF stretched down in a fear spike."
   }
  ],
  "walkthroughs": [
@@ -3368,6 +3380,51 @@
     "D-002"
    ],
    "batch": "wave5"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.mean_reversion",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "mr.leveraged_etf",
+   "story": "A fear spike flushes the Nasdaq hard. A 3x ETF on the index drops with it but stays above its 200-day. It turns up, and you buy at market.",
+   "q": "Because the fund moves 3x the index, what do our rules add?",
+   "choices": [
+    "Nothing; the usual plan applies",
+    "A same-day exit, never an overnight hold",
+    "No stop order, since a fund can't fail",
+    "A stop three times as wide as usual"
+   ],
+   "answer": "Nothing; the usual plan applies",
+   "why": "Nothing. Our rulebook prefers ETFs that multiply the index, like this 3x fund, and adds no extra rules for them. Our card names them the preferred vehicles for the index flush. So the usual plan holds: a real stop order with the broker, a few cents under the flush low.",
+   "lesson_line": "A 3x index ETF is a preferred vehicle. It gets the same rules as any other trade.",
+   "facts": [
+    "h33",
+    "cLE",
+    "cFB",
+    "h18",
+    "cK"
+   ],
+   "wrong": {
+    "A same-day exit, never an overnight hold": "Our rulebook adds no extra rules for 3x ETFs. Nothing limits the hold to one day.",
+    "No stop order, since a fund can't fail": "Every position has a real stop order with the broker, not a stop kept in your head. A fund is no exception.",
+    "A stop three times as wide as usual": "No extra rules apply. The stop still goes a few cents under the flush low, or the turn day's low if that is lower."
+   },
+   "house": true,
+   "simple": "Nothing extra, because our rules prefer 3x ETFs and keep the same stop and plan as any other trade.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (E54) and the card's settled vehicle line; a 3x fund read as a leveraged ETF",
+     "the index flush is form B, which is held (D-002)",
+     "the lesson's conflicts line promised no index or ETF question; an earlier twin (q67) was cut partly on that"
+    ]
+   },
+   "depends_on": [
+    "D-002"
+   ],
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3806,6 +3863,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Duplicate of q66 (rung 2, 'What do our rules say about 3x ETFs?' keyed 'Preferred, with no extra rules'): both rest on the single fact h33, and q66 answers q67 outright. It is also an index trade, which the lesson's conflicts promise not to ask (D-009: 'no index or ETF question'; form B pending D-002). No other fact can make it distinct."
+  },
+  "q68": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut. My own key from h33/cLE before reading it: 'nothing extra', so the key is right on E54 alone. It still cannot stand. (1) The lesson's conflicts line promises 'no index or ETF question' (D-009) and says 'no question quizzes the forms as a rule' (D-002); the story is a form B index flush bought as a live trade, and the why teaches 'the preferred vehicles for the index flush', so form B is taught as tradable while mr.forms is pending. q67 was cut by the checker on exactly this ground, and the same ground applies here. (2) The key, lesson_line ('the same rules as any other trade') and simple "
   }
  }
 }

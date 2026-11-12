@@ -865,6 +865,12 @@
    "source": "s9",
    "quote": "ATR measures volatility, taking into account any gaps in the price movement.",
    "claim": "Fidelity: ATR measures volatility, gaps included."
+  },
+  {
+   "id": "cGapOpen",
+   "source": "c1",
+   "quote": "If it opens above a trim level, take that trim at the open.",
+   "claim": "Card: if it opens above a trim level, take that trim at the open."
   }
  ],
  "walkthroughs": [
@@ -4074,6 +4080,48 @@
     ]
    },
    "batch": "wave4"
+  },
+  {
+   "key": "q89",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.trim_gap_open",
+   "story": "You bought a pullback and sold a third at 3R. Your 5R level is 42.50. News hits overnight, and the stock opens at 43.10.",
+   "q": "What does the plan do now?",
+   "choices": [
+    "Sell the second third at the open",
+    "Sell everything left at the open",
+    "Wait for a dip back to the 5R price",
+    "Skip the trim; trail all that is left"
+   ],
+   "answer": "Sell the second third at the open",
+   "why": "Sell the second third at the open. If a stock opens above a trim level, 3R or 5R, take that trim at the open. 43.10 is above 42.50, so the 5R trim is due now. The last third stays on the trail.",
+   "lesson_line": "A gap over your next trim level means that trim sells at the open.",
+   "facts": [
+    "hF63",
+    "cGapOpen",
+    "hE51",
+    "c25"
+   ],
+   "wrong": {
+    "Sell everything left at the open": "Only the 5R third sells at the open. The last third is trailed, not sold at a trim level.",
+    "Wait for a dip back to the 5R price": "The level is already behind you. The rule takes the trim at the open, not on a dip back.",
+    "Skip the trim; trail all that is left": "The 5R third still comes off. The gap only moves that trim to the open."
+   },
+   "house": true,
+   "simple": "Sell the second third at the open, because the stock opened above the 5R level and the last third keeps trailing.",
+   "deeper": {
+    "trap": "A gap is not a reason to sell everything. Only the trim the open has passed comes off. The last third still rides the trail."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F63, take the trim at the open; E51, a third at 5R)"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4619,6 +4667,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "atr1 and atr2 checked on the live ChartSchool page and atr3 on the live Fidelity page: all verbatim. Distractors are distinct. No tell."
+  },
+  "q89": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: a third already sold at 3R, open 43.10 is above the 5R level 42.50, so F63 (verified at sizing_rule.md line 226) puts the 5R trim at the open, and E51 (line 208) plus card map.trim_2 make it one third, with the last third on the trail. Key matches. The card's map.trim_gap_open is status settled with house_rule F63, and the cGapOpen quote matches the card statement word for word. Broke it: one news gap does not meet the C33/C34 climax checklist (multi-day burst), so 'Sell everything left' is not a second defensible answer. The earnings rule covers new buys and holding through a rep"
   }
  }
 }

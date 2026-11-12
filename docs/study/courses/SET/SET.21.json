@@ -1163,9 +1163,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "hve.no_prior_trend",
-   "q": "A High Volume Edge needs a prior advance of 30% or more before the record day.",
-   "answer": "False",
-   "why": "False. No prior advance is required. The HVE is often the first day of a new story, in a lesser-known stock with no prior trend. What the card does check is the other side. A run of 60% or more in the prior 60 sessions makes the day a climax, not a start.",
+   "q": "A High Volume Edge needs no prior advance before the record day.",
+   "answer": "True",
+   "why": "True. No prior advance is required. The HVE is often the first day of a new story, and no prior trend is needed. The card sets a ceiling instead. A run of 60% or more in the prior 60 sessions makes the day a climax, not a start.",
    "lesson_line": "No run-up needed. The record day is often the start.",
    "facts": [
     "c26",
@@ -1173,15 +1173,15 @@
     "c10"
    ],
    "house": true,
-   "simple": "False. No earlier run-up is needed, because the record day is often the first day of a new story.",
+   "simple": "True. No earlier run-up is needed, because the record day is often the first day of a new story.",
    "tier": "core",
    "risk": {
-    "score": 0,
+    "score": 2,
     "reasons": [
-     "card line, no outside number"
+     "+2 the card lists no_prior_trend and the 60% climax line (not_climax) as proposed, not settled"
     ]
    },
-   "batch": "wave2"
+   "batch": "polish"
   },
   {
    "key": "q11",
@@ -1341,16 +1341,16 @@
    "rung": 2,
    "format": "tf",
    "criterion": "hve.one_entry",
-   "q": "When a High Volume Edge works, you add to it on the first pullback to the HVC.",
-   "answer": "False",
-   "why": "False. Full size goes in at one price with one stop, with no adding. A pullback to the HVC is not a reason to buy more.",
+   "q": "You hold a High Volume Edge that is working. A pullback to the HVC is no reason to add shares.",
+   "answer": "True",
+   "why": "True. Full size goes in at one price with one stop, with no adding. A pullback to the HVC does not change that.",
    "lesson_line": "One price, one stop, one size. No adds.",
    "facts": [
     "c20",
     "h31"
    ],
    "house": true,
-   "simple": "False. Full size goes in at one price with one stop, so you do not add on a pullback.",
+   "simple": "True. Full size goes in at one price with one stop, so you do not add on a pullback.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1358,7 +1358,7 @@
      "+2 rests on the owner's rulebook (A5, no adding)"
     ]
    },
-   "batch": "wave2"
+   "batch": "polish"
   },
   {
    "key": "q17",
@@ -3492,9 +3492,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key True is right from c26 (I reached it before reading the key). Two breaks. (1) The why says the HVE comes 'in a lesser-known stock with no prior trend'. c01 says 'no prior trend REQUIRED', and the lesson's own w1 teaches TVTX 'in a quiet uptrend, 25% over its 200-day', so the why overreaches and clashes with a walk-through. (2) hve.no_prior_trend and hve.not_climax are both status 'proposed' on the card (24-high-volume-edge.json), but risk says score 0, 'card line, no outside number'. That teaches a proposed line as settled. Risk raised to 2 with the reason named, matching q11 and q42. 'The"
   },
   "q11": {
    "status": "pass",
@@ -3529,8 +3529,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows c20/h31 (no adding). No unsupported claim left."
+   "fixed": true,
+   "notes": "Key True is right from c20 and h31 (A5, settled on the card as hve.one_entry). Break: the statement never says you hold the trade ('after a High Volume Edge works'). q42 teaches follow-up entries at the HVC (an undercut and rally, a 9 or 20 EMA hold), so a learner who is not in could read a pullback to the HVC as a reason to buy, a second defensible answer. Making the holding explicit ties it to A5's 'no adding', which is settled. The why keeps only grounded words; no ruling on later entries for a holder is added. Fix touches q and why only."
   },
   "q17": {
    "status": "pass",

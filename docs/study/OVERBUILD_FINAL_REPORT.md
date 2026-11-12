@@ -8,7 +8,7 @@ Finished 2026-11-12. Every lesson in the Study library is upgraded and verified.
 | You asked for | Status |
 |---|---|
 | 4 answers instead of 3 | **Done.** 0 choice questions have 3 answers (it was 1,443). 3,233 choice questions now have 4. True/False, number and fill-in stayed in their own shape, as you chose. |
-| Each question researched deeply, with the most proper answer and the simplest | **Done.** All **5,215** live questions now have a one-line plain answer, and a rewritten full answer. 2,095 have a "go deeper" note (example, the other side, or the common trap). |
+| Each question researched deeply, with the most proper answer and the simplest | **Done.** All **5,232** live questions (after the polish pass) now have a one-line plain answer, and a rewritten full answer. 2,095 have a "go deeper" note (example, the other side, or the common trap). |
 | Review it all, everything | Every question went through independent agents: writer, cold checker, red team (risky questions), resolver, a fresh re-check, then a **separate verification round** on every question the re-check changed. |
 | Overbuild, then scale back after your review | Every question carries a tier (core 2,492 / extended 1,867 / expert 856) and a risk score, so scaling back later is a filter. |
 
@@ -45,14 +45,17 @@ Finished 2026-11-12. Every lesson in the Study library is upgraded and verified.
      Each is tagged, so when you rule, the affected questions can be found and re-keyed.
 3. **Merge.** When you are happy, merge PR #1046 (I can push the branch when you say so).
 
-## Small things I can still polish (your call)
+## Polish pass (done 2026-11-12, after the main run)
 
-- 8 lessons have a style flag: a few too many stems starting the same way, or true/false answers leaning False
-  (F10b.02, SET.18, SET.19, SET.21, SET.22, SET.44, SET.48, V.11). Cheap to fix.
-- 56 criteria on 25 setup cards no longer have a question (cuts of duplicates removed some coverage). A small top-up wave
-  would restore them.
-- The full source-quote re-check across all lessons is the last test; its result is in
-  `_study-resume\overbuild\final_quote_check.txt`.
+- **Style flags: 0 of 131 lessons** (was 8). Stems no longer repeat the same opener, and true/false answers are balanced.
+- **Lost setup criteria:** new questions restored most of the 27 that duplicate cuts had removed. A few the checkers
+  refused to cover, for good reasons (for example the flat-base "three taps = A+" question was cut because grading A+/A/B
+  is your call by your rulebook, and it gave away another question's answer).
+- **Source quotes:** the library-wide re-check found 9 quotes that did not match their source word for word; all 9 fixed.
+  Every polished lesson re-checks with 0 missing quotes.
+- **Still uncovered on purpose: 39 criteria on 15 setup cards**, mostly short-side rules (bear gap, short ORB, parabolic
+  short), numbers you hold, and rules waiting on your ruling. These need your call before anyone writes questions on them.
+- Library now: **5,232 live questions**, all with a plain one-line answer, 0 with three answers, answer slots A25/B25/C25/D24.
 
 ## Where everything lives
 

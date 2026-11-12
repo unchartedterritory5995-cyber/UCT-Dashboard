@@ -1636,9 +1636,9 @@
    "rung": 7,
    "format": "tf",
    "term": "Advance-decline line",
-   "q": "The exact number on an A/D line matters more than its direction.",
-   "answer": "False",
-   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters.",
+   "q": "An A/D line's shape and direction matter more than its exact number.",
+   "answer": "True",
+   "why": "True. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters.",
    "lesson_line": "Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
    "facts": [
     "f15",
@@ -1647,7 +1647,7 @@
     "f16",
     "f17"
    ],
-   "simple": "False, because the number depends on the day the count began, so you read the line's shape and direction instead.",
+   "simple": "True, because the number depends on the day the count began, so you read the line's shape and direction instead.",
    "deeper": {
     "trap": "The trap is comparing the number on one A/D line with the number on another chart or website. Each line's level depends on the day its count began, so the two numbers can't be compared. Compare a line with its own past instead. Is it making new highs with the index, or lagging behind?"
    },
@@ -1656,7 +1656,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "polish"
   },
   {
    "key": "q11",
@@ -2739,9 +2739,9 @@
    "rung": 7,
    "format": "tf",
    "term": "McClellan Summation Index",
-   "q": "The Summation Index reacts faster than the McClellan Oscillator.",
-   "answer": "False",
-   "why": "False. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term.",
+   "q": "The McClellan Oscillator reacts faster than the Summation Index.",
+   "answer": "True",
+   "why": "True. The Summation Index is a running total of the McClellan Oscillator. Because it is cumulative, it is the slower of the two. The oscillator serves short-term and medium-term timing. The Summation Index serves the medium and long term.",
    "lesson_line": "Adding things up slows them down. The Summation Index is the patient one.",
    "facts": [
     "f44",
@@ -2750,7 +2750,7 @@
     "f104",
     "f43"
    ],
-   "simple": "False, because adding up every day's reading makes the Summation Index slow, so it is the slower of the two.",
+   "simple": "True, because adding up every day's reading makes the Summation Index slow, so the oscillator is the quicker of the two.",
    "deeper": {
     "trap": "Do not expect the Summation Index to flag a turn first. It moves only as the oscillator's readings pile up, so it shows a shift in breadth later. Use the oscillator for the earlier read and the Summation Index for the bigger trend."
    },
@@ -2759,7 +2759,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "polish"
   },
   {
    "key": "q43",
@@ -3745,8 +3745,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False right (f15, f105). The why's 'or a failure to confirm them' hands q19 (blank = confirming) its word; no walkthrough teaches breadth 'confirming'. Reworded to new highs with the index or lagging (f16/f17), as the deeper already says; f23 dropped."
+   "fixed": false,
+   "notes": "Own answer before key: True (f15 ChartSchool: shape and direction matter, not the value; f105 McClellan: Y-axis scale reflects the chosen start point). Key matches. No second defensible answer. Why: every claim grounded (running total f13, start-date dependence f105, new highs with index f16, lagging f17, both publishers f15+f105); 'shape does not change' follows from a running total shifted by a start constant. All sentences 22 words or fewer, no em dash, no 'the firm'. Simple: 20 words, one sentence, no semicolon/bracket/slash, does not overreach. Does not give away q08 or q09 (the question "
   },
   "q11": {
    "status": "pass",
@@ -3936,9 +3936,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Own answer before key: True (f44 ChartSchool: cumulative nature makes the Summation Index a slower version of the oscillator). Key matches. No second defensible answer. Why: running total f43, slower f44, short/medium vs medium/long timing f45 (also f78, f104). Sentences short, no em dash. Simple: 22 words, one sentence, no banned punctuation, grounded in f43+f44. Question text does not reveal q41's answer (running total) and q41 does not give this one away beyond the general idea. No owner-rulebook conflict."
   },
   "q43": {
    "status": "pass",

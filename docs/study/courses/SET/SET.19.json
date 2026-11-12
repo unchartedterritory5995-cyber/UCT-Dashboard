@@ -2191,7 +2191,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "peg.trim_gap_open",
-   "q": "What do you do with your first trim?",
+   "q": "How do you take the first trim?",
    "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. This morning the stock opens at 43.60.",
    "choices": [
     "Sell a third at the open",
@@ -2214,7 +2214,7 @@
     "Sell half, since it gapped up": "The plan trims a third at 3R and another third at 5R, not half."
    },
    "house": true,
-   "simple": "Sell a third at the open. The price is already past 3R, so you take the trim then and do not wait.",
+   "simple": "The price already opened past 3R, so you sell the first third at the open.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2222,7 +2222,7 @@
      "rests on the owner's rulebook (F63 and the 3R trim)"
     ]
    },
-   "batch": "wave2"
+   "batch": "polish"
   },
   {
    "key": "q40",
@@ -2868,7 +2868,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "peg.stop_only_up",
-   "q": "What do you do?",
+   "q": "How do you answer your friend?",
    "story": "You bought the pause break with the stop a few cents under the pause low. The next day it dips toward the stop. A friend says to move the stop down to the gap-day low to give it room.",
    "choices": [
     "Leave the stop where it is",
@@ -2892,7 +2892,7 @@
     "Buy more to lower your cost": "A PEG is one buy at one price with one stop. No adding."
    },
    "house": true,
-   "simple": "Leave the stop where it is. A stop only moves up, never down or wider, so we do not give it room.",
+   "simple": "Leave the stop where it is, because a stop only moves up and never down or wider.",
    "deeper": {
     "trap": "The trap is 'room'. A stop that moves down turns a planned small loss into an open-ended one. The only exception is a gap through the stop. Even then the first 30-minute low is the new stop, with a ceiling: if that takes the loss past 2R, get out."
    },
@@ -2903,7 +2903,7 @@
      "rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "wave2"
+   "batch": "polish"
   },
   {
    "key": "q58",
@@ -3675,8 +3675,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R = 43.00 from 40.00 and 39.00; open 43.60 is past it; F63 (h25) says take the trim at the open. Third at 3R per B19/E51. Numbers all from the story or the calc."
+   "fixed": true,
+   "notes": "Key checked cold: entry 40.00, stop 39.00, R = 1.00, 3R = 43.00; open 43.60 is past 3R, so F63 (h25, sizing_rule.md line 226) says trim at the open, and h05 makes the first trim a third. New q text is fine, no tell, no second defensible answer, lengths balanced. Only defect: 'simple' was two sentences against the one-sentence rule. Rewritten as one sentence, 15 words, same facts."
   },
   "q40": {
    "status": "pass",
@@ -3765,8 +3765,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c17/h02: the stop only moves up, never down or wider; c15 kills adding. The friend's suggestion is the obvious bait but all four choices are live plans. Gap-rule exception in the why is h06."
+   "fixed": true,
+   "notes": "Key checked cold: A4 (h02, sizing_rule.md line 105) and c17 (card line 735) both say the stop only moves up and is not widened to the gap low after the pause buy. Defects: the new q 'Which move do you make with the stop?' makes 'Buy more to lower your cost' an off-topic choice that is easy to drop, and calls 'leave it' a move. Reworded so all four choices answer it. 'simple' was two sentences; rewritten as one, 17 words."
   },
   "q58": {
    "status": "pass",

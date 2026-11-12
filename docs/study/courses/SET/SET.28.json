@@ -788,6 +788,12 @@
    "source": "h1",
    "quote": "The full size at one price with one stop; no adding.",
    "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "k35",
+   "source": "c1",
+   "quote": "averages (20 EMA, 50-day, 200-day) still above price after the remount day",
+   "claim": "Card 32: the all-averages cue counts the 20 EMA, the 50-day and the 200-day still above price after the remount day."
   }
  ],
  "walkthroughs": [
@@ -3841,6 +3847,86 @@
      "added so q27 applies a rule taught first"
     ]
    }
+  },
+  {
+   "key": "q86",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.all_mas",
+   "story": "A leader sits above a rising 200-day. It lost its 50-day, then remounts it on a clear green close. That same close also clears its 20 EMA.",
+   "q": "How does our card read this remount?",
+   "choices": [
+    "A plus cue, since none sit overhead",
+    "B minus cue, since it is stretched",
+    "No cue, since only the 50-day counts",
+    "Pass, until the 20 EMA is retested"
+   ],
+   "answer": "A plus cue, since none sit overhead",
+   "wrong": {
+    "No cue, since only the 50-day counts": "This cue counts every average still above price after the remount day: the 20 EMA, the 50-day and the 200-day.",
+    "B minus cue, since it is stretched": "Clearing every average is not being stretched. Our stretch rule is more than 10% over the 10-day, and the story gives no such gap.",
+    "Pass, until the 20 EMA is retested": "Our card asks for no retest of the 20 EMA. Clearing it on the remount close is part of the cue."
+   },
+   "why": "A plus cue. Our card proposes that a remount clearing all the averages at once, above a rising 200-day, is an A plus cue. It counts the 20 EMA, the 50-day and the 200-day. After this close, none of the three sits above price. A cue is a hint, not a score, and grading stays a judgment.",
+   "lesson_line": "No average left overhead after the remount, over a rising 200-day: our card's proposed A plus cue.",
+   "simple": "Our card proposes that a remount leaving no average above price, over a rising 200-day, is an A plus cue.",
+   "facts": [
+    "k08",
+    "k35",
+    "k04",
+    "h50"
+   ],
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 a proposed grade cue on card 32, not an owner ruling",
+     "+1 grade cues sit against rulebook E50 (grading is discretionary)"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q87",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.leader_before_index",
+   "story": "The market has a sharp shakeout and the index drops under its own 50-day. A leader loses its 50-day in the same drop but holds above its 200-day. Later it remounts its 50-day on a clear green close, while the index is still under its own.",
+   "q": "How does our card read the timing of this remount?",
+   "choices": [
+    "An A plus cue: it moved first",
+    "A pass: wait for the index to remount",
+    "A B minus cue: it fought the market",
+    "No cue: the index does not matter"
+   ],
+   "answer": "An A plus cue: it moved first",
+   "wrong": {
+    "A pass: wait for the index to remount": "Our card does not make a leader wait for the index. Remounting first is its A plus cue, though the market reading still applies.",
+    "A B minus cue: it fought the market": "Moving back before the index is strength, not a fault. Our card lists it as an A plus cue.",
+    "No cue: the index does not matter": "The index matters on our card. Its best case is after a correction, as the indexes remount their lines and leaders remount first."
+   },
+   "why": "An A plus cue: it moved first. A leader that lost the line in a market shakeout, then remounted before the index, is our card's A plus cue. Our card says the setup is best after a correction, when leaders remount first. A cue is a hint, not a score.",
+   "lesson_line": "Leaders remount first. One that beats the index back is an A plus cue on our card.",
+   "simple": "Our card counts a leader that remounts its line before the index does as an A plus cue.",
+   "facts": [
+    "k09",
+    "k10",
+    "k02",
+    "h50"
+   ],
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 a proposed grade cue on card 32, not an owner ruling",
+     "+1 grade cues sit against rulebook E50 (grading is discretionary)"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4361,6 +4447,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "Pass. Key is the middle of 5/30/60 minutes, a mild tell, but the open choice breaks the pattern and h06 grounds every note. Teaches the gap rule before q27 applies the 2R ceiling; not a duplicate."
+  },
+  "q86": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right from k08/k35: the card's measure counts the 20 EMA, 50-day and 200-day still above price, value 0, above a rising 200-day. Breaks fixed: (1) the story's last clause 'so no average is left above price' handed over the measure word for word; now the student must see that clearing the 50-day and 20 EMA above the 200-day leaves none overhead. (2) Tell: the key was the only choice with no reason clause and echoed the stem's 'our card'; all four are now parallel 'cue, since/until' choices and the key is not the longest (35 vs 36). (3) 'simple' taught a proposed cue as settled ('counts'); n"
+  },
+  "q87": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Near-duplicate of live q50 (passed): same criterion pair (k09 leader before index, k10 leaders remount first, h50), same story (a leader loses its 50-day in a market shakeout and remounts while the index is still under its own 50-day) and the same key in other words ('A point toward a higher grade' vs 'An A plus cue'). Each answers the other. q50's softer key fits E50 better than this one's flat 'A plus cue', and q64 was already cut in wave3 for repeating q50. Minor besides: the key's 'it moved first' restates the story's timing, and the story gives no market reading, so a Red reading (k02, no"
   }
  }
 }

@@ -903,6 +903,12 @@
    "source": "h1",
    "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
    "claim": "C34: into a climax run on your own long, sell a big part; a judgment call."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "Taps: the dossier proposes three or more as the A+ ceiling; the scan found no difference (1,621 hits, 28.9% / 20.5%). Kept as a cue with the caveat.",
+   "claim": "Our card keeps three or more taps as an A+ cue, though our scan found no difference in outcomes."
   }
  ],
  "walkthroughs": [
@@ -3820,6 +3826,45 @@
     ]
    },
    "batch": "pilot-1"
+  },
+  {
+   "key": "q79",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fb.ceiling_three_taps",
+   "q": "What does the third tap of the top do on our card?",
+   "story": "A stock rests seven weeks under 52. It has tapped 52 on three separate swings, each within a few cents. The first tap came five weeks back.",
+   "choices": [
+    "Makes the ceiling the A+ version",
+    "Makes it a ceiling; two taps do not",
+    "Means the top will break this time",
+    "Nothing; taps never change the grade"
+   ],
+   "answer": "Makes the ceiling the A+ version",
+   "why": "It makes the A+ version. On our card, three or more clean taps of one flat level is the A+ version of the ceiling. Two or more separate touches already make the ceiling, so the third tap counts toward the grade, not the pass. It is a cue, not a forecast. Our scan found no difference in outcomes with three or more taps.",
+   "lesson_line": "Two taps make the ceiling. Three or more clean taps make it the A+ version.",
+   "facts": [
+    "c31",
+    "c03",
+    "c33"
+   ],
+   "wrong": {
+    "Makes it a ceiling; two taps do not": "Two or more separate touches already make the ceiling. The third tap only makes it the A+ version.",
+    "Means the top will break this time": "Our card keeps taps as a grade cue. Our scan found no difference in outcomes with three or more taps.",
+    "Nothing; taps never change the grade": "Our card lists three or more clean taps as the A+ version of the ceiling, so it counts in the grade."
+   },
+   "house": true,
+   "simple": "The third clean tap makes the ceiling the A+ version on our card, but two taps already count.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "card criterion is proposed; our scan found no difference for three or more taps",
+     "an earlier three-taps item (q73) was cut in pilot-1"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4328,6 +4373,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Math is right: 48.50 x 1.04 = 50.44. But the rule is 4% above the buy point and IBD's buy point is pivot plus 10 cents (50.54 on that reading). The stem never says our buy point is the pivot. Say so and cite c01."
+  },
+  "q79": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "CUT. Cold solve: by the card (c31) the key is right, and c03, c31, c33 are verbatim on 01-flat-base.json (lines 297, 317, 1430). It still cannot ship. (1) It answers itself from q11: q11 why says \"Three clean taps is the A+ cue on our card\" and its lesson_line says \"Two taps make it; three make it clean\". That is the exact reason q73, the same criterion, was cut in pilot-1 (pilot/SET.07b final.json decisions.q73). (2) Owner rulebook E50 (sizing_rule.md section 9): grading A+/A/B/B- is discretionary and no fixed checklist is taught as ours. A key that says the third tap makes it the A+ version,"
   }
  }
 }

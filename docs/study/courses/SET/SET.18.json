@@ -1123,6 +1123,12 @@
    "source": "s10",
    "quote": "a concentrated period of 3-4 weeks every quarter",
    "claim": "Kullamagi: EPs mostly occur in a concentrated period of 3-4 weeks every quarter."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "consecutive up closes before the delayed trigger",
+   "claim": "The three-green test counts up closes in a row before the delayed trigger."
   }
  ],
  "walkthroughs": [
@@ -3885,6 +3891,59 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.episodic_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ep.close_top_quarter",
+   "q": "On our card, a gap day that closes 70% of the way up its range earns the top-quarter grade cue.",
+   "answer": "False",
+   "why": "False. A close 70% of the way up sits above the middle, so the day passes the upper-half gate. The top quarter is the last quarter of the range, and 70% falls short of it. On our card the top quarter is a grade cue, not a gate, so this day can still count as an EP.",
+   "lesson_line": "Upper half is the gate. The top quarter only lifts the grade.",
+   "facts": [
+    "c08",
+    "c07"
+   ],
+   "house": true,
+   "simple": "False, because 70% is short of the top quarter, though it still clears the upper half that the gate needs.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line (ep.close_top_quarter)",
+     "the dossier's scan found no edge in the top quarter over the 50% to 75% band"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.episodic_pivot",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "ep.not_three_green",
+   "q": "On our card, a delayed trigger that comes after only two green days in a row breaks the three-green guide.",
+   "answer": "False",
+   "why": "False. Our card says not after three green days in a row. Two in a row is short of three, so the guide does not apply here. Even at three, it is a guide, not a gate.",
+   "lesson_line": "The three-green guide starts at three. Two green days do not trip it.",
+   "facts": [
+    "c15",
+    "c37"
+   ],
+   "house": true,
+   "simple": "False, because the card's guide only warns after three green days in a row, and two is short of that.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on a proposed card line (ep.not_three_green) from the 2026-04-19 starter list",
+     "the owner has not ruled whether a green day is an up close or a close above the open",
+     "the threshold is read from the card's measure, fewer than 3 in a row"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "verify": {
@@ -4325,6 +4384,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "c34 names the mistake; h20 for the plan. Overlaps q54 only as a distractor note, a different test."
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Decided cold: False. The card's measure for ep.close_top_quarter is >= 0.75 of the range (c08 'top quarter'; 75% is the calc 100% minus a quarter); 70% is from the question, short of it, and still clears the upper-half gate (c07). No second defensible answer. Distinct from q65 (gate vs cue) and from q48/q60 (86%, 82%), which do not give away the 75% line. Why, simple (21 words, no semicolon) and lesson_line are grounded and in voice. Risk 3 and the owner flag on the unproven cue are correct; the cue is not taught as a measured edge."
+  },
+  "q72": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "As written it is a near-duplicate of q29 (three green days before the delayed trigger, True, a guide not a gate): the only new content is reading green as an up close, which the owner has not ruled (its own flag asks him to). 'One to pass on' also drops the guide-not-gate nuance from the stem. Rewritten to test the card's threshold (consecutive up closes < 3, so two does not trip it), using the card's own 'green days' wording so the key does not rest on the unruled definition. Keep the owner flag for SET.18 q72 but reword it: the line itself is proposed and unsigned from the 2026-04-19 starter"
   }
  }
 }

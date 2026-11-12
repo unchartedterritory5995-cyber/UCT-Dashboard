@@ -3864,6 +3864,45 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q84",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.index_20ema",
+   "story": "A leader with RS 90 drifts into its 9/20 zone and prints a strong hold day. The Nasdaq closed under its own 20-day EMA today. No market Wedge Pop has happened.",
+   "q": "On our card, what does the index cue say about this trade?",
+   "choices": [
+    "It lowers the grade but does not block",
+    "It blocks the buy until the index heals",
+    "Nothing, only the stock's chart counts",
+    "Raises the grade, since the stock leads"
+   ],
+   "answer": "It lowers the grade but does not block",
+   "why": "It lowers the grade but does not block. On our card the index is a cue, not a gate. The cue is met when the Nasdaq is not below its 20-day EMA, or a market Wedge Pop has just happened. Neither is true here, so the grade drops. Kell himself trades less or smaller when the index is below its 20 EMA.",
+   "lesson_line": "The index is a cue, not a gate. Under its 20-day EMA, the grade drops.",
+   "facts": [
+    "x19",
+    "x43",
+    "e12"
+   ],
+   "wrong": {
+    "It blocks the buy until the index heals": "On our card the index is a cue, not a gate. It lowers the grade but does not block the buy.",
+    "Nothing, only the stock's chart counts": "The card lists the market under its 20-day EMA as a lower-grade cue. Kell also trades less in index corrections.",
+    "Raises the grade, since the stock leads": "The card lists the market under its 20-day EMA as a lower-grade cue. A market Wedge Pop is the cue that helps."
+   },
+   "house": true,
+   "simple": "On our card a Nasdaq under its 20-day EMA lowers the grade but does not block the trade.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the index cue is a proposed card line (xbk.index_20ema), not an owner ruling",
+     "the card's evidence cites D-023's default that no setup adds its own index filter, and the owner has not ruled"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4396,6 +4435,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found. Had no verify entry; checked here."
+  },
+  "q84": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Before looking at the key I got the same answer: x19 (card) says the index is 'a cue, not a gate', and x43 / grading.b_minus lists 'the market under its 20-day EMA' as a lower-grade cue. The story meets neither half of the cue, so the grade drops and nothing blocks. The key is right, there is no second defensible answer on the card's wording, the choices are 38-39 chars with no length or Yes/No tell, and the answer does not reuse the story's words. It conflicts with nothing in sizing_rule.md: B18/F65's market filter is the app's reading, a separate question (q35, q58). It answers no other live"
   }
  }
 }

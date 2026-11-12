@@ -970,6 +970,12 @@
    "source": "d1",
    "quote": "the median time to 3R among the winners was 3 sessions",
    "claim": "Scan: the median time to 3R among the winners was 3 sessions."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "the index's 10 and 20-day EMAs against 5 sessions ago, with a new 20-session low in the last 5 sessions",
+   "claim": "The card's index test: the short averages compared with 5 sessions ago, plus a new 20-session low in the last 5 sessions."
   }
  ],
  "walkthroughs": [
@@ -3635,6 +3641,43 @@
    "depends_on": [
     "D-009"
    ]
+  },
+  {
+   "key": "q70",
+   "skill": "setup.wedge_pop",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "wp.inv_index_falling",
+   "q": "Our card checks the index before a Wedge Pop buy. Which index reading fails that check?",
+   "choices": [
+    "Falling EMAs and a new 20-session low",
+    "The index closing under its 200-day",
+    "Rising EMAs off a fresh 20-session low",
+    "One down day on volume above average"
+   ],
+   "answer": "Falling EMAs and a new 20-session low",
+   "why": "Falling EMAs and a new 20-session low. Our card compares the index's short averages with 5 sessions ago. It also looks for a new 20-session low in the last 5 sessions. Both together mean the index is still making lower lows with its averages falling.",
+   "lesson_line": "Before the buy, check the index: falling short averages plus a fresh 20-session low means it is still falling.",
+   "facts": [
+    "c23",
+    "c46"
+   ],
+   "wrong": {
+    "The index closing under its 200-day": "The card's index test does not use the 200-day. It reads the short averages and a new 20-session low.",
+    "Rising EMAs off a fresh 20-session low": "Rising averages pass the check. The card flags the index only when its averages fall and a new low prints.",
+    "One down day on volume above average": "One heavy down day is not the test. The card compares the averages with 5 sessions ago and looks for a 20-session low."
+   },
+   "house": true,
+   "simple": "Our card calls the index still falling when its short averages fell over 5 sessions and it hit a new 20-session low in that span.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line whose numbers are the card's own reading; the dossier gives the words, not the numbers",
+     "the card lists a falling index both as a no-buy invalidation and as a B- cue, so this item keys only the test, never the outcome"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4088,6 +4131,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right and the only defensible pick: c46 needs both falling 10/20 EMAs (vs 5 sessions ago) and a new 20-session low in the last 5 sessions; the 200-day, a lone heavy down day and rising EMAs all miss it. No length tell (37/35/38/36 chars), no Yes/No tell, rulebook silent. Fixes: (1) the wrong note for 'Rising EMAs off a fresh 20-session low' said rising averages 'fail the test', which reads as the opposite of the stem's 'fails that check' (it actually passes); rewritten. (2) Dropped the Kell w05 sentence: 'avoided long swings until...' leans toward the stricter no-trade outcome the owner"
   }
  }
 }

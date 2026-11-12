@@ -3263,6 +3263,46 @@
     ]
    },
    "batch": "wave3"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.inv_no_reclaim",
+   "q": "What is your move as the day ends?",
+   "story": "The prior close is 50.00 and the prior low 49.40. The stock opens at 49.70 and trades down to 49.10. It bounces and closes at 49.85, never trading over 50.00.",
+   "choices": [
+    "No trade; the reclaim never came",
+    "Buy the close; 49.85 is near enough",
+    "No trade; it never broke the prior low",
+    "Buy now; the undercut is the signal"
+   ],
+   "answer": "No trade; the reclaim never came",
+   "why": "No trade. The stock broke the 49.40 prior low but never traded back over the 50.00 prior close. An Oops is bought back through the prior close, so the buy never came. The 49.85 close is also under 50.00, so the day is not an Oops at all. Our card also lists this as a no-trade, a rule still marked proposed.",
+   "lesson_line": "No reclaim of the prior close means no Oops and no trade.",
+   "facts": [
+    "o_main",
+    "l_k2",
+    "cs",
+    "o_inv"
+   ],
+   "wrong": {
+    "Buy the close; 49.85 is near enough": "Near is not over. The buy comes back through 50.00, and the 49.85 close is still under it.",
+    "Buy now; the undercut is the signal": "The undercut only sets the trap. The buy comes when price trades back through the prior close after it.",
+    "No trade; it never broke the prior low": "It did break it. The 49.10 low is under the 49.40 prior low. What never came is the trade back over 50.00."
+   },
+   "house": true,
+   "simple": "No trade, because the stock never got back over the prior close after it broke the prior low.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "touches a card criterion that is still proposed (oops.inv_no_reclaim); the why names it as proposed",
+     "the key holds under any entry option in D-003 and under the settled main Oops definition, since the close is under the prior close"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3716,6 +3756,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key right (E51: another third at 5R, then trail the last third). The why's trail sentence copies q39's why and hands over q39's key (21-day for steadier names, same rung 6) while adding nothing to this answer. Sentence and h21 dropped."
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right: low 49.10 under the 49.40 prior low, never over the 50.00 prior close, close 49.85 under it, so no trigger under any D-003 option (A, B or C) and the day is not even an Oops under the settled o_main. Breaks found: (1) tell, a lone 'No trade' against three 'Buy' choices; replaced the half-size choice with a second no-trade choice that is wrong ('it never broke the prior low', but 49.10 < 49.40), so h31 leaves the facts. (2) why and one wrong note taught the proposed oops.inv_no_reclaim as settled ('On our card, that is a no-trade'); the why now rests on settled o_main and the buy "
   }
  }
 }

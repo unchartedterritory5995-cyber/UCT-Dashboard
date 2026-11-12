@@ -1141,6 +1141,30 @@
    "source": "d1",
    "quote": "this is a fixed stop with no trims, no 9 EMA cover, no breakeven move and no time limit",
    "claim": "The scan used a fixed stop with no trims, no 9 EMA cover, no breakeven move and no time limit."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "The run is linear, or fewer than 2 boxes, or less than 10% over the 9 EMA: not this setup.",
+   "claim": "Card: a linear run, fewer than 2 boxes, or a prior close less than 10% over the 9 EMA is not this setup."
+  },
+  {
+   "id": "d34",
+   "source": "d1",
+   "quote": "SLV, AGQ and SIVR on 2026-01-26 all hit and all lost (stopped on the next leg up)",
+   "claim": "SLV, AGQ and SIVR all hit the scan on 2026-01-26, and all three were stopped on the next leg up."
+  },
+  {
+   "id": "d35",
+   "source": "d1",
+   "quote": "Outcome: from the next session, 60 sessions forward, the first of stop / 3R / 5R on the shorted distance",
+   "claim": "The scan scores each hit by whichever comes first: the stop, 3R or 5R."
+  },
+  {
+   "id": "d36",
+   "source": "d1",
+   "quote": "Entry: a market order at the climax day's close; stop 0.1% plus a cent over the climax high",
+   "claim": "The scan shorts at the climax day's close, with the stop just over the climax high."
   }
  ],
  "walkthroughs": [
@@ -3920,6 +3944,90 @@
     "b07"
    ],
    "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.parabolic_short",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ps.inv_linear",
+   "story": "A hot large cap is up 80% in five weeks, each weekly range wider than the last. Three of Bracco's four boxes are checked. Today it gaps up 6% on record volume. At yesterday's close it sat 7% above its 9-day EMA.",
+   "q": "Is this a Parabolic Short on our card?",
+   "choices": [
+    "No; not stretched far enough yet",
+    "Yes; three boxes and a climax gap",
+    "Yes; up 80%, past the 50% mark",
+    "No; the gap is under 10%"
+   ],
+   "answer": "No; not stretched far enough yet",
+   "wrong": {
+    "Yes; three boxes and a climax gap": "The boxes and the gap pass. Our card also wants the prior close 10% or more over the 9 EMA, and 7% falls short.",
+    "Yes; up 80%, past the 50% mark": "80% clears the large-cap bar of 50%. The run must still sit 10% or more over the 9 EMA, and it does not.",
+    "No; the gap is under 10%": "Any gap up passes the gap test, and 5% or more is the stronger mark. The 6% gap is fine. The 9 EMA test fails."
+   },
+   "why": "No. Our card says a run less than 10% over the 9 EMA is not this setup. Here the prior close sat only 7% above it. The boxes, the 80% run and the gap all pass. One failed test still rules it out. The 10% floor is our card's proposal and waits on the owner's ruling.",
+   "lesson_line": "Under 10% over the 9 EMA, it is not stretched enough to short.",
+   "simple": "No. It closed only 7% above its 9-day EMA, and our card wants at least 10%.",
+   "facts": [
+    "c50",
+    "c12",
+    "c01",
+    "c10"
+   ],
+   "house": true,
+   "depends_on": [
+    "D-040"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 10% floor is the card's proposal and D-040's default, not an owner ruling",
+     "rests on the card alone"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q74",
+   "skill": "setup.parabolic_short",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ps.commodity_etf",
+   "story": "Three commodity ETFs hit our climax scan on the same day, 2026-01-26: SLV, AGQ and SIVR. Each short was taken at the climax close.",
+   "q": "What did our scan record for those three shorts?",
+   "choices": [
+    "All stopped on the next leg up",
+    "Only AGQ lost; SLV and SIVR won",
+    "Each reached 3R before its stop",
+    "Two reached 5R, one was stopped"
+   ],
+   "answer": "All stopped on the next leg up",
+   "wrong": {
+    "Only AGQ lost; SLV and SIVR won": "SLV and SIVR lost too. All three were stopped on the next leg up.",
+    "Each reached 3R before its stop": "The scan scores whichever comes first: the stop, 3R or 5R. All three hit the stop first.",
+    "Two reached 5R, one was stopped": "None of the three won. All three were stopped on the next leg up."
+   },
+   "why": "All three were stopped out on the next leg up. Our card turns that into a cue against commodity ETFs. Bracco's own AGQ shorts failed 3 times in 2 sessions. The card lists it as a proposed cue, not a rule. The owner has not ruled on it.",
+   "lesson_line": "Three commodity ETFs hit the scan together, and all three shorts lost.",
+   "simple": "All three shorts were stopped out when the move took another leg up.",
+   "facts": [
+    "c36",
+    "d34",
+    "d35",
+    "d36",
+    "s13"
+   ],
+   "house": true,
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one dated event from our own scan",
+     "the cue is proposed and the owner has not ruled; E54 prefers leveraged ETFs"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4393,6 +4501,18 @@
    "notes": "coverage question checked 2026-11-10; cut: it keys a box count (fewer than 2 boxes), which rides on the pending D-040 test; the linear half of ps.inv_linear is already covered by q71 and q17, so no honest rewrite remains",
    "by": "checker",
    "fixed": false
+  },
+  "q73": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Quotes check out (c50 is verbatim card line 856; c12, c01, c10 verbatim). But the key rests only on the 10% over the 9 EMA floor. The card marks ps.inv_linear status 'proposed', and that floor is the same number as ps.extension's D-040 default. This lesson's own conflicts note says the D-040 extension floor is 'kept OUT of every key'. It also says the AVGO near-miss (6% over the 9 EMA) was left unasked for exactly this reason. And q72 was cut for keying the other half of this same pending test. Deciding the right answer from the quotes first: under B26 (Bracco's post is the house definition, '"
+  },
+  "q74": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Facts are real: d34 is verbatim at dossier line 1164, d35 at line 1123, d36 at lines 1120-1121; s13 and c36 verbatim. The key is right, but the question is a recall of one dated scan outcome (three correlated silver funds on one day). q40 was cut last round for resting on that same thin event. q74 keeps the event and moves the cue into the why ('Our card turns that into a cue against commodity ETFs'). That still teaches a proposed cue that may sit against the owner's E54 ('Leveraged ETFs are preferred; no extra rules'; AGQ is leveraged), with D-018 pending. If the why drops the cue, the only l"
   }
  }
 }

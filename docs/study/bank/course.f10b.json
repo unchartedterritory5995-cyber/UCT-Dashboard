@@ -3006,7 +3006,7 @@
   "difficulty": 2,
   "id": "si_a4b144560759",
   "lesson_origin": "session",
-  "lesson_text": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, to limit the loss to $4 a share. Our stop sits a few cents under the day's low, not exactly on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high. Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
+  "lesson_text": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, limiting the loss to $4 a share. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop sits a few cents over the day's high. Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
   "module": "F10b",
   "prompt_json": {
    "choices": [
@@ -3016,8 +3016,8 @@
     "No stop until in profit"
    ],
    "kind": "mcq",
-   "q": "Under our rules, where does your buy stop go?",
-   "story": "A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80.",
+   "q": "Where does your buy stop go, by our rules?",
+   "story": "A stock drops from $90 to $66, then bounces. Today it tops out at $84 and starts to roll over. You'll short only below $80.",
    "subject": "F10b.02#q10"
   },
   "reveal_json": {
@@ -3083,13 +3083,13 @@
     "summary": "Schwab's example: a stock falls from $90 to $66, bounces to $84, and looks ready to drop again. Short only below $80, with the buy stop at the $84 bounce high: $4 a share at risk. In Schwab's example, $74 is the profit target, where the short is closed. A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. Our rule: the stop sits a few cents past the low, not exactly on it. Our rule: shorts are our long setups reversed. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "Under our rules, where does your buy stop go? A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80. At $74, your profit target Just under the $66 low Just over the $84 high No stop until in profit"
+    "given": "Where does your buy stop go, by our rules? A stock drops from $90 to $66, then bounces. Today it tops out at $84 and starts to roll over. You'll short only below $80. At $74, your profit target Just under the $66 low Just over the $84 high No stop until in profit"
    },
    "lesson_line": "Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
-   "simple": "Just over $84. Schwab puts the stop at that bounce high, and our rule puts it a few cents past it, not on it.",
+   "simple": "Just over $84, today's high, since our short stop mirrors the long one and sits a few cents above that high.",
    "tier": "core",
    "unit": "F10b.02",
-   "why": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, to limit the loss to $4 a share. Our stop sits a few cents under the day's low, not exactly on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high.",
+   "why": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, limiting the loss to $4 a share. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop sits a few cents over the day's high.",
    "wrong": {
     "At $74, your profit target": "That's where Schwab's example takes the profit. A short's stop guards the move against you, and that move is up, above $80.",
     "Just under the $66 low": "That's where a long's stop would sit. A short loses as the price rises, so a stop down there never protects you.",
@@ -4372,7 +4372,7 @@
     "Short the break, stop over the high"
    ],
    "kind": "mcq",
-   "q": "Under our rules, what's the call?",
+   "q": "What's the call, by our rules?",
    "story": "A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume.",
    "subject": "F10b.02#q26"
   },
@@ -4390,7 +4390,7 @@
     "summary": "Our rule: we short only below the 200-day average, unless it is a parabolic short."
    },
    "facts": {
-    "given": "Under our rules, what's the call? A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume. Pass: no short above the 200-day Pass: wait for a second down day Short the break, stop over the high Short it, at half the usual size"
+    "given": "What's the call, by our rules? A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume. Pass: no short above the 200-day Pass: wait for a second down day Short the break, stop over the high Short it, at half the usual size"
    },
    "lesson_line": "We short only below the 200-day line. Above it, only a parabolic short qualifies.",
    "simple": "Pass. $48 is above the $41 200-day, and we short only below it unless it's a parabolic short.",

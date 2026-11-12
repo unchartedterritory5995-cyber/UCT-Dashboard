@@ -761,6 +761,12 @@
    "source": "c1",
    "quote": "The stop is the exit; a re-entry needs a new trigger (B21).",
    "claim": "DKS: the stop is the exit; a re-entry needs a new trigger."
+  },
+  {
+   "id": "g57",
+   "source": "c1",
+   "quote": "Not a fixed 1% to 3% under the gap-up low: his slight breaches are often deeper than that, so the stop would sit above the test day's low.",
+   "claim": "Not a fixed 1% to 3% under the gap-up low, because a slight breach is often deeper, so that stop would sit above the test day's low."
   }
  ],
  "walkthroughs": [
@@ -1719,7 +1725,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.stop_width",
-   "q": "What do you do?",
+   "q": "How do you handle this stop?",
    "story": "The test day's low puts your stop 5% under the fill. A friend says to use 1.5% under the fill instead, so you can buy more shares.",
    "choices": [
     "Buy fewer shares to fit the 5% stop",
@@ -1752,7 +1758,7 @@
      "wrong note on the gap-fill spot reworded to the cited median"
     ]
    },
-   "batch": "wave3"
+   "batch": "polish"
   },
   {
    "key": "q30",
@@ -1760,7 +1766,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.time_stop",
-   "q": "What do you do?",
+   "q": "Ten days in, what is the move?",
    "story": "You bought a Gap Support test. Ten trading days later it sits at 0.3R, never near 3R and never near the stop.",
    "choices": [
     "Sell; under 1R at 10 trading days",
@@ -1790,7 +1796,7 @@
      "rests on the owner's time-stop rule (C33)"
     ]
    },
-   "batch": "wave3"
+   "batch": "polish"
   },
   {
    "key": "q31",
@@ -3617,6 +3623,136 @@
     ]
    },
    "batch": "wave3"
+  },
+  {
+   "key": "q82",
+   "skill": "setup.gap_support",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "gs.gap_not_huge",
+   "q": "By our card, what does the size of this gap do to the trade?",
+   "story": "A leader's earnings gap closes the day 38% above the prior close. Weeks later it tests the gap-up low and closes near its high. Every other check on the card passes.",
+   "choices": [
+    "It lowers the grade, but not a ban",
+    "It bans it; over 30% is never bought",
+    "It raises the grade; demand is strong",
+    "It does not count; only the test does"
+   ],
+   "answer": "It lowers the grade, but not a ban",
+   "why": "It lowers the grade, but it is not a ban. On our card, a gap over 30% is a lower grade, not a ban. Wagner warns that an opening gap of more than 30% could lead to a few months of chop.",
+   "lesson_line": "On our card, a gap over 30% lowers the grade but does not ban the trade.",
+   "facts": [
+    "g07",
+    "wg1"
+   ],
+   "wrong": {
+    "It bans it; over 30% is never bought": "Our card makes a gap over 30% a lower grade, not a ban.",
+    "It raises the grade; demand is strong": "It is the reverse. A gap over 30% grades lower, and Wagner warns of months of chop.",
+    "It does not count; only the test does": "The gap size is part of the grade on our card, even with a clean test."
+   },
+   "house": true,
+   "simple": "On our card a gap over 30 percent lowers the grade, but the trade is not banned.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "proposed 30% line on the card, not yet ruled by the owner",
+     "one web source (Wagner), already checked on the page"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q83",
+   "skill": "setup.gap_support",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "gs.stop_not_porosity",
+   "q": "Why is a fixed stop 1% to 3% under the line wrong here?",
+   "story": "The gap-up low is the line. The test day's low dips 3.2% under it. Then the day closes back over the line in its upper half.",
+   "choices": [
+    "The day already traded below it",
+    "It would sit too far from the entry",
+    "The card wants it on the line itself",
+    "Morales allows no undercut at all"
+   ],
+   "answer": "The day already traded below it",
+   "why": "The day already traded below it. A stop 1% to 3% under the line sits above a low 3.2% under it. Our card proposes no fixed 1% to 3% stop, since slight breaches are often deeper. Our stop goes a few cents under the test day's low.",
+   "lesson_line": "The test day's real low sets the stop, not a fixed cushion under the line.",
+   "facts": [
+    "g57",
+    "g14",
+    "g12",
+    "h24",
+    "m03"
+   ],
+   "wrong": {
+    "It would sit too far from the entry": "It is the reverse. A 1% to 3% stop sits above this day's low, inside its range.",
+    "The card wants it on the line itself": "The stop goes a few cents under the test day's low, not on the line.",
+    "Morales allows no undercut at all": "Morales and Kacher say a 1 to 2% undercut can be permitted in some cases."
+   },
+   "house": true,
+   "simple": "A fixed 1 to 3 percent stop sits above this day's low, so our stop goes a few cents under that low instead.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "proposed criterion on the card (gs.stop_not_porosity), not yet ruled by the owner",
+     "the 3.2% dip is given in the story and sits inside the card's up-to-5% undercut allowance"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q84",
+   "skill": "setup.gap_support",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "gs.inv_under_200",
+   "q": "A test day that closes under the 200-day is off, even if the gap day closed above it.",
+   "answer": "True",
+   "why": "True. The check is on the test day's close. Before entry, a test day that closes under the 200-day is off. Our rulebook takes no longs below the 200-day simple moving average, unless it is a parabolic long.",
+   "lesson_line": "Check the 200-day on the test day's close, not the gap day's.",
+   "facts": [
+    "g29",
+    "g03",
+    "h10"
+   ],
+   "house": true,
+   "simple": "True. The test day itself must close above the 200-day, so a gap day above it does not save the trade.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's 200-day rule (B26)"
+    ]
+   },
+   "batch": "polish"
+  },
+  {
+   "key": "q85",
+   "skill": "setup.gap_support",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "gs.heavy_selling_warning",
+   "q": "On our card, heavy-volume selling into the line is a warning, not a rule that rules out the trade.",
+   "answer": "True",
+   "why": "True. On our card, heavy-volume selling into the line is a warning, not a rule. A quiet pullback on lighter volume is the version traders like best.",
+   "lesson_line": "Heavy selling into the line is a warning. A quiet pullback on lighter volume is the one to like.",
+   "facts": [
+    "g31",
+    "g45"
+   ],
+   "house": true,
+   "simple": "True. On our card heavy selling into the line is a warning sign, and it does not rule the trade out.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "proposed criterion on the card, not yet ruled by the owner"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3873,14 +4009,14 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (A5 sizes from the stop; card says size down or skip). Broken wrong note: 'a median 6% away... wider than this 5% stop' argues from a median across examples, which says nothing about this case. The real reason is structural: the gap-fill spot (prior day's high) sits below the line, so a stop there is wider still. Swapped g13 for g01/g40."
+   "fixed": false,
+   "notes": "Only the q text changed. Key (buy fewer shares) matches g15 and h01: an honest stop more than about 3% away means size down or skip, never pull it in. No choice offers skip, so no second defensible answer. Correct choice is not the longest. Minor: the risk reason mentions a median that the gap-fill wrong note no longer cites."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches g22/h15. Choices balanced (key not longest). Wrong notes supported (g19). Mild: key restates the rule, acceptable for a rule-application item."
+   "notes": "Only the q text changed. Key matches h15 and g22 (still under 1R after 10 trading days, sell). 0.3R comes from the story. Small tell: the right choice repeats the story's '10 trading days', but the question text makes the time stop obvious anyway. Distractors are grounded (g19 for breakeven)."
   },
   "q31": {
    "status": "pass",
@@ -4127,6 +4263,30 @@
    "by": "checker",
    "fixed": false,
    "notes": "B22: hold through a report only if up 5R; 3 is the days-before number, a fair trap. Single fact, no other question states it."
+  },
+  "q82": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Duplicates q37 (same criterion gs.gap_not_huge, same rung 5, same g07 and wg1 facts, nearly the same distractors: 'banned' and 'only the test decides'). q37's right choice 'a gap over 30% is lower' answers q82 outright. The why also says the same thing twice. Proposed card line (basis 'my proposal'), not ruled by the owner, so a second question on it adds risk and teaches nothing new."
+  },
+  "q83": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is correct from g57 (a fixed 1% to 3% stop sits above the test day's low when the breach is deeper). A 3.2% undercut is within the card's allowance of up to 5% (gs.test_low). Problems: (1) 'as our card says' reads as if the card RECOMMENDS the 1% to 3% stop, but it says the opposite; (2) the market-order choice is a silly distractor; (3) the right choice echoes the story's 'dips'. Rewrote the question, the answer and two distractors. Every number comes from the story or g57. The why now says the card line is a proposal. The proposed criterion gs.stop_not_porosity stays on the owner flag."
+  },
+  "q84": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key True matches settled card lines g03 and g29 and the owner's B26 (h10). The new angle (the test day's close is checked, not the gap day's) is real, but this is the fifth 200-day item after q03, q47, q53 and q76. It is valid, but consider trimming one if the pool runs heavy. Simple is 21 words with no banned punctuation."
+  },
+  "q85": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Near-verbatim duplicate of q12 (same criterion gs.heavy_selling_warning, same g31 statement, same True key, almost the same why and lesson_line). q39 covers the same cue as a scenario. It also restates the card sentence nearly word for word, so it tests copying, not judgment. Proposed criterion, not ruled by the owner."
   }
  }
 }

@@ -802,6 +802,12 @@
    "source": "c1",
    "quote": "av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low; in Orange only if everything else grades A+ (F65)",
    "claim": "The card's A+ list names the index above its AVWAP from the last low."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "After the buy, the stop is the exit.",
+   "claim": "After the buy, the stop is the exit."
   }
  ],
  "walkthroughs": [
@@ -3260,6 +3266,44 @@
     "Only take the 0.6x one": "Quiet days did a little better, but no rule makes quiet a gate."
    },
    "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.avwap_reclaim",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "av.after_entry_stop",
+   "q": "What do you do with the stop?",
+   "story": "You bought an AVWAP reclaim at 50.00, stop 49.00. Two days later it trades 49.30. The 50-day sits at 48.80, just under your stop.",
+   "choices": [
+    "Leave it where it is",
+    "Lower it under the 50-day",
+    "Cancel it; watch the close",
+    "Widen it by half an ATR"
+   ],
+   "answer": "Leave it where it is",
+   "why": "Leave it where it is. After the buy, the stop is the exit. Our rule: it only moves up, never down or wider. A level just under the stop is not a reason to lower it. The one exception is a gap through the stop, and this is not one.",
+   "lesson_line": "The stop goes in once. After that it only climbs.",
+   "facts": [
+    "c32",
+    "h02",
+    "a06"
+   ],
+   "wrong": {
+    "Lower it under the 50-day": "That moves the stop down. Our rule: it only moves up, never down or wider.",
+    "Cancel it; watch the close": "Without the stop there is no exit. Holding with no exit is what Shannon warns against: don't hold and hope.",
+    "Widen it by half an ATR": "Our rule: the stop never moves down or wider. The gap rule is the only exception, and this is no gap."
+   },
+   "house": true,
+   "simple": "Leave the stop where it is, because after the buy the stop is the exit and it never moves down.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4) and a settled card line, av.after_entry_stop (+2)"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -3697,6 +3741,12 @@
    "notes": "MAS numbers match d05/d06 (19.2%, 70 under, +0.49 ATR, buy 71.15, stop 69.53, 3R in eight sessions). Step 2 said the 50-day 'sits right there'; the dossier says the reclaim day, the 50-day and the trigger are within one ATR; reworded.",
    "fixed": true,
    "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key independently confirmed: Leave it where it is (h02/A4: only moves up, never down or wider; c32 is verbatim on the card, av.after_entry_stop status settled, house_rule A4). No gap, so B20 does not apply; no second defensible answer; no length or wording tell (right answer is the shortest choice). Not answered by q29/q34/q43 (different twist: lowering the stop to a support level). Defect 1: wrong[Widen] said Wider is the one way the stop never goes, which implies lowering is allowed and contradicts A4 (never down or wider). Defect 2: wrong[Cancel] said Shannon's line for that, attributing to"
   }
  }
 }

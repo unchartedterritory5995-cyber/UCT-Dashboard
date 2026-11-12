@@ -787,6 +787,12 @@
    "source": "h1",
    "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
    "claim": "D46: in a Red market, mostly cash, plus shorts below the 200-day."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
+   "claim": "B26: the parabolic burst is a 3 to 5 day final leg of up days, gap ups, wider ranges and rising volume."
   }
  ],
  "walkthroughs": [
@@ -3536,6 +3542,48 @@
      "replaces q33"
     ]
    }
+  },
+  {
+   "key": "q83",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.climax",
+   "q": "What does our card say to do now?",
+   "story": "Your 4B- is up 4R, and you still hold two thirds. The last three days all closed up. The last two opened on gap ups, and range and volume grew each day.",
+   "choices": [
+    "Sell a big part into the run",
+    "Hold it all and let the trail work",
+    "Add a little while it is strong",
+    "Wait for the 5R trim, then sell"
+   ],
+   "answer": "Sell a big part into the run",
+   "why": "Sell a big part into it. Three straight up days, gap ups, and wider ranges on rising volume check the boxes of our parabolic burst. On our card a climax run is sold into, and how much is a judgment call.",
+   "lesson_line": "Up days, gap ups, wider ranges, rising volume: that burst is for selling into.",
+   "facts": [
+    "c34",
+    "h30",
+    "h34",
+    "c29",
+    "c31",
+    "c26"
+   ],
+   "wrong": {
+    "Hold it all and let the trail work": "The trail sells only on a close under its line. Our card sells a big part into a climax run instead.",
+    "Add a little while it is strong": "One price, one stop, no adding along the way. A climax run is for selling into, not buying.",
+    "Wait for the 5R trim, then sell": "At 4R the 5R trim has not come yet. Our card does not wait for it: sell a big part into a climax run."
+   },
+   "house": true,
+   "simple": "When your winner bursts straight up for days on gaps and rising volume, sell a big part into it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C34, a judgment call)",
+     "the burst signs are B26's parabolic burst, read as the climax run C34 names"
+    ]
+   },
+   "batch": "polish"
   }
  ],
  "conflicts": [
@@ -4021,6 +4069,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Risk 1.50, room 2.00 = 1.33R, under 3R (c10, m06); 200-day below entry so it is not overhead; 150-day is not the no-long line (h10). Yes/No split two and two."
+  },
+  "q83": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Decided before reading the key: c34/h30 (C34) say a climax run on your own long, named as Bracco's parabolic burst, is sold into in a big part. The story checks every h34 box (B26, sizing_rule.md lines 161-162, quote verified, 33 words): three straight up days, two straight gap ups, range expansion, rising volume, a gap up on the last day. Key = sell a big part, matches. 4R is under the 5R trim and two thirds are held, so the climax rule decides. No second defensible answer. The trail sells only on a close below it (c31), adding is barred (c26), and waiting for 5R goes against C34. Tells: the "
   }
  }
 }

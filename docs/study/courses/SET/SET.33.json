@@ -933,6 +933,12 @@
    "source": "s23",
    "quote": "The 14-period ADX must initially be greater than 30 and rising.",
    "claim": "Raschke's Holy Grail first needs a rising 14-period ADX above 30."
+  },
+  {
+   "id": "c55",
+   "source": "c1",
+   "quote": "R at which the stop moves to the entry",
+   "claim": "The card measures breakeven as the R at which the stop moves to the entry price."
   }
  ],
  "walkthroughs": [
@@ -1451,6 +1457,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "New. c18 verbatim: hourly close back over the prior day's close by the end of the second hourly candle. c19 supports 'pivot buys its own candle's high'. Key is not the longest and the choices are all real lines. Rung 3 comes after q03, so it does not pre-answer it, and it sits before q45 and q46 that use the definition."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Decided before the key: 1R = 50.00 - 49.40 = 0.60, 3R = 51.80 (story right); at the first trim the card's default (c44, status settled on the card, house rule B19) puts the stop at breakeven, and c55 (verified on card line 624, 'R at which the stop moves to the entry') makes breakeven the entry, 50.00. Key matches. B19 'breakeven at 2R to 5R' holds at 3R, and no choice offers 'leave it at 49.40', so the rulebook's 'ideally' leaves no second answer. Break found: the choice 'Up 1R, to lock in a profit' is a second defensible answer, because raising the stop 1R from 49.40 (+0.60) lands exactly on"
   }
  },
  "questions": [
@@ -4027,6 +4039,45 @@
    },
    "house": true,
    "batch": "wave4"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "pvt.breakeven",
+   "story": "A pivot long was bought at 50.00 with the stop at 49.40. It reaches 51.80, its 3R price. You sell the first third.",
+   "q": "Where does the stop go now, by our default?",
+   "choices": [
+    "The entry price, 50.00",
+    "Above the entry, to lock in 1R",
+    "The 3R price, 51.80",
+    "Lower, to give it more room"
+   ],
+   "answer": "The entry price, 50.00",
+   "why": "The entry price, 50.00. Breakeven means the stop moves to the entry. Our rule moves it there between 2R and 5R, at the first trim by default. The stop only moves up.",
+   "lesson_line": "At the first trim, the stop moves up to the entry price.",
+   "facts": [
+    "h05",
+    "c44",
+    "c55",
+    "h02"
+   ],
+   "wrong": {
+    "The 3R price, 51.80": "That is where the first third sold. Breakeven is the entry price, not the trim price.",
+    "Lower, to give it more room": "The stop only moves up, never down or wider. At the first trim it moves up to the entry.",
+    "Above the entry, to lock in 1R": "Our default is breakeven, and breakeven is the entry price. It is not a locked-in profit of 1R."
+   },
+   "house": true,
+   "simple": "The stop moves up to the entry price, 50.00, because breakeven comes at the first trim by default.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19, A4)"
+    ]
+   },
+   "batch": "polish"
   }
  ]
 }
