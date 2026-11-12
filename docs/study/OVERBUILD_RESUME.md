@@ -6,7 +6,7 @@
 |---|---|---|
 | `wf_86476db3-939` | wave 6: Foundations F1, F5, F7, F10, F10b (663 questions; the verifyR1 run before it is DONE and committed, 8db1676cdb) | `wave6_args.json` |
 | `wf_694bda00-276` | wave 7: F6 Options, 17 lessons (wave 4b before it is DONE and committed, a56317f2b2; its verify list `wave4b_verify_args.json` (44 questions) is NOT yet run, send it with wave 5's verify) | `wave7_args.json` |
-| `wf_d55a56e7-ac0` | wave 5: SET.47 to SET.54 (503 questions) | `wave5_args.json` |
+| `wf_276b3623-6c2` | wave 8: V Vocabulary, 12 lessons (wave 5 before it is DONE and committed, 6b2156a34f). PENDING, not yet launched: combined verify `verifyR2_args.json` (wave 4b + wave 5, 156 questions) and wave 9 `wave9_args.json` | `wave8_args.json` |
 
 The wave script now HOLDS a chunk when its writer, check, red-team, check+break or resolver agent fails (it returns `held: [...]` and logs it); never merge a held chunk.
 Committed before resuming: pilot, waves 1 to 3, wave 2 verify (9/10), wave 4 for 7/10 lessons. Still to launch after these: waves 6 to 9 (`wave6..9_args.json`).
