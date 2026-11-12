@@ -157,6 +157,16 @@ describe('3 · a computed cell size is carried, or the cell is withheld (ict-kil
     expect(t.objectDiagnostics.enumUnreadable || 0).toBe(0)
   })
 
+  it('the same helper on a value only the bar knows (`timeframe.period`) is carried as the per-bar choice', () => {
+    // ⭐ The text reader's `objectLane` door: the static reader (review of #1149) settles a
+    // helper called on inputs before bar 0; this one is read where the op runs.
+    const t = T(`get_size(x) =>\n    result = switch x\n        'D' => size.small\n        => size.large\n${TABLE}    table.cell(t, 0, 0, "x", text_size = get_size(timeframe.period))\n`)
+    const c = opsOf(t, 'cell')
+    expect(c).toHaveLength(1)
+    expect(JSON.stringify(c[0].props.text_size)).toContain('"s":"small"')
+    expect(JSON.stringify(c[0].props.text_size)).toContain('"s":"large"')
+  })
+
   it('a computed size this door cannot follow withholds the cell by name', () => {
     const t = T(`var sizes = array.from(size.small, size.large)\n${TABLE}    table.cell(t, 0, 0, "x", text_size = array.get(sizes, 0))\n`)
     expect(opsOf(t, 'cell')).toHaveLength(0)
