@@ -1976,7 +1976,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // miss and not another paint of the stale forming bar. `''` for every native.
       const liveSig = typeof registry.computeSignature === 'function'
         ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
-      const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+      // ⭐ A SERVER-LANE COMPUTE IS KEYED ON (symbol, timeframe) TOO (2026-11-11). The lane
+      // fetches `/api/signature/columns?...&sym=&tf=` and aligns the answer onto the bars it
+      // is handed, so the same inputs over the SAME bars array mean a different request
+      // after a timeframe or symbol switch. The chart changes `tf`/`sym` a render BEFORE the
+      // new bars land (it keeps the old series on screen meanwhile), and a memo keyed only on
+      // (bars, inputs) answered that render from the old timeframe's columns: no request for
+      // the new one until the new bars arrived. `rsLine` was spared only because its
+      // live-tail signature happens to move with the timeframe; `rsRating`, `rsPhases` and
+      // `rsVsEma` carry none. Natives never read either key, so their signature is unchanged.
+      const serverSig = def && def.compute && def.compute.kind === 'server'
+        ? `|srv:${ctx.sym || ''}:${frame || ctx.tf || ''}` : ''
+      const sig = inputsSignature(inst.inputs) + sourceSig + serverSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')

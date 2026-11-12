@@ -1,3 +1,5 @@
+// ⛔ FIRST: starts /api/auth/me (and the member's preferences) as the entry bundle runs (lib/bootFetch.js).
+import './lib/bootFetchStart'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

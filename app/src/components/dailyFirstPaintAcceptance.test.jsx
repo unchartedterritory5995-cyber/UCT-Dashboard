@@ -14,7 +14,8 @@
  * watches only setData is blind to exactly the defect it is meant to catch.
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, waitFor } from '@testing-library/react'
 import { pinWallClock, wallClockET } from '../testing/pinnedWallClock'
 
@@ -143,8 +144,7 @@ const PINNED_RTH_ISO = '2026-09-22T18:26:00Z'          // Tue 14:26 ET — insid
 const PINNED_AFTER_BELL_ISO = '2026-09-22T22:12:00Z'   // Tue 18:12 ET — same day, after the close
 const clock = pinWallClock(PINNED_RTH_ISO)
 
-const Mod = await import('./StockChart')
-const StockChart = Mod.default
+let StockChart, __barStore
 const MS = await import('../utils/marketSession')
 
 // Every expectation is derived from the PAINT FRONTIER under the pin (2026-09-22),
@@ -393,218 +393,231 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
 const RESULTS = []
 const report = (r) => { RESULTS.push(r); return r }
 
-describe('DAILY first-paint acceptance', () => {
-  it('session context is stated, not assumed — and the pin is load-bearing', () => {
-    console.log(`[ACCEPT-CONTEXT] frontier=${FRONTIER} rth=${IS_RTH} etNow=${NOW_ET.toTimeString().slice(0, 8)} pinned=${wallClockET()}`)
-    // ⛔ If the pin is ever removed this fails BY NAME here, instead of the matrix
-    // going red only after 16:00 ET and reading as a product regression.
-    expect(FRONTIER).toBe('2026-09-22')
-    expect(IS_RTH).toBe(true)
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    const m = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
+    StockChart = m.default; __barStore = m.__barStore
+    RESULTS.length = 0   // the summary counts THIS mode's 22 rows
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
   })
 
-  it('D0 — IDB tail at the frontier, written just now', async () => {
-    world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
-    report(await runCase('D0 idb@frontier fresh', 'cache'))
-  }, 30000)
+  describe('DAILY first-paint acceptance', () => {
+    it('session context is stated, not assumed — and the pin is load-bearing', () => {
+      console.log(`[ACCEPT-CONTEXT] frontier=${FRONTIER} rth=${IS_RTH} etNow=${NOW_ET.toTimeString().slice(0, 8)} pinned=${wallClockET()}`)
+      // ⛔ If the pin is ever removed this fails BY NAME here, instead of the matrix
+      // going red only after 16:00 ET and reading as a product regression.
+      expect(FRONTIER).toBe('2026-09-22')
+      expect(IS_RTH).toBe(true)
+    })
 
-  it('D1 — IDB tail one session behind, pack fresh', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('D1 idb-1 + pack', 'cache'))
-  }, 30000)
+    it('D0 — IDB tail at the frontier, written just now', async () => {
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
+      report(await runCase('D0 idb@frontier fresh', 'cache'))
+    }, 30000)
 
-  it('D2 — IDB tail two sessions behind (the reported shift shape)', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(2)), lastT: sessionsBack(2), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('D2 idb-2', 'network'))
-  }, 30000)
-
-  it('D5 — IDB tail five sessions behind', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(5)), lastT: sessionsBack(5), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('D5 idb-5', 'network'))
-  }, 30000)
-
-  it('D20 — IDB tail twenty sessions behind', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(20)), lastT: sessionsBack(20), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('D20 idb-20', 'network'))
-  }, 30000)
-
-  it('D250 — IDB tail ~250 sessions behind (the PLL class)', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(250)), lastT: sessionsBack(250), savedAt: Date.now() }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('D250 idb-250', 'network'))
-  }, 30000)
-
-  it('NO-IDB — never opened in this browser', async () => {
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('NO-IDB cold', 'network'))
-  }, 30000)
-
-  // ⭐ INVARIANT: the first frame of the symbol switched TO never depends on the price of the
-  // symbol switched FROM. Swept over price ratios on both sides of the 50% phantom guard.
-  it('INVARIANT — D1 paints from cache whatever the price of the symbol left (seed judged against THIS symbol)', async () => {
-    // ⛔⛔ THE WEB "SOMETIMES ~0.5 s ON A LIQUID TICKER" (2026-11-11). The seed's phantom
-    // guard compared the new symbol's today price with `lastServerCloseRef` — still the
-    // PREVIOUS symbol's close in the render that first carries the new one. Any switch
-    // between names >50% apart refused a perfectly good cache + fresh pack and waited a
-    // full /api/bars round trip. Same stimulus as D1, prior symbol priced 0.05x .. 25x.
-    for (const ratio of [0.05, 0.4, 1.6, 25]) {
+    it('D1 — IDB tail one session behind, pack fresh', async () => {
       world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
       world.packBar = FRESH_TODAY; world.packUsable = true
-      const r = report(await runCase(`D1 idb-1 + pack, prior ${ratio}x`, 'cache', 400, { priorScale: ratio }))
-      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
-      expect(r.paintedSource).toBe('cache')
+      report(await runCase('D1 idb-1 + pack', 'cache'))
+    }, 30000)
+
+    it('D2 — IDB tail two sessions behind (the reported shift shape)', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(2)), lastT: sessionsBack(2), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('D2 idb-2', 'network'))
+    }, 30000)
+
+    it('D5 — IDB tail five sessions behind', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(5)), lastT: sessionsBack(5), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('D5 idb-5', 'network'))
+    }, 30000)
+
+    it('D20 — IDB tail twenty sessions behind', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(20)), lastT: sessionsBack(20), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('D20 idb-20', 'network'))
+    }, 30000)
+
+    it('D250 — IDB tail ~250 sessions behind (the PLL class)', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(250)), lastT: sessionsBack(250), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('D250 idb-250', 'network'))
+    }, 30000)
+
+    it('NO-IDB — never opened in this browser', async () => {
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('NO-IDB cold', 'network'))
+    }, 30000)
+
+    // ⭐ INVARIANT: the first frame of the symbol switched TO never depends on the price of the
+    // symbol switched FROM. Swept over price ratios on both sides of the 50% phantom guard.
+    it('INVARIANT — D1 paints from cache whatever the price of the symbol left (seed judged against THIS symbol)', async () => {
+      // ⛔⛔ THE WEB "SOMETIMES ~0.5 s ON A LIQUID TICKER" (2026-11-11). The seed's phantom
+      // guard compared the new symbol's today price with `lastServerCloseRef` — still the
+      // PREVIOUS symbol's close in the render that first carries the new one. Any switch
+      // between names >50% apart refused a perfectly good cache + fresh pack and waited a
+      // full /api/bars round trip. Same stimulus as D1, prior symbol priced 0.05x .. 25x.
+      for (const ratio of [0.05, 0.4, 1.6, 25]) {
+        world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
+        world.packBar = FRESH_TODAY; world.packUsable = true
+        const r = report(await runCase(`D1 idb-1 + pack, prior ${ratio}x`, 'cache', 400, { priorScale: ratio }))
+        expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+        expect(r.paintedSource).toBe('cache')
+      }
+    }, 60000)
+
+    it('PACK-EXPIRED — IDB one session behind and no local current-session source', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
+      world.packUsable = false; world.packBar = null
+      report(await runCase('PACK-EXPIRED idb-1', 'network'))
+    }, 30000)
+
+    it('STALE-TODAY — IDB reaches the frontier but was written hours ago, pack fresh', async () => {
+      const stale = seriesEndingAt(FRONTIER).slice(0, -1).concat([STALE_TODAY_BAR])
+      world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() - 3 * 3600_000 }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      report(await runCase('STALE-TODAY + pack', 'cache'))
+    }, 30000)
+
+    it('STALE-TODAY, NO SEED — nothing local can make today current', async () => {
+      const stale = seriesEndingAt(FRONTIER).slice(0, -1).concat([STALE_TODAY_BAR])
+      world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() - 3 * 3600_000 }
+      world.packUsable = false; world.packBar = null
+      report(await runCase('STALE-TODAY no seed', 'network'))
+    }, 30000)
+
+    it('LIVE-SEED — the live-price store is the freshest current-session door', async () => {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
+      world.liveSnap = {
+        price: TODAY_BAR.c, day_open: TODAY_BAR.o, day_high: TODAY_BAR.h, day_low: TODAY_BAR.l,
+        ext_session: false, observed_at: Math.floor(Date.now() / 1000),
+      }
+      report(await runCase('LIVE-SEED idb-1', 'cache'))
+    }, 30000)
+
+    it('AFTER THE BELL — a today-dated cache WRITTEN MID-SESSION is DEFERRED to the sealed close (by design)', async () => {
+      // ⭐ THE OTHER HALF OF THE WINDOW, as its own input. Same ET day at 18:12 ET: the
+      // frontier is unchanged (today is the latest closed session), the cache is the D0
+      // fixture written at 14:26 ET, and the product must NOT paint it first — the
+      // network's sealed close is the first frame, with no right-edge insertion, no
+      // drift and no OHLC correction afterwards. This is
+      // `isDailyTodayCloseProvisionalForPaint` at the level the member sees it;
+      // `marketSession.dailypaint.test.js` pins the predicate.
+      // ⚰️ (2026-10-16) This used `savedAt: Date.now()` — a set written at 18:12, after
+      // the close — and asserted it was refused too. That was the defect: a set fetched
+      // after the bell already holds the sealed close, and refusing it is what made every
+      // warmed Focus neighbour wait on the network. The mid-session write is the case the
+      // guard protects, so that is what this row now pins; the sealed one is the next row.
+      // ⛔ Asserted, not merely reported: the D-rows above are printed only, and this
+      // row is deterministic (a refused cache paints nothing, so the network can never
+      // lose the race here).
+      const writtenMidSession = Date.now()          // clock is pinned inside RTH (14:26 ET) here
+      clock.retarget(PINNED_AFTER_BELL_ISO)
+      try {
+        expect(MS.expectedDailyTailForPaintET()).toBe(FRONTIER)   // same frontier — the fixtures still apply
+        world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: writtenMidSession }
+        const r = report(await runCase('AFTER-BELL idb@today written 14:26', 'network'))
+        expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+      } finally {
+        clock.retarget(PINNED_RTH_ISO)
+      }
+    }, 30000)
+
+    it('AFTER THE BELL — a today-dated cache WRITTEN AFTER THE CLOSE paints first (it holds the sealed close)', async () => {
+      // The fixture's today bar IS the network's (same OHLC), as it would be for a set
+      // fetched after the close: the cache paints first and nothing is corrected after.
+      clock.retarget(PINNED_AFTER_BELL_ISO)
+      try {
+        world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }   // 18:12 ET
+        const r = report(await runCase('AFTER-BELL idb@today written 18:12', 'cache'))
+        expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+      } finally {
+        clock.retarget(PINNED_RTH_ISO)
+      }
+    }, 30000)
+
+    // ── NEGATIVE CONTROLS ──────────────────────────────────────────────────────
+    // A matrix where everything passes is worth nothing until it is shown to be able
+    // to fail. Each control asserts its OWN flag, so a control going quiet reds the
+    // suite instead of silently turning the matrix into decoration.
+    const expectFlag = (r, flag) => {
+      RESULTS.push(r)
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('FAIL')
+      expect(r.flags).toContain(flag)
     }
-  }, 60000)
 
-  it('PACK-EXPIRED — IDB one session behind and no local current-session source', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
-    world.packUsable = false; world.packBar = null
-    report(await runCase('PACK-EXPIRED idb-1', 'network'))
-  }, 30000)
+    it('NC-A missing today — nothing anywhere can supply the frontier', async () => {
+      // No cache, no seed, and the server itself answers one session short. The time
+      // domain still REACHES the frontier (the reserve holds its slot, so a later
+      // arrival replaces rather than inserts) but the candle is a HOLE — which is the
+      // honest description of "today exists and nobody has it yet", and the flag the
+      // harness should raise. Asserting FRONTIER_MISSING here would have been asserting
+      // the wrong defect: the frontier is present, its DATA is not.
+      world.netBars = seriesEndingAt(sessionsBack(1))
+      expectFlag(await runCase('NC-A missing today', null), 'TODAY_IS_WHITESPACE_AT_FIRST_PAINT')
+    }, 30000)
 
-  it('STALE-TODAY — IDB reaches the frontier but was written hours ago, pack fresh', async () => {
-    const stale = seriesEndingAt(FRONTIER).slice(0, -1).concat([STALE_TODAY_BAR])
-    world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() - 3 * 3600_000 }
-    world.packBar = FRESH_TODAY; world.packUsable = true
-    report(await runCase('STALE-TODAY + pack', 'cache'))
-  }, 30000)
+    it('NC-B late right-edge insertion', async () => {
+      // A fresh cache paints, then the server answers with a bar BEYOND the frontier —
+      // exactly the "a session appears at the right edge after you are looking at it"
+      // shape the whole change exists to forbid.
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
+      const ahead = new Date(`${FRONTIER}T12:00:00Z`)
+      do { ahead.setUTCDate(ahead.getUTCDate() + 1) } while ([0, 6].includes(ahead.getUTCDay()))
+      const nextIso = ahead.toISOString().slice(0, 10)
+      world.netBars = FULL.concat([{ ...TODAY_BAR, t: nextIso }])
+      expectFlag(await runCase('NC-B late insertion', null), 'RIGHT_EDGE_INSERTION_AFTER_PAINT')
+    }, 30000)
 
-  it('STALE-TODAY, NO SEED — nothing local can make today current', async () => {
-    const stale = seriesEndingAt(FRONTIER).slice(0, -1).concat([STALE_TODAY_BAR])
-    world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() - 3 * 3600_000 }
-    world.packUsable = false; world.packBar = null
-    report(await runCase('STALE-TODAY no seed', 'network'))
-  }, 30000)
+    it('NC-C stale wick corrected after paint', async () => {
+      // Cache reaches the frontier and is recent, so it paints — but its today bar
+      // disagrees with the server's, and NOTHING local can repair it (no seed).
+      const stale = FULL.slice(0, -1).concat([STALE_TODAY_BAR])
+      world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() }
+      world.packUsable = false; world.packBar = null; world.liveSnap = null
+      expectFlag(await runCase('NC-C stale wick', 'cache'), 'TODAY_OHLC_CORRECTED_AFTER_PAINT')
+    }, 30000)
 
-  it('LIVE-SEED — the live-price store is the freshest current-session door', async () => {
-    world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
-    world.liveSnap = {
-      price: TODAY_BAR.c, day_open: TODAY_BAR.o, day_high: TODAY_BAR.h, day_low: TODAY_BAR.l,
-      ext_session: false, observed_at: Math.floor(Date.now() / 1000),
-    }
-    report(await runCase('LIVE-SEED idb-1', 'cache'))
-  }, 30000)
+    it('NC-D camera moved after first paint', async () => {
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
+      expectFlag(await runCase('NC-D camera move', 'cache', 700, { cameraKick: 4 }), 'VISIBLE_RANGE_DRIFT')
+    }, 30000)
 
-  it('AFTER THE BELL — a today-dated cache WRITTEN MID-SESSION is DEFERRED to the sealed close (by design)', async () => {
-    // ⭐ THE OTHER HALF OF THE WINDOW, as its own input. Same ET day at 18:12 ET: the
-    // frontier is unchanged (today is the latest closed session), the cache is the D0
-    // fixture written at 14:26 ET, and the product must NOT paint it first — the
-    // network's sealed close is the first frame, with no right-edge insertion, no
-    // drift and no OHLC correction afterwards. This is
-    // `isDailyTodayCloseProvisionalForPaint` at the level the member sees it;
-    // `marketSession.dailypaint.test.js` pins the predicate.
-    // ⚰️ (2026-10-16) This used `savedAt: Date.now()` — a set written at 18:12, after
-    // the close — and asserted it was refused too. That was the defect: a set fetched
-    // after the bell already holds the sealed close, and refusing it is what made every
-    // warmed Focus neighbour wait on the network. The mid-session write is the case the
-    // guard protects, so that is what this row now pins; the sealed one is the next row.
-    // ⛔ Asserted, not merely reported: the D-rows above are printed only, and this
-    // row is deterministic (a refused cache paints nothing, so the network can never
-    // lose the race here).
-    const writtenMidSession = Date.now()          // clock is pinned inside RTH (14:26 ET) here
-    clock.retarget(PINNED_AFTER_BELL_ISO)
-    try {
-      expect(MS.expectedDailyTailForPaintET()).toBe(FRONTIER)   // same frontier — the fixtures still apply
-      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: writtenMidSession }
-      const r = report(await runCase('AFTER-BELL idb@today written 14:26', 'network'))
-      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
-    } finally {
-      clock.retarget(PINNED_RTH_ISO)
-    }
-  }, 30000)
+    it('NC-E dead observation returns INVALID, never PASS', async () => {
+      world.netBars = []          // nothing anywhere: no cache, no seed, no server bars
+      const r = await runCase('NC-E dead observation', null)
+      RESULTS.push(r)
+      expect(r.verdict).toBe('INVALID')
+    }, 30000)
 
-  it('AFTER THE BELL — a today-dated cache WRITTEN AFTER THE CLOSE paints first (it holds the sealed close)', async () => {
-    // The fixture's today bar IS the network's (same OHLC), as it would be for a set
-    // fetched after the close: the cache paints first and nothing is corrected after.
-    clock.retarget(PINNED_AFTER_BELL_ISO)
-    try {
-      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }   // 18:12 ET
-      const r = report(await runCase('AFTER-BELL idb@today written 18:12', 'cache'))
-      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
-    } finally {
-      clock.retarget(PINNED_RTH_ISO)
-    }
-  }, 30000)
-
-  // ── NEGATIVE CONTROLS ──────────────────────────────────────────────────────
-  // A matrix where everything passes is worth nothing until it is shown to be able
-  // to fail. Each control asserts its OWN flag, so a control going quiet reds the
-  // suite instead of silently turning the matrix into decoration.
-  const expectFlag = (r, flag) => {
-    RESULTS.push(r)
-    expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('FAIL')
-    expect(r.flags).toContain(flag)
-  }
-
-  it('NC-A missing today — nothing anywhere can supply the frontier', async () => {
-    // No cache, no seed, and the server itself answers one session short. The time
-    // domain still REACHES the frontier (the reserve holds its slot, so a later
-    // arrival replaces rather than inserts) but the candle is a HOLE — which is the
-    // honest description of "today exists and nobody has it yet", and the flag the
-    // harness should raise. Asserting FRONTIER_MISSING here would have been asserting
-    // the wrong defect: the frontier is present, its DATA is not.
-    world.netBars = seriesEndingAt(sessionsBack(1))
-    expectFlag(await runCase('NC-A missing today', null), 'TODAY_IS_WHITESPACE_AT_FIRST_PAINT')
-  }, 30000)
-
-  it('NC-B late right-edge insertion', async () => {
-    // A fresh cache paints, then the server answers with a bar BEYOND the frontier —
-    // exactly the "a session appears at the right edge after you are looking at it"
-    // shape the whole change exists to forbid.
-    world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
-    const ahead = new Date(`${FRONTIER}T12:00:00Z`)
-    do { ahead.setUTCDate(ahead.getUTCDate() + 1) } while ([0, 6].includes(ahead.getUTCDay()))
-    const nextIso = ahead.toISOString().slice(0, 10)
-    world.netBars = FULL.concat([{ ...TODAY_BAR, t: nextIso }])
-    expectFlag(await runCase('NC-B late insertion', null), 'RIGHT_EDGE_INSERTION_AFTER_PAINT')
-  }, 30000)
-
-  it('NC-C stale wick corrected after paint', async () => {
-    // Cache reaches the frontier and is recent, so it paints — but its today bar
-    // disagrees with the server's, and NOTHING local can repair it (no seed).
-    const stale = FULL.slice(0, -1).concat([STALE_TODAY_BAR])
-    world.idbEntry = { bars: stale, lastT: FRONTIER, savedAt: Date.now() }
-    world.packUsable = false; world.packBar = null; world.liveSnap = null
-    expectFlag(await runCase('NC-C stale wick', 'cache'), 'TODAY_OHLC_CORRECTED_AFTER_PAINT')
-  }, 30000)
-
-  it('NC-D camera moved after first paint', async () => {
-    world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
-    expectFlag(await runCase('NC-D camera move', 'cache', 700, { cameraKick: 4 }), 'VISIBLE_RANGE_DRIFT')
-  }, 30000)
-
-  it('NC-E dead observation returns INVALID, never PASS', async () => {
-    world.netBars = []          // nothing anywhere: no cache, no seed, no server bars
-    const r = await runCase('NC-E dead observation', null)
-    RESULTS.push(r)
-    expect(r.verdict).toBe('INVALID')
-  }, 30000)
-
-  it('ACCEPTANCE SUMMARY', () => {
-    const pad = (v, n) => String(v).padEnd(n)
-    console.log('[ACCEPT-SUMMARY]\n' + RESULTS.map((r) => (
-      (r.verdict === 'INVALID' || r.why)
-        ? `${pad(r.verdict, 7)} | ${pad(r.name, 22)} | ${r.why}${r.stack ? String.fromCharCode(10) + '        ' + r.stack : ''}`
-        : [
-          pad(r.verdict, 7), pad(r.name, 22),
-          pad((r.flags || []).join(',') || '-', 46),
-          `n ${r.firstN}->${r.finalN}`,
-          `lastT ${r.firstLastT}`,
-          `today ${pad(r.todayAtFirstPaint, 30)}`,
-          `final ${pad(r.todayFinal, 30)}`,
-          `src ${pad(r.paintedSource, 7)}`,
-          `ins ${r.rightInsertions}`,
-          `pad ${pad(r.framePad, 17)}`,
-          `to ${r.frameTo}`,
-          `${r.latencyMs}ms`,
-          `ops ${r.postOps}`,
-        ].join(' | ')
-    )).join('\n'))
-    // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
-    // +4 (2026-11-11): D1 switched to from symbols priced 0.05x .. 25x
-    expect(RESULTS.length).toBe(22)
+    it('ACCEPTANCE SUMMARY', () => {
+      const pad = (v, n) => String(v).padEnd(n)
+      console.log(`[ACCEPT-SUMMARY BARSTORE=${barStoreOn}]\n` + RESULTS.map((r) => (
+        (r.verdict === 'INVALID' || r.why)
+          ? `${pad(r.verdict, 7)} | ${pad(r.name, 22)} | ${r.why}${r.stack ? String.fromCharCode(10) + '        ' + r.stack : ''}`
+          : [
+            pad(r.verdict, 7), pad(r.name, 22),
+            pad((r.flags || []).join(',') || '-', 46),
+            `n ${r.firstN}->${r.finalN}`,
+            `lastT ${r.firstLastT}`,
+            `today ${pad(r.todayAtFirstPaint, 30)}`,
+            `final ${pad(r.todayFinal, 30)}`,
+            `src ${pad(r.paintedSource, 7)}`,
+            `ins ${r.rightInsertions}`,
+            `pad ${pad(r.framePad, 17)}`,
+            `to ${r.frameTo}`,
+            `${r.latencyMs}ms`,
+            `ops ${r.postOps}`,
+          ].join(' | ')
+      )).join('\n'))
+      // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
+      // +4 (2026-11-11): D1 switched to from symbols priced 0.05x .. 25x
+      expect(RESULTS.length).toBe(22)
+    })
   })
 })

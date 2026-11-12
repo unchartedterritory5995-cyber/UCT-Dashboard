@@ -55,6 +55,12 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if (e.restored) expect(boardState(board), `${label}: the board is back as it started`).toBe(start)
+  // #1030: the Multi Chart grid's own state (the GRID board's host.gridControl), each named field exactly
+  if (e.grid) for (const [k, want] of Object.entries(e.grid)) {
+    const g = h.gridControl
+    const now = k === 'maxId' ? g?.maxId() : k === 'settingsOpen' ? g?.settingsOpen() : k === 'cellCount' ? g?.state()?.cells?.length : g?.state()?.[k]
+    expect(now, `${label}: the grid's ${k}`).toEqual(want)
+  }
   if (e.charts) {
     const cs = chartsOf(board)
     if (e.charts.count != null) expect(cs.length, `${label}: chart count`).toBe(e.charts.count)

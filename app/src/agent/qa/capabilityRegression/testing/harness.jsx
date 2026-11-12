@@ -12,7 +12,8 @@ import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildDrawingBoardSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildDrawingBoardSource, buildLayoutDockSource } from '../../../host'
+import { DOCK_PREF, addPin, removePin, shiftPin } from '../../../../pages/charts/layoutDockPins'
 import { publishListView } from '../../../../pages/watchlist/watchlistViews'
 import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
 import { readFlagged, writeFlagged } from '../../../../hooks/flaggedStore'
@@ -28,6 +29,7 @@ import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
 import { captureIndicatorTemplate } from '../../../../components/chart/builder/indicatorTemplates'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
@@ -44,6 +46,12 @@ export const BOARDS = {
   // a saved-layout library (the Layout Dock's semantics: __fixtures__/board.js) — Swing open, Momentum a 2-chart board
   LAYOUTS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA', 'N:m1': 'SPY', 'N:m2': 'QQQ' }, { layouts: { entries: [{ id: 1, name: 'Swing' }, { id: 2, name: 'Momentum' }],
     boards: { 1: [chart('c1', 0, 0, 24, 20)], 2: [chart('m1', 0, 0, 12, 20), chart('m2', 12, 0, 12, 20)] }, active: 1 } }],
+  // C3-037..039: the Layout Dock's BAR over a three-layout library (`layoutDock`: the bar's pins, by layout id) — Breadth off the bar
+  LAYOUT_BAR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { layouts: { entries: [{ id: 1, name: 'Main Trading' }, { id: 2, name: 'Breadth' }, { id: 3, name: 'Day Trading' }],
+    boards: { 1: [chart('c1', 0, 0, 24, 20)] }, active: 1 }, layoutDock: [1, 3] }],
+  // … and with Breadth on the end of the bar
+  LAYOUT_BAR_FULL: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { layouts: { entries: [{ id: 1, name: 'Main Trading' }, { id: 2, name: 'Breadth' }, { id: 3, name: 'Day Trading' }],
+    boards: { 1: [chart('c1', 0, 0, 24, 20)] }, active: 1 }, layoutDock: [1, 3, 2] }],
   // saved watchlists behind the real routes' semantics (__fixtures__/board.js)
   WATCH: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // watchlist group A (pl-exec): a chart + ONE Watchlist widget showing Momentum, with the saved watchlists (watchlist.showList)
@@ -84,6 +92,8 @@ export const BOARDS = {
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }, { indicatorAlerts: true }],
+  // #1030: ONE + the Multi Chart grid's control surface (testing/gridStub.js; the grid closed, 2×2 kept for next time)
+  GRID: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { grid: true }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
 }
@@ -171,6 +181,7 @@ export function resolveTarget(t, body) {
   const m = /^\$([A-Za-z]+)(?:\[(\d+)\])?$/.exec(String(t || ''))
   if (!m) return t
   const list = body?.context?.[m[1]]
+  if (list && !Array.isArray(list) && m[2] == null && list.ref) return list.ref                 // a context OBJECT ("$multiChart", #1030)
   return Array.isArray(list) && list[Number(m[2] || 0)] ? list[Number(m[2] || 0)].ref : `missing:${t}`
 }
 // an ARG may name a live value from the request context: "$ctx:drawings.0.drawings.0.id" (ids minted at run time)
@@ -330,6 +341,23 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     drawingsStore.setActiveTracing(ids[seed.boards.active || 0])
     mounted.h.drawingBoards = buildDrawingBoardSource(drawingsStore, { timeoutMs: 3000, everyMs: 20 })
   }
+  if (extra.grid) mounted.h.gridControl = makeGridControl(['NVDA'])
+  if (extra.layoutDock) {
+    // the Layout Dock's door (pages/charts/LayoutDock.jsx agentRef): the same positional helpers over the
+    // `charts_layout_dock` preference (st.prefs, so a case checks the bar with `prefs`); the library is the board's
+    st.prefs[DOCK_PREF] = JSON.stringify({ pins: extra.layoutDock, known: mounted.board.state.layouts.entries.map(e => e.id), hidden: false })
+    const dock = () => JSON.parse(st.prefs[DOCK_PREF])
+    const writeDock = async (next) => { st.prefs = { ...st.prefs, [DOCK_PREF]: JSON.stringify(next) }; return true }
+    const door = {
+      snapshot: () => { const d = dock(); const entries = mounted.board.state.layouts.entries
+        return { ready: true, hidden: d.hidden, pins: d.pins.slice(), names: Object.fromEntries(entries.map(e => [String(e.id), e.name])), library: entries.map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user' })) } },
+      pin: (id) => writeDock({ ...dock(), pins: addPin(dock().pins, id) }),
+      unpin: (index) => writeDock({ ...dock(), pins: removePin(dock().pins, index) }),
+      shift: (from, to) => writeDock({ ...dock(), pins: shiftPin(dock().pins, from, to) }),
+      restore: (id, index) => { const p = addPin(dock().pins, id); return writeDock({ ...dock(), pins: shiftPin(p, p.length - 1, index) }) },
+    }
+    mounted.h.layoutDock = buildLayoutDockSource(() => door)
+  }
   unpublishListView?.(); unpublishListView = null
   if (extra.listView) {
     // synthetic column values, only to order the rows; a sort on any other column keeps the saved order
@@ -430,6 +458,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
+    // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
+    for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
   }
   return { p, st, srv, ...mounted }
 }

@@ -57,7 +57,7 @@ from api.services import watchlist_alert_service as wls            # noqa: E402
 # entire per-plot assertion checking nothing while staying green. `len(...) == 28`
 # survives `rsi` being renamed to `rsi2`; the list does not.
 BASELINE_INDICATOR_FUNCS = 28
-BASELINE_CATALOG_GROUPS = 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+BASELINE_CATALOG_GROUPS = 21  # 2026-11-12 (RS Exit Warnings): 20 -> 21, +rs_exit; 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 #: Every address the GLOBAL space holds, in catalog order — the order the
 #: dropdown renders and the order `build_alert_grid` iterates.
@@ -78,6 +78,8 @@ BASELINE_ADDRESSES = [
     "rs_line.rating",
     # 2026-11-10 (RS split, S2): +4 split addresses, appended after the rating.
     "rs_phases.flipBlue", "rs_phases.flipRed", "rs_vs_ema.crossUp", "rs_vs_ema.crossDown",
+    # 2026-11-12 (RS Exit Warnings): +3 warning addresses, appended after the split four.
+    "rs_exit.quickBreak", "rs_exit.quicksand", "rs_exit.deadBreak",
 ]
 
 USER_A = "user-a"

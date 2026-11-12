@@ -353,6 +353,38 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
 }
 
 /**
+ * ⭐ THE LAYOUT BAR (C3-037..039): the Layout Dock's rail — the positional slots along the bottom of
+ * /charts that point into the layout library. Read and written ONLY through the dock's own door
+ * (pages/charts/LayoutDock.jsx `agentRef`): pin = the library's add-to-bar (without opening it),
+ * unpin = the slot menu's Close (never a delete), shift = Move left / right repeated. Each write
+ * resolves true only once the server accepted the `charts_layout_dock` preference.
+ * No dock mounted (not /charts, or the phone) → snapshot() is null and every write is refused.
+ */
+export function buildLayoutDockSource(getDock) {
+  const door = () => getDock?.() || null
+  const refused = () => Promise.resolve(false)
+  return {
+    snapshot() {
+      const d = door()
+      if (!d) return null
+      const s = d.snapshot()
+      return {
+        ready: s.ready !== false,
+        hidden: !!s.hidden,
+        // positional: the same layout may sit in two slots. A slot whose layout is gone is not shown by the dock either.
+        slots: (s.pins || []).map((id, index) => ({ index, id, name: s.names?.[String(id)] ?? null })).filter(x => x.name != null),
+        pins: (s.pins || []).slice(),
+        library: (s.library || []).map(e => ({ id: e.id, name: e.name, scope: e.scope })),
+      }
+    },
+    pin: (id) => door()?.pin(id) ?? refused(),
+    unpin: (index) => door()?.unpin(index) ?? refused(),
+    shift: (from, to) => door()?.shift(from, to) ?? refused(),
+    restore: (id, index) => door()?.restore(id, index) ?? refused(),
+  }
+}
+
+/**
  * Named layouts, read through the Layout Dock's own catalog and active pointer and
  * changed only through its handlers (see ChartsWorkspace's agentLayoutsRef). The
  * Agent never writes a layout record itself.
@@ -813,7 +845,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -826,6 +858,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     drawingBoards: buildDrawingBoardSource(),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
+    ...(typeof layoutDock === 'function' ? { layoutDock: buildLayoutDockSource(layoutDock) } : {}),
     ...(layoutSource ? {
       layouts: layoutSource,
       // WHICH board this is: the open layout's identity. A plan proposed on one board
@@ -846,5 +879,8 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(prefs ? { prefs } : {}),
     // The router's navigate() (an allow-listed path from capabilities/app.js only).
     ...(navigate ? { navigate } : {}),
+    // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
+    // member enters a grid from the board. Read by capabilities/multiChart.js only.
+    ...(gridControl ? { gridControl } : {}),
   }
 }

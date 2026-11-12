@@ -435,8 +435,10 @@ describe('⛔ CONTROL — no other definition changes', () => {
     // ⭐ RS split F1 (2026-11-10): the RS FAMILY is four definitions now — the three
     // split out of rsLine carry its axis mode / guide conditions by design (their
     // own def tests pin them). Named, so a fifth RS definition is a decision here.
-    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma']
-    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true])
+    // 2026-11-12 (RS Exit Warnings): the decision was taken: the RS family is FIVE, `rsExit` joins it
+    // (an own pane with a hidden axis, and `restyle: false` on its three dots).
+    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
+    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true, true])
     const others = listDefinitions().filter((d) => !RS_FAMILY.includes(d.id))
     expect(others.length).toBeGreaterThan(10)
     for (const d of others) {

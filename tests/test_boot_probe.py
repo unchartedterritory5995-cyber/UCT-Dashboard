@@ -261,3 +261,28 @@ def test_control_the_route_entry_line_is_silent_after_the_window(monkeypatch, ca
     with caplog.at_level(logging.INFO, logger=r._logger.name):
         r.research_estimates("ZZEN", consensus=1)
     assert not [m for m in caplog.messages if m.startswith("[ee-enter]")]
+
+
+# -- per-thread CPU: which thread groups are burning the boot window (2026-11-12) --------
+
+def test_thread_group_folds_pool_indexes_and_default_names():
+    from api.services.boot_probe import _thread_group
+    assert _thread_group("ThreadPoolExecutor-3_7") == "ThreadPoolExecutor"
+    assert _thread_group("ThreadPoolExecutor-3_2") == "ThreadPoolExecutor"
+    assert _thread_group("Thread-12 (_bootstrap_scan)") == "_bootstrap_scan"
+    assert _thread_group("bars-prewarm") == "bars-prewarm"
+
+
+def test_hot_threads_ranks_groups_by_cpu_and_counts_new_threads_fully():
+    from api.services.boot_probe import hot_threads
+    before = {1: 10.0, 2: 5.0, 3: 1.0}
+    after = {1: 14.0, 2: 5.1, 3: 1.0, 4: 2.0}     # tid 4 born in the interval
+    names = {1: "warm-pool_0", 2: "MainThread", 4: "warm-pool_1"}
+    line = hot_threads(before, after, 5.0, names)
+    # warm-pool: (14-10) + 2 = 6 s over 5 s wall = 120%; MainThread 2% is below the 5% floor
+    assert line == "warm-pool 120%"
+
+
+def test_hot_threads_names_unknown_tids_native():
+    from api.services.boot_probe import hot_threads
+    assert hot_threads({9: 0.0}, {9: 1.0}, 2.0, {}) == "native 50%"

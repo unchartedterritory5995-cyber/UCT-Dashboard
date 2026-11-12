@@ -15,6 +15,8 @@ Fields (all additive — `bars` keeps its exact pre-contract shape for old clien
   complete_through  unix s: every bucket of THIS ANSWER whose end <= it is final
                     (None: nothing is guaranteed)
   developing        {t, o, h, l, c, v, rev} — the bucket that contains `now` — or None
+  adj_basis         intraday: the split-adjustment basis id the stored rows are on
+                    (`adjustment_basis.basis_id`; None = unknown / not intraday)
 
 Buckets are read off the single bucket helpers (`bar_rollup.tv_bucket_bounds` for
 intraday; the session clock in `bars_fetch` for D/W/M closes).
@@ -206,7 +208,7 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     out = {"contract": CONTRACT_VERSION, "grid": grid, "session": sess,
            "cache_key": cache_key(ticker, tf, sess), "series_rev": None,
            "history_rev": None, "verified_through": None, "sealed_through": None,
-           "complete_through": None, "developing": None}
+           "complete_through": None, "developing": None, "adj_basis": None}
     rows = [r for r in (rows or []) if isinstance(r, dict)]
     src = source_series(tf, sess)
     if not store_backed:
@@ -218,6 +220,11 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     rev = int(meta.get("rev") or 0)
     out["series_rev"] = rev
     out["history_rev"] = int(meta.get("history_rev") or 0)
+    # The basis the stored rows are on, read with (before) the rows like every claim here:
+    # the heal writes rows + stamp in one transaction, so a stamp read first never names a
+    # basis newer than the rows that follow (a racing heal also moves history_rev).
+    if src in INTRADAY_TFS:
+        out["adj_basis"] = meta.get("adj_basis")
     # ⛔ A CLAIM NEVER OUTRUNS THE ROWS IT IS ATTACHED TO (integrator rule, 2026-11-11).
     # `verified_through` (store proof + live-stream watermark for covered 5m) is read
     # ONCE, HERE, before the rows the answer will carry are (re)read from the store
@@ -397,7 +404,8 @@ def derive_for_grid(ticker: str, tf: str, session, rows: list, base: dict,
            "history_rev": base.get("history_rev"),
            "sealed_through": base.get("sealed_through"),
            "verified_through": base.get("verified_through"), "complete_through": None,
-           "developing": _developing(tf, grid, rows, base.get("series_rev"), now)}
+           "developing": _developing(tf, grid, rows, base.get("series_rev"), now),
+           "adj_basis": base.get("adj_basis")}
     bct = base.get("complete_through")
     if bct is not None:
         for r in reversed(rows):

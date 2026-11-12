@@ -4,6 +4,7 @@
 import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
+import { registerLayoutBarCapabilities } from './capabilities/layoutBar'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerListViewCapabilities } from './capabilities/listView'
 import { registerScreenerCapabilities } from './capabilities/screener'
@@ -37,6 +38,7 @@ import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
+import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
 import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
@@ -51,6 +53,7 @@ export function registerBuiltins() {
   registerChartCapabilities()
   registerWorkspaceCapabilities()
   registerLayoutCapabilities()
+  registerLayoutBarCapabilities()
   registerWatchlistCapabilities()
   registerListViewCapabilities()
   registerScreenerCapabilities()
@@ -82,6 +85,7 @@ export function registerBuiltins() {
   registerBreadthPageCapabilities()
   registerCalendarCapabilities()
   registerJournalCapabilities()
+  registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 
 // SERVER-GATED capabilities: registered only once /api/agent/config has answered, and only when the server

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>UCT is updating</title>
+<!--
+  Served by Cloudflare in place of a gateway error while the web pod restarts (2026-11-12).
+  Railway runs one web pod per volume, so every deploy is a ~45 s gap; a member who opens the site
+  then got an error page. This page waits for /api/health and reloads the page they asked for.
+  Self-contained on purpose: during the gap the origin cannot serve a single extra file.
+  Same words as the in-app banner (app/src/components/ServerUpdatingBanner.jsx).
+-->
+<style>
+  html,body{margin:0;height:100%;background:#101012;color:#e8e6e1;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;box-sizing:border-box}
+  h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.02em}
+  p{margin:0;color:#a8a6a1;max-width:420px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#c9a54b;opacity:.9}
+  button{margin-top:6px;background:#1d1f23;color:#e8e6e1;border:1px solid #33363c;border-radius:8px;padding:10px 18px;font:inherit;cursor:pointer}
+  [hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="dot" aria-hidden="true"></div>
+  <h1>Updating UCT</h1>
+  <p id="msg">Back in a few seconds. This page reloads by itself.</p>
+  <button id="again" type="button" hidden>Try again</button>
+</main>
+<script>
+(function () {
+  var started = Date.now(), POLL_MS = 2000, GIVE_UP_MS = 5 * 60 * 1000;
+  var msg = document.getElementById('msg'), again = document.getElementById('again');
+  again.onclick = function () { location.reload(); };
+  function check() {
+    if (Date.now() - started > GIVE_UP_MS) {
+      msg.textContent = 'This is taking longer than usual.';
+      again.hidden = false;
+      return;
+    }
+    fetch('/api/health', { cache: 'no-store' }).then(function (r) {
+      if (r.ok) { location.reload(); } else { setTimeout(check, POLL_MS); }
+    }, function () { setTimeout(check, POLL_MS); });
+  }
+  setTimeout(check, POLL_MS);
+})();
+</script>
+</body>
+</html>
