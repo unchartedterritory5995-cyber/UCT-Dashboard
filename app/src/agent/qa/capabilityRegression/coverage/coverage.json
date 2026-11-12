@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 190,
-  "withProductionKinds": 181,
+  "all": 194,
+  "withProductionKinds": 185,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 190,
-  "withAnyRegressionCase": 138,
+  "capabilities": 194,
+  "withAnyRegressionCase": 142,
   "perProtection": {
    "nl": {
-    "covered": 135,
-    "applicable": 190
+    "covered": 139,
+    "applicable": 194
    },
    "routing": {
-    "covered": 132,
-    "applicable": 190
+    "covered": 136,
+    "applicable": 194
    },
    "args": {
-    "covered": 138,
-    "applicable": 190
+    "covered": 142,
+    "applicable": 194
    },
    "execution": {
-    "covered": 135,
-    "applicable": 190
+    "covered": 139,
+    "applicable": 194
    },
    "receipt": {
-    "covered": 107,
-    "applicable": 190
+    "covered": 111,
+    "applicable": 194
    },
    "refusal": {
     "covered": 34,
-    "applicable": 190
+    "applicable": 194
    },
    "permission": {
-    "covered": 183,
-    "applicable": 190
+    "covered": 187,
+    "applicable": 194
    },
    "undo": {
-    "covered": 63,
-    "applicable": 122
+    "covered": 66,
+    "applicable": 125
    },
    "multiStep": {
     "covered": 37,
-    "applicable": 190
+    "applicable": 194
    },
    "phrasings": {
-    "covered": 131,
-    "applicable": 190
+    "covered": 135,
+    "applicable": 194
    }
   }
  },
@@ -3628,6 +3628,114 @@
     "phrasings": []
    }
   },
+  "drawing.createBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.createBoard: \"create a new drawing board called Earnings\"",
+     "drawing.createBoard: \"make a new drawing board named Earnings\"",
+     "drawing.createBoard: \"add a drawing board called Earnings\""
+    ],
+    "routing": [
+     "drawing.createBoard: \"create a new drawing board called Earnings\"",
+     "drawing.createBoard: \"make a new drawing board named Earnings\"",
+     "drawing.createBoard: \"add a drawing board called Earnings\""
+    ],
+    "args": [
+     "corpus drawing.createBoard"
+    ],
+    "execution": [
+     "drawing.createBoard (c)"
+    ],
+    "receipt": [
+     "drawing.createBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.createBoard: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.deleteBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.deleteBoard: \"delete the Breakouts board\"",
+     "drawing.deleteBoard: \"delete my Breakouts drawing board\"",
+     "drawing.deleteBoard: \"remove the Breakouts drawing board\""
+    ],
+    "routing": [
+     "drawing.deleteBoard: \"delete the Breakouts board\"",
+     "drawing.deleteBoard: \"delete my Breakouts drawing board\"",
+     "drawing.deleteBoard: \"remove the Breakouts drawing board\""
+    ],
+    "args": [
+     "corpus drawing.deleteBoard"
+    ],
+    "execution": [
+     "drawing.deleteBoard (c)"
+    ],
+    "receipt": [
+     "drawing.deleteBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "drawing.deleteBoard: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "drawing.duplicate": {
    "domain": "drawing",
    "group": "drawingOps",
@@ -3831,6 +3939,114 @@
     "multiStep": [
      "drawing.remove: after an earlier turn"
     ],
+    "phrasings": []
+   }
+  },
+  "drawing.renameBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.renameBoard: \"rename Board 2 to Breakouts\"",
+     "drawing.renameBoard: \"rename my Board 2 drawing board to Breakouts\"",
+     "drawing.renameBoard: \"call drawing Board 2 Breakouts\""
+    ],
+    "routing": [
+     "drawing.renameBoard: \"rename Board 2 to Breakouts\"",
+     "drawing.renameBoard: \"rename my Board 2 drawing board to Breakouts\"",
+     "drawing.renameBoard: \"call drawing Board 2 Breakouts\""
+    ],
+    "args": [
+     "corpus drawing.renameBoard"
+    ],
+    "execution": [
+     "drawing.renameBoard (c)"
+    ],
+    "receipt": [
+     "drawing.renameBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.renameBoard: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.setActiveBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setActiveBoard: \"switch to my Swing board\"",
+     "drawing.setActiveBoard: \"switch to the Swing drawing board\"",
+     "drawing.setActiveBoard: \"draw on my Swing board\""
+    ],
+    "routing": [
+     "drawing.setActiveBoard: \"switch to my Swing board\"",
+     "drawing.setActiveBoard: \"switch to the Swing drawing board\"",
+     "drawing.setActiveBoard: \"draw on my Swing board\""
+    ],
+    "args": [
+     "corpus drawing.setActiveBoard"
+    ],
+    "execution": [
+     "drawing.setActiveBoard (c)"
+    ],
+    "receipt": [
+     "drawing.setActiveBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.setActiveBoard: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
