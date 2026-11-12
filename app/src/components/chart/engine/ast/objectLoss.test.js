@@ -8,6 +8,7 @@
 // `dropped(...)` call sites out of `pine.js` and the op kinds out of
 // `pineObjects.js`, and fail by name on a key the table does not classify — or
 // on a table entry the pass no longer emits.
+import { ENUM_DROPS } from '../enumNaRule'
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,7 +31,11 @@ const INLINER = code('objectFnInline.js')
 
 /** Every argument handed to `dropped(...)` in the object pass. */
 const DROP_CALLS = [...PINE.matchAll(/\bdropped\(\s*(['`])([^'`]+)\1\s*\)/g)].map((m) => m[2])
-const LITERAL_KEYS = [...new Set(DROP_CALLS.filter((k) => !k.includes('${')))].sort()
+/** ⭐ Engine 51 — the enum withholdings are emitted through ONE table
+ *  (`enumNaRule.js::ENUM_DROPS`, `dropped(ENUM_DROPS[…].drop)`), so its drop keys are
+ *  emitted keys exactly when the pass calls it. */
+const ENUM_TABLE_KEYS = /(?<![A-Za-z0-9_])dropped\(\s*ENUM_DROPS\[/.test(PINE) ? Object.values(ENUM_DROPS).map((d) => d.drop) : []
+const LITERAL_KEYS = [...new Set([...DROP_CALLS.filter((k) => !k.includes('${')), ...ENUM_TABLE_KEYS])].sort()
 const TEMPLATE_PREFIXES = [...new Set(DROP_CALLS.filter((k) => k.includes('${'))
   .map((k) => k.slice(0, k.indexOf('${'))))].sort()
 
