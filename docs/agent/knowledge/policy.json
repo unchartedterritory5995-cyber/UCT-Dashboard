@@ -1,5 +1,5 @@
 {
-  "policy_version": 5,
+  "policy_version": 6,
   "about": "UCT Agent knowledge source policy (KN-1). DEFAULT-DENY: a Brain Pack source the policy does not list as admitted is invisible to the Agent. Admitting a source is an owner decision recorded here as a reviewed diff. Read per request by api/services/uct_agent/knowledge/policy.py.",
   "approval": {
     "by": "owner",
@@ -137,7 +137,9 @@
     "team_archive": {
       "admit": true,
       "licence": "team_owned",
-      "label": "the UCT team's own posted calls, scored after the fact"
+      "label": "the UCT team's own posted calls, scored after the fact",
+      "calc_date_field": null,
+      "calc_date_note": "No calculation date is attested for the archive payload yet, so its figures are withheld (undated_record). Its `through` is a data-through date, never a calculation date. When the producer writes the scoring run's finish time (`as_of`, ARCHIVE-ASOF-REQUIREMENT.md) and attests it, set calc_date_field = \"computed_at\" or another allow-listed name with its attestation (owner review)."
     },
     "setup_performance": {
       "admit": "conditional",
@@ -152,7 +154,9 @@
         "methodology_id",
         "uncertainty (Wilson 95% interval)"
       ],
-      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved",
+      "calc_date_field": "updated_at",
+      "calc_date_attestation": "uct-intelligence uct_intelligence/api.py update_setup_performance() recomputes the row and sets updated_at = datetime('now') in the same upsert (insert: the column default); no other writer; the Brain Pack is a SQLite backup, so the value is carried unchanged. Verified read-only at uct-intelligence a668b39, 2026-11-04 (agent-kn)."
     },
     "trigger_performance": {
       "admit": "conditional",
@@ -167,7 +171,10 @@
         "methodology_id",
         "uncertainty (Wilson 95% interval)"
       ],
-      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved",
+      "calc_date_field": null,
+      "calc_date_attestation": null,
+      "calc_date_pending": "no writer of trigger_performance exists in the uct-intelligence repository (checked a668b39, 2026-11-04), so the meaning of its updated_at cannot be verified: it may be a sync or export stamp. Its figures are withheld (undated_record) until the producer attests a field written at computation time (docs/agent/knowledge/STATS-CALC-DATE.md)."
     }
   },
   "cleared_rows": [],
@@ -175,5 +182,6 @@
   "excluded_setup_mentions": {
     "mode": "withhold",
     "about": "Owner directive 2026-11-04 (withhold uncertain; a commentary label never makes restricted content permissible): 'withhold' = every admitted row that names an excluded setup is withheld unless it is on cleared_rows. 'serve_flagged' (owner only) re-admits rows WITHOUT definitional wording as a block, served flagged commentary_only; definitional rows stay withheld either way."
-  }
+  },
+  "calc_date_rule": "Every served record figure carries its calculation date (as_of). It is read ONLY from the source's calc_date_field, which must be on the code's allow-list (computed_at, calculated_at, calc_date, calculation_date, computation_date, updated_at) AND have a calc_date_attestation. Missing, or more than 15 minutes in the future -> undated_record; older than pack.stats_stale_days -> stale_record; neither serves a figure."
 }

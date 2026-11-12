@@ -104,7 +104,9 @@ function recordLine(b) {
   const ci = b.win_rate_ci95 || b.win_rate_20d_ci95
   const fig = wr != null ? `win rate ${pct(wr)}${ci ? ` (95% interval ${ci[0]}–${ci[1]}%)` : ''}` : null
   const z = typeof b.edge_z === 'number' ? `, z = ${b.edge_z > 0 ? '+' : ''}${b.edge_z}` : ''
-  return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}${z}. ${b.label_text}.`
+  // calculation-date integrity: a served figure always says when it was calculated (the server's attested as_of)
+  const calc = day(b.as_of || b.calculation_date)
+  return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}${z}${calc ? `, calculated ${calc}` : ''}. ${b.label_text}.`
 }
 export function answerFromRecord(env) {
   if (!usable(env)) {

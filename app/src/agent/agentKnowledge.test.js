@@ -208,3 +208,16 @@ describe('owner 2026-11-03: grounded, cited knowledge answers (the v1 answer its
       .toBe('UCT uses “flag” for more than one setup; say which one you mean.')
   })
 })
+
+describe('calculation-date integrity (Track C safeguard b)', () => {
+  it('a served record figure states when it was calculated; a withheld one states no figure', () => {
+    const served = env('setup.record', { setup: 'Episodic Pivot', regime: 'ALL', caution: '',
+      engine: { label: 'descriptive_uncontrolled', label_text: 'descriptive, not controlled', method: 'logged trades', n: 40,
+        win_rate_pct: 55, win_rate_ci95: [39.8, 69.3], as_of: '2026-11-03 21:00:00' },
+      triggers: { label: 'undated_record', label_text: 'no attested calculation date for this record; figure withheld', method: 'triggers' } })
+    const t = answerFromRecord(served)
+    expect(t).toContain('calculated Nov 3, 2026')
+    expect(t).toContain('triggers: no attested calculation date for this record; figure withheld.')
+    expect(t).not.toMatch(/triggers: n =/)
+  })
+})

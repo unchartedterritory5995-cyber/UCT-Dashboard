@@ -153,6 +153,12 @@ def kn(tmp_path, monkeypatch):
     pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
     for k in ("setup_performance", "trigger_performance"):
         pol["records"][k]["admit"] = True
+        # behaviour tests attest both fixture tables' updated_at; the shipped policy attests setup_performance only
+        # (test_calc_date_* pin the shipped behaviour)
+        pol["records"][k]["calc_date_field"] = "updated_at"
+        pol["records"][k]["calc_date_attestation"] = "test fixture: the fixture writes updated_at as the computation time"
+    pol["records"]["team_archive"]["calc_date_field"] = "computed_at"
+    pol["records"]["team_archive"]["calc_date_attestation"] = "test fixture: the archive payload's scoring-run finish time"
     pf = tmp_path / "policy_records_admitted.json"
     pf.write_text(json.dumps(pol), encoding="utf-8")
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(pf))
@@ -189,7 +195,7 @@ def test_concept_retrieval_returns_team_owned_passages_with_provenance(kn):
         assert p["licence"] == "team_owned"
         assert p["kb_id"] and p["title"] and p["source"] and p["trader"]
         assert "episodic" in (p["title"] + p["excerpt"]).lower()
-    assert out["coverage"]["policy_version"] == 5
+    assert out["coverage"]["policy_version"] == 6
     assert out["coverage"]["admitted_sources"] == ["setup_knowledge", "trader_archive"]
 
 
@@ -520,7 +526,8 @@ def test_undated_statistics_are_treated_as_stale(kn):
     c.execute("UPDATE setup_performance SET updated_at = NULL WHERE setup_type = 'Episodic Pivot'")
     c.commit(); c.close()
     out = read("setup.record", {"setup": "EP"})
-    assert out["data"]["engine"]["label"] == "stale_record" and "win_rate_pct" not in out["data"]["engine"]
+    # calculation-date integrity: no attested date -> undated_record (was stale_record), never a figure
+    assert out["data"]["engine"]["label"] == "undated_record" and "win_rate_pct" not in out["data"]["engine"]
 
 
 
@@ -530,7 +537,7 @@ def test_record_output_keys_are_whitelisted(kn):
     assert set(d) <= {"setup", "regime", "engine", "triggers", "team_archive", "caution"}
     allowed = {"label", "label_text", "n", "wins", "losses", "win_rate_pct", "win_rate_ci95", "method", "n_min",
                "expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct", "sample_start", "sample_end", "updated_at",
-               "source", "licence"}
+               "source", "licence", "as_of"}
     assert set(d["engine"]) <= allowed and set(d["triggers"]) <= allowed
 
 
@@ -552,13 +559,15 @@ def test_failed_build_cools_down_instead_of_retrying_every_read(kn, monkeypatch)
 
 
 # ── review round 2 regressions ─────────────────────────────────────────────────────────────────────────
-def test_live_facade_figure_is_not_withheld_when_the_pack_has_no_row(kn, monkeypatch):
+def test_live_facade_figure_without_a_pack_row_is_withheld_it_has_no_calculation_date(kn, monkeypatch):
+    # calculation-date integrity (2026-11-04, reverses the earlier "the facade read the pack itself" allowance): a
+    # figure with no attested calculation date is never served, whatever answered it
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {
         "ok": True, "setup": "Episodic Pivot", "regime": "GREEN", "total_trades": 40, "wins": 24, "losses": 16,
         "win_rate_pct": 60.0})
     out = read("setup.record", {"setup": "EP", "regime": "GREEN"})        # no setup_performance row for GREEN
     e = out["data"]["engine"]
-    assert e["label"] == "descriptive_uncontrolled" and e["n"] == 40 and e["win_rate_pct"] == 60.0
+    assert e["label"] == "undated_record" and "win_rate_pct" not in e and e["n"] == 40
 
 
 def test_cooldown_applies_only_to_the_pack_that_failed(kn, monkeypatch):
@@ -746,11 +755,11 @@ def test_n4_undated_archive_figure_is_withheld():
 
 def test_n4_archive_in_record_scope_staleness_and_sign(kn, monkeypatch):
     real = brain_service.setup_winrate
-    rec = {**_arch(n=120, z=-3.4, verdict="measured edge"), "as_of": time.strftime("%Y-%m-%d", time.gmtime())}
+    rec = {**_arch(n=120, z=-3.4, verdict="measured edge"), "computed_at": time.strftime("%Y-%m-%d", time.gmtime())}
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
     a = read("setup.record", {"setup": "EP", "regime": "RED"})["data"]["team_archive"]
     assert a["label"] == "measured_underperformance_controlled" and "not filtered by the regime asked" in a["scope"]
-    old = {**rec, "as_of": "2025-01-01"}
+    old = {**rec, "computed_at": "2025-01-01"}
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": old})
     a2 = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
     assert a2["label"] == "stale_record" and "edge_z" not in a2
@@ -841,7 +850,7 @@ def test_n3_an_unresolved_origin_is_refused():
 
 def test_n3_served_template_carries_provenance(kn):
     d = read("setup.playbook", {"setup": "EP"})["data"]
-    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 5
+    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 6
     assert d["origin_trader"] == "TSDR"
 
 
@@ -907,8 +916,11 @@ def test_stats_gate_serves_a_fresh_floored_aggregate_with_full_provenance(kn, mo
     assert e["label"] == "descriptive_uncontrolled" and e["n"] == 40 and e["win_rate_ci95"]
     assert e["methodology_id"] == "uct-brain.setup_performance/v1" and e["calculation_date"] and e["data_through"]
     assert e["source"] == "the brain's own logged trades" and e["licence"] == "firm_generated"
+    assert e["as_of"] == e["calculation_date"]
     t = read("setup.record", {"setup": "EP"})["data"]["triggers"]
-    assert t["methodology_id"] == "uct-brain.trigger_performance/v1" and t["n"] == 35
+    # shipped policy v6: trigger_performance has no attested calculation date -> withheld, figure-free
+    assert t["label"] == "source_not_approved" and "no attested calculation date" in t["label_text"]
+    assert "win_rate_pct" not in t and "n" not in t
 
 
 def test_stats_gate_below_min_n_serves_no_figures(kn, monkeypatch):
@@ -938,7 +950,7 @@ def test_stats_gate_facade_figure_without_a_pack_row_is_not_served(kn, monkeypat
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {
         "ok": True, "total_trades": 40, "wins": 24, "losses": 16, "win_rate_pct": 60.0})
     e = read("setup.record", {"setup": "EP", "regime": "GREEN"})["data"]["engine"]
-    assert e["label"] == "source_not_approved" and "no calculation date" in e["label_text"]
+    assert e["label"] == "source_not_approved" and "no attested calculation date" in e["label_text"]
 
 
 def test_stats_gate_without_a_methodology_id_serves_no_figures(kn, monkeypatch, tmp_path):
@@ -963,7 +975,7 @@ def test_stats_gate_never_serves_raw_rows_or_edge_claims(kn, monkeypatch):
     d = read("setup.record", {"setup": "EP"})["data"]
     allowed = {"label", "label_text", "n", "wins", "losses", "win_rate_pct", "win_rate_ci95", "method", "n_min",
                "expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct", "sample_start", "sample_end",
-               "source", "licence", "methodology_id", "calculation_date", "data_through"}
+               "source", "licence", "methodology_id", "calculation_date", "data_through", "as_of"}
     for b in ("engine", "triggers"):
         assert set(d[b]) <= allowed, set(d[b]) - allowed
     text = json.dumps(d).lower()
@@ -1679,3 +1691,126 @@ def test_r751_nit1_two_builds_in_the_same_second_have_different_ids(kn):
     b = index.build()
     assert a["ok"] and b["ok"] and a["build_id"] != b["build_id"]
     assert index.build_id(index.built_info()) == b["build_id"]
+
+
+# ── calculation-date integrity (owner standing rule; Track C safeguard b, 2026-11-04) ──────────────────────────────
+def _policy_with(monkeypatch, tmp_path, **records):
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    for k, v in records.items():
+        pol["records"][k].update(v)
+    f = tmp_path / "pol_calc.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+
+
+def test_calc_date_shipped_policy_attests_setup_performance_only():
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    assert pol["records"]["setup_performance"]["calc_date_field"] == "updated_at"
+    assert "update_setup_performance" in pol["records"]["setup_performance"]["calc_date_attestation"]
+    assert pol["records"]["trigger_performance"]["calc_date_field"] is None
+    assert pol["records"]["team_archive"]["calc_date_field"] is None
+
+
+@pytest.mark.parametrize("field", ["imported_at", "exported_at", "synced_at", "pack_ts", "install_time", "file_mtime",
+                                   "loaded_at", "copied_at", "Updated At", "", None,
+                                   # review #789 item 2: the allow-list refuses names a deny-list would miss
+                                   "packed_at", "importedat", "synchronized_at", "restored_at", "downloaded_at",
+                                   "backup_at", "snapshot_at", "modified_at", "through", "as_of"])
+def test_calc_date_a_transport_stamp_or_bad_field_is_never_accepted(monkeypatch, tmp_path, field):
+    _policy_with(monkeypatch, tmp_path, setup_performance={"calc_date_field": field, "calc_date_attestation": "said so"})
+    assert policy.calc_date_field("setup_performance") is None
+
+
+def test_calc_date_a_field_without_attestation_is_not_accepted(monkeypatch, tmp_path):
+    _policy_with(monkeypatch, tmp_path, setup_performance={"calc_date_field": "computed_at", "calc_date_attestation": ""})
+    assert policy.calc_date_field("setup_performance") is None
+    _policy_with(monkeypatch, tmp_path, setup_performance={"calc_date_field": "computed_at", "calc_date_attestation": "x"})
+    assert policy.calc_date_field("setup_performance") == "computed_at"
+
+
+def test_calc_date_the_record_reads_only_the_attested_field(kn, monkeypatch, tmp_path):
+    # the policy names a column the pack does not have: updated_at is NOT used as a fallback
+    _policy_with(monkeypatch, tmp_path, setup_performance={"admit": True, "calc_date_field": "computed_at",
+                                                            "calc_date_attestation": "x"})
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "undated_record" and "win_rate_pct" not in e
+
+
+def test_calc_date_an_attested_trigger_date_serves_the_figure_with_as_of(kn, monkeypatch, tmp_path):
+    _policy_with(monkeypatch, tmp_path, trigger_performance={"calc_date_field": "updated_at",
+                                                              "calc_date_attestation": "producer attested (test)"})
+    t = read("setup.record", {"setup": "EP"})["data"]["triggers"]
+    assert t["methodology_id"] == "uct-brain.trigger_performance/v1" and t["n"] == 35 and t["as_of"]
+
+
+def test_calc_date_a_future_date_is_undated(kn):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("UPDATE setup_performance SET updated_at = '2999-01-01 00:00:00' WHERE setup_type = 'Episodic Pivot'")
+    c.commit(); c.close()
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "undated_record" and "win_rate_pct" not in e
+
+
+@pytest.mark.parametrize("shipped", [False, True])
+def test_calc_date_every_served_figure_carries_its_calculation_date(kn, monkeypatch, shipped):
+    if shipped:
+        _shipped(monkeypatch)
+    figures = ("win_rate_pct", "win_rate_20d_pct", "wins", "verdict")
+    served = 0
+    for setup in ("EP", "kicker", "HTF"):
+        for regime in ("ALL", "GREEN"):
+            d = read("setup.record", {"setup": setup, "regime": regime}).get("data") or {}
+            for b in ("engine", "triggers", "team_archive"):
+                blk = d.get(b) or {}
+                if any(k in blk for k in figures):
+                    served += 1
+                    assert blk.get("as_of"), (setup, regime, b, blk)
+    assert served >= 1
+
+
+# ── review #789: a fixed clock at the boundaries; the archive's data-through date is never a calculation date ──────
+FIXED_NOW = 1_800_000_000.0                    # a fixed instant; every age below is relative to it
+
+
+def _at(seconds_before_now: float) -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(FIXED_NOW - seconds_before_now))
+
+
+@pytest.mark.parametrize("age_s,served", [
+    (14 * 86400, True),                         # exactly 14.0 days: served
+    (14 * 86400 + 1, False),                    # 14 days + 1 s: stale
+    (-10 * 60, True),                           # 10 minutes ahead: within the 15-minute clock skew
+    (-3600, False),                             # 1 hour in the future: undated
+    (-36 * 3600, False),                        # 36 hours in the future: undated
+])
+def test_review789_calculation_date_boundaries_on_a_fixed_clock(monkeypatch, age_s, served):
+    monkeypatch.setattr(kinds.time, "time", lambda: FIXED_NOW)
+    d = _at(age_s)
+    block = kinds._dated({"label": "descriptive_uncontrolled", "n": 40, "win_rate_pct": 55.0, "method": "m"},
+                         "setup_performance", {"updated_at": d})
+    assert ("win_rate_pct" in block) is served, (age_s, block)
+    if served:
+        assert block["as_of"] == d
+    else:
+        assert block["label"] == ("stale_record" if age_s > 0 else "undated_record")
+
+
+def test_review789_archive_through_alone_is_not_a_calculation_date(kn, monkeypatch):
+    real = brain_service.setup_winrate
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    rec = {**_arch(n=120, z=3.4, verdict="measured edge"), "through": today, "as_of": today}
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
+    a = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
+    assert a["label"] == "undated_record" and "edge_z" not in a and "win_rate_20d_pct" not in a
+
+
+def test_review789_shipped_policy_withholds_archive_figures(kn, monkeypatch):
+    _shipped(monkeypatch)
+    real = brain_service.setup_winrate
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    rec = {**_arch(n=120, z=3.4, verdict="measured edge"), "through": today, "as_of": today, "computed_at": today}
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
+    a = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
+    assert a["label"] == "undated_record" and "edge_z" not in a
+    assert policy.calc_date_field("team_archive") is None
+

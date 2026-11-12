@@ -505,16 +505,47 @@ def _stats_rows(table: str, names: list[str], regime: str) -> list[dict]:
         c.close()
 
 
+#: review #789 item 1: a calculation date may be at most 15 minutes ahead of this server's clock (producer clock skew);
+#: anything further in the future is not a calculation date (undated). Staleness is strict: older than
+#: stats_stale_days (14.0 days) by any amount is stale; exactly 14.0 days is served.
+MAX_CLOCK_SKEW_DAYS = 15 / 1440
+
+
 def _stale(row: dict) -> bool:
     """Fails CLOSED: a record with no readable refresh date, or one dated in the FUTURE, is treated as stale."""
     age = _days_since(row.get("updated_at"))
-    return age is None or age < -1 or age > policy.pack_setting("stats_stale_days", 14)
+    return age is None or age < -MAX_CLOCK_SKEW_DAYS or age > policy.pack_setting("stats_stale_days", 14)
+
+
+def _calc_date(row: dict, key: str):
+    """The row's calculation date from the source's ATTESTED field only (policy.calc_date_field); None otherwise —
+    never updated_at / imported_at / a pack or file stamp by default (calculation-date integrity)."""
+    f = policy.calc_date_field(key)
+    return (row or {}).get(f) if f else None
+
+
+UNDATED = {"label": "undated_record", "label_text": "no attested calculation date for this record; figure withheld"}
+_NO_FIGURE_LABELS = ("insufficient_sample", "undated_record", "stale_record", "source_not_approved")
+
+
+def _dated(block: dict, key: str, row: dict) -> dict:
+    """Calculation-date integrity for one record block: its date comes from the attested field; missing or future ->
+    undated (no figures); older than stats_stale_days -> stale (no figures); else the block carries `as_of`."""
+    if block.get("label") in _NO_FIGURE_LABELS:
+        return block
+    d = _valid_date(_calc_date(row, key))
+    if not d:
+        return {**UNDATED, "method": block.get("method"), **({"n": block["n"]} if "n" in block else {})}
+    if _stale({"updated_at": d}):
+        return {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
+                "method": block.get("method"), "as_of": d}
+    return {**block, "as_of": d}
 
 
 def _valid_date(s) -> Optional[str]:
-    """A calculation date we can trust: readable and not in the future (one day of clock slack)."""
+    """A calculation date we can trust: readable and not in the future (MAX_CLOCK_SKEW_DAYS of clock skew)."""
     age = _days_since(s) if s else None
-    return str(s) if age is not None and age >= -1 else None
+    return str(s) if age is not None and age >= -MAX_CLOCK_SKEW_DAYS else None
 
 
 def record(params: dict, ctx: dict) -> dict:
@@ -548,19 +579,16 @@ def record(params: dict, ctx: dict) -> dict:
     engine = stats.engine_block(perf, n_min, "the brain's own logged trades for this setup")
     # staleness is judged on the pack row when one exists; a figure the live facade answered with no pack row is
     # not "undated" (the facade read the installed pack itself)
-    if (meta or not w.get("ok")) and _stale(meta or {}) and engine["label"] != "insufficient_sample":
-        engine = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
-                  "updated_at": meta.get("updated_at"), "method": engine["method"]}
+    # calculation-date integrity: only the attested field dates a figure (a facade figure with no pack row has none)
+    engine = _dated(engine, "setup_performance", meta or {})
     trig_rows = _stats_rows("trigger_performance", list(dict.fromkeys([name, *res["aliases"]])), regime)
     triggers = stats.engine_block(trig_rows[0] if trig_rows else {}, n_min,
                                   "UCT's published setup triggers, resolved after the fact")
-    if trig_rows and _stale(trig_rows[0]) and triggers["label"] != "insufficient_sample":
-        triggers = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
-                    "method": triggers["method"]}
-    engine = _with_source(engine, rec_cls["setup_performance"], calc_date=(meta or {}).get("updated_at"),
-                          data_through=(meta or {}).get("sample_end"))
     trig0 = trig_rows[0] if trig_rows else {}
-    triggers = _with_source(triggers, rec_cls["trigger_performance"], calc_date=trig0.get("updated_at"),
+    triggers = _dated(triggers, "trigger_performance", trig0)
+    engine = _with_source(engine, rec_cls["setup_performance"], calc_date=_calc_date(meta or {}, "setup_performance"),
+                          data_through=(meta or {}).get("sample_end"))
+    triggers = _with_source(triggers, rec_cls["trigger_performance"], calc_date=_calc_date(trig0, "trigger_performance"),
                             data_through=trig0.get("sample_end"))
     data = {"setup": name, "regime": regime, "engine": engine, "triggers": triggers, "caution": stats.CAUTION}
     tcls = policy.classify_template(_template_origin(name), name)
@@ -569,8 +597,9 @@ def record(params: dict, ctx: dict) -> dict:
                                   "note": "UCT's approved knowledge does not include this setup's template; these "
                                           "figures describe UCT's own outcomes under the name, not a definition of it"}
     rec_a = w.get("team_archive") if isinstance(w.get("team_archive"), dict) else None
-    # ONLY the computation's own date (docs/agent/knowledge/ARCHIVE-ASOF-REQUIREMENT.md); never imported_at / updated_at
-    a_as_of = _valid_date(next((str(rec_a[k]) for k in ("through", "as_of") if rec_a and rec_a.get(k)), None))
+    # review #789 item 3: ONLY the payload's ATTESTED calculation field (policy calc_date_field; none is attested yet, so
+    # archive figures are withheld). `through` is a data-through date, never a calculation date; never imported_at.
+    a_as_of = _valid_date(_calc_date(rec_a or {}, "team_archive"))
     arch = stats.archive_block(rec_a, n_min, as_of=a_as_of)
     if arch and a_as_of and _stale({"updated_at": a_as_of}) and arch["label"] not in ("insufficient_sample", "undated_record"):
         arch = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
@@ -599,6 +628,13 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
     becomes a figure-free block naming the failed condition. Any other source: figure-free 'not approved'."""
     if cls["state"] == "admitted":
         out = {**block, "source": cls["label"], "licence": cls["licence"]}
+        if block.get("label") not in _NO_FIGURE_LABELS:
+            # calculation-date integrity on the ADMITTED path too: every served figure carries its calculation date
+            d = _valid_date(block.get("as_of") or calc_date)
+            if not d:
+                return {**UNDATED, "method": block.get("method"), "source": cls["label"], "licence": cls["licence"]}
+            out["as_of"] = d
+            out.pop("updated_at", None)
         for k in NO_INTERVAL_FIGURES:                # r4 R4-4: the same rule on every served path
             out.pop(k, None)
         return out
@@ -608,6 +644,8 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
     if label == "insufficient_sample":
         return _not_served(block, cls, f"below the minimum sample (n < {block.get('n_min') or policy.stats_n_min()})")
     calc_date = _valid_date(calc_date)
+    if label == "undated_record":
+        return _not_served(block, cls, "no attested calculation date")
     if label == "stale_record" or not calc_date:
         return _not_served(block, cls, "no calculation date" if not calc_date else "calculation older than the freshness limit")
     if _stale({"updated_at": calc_date}):
@@ -625,7 +663,7 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
         if d_age is None or d_age > policy.pack_setting("stats_data_stale_days", 30):
             return _not_served(block, cls, "its newest data is older than the freshness limit")
     out = {**block, "source": cls["label"], "licence": cls["licence"], "methodology_id": cls["methodology_id"],
-           "calculation_date": calc_date}
+           "calculation_date": calc_date, "as_of": calc_date}
     if data_through:
         out["data_through"] = data_through
     out.pop("updated_at", None)
