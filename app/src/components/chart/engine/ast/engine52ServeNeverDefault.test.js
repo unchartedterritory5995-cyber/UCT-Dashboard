@@ -195,3 +195,14 @@ describe('3. a property this door cannot read WITHHOLDS its drawing, never a def
     expect(ENUM_DROPS.value).toEqual({ guard: 'pine:prop-unreadable', drop: 'prop:unreadable', sentence: expect.any(String) })
   })
 })
+
+describe('4. the objects-v2 grader, field by field', () => {
+  it('an int text size is `pointSize` (not graded); a word is still graded', async () => {
+    const { fieldRow } = await import('../__tests__/vendorHarness/objectRecords.js')
+    const spec = { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: { normal: 'normal', small: 'small' }, default: 'auto' }
+    const ctx = { D: {}, ourFamily: 'table' }
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 11 }).state).toBe('pointSize')
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'normal' }).state).toBe('agree')
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'small' }).state).toBe('differ')
+  })
+})

@@ -57,7 +57,7 @@ function colourDefault(D, ourFamily, field) {
 }
 
 /** One field of one paired record → its row. */
-function fieldRow(spec, ctx, v, p) {
+export function fieldRow(spec, ctx, v, p) {
   const { field, kind } = spec
   const raw = p ? p[spec.ours] : undefined
   if (kind === 'colour') {

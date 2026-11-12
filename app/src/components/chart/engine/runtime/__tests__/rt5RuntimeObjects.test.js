@@ -159,3 +159,15 @@ describe('RT5 — a comma line of statements is split, as the host lane splits i
   })
 })
 
+
+// ⭐⭐ ENGINE 52 — Pine v6's INT text size (typographic points) is carried by the runtime
+// lane as that number, as the host lane carries it (`objectStore.js` `propValue`).
+describe('engine 52 — an integer point size in the runtime lane', () => {
+  it('label size = 14 and a cell text_size = 11 are carried as numbers, never refused', () => {
+    const { fin } = run('if barstate.islast\n    label.new(bar_index, close, "x", size = 14)\n')
+    expect(fin.status).toBe('ok')
+    const labels = ofFamily(fin, 'label')
+    expect(labels).toHaveLength(1)
+    expect(labels[0].props.size).toBe(14)
+  })
+})
