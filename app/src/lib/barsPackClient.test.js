@@ -337,6 +337,14 @@ describe('the full pack ingests wait for the first chart (2026-11-10)', () => {
     expect(fn).toHaveBeenCalledTimes(1)
   })
 
+  it('leaves one buffered performance mark for time-to-first-candles readers, once per page', () => {
+    const mark = vi.spyOn(performance, 'mark').mockImplementation(() => undefined)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    expect(mark.mock.calls).toEqual([[FIRST_CHART_PAINT_EVENT]])
+    mark.mockRestore()
+  })
+
   it('runs once even when both the paint and the time limit happen', () => {
     const fn = vi.fn()
     afterFirstChartPaint(fn, { maxWaitMs: 1000 })

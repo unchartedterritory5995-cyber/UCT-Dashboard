@@ -169,6 +169,9 @@ let _firstChartPainted = false
 export function markFirstChartPaint() {
   if (_firstChartPainted) return
   _firstChartPainted = true
+  // Also a performance mark: real-user reports (lib/perfBeacon.js `candles`) and the desktop launch
+  // proofs read "time to first candles" from it. Marks are buffered, so a late reader still sees it.
+  try { performance.mark(FIRST_CHART_PAINT_EVENT) } catch { /* no performance API */ }
   try { window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT)) } catch { /* no window */ }
 }
 

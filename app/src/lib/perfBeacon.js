@@ -14,6 +14,9 @@ import { isDesktopApp } from './desktopBridge'
 export const REPORT_AFTER_MS = 20000
 export const MAX_API = 40
 const ENDPOINT = '/api/perf/beacon'
+// The mark barsPackClient.markFirstChartPaint sets. A literal, not an import: importing barsPackClient
+// would pull it into this small after-load chunk. perfBeacon.test.js pins the two equal.
+export const FIRST_CANDLES_MARK = 'uct:first-chart-paint'
 
 /** `/charts/NVDA?x=1` -> `/charts`. */
 export function pageTemplate(pathname) {
@@ -44,7 +47,7 @@ const pageFirstByte = (nav) => (nav.finalResponseHeadersStart > 0 ? nav.finalRes
 const failedStatus = (status) => status >= 500 || status === 408 || status === 429
 
 /** Build the report from performance entries. Pure: the caller supplies everything it reads. */
-export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, longTasks, resources }) {
+export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, candles, longTasks, resources }) {
   const api = []
   for (const r of resources || []) {
     if (api.length >= MAX_API) break
@@ -60,6 +63,8 @@ export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, longTask
     ttfb: nav ? ms(pageFirstByte(nav)) : undefined,
     fcp: ms(fcp),
     lcp: ms(lcp),
+    // When the page's first chart had its bars. Absent on pages without a chart.
+    candles: ms(candles),
     dom_ready: nav ? ms(nav.domContentLoadedEventEnd) : undefined,
     load: nav ? ms(nav.loadEventEnd) : undefined,
     long_task_ms: ms(lt.reduce((t, e) => t + e.duration, 0)),
@@ -91,10 +96,11 @@ export function startPerfBeacon({ win = window, doc = document, perf = window.pe
     observers.forEach((o) => { try { o.disconnect() } catch { /* gone */ } })
     const nav = perf.getEntriesByType('navigation')[0]
     const fcpEntry = perf.getEntriesByType('paint').find((p) => p.name === 'first-contentful-paint')
+    const candlesEntry = (typeof perf.getEntriesByName === 'function' ? perf.getEntriesByName(FIRST_CANDLES_MARK, 'mark') : [])[0]
     const resources = perf.getEntriesByType('resource').filter((r) => r.startTime < REPORT_AFTER_MS)
     const report = buildReport({
       pathname: win.location.pathname, origin: win.location.origin, desktop, nav,
-      fcp: fcpEntry?.startTime, lcp, longTasks, resources,
+      fcp: fcpEntry?.startTime, lcp, candles: candlesEntry?.startTime, longTasks, resources,
     })
     try {
       win.navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(report)], { type: 'application/json' }))
