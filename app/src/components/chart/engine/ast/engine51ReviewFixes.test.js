@@ -110,6 +110,12 @@ describe('B1 · a position fixed before bar 0 is read through the four shapes', 
     expect(positionOf(t) || '').not.toContain('bottom_center')
   })
 
+  it('control: a block `var` reassigned in a nested block is not read as its initializer', () => {
+    const t = T('p = input.string("Bottom Center")\nif barstate.islast\n    var where = p == "Bottom Center" ? position.bottom_center : position.top_right\n'
+      + '    if close > open\n        where := position.top_left\n    var table t = table.new(where, 1, 1)\n    table.cell(t, 0, 0, "x")\n')
+    expect(positionOf(t) || '').not.toContain('bottom_center')
+  })
+
   it('control: a `var` switch the script reassigns is not read as its first value', () => {
     const t = T('p = input.string("Middle")\nvar where = switch p\n    "Top Left" => position.top_left\n    "Middle" => position.middle_center\n'
       + 'if close > open\n    where := position.top_left\nvar table t = table.new(where, 1, 1)\n' + CELL)
