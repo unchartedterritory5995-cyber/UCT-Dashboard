@@ -115,3 +115,70 @@ describe('a possessive negation of the click, through the real panel (workspace 
     expect(changed(m.board), transcript()).toEqual(['TL'])
   }, 40000)
 })
+
+// ── (AUDIT #1143 T2) a WHOLE-BOARD quantifier with an exception whose object is the click by ANY name ──────────────────────
+// quantifier × connective × pointer form, the Lead's own phrasings. A plan that includes the click never runs (applied, carded
+// or offered); the plan on the others runs. Control: the excepted object is a NAMED chart (its ticker) — excluded as before.
+import { excludedCharts } from './spatialCheck'
+const QUANT = [(v) => `make every chart ${v}`, (v) => `switch everything to ${v}`, (v) => `turn them all ${v}`, (v) => `put all of them on ${v}`]
+const CONN = ['except', 'but', 'apart from', 'other than', 'excluding']
+const PTR = ['this one', 'the one I clicked', 'the chart I am on', 'mine', 'my chart', 'my own one']
+const XQ = []
+QUANT.forEach((q, qi) => CONN.forEach((c, ci) => PTR.forEach((x, xi) => {
+  if ((qi + ci + xi) % 3) return                                       // a spread, not the full product
+  XQ.push(`${q('weekly')} ${c} ${x}`)
+})))
+describe('a whole-board quantifier excepting the click (any name) excludes it', () => {
+  const B = [{ ref: 'a', symbol: 'SPY', position: 'top-left' }, { ref: 'b', symbol: 'QQQ', position: 'top-right' },
+    { ref: 'c', symbol: 'NVDA', position: 'bottom-left' }, { ref: 'd', symbol: 'AMD', position: 'bottom-right' }]
+  it('the family covers every quantifier, connective and pointer form', () => {
+    for (const c of CONN) expect(XQ.some(t => t.includes(` ${c} `))).toBe(true)
+    for (const x of PTR) expect(XQ.some(t => t.endsWith(x))).toBe(true)
+  })
+  it.each(XQ.map(t => [t]))('reader: "%s" → the click', (t) => {
+    expect([...excludedCharts(t, B, 'a')]).toEqual(['a'])
+  })
+  it.each([['make every chart weekly but the QQQ one', 'b'], ['switch everything to weekly except the NVDA one', 'c'], ['turn them all weekly apart from the AMD chart', 'd']])(
+    'control, a NAMED chart: "%s" → that chart', (t, ref) => {
+      expect([...excludedCharts(t, B, 'a')]).toEqual([ref])
+    })
+  it.each([['make everything weekly but keep the log scale'], ['make everything weekly but not yet'], ['make every chart weekly except my watchlist'], ['make every chart weekly, but my settings stay'], ['make it weekly but the 50 day too']])(
+    'control, not a chart: "%s" → nothing', (t) => {
+      expect([...excludedCharts(t, B, 'a')]).toEqual([])
+    })
+  const E2E = XQ.filter((t, i) => i % 2 === 0)
+  it.each(E2E.map(t => [t]))('panel: "%s" — a plan including the click never runs; the plan on the others runs', async (t) => {
+    const others = BOARDS['2x2'].map(x => x.id).filter(id => id !== 'TL')
+    for (const plan of [planOn, proposeOn]) {
+      cleanup(); p = setupPanel()
+      const m = mount('2x2', 'TL')
+      p.st.envelopes.push(plan('TL', ...others))
+      await m.say(t)
+      expect(changed(m.board), transcript()).not.toContain('TL')
+      expect(cardText(), transcript()).not.toContain('Chart (TL)')
+      expect(offered(), transcript()).not.toContain('TL')
+    }
+    cleanup(); p = setupPanel()
+    const m = mount('2x2', 'TL')
+    p.st.envelopes.push(planOn(...others))
+    await m.say(t)
+    const ran = changed(m.board)
+    expect(ran, transcript()).not.toContain('TL')
+    // MUST RUN: an explicit board quantifier (every chart / everything) excepting the click by "this one" or a possessive.
+    // Otherwise ("them all" / "all of them", or the click named by the act — "the one I clicked", "the chart I am on") the
+    // right plan may still be ASKED or CARDED first, exactly as on master fc564e7096 (measured; never worse): fail-closed, the
+    // click untouched. Making those run is a separate over-caution follow-up, not this exclusion fix.
+    const mustRun = /^(?:make every chart|switch everything)/.test(t) && /(?:this one|mine|my chart|my own one)$/.test(t)
+    if (mustRun) expect(ran, transcript()).toEqual([...others].sort())
+    else expect(ran.length === 0 ? asked() || cardText().length > 0 : ran.join() === [...others].sort().join(), transcript()).toBe(true)
+  }, 60000)
+  // (master fc564e7096 measured) "turn them all weekly but this one" with the plan on the OTHER three changed ONLY the clicked
+  // chart — the member's exclusion turned into the target. Fixed here (SEP_BUT): the click is never the one that changes.
+  it('"turn them all weekly but this one": the clicked chart is never the one changed', async () => {
+    const others = BOARDS['2x2'].map(x => x.id).filter(id => id !== 'TL')
+    const m = mount('2x2', 'TL')
+    p.st.envelopes.push(planOn(...others))
+    await m.say('turn them all weekly but this one')
+    expect(changed(m.board), transcript()).not.toContain('TL')
+  }, 60000)
+})

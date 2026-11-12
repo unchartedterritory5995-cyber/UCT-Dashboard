@@ -412,11 +412,25 @@ const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|asi
   + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
   + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
 const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
+// (AUDIT #1143 T2, probe-25 class) the click named by a POSSESSIVE ("except mine", "apart from my chart"): the click, as
+// CLICK_ACT_ONLY is. Whole phrase only.
+const CLICK_POSS_ONLY = new RegExp('^' + CLICK_POSS + '$', 'i')
+// (AUDIT #1143 T2) a WHOLE-BOARD quantifier with "but" AFTER the change: "make every chart weekly but this one", "turn them all
+// weekly but the one I clicked", "everything to weekly but mine", "every chart weekly but the QQQ one". exceptForm only reads a
+// "but" glued to its scope word ("everything but …"); this reads the separated one, ONLY when (i) the words hold a whole-board
+// quantifier and (ii) the "but" is followed by a phrase that names a chart (the click by any name, a possessive, or "the … one /
+// chart"), never "but keep the log scale" / "but not yet". Kept OUT of exceptForm so the #988 no-lookbehind equivalence rail
+// (EXCEPT on exceptForm) is untouched; read only by excludedCharts and withoutExclusions.
+const WHOLE_BOARD = /\b(?:everything|every\s+(?:chart|one|cell|pane)|each\s+(?:chart|one|cell|pane)|all\s+(?:of\s+)?(?:them|these|the\s+(?:charts|cells|panes|others)|my\s+charts|charts|cells|panes|four|three|six|nine|two)|(?:them|these|charts)\s+all)\b/i
+const SEP_BUT = new RegExp('\\bbut\\s+(?!not\\b)('
+  + 'this(?:\\s+(?:one|chart))?|' + CLICK_POSS + '|' + CLICK_ACT_NP + '|the\\s+(?:[A-Za-z0-9-]+\\s+){1,3}?(?:one|chart|cell|pane)'
+  + ')(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
+const sepButMatches = (text) => (WHOLE_BOARD.test(String(text || '')) ? [...String(text || '').matchAll(SEP_BUT)] : [])
 /** The words with every exclusion phrase blanked (EXCEPT and NEG_EXCEPT): a position said only to EXCLUDE a chart ("…, not the
  * left one") is no place the request is aimed at (deixis.screenUnnamedTargets' said positions). */
 export function withoutExclusions(text) {
   let s = exceptForm(text)
-  for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT), ...sepButMatches(s)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
   return s
 }
 // (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
@@ -424,7 +438,7 @@ export function withoutExclusions(text) {
 // change itself and excludes nothing.
 const NEG_CHART_WORD = /\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|last|row|column|this|that|it)\b/i
 function negNamesAChart(phrase, charts) {
-  if (CLICK_ACT_ONLY.test(phrase) || NEG_CHART_WORD.test(phrase)) return true
+  if (CLICK_ACT_ONLY.test(phrase) || CLICK_POSS_ONLY.test(phrase) || NEG_CHART_WORD.test(phrase)) return true
   const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
   return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
 }
@@ -432,9 +446,9 @@ function negNamesAChart(phrase, charts) {
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
-  for (const m of [...exceptMatches(text), ...negs]) {
+  for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text)]) {
     const phrase = m[1].trim()
-    if (CLICK_ACT_ONLY.test(phrase)) { if (sel) out.add(sel); continue }
+    if (CLICK_ACT_ONLY.test(phrase) || CLICK_POSS_ONLY.test(phrase)) { if (sel) out.add(sel); continue }
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
     if (wl) {
       const line = pickLine(linesOf(charts, wl[2].toLowerCase()), wl[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), wl[2].toLowerCase())
