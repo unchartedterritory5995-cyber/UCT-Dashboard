@@ -52,14 +52,15 @@ export function deriveStatus(s, ctx = {}) {
   const settled = c === CURRENTNESS.CURRENT || c === CURRENTNESS.NO_EXPECTATION
   if (!s.restSeen) return settled ? STATUS.CONTEXT : STATUS.PROVISIONAL
   if (!settled) return STATUS.UPDATING
-  // (Rows a TICK closed are reported by the snapshot's own `tailUnverified` flag — reducer.finalize —
-  // never by flapping this status at every tick bucket roll.)
+  // (Rows a TICK closed never downgrade this status — that flapped at every tick bucket roll. They
+  // are the client's observation until the next poll replaces them: `tickClosedTail` below; the
+  // delta re-reads them because `deltaFrom` starts at or before every unsealed row.)
   const verified = s.verifiedThrough != null || s.tailStatus === 'verified'
   return verified ? STATUS.CURRENT : STATUS.CONTEXT
 }
 
 /** Does the tail hold a closed row a tick produced, after the newest server (REST) row?
- *  (Snapshot.tailUnverified; a REST answer replaces such rows — rest outranks tick.) */
+ *  (A REST answer replaces such rows — rest outranks tick.) */
 export function tickClosedTail(s) {
   const bars = s.bars || []
   for (let i = bars.length - 1; i >= 0; i--) {

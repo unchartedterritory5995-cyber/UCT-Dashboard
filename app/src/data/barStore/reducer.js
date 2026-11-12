@@ -54,7 +54,7 @@ import {
 import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
-import { deriveStatus, tickClosedTail } from './status'
+import { deriveStatus } from './status'
 import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
@@ -81,7 +81,6 @@ export function initialState(key, ctx = {}) {
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
-    tailUnverified: false,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -368,7 +367,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'tailUnverified']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -412,9 +411,6 @@ function finalize(prev, next, ctx) {
     if (g != null) n.liveGapFrom = g
   }
   n.deltaFrom = computeDeltaFrom(n)
-  // A closed row the TICK fallback produced (after the newest REST row) is the client's observation,
-  // not the server's: a separate flag, NOT a status downgrade (status stays stable across tick rolls).
-  n.tailUnverified = tickClosedTail(n)
   // ⛔ A LOCAL HOLE OLDER THAN THE DELTA START IS NEVER RE-READ by a since= delta (it asks only
   // from deltaFrom): the next request must be a FULL read — a status rule on what is held, not
   // a timer. Cleared by the full answer (applyRest), which re-proves the region it carries.
