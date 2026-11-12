@@ -410,7 +410,9 @@ export const exceptMatches = (text) => [...exceptForm(text).matchAll(EXCEPT)]
 // outside EXCEPT's phrase). An "X" the board cannot place excludes nothing.
 const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|aside\\s+from|other\\s+than|except(?:\\s+for)?|excluding|apart\\s+from)'
   + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
-  + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
+  + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$'
+  // (AUDIT #1143 T2, subject position) "everything except the one I'm on goes weekly": a predicate verb may also end it
+  + '|\\s+(?:goes|go|stays?|is|are|gets?|turns?|moves?|switch(?:es)?|changes?|becomes?|remains?|should|can|will|must|needs?)\\b)', 'gi')
 const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
 // (AUDIT #1143 T2, probe-25 class) the click named by a POSSESSIVE ("except mine", "apart from my chart"): the click, as
 // CLICK_ACT_ONLY is. Whole phrase only.
@@ -437,8 +439,14 @@ export function withoutExclusions(text) {
 // on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
 // change itself and excludes nothing.
 const NEG_CHART_WORD = /\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|last|row|column|this|that|it)\b/i
+// (AUDIT #1143 T2, subject position) "everything except mine goes weekly", "…except the one I'm on goes weekly": EXCEPT's lazy
+// capture runs on into the predicate ("mine goes"), so its anchored click test never matched. NEG_EXCEPT may now END its phrase at
+// a predicate verb (its lookahead), so the click phrase arrives whole through it; EXCEPT itself is untouched (the #988 equivalence
+// rail). Every click name is tested here: the act, a possessive, or this / this one / the clicked one.
+const CLICK_THIS_ONLY = /^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|the\s+(?:selected|clicked)\s+(?:one|chart))$/i
+const namesTheClick = (phrase) => { const p = String(phrase || '').trim(); return CLICK_ACT_ONLY.test(p) || CLICK_POSS_ONLY.test(p) || CLICK_THIS_ONLY.test(p) }
 function negNamesAChart(phrase, charts) {
-  if (CLICK_ACT_ONLY.test(phrase) || CLICK_POSS_ONLY.test(phrase) || NEG_CHART_WORD.test(phrase)) return true
+  if (namesTheClick(phrase) || NEG_CHART_WORD.test(phrase)) return true
   const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
   return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
 }
@@ -448,7 +456,7 @@ export function excludedCharts(text, charts = [], sel = null) {
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
   for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text)]) {
     const phrase = m[1].trim()
-    if (CLICK_ACT_ONLY.test(phrase) || CLICK_POSS_ONLY.test(phrase)) { if (sel) out.add(sel); continue }
+    if (namesTheClick(phrase)) { if (sel) out.add(sel); continue }
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
     if (wl) {
       const line = pickLine(linesOf(charts, wl[2].toLowerCase()), wl[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), wl[2].toLowerCase())

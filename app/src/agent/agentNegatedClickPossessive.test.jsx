@@ -182,3 +182,50 @@ describe('a whole-board quantifier excepting the click (any name) excludes it', 
     expect(changed(m.board), transcript()).not.toContain('TL')
   }, 60000)
 })
+
+// ── (AUDIT #1143 T2, round 2) SUBJECT position: "<quantifier> except <the click> <predicate> …" — the exception's capture runs
+// on into the verb, so the click is read from its leading reference. Own phrasings; all three pointer families. Controls in the
+// same position: a NAMED chart (still that chart) and "my <non-chart noun>" (nothing).
+const SUBJ_Q = ['everything except', 'every chart except', 'all of them except', 'everything apart from', 'every chart other than']
+const SUBJ_X = ['this one', 'this chart', 'the one I clicked', "the one I'm on", 'the chart I am on', 'mine', 'my chart', 'my own one']
+const SUBJ_P = ['goes weekly', 'switches to weekly', 'should be weekly', 'gets the weekly', 'turns weekly', 'is going weekly']
+const XS = []
+SUBJ_Q.forEach((q, qi) => SUBJ_X.forEach((x, xi) => XS.push(`${q} ${x} ${SUBJ_P[(qi + xi) % SUBJ_P.length]}`)))
+describe('subject position: "<all> except <the click> <verb> …" excludes the click', () => {
+  const B = [{ ref: 'a', symbol: 'SPY', position: 'top-left' }, { ref: 'b', symbol: 'QQQ', position: 'top-right' },
+    { ref: 'c', symbol: 'NVDA', position: 'bottom-left' }, { ref: 'd', symbol: 'AMD', position: 'bottom-right' }]
+  it.each(XS.map(t => [t]))('reader: "%s" → the click', (t) => {
+    expect([...excludedCharts(t, B, 'a')]).toEqual(['a'])
+  })
+  it.each([['everything except the QQQ one goes weekly', 'b'], ['every chart except the NVDA chart switches to weekly', 'c'], ['all of them except AMD should be weekly', 'd']])(
+    'control, a NAMED chart in subject position: "%s" → that chart', (t, ref) => {
+      expect([...excludedCharts(t, B, 'a')]).toEqual([ref])
+    })
+  it.each([['everything except my watchlist goes weekly'], ['every chart except my settings stays the same'], ['all of them except my alerts should be weekly'], ['weekly, not daily'], ['log, not linear']])(
+    'control, not a chart: "%s" → nothing', (t) => {
+      expect([...excludedCharts(t, B, 'a')]).toEqual([])
+    })
+  it.each(XS.filter((t, i) => i % 3 === 0).map(t => [t]))('panel: "%s" — a plan including the click is never applied, carded or offered', async (t) => {
+    const others = BOARDS['2x2'].map(x => x.id).filter(id => id !== 'TL')
+    for (const plan of [planOn, proposeOn]) {
+      cleanup(); p = setupPanel()
+      const m = mount('2x2', 'TL')
+      p.st.envelopes.push(plan('TL', ...others))
+      await m.say(t)
+      expect(changed(m.board), transcript()).not.toContain('TL')
+      expect(cardText(), transcript()).not.toContain('Chart (TL)')
+      expect(offered(), transcript()).not.toContain('TL')
+    }
+  }, 60000)
+})
+
+// (SEP_BUT gate) WITHOUT a whole-board quantifier a "but <chart>" is a CONTRAST between two changes, never an exception:
+// "make the QQQ one weekly but this one daily" changes both; nothing is excluded.
+describe('a "but" between two charts with no whole-board quantifier excludes nothing', () => {
+  const B = [{ ref: 'a', symbol: 'SPY', position: 'top-left' }, { ref: 'b', symbol: 'QQQ', position: 'top-right' },
+    { ref: 'c', symbol: 'NVDA', position: 'bottom-left' }, { ref: 'd', symbol: 'AMD', position: 'bottom-right' }]
+  it.each([['make the QQQ one weekly but this one daily'], ['put the NVDA chart on log but mine on linear'], ['switch AMD to weekly but my chart to monthly'], ['set the top right to hourly but the one I clicked to daily']])(
+    '"%s" → nothing excluded', (t) => {
+      expect([...excludedCharts(t, B, 'a')]).toEqual([])
+    })
+})
