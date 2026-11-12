@@ -46,6 +46,35 @@ def live_keys(doc: dict) -> list[dict]:
     return [q for q in doc.get("questions", []) if (v.get(q["key"]) or {}).get("status") == "pass"]
 
 
+FULL_SHARE = 0.4   # a balanced chunk takes the full path when at least this share of it is high risk
+
+
+def plan_balanced(units: list[str], chunk_max: int = 36, skip_upgraded: bool = True) -> list[dict]:
+    """Chunk each lesson into evenly sized chunks (at most chunk_max), riskiest questions first, so the large fixed cost of an
+    agent (about 190k tokens of reading) is shared by 30 or so questions instead of a dozen (wave 1 measured 93k tokens per
+    question for 9 to 16 question chunks against about 44k for 22 to 36). A chunk is FULL when 40% or more of it is high
+    risk, otherwise LIGHT."""
+    chunks: list[dict] = []
+    for unit in units:
+        track = unit.split(".")[0]
+        path = cl.COURSES_DIR / track / f"{unit}.json"
+        doc = cl.load_unit(path)
+        qs = [q for q in live_keys(doc) if not (skip_upgraded and q.get("simple"))]
+        if not qs:
+            continue
+        scored = sorted(((risk_score(doc, q), q["key"]) for q in qs), key=lambda t: (-t[0], t[1]))
+        n = -(-len(scored) // chunk_max)
+        size = -(-len(scored) // n)
+        file = str(path).replace("\\", "/")
+        for i in range(n):
+            part = scored[i * size:(i + 1) * size]
+            hi = sum(1 for sc, _ in part if sc >= HIGH)
+            route = "full" if hi / len(part) >= FULL_SHARE else "light"
+            chunks.append({"unit": unit, "chunk": f"{unit}-{route}{chr(97 + i)}", "route": route, "file": file,
+                           "keys": sorted(k for _, k in part)})
+    return chunks
+
+
 def plan(units: list[str], light_max: int = 36, skip_upgraded: bool = True) -> list[dict]:
     chunks: list[dict] = []
     for unit in units:
@@ -73,8 +102,10 @@ def main(argv=None) -> int:
     ap.add_argument("--out")
     ap.add_argument("--light-max", type=int, default=36)
     ap.add_argument("--include-upgraded", action="store_true")
+    ap.add_argument("--split", action="store_true", help="the wave 1 form: a small full chunk of risky questions per lesson")
     a = ap.parse_args(argv)
-    chunks = plan(a.units, a.light_max, not a.include_upgraded)
+    chunks = (plan(a.units, a.light_max, not a.include_upgraded) if a.split
+              else plan_balanced(a.units, a.light_max, not a.include_upgraded))
     blob = json.dumps({"chunks": chunks})
     if a.out:
         with open(a.out, "w", encoding="utf-8", newline="\n") as fh:

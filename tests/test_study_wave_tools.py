@@ -56,3 +56,15 @@ def test_integrate_layers_the_chunk_files_applies_cuts_last_and_reports_what_is_
     assert rep["problems"] == [] and any("lighta: no upgraded.json" in s for s in rep["skipped"])
     # a dry run writes nothing
     assert json.loads((courses / "F1.99.json").read_text(encoding="utf-8")) == unit
+
+
+def test_the_balanced_plan_makes_even_chunks_riskiest_first_and_routes_by_risk_share():
+    chunks = wp.plan_balanced(["SET.08", "SET.09", "SET.10", "SET.11"])
+    assert all(len(c["keys"]) <= 36 for c in chunks)
+    assert sorted(len(c["keys"]) for c in chunks if c["unit"] == "SET.09")[0] >= 28      # no tiny chunk: SET.09 has 87 questions
+    keys = [(c["unit"], k) for c in chunks for k in c["keys"]]
+    assert len(keys) == len(set(keys)) == 287
+    doc = cl.load_unit(cl.COURSES_DIR / "SET" / "SET.08.json")
+    first = next(c for c in chunks if c["unit"] == "SET.08" and c["chunk"].endswith("a"))
+    risky = sum(1 for q in doc["questions"] if q["key"] in first["keys"] and wp.risk_score(doc, q) >= wp.HIGH)
+    assert first["route"] == ("full" if risky / len(first["keys"]) >= wp.FULL_SHARE else "light")

@@ -56,7 +56,7 @@ Exact unit lists: `_study-resume\overbuild\wave_units.json`. The full-library co
 
 ## 4. The loop for ONE wave (do exactly this)
 
-1. **Plan.** `python -m scripts.study.wave_plan SET.12 SET.13 ... --out <scratch>/waveN_args.json` (prints the full/light split).
+1. **Plan.** `python -m scripts.study.wave_plan SET.12 SET.13 ... --out <resume folder>/waveN_args.json` (prints the full/light split). From wave 2 on the DEFAULT is the balanced planner (evenly sized chunks of at most 36, riskiest first, a chunk is full-path when 40% or more of it is high risk); `--split` gives the wave 1 form (a small full chunk plus light chunks). Wave 2 is already planned: `_study-resume\overbuild\wave2_args.json` (21 chunks: 105 full-path, 547 light-path questions).
 2. **Launch.** `Workflow({scriptPath: "C:\\Users\\pgosz\\uct-worktrees\\_study-resume\\overbuild\\overbuild-wave-routed.js", args: {wave: "waveN", chunks: <the chunks list from the args file>}})`.
    Pass the REAL chunk list (an earlier launch once used a placeholder list by mistake; it was stopped at once). Never run two waves at once.
    If a usage limit stops it: relaunch the SAME script and args with `resumeFromRunId: "<run id>"`; finished agents replay from cache.
