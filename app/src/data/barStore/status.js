@@ -34,6 +34,9 @@ export function deriveStatus(s, ctx = {}) {
   const tailT = s.developing ? s.developing.t : s.bars[s.bars.length - 1].t
   // The held window predates the server's current history; a full read is in flight.
   if (s.restSeen && s.pendingHistoryRev != null) return STATUS.UPDATING
+  // P3-S2b: a live bar opened past MISSING expected buckets (reducer.liveGapStart) — the base is
+  // behind the live edge; a read is in flight until the server answers.
+  if (s.restSeen && s.liveGapFrom != null) return STATUS.UPDATING
 
   if (isDateTf(s.tf)) {
     let behind = false
@@ -52,8 +55,22 @@ export function deriveStatus(s, ctx = {}) {
   const settled = c === CURRENTNESS.CURRENT || c === CURRENTNESS.NO_EXPECTATION
   if (!s.restSeen) return settled ? STATUS.CONTEXT : STATUS.PROVISIONAL
   if (!settled) return STATUS.UPDATING
-  const verified = s.verifiedThrough != null || s.tailStatus === 'verified'
+  // P3-S2b: rows a TICK closed (the fallback, src 'tick') are the client's observation, not the
+  // server's — the tail is unverified until a REST answer replaces them (closed-row precedence:
+  // a REST row outranks a tick row). `verifiedThrough` is only ever the server's claim.
+  const verified = (s.verifiedThrough != null || s.tailStatus === 'verified') && !tickClosedTail(s)
   return verified ? STATUS.CURRENT : STATUS.CONTEXT
+}
+
+/** Does the tail hold a closed row a tick produced, after the newest server (REST) row? */
+export function tickClosedTail(s) {
+  const bars = s.bars || []
+  for (let i = bars.length - 1; i >= 0; i--) {
+    const src = bars[i].src
+    if (src === 'rest') return false
+    if (src === 'tick') return true
+  }
+  return false
 }
 
 /**

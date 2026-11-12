@@ -314,3 +314,28 @@ base paint, two static Model Book repaints and the store paint; every legacy exp
 BARSTORE), `singleWriterIndex.test.js` (derives writers in both files; StockChart holds only writer S),
 `StockChart.barStoreLive.test.jsx` (painted P1 H↑ L↓ open-once V↑ per bucket, P2 painted = newest, P3 a
 rolled candle = the store's closed row, HA, R1 at runtime with a quote that only the legacy source paints).
+
+## P3-S2b — the live input is whichever live source is active; gaps and tick rows are statuses
+
+- **One D/W/M fold base, two live sources** (`liveFeed.js`). The fold state (the server's developing
+  period bar + its arrival) is tracked whether or not push is on. Push gated off (prod:
+  `VITE_REALTIME_BARS=0`): the tick fallback drives the period bar — price (H/L union, close; RTH
+  ticks only, as the 1m fold) and VOLUME from the live-price feed's cumulative day volume
+  (`periodTickVolume`, the one owner): D = max(base.v, dayVol); W/M = base.v + the day volume added
+  since the base arrived (unknown arrival / another day ⇒ nothing: v ≤ truth until REST). The reducer
+  takes it on `tick-fallback` as `event.v` (period keys only), never lowering the volume. Push is not
+  enabled by this.
+- **Legend (BARSTORE)**: reads the bar the store paint painted (every tick → dev channel → paint;
+  the off-cursor legend re-reads it ≤ 500 ms); the D % is against the series' own prior bar close,
+  never the feed's prev_close / change_pct (another day's reference before today's bar exists).
+- **Live gap** (`reducer.liveGapStart`, `liveGapFrom`): a LIVE action that opens a developing bucket
+  past MISSING expected buckets (session- and trading-day-aware walk; the overnight / weekend /
+  holiday jump is no gap) records the first missing bucket. Status `updating`, `deltaFrom` ≤ it, the
+  store kicks ONE read per gap (index.js), and `viewDevelopingOf` paints no developing bar while it is
+  set. Any server answer clears it (what the server still lacks is its truth — a thin name's empty
+  bucket — never re-flagged by the same bar).
+- **Tick-closed rows** (`status.tickClosedTail`): a closed row the tick fallback produced (src
+  `tick`) after the newest REST row keeps status below `current` until a REST answer replaces it
+  (closed-row precedence: rest > tick); `verifiedThrough` is only ever the server's claim.
+- **R1 census widened**: candle AND volume write sites, per (statement, method); updateChart's
+  `_applyData` incremental `update()` is its own row.
