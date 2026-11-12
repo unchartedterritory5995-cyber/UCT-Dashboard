@@ -188,7 +188,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
-import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
+import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
 // ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
 // price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
 import PlotEndLabel from './chart/pane/PlotEndLabel'
@@ -328,13 +328,14 @@ function sameEndTagChips(a, b) {
   return true
 }
 
-function priceHostChips(chips, hostOf, tf) {
+function priceHostChips(chips, hostOf, tf, owners = paneTableOwners(chips, tf, hostOf)) {
   const out = { table: null, ends: [] }
   if (!Array.isArray(chips) || !chips.length) return out
   for (const c of chips) {
     if (!c || c.hidden === true) continue
     if (c.endLabel) out.ends.push(c)
-    if (!out.table && c.paneTable && paneTableShownOn(c.paneTable, tf)) {
+    // ⭐ ONE STRIP PER CHART (2026-11-12): only a chip `paneTableOwners` picked.
+    if (!out.table && owners.has(c)) {
       let host = null
       try { host = hostOf ? hostOf(c) : null } catch { host = null }
       if (host === null) out.table = c
@@ -20585,7 +20586,13 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
+        && (() => {
+        // ⭐ ONE STRIP PER CHART (2026-11-12, observed live on QQQ): with the RS
+        // line and RS Rating both on, the same ranks strip drew on the price pane
+        // AND in the rating pane. `paneTableOwners` picks one per table label; the
+        // rating pane yields while a visible RS line shows its strip.
+        const tableOwners = paneTableOwners(crosshairData.chips, resolvedTf, chipPaneHost)
+        return paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
         // ⭐ ONE LOGICAL INDICATOR (a COT dataset) READS ON ONE LINE (owner,
         // 2026-09-30): title, then each participant's name and value to its right,
         // so the readout sits above the bars instead of stacking down over them.
@@ -20594,7 +20601,7 @@ export default function StockChart({
         // ⭐ UCT RS design round (2026-11-08) — the pane's corner table: the first
         // chip in the pane whose definition declares one and resolves it, on a
         // timeframe it is shown on (the RS ranks are daily). One table per pane.
-        const tableChip = row.chips.find((c) => c && c.paneTable && paneTableShownOn(c.paneTable, resolvedTf)) || null
+        const tableChip = row.chips.find((c) => c && tableOwners.has(c)) || null
         return (
         <Fragment key={row.key}>
         {tableChip ? (
@@ -20711,7 +20718,8 @@ export default function StockChart({
         </div>
         </Fragment>
         )
-      })}
+      })
+      })()}
       {/* ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND.
           (a) The ranks strip (`meta.paneTable`) for an instance drawn with the
               candles — the same `PaneRanksTable`, same markup, same classes as the
