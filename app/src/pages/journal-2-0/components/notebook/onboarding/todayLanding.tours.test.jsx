@@ -5,6 +5,13 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
+ * ⚰️ Notebook simplify, Task 5 (2026-11-11): Research Home is no longer routed; `?view=home` opens the notes list. The
+ * four tours below that start on Research Home's boxes now land on the list, where their first anchor is not drawn
+ * (the engine skips a step whose anchor is absent). Re-pointing them is the go-live pass's
+ * (docs/notebook/simplify-2026-11-11-ledger.md, Task 5): `DEFERRED_TO_GO_LIVE` names them, and this rail pins that
+ * list to exactly the tours whose first anchor lives in a Research Home file, so a re-pointed tour has to leave it.
+ * What follows describes the rail as it was written:
+ *
  * Tier 3b fix round 1 (I2): with the Today home as the DEFAULT landing (the production setting, ON here --
  * test-setup.js turns it off for the older suites), every Learn tour that starts on the Notebook route is started AT
  * ITS ROUTE through the real NotebookTab, and the page drawn there must be the one that holds its first anchor.
@@ -43,6 +50,9 @@ const HOME_FILES = new Set(['components/notebook/ResearchHome.jsx',
   ...[...RH_SRC.matchAll(/import\(\s*'\.\/(\w+)'\s*\)|from '\.\/(\w+)'/g)]
     .map((m) => `components/notebook/${m[1] || m[2]}.jsx`)])
 
+// The walkthroughs whose first anchor is on Research Home (no longer routed): re-pointed at go-live.
+const DEFERRED_TO_GO_LIVE = Object.freeze(['voice-notes', 'review-drafts', 'earnings-prep', 'passed-setups'])
+
 const notebookStarts = TOUR_REGISTRY.filter((t) => typeof t.start === 'string'
   && new URL(t.start, 'http://x.invalid').pathname === NOTEBOOK_ROOT)
 
@@ -59,7 +69,7 @@ beforeEach(() => {
 })
 afterEach(() => { setCurrentAccountId(null) })
 
-describe('every Learn tour that starts on the Notebook lands where its first anchor lives (Today ON)', () => {
+describe('every Learn tour that starts on the Notebook lands on the notes list (Task 5; Today ON)', () => {
   it('NON-VACUITY: the four Research Home tours are among them, and their hosts are Research Home files', async () => {
     const ids = notebookStarts.map((t) => t.id)
     for (const id of ['voice-notes', 'earnings-prep', 'passed-setups', 'review-drafts']) expect(ids).toContain(id)
@@ -68,16 +78,20 @@ describe('every Learn tour that starts on the Notebook lands where its first anc
     expect(HOME_FILES.has('components/notebook/NewNoteMenu.jsx')).toBe(true)
   })
 
-  it.each(notebookStarts.map((t) => [t.id, t]))('%s', async (_id, entry) => {
-    const loaded = await entry.load()
-    const first = loaded.steps[0]
-    render(<MemoryRouter initialEntries={[entry.start]}><NotebookTab /></MemoryRouter>)
-    if (HOME_FILES.has(first.file)) {
-      await screen.findByTestId('research-home', {}, T)
-    } else {
-      await screen.findByTestId('folder-sidebar', {}, T)
-      expect(screen.queryByTestId('research-home')).toBeNull()
+  it('the deferred list is exactly the tours whose first anchor lives in a Research Home file', async () => {
+    const onHome = []
+    for (const t of notebookStarts) {
+      const { steps } = await t.load()
+      if (HOME_FILES.has(steps[0].file)) onHome.push(t.id)
     }
+    expect(onHome.sort()).toEqual([...DEFERRED_TO_GO_LIVE].sort())
+  })
+
+  it.each(notebookStarts.map((t) => [t.id, t]))('%s', async (_id, entry) => {
+    render(<MemoryRouter initialEntries={[entry.start]}><NotebookTab /></MemoryRouter>)
+    await screen.findByTestId('folder-sidebar', {}, T)
+    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
+    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.queryByTestId('today-home')).toBeNull()
   })
 })

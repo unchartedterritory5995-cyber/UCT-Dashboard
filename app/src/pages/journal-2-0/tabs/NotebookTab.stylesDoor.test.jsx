@@ -58,27 +58,26 @@ describe('the Styles door on the Notebook tab', () => {
 
   // Task 15 (fin walk, 2026-10-12): the Settings card links to `/journal/notebook?styles=1` with NO `view=all`,
   // which lands on Research Home. The manager was mounted inside the notes-list branch, so that link opened
-  // nothing. The href is READ from the real card (never retyped), and the control proves Home is what rendered.
-  it("the Settings card's own link opens the manager on Research Home", async () => {
+  // nothing. The href is READ from the real card (never retyped). Notebook simplify, Task 5: that bare address is the
+  // notes list now (it was Research Home), so the control proves the LIST is what rendered.
+  it("the Settings card's own link opens the manager on the bare Notebook (the list)", async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<Providers route="/settings"><JournalStylesCard /></Providers>)
     const href = screen.getByRole('link', { name: 'Manage templates' }).getAttribute('href')
     cleanup()
-    expect(href).not.toMatch(/view=/)                                       // the case under test: Home, not the list
+    expect(href).not.toMatch(/view=/)                                       // the case under test: the bare address
     render(<Providers route={href}><NotebookTab /></Providers>)
     await settle()
-    expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
-    expect(await screen.findByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     expect(await screen.findByRole('heading', { name: 'Manage templates' })).toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Notes list tools' })).toBeInTheDocument()   // control: the list is here
   })
 
-  // Task 15 review Minor 7: the same deep link on Research Home (the Settings card's own URL), switch OFF.
-  it('?styles=1 on Research Home opens nothing, and asks for nothing, when the switch is off', async () => {
+  // Task 15 review Minor 7: the same deep link with no `view=` (the Settings card's own URL), switch OFF.
+  it('?styles=1 on the bare Notebook opens nothing, and asks for nothing, when the switch is off', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: false })
     render(<Providers route="/journal/notebook?styles=1"><NotebookTab /></Providers>)
     await settle()
-    expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
-    expect(await screen.findByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
+    expect(await screen.findByRole('toolbar', { name: 'Notes list tools' })).toBeInTheDocument()   // control: the list
     await settle()
     expect(screen.queryByRole('heading', { name: 'Manage templates' })).toBeNull()
     expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('journal-styles'))).toBe(false)

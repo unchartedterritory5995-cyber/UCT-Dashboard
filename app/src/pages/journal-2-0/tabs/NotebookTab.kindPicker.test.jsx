@@ -20,8 +20,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-let homeProps = null
-vi.mock('../components/notebook/ResearchHome', () => ({ default: (p) => { homeProps = p; return <div data-testid="research-home" /> } }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 vi.mock('../lib/noteCreation', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -55,7 +53,6 @@ let urls
 beforeEach(() => {
   vi.clearAllMocks()
   urls = []
-  homeProps = null
   setCurrentAccountId('acct-A')
   global.fetch = vi.fn(async (url) => {
     const u = String(url)
@@ -74,18 +71,8 @@ const renderTab = () => render(
 )
 
 describe('New note: pick a kind (Notebook P1)', () => {
-  it('the Home New-note menu gets a "From a template" door only while the switch is on', async () => {
-    latchNotebookFlags({ notebook_journal_styles_enabled: true })
-    const { unmount } = render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
-    await screen.findByTestId('research-home')
-    expect(typeof homeProps.onFromStyle).toBe('function')
-    unmount()
-    __resetNotebookFlags()
-    homeProps = null
-    render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
-    await screen.findByTestId('research-home')
-    expect(homeProps.onFromStyle).toBeNull()
-  })
+  // ⚰️ "the Home New-note menu gets a From a template door only while the switch is on" pinned Research Home's own
+  // menu. Notebook simplify, Task 5: Research Home is not routed; the one door is the list ▾ (the last case below).
 
   it('switch on: a kind makes a note of that kind through the one create door', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
@@ -135,11 +122,13 @@ describe('New note: pick a kind (Notebook P1)', () => {
       .toContain("Couldn't create that note. Nothing was saved."))
   })
 
+  // Notebook simplify, Task 5: through the list ▾ (it went through Research Home's menu, which is not routed).
   it('From a template opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
-    await screen.findByTestId('research-home')
-    act(() => { homeProps.onFromStyle() })
+    const bar = await screen.findByRole('toolbar', { name: 'Notes list tools' })
+    fireEvent.click(within(bar).getByRole('button', { name: 'More ways to start a note' }))
+    act(() => { within(screen.getByRole('menu', { name: 'Start a note' })).getByRole('menuitem', { name: 'From a template' }).click() })
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     // not even for a moment: the search box must not grab focus while the kinds are still loading
     expect(document.activeElement).not.toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' }))
@@ -150,7 +139,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
 
   // Tier 1b fix round 1 (review Minor 11): the list's ▾ lost the note-type door (the old caret's "From a style"). It
   // is back as "From a template", exactly Home's. Notebook simplify, Task 3: the list's "From an outline" (the same
-  // sheet, search first) is gone from the ▾ -- one door to the sheet; Research Home keeps its own.
+  // sheet, search first) is gone from the ▾ -- one door to the sheet (Research Home's own went with it in Task 5).
   it('switch on: the list ▾ offers From a template (no From an outline), and it focuses the first kind', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()

@@ -100,7 +100,8 @@ describe('folder delete (FolderSidebar) -- focus goes to the neighbouring folder
 
 // Notebook simplify, Task 2 (2026-11-11): the saved views are the View menu's "Saved views" group now. Its Delete hands
 // focus to the menu's "View" button before the confirm opens, so the confirm gives focus back THERE; when the delete
-// takes the list (and its toolbar) away -- the view in use -- the fallback is the pane's heading. ⚰️ The old rail
+// takes the list (and its toolbar) away the fallback is the pane's heading (since Task 5 the view in use no longer
+// does: its delete lands on the bare Notebook, which is the list). ⚰️ The old rail
 // here pinned the neighbouring view ROW of the folders panel, which no longer lists saved views.
 describe('saved-view delete (NotebookTab, from the View menu) -- focus goes back to the View button, else the heading', () => {
   async function renderTab(views) {
@@ -129,15 +130,17 @@ describe('saved-view delete (NotebookTab, from the View menu) -- focus goes back
     expect(within(group).getByRole('menuitemradio', { name: 'Watching' })).toBeTruthy()
   })
 
-  it('deleting the view IN USE (it takes the list and its toolbar away) lands on the pane heading', async () => {
+  // Notebook simplify, Task 5: deleting the view in use lands on the bare Notebook, which IS the list now (it used to
+  // be the member's landing, a home without the toolbar, so focus fell back to the pane heading). The toolbar stays,
+  // so focus goes back to the View button like any other delete.
+  it('deleting the view IN USE leaves All notes on screen, and lands on the View menu button', async () => {
     const user = userEvent.setup()
     await renderTab([TWO_VIEWS[0]])
     await chooseSavedView('Active theses')
     await settle()
     await confirmViewDelete(user, 'Active theses')
-    expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull()
+    expect(screen.getByRole('heading', { level: 2, name: 'All notes' })).toBeTruthy()
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement.tagName).toBe('H2')
-    expect(document.getElementById('notebook-pane').contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^View:/ }))
   })
 })

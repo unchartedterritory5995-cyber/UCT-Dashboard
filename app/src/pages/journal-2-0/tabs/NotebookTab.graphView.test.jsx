@@ -22,7 +22,7 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
       <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
       {/* ⛔ The real "All notes" door is onSelectAllNotes, which re-sets
           ?view=all. onSelectFolder(null) CLEARS that param and lands on
-          Research Home -- correct existing behaviour, and not this path. */}
+          the bare Notebook (Research Home until Task 5) -- not this path. */}
       <button type="button" onClick={onSelectAllNotes}>go to all notes</button>
     </div>
   ),
@@ -214,10 +214,13 @@ describe('NotebookTab — graph view wiring', () => {
       expect(currentView()).toBe('Table')
     })
 
-    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', async () => {
+    // Notebook simplify, Task 5: a bare /journal is the notes list now (it rendered Research Home), in the List mode.
+    it('a bare /journal (no view param) renders the notes list in List mode, never the graph', async () => {
       renderTab('/journal')
-      // Tier 3b fix round 1 (I1): Research Home is a lazy view now, so it arrives a tick later.
-      expect(await screen.findByTestId('research-home')).toBeInTheDocument()
+      await screen.findByRole('toolbar', { name: 'Notes list tools' })
+      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('note-graph')).not.toBeInTheDocument()
+      expect(currentView()).toBe('List')
     })
   })
 

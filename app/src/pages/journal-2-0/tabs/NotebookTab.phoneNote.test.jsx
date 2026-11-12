@@ -231,10 +231,11 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
     expect(showFoldersBtn()).not.toBeNull()
   })
 
-  it('Research Home (no folder chosen) folds the panel at phone width', async () => {
+  // Notebook simplify, Task 5: the bare Notebook (no folder chosen) is the list now; it was Research Home.
+  it('the bare Notebook (no folder chosen) folds the panel at phone width', async () => {
     setWidth(390)
     renderAt('/journal/notebook')
-    await screen.findByTestId('research-home')
+    await screen.findByRole('toolbar', { name: 'Notes list tools' })
     expect(showFoldersBtn()).not.toBeNull()
   })
 

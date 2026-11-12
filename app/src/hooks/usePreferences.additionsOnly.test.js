@@ -134,11 +134,8 @@ const BASELINE_KEYS = {
   // Notebook P2a (trader blocks, 2026-10-12): Log Trade's pre-entry checklist opt-in. PortfolioSettingsModal
   // writes one of three strings ('off' / 'on' / 'on-warn'), so a scalar. Literal at the call site.
   notebook_log_trade_checklist: 'scalar',
-  // Notebook S15/S18 (9838de951f, 2026-11-05): the Today home's "Open the Notebook on" choice
-  // (TodayHome.jsx LandingChoice). It landed as an opaque site (LANDING_PREF) and sat red on master;
-  // made literal at the call site 2026-11-08, as notebook_sample/notebook_tour were. Stores one
-  // landing id string from LANDINGS, so a scalar.
-  notebook_landing: 'scalar',
+  // ⚰️ notebook_landing (the Today home's "Open the Notebook on", 2026-11-05) left with its only write site:
+  // Notebook simplify Task 5 (2026-11-11) made the Notebook open on the notes list, and the choice went.
   // ⭐ S5 CP2 sweep 2026-09-29 (fix/master-reds): notebook_sample/notebook_tour
   // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
   // NotebookTour.jsx) made literal at the call site rather than baselined —

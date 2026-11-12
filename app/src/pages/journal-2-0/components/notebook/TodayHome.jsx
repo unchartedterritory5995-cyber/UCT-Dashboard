@@ -1,4 +1,8 @@
 // Audit 2026-11-05, spec S15 (mockup M1) and S18: the Today home -- the reason to open the Notebook every morning.
+// Notebook simplify, Task 5: it is the "Daily brief" now, an optional page (`?view=today`, the folders panel's "Daily
+// brief" row). The Notebook opens on the notes list; this page no longer offers "Open the Notebook on" or a Research
+// home link. Below the cards it carries two of Research home's boxes, folded: "Reporting soon" and "Passed setups"
+// (each only while its switch is on; folded, a box is not mounted and reads nothing).
 //
 // ⛔⛔ ONE REQUEST. Everything here is `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py): today's
 // note (made from the member's daily template the first time today), the setups near entry, the member's names,
@@ -16,17 +20,18 @@
 //
 // The cards' ORDER follows the ET session (`cardOrder`): the plan first before the open, the setups and names during
 // the session, and after the close the recap first (S18, from 16:05 ET on a session day).
-import { useContext, useEffect, useId, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Suspense, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import { AuthContext } from '../../../../context/AuthContext'
 import usePreferences from '../../../../hooks/usePreferences'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import LoadFailed from '../LoadFailed'
+import CollapsibleSection from '../CollapsibleSection'
 import EmptyNamesAsk from './EmptyNamesAsk'
 import FirstPlanAsk from './FirstPlanAsk'
 import { FirstRunInlineSlot } from './FirstRunGate'
-import { importWithOneRetry } from '../../lib/lazyChunk'
+import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
 import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, openDailyNote } from '../../lib/dailyNote'
 import { openCapture } from '../../lib/captureBus'
 import { firstRunInlineIsDue } from '../../lib/firstRun'
@@ -36,10 +41,17 @@ import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
-import { LANDINGS, LANDING_PREF, resolveLanding } from '../../lib/todayHome'
+import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
+import { passedSetupsEnabled } from '../../lib/researchCapture'
+import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
+import { getRegistryTourWanted, subscribeRegistryTourWanted } from './onboarding/tourRegistryControl'
 import styles from './TodayHome.module.css'
 
 export const TODAY_URL = '/api/j2/notes/today'
+
+// Research home's two boxes, fetched only while their switch is on and the member opens them.
+const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
+const PassedSetups = lazyChunk(() => import('./PassedSetups'))
 
 /** S18's button, verbatim. */
 export const RECAP_ACTION = "Write today's recap (about 1 minute)"
@@ -476,21 +488,29 @@ function SkeletonCard({ id, wide }) {
   )
 }
 
-// ⛔ The write names the key LITERALLY (`notebook_landing`, the value of LANDING_PREF) so the
-// preferences additions-only rail (hooks/usePreferences.additionsOnly.test.js) can read which key
-// is written; an identifier there is an opaque site it cannot classify. The read keeps the constant.
-// TodayHome.test.jsx asserts the POSTed key equals LANDING_PREF, so the two cannot drift apart.
-function LandingChoice() {
-  const { prefs, setPref, loading } = usePreferences()
-  const uid = useId()
-  const value = resolveLanding(prefs?.[LANDING_PREF], { on: true })
+/** Research home's "Reporting soon" and "Passed setups", below the cards, folded by default (the member's own
+ *  open/closed choice is kept per box, CollapsibleSection). A walkthrough running now unfolds both, so its anchors are
+ *  on screen; the palette's "Earnings prep" (`#prep`) unfolds Reporting soon. */
+function MoreBoxes({ onOpenNote }) {
+  const prepOn = earningsPrepEnabled()
+  const passedOn = passedSetupsEnabled()
+  const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  const location = useLocation()
+  if (!prepOn && !passedOn) return null
+  const tourSignal = tourWanted ? `tour:${tourWanted}` : null
+  const prepSignal = location.hash === NOTEBOOK_PREP_HASH ? `prep:${location.key}` : null
   return (
-    <div className={styles.landing}>
-      <label htmlFor={`${uid}-landing`}>Open the Notebook on</label>
-      <select id={`${uid}-landing`} className={styles.select} value={value} disabled={loading}
-        onChange={(e) => setPref('notebook_landing', e.target.value)}>
-        {LANDINGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-      </select>
+    <div className={styles.more} data-today-more="">
+      {prepOn && (
+        <CollapsibleSection id="nb-today-reporting-soon" title="Reporting soon" openSignal={tourSignal || prepSignal}>
+          <Suspense fallback={null}><ReportingSoon onOpenNote={onOpenNote} /></Suspense>
+        </CollapsibleSection>
+      )}
+      {passedOn && (
+        <CollapsibleSection id="nb-today-passed-setups" title="Passed setups" openSignal={tourSignal}>
+          <Suspense fallback={null}><PassedSetups /></Suspense>
+        </CollapsibleSection>
+      )}
     </div>
   )
 }
@@ -569,7 +589,7 @@ function FirstRunSlot({ onOpenNote, onOpenToday }) {
 }
 
 export default function TodayHome({
-  onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice, todayRead = 'make',
+  onOpenNote, onCreateNote, onSelectAllNotes, onNoteMade, onNotice, todayRead = 'make',
   dailyTemplateId = '',
 }) {
   const auth = useContext(AuthContext)
@@ -651,12 +671,7 @@ export default function TodayHome({
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
       <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
-      <footer className={styles.foot}>
-        <LandingChoice />
-        {onOpenResearchHome && (
-          <button type="button" className={styles.link} onClick={onOpenResearchHome}>Research home →</button>
-        )}
-      </footer>
+      <MoreBoxes onOpenNote={onOpenNote} />
     </div>
   )
 }

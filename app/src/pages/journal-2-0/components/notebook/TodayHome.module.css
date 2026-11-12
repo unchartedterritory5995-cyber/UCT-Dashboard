@@ -155,8 +155,7 @@ button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94,
 .quote { font-size: 14px; line-height: 1.45; }
 .from { font-size: 12px; color: var(--text-muted); }
 
-.action,
-.link {
+.action {
   min-height: 36px;
   padding: 6px 12px;
   border-radius: var(--radius-sm, 4px);
@@ -169,33 +168,15 @@ button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94,
 }
 .action { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-bright); }
 .action:hover { border-color: rgba(220, 187, 94, 0.5); }
-.link { background: transparent; border: none; color: var(--text-muted); padding-left: 0; }
-.link:hover { color: var(--ut-gold); }
 @media (max-width: 1024px) {
-  .action, .link { min-height: var(--tap-min); }
+  .action { min-height: var(--tap-min); }
 }
 
-.foot {
+/* Notebook simplify, Task 5: Research home's "Reporting soon" and "Passed setups", folded, below the cards. */
+.more {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.landing { display: flex; align-items: center; gap: 8px; }
-.select {
-  min-height: 36px;
-  padding: 4px 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--field-edge);
-  border-radius: var(--radius-sm, 4px);
-  color: var(--text-bright);
-  font: inherit;
-}
-@media (max-width: 1024px) {
-  .select { min-height: var(--tap-min); }
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
 .skeleton { gap: 10px; }

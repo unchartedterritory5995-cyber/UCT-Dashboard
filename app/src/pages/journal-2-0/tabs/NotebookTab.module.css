@@ -465,7 +465,8 @@
   .phoneFolders { display: inline-flex; }
   .wrap[data-list-toolbar] > .sidebarToggle { display: none; }
   .newWrap .newSplit,
-  .newWrap .todayBtn { display: none; }
+  .newWrap .todayBtn,
+  .newWrap .aiBtn { display: none; }
   .phoneOnlyItem { display: flex !important; }
   /* 16px inputs avoid the iOS focus-zoom */
   .search, .sortSelect { font-size: 16px; }
@@ -824,11 +825,6 @@
   cursor: not-allowed;
 }
 
-/* Audit 2026-11-05, S15: a bare Notebook while the member's landing is still being read. It holds the space the
-   landing will fill, so the page does not jump when it arrives. */
-.landingPending {
-  min-height: 60vh;
-}
 
 /* VIS-6 (live finding, 390 px): the sort's face. Not drawn above the touch tier. At <=1024 px the select (16 px,
    so iOS never zooms) is a transparent layer over a face drawn with View's own button classes, so the three

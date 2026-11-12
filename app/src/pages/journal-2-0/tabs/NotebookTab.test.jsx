@@ -52,6 +52,10 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
         <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
         <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
         <button type="button" onClick={props.onToggleSidebar}>test: toggle the folders panel</button>
+        {/* Lane KEYS3: the tab's own `openNote` (the panel's onOpenNote is that door), a plain open and a drafted
+            review's open. Notebook simplify, Task 5: these stood on the Research Home stub, which is not routed. */}
+        <button type="button" onClick={() => props.onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
+        <button type="button" onClick={() => props.onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
       </div>
     )
   },
@@ -93,30 +97,6 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
   default: () => null,
 }))
-// Wave H: ResearchHome makes its own real SWR fetch -- mocked here the same
-// way every other heavy child in this file is, so these tests stay about
-// the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
-// lives in ResearchHome.test.jsx).
-// P0.1: every render pushes the props Home was handed, so a test can call the handlers the
-// tab passes down (the New-note sheet and voice door live in the TAB, not in Home).
-const researchHomeProps = []
-const lastResearchHomeProps = () => researchHomeProps[researchHomeProps.length - 1]
-vi.mock('../components/notebook/ResearchHome', () => ({
-  // Lane KEYS3: two buttons stand in for Home's doors, so the tab's own `openNote` can be
-  // exercised the way Home's boxes call it (a plain open; a drafted review's open).
-  default: (props) => {
-    const { onOpenNote } = props
-    researchHomeProps.push(props)
-    return (
-    <div data-testid="research-home">
-      Research Home
-      <button type="button" onClick={() => onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
-      <button type="button" onClick={() => onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
-    </div>
-    )
-  },
-}))
-
 // Task 7.4 (ruling R-6): a seam over the catalog loader, transparent unless a test sets `loaderHooks.getTemplateAsync`,
 // so a test can hold the deep link's catalog load open and land it after the tab has gone.
 const { loaderHooks } = vi.hoisted(() => ({ loaderHooks: { getTemplateAsync: null } }))
@@ -179,11 +159,9 @@ beforeEach(() => {
   })
 })
 
-// Wave H: bare-root now renders Research Home (checkpoint decision 33/57).
-// These tests are about the tab's OWN template-picker/grid/toolbar wiring
-// (per the file's own header comment above), not Home -- `?view=all` is the
-// explicit flag that keeps them landing on the grid unchanged. Tests that
-// exercise Home itself live in NotebookTab.researchHome.test.jsx.
+// These tests are about the tab's OWN template-picker/grid/toolbar wiring. `?view=all` was the flag that kept them on
+// the grid while bare-root rendered Research Home (Wave H); since Notebook simplify Task 5 the bare Notebook is the
+// list too, and the default stays `?view=all` so nothing here moved.
 function renderTab(entry = '/journal?view=all') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
@@ -379,15 +357,6 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.title).toMatch(/GH/)
   })
 
-  it('Task 7.2: the New thesis action on Research Home awaits the catalog and creates the thesis note', async () => {
-    renderTab('/journal/notebook')
-    await screen.findByTestId('research-home')
-    lastPostBody = null
-    await act(async () => { await lastResearchHomeProps().onCreateThesis() })
-    await waitFor(() => expect(lastPostBody).not.toBeNull())
-    expect(lastPostBody.tags).toEqual(['thesis'])
-  })
-
   // Task 7.4 (ruling R-6): the deep link awaits the catalog. If the tab unmounts while it loads, nothing is made.
   it('Task 7.4: a deep link whose catalog lands after the tab unmounted creates nothing', async () => {
     let land = null
@@ -402,7 +371,7 @@ describe('NotebookTab — template picker', () => {
   })
 
   // Task 7.4 fix round 1 (R-6): a member who opens a note while the deep link's catalog loads keeps that note; the
-  // late template makes nothing. The note is opened through Research Home's own door (its mock's button).
+  // late template makes nothing. The note is opened through the tab's own door (the folders panel stub's button).
   it('Task 7.4: a deep link whose catalog lands after a note was opened creates nothing', async () => {
     let land = null
     loaderHooks.getTemplateAsync = () => new Promise((resolve) => { land = resolve })
@@ -497,11 +466,15 @@ describe('NotebookTab — template picker', () => {
   })
 })
 
-describe('NotebookTab — Wave H Research Home vs. All Notes grid', () => {
-  it('bare-root (no note/folder/tag/view) renders Research Home, not the grid', () => {
+// Notebook simplify, Task 5: Research Home is no longer routed. The bare Notebook IS the notes list (⚰️ it rendered
+// Research Home, and the list was `?view=all` only); the cases below keep proving no page but the list or the editor
+// is drawn.
+describe('NotebookTab — the bare Notebook is the notes list (Wave H, Task 5)', () => {
+  it('bare-root (no note/folder/tag/view) renders the notes list and its empty-notebook picker', () => {
     renderTab('/journal/notebook')
-    expect(screen.getByTestId('research-home')).toBeInTheDocument()
-    expect(screen.queryByText('Daily & weekly rituals')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Notes list tools' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Daily & weekly rituals' })).toBeInTheDocument()
   })
 
   it('?view=all renders the All Notes grid/picker, not Research Home', () => {
@@ -995,17 +968,6 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
     )).toBe(false)
   })
 
-  // ⚰️ Finish program FE2 round 2 pinned that the Delete on RESEARCH HOME opened the confirm (the folders panel, and
-  // its saved views, showed there too). Task 2 took the saved views out of the panel: Home has no saved-view row to
-  // delete from, and the View menu that lists them is the notes list's. The confirm itself still renders above the
-  // pane's branches.
-  it('on Research Home no saved-view row is offered (they are in the notes list View menu now)', async () => {
-    renderTab('/journal/notebook')
-    expect(screen.getByTestId('research-home')).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete My View' })).toBeNull()
-    expect(screen.queryByText('My View')).toBeNull()
-  })
-
   it('control: on the notes list the confirm is rendered once, not twice', async () => {
     renderTab()
     await pressSavedViewAction('Delete', 'My View')
@@ -1066,8 +1028,8 @@ describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in T
   })
 })
 
-// Lane KEYS3 (Q18): Research Home's review box opens the note it drafted asking for the first
-// collapsed block. The tab passes that on to the editor; a plain open is still the landmark.
+// Lane KEYS3 (Q18): a drafted review opens asking for the first collapsed block (the New ▾ "Reviews" group, and
+// Research Home's review box before it). The tab passes that on to the editor; a plain open is still the landmark.
 describe('lane KEYS3 (Q18): a drafted review opens on its first collapsed block', () => {
   it('an open that asks for "collapsed" reaches the editor as openFocus="collapsed"', async () => {
     renderTab('/journal/notebook')
@@ -1077,7 +1039,7 @@ describe('lane KEYS3 (Q18): a drafted review opens on its first collapsed block'
     expect(editor).toHaveAttribute('data-open-focus', 'collapsed')
   })
 
-  it('CONTROL: a plain open from Research Home is still the landmark', async () => {
+  it('CONTROL: a plain open is still the landmark', async () => {
     renderTab('/journal/notebook')
     fireEvent.click(await screen.findByRole('button', { name: 'test: open a note' }))
     const editor = await screen.findByTestId('note-editor')
@@ -1107,35 +1069,17 @@ describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s h
   })
 })
 
-describe('NotebookTab — P0.1 the New-note door on Research Home', () => {
-  it('Home receives working New-note handlers and the sheet opens from Home', async () => {
-    researchHomeProps.length = 0
-    renderTab('/journal/notebook')
-    expect(await screen.findByTestId('research-home')).toBeTruthy()
-    const props = lastResearchHomeProps()
-    expect(typeof props.onOpenNewNoteSheet).toBe('function')
-    // gates off in this file: no voice door is handed down, so the menu cannot list one
-    expect(props.onStartVoiceNote).toBeNull()
-    expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
-    act(() => props.onOpenNewNoteSheet())
-    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
-  })
-})
-
-// P0.13: search in place. The Home search box is an input that hands its text to the folders
-// panel's one search through the `#search` door; the panel reports when it is searching, and Home
-// steps aside so a member never sees two search boxes.
+// P0.13: search in place. The `#search` door (the command palette's, and Research Home's search box before Task 5)
+// hands its text to the folders panel's one search. ⚰️ The panel also reported when it was searching, so Home could
+// step aside; Home is not routed since Notebook simplify Task 5, so nothing asks for that report any more.
 describe('NotebookTab — P0.13 search in place', () => {
   const renderAt = (entry) => render(
     <MemoryRouter initialEntries={[entry]}>
       <NotebookTab />
     </MemoryRouter>,
   )
-  const lastHome = () => researchHomeProps[researchHomeProps.length - 1]
-
   beforeEach(() => {
     sidebarProps.length = 0
-    researchHomeProps.length = 0
   })
 
   it('the #search door carries the typed text to the panel as a seed, with a request to open', async () => {
@@ -1152,42 +1096,16 @@ describe('NotebookTab — P0.13 search in place', () => {
     expect(lastSidebarProps().searchSeed).toBe('')
   })
 
-  it('without the door there is no request and Home is not told to step aside', async () => {
+  it('without the door there is no request', async () => {
     renderAt('/journal/notebook')
-    await screen.findByTestId('research-home')
+    await screen.findByTestId('folder-sidebar')
     expect(lastSidebarProps().searchRequest).toBe(0)
-    expect(lastHome().searchActive).toBe(false)
   })
 
-  it('the panel reporting search mode makes Home step aside, and leaving search brings it back', async () => {
-    renderAt('/journal/notebook')
-    await screen.findByTestId('research-home')
-    act(() => lastSidebarProps().onSearchModeChange(true))
-    expect(lastHome().searchActive).toBe(true)
-    act(() => lastSidebarProps().onSearchModeChange(false))
-    expect(lastHome().searchActive).toBe(false)
-  })
-
-  it('a collapsed panel is not on screen, so Home keeps its own box then', async () => {
-    renderAt('/journal/notebook')
-    await screen.findByTestId('research-home')
-    act(() => lastSidebarProps().onSearchModeChange(true))
-    expect(lastHome().searchActive).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
-    expect(lastHome().searchActive).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
-    expect(lastHome().searchActive).toBe(true)
-  })
-
-  it('H14: the report the tab hands the panel is ONE stable function across every render', async () => {
+  it('Task 5: the tab no longer asks the panel for its search mode (Home, its only reader, is not routed)', async () => {
     renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
     await screen.findByTestId('folder-sidebar')
-    act(() => lastSidebarProps().onSearchModeChange(true))
-    act(() => lastSidebarProps().onSearchModeChange(false))
-    act(() => lastSidebarProps().onSearchModeChange(true))
-    expect(sidebarProps.length).toBeGreaterThan(3)                       // it did re-render
-    expect(new Set(sidebarProps.map((p) => p.onSearchModeChange)).size).toBe(1)
-    expect(sidebarProps.every((p) => typeof p.onSearchModeChange === 'function')).toBe(true)
+    expect(sidebarProps.every((p) => p.onSearchModeChange == null)).toBe(true)
   })
 
   // Fix round 1: fast typing in Home's box is one PUSH then REPLACE navigations carrying the
@@ -1202,7 +1120,7 @@ describe('NotebookTab — P0.13 search in place', () => {
         <NavProbe />
       </MemoryRouter>,
     )
-    await screen.findByTestId('research-home')
+    await screen.findByTestId('folder-sidebar')
     act(() => nav('/journal/notebook#search', { state: { q: 'n' } }))
     await waitFor(() => expect(lastSidebarProps().searchSeed).toBe('n'))
     const first = lastSidebarProps().searchRequest
@@ -1217,7 +1135,9 @@ describe('NotebookTab — P0.13 search in place', () => {
     await screen.findByTestId('folder-sidebar')
     await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
     const request = lastSidebarProps().searchRequest
-    act(() => lastSidebarProps().onSearchModeChange(true))
+    const renders = sidebarProps.length
+    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
+    expect(sidebarProps.length).toBeGreaterThan(renders)                 // it did re-render
     expect(lastSidebarProps().searchRequest).toBe(request)
     expect(lastSidebarProps().searchSeed).toBe('nvda')
   })

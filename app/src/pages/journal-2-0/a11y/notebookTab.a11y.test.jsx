@@ -40,9 +40,12 @@ for (const flagsOn of [false, true]) {
   describe(`NotebookTab view modes (wave-8 flags ${flagsOn ? 'ON' : 'OFF'})`, () => {
     beforeEach(() => { installFetch(); latchWave8Flags(flagsOn) })
 
-    axeSurface(`tab-home${flagsOn ? '' : ':flags-off'}`, async () => {
-      await renderTab('/journal/notebook')
-      await waitFor(() => expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull())
+    // Notebook simplify, Task 5: the bare Notebook is the list now (tab-list covers it); the one page that is not the
+    // list is the Daily brief (`?view=today`), read here in place of Research Home.
+    axeSurface(`tab-daily-brief${flagsOn ? '' : ':flags-off'}`, async () => {
+      await renderTab('/journal/notebook?view=today')
+      await waitFor(() => expect(document.querySelector('[data-today-home]')).not.toBeNull())
+      expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull()
       await settle()
     }, { level: 'page' })
 

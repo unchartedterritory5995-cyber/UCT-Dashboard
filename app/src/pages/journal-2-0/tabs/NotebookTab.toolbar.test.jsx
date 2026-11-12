@@ -43,11 +43,12 @@ const controls = () => [...bar().querySelectorAll('button, select')]
   .map((el) => (el.tagName === 'SELECT' ? `select:${el.getAttribute('aria-label')}` : (el.getAttribute('aria-label') || el.textContent.trim())))
 
 describe('the list toolbar is one row with exactly these controls', () => {
-  it('View, sort, Today, + New and its ▾, ⋯ -- in that order, nothing else', async () => {
+  it('View, sort, AI, Today, + New and its ▾, ⋯ -- in that order, nothing else', async () => {
     await renderTab()
     expect(controls()).toEqual([
-      // Notebook simplify, Task 3: the daily note's button says what it opens.
-      'View: List', 'select:Sort notes', "Today's note", '+ New', 'More ways to start a note', 'More notebook actions',
+      // Notebook simplify, Task 3: the daily note's button says what it opens. Task 5: "AI" (the notebook-wide Ask,
+      // Research home's, moved) sits before it.
+      'View: List', 'select:Sort notes', 'AI', "Today's note", '+ New', 'More ways to start a note', 'More notebook actions',
     ])
   })
 
@@ -213,9 +214,9 @@ describe('the stylesheet: one 32 px row on desktop, one 44 px row on a phone', (
     expect(base('.sortSelect').height).toBe('32px')
   })
 
-  it('a phone hides "+ New" and Today (the floating "+" and ⋯ carry them); the row wraps rather than overflow', () => {
+  it('a phone hides "+ New", Today and AI (the floating "+" and ⋯ carry them); the row wraps rather than overflow', () => {
     const phone = phoneBodies()
-    expect(phone).toMatch(/\.newWrap \.newSplit,\s*\.newWrap \.todayBtn \{ display: none; \}/)
+    expect(phone).toMatch(/\.newWrap \.newSplit,\s*\.newWrap \.todayBtn,\s*\.newWrap \.aiBtn \{ display: none; \}/)
     expect(phone).toMatch(/\.phoneOnlyItem \{ display: flex !important; \}/)
     expect(phone).toMatch(/\.toolbar \{ flex-wrap: wrap;/)   // fix round 1: wraps (NotebookTab.toolbarFits.test.js)
     // the folders door joins the row, and the standalone toggle steps aside while the row is on screen

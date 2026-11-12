@@ -759,15 +759,6 @@ function FolderNode({
   )
 }
 
-/** The Today row's day, the ET weekday ("Thu"), as M1 draws it. */
-function todayWeekdayShort() {
-  try {
-    return new Date().toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })
-  } catch {
-    return ''
-  }
-}
-
 export default function FolderSidebar({
   notes,
   // The TRUE "All notes" total (from SQL, via the parent's unfiltered
@@ -806,8 +797,8 @@ export default function FolderSidebar({
   // behavior when omitted, so an existing caller/test is unaffected.
   isHome = false,
   onSelectAllNotes = null,
-  // Audit 2026-11-05, S15 (M1): the Today row, above All notes -- drawn only when the Notebook hands in its door,
-  // so a caller or test without it renders exactly as before.
+  // Notebook simplify, Task 5: the "Daily brief" row (the Today home, `?view=today`), directly under All notes --
+  // drawn only when the Notebook hands in its door, so a caller or test without it renders exactly as before.
   isToday = false,
   onSelectToday = null,
   // Wave 6 fix round 1, I4 — item 8's rename, client side: `(from, to,
@@ -1836,24 +1827,6 @@ export default function FolderSidebar({
             <div role="tree" aria-label="Folders" ref={folderTree.ref}
               onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}
               onContextMenu={folderTree.onContextMenu}>
-            {onSelectToday && (
-              <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="Today"
-                aria-selected={isToday ? 'true' : undefined}>
-                <span className={styles.disclosureSpacer} aria-hidden="true" />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  data-tree-primary=""
-                  className={`${styles.row} ${isToday ? styles.rowActive : ''}`}
-                  aria-current={isToday ? 'true' : undefined}
-                  onClick={onSelectToday}
-                  data-today-row=""
-                >
-                  <span>Today</span>
-                  <span className={styles.count}>{todayWeekdayShort()}</span>
-                </button>
-              </div>
-            )}
             <div className={styles.rowWrap} role="treeitem" aria-level={1}
               aria-label={`All notes, ${notesTotal ?? notes.length}`}
               aria-selected={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}>
@@ -1877,6 +1850,24 @@ export default function FolderSidebar({
                 <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
+            {/* Notebook simplify, Task 5: the Daily brief, directly under All notes. No counter: it is a page, not a list. */}
+            {onSelectToday && (
+              <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="Daily brief"
+                aria-selected={isToday ? 'true' : undefined}>
+                <span className={styles.disclosureSpacer} aria-hidden="true" />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  data-tree-primary=""
+                  className={`${styles.row} ${isToday ? styles.rowActive : ''}`}
+                  aria-current={isToday ? 'true' : undefined}
+                  onClick={onSelectToday}
+                  data-today-row=""
+                >
+                  <span>Daily brief</span>
+                </button>
+              </div>
+            )}
             {tree.map((node) => (
               <FolderNode
                 key={node.id}
