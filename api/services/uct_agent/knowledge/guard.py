@@ -31,7 +31,8 @@ _INJECTION = re.compile(
     r"|\b(watchlist|layout|alert|chart|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
-    r"|reorder|list|explain|setup|record|web|quote)[A-Za-z]*\b"
+    # #1074 Layout Dock: layout.pinToBar / layout.unpinFromBar as bare names (layout.moveOnBar is "move"); stricter only
+    r"|reorder|list|explain|setup|record|web|quote|pin|unpin)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
