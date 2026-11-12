@@ -247,6 +247,8 @@ describe('the single-writer index is derived, not counted', () => {
       .toBeTruthy()
     expect(JSON.parse(m[1].replace(/'/g, '"'))).toEqual(['1', '5', '15', '30', '60'])
     expect(SRC).toContain('_barsPushEnabled() && realtimeTfEligible')
-    expect(SRC).toMatch(/provisionalStaleRef\.current = isIntraday &&/)
+    // P3-S0: the provisional-stale assignment moved with the bars selector into useLegacyChartBars.js.
+    const LEGACY_BARS = fs.readFileSync(path.join(ROOT, 'app/src/components/chart/useLegacyChartBars.js'), 'utf8')
+    expect(LEGACY_BARS).toMatch(/provisionalStaleRef\.current = isIntraday &&/)
   })
 })
