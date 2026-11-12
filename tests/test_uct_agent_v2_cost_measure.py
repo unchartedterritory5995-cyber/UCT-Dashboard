@@ -70,7 +70,10 @@ def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_of
     # 29_000 → 29_500 (2026-11-12, AUDIT ruling on #1070): the measured section grew 28739 B (master 478ed3c1d9) → 29078 B with
     # the four Drawing Boards actions; cost stays inside the owner's #1107 growth room (worst $0.3542 vs 0.3454 + 0.03). Each later
     # family moves this pin in its own commit with its own measured number — never pre-allocated.
-    assert r["bytes_per_round"][0] < 29_500
+    # 29_500 → 29_950 (2026-11-12, #1106 right-click parity, AUDIT rule: each family moves it with its own measured number):
+    # measured 29408 B (master 4d6c43659c, after #1104) → 29515 B with chartMenu.askAi / resetWatermark; worst $0.3575, still inside
+    # the owner's #1107 growth room (0.3454 + 0.03). The $ bar, the 0.25 cap and FLAGSHIP_BASELINE are unchanged.
+    assert r["bytes_per_round"][0] < 29_950
     record_property("flagship_worst_usd", r["worst_turn_usd"])
     if r["worst_turn_usd"] >= v2.DEFAULT_TURN_USD:
         warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "

@@ -470,7 +470,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-058 | Settings | Watermark alignment | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-059 | Settings | Watermark size/weight/colour/opacity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-059 "make the watermark bigger, bold, blue and 30% opacity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-060 | Settings | Move watermark | VERIFIED | agentChartSettingsTruth: writes opts.watermarkPos | pass 1/1 | panel, scripted model |
-| C1-061 | Settings | Reset watermark to centre | PARTIAL (SIMULATED) — covered: the watermark ends centred (watermark.x/y = 0.5 in opts.watermarkPos, Undo); not covered: the product's own Reset write (watermarkPos: null, ChartWidget.jsx:499), which no capability makes | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-061 | Settings | Reset watermark to centre | VERIFIED (SIMULATED) — chartMenu.resetWatermark writes the product's own Reset (opts.watermarkPos = null: Chart Settings → Watermark → "Reset to center", ChartWidget resetWatermark), read back from the widget, exact Undo; the x/y = 0.5 path (chart.setSetting) is still covered | ChartWidget.rclickParity.test.jsx: C1-061 (the same opts as the real Reset; exact Undo); agentChartMenu.test.jsx (one chart, #988 anchor, wrong-target control); c:chartMenu.resetWatermark; chartSettings.outcome.test.jsx: C1-061 | pass 4/4, 24/24, 3/3 + undo | widget + panel, scripted model |
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
@@ -509,7 +509,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-097 | Legend | Hide/show an indicator from chip | VERIFIED | c:indicator.hide; c:indicator.show | pass 9/9 | panel, scripted model |
 | C1-098 | Legend | Display in another pane from chip | VERIFIED | c:indicatorStyle.place-own-pane | pass 4/4 | panel, scripted model |
 | C1-099 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
-| C1-100 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C1-100 | Legend | Show latest value in header | MISSING — STOP (ownership): the writer is the Indicators chip menu (handleChipInfoValue → engine/infoValues addInfoValue), and the Indicators agent contract (agentMutations) has no info-value op; it needs an Indicators-owned op, not a second writer | none | n/a | none |
 | C1-101 | Legend | Add alert from chip | VERIFIED | c:indicatorAlert.threshold | pass 5/5 | panel, scripted model |
 | C1-102 | Legend | Delete indicator from chip | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C1-103 | Legend | Hide all indicators (Alt+Shift+I) | VERIFIED † | c:chartSetup.setIndicatorsHidden; agentChartViewControls: hides, reads back | pass 6/6 | panel, scripted model |
@@ -625,7 +625,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-038 | Panes | Reorder pane | VERIFIED | agentIndicatorsP2: E4 | pass 1/1 | panel, scripted model |
 | C2-039 | Panes | Resize pane by divider | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx:106 | pass 1/1 | runtime, no panel |
 | C2-040 | Panes | Reorder series within a pane | UNMAPPED | none | n/a | none |
-| C2-041 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C2-041 | Legend | Show latest value in header | MISSING — STOP (ownership): as C1-100 (the Indicators chip-menu writer; no agentMutations op) | none | n/a | none |
 | C2-042 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | c:indicatorCopy.duplicate | pass 4/4 | panel, partial |
 | C2-043 | Legend | Create custom copy | IMPLEMENTED / UNVERIFIED | agentDefinitions.test.js:96; agentDefinitions.test.js:110 | pass 2/2 | runtime, no panel |
 | C2-044 | Legend | Open Modify with UCT Intelligence | IMPLEMENTED / UNVERIFIED | agentIndicatorsM1.test.jsx:162 | pass 1/1 | runtime, no panel |
@@ -909,7 +909,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-221 | Workspace | Open the Agent | BLOCKED | none | n/a | none |
 | C3-222 | Workspace | Change a widget's UCT theme section | MISSING | none | n/a | none |
 | C3-223 | Workspace | Toggle the journal shortcut (Ctrl+Alt+J) | UNMAPPED | none | n/a | none |
-| C1-176 | Right-click | Send chart to Journal | MISSING | none | n/a | none |
-| C1-177 | Right-click | Send chart to Journal, choose where | MISSING | none | n/a | none |
-| C1-178 | Right-click | Ask AI about the symbol on a bar | MISSING | none | n/a | none |
+| C1-176 | Right-click | Send chart to Journal | VERIFIED (SIMULATED) — widget.sendToJournal over ChartWidget's own capture door sends the same capture, to the same default place (note), as the right-click "Send to Journal"; nothing is sent before Apply; no Undo (as at the door) | ChartWidget.rclickParity.test.jsx: C1-176 | pass 1/1 | widget (real ChartWidget), sendCaptureToJournal stubbed |
+| C1-177 | Right-click | Send chart to Journal, choose where | PARTIAL (SIMULATED) — covered: the destination (where = note / newNote / inbox, CaptureMenu's three Notebook targets) through widget.sendToJournal; not covered: the picker's comment and Copy chart link | agentWidgetControls.test.jsx: widget.sendToJournal "a named place goes through" (a chart, inbox); ChartWidget.rclickParity.test.jsx: C1-176 | pass | panel, stubbed send |
+| C1-178 | Right-click | Ask AI about the symbol on a bar | VERIFIED (SIMULATED) — chartMenu.askAi → host.charts.askAi → ChartWidget openAskAi, the opener the menu item calls (/research/:sym?section=ai); it opens after the receipt (as app.open); no Undo (Back), said on the receipt | ChartWidget.rclickParity.test.jsx: C1-178 (the same location as the menu click); agentChartMenu.test.jsx (the clicked chart only, #988 anchor, no-door refusal); c:chartMenu.askAi | pass 1/1, 24/24, 3/3 | widget + panel, scripted model |
 | C1-179 | Right-click | Add widget, floating at the click | MISSING | none | n/a | none |

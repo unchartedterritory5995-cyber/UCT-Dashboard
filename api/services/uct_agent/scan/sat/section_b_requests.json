@@ -11176,6 +11176,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -11524,6 +11528,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -11868,6 +11876,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -12222,6 +12234,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -12565,6 +12581,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -12913,6 +12933,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -13257,6 +13281,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -13872,6 +13900,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -14219,6 +14251,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -14562,6 +14598,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -15170,6 +15210,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -15514,6 +15558,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -16129,6 +16177,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -16734,6 +16786,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -17343,6 +17399,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -17687,6 +17747,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -18302,6 +18366,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -18646,6 +18714,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -19000,6 +19072,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -19350,6 +19426,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -19704,6 +19784,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -20048,6 +20132,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -20396,6 +20484,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -20739,6 +20831,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -21085,6 +21181,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -21691,6 +21791,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -22301,6 +22405,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -22906,6 +23014,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -23515,6 +23627,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -23858,6 +23974,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",

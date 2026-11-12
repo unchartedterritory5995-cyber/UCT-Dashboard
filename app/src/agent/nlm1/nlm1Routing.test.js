@@ -197,12 +197,16 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     multiChart: ['open multi chart as a 2x3', 'open my momentum nine grid', 'sync the crosshairs on every chart', 'turn groups mode on'],
     // #1074: the Layout Dock's bar — a place on the bar / dock, "unpin", or "pin" with "layout"
     layoutBar: ['take Swing off the bar', 'pin my Momentum layout', 'move Day Trading to the left on the layout bar'],
+    // family C (C1-178 / C1-061): Ask AI with about / on / for or a chart word; the watermark with a reset / back / default word
+    chartMenu: ['ask ai about this chart', 'open the ai on the nvda chart', 'reset the watermark on this chart', 'put the watermark back where it was'],
   }
   // #1070 negative controls: a bare "board" is the workspace — these never select drawingBoards
   it.each(['remove everything from the board', 'add a chart to the board', 'make the board 2x2', 'clear the board', 'new chart on the board'])
   ('"%s": not the Drawing Boards group', (msg) => {
     expect(wordsSelect('drawingBoards', msg)).toBe(false)
   })
+  // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
+  it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)
     for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
