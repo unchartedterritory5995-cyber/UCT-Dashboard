@@ -23,6 +23,7 @@ def test_quiet_window_table_keeps_each_job_minutes_out():
     assert t.get("flow_integrity_probe", 0) >= 300
     assert t.get("bars_continuous_audit", 0) >= 120
     assert t.get("breadth_self_heal", 0) >= 120
+    assert t.get("theme_index_prewarm", 0) >= 90
 
 
 def test_each_start_site_reads_the_table():
@@ -30,6 +31,7 @@ def test_each_start_site_reads_the_table():
     assert 'time.sleep(_BOOT_QUIET_S["flow_integrity_probe"])' in probe
     assert 'threading.Timer(_BOOT_QUIET_S["bars_continuous_audit"], _start_bars_continuous_audit)' in MAIN
     assert 'start_background_heal(delay_seconds=_BOOT_QUIET_S["breadth_self_heal"])' in MAIN
+    assert 'threading.Timer(_BOOT_QUIET_S["theme_index_prewarm"], _theme_index_prewarm)' in MAIN
     wrapper = MAIN[MAIN.index("def _start_bars_continuous_audit():"):][:120]
     assert "bars_continuous_audit.start()" in wrapper
     assert MAIN.count("bars_continuous_audit.start()") == 1, "an immediate audit start came back"

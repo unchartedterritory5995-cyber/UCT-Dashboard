@@ -60,6 +60,7 @@ _BOOT_QUIET_S = {
     "flow_integrity_probe": 600,
     "bars_continuous_audit": 300,
     "breadth_self_heal": 240,
+    "theme_index_prewarm": 150,
 }
 
 
@@ -1846,7 +1847,16 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
                 readiness.mark_done("rs_rankings")
             # A success re-warms just under the 1h TTL; a failure retries soon
             # (see _rs_warm_sleep_seconds) instead of leaving the table empty.
-            time.sleep(_rs_warm_sleep_seconds(ok, failures))
+            nap = _rs_warm_sleep_seconds(ok, failures)
+            try:
+                from api.services import rs_ranking as _rsr
+                left = getattr(_rsr, "last_seed_remaining_s", None)
+                if ok and left is not None:
+                    # boot seeded a snapshot instead of computing: re-warm before IT expires
+                    nap = max(30, min(nap, int(left) - 120))
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(nap)
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
@@ -5253,7 +5263,11 @@ async def lifespan(app: FastAPI):
             # The 15-min re-warm registers in the scheduler block below —
             # `_scheduler` does not exist yet at this line (see the
             # discord-chart hot-warm note above). Only the boot Timer runs here.
-            _t = threading.Timer(35, _theme_index_prewarm)
+            # ⚡ 35 -> _BOOT_QUIET_S (2026-11-12): six bars reads at a time for ~5 minutes
+            # (boot-probe pool-work: theme_index._holding_daily_bars x6) starting inside the
+            # reconnect burst (boot+46 s: 45/64 anyio tokens, 362 ms loop lag). A cold $IDX
+            # chart in the first 150 s computes its own theme on request, as before.
+            _t = threading.Timer(_BOOT_QUIET_S["theme_index_prewarm"], _theme_index_prewarm)
             _t.daemon = True
             _t.start()
         except Exception:

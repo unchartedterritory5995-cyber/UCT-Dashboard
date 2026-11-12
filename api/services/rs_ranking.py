@@ -198,6 +198,10 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     cached = _rs_cache.get(_CACHE_KEY)
     if cached is not None and not force:
         return cached
+    if not force:
+        seeded = _seed_from_snapshot()
+        if seeded is not None:
+            return seeded
 
     universe = _get_universe()
     if not universe:
@@ -243,6 +247,8 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     ranked.sort(key=lambda x: x["rs_rank"], reverse=True)
 
     _rs_cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
+    global last_seed_remaining_s
+    last_seed_remaining_s = None
     _write_snapshot(ranked)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
@@ -270,6 +276,40 @@ def _write_snapshot(ranked: list[dict]) -> None:
             os.remove(tmp)
         except OSError:
             pass
+
+
+#: Seconds of life the last boot-seeded ranking had left (None = it was computed, not
+#: seeded). The boot warmer reads it to re-warm BEFORE the seeded entry expires.
+last_seed_remaining_s: float | None = None
+
+
+def _seed_from_snapshot(now: float | None = None) -> list[dict] | None:
+    """⚡ A DEPLOY NO LONGER REBUILDS AN HOUR-OLD ANSWER (2026-11-12).
+
+    `_rs_cache` is this module's own TTLCache, so `cache_snapshot` never carried it
+    across a deploy, and every boot re-fetched six months of daily bars for ~3,685
+    tickers from Massive on 12 threads: boot-probe `pool-work` named
+    `rs_ranking._compute_returns @ massive._get x12` at ~100% of a core from boot+125 s
+    to +175 s, inside the window members reconnect in. The ranking is computed hourly
+    and written to `_SNAPSHOT_PATH` each time; a snapshot younger than `_CACHE_TTL` is
+    the answer this pod would have served anyway. It is seeded with its REMAINING ttl,
+    so a restart never extends an answer's life."""
+    global last_seed_remaining_s
+    try:
+        with open(_SNAPSHOT_PATH, encoding="utf-8") as fh:
+            saved = json.load(fh)
+        age = (now if now is not None else time.time()) - float(saved.get("computed_at") or 0)
+        rows = saved.get("rankings")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    remaining = _CACHE_TTL - age
+    if not (0 <= age and remaining > 60 and isinstance(rows, list) and rows):
+        return None
+    _rs_cache.set(_CACHE_KEY, rows, ttl=remaining)
+    last_seed_remaining_s = remaining
+    logger.info("[rs_ranking] seeded %d rankings from the snapshot (%.0f s old, %.0f s left)",
+                len(rows), age, remaining)
+    return rows
 
 
 def snapshot_rankings(now: float | None = None) -> list[dict] | None:
