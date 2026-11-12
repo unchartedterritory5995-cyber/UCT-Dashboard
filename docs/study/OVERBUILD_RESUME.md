@@ -84,6 +84,12 @@ anything that needs a rule decided (those go in `owner_flags`, never decided by 
 
 ## 6. Facts learned (do not relearn these)
 
+- **Cost lesson from wave 1 (measured):** the 4 FULL-path chunks (49 questions, 24 agents) cost 4.57M tokens, about 93k per question. Each agent
+  carries a large fixed read (contract, lesson, up to 125 facts, the pilot notes), about 190k tokens, so SMALL chunks are expensive per
+  question. The pilot's bigger chunks (22 to 36 questions) cost about 44k each. So chunk size, not just the route, drives cost: keep chunks
+  near 30 to 36 questions, and do not split a lesson's risky questions into a separate small chunk unless the saving is real.
+  Wave 1's light path (about 25 to 29 questions per chunk, 4 agents) is the measurement for the other half.
+
 - **Workflow gotcha (bit us in wave 1):** in a `pipeline()`, a stage that returns `null` DROPS the item (its later stages never run). The
   light route's first stage once returned null, so the 9 light chunks silently never started. The script now returns `{skipped: true}`.
   After any wave launch, confirm the agent counts by role in the run's journal (every route should show its agents) within a few minutes.
