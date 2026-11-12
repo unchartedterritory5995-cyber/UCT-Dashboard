@@ -206,3 +206,14 @@ describe('the chart\'s half: the + / - keys and the Agent share ONE writer', () 
     expect(src('../components/chart/pane/ChartPane.jsx')).toMatch(/'stepBar', 'autoScale', 'zoom', 'positionCalc'\]\.includes\(op\)/)
   })
 })
+
+// (AUDIT #1104 T2) a PROPOSED zoom reads pending — never "Zoomed …" before the member approves (proposal-wording rule, S6 F2)
+import { pendingLine } from './proposalWording'
+describe('a proposed zoom reads as pending, the receipt stays past tense', () => {
+  it.each([['Zoomed this chart in, the same as pressing +'], ['Zoomed this chart out 3 steps, the same as pressing −'], ['NVDA: Zoomed this chart in as far as it goes, the same as pressing +']])(
+    '"%s" → "Zoom …" on the proposal card', (line) => {
+      const out = pendingLine(line)
+      expect(out).not.toMatch(/\bZoomed\b/)
+      expect(out).toMatch(/(^|: )Zoom this chart/)
+    })
+})
