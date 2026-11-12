@@ -21,6 +21,8 @@ import sys
 # The commit just before Claude's first-pass fixes. The old wording of each changed question is read from it, so the
 # review page can show "was" next to "now".
 FIRST_PASS_BASE = "b0279f8b51^"
+# The commit the overbuild started from (docs/study/OVERBUILD_PLAN.md): a question that differs from it is "upgraded".
+UPGRADE_BASE = "overbuild-base"
 
 REPO = os.path.abspath(sys.argv[1])
 DATA = os.path.abspath(sys.argv[2])
@@ -38,21 +40,75 @@ NUM = re.compile(r"\d+(?:[.,]\d+)?")
 _OLD = {}
 
 
-def old_question(unit, key):
-    """The question as it stood before the first-pass fixes, trimmed to the fields a reader compares; None if unknown."""
-    if unit not in _OLD:
+def _unit_at(base, unit):
+    """{key: question} of one unit file as it stood at a git ref; {} when the file did not exist there."""
+    cache = _OLD.setdefault(base, {})
+    if unit not in cache:
         track = unit.split(".")[0]
         try:
-            raw = subprocess.run(["git", "show", f"{FIRST_PASS_BASE}:docs/study/courses/{track}/{unit}.json"],
+            raw = subprocess.run(["git", "show", f"{base}:docs/study/courses/{track}/{unit}.json"],
                                  cwd=REPO, capture_output=True, check=True).stdout.decode("utf-8")
-            _OLD[unit] = {x["key"]: x for x in json.loads(raw).get("questions", [])}
+            cache[unit] = {x["key"]: x for x in json.loads(raw).get("questions", [])}
         except Exception:
-            _OLD[unit] = {}
-    o = _OLD[unit].get(key)
+            cache[unit] = {}
+    return cache[unit]
+
+
+def old_question(unit, key, base=None):
+    """The question as it stood at a git ref (default: before the first-pass fixes), trimmed to the fields a reader
+    compares; None if unknown."""
+    o = _unit_at(base or FIRST_PASS_BASE, unit).get(key)
     if not o:
         return None
-    keep = {k: o[k] for k in ("story", "q", "sentence", "bank", "choices", "answer", "prefix", "suffix") if o.get(k) not in (None, "", [])}
+    keep = {k: o[k] for k in ("story", "q", "sentence", "bank", "choices", "answer", "prefix", "suffix", "why", "simple")
+            if o.get(k) not in (None, "", [])}
     return keep or None
+
+
+_NOW = {}
+
+
+def _unit_now(unit):
+    """{key: question} of one unit file as it stands in the working tree (raw, so it compares like with like)."""
+    if unit not in _NOW:
+        track = unit.split(".")[0]
+        try:
+            with open(os.path.join(REPO, "docs", "study", "courses", track, unit + ".json"), encoding="utf-8") as fh:
+                _NOW[unit] = {x["key"]: x for x in json.load(fh).get("questions", [])}
+        except (OSError, ValueError):
+            _NOW[unit] = {}
+    return _NOW[unit]
+
+
+def upgrade_note(unit, q):
+    """What the overbuild changed in this question since UPGRADE_BASE: (sentence, old question or None), or None.
+    Both sides are the RAW unit-file question, so a dash or a reorder is never mistaken for an edit."""
+    base = _unit_at(UPGRADE_BASE, unit)
+    cur = _unit_now(unit).get(q["key"])
+    if not base or cur is None:
+        return None
+    old = base.get(q["key"])
+    if old is None:
+        return ("a new question, added by the overbuild", None)
+    parts = []
+    oc, nc = old.get("choices") or [], cur.get("choices") or []
+    if len(oc) == 3 and len(nc) == 4:
+        parts.append("a fourth answer was added")
+    elif set(oc) != set(nc):
+        parts.append("the answer choices changed")
+    if cur.get("simple") and not old.get("simple"):
+        parts.append("a simple answer was added")
+    elif cur.get("simple") and cur.get("simple") != old.get("simple"):
+        parts.append("the simple answer was reworded")
+    if (cur.get("why") or "") != (old.get("why") or ""):
+        parts.append("the full answer was rewritten")
+    if (cur.get("q") or "") != (old.get("q") or "") or (cur.get("story") or "") != (old.get("story") or ""):
+        parts.append("the question wording changed")
+    if cur.get("answer") != old.get("answer"):
+        parts.append("the right answer changed")
+    if not parts:
+        return None
+    return ("Upgraded: " + "; ".join(parts), old_question(unit, q["key"], UPGRADE_BASE))
 
 
 def text_of(q):
@@ -153,8 +209,10 @@ def main():
                 ids = ", ".join(sorted(held[q["key"]])) or "a held decision"
                 confirm.append(f"the unit's notes say this touches {ids}")
             done = resolved.get(u + "#" + q["key"])
-            if done:
-                c, p, r = "look", "keep", done
+            upg = upgrade_note(u, q)
+            if done or upg:
+                # the first-pass note and the overbuild note can both apply: say both, newest last
+                c, p, r = "look", "keep", " ".join(x for x in (done, upg[0] if upg else "") if x)
             elif look:
                 c, p, r = "look", proposed, "; ".join(look)
             elif confirm:
@@ -162,9 +220,9 @@ def main():
             else:
                 c, p, r = "keep", "keep", "passed the second reader's cold check; no duplicate, no length tell, no unruled rule"
             calls[q["id"]] = {"c": c, "p": p, "r": r}
-            if done:
+            if done or upg:
                 calls[q["id"]]["k"] = "changed"
-                was = old_question(u, q["key"])
+                was = upg[1] if upg else old_question(u, q["key"])
                 if was:
                     calls[q["id"]]["was"] = was
             stats[c] += 1

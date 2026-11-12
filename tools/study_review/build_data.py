@@ -93,6 +93,7 @@ def main():
                 "calc": (r.get("facts") or {}).get("calc"),
                 "check": {"status": v.get("status"), "notes": v.get("notes"), "revised": v.get("revised")},
                 "term": q.get("term"),
+                "simple": r.get("simple"), "deeper": r.get("deeper"), "tier": r.get("tier"),
             })
         walks = [{"title": w.get("title"), "steps": w.get("steps") or []} for w in doc.get("walkthroughs") or []]
         d = {

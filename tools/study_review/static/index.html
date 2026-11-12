@@ -128,6 +128,7 @@ details p, details div { margin: 6px 0; }
 .item .tg { display: block; color: var(--gold); font-size: 13px; font-weight: 700; margin-top: 2px; }
 .cnt { color: var(--mute); font-size: 15px; margin: 0; }
 @media (max-width: 560px) { .tab { font-size: 13px; padding: 4px 4px; } .tab small { font-size: 11px; } }
+.simpleline { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid var(--gold); background: var(--panel2); border-radius: 0 10px 10px 0; font-weight: 600; }
 </style></head><body>
 <div class="wrap">
   <div class="top">
@@ -155,7 +156,7 @@ details p, details div { margin: 6px 0; }
   var S = { idx: null, bySlug: {}, ofId: {}, calls: {}, reviews: {}, data: {}, qById: {}, loads: {},
             stage: 1, queue: [], pos: 0, noteFor: null, file: '', queueOut: [], flushing: false, fails: 0, times: [], rules: {}, decs: [], decById: {}, sideNote: null, noteTags: [], _tagsFor: null, curRule: null };
   var VLABEL = { keep: 'Good as is', fix: 'Change it', cut: 'Remove it' };
-  var REASONS_FIX = ['The right answer is wrong', 'Two answers could be right', 'A wrong answer is obviously wrong', 'Confusing wording', 'Does not match my rules', 'Out of date', 'Too easy', 'Too hard'];
+  var REASONS_FIX = ['Simple answer is not simple', 'Full answer is missing something', 'Fourth answer is too obvious', 'Fourth answer could also be right', 'The right answer is wrong', 'Two answers could be right', 'A wrong answer is obviously wrong', 'Confusing wording', 'Does not match my rules', 'Out of date', 'Too easy', 'Too hard'];
   var REASONS_CUT = ['Repeats another question', 'Not worth teaching', 'Wrong or unsafe', 'Does not match my rules'];
 
   function $(id) { return document.getElementById(id); }
@@ -400,7 +401,7 @@ details p, details div { margin: 6px 0; }
     if (q.choices) {
       return '<ul class="choices">' + q.choices.map(function (c, i) {
         var right = c === q.answer, isNew = was && was.choices && was.choices.indexOf(c) < 0;
-        return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + (isNew ? '<span class="new">reworded</span>' : '') + '</span></li>';
+        return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + (isNew ? '<span class="new">' + (was.choices.length < q.choices.length ? 'new' : 'reworded') + '</span>' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
     return '<div class="answerbox">' + esc(q.prefix || '') + esc(q.answer) + esc(q.suffix || '') + '</div>';
@@ -415,6 +416,8 @@ details p, details div { margin: 6px 0; }
       return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + '</span></li>';
     }).join('') + '</ul>';
     else if (w.answer) h += '<div class="answerbox">' + esc(w.prefix || '') + esc(w.answer) + esc(w.suffix || '') + '</div>';
+    if (w.simple) h += '<p class="fyi"><b>In one line:</b> ' + esc(w.simple) + '</p>';
+    if (w.why) h += '<details><summary>The explanation it had</summary><p>' + esc(w.why) + '</p></details>';
     return h + '</div>';
   }
   var TYPE = { scenario: 'Scenario', mcq: 'Multiple choice', tf: 'True or false', numeric: 'A number', fill: 'Fill in the blank' };
@@ -456,12 +459,12 @@ details p, details div { margin: 6px 0; }
 
   function renderCard(id) {
     var q = S.qById[id], m = S.ofId[id], u = S.data[m.slug] || {}, call = S.calls[id], mine = S.reviews[id] || {};
-    var h = '<div class="where"><span>' + esc(m.unit) + ' · ' + esc(m.title) + '</span><span class="chip">' + esc(TYPE[q.format] || q.format || 'Question') + '</span><span>question ' + q._i + ' of ' + q._n + ' in this unit</span><button class="plain sm" id="bUnitNote" type="button">✎ Note on this lesson' + (S.reviews['unit:' + m.unit] ? ' ✓' : '') + '</button></div>';
+    var h = '<div class="where"><span>' + esc(m.unit) + ' · ' + esc(m.title) + '</span><span class="chip">' + esc(TYPE[q.format] || q.format || 'Question') + '</span>' + (q.tier ? '<span class="chip">' + esc(q.tier) + ' tier</span>' : '') + '<span>question ' + q._i + ' of ' + q._n + ' in this unit</span><button class="plain sm" id="bUnitNote" type="button">✎ Note on this lesson' + (S.reviews['unit:' + m.unit] ? ' ✓' : '') + '</button></div>';
     if (!lsGet('libreview3.guide', false) && S.stage === 1) h += GUIDE;
     var suggest = null;
     if (call && call.c === 'look') {
       suggest = call.p;
-      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + ' Read the new version below. If it is right, press Good as is.</div>';
+      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + (/[.!?]$/.test(call.r) ? '' : '.') + ' Read the new version below. If it is right, press Good as is.</div>';
       else h += '<div class="flag"><b>Claude flagged this one.</b> ' + esc(cap(call.r)) + '. Claude suggests: <b>' + esc(VLABEL[call.p]) + '</b>.</div>';
     } else if (call && call.c === 'confirm') {
       h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
@@ -470,8 +473,13 @@ details p, details div { margin: 6px 0; }
     if (was) h += wasBlock(was) + '<div class="lab now">Now</div>';
     if (q.story) h += '<p class="story">' + esc(q.story) + '</p>';
     h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q, was);
-    if (q.why) h += '<p class="why"><b>Why:</b> ' + esc(q.why) + '</p>';
+    if (q.simple) h += '<p class="simpleline"><b>In one line:</b> ' + esc(q.simple) + '</p>';
+    if (q.why) h += '<p class="why"><b>' + (q.simple ? 'The full answer:' : 'Why:') + '</b> ' + esc(q.why) + '</p>';
     h += moreBlock(q);
+    if (q.deeper) {
+      var dl = [['example', 'Example'], ['counter', 'The other side'], ['trap', 'The common trap']].filter(function (x) { return q.deeper[x[0]]; });
+      if (dl.length) h += '<details><summary>Go deeper (' + dl.length + ')</summary>' + dl.map(function (x) { return '<p><b>' + x[1] + ':</b> ' + esc(q.deeper[x[0]]) + '</p>'; }).join('') + '</details>';
+    }
     h += rulePanel(q, m);
     if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
     if (S.sideNote) {
