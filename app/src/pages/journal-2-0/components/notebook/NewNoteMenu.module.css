@@ -89,3 +89,20 @@
   margin: 4px 2px;
   background: var(--border);
 }
+/* Notebook simplify, Task 3: a named group of rows with its name drawn (the New menu's "Reviews"), set apart from the
+   rows above by a rule -- the same look as the View menu's "Saved views" group (SavedViewsMenuGroup.module.css). */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.groupLabel {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

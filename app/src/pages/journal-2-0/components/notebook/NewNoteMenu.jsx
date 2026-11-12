@@ -100,10 +100,22 @@ function rowsOf(menuEl) {
 }
 
 /** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?}. A row whose
- *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule. */
+ *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule.
+ *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
+ *  menu's "List layout" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
+ *  Its rows are still the menu's rows, so the menu's Up and Down reach them. */
 export function MenuRows({ menu, items }) {
   return items.map((it) => {
     if (it.separator) return <div key={it.key} role="separator" className={styles.separator} />
+    if (it.group) {
+      return (
+        <div key={it.key} role="group" aria-label={it.group}
+          className={`${it.heading ? styles.group : ''} ${it.className || ''}`}>
+          {it.heading && <div className={styles.groupLabel} aria-hidden="true">{it.group}</div>}
+          <MenuRows menu={menu} items={it.items} />
+        </div>
+      )
+    }
     const radio = typeof it.checked === 'boolean'
     return (
       <button key={it.key} type="button" role={radio ? 'menuitemradio' : 'menuitem'}

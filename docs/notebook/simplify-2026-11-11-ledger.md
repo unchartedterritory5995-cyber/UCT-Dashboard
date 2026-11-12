@@ -40,3 +40,27 @@ Pre-existing failures seen while running neighbouring suites (not caused by Task
 - `components/notebook/ChartEmbed.touchTargets.test.js` (`styles.legCard*` / `legMenuRowBtn` / `legPresetRow` / `legRowAction` floors).
 - `styles/tokens.reachable.test.js` ("re-points an alias target": `pages/study/RevealCard.module.css`).
 - `tabs/NotebookTab.templates.test.jsx`: two cases timed out once when run inside a 57-file batch; the file passes 9/9 on its own.
+
+## Task 3: a list that is a list, and one New menu
+
+Deferred (go-live pass):
+- `tools/notebook_fin_walk.py`, `tools/notebook_door_audit.py`, `tools/notebook_perf_budgets.py`: any step that reads the notes list's card grid (`.grid`, a card's serif title, its tag chips, a thumbnail) now meets ROWS by default; Cards is one View menu choice away (`uct.notebook.list.layout = 'cards'` in localStorage restores the grid). Any step that presses the list ▾ "From an outline" must press "From a template" (the same sheet; its search box is one Tab or click away), and any step that presses the toolbar's "Today" button must press "Today's note". The new `lib/reviewDraftRun.js` (and `useJ2SelectedAccount`, now imported by NotebookTab) join the Notebook's first open; the drafts chunk itself stays lazy. Size not measured: `notebook_perf_budgets.py` needs a build, and this task ran none.
+- Walkthroughs: no anchor moved (`new-note`, `templates`, `styles-button`, `view-switcher`, `import` each still once). A tour sentence that describes the list as cards, or the ▾ as listing "From an outline", needs the go-live pass.
+- A row draws no thumbnail (the first image or a still hero); Cards still does. Formula and rollup chips still show on a row, under its meta line.
+- In Cards the tick box keeps its old rule (always drawn, dimmed until hovered, focused or checked): the brief keeps Cards unchanged. The hover/focus/any-selected rule is the rows layout's.
+- Trash and Archived draw the same layout as the list (rows by default, Cards if chosen); their View menu is not drawn (unchanged), so the choice is made from All notes.
+- The Rows / Cards choice is shown in the View menu only while List is the mode.
+- A review drafted from the New ▾ shows no "Drafting..." state (the menu closes at once); a second press while one runs is ignored, and a failure says so in the list's notice line with the same sentence Research Home shows.
+
+Pre-existing tests changed (old behaviour deliberately changed):
+- `NotebookTab.toolbar.test.jsx`: the row's daily-note button is "Today's note"; the ▾ no longer offers "From an outline"; Down from List in the View menu now lands on "Rows" (List's own choice, directly under it), then "Cards", then "Table".
+- `tabs/__tests__/toolbarDoors.js`: the "Templates" door presses "From a template" (the search-first "From an outline" left the ▾).
+- `NotebookTab.kindPicker.test.jsx`: the ▾ lists Blank, From a template, Import (switch on, voice off); "the Templates button still opens it with the search box focused" became "the sheet the Templates door opens still carries the template search".
+- `NotebookTab.graphView.test.jsx`: "exactly one view mode checked" counts the modes only (List's Rows / Cards are a named group of radios of their own, like the saved views).
+- `a11y/notebookTab.a11y.test.jsx`: the list-mode precondition counts `[data-note-card-id]` inside the Notes list (rows carry no "card" class; a document-wide count would also match the folders panel's tree rows, so it is scoped and was mutation-checked: an empty list now fails it).
+
+Shared module lifted (no logic duplicated): `lib/reviewDraftRun.js` is the body of Research Home's `ReviewDraftsHomeBox.run`, moved; the box and the New ▾ "Reviews" group both call `draftReview(period, ...)`.
+
+Pre-existing failures seen while running neighbouring suites (not caused by Task 3, not changed):
+- `components/screener/reachable.test.js` (two cases, the same five unrelated modules and `chart/rightMargin.js` as Task 2 recorded).
+- `styles/tokens.reachable.test.js` ("re-points an alias target": `pages/study/RevealCard.module.css`).

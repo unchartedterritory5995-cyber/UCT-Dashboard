@@ -104,7 +104,10 @@ describe('NotebookTab — graph view wiring', () => {
     // S11 (audit 2026-11-05): the seven icon toggles became ONE labelled View menu. Its rows are
     // `menuitemradio` with `aria-checked`, and the trigger itself SAYS the mode ("View: Graph"), so the
     // load-bearing check is the same: exactly ONE row is checked.
+    // Notebook simplify, Task 3: the modes only -- List's own Rows / Cards (a named group under it) and the saved
+    // views (a group below) are radios of their own.
     const checkedNames = () => { viewOption('List'); return screen.getAllByRole('menuitemradio')
+      .filter((b) => !b.closest('[role="group"]'))
       .filter((b) => b.getAttribute('aria-checked') === 'true')
       .map((b) => b.textContent.trim()) }
 

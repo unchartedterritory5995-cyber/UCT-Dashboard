@@ -64,6 +64,9 @@ import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
+import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
+import { REVIEW_PERIODS, draftReview, reviewDraftFailedSentence } from '../lib/reviewDraftRun'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
@@ -258,6 +261,8 @@ function folderActionButton(label, folder) {
 const SB_MIN = 190
 const SB_MAX = 520
 const SB_DEFAULT = 260
+// Notebook simplify, Task 3: List view's layout, 'rows' (default) or 'cards'. Per browser, like the folders panel.
+const LIST_LAYOUT_KEY = 'uct.notebook.list.layout'
 
 // Wave 10 lane DR-F (design finding D-7): on a phone the folder/tag tree is
 // long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and
@@ -631,6 +636,16 @@ export default function NotebookTab() {
       return Number.isFinite(v) ? Math.min(SB_MAX, Math.max(SB_MIN, v)) : SB_DEFAULT
     } catch { return SB_DEFAULT }
   })
+  // Notebook simplify, Task 3: how List view draws its notes -- 'rows' (one note per row, the default) or 'cards'
+  // (the grid). A display choice inside List view, kept in this browser; NOT a view mode (saved views and the server's
+  // modes are untouched). Anything else stored reads as rows.
+  const [listLayout, setListLayoutState] = useState(() => {
+    try { return localStorage.getItem(LIST_LAYOUT_KEY) === 'cards' ? 'cards' : 'rows' } catch { return 'rows' }
+  })
+  const setListLayout = (next) => {
+    setListLayoutState(next)
+    try { localStorage.setItem(LIST_LAYOUT_KEY, next) } catch { /* private mode */ }
+  }
   const [dragging, setDragging] = useState(false)
   const wrapRef = useRef(null)
   const dragWidthRef = useRef(sidebarWidth)
@@ -2265,6 +2280,28 @@ export default function NotebookTab() {
     paneHeadingRef.current?.focus()
   }
 
+  // Notebook simplify, Task 3: the New ▾ "Reviews" group. The account is the member's selected one, the same hook
+  // Research Home's box reads (not fetched while drafts are off). One draft at a time; a failure says so in the
+  // list's notice line, worded by the same door.
+  const reviewsOn = reviewDraftsEnabled()
+  const { accountId: reviewAccountId } = useJ2SelectedAccount(reviewsOn)
+  const reviewDraftBusy = useRef(false)
+  const runReviewDraft = async (period) => {
+    if (reviewDraftBusy.current) return
+    reviewDraftBusy.current = true
+    try {
+      await draftReview(period, {
+        accountId: reviewAccountId,
+        onOpenNote: openNote,
+        onNotice: (message) => setBulkNotice({ message, tone: 'info' }),
+      })
+    } catch (e) {
+      setBulkNotice({ message: reviewDraftFailedSentence(period, e), tone: 'error' })
+    } finally {
+      reviewDraftBusy.current = false
+    }
+  }
+
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
   const viewMenu = useMenuButton()
@@ -2282,9 +2319,19 @@ export default function NotebookTab() {
     }, { replace: true })
   }
   const viewMenuItems = [
-    ...VIEW_MODES.map(({ id, icon, short }) => ({
-      key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id),
-    })),
+    ...VIEW_MODES.flatMap(({ id, icon, short }) => [
+      { key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) },
+      // Notebook simplify, Task 3: List's own two-way choice, directly under it, while List is the mode.
+      id === 'list' && viewMode === 'list' && {
+        key: 'list-layout',
+        group: 'List layout',
+        className: styles.layoutGroup,
+        items: [
+          { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => setListLayout('rows') },
+          { key: 'cards', label: 'Cards', checked: listLayout === 'cards', run: () => setListLayout('cards') },
+        ],
+      },
+    ].filter(Boolean)),
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
     // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
     // trap (competitive audit UX #18, 2026-09-22).
@@ -2299,13 +2346,22 @@ export default function NotebookTab() {
   ]
   const newMenuItems = [
     { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote() },
-    // Fix round 1 (review Minor 11): with the template switch on, the ▾ carries BOTH of Home's doors -- "From an
-    // outline" (the sheet, search first) and "From a template" (the same sheet, focus on the first note type, the old
-    // list caret's door). With it off there are no note types, and "From a template" is the plain sheet.
-    fromStyle && { key: 'outline', label: 'From an outline', icon: 'document', run: openNewNoteSheet },
+    // "From a template": with the template switch on, the sheet with focus on the first note type (the old list
+    // caret's door); with it off there are no note types, and it is the plain sheet. Notebook simplify, Task 3: the
+    // "From an outline" row is gone -- it opened the same sheet (search first), one door too many.
     { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
     recordVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport },
+    // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
+    // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
+    reviewsOn && {
+      key: 'reviews',
+      group: 'Reviews',
+      heading: true,
+      items: REVIEW_PERIODS.map(({ period, label }) => ({
+        key: period, label, icon: 'book', run: () => runReviewDraft(period),
+      })),
+    },
   ].filter(Boolean)
   // On a phone "+ New" and Today give way to the floating "+" (S12), so ⋯ carries them there (CSS shows
   // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
@@ -2937,7 +2993,7 @@ export default function NotebookTab() {
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
               <UIcon name="sun" {...TOOLBAR_ICON} />
-              Today
+              Today's note
             </button>
             {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
                 base tour's Import step: Import lives in this ▾ now (tourCopy.js says so). */}
@@ -3048,9 +3104,10 @@ export default function NotebookTab() {
           // NoteCard grid renders into -- instead of bare text. Not
           // view-mode-aware (this branch runs before viewMode is even
           // consulted below), so it approximates the DEFAULT list/grid view.
-          <div className={styles.grid} role="status" aria-label="Loading…">
+          // Notebook simplify, Task 3: shaped like the layout the notes will arrive in (rows or cards).
+          <div className={listLayout === 'cards' ? styles.grid : styles.rows} role="status" aria-label="Loading…">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={styles.noteCardSkeleton} aria-hidden="true">
+              <div key={i} className={listLayout === 'cards' ? styles.noteCardSkeleton : styles.noteRowSkeleton} aria-hidden="true">
                 <SkeletonLine width="70%" height={15} />
                 <SkeletonLine width="40%" height={11} />
               </div>
@@ -3225,18 +3282,22 @@ export default function NotebookTab() {
             ) : (
               // Lane KEYS round 5: the list is ONE Tab stop. Down and Up go note to note,
               // Right and Left between a note's own controls. Shift+Arrow stays 13Q-5's.
-              <div className={styles.grid} role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
+              // Notebook simplify, Task 3: rows by default (one column, hairlines), or the card grid ("Cards").
+              <div className={listLayout === 'cards' ? styles.grid : styles.rows} data-list-layout={listLayout}
+                role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
                 onKeyDown={(e) => { handleSelectionGridKeyDown(e); notesGrid.onKeyDown(e) }}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}
                     note={n}
+                    layout={listLayout === 'cards' ? 'card' : 'row'}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
                     onUnarchive={isArchiveView ? unarchiveNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
                     selectable={selectionOn}
                     selected={selection.isSelected(n.id)}
+                    selecting={selection.count > 0}
                     onToggleSelect={(note, opts) => selection.toggle(note.id, opts)}
                   />
                 ))}

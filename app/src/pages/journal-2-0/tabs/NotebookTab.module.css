@@ -255,6 +255,39 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
 }
+/* Notebook simplify, Task 3 (2026-11-11): List view's default layout -- one note per row in ONE column, no wider than
+   860 px, left-aligned in the content area, a hairline between rows (NoteCard's `.row` draws no chrome of its own).
+   The row highlight lives here, on each row's outermost element (`data-note-row`), so it covers the tick box too.
+   Measured before: "View: List" drew cards five across at 1920 px. "Cards" (the View menu) is `.grid` above. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 860px;
+}
+.rows > [data-note-row] {
+  border-bottom: 1px solid var(--border);
+}
+.rows > [data-note-row]:hover,
+.rows > [data-note-row]:has(:focus-visible) {
+  background: var(--bg-hover);
+}
+/* the loading placeholder for a row: two lines, no box */
+.noteRowSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+/* the View menu's "Rows / Cards", indented under List so they read as List's own choice (the label lines up with
+   "List"'s, past its icon) */
+.layoutGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.layoutGroup > [role='menuitemradio'] { padding-left: 32px; }
 /* G-106: mirrors NoteCard.module.css's .card geometry (border/radius/padding)
    closely enough to reserve the right box, without importing that module --
    this is a placeholder shape, never a real card. */

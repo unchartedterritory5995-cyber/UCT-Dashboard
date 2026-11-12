@@ -149,28 +149,31 @@ describe('New note: pick a kind (Notebook P1)', () => {
   })
 
   // Tier 1b fix round 1 (review Minor 11): the list's ▾ lost the note-type door (the old caret's "From a style"). It
-  // is back as "From a template", exactly Home's; the search-first sheet stays as "From an outline", also Home's.
-  it('switch on: the list ▾ offers From an outline and From a template, and From a template focuses the first kind', async () => {
+  // is back as "From a template", exactly Home's. Notebook simplify, Task 3: the list's "From an outline" (the same
+  // sheet, search first) is gone from the ▾ -- one door to the sheet; Research Home keeps its own.
+  it('switch on: the list ▾ offers From a template (no From an outline), and it focuses the first kind', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     const bar = screen.getByRole('toolbar', { name: 'Notes list tools' })
     fireEvent.click(within(bar).getByRole('button', { name: 'More ways to start a note' }))
     const menu = screen.getByRole('menu', { name: 'Start a note' })
     expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim()))
-      .toEqual(['Blank', 'From an outline', 'From a template', 'Import'])
+      .toEqual(['Blank', 'From a template', 'Import'])
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'From a template' }))
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     const first = await within(dialog).findByLabelText('New Trade plan', {}, T)
     await waitFor(() => expect(document.activeElement).toBe(first))
   })
 
-  it('the Templates button still opens it with the search box focused', async () => {
+  // Notebook simplify, Task 3: the list's search-first door ("From an outline") left the ▾. The search box is still in
+  // the sheet "From a template" opens, so searching the templates is still reachable from the list.
+  it('the sheet the Templates door opens still carries the template search', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     pressToolbar('Templates')
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     await within(dialog).findByLabelText('New Trade plan', {}, T)
-    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' })))
+    expect(within(dialog).getByRole('searchbox', { name: 'Search templates' })).toBeTruthy()
   })
 
   it('switch off: today\'s sheet exactly, and the styles list is never requested', async () => {

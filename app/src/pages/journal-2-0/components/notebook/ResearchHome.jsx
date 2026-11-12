@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
+import lazyChunk from '../../lib/lazyChunk'
 import whenIdle from '../../lib/whenIdle'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
@@ -28,8 +28,7 @@ import AskPanel from './AskPanel'
 import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
-import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
-import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
+import { draftReview, reviewDraftFailedSentence } from '../../lib/reviewDraftRun'
 import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { FirstRunInlineSlot } from './FirstRunGate'
@@ -79,7 +78,6 @@ function preloadHomeBoxes() {
   loadNoticesBox().catch(() => {})
   if (setupsBoardEnabled()) loadSetupsBox().catch(() => {})
 }
-const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -133,24 +131,16 @@ export function ReviewDraftsHomeBox({ onOpenNote, onNotice = null, skipLinkClass
   const { accountId } = useJ2SelectedAccount(on)
   if (!on) return null
 
-  const run = async (period, fn) => {
+  // Notebook simplify, Task 3: the draft itself is lib/reviewDraftRun.js, the one door the notes list's New ▾
+  // "Reviews" group runs too. This box keeps its own busy state and its own error line.
+  const run = async (period) => {
     if (busy) return
     setBusy(period)
     setError(null)
     try {
-      // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
-      const { note, created } = await fn(await loadReviewDrafts())
-      // S2 (B12): Today's recap that MADE the day's note says where it went (the server files it in
-      // a root Daily folder, made on first use). A recap added to an existing note says nothing more.
-      if (period === 'daily' && created) onNotice?.(DAILY_FOLDER_NOTICE)
-      // S6 (B5): a drafted review made or changed a note behind every list's back.
-      invalidateNoteViews({ tags: true })
-      // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
-      // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
-      onOpenNote(note, null, { to: 'collapsed' })
+      await draftReview(period, { accountId, onOpenNote, onNotice })
     } catch (e) {
-      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
-      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
+      setError(reviewDraftFailedSentence(period, e))
     } finally {
       setBusy(null)
     }
@@ -176,15 +166,15 @@ export function ReviewDraftsHomeBox({ onOpenNote, onNotice = null, skipLinkClass
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
-          onClick={() => run('daily', (m) => m.draftDailyReview({ accountId, day: m.todayDayIso() }))}>
+          onClick={() => run('daily')}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-weekly"
-          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ accountId, weekStart: m.mondayOfIso() }))}>
+          onClick={() => run('weekly')}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-monthly"
-          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ accountId, month: m.thisMonthIso() }))}>
+          onClick={() => run('monthly')}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
         </button>
       </div>

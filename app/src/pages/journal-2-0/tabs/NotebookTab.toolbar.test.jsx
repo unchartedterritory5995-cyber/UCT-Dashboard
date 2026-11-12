@@ -1,5 +1,5 @@
 // S11 + VIS-4 (audit 2026-11-05, V2): the notes list toolbar is ONE row, in this order --
-//   View: List ▾  ·  sort  ·  Today  ·  + New ▾  ·  ⋯
+//   View: List ▾  ·  sort  ·  Today's note  ·  + New ▾  ·  ⋯
 // "+ New" (with its ▾: Blank · From a template · Voice note · Import) is the ONLY solid primary; ⋯ holds
 // Export, My tools and Manage templates; Save view lives inside the View menu. The view lives in the
 // address (`?view=board`), so a reload keeps it.
@@ -46,7 +46,8 @@ describe('the list toolbar is one row with exactly these controls', () => {
   it('View, sort, Today, + New and its ▾, ⋯ -- in that order, nothing else', async () => {
     await renderTab()
     expect(controls()).toEqual([
-      'View: List', 'select:Sort notes', 'Today', '+ New', 'More ways to start a note', 'More notebook actions',
+      // Notebook simplify, Task 3: the daily note's button says what it opens.
+      'View: List', 'select:Sort notes', "Today's note", '+ New', 'More ways to start a note', 'More notebook actions',
     ])
   })
 
@@ -95,7 +96,7 @@ describe('every action that was on the toolbar is still reachable (S11 enumerati
     for (const name of ['Import', 'Manage templates', 'My tools', 'Export', 'Templates']) {
       expect(toolbarOffers(name), name).toBe(true)
     }
-    expect(within(bar()).getByRole('button', { name: 'Today' })).toBeTruthy()
+    expect(within(bar()).getByRole('button', { name: "Today's note" })).toBeTruthy()
     expect(within(bar()).getByRole('button', { name: '+ New' })).toBeTruthy()
     expect(within(bar()).getByRole('combobox', { name: 'Sort notes' })).toBeTruthy()
     expect(offersSaveView()).toBe(true)
@@ -103,13 +104,14 @@ describe('every action that was on the toolbar is still reachable (S11 enumerati
   })
 
   // Fix round 1 (review Minor 11): the enumeration now names the two doors it had missed.
+  // Notebook simplify, Task 3: "From an outline" left the ▾ (it opened the same sheet as "From a template").
   it('Clear filter is on the row while a filter is on, and the note-type door is in the ▾ (gate on)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     await renderTab('/journal/notebook?view=all&ticker=NVDA')
     expect(within(bar()).getByRole('button', { name: 'Clear filter' })).toBeTruthy()
     fireEvent.click(within(bar()).getByRole('button', { name: 'More ways to start a note' }))
     const menu = screen.getByRole('menu', { name: 'Start a note' })
-    expect(within(menu).getByRole('menuitem', { name: 'From an outline' })).toBeTruthy()
+    expect(within(menu).queryByRole('menuitem', { name: 'From an outline' })).toBeNull()
     expect(within(menu).getByRole('menuitem', { name: 'From a template' })).toBeTruthy()
   })
 
@@ -172,6 +174,10 @@ describe('the menus keep the menu-button keyboard', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     const menu = screen.getByRole('menu', { name: 'View' })
     await waitFor(() => expect(document.activeElement).toBe(within(menu).getAllByRole('menuitemradio')[0]))
+    // Notebook simplify, Task 3: under List come its own Rows / Cards, then the next mode
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
+    expect(document.activeElement.textContent.trim()).toBe('Rows')
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
     fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
     expect(document.activeElement.textContent.trim()).toBe('Table')
     fireEvent.keyDown(document.activeElement, { key: 'Escape' })
