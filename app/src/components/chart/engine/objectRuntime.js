@@ -1890,15 +1890,10 @@ export function beginObjects(program, ctx) {
           const wrote = writeCell(map.get(key), op.k, (base) => resolveProps(op.props, base))
           if (wrote.withhold) cellGuards.add(wrote.withhold)
           map.set(key, wrote.cell)
-          // ⭐ Engine 52 — a colour asked of the runtime that it could not serve HOLDS the
-          // cell, as it holds a created object (C20): drawn in a default it would be a colour
-          // Pine did not paint.
-          const unservedCell = unservedColour(op.props, wrote.cell || {})
-          if (unservedCell.length) taintCell(inst.id, key)
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
           const um = unmeasuredProps(op)
-          if (unservedCell.length) { /* held above, never cleared by this write */ } else if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (um.length || taintedProps(op.props).length) taintCell(inst.id, key)
+          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (um.length || taintedProps(op.props).length) taintCell(inst.id, key)
           else if (op.k === 'cell') {
             const ct = cellTaint.get(inst.id)
             if (ct && ct !== '*') { ct.delete(key); if (!ct.size) cellTaint.delete(inst.id) }

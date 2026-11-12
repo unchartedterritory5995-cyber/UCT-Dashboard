@@ -21581,10 +21581,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  ⛔ `t` is never folded here: an input folded into a colour would mint a
    *  member parameter (R36's rule), so it is read from the run, at defaults. */
   const rtColourOf = (node, scope, depth) => {
-    // ⭐ Engine 52 — and a CELL the runtime lane feeds (`table.cell`), whose text it already
-    // serves (`rtTextOf`): an unserved colour HOLDS the cell (`objectRuntime.js`, the
-    // create rule), never paints it a default.
-    if (!rtC20 || !rtOp || (rtOp.k !== 'create' && rtOp.k !== 'update' && rtOp.k !== 'cell') || !node || depth > 12) return null
+    if (!rtC20 || !rtOp || (rtOp.k !== 'create' && rtOp.k !== 'update') || !node || depth > 12) return null
     if (!rtReadable(node)) return null
     if (node.type === 'call' && node.name === 'color.new') {
       const args = node.args || []
