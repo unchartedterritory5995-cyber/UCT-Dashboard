@@ -84,6 +84,10 @@ anything that needs a rule decided (those go in `owner_flags`, never decided by 
 
 ## 6. Facts learned (do not relearn these)
 
+- **Workflow gotcha (bit us in wave 1):** in a `pipeline()`, a stage that returns `null` DROPS the item (its later stages never run). The
+  light route's first stage once returned null, so the 9 light chunks silently never started. The script now returns `{skipped: true}`.
+  After any wave launch, confirm the agent counts by role in the run's journal (every route should show its agents) within a few minutes.
+
 - A course item's id is the unit reference plus the question KEY (not the text): rewording a question keeps its id.
 - The Study engine already has mastery, a due-date review ladder, difficulty bands and a six-part reveal: do not rebuild them.
 - Cost: pilot about 44k tokens per question for the full path (51k with the one-off safety test). Per-question agents would cost MORE
