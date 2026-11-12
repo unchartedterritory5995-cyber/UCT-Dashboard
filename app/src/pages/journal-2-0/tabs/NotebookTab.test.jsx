@@ -41,19 +41,17 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
   // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
   // trigger the same way ImportWizard's mock exposes "fire onImported",
   // so trash-view wiring can be driven through the real prop instead of
-  // reaching into NotebookTab's internal state. UX #1's onSelectView/
-  // onDeleteView/onRenameView triggers follow the identical convention.
+  // reaching into NotebookTab's internal state. (Notebook simplify, Task 2: the
+  // saved-view triggers that stood here left with the saved views, which are the
+  // View menu's "Saved views" group now; those tests press the real menu rows.)
   default: (props) => {
-    const { onSelectFolder, onSelectView, onDeleteView, onRenameView } = props
+    const { onSelectFolder } = props
     sidebarProps.push(props)
     return (
       <div data-testid="folder-sidebar">
         <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
         <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
         <button type="button" onClick={props.onToggleSidebar}>test: toggle the folders panel</button>
-        <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
-        <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
-        <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
       </div>
     )
   },
@@ -133,7 +131,9 @@ vi.mock('../lib/templatesLoader', async (importOriginal) => {
 import NotebookTab from './NotebookTab'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { chooseView, currentView, offersSaveView, pressToolbar, toolbarOffers, viewOption } from './__tests__/toolbarDoors'
+import {
+  chooseSavedView, chooseView, currentView, offersSaveView, pressSavedViewAction, pressToolbar, toolbarOffers, viewOption,
+} from './__tests__/toolbarDoors'
 import * as settleModule from '../lib/offline/settleNoteWrite'
 import { getTemplate } from '../lib/notebookTemplates'
 import { loadTemplates } from '../lib/templatesLoader'
@@ -954,13 +954,24 @@ describe('⛔⛔ FX2 — the view modes are one labelled set (proof-walk item 2)
  * `activeFolderId` (FolderSidebar owns that one directly; this one can't,
  * because `activeView` state lives in NotebookTab).
  */
+// Notebook simplify, Task 2: the saved views are listed by the View menu; these press its real rows.
+const MY_VIEW = { id: 'v1', name: 'My View', viewType: 'list' }
+function serveMyView() {
+  const inner = global.fetch
+  global.fetch = vi.fn((url, opts) => (String(url) === '/api/j2/saved-views' && !opts?.method
+    ? Promise.resolve({ ok: true, json: () => Promise.resolve({ savedViews: [MY_VIEW] }) })
+    : inner(url, opts)))
+}
+
 describe('Saved view delete clears activeView when it was the active one (UX #1)', () => {
+  beforeEach(serveMyView)
+
   it('deleting the ACTIVE view drops the "Clear filter" affordance once confirmed', async () => {
     renderTab()
-    fireEvent.click(screen.getByText('select view v1'))
+    await chooseSavedView('My View')
     expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('delete view v1'))
+    await pressSavedViewAction('Delete', 'My View')
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Delete view "My View"?')).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
@@ -972,10 +983,10 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
     )
   })
 
-  it('cancelling the confirm leaves the view selected (no delete call)', () => {
+  it('cancelling the confirm leaves the view selected (no delete call)', async () => {
     renderTab()
-    fireEvent.click(screen.getByText('select view v1'))
-    fireEvent.click(screen.getByText('delete view v1'))
+    await chooseSavedView('My View')
+    await pressSavedViewAction('Delete', 'My View')
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
@@ -984,32 +995,29 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
     )).toBe(false)
   })
 
-  // Finish program, lane FE2 round 2 (found by the 390 px browser sweep): the confirm was
-  // rendered inside the notes-list branch only, so on Research Home, where the folders panel
-  // and its saved views are also shown, the Delete button set state and nothing appeared.
-  it('on Research Home the Delete button opens the same confirm, and confirming deletes the view', async () => {
+  // ⚰️ Finish program FE2 round 2 pinned that the Delete on RESEARCH HOME opened the confirm (the folders panel, and
+  // its saved views, showed there too). Task 2 took the saved views out of the panel: Home has no saved-view row to
+  // delete from, and the View menu that lists them is the notes list's. The confirm itself still renders above the
+  // pane's branches.
+  it('on Research Home no saved-view row is offered (they are in the notes list View menu now)', async () => {
     renderTab('/journal/notebook')
     expect(screen.getByTestId('research-home')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('delete view v1'))
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('Delete view "My View"?')).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
-      '/api/j2/saved-views/v1',
-      expect.objectContaining({ method: 'DELETE' }),
-    ))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('menuitem', { name: 'Delete My View' })).toBeNull()
+    expect(screen.queryByText('My View')).toBeNull()
   })
 
-  it('control: on the notes list the confirm is rendered once, not twice', () => {
+  it('control: on the notes list the confirm is rendered once, not twice', async () => {
     renderTab()
-    fireEvent.click(screen.getByText('delete view v1'))
+    await pressSavedViewAction('Delete', 'My View')
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
   })
 
   it('renaming calls the PUT endpoint with the new name', async () => {
     renderTab()
-    fireEvent.click(screen.getByText('rename view v1'))
+    await pressSavedViewAction('Rename', 'My View')
+    const input = screen.getByRole('textbox', { name: 'Rename view My View' })
+    fireEvent.change(input, { target: { value: 'Renamed View' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       '/api/j2/saved-views/v1',
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ name: 'Renamed View' }) }),
@@ -1223,10 +1231,11 @@ describe('a saved view takes a stale ?view= mode out of the address (Important 2
     const loc = useLocation()
     return <output data-testid="where">{loc.search}</output>
   }
+  beforeEach(serveMyView)
   it('from ?view=board, picking a list-type saved view leaves no ?view=board', async () => {
     render(<MemoryRouter initialEntries={['/journal/notebook?view=board']}><NotebookTab /><Where /></MemoryRouter>)
     expect(screen.getByTestId('where').textContent).toContain('view=board')
-    fireEvent.click(screen.getByText('select view v1'))
+    await chooseSavedView('My View')
     await waitFor(() => expect(screen.getByTestId('where').textContent).not.toContain('view=board'))
     expect(currentView()).toBe('List')
     expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()   // the saved view is still on

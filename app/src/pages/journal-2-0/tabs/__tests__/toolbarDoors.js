@@ -90,3 +90,22 @@ export function pressSaveView() {
   const menu = openMenu('View')
   fireEvent.click(within(menu).getByRole('menuitem', { name: 'Save view' }))
 }
+
+// Notebook simplify, Task 2: the saved views are the View menu's "Saved views" group (they left the folders panel).
+/** The View menu's "Saved views" group, once the saved-views list has arrived. Opens the menu. */
+export async function savedViewsGroup() {
+  const menu = openMenu('View')
+  return within(menu).findByRole('group', { name: 'Saved views' })
+}
+
+/** Apply a saved view by its name, through the View menu. */
+export async function chooseSavedView(name) {
+  const group = await savedViewsGroup()
+  fireEvent.click(await within(group).findByRole('menuitemradio', { name }))
+}
+
+/** Press a saved view's "Rename" or "Delete" in the View menu. */
+export async function pressSavedViewAction(action, name) {
+  const group = await savedViewsGroup()
+  fireEvent.click(await within(group).findByRole('menuitem', { name: `${action} ${name}` }))
+}

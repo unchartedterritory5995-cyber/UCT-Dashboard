@@ -3,7 +3,9 @@ import { Profiler, useEffect, useState } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
+import FolderSidebar, {
+  buildFolderTree, renderSnippetMarks, matchReasonFor, MORE_FOLD_KEY, TAGS_FOLD_KEY,
+} from './FolderSidebar'
 import { SplitViewContext } from '../../lib/splitView'
 import { HomeSearch } from './ResearchHome'
 
@@ -110,6 +112,18 @@ beforeEach(() => {
   useJ2SectorThemeFacetsMock.mockImplementation(() => ({
     sectors: [], themes: [], isLoading: false, error: null, refresh: vi.fn(),
   }))
+})
+
+// Notebook simplify, Task 2: Unfiled/Archived/Trash/My Playbook sit under the panel's "More" fold and the tags
+// under its "Tags" fold, both closed by default. This file is about what those rows DO, so it opens both folds
+// the way a member's browser remembers them (FolderSidebar.folds.test.jsx owns the folds themselves).
+beforeEach(() => {
+  window.localStorage.setItem(MORE_FOLD_KEY, '1')
+  window.localStorage.setItem(TAGS_FOLD_KEY, '1')
+})
+afterEach(() => {
+  window.localStorage.removeItem(MORE_FOLD_KEY)
+  window.localStorage.removeItem(TAGS_FOLD_KEY)
 })
 
 describe('folder tree', () => {
@@ -1559,220 +1573,10 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
   })
 })
 
-// ── Wave E — Saved Views sidebar section. A plain prop (not its own hook,
-// unlike Favorites/Recents above) since NotebookTab owns the useJ2SavedViews
-// call and needs the same data for the toolbar/table-view wiring. Same
-// populated-conditional shape. ──────────────────────────────────────────────
-
-describe('Saved Views sidebar section (Wave E)', () => {
-  it('renders nothing at zero saved views (populated-conditional)', () => {
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
-    expect(screen.queryByText('Saved Views')).not.toBeInTheDocument()
-  })
-
-  it('renders a Saved Views section and activating one calls onSelectView', () => {
-    const onSelectView = vi.fn()
-    const view = { id: 'v1', name: 'Active Theses', viewType: 'table' }
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}}
-                          savedViews={[view]} onSelectView={onSelectView} />)
-    expect(screen.getByText('Saved Views')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Active Theses'))
-    expect(onSelectView).toHaveBeenCalledWith(view)
-  })
-
-  it('highlights the active saved view', () => {
-    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}}
-                          savedViews={[view]} activeViewId="v1" />)
-    const row = screen.getByText('Active Theses').closest('button')
-    expect(row.className).toMatch(/rowActive/)
-  })
-
-  it('collapsing Saved Views hides its rows without removing the header', () => {
-    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
-    fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
-    expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
-    expect(screen.getByText('Saved Views')).toBeInTheDocument()
-  })
-})
-
-/**
- * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
- * `rename(id, name)`/`remove(id)` -- this section's own comment claimed
- * saved views were "fully renameable/deletable" while nothing in the UI
- * ever called either. Mirrors Folder rename's exact interaction (UX #10,
- * double-click OR a visible pencil icon).
- */
-describe('Saved View rename/delete (UX #1)', () => {
-  const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
-
-  it('a visible Rename icon enters edit mode, the same as double-click', () => {
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
-    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
-    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
-  })
-
-  it('double-clicking the row also enters edit mode', () => {
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
-    fireEvent.doubleClick(screen.getByText('Active Theses'))
-    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
-  })
-
-  it('Enter submits the new name via onRenameView', () => {
-    const onRenameView = vi.fn()
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
-                          onRenameView={onRenameView} />)
-    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
-    const input = screen.getByDisplayValue('Active Theses')
-    fireEvent.change(input, { target: { value: 'Renamed View' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onRenameView).toHaveBeenCalledWith('v1', 'Renamed View')
-  })
-
-  it('Escape cancels without calling onRenameView', () => {
-    const onRenameView = vi.fn()
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
-                          onRenameView={onRenameView} />)
-    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
-    const input = screen.getByDisplayValue('Active Theses')
-    fireEvent.change(input, { target: { value: 'Should not save' } })
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(onRenameView).not.toHaveBeenCalled()
-    expect(screen.getByText('Active Theses')).toBeInTheDocument()
-  })
-
-  it('an empty submit is a cancel, never an empty-named view', () => {
-    const onRenameView = vi.fn()
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
-                          onRenameView={onRenameView} />)
-    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
-    const input = screen.getByDisplayValue('Active Theses')
-    fireEvent.change(input, { target: { value: '   ' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onRenameView).not.toHaveBeenCalled()
-  })
-
-  it('clicking Delete calls onDeleteView with the id and name, WITHOUT selecting the view', () => {
-    const onDeleteView = vi.fn()
-    const onSelectView = vi.fn()
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
-                          onDeleteView={onDeleteView} onSelectView={onSelectView} />)
-    fireEvent.click(screen.getByLabelText('Delete Active Theses'))
-    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
-    expect(onSelectView).not.toHaveBeenCalled()
-  })
-
-  it('clicking Rename does NOT also select the view (stopPropagation)', () => {
-    const onSelectView = vi.fn()
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
-                          onSelectView={onSelectView} />)
-    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
-    expect(onSelectView).not.toHaveBeenCalled()
-  })
-})
-
-/**
- * ⛔ Wave 7 lane J, J5 — a saved-view row NESTED its Rename/Delete controls inside the
- * select <button>: interactive content inside a button is invalid HTML, the two controls
- * were spans no keyboard could reach, and the row's accessible name concatenated all three
- * ("Active Theses Rename Active Theses Delete Active Theses" -- the wave-6 walk measured it
- * in Chromium and moved to `get_by_title` to survive it). The row is now a container whose
- * select, rename and delete are three SIBLING buttons. The walk's locator is kept working:
- * the select button alone carries `title={view.name}`, the two controls keep the literal
- * titles "Rename view"/"Delete view" and their `Rename <name>`/`Delete <name>` labels.
- */
-describe('a saved-view row is three sibling buttons, never a button inside a button (J5)', () => {
-  const views = [
-    { id: 'v1', name: 'Active Theses', viewType: 'list' },
-    { id: 'v2', name: 'Watching', viewType: 'board' },
-  ]
-  const renderRows = (props = {}) => render(
-    <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                   activeTag={null} onSelectTag={() => {}} savedViews={views} {...props} />)
-  const section = () => screen.getByText('Saved Views').closest('div').parentElement
-
-  it('no button in the Saved Views section holds another control', () => {
-    renderRows()
-    const buttons = [...section().querySelectorAll('button')]
-    // Non-vacuity: the walk saw the header toggle AND every row's three controls.
-    expect(buttons.length).toBeGreaterThanOrEqual(1 + views.length * 3)
-    const nested = buttons.filter((b) => b.querySelector(
-      'button, a[href], input, select, textarea, [role="button"], [tabindex], [aria-label]'))
-    expect(nested.map((b) => b.getAttribute('title') || b.textContent)).toEqual([])
-  })
-
-  it('select, rename and delete are each a button with its own name', () => {
-    renderRows()
-    // The select button is named by the view alone -- no concatenated control names.
-    const select = screen.getByRole('button', { name: 'Active Theses' })
-    expect(select).toHaveAttribute('title', 'Active Theses')
-    expect(screen.getByRole('button', { name: 'Rename Active Theses' })).toHaveAttribute('title', 'Rename view')
-    expect(screen.getByRole('button', { name: 'Delete Active Theses' })).toHaveAttribute('title', 'Delete view')
-    // The wave-6 walk locates the row by title == view name: exactly one element carries it.
-    expect(section().querySelectorAll('[title="Active Theses"]')).toHaveLength(1)
-  })
-
-  it('select is reachable by keyboard: focus + Enter selects the view', async () => {
-    const user = userEvent.setup()
-    const onSelectView = vi.fn()
-    renderRows({ onSelectView })
-    screen.getByRole('button', { name: 'Active Theses' }).focus()
-    await user.keyboard('{Enter}')
-    expect(onSelectView).toHaveBeenCalledWith(views[0])
-  })
-
-  it('rename is the next Tab stop after select, and Enter opens the rename field', async () => {
-    const user = userEvent.setup()
-    const onSelectView = vi.fn()
-    renderRows({ onSelectView })
-    screen.getByRole('button', { name: 'Active Theses' }).focus()
-    await user.tab()
-    expect(document.activeElement).toHaveAccessibleName('Rename Active Theses')
-    await user.keyboard('{Enter}')
-    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
-    expect(onSelectView).not.toHaveBeenCalled()
-  })
-
-  it('the controls a keyboard can reach are also SHOWN on focus, not only on hover', async () => {
-    // jsdom applies no stylesheet, so this reads the rule itself: a Tab stop at opacity 0
-    // is reachable and invisible, which is the failure the keyboard tests cannot see.
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const css = readFileSync(join(process.cwd(),
-      'src/pages/journal-2-0/components/notebook/FolderSidebar.module.css'), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-    const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
-      .find(([, sel]) => sel.split(',').map((s) => s.trim()).includes('.viewRow:focus-within .actions'))
-    expect(rule, 'no `.viewRow:focus-within .actions` rule').toBeTruthy()
-    expect(rule[2]).toMatch(/opacity:\s*1\b/)
-  })
-
-  it('delete is the Tab stop after rename, and Enter deletes WITHOUT selecting', async () => {
-    const user = userEvent.setup()
-    const onSelectView = vi.fn()
-    const onDeleteView = vi.fn()
-    renderRows({ onSelectView, onDeleteView })
-    screen.getByRole('button', { name: 'Active Theses' }).focus()
-    await user.tab()
-    await user.tab()
-    expect(document.activeElement).toHaveAccessibleName('Delete Active Theses')
-    await user.keyboard('{Enter}')
-    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
-    expect(onSelectView).not.toHaveBeenCalled()
-  })
-})
+// ⚰️ Notebook simplify, Task 2 (2026-11-11): the Saved Views section left this panel for the notes list's View menu.
+// Its rails moved with it, contract for contract, to SavedViewsMenuGroup.test.jsx (select, active, rename by the
+// pencil, Enter/Escape/empty, delete without selecting, three sibling buttons, keyboard reach, the row icon); the
+// panel's own rail that the section is GONE is FolderSidebar.folds.test.jsx.
 
 /**
  * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
@@ -1783,40 +1587,10 @@ describe('a saved-view row is three sibling buttons, never a button inside a but
 describe('Folder rename affordance (UX #10)', () => {
   it('a visible Rename icon enters edit mode, the same as double-click', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+                          activeTag={null} onSelectTag={() => {}} />)
     fireEvent.click(screen.getByLabelText('Rename Trading'))
     const input = screen.getByDisplayValue('Trading')
     expect(input.tagName).toBe('INPUT')
-  })
-})
-
-/**
- * ⛔⛔ THE ROW ICON MUST MATCH THE VIEW'S OWN TYPE, NOT A LIST/TABLE BINARY.
- *
- * This used to be `view.viewType === 'table' ? 'columns' : 'rows'` — a
- * saved Board, Calendar or Graph view all rendered the same generic
- * "rows" icon, a hand-typed second authority over data `lib/savedViewModes`
- * already has correct (VIEW_MODES). Competitive audit finding UX #6,
- * 2026-09-22.
- */
-describe('Saved Views sidebar section — row icons', () => {
-  it('the row icon matches each saved view type, not a list/table binary', () => {
-    const views = [
-      { id: 'v1', name: 'A Board', viewType: 'board' },
-      { id: 'v2', name: 'A Calendar', viewType: 'calendar' },
-      { id: 'v3', name: 'A Graph', viewType: 'graph' },
-      { id: 'v4', name: 'A List', viewType: 'list' },
-      { id: 'v5', name: 'A Table', viewType: 'table' },
-    ]
-    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
-                          activeTag={null} onSelectTag={() => {}} savedViews={views} />)
-    const iconFor = (name) => screen.getByText(name).closest('button')
-      .querySelector('svg[data-view-icon]').getAttribute('data-view-icon')
-    expect(iconFor('A Board')).toBe('board')
-    expect(iconFor('A Calendar')).toBe('calendar')
-    expect(iconFor('A Graph')).toBe('graph')
-    expect(iconFor('A List')).toBe('rows')
-    expect(iconFor('A Table')).toBe('columns')
   })
 })
 

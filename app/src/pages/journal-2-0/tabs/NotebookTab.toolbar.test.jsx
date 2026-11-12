@@ -14,12 +14,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
-import { AUTH, installFetch, Providers } from '../a11y/fixtures'
+import { AUTH, installFetch, NOTES, Providers, SAVED_VIEWS } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import { parseRules, declarations } from '../a11y/cssAudit'
 import { VIEW_MODES } from '../lib/savedViewModes'
 import NotebookTab from './NotebookTab'
-import { chooseView, currentView, offersSaveView, toolbarOffers, viewOption } from './__tests__/toolbarDoors'
+import {
+  chooseSavedView, chooseView, currentView, offersSaveView, savedViewsGroup, toolbarOffers, viewOption,
+} from './__tests__/toolbarDoors'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
@@ -28,8 +30,8 @@ function Where() {
   const loc = useLocation()
   return <output data-testid="where">{loc.search}</output>
 }
-async function renderTab(route = '/journal/notebook?view=all') {
-  installFetch([[/mapping-offer$/, { offer: null }]])
+async function renderTab(route = '/journal/notebook?view=all', routes = []) {
+  installFetch([[/mapping-offer$/, { offer: null }], ...routes])
   const out = render(<Providers auth={AUTH} route={route}><NotebookTab /><Where /></Providers>)
   await settle()
   return out
@@ -65,7 +67,9 @@ describe('the list toolbar is one row with exactly these controls', () => {
   it('the View trigger SAYS the mode and its menu offers every mode, then Save view', async () => {
     await renderTab()
     const menu = (viewOption('List'), screen.getByRole('menu', { name: 'View' }))
-    expect(within(menu).getAllByRole('menuitemradio').map((el) => el.textContent.trim()))
+    // the modes are the menu's own radios; the saved views (Task 2) are a named group of their own below them
+    expect(within(menu).getAllByRole('menuitemradio').filter((el) => !el.closest('[role="group"]'))
+      .map((el) => el.textContent.trim()))
       .toEqual(VIEW_MODES.map((m) => m.short))
     expect(within(menu).getByRole('menuitem', { name: 'Save view' })).toBeTruthy()
   })
@@ -211,5 +215,92 @@ describe('the stylesheet: one 32 px row on desktop, one 44 px row on a phone', (
     // the folders door joins the row, and the standalone toggle steps aside while the row is on screen
     expect(phone).toMatch(/\.phoneFolders \{ display: inline-flex; \}/)
     expect(phone).toMatch(/\.wrap\[data-list-toolbar\] > \.sidebarToggle \{ display: none; \}/)
+  })
+})
+
+// ── Notebook simplify, Task 2 (2026-11-11) ─────────────────────────────────────────────────────────────────────────
+// The saved views left the folders panel: they are the "Saved views" group at the foot of this View menu, where a row
+// applies a view, each row renames and deletes, and "Add thesis starter views" is offered when there are none.
+describe('Task 2: the saved views are listed in the View menu, not the folders panel', () => {
+  it('the View menu lists each saved view (the fixture serves one) in a "Saved views" group', async () => {
+    await renderTab()
+    const group = await savedViewsGroup()
+    expect(within(group).getAllByRole('menuitemradio').map((el) => el.textContent.trim()))
+      .toEqual(SAVED_VIEWS.map((v) => v.name))
+    expect(within(group).getByRole('menuitem', { name: `Rename ${SAVED_VIEWS[0].name}` })).toBeTruthy()
+    expect(within(group).getByRole('menuitem', { name: `Delete ${SAVED_VIEWS[0].name}` })).toBeTruthy()
+  })
+
+  it('the folders panel lists no saved view and offers no starter views', async () => {
+    await renderTab()
+    await savedViewsGroup()                                  // the list has arrived (control: the menu shows it)
+    const panel = document.getElementById('notebook-folders-panel')
+    expect(within(panel).queryByText(SAVED_VIEWS[0].name)).toBeNull()
+    expect(within(panel).queryByText(/saved views/i)).toBeNull()
+    expect(within(panel).queryByText('Add thesis starter views')).toBeNull()
+  })
+
+  it('applying a view from the menu: the menu stays usable while it is on, checks it, and drops Save view', async () => {
+    await renderTab()
+    await chooseSavedView(SAVED_VIEWS[0].name)
+    const trigger = within(bar()).getByRole('button', { name: /^View:/ })
+    expect(trigger).not.toBeDisabled()
+    const group = await savedViewsGroup()
+    expect(within(group).getByRole('menuitemradio', { name: SAVED_VIEWS[0].name })).toHaveAttribute('aria-checked', 'true')
+    expect(within(screen.getByRole('menu', { name: 'View' })).queryByRole('menuitem', { name: 'Save view' })).toBeNull()
+  })
+
+  it('with no saved views the group offers "Add thesis starter views"', async () => {
+    await renderTab('/journal/notebook?view=all', [[/^\/api\/j2\/saved-views$/, { savedViews: [] }]])
+    const group = await savedViewsGroup()
+    expect(within(group).getByRole('menuitem', { name: 'Add thesis starter views' })).toBeTruthy()
+    expect(within(group).queryAllByRole('menuitemradio')).toEqual([])
+  })
+
+  it('CONTROL: while the saved-views list has failed, no starter views are offered', async () => {
+    await renderTab('/journal/notebook?view=all', [[/^\/api\/j2\/saved-views$/, [500, { detail: 'down' }]]])
+    fireEvent.click(within(bar()).getByRole('button', { name: /^View:/ }))
+    await settle()
+    const menu = screen.getByRole('menu', { name: 'View' })
+    expect(within(menu).queryByRole('menuitem', { name: 'Add thesis starter views' })).toBeNull()
+  })
+})
+
+// The empty list says WHICH empty it is. ⚰️ Measured on the real page: "Add thesis starter views" switched the list to a
+// view matching nothing, and the page said "Your notebook is empty", drew "How do you trade?" and the whole template
+// picker, in an account of 15 notes.
+describe('Task 2: an empty list in an account WITH notes says "No notes match this view."', () => {
+  // The main list carries the filter in its address; the "All notes" count read (sort=title) never does.
+  const filteredEmpty = [[/^\/api\/j2\/notes$/, (url) => (/[?&](ticker|savedViewId|tag)=/.test(url)
+    ? { notes: [], total: 0 } : { notes: NOTES, total: NOTES.length })]]
+  const emptyBlock = () => document.querySelector('[data-empty="filtered"]')
+
+  it('a saved view matching nothing: the sentence and "Clear filter", nothing else', async () => {
+    await renderTab('/journal/notebook?view=all', filteredEmpty)
+    await chooseSavedView(SAVED_VIEWS[0].name)
+    await waitFor(() => expect(emptyBlock()).not.toBeNull())
+    expect(emptyBlock()).toHaveTextContent(/^No notes match this view\.\s*Clear filter$/)
+    expect(within(emptyBlock()).getAllByRole('button').map((b) => b.textContent.trim())).toEqual(['Clear filter'])
+    expect(screen.queryByText('Your notebook is empty.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Import notes' })).toBeNull()
+    expect(document.querySelector('[data-template-key]')).toBeNull()
+    expect(screen.queryByText('How do you trade?')).toBeNull()
+  })
+
+  it('a ticker filter matching nothing says the same; "Clear filter" lands on All notes, with the notes', async () => {
+    await renderTab('/journal/notebook?view=all&ticker=ZZZZ', filteredEmpty)
+    await waitFor(() => expect(emptyBlock()).not.toBeNull())
+    fireEvent.click(within(emptyBlock()).getByRole('button', { name: 'Clear filter' }))
+    await waitFor(() => expect(emptyBlock()).toBeNull())
+    expect(screen.getByTestId('where').textContent).toBe('?view=all')
+    expect(await screen.findAllByText(NOTES[0].title)).not.toHaveLength(0)
+  })
+
+  it('CONTROL: an account with ZERO notes keeps its own empty state: the sentence, Import notes, the picker', async () => {
+    await renderTab('/journal/notebook?view=all', [[/^\/api\/j2\/notes$/, { notes: [], total: 0 }]])
+    expect(await screen.findByText('Your notebook is empty.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import notes' })).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('[data-template-key]')).not.toBeNull(), { timeout: 5000 })
+    expect(emptyBlock()).toBeNull()
   })
 })

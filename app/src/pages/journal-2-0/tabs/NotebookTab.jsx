@@ -11,6 +11,7 @@ import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
+import SavedViewsMenuGroup from '../components/notebook/SavedViewsMenuGroup'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -32,7 +33,7 @@ import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
 import LoadFailed from '../components/LoadFailed'
-import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../lib/focusAfterRemoval'
+import { firstFocusable, treeRowOf } from '../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
@@ -483,7 +484,7 @@ export default function NotebookTab() {
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const {
-    savedViews, error: savedViewsError, refresh: refreshSavedViews,
+    savedViews, error: savedViewsError, isLoading: savedViewsLoading, refresh: refreshSavedViews,
     create: createSavedView, rename: renameSavedView, remove: removeSavedView,
   } = useJ2SavedViews()
   // ⛔⛔ UX #1, 2026-09-22: the hook has always fully implemented rename/
@@ -501,14 +502,13 @@ export default function NotebookTab() {
       setSavedViewError("Couldn't rename that view. It kept its old name.")
     }
   }
-  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name, after } | null
-  // ⛔ F7 Part C (F4 review, Important 1): the view's Delete button goes with its row, so
-  // focus used to fall to <body>. The view rows around it are recorded now (ids, in the
-  // order they show) and the dialog's `fallbackFocus` finds them after the delete: the next
-  // view, else the one before, else the pane's heading, else "All notes".
-  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({
-    id, name, after: neighbourKeys(keysInOrder(wrapRef.current, 'data-saved-view-row'), String(id)),
-  })
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
+  // ⛔ F7 Part C (F4 review, Important 1): focus must never fall to <body> after a delete.
+  // Notebook simplify, Task 2: the view's Delete is a row of the View menu now, and the menu hands
+  // focus to its "View" button before the confirm opens, so the confirm gives focus back THERE.
+  // When that button is gone too (deleting the view in use can take the list, and its toolbar,
+  // away), the dialog's `fallbackFocus` is the pane's heading, else "All notes".
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
   const onDeleteViewConfirm = async () => {
     if (!deleteViewTarget) return
     const { id } = deleteViewTarget
@@ -854,6 +854,10 @@ export default function NotebookTab() {
   // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
   const hasAnyNotes = allNotesTotal > 0
   const notesKnown = allNotesTotal !== undefined
+  // Notebook simplify, Task 2: the empty list's message needs this answer. A failed count is an answer too (the list
+  // then says what it said before), so only a count still on its way holds the message back.
+  const accountEmpty = notesKnown && !hasAnyNotes
+  const allNotesCountPending = !notesKnown && !allNotesError
   // Tier 4 fix round 3 (R1): Research Home waits for the count (round 2's CLS fix), but a FAILED count read leaves
   // `allNotesTotal` undefined forever, and Home would sit on its skeleton for good. A failure is an answer for Home:
   // it renders (and says its own load failure if it has one). ⛔ Only Home reads this: the first-run and tour gates
@@ -2250,6 +2254,16 @@ export default function NotebookTab() {
     selectAllNotes()
     setBulkNotice({ message: `Select the notes you want, then choose Move to put them in ${name}.`, tone: 'info' })
   }
+  // Notebook simplify, Task 2: the filtered-empty message's "Clear filter". Every list filter goes (tag, ticker, saved
+  // view, property filter and sort) and the member lands on All notes -- selectAllNotes sets the explicit `view=all`
+  // flag, so this never drops them on a landing page. Its button leaves with the message, so focus goes to the pane's
+  // heading.
+  const clearListFilters = () => {
+    setPropertyFilter(null)
+    setPropertySort(null)
+    selectAllNotes()
+    paneHeadingRef.current?.focus()
+  }
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
@@ -2273,8 +2287,12 @@ export default function NotebookTab() {
     })),
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
     // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
-    // trap (competitive audit UX #18, 2026-09-22). A saved view in use disables the whole menu.
-    ...(viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
+    // trap (competitive audit UX #18, 2026-09-22).
+    // Notebook simplify, Task 2: the menu now also lists the saved views (below), so it stays open to use while one
+    // is on; picking a mode leaves the saved view (the `?view=` effect clears it). Save view is not offered while a
+    // saved view is on: the ad-hoc filter it stores was cleared when the view was picked, so it would save a copy of
+    // nothing.
+    ...(!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
       { key: 'sep', separator: true },
       { key: 'save', label: 'Save view', icon: 'plus', run: () => setSaveViewOpen(true) },
     ] : []),
@@ -2387,12 +2405,7 @@ export default function NotebookTab() {
     searchRequest: searchRequest,
     searchSeed: searchSeed,
     onSearchModeChange: setSidebarSearching,
-    savedViews: savedViews,
-    activeViewId: activeView?.id ?? null,
-    onSelectView: handleSelectView,
-    onRenameView: onRenameView,
-    onDeleteView: onDeleteViewRequest,
-    onAddStarterViews: addStarterThesisViews,
+    // Notebook simplify, Task 2: the saved views are listed in the notes list's View menu now, not in the panel.
     isHome: isHome || isToday,
     onSelectAllNotes: selectAllNotes,
     // Audit 2026-11-05, S15: the Today row, above All notes.
@@ -2400,8 +2413,8 @@ export default function NotebookTab() {
     onSelectToday: openTodayHome,
     onRenameTag: onRenameTag,
     extraFolderActions: extraFolderActions,
-    // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
-    // failure is said in the panel with the panel's own reads.
+    // Wave 10 F7 (Part A): the saved views are read here, so their failure is said in the panel with the panel's own
+    // reads. (Task 2 moved the list into the View menu; the panel is the one place always on screen to say it.)
     extraLoadFailures: [{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }],
   }
   return (
@@ -2598,7 +2611,9 @@ export default function NotebookTab() {
             note / Research Home / notes-list branches. They used to be inside the notes-list
             branch only, while the folders panel (and its saved views) is also shown beside
             Research Home and beside an open note: there the Delete button set the state and
-            nothing appeared. Rail: NotebookTab.test.jsx, "on Research Home the Delete button". */}
+            nothing appeared. (Notebook simplify, Task 2: the saved views are the list's View menu
+            now, so Delete is only pressed from the list; the confirm stays above the branches,
+            because deleting the view in use can take the list away while it is open.) */}
         {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
             FolderSidebar.jsx exactly -- same reason it lives here rather
             than there (folders own rename/remove via their OWN hook call;
@@ -2613,7 +2628,7 @@ export default function NotebookTab() {
             onConfirm={onDeleteViewConfirm}
             onClose={() => setDeleteViewTarget(null)}
             // F3: a landing on "All notes" is its TREEITEM, the folder tree's focus target.
-            fallbackFocus={treeRowOf(neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+            fallbackFocus={treeRowOf(() => firstFocusable(
               paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]')))}
           />
         )}
@@ -2836,7 +2851,7 @@ export default function NotebookTab() {
           {!isShelfView && (
             <div className={styles.menuSlot}>
               <button {...viewMenu.triggerProps} type="button" className={`btn btn-secondary btn-sm ${styles.toolBtn}`}
-                disabled={Boolean(activeView)} data-tour="view-switcher">
+                data-tour="view-switcher">
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
                 <UIcon name="chevronDown" {...TOOLBAR_ICON} />
@@ -2844,6 +2859,16 @@ export default function NotebookTab() {
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
                   <MenuRows menu={viewMenu} items={viewMenuItems} />
+                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. */}
+                  <SavedViewsMenuGroup
+                    menu={viewMenu}
+                    views={savedViews}
+                    activeViewId={activeView?.id ?? null}
+                    onSelectView={handleSelectView}
+                    onRenameView={onRenameView}
+                    onDeleteView={onDeleteViewRequest}
+                    onAddStarterViews={savedViewsLoading || savedViewsError ? null : addStarterThesisViews}
+                  />
                 </div>
               )}
             </div>
@@ -3015,7 +3040,9 @@ export default function NotebookTab() {
              door — so split view's one-pane rule holds here too. Excluded from
              Trash/Archive like every other mode. */
           <NoteTasksView onOpenTask={(id, index) => openNote({ id }, null, { task: index })} />
-        ) : isLoading && notes.length === 0 ? (
+        ) : (isLoading || allNotesCountPending) && notes.length === 0 ? (
+          // Notebook simplify, Task 2: an empty list waits for the account's note count too, so the empty message
+          // below can say WHICH empty it is (a view that matches nothing, or a notebook with nothing in it).
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
           // NoteCard grid renders into -- instead of bare text. Not
@@ -3054,6 +3081,21 @@ export default function NotebookTab() {
                 Move notes…
               </button>
             </div>
+          </div>
+        ) : notes.length === 0 && (hasAnyNotes || (hasActiveFilters && !accountEmpty)) ? (
+          // Notebook simplify, Task 2: the list is empty because of a filter, a saved view, a ticker or a tag, and the
+          // account HAS notes: say that, with the one way back, and nothing else. ⚰️ It used to say "Your notebook is
+          // empty." and draw the whole template picker (measured: "Add thesis starter views" opened a view matching
+          // nothing in an account of 15 notes). The picker and "Import notes" are for an account with no notes.
+          <div className={styles.empty} data-empty="filtered">
+            <p>No notes match this view.</p>
+            {hasActiveFilters && (
+              <div className={styles.emptyActions}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={clearListFilters}>
+                  Clear filter
+                </button>
+              </div>
+            )}
           </div>
         ) : notes.length === 0 ? (
           <div className={styles.empty}>
@@ -3327,7 +3369,7 @@ export default function NotebookTab() {
           <FolderSidebar {...folderSidebarProps} sidebarOpen onToggleSidebar={() => setFolderSheet(false)}
             onSearchModeChange={NOOP}
             onSelectFolder={closeSheetThen(handleSelectFolder)} onSelectTag={closeSheetThen(handleSelectTag)}
-            onOpenNote={closeSheetThen(openNote)} onSelectView={closeSheetThen(handleSelectView)}
+            onOpenNote={closeSheetThen(openNote)}
             onSelectAllNotes={closeSheetThen(selectAllNotes)} />
         </FolderSheet>
       )}

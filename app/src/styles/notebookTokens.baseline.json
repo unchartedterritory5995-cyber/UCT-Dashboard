@@ -270,8 +270,8 @@
   "spacing 6px": 5
  },
  "pages/journal-2-0/components/notebook/FolderSidebar.jsx": {
-  "icon-size 11px": 6,
-  "icon-size 12px": 9,
+  "icon-size 11px": 4,
+  "icon-size 12px": 7,
   "icon-size 13px": 1,
   "icon-size 14px": 1
  },
@@ -281,15 +281,15 @@
   "border-radius 7px": 3,
   "font-size 16px": 7,
   "font-size 9px": 2,
-  "spacing 10px": 13,
+  "spacing 10px": 12,
   "spacing 14px": 1,
   "spacing 1px": 2,
   "spacing 28px": 1,
   "spacing 30px": 1,
   "spacing 3px": 1,
-  "spacing 5px": 3,
+  "spacing 5px": 2,
   "spacing 62px": 1,
-  "spacing 6px": 25,
+  "spacing 6px": 24,
   "spacing 7px": 2,
   "spacing 9px": 1
  },
