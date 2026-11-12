@@ -81,3 +81,14 @@ describe('control: a line relation with "but" is never read as an exception', ()
     expect(ex(t)).toEqual([])
   })
 })
+
+// (AUDIT #1148) a possessive 's that is NOT a chart — a company, a day, a session — stays nothing; a chart's 's is UNPLACED
+describe('control: a non-chart possessive is never read as a chart exception', () => {
+  it.each([["make every chart weekly except Apple's earnings day"], ["make everything log other than Friday's close"],
+    ["switch all of them to weekly except the Fed's meeting week"], ["every chart to weekly excluding today's open"]])('"%s" → nothing', (t) => {
+    expect(ex(t)).toEqual([])
+  })
+  it.each([["make every chart weekly except SPY's neighbour"], ["switch everything to weekly apart from the chart's twin"]])('a chart\'s \'s: "%s" → UNPLACED', (t) => {
+    expect(ex(t)).toContain(UNPLACED)
+  })
+})

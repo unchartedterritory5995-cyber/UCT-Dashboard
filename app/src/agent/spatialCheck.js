@@ -533,9 +533,14 @@ export function excludedCharts(text, charts = [], sel = null) {
 // WHOLE-BOARD word ("everything but …", "every chart but …") — never after "row" / "column" (a line relation) or a value.
 const EXC_KW = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|besides|aside\s+from|save\s+for|minus|but\s+not|instead\s+of|rather\s+than|(?:everything|all|them|these|(?:every|each)\s+chart)\s+but)\s+([^,.;!?—–]{1,60})/gi
 const normPhrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-// those words name a CHART: a chart noun, a neighbour / relation, the click's own names, a place word, or a possessive 's
-const CHARTISH = new RegExp('\\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|neighbou?rs?|next\\s+to|beside|adjacent|opposite|'
-  + 'mine|my\\s+(?:own|one|chart|cell|pane|panel|graph)|this\\s+(?:one|chart)|top|bottom|upper|lower|corner|row|column)\\b|[A-Za-z][\'’]s\\b', 'i')
+// those words name a CHART: a chart noun, a neighbour / relation, the click's own names, a place word, or a possessive 's OF A
+// CHART — after a chart noun / "mine" ("this one's neighbour") or an all-caps TICKER ("SPY's neighbour"); never any word's 's
+// ("except Apple's earnings day", "other than Friday's close" are dates / values, not charts)
+const CHARTISH_WORDS = new RegExp('\\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|neighbou?rs?|next\\s+to|beside|adjacent|opposite|'
+  + 'mine|my\\s+(?:own|one|chart|cell|pane|panel|graph)|this\\s+(?:one|chart)|top|bottom|upper|lower|corner|row|column)\\b'
+  + '|\\b(?:one|chart|cell|pane|panel|graph|mine)[\'’]s\\b', 'i')
+const TICKER_POSS = /\b[A-Z]{1,5}['’]s\b/
+const CHARTISH = { test: (s) => CHARTISH_WORDS.test(s) || TICKER_POSS.test(s) }
 /** The charts showing a ticker the phrase names, when that ticker is on more than one chart ([] otherwise). */
 function symbolCharts(phrase, charts) {
   const bySym = new Map()
