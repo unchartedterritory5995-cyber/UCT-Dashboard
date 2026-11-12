@@ -222,6 +222,10 @@ def main():
             calls[q["id"]] = {"c": c, "p": p, "r": r}
             if done or upg:
                 calls[q["id"]]["k"] = "changed"
+                if upg:
+                    rk = ((_unit_now(u).get(q["key"]) or {}).get("risk") or {}).get("score")
+                    if isinstance(rk, int):
+                        calls[q["id"]]["rk"] = rk
                 was = upg[1] if upg else old_question(u, q["key"])
                 if was:
                     calls[q["id"]]["was"] = was

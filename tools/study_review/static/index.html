@@ -25,7 +25,7 @@ button, textarea, select { font: inherit; color: inherit; }
 .progress { font-size: 15px; color: var(--mute); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .progress b { color: var(--fg); }
 .saved { font-size: 14px; color: var(--good); min-width: 70px; text-align: right; }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--panel2); border-radius: 12px; padding: 4px; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--panel2); border-radius: 12px; padding: 4px; }
 .tab { min-height: 46px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--mute); font: 600 15px var(--body); cursor: pointer; padding: 4px 8px; line-height: 1.2; }
 .tab small { display: block; font: 400 12px var(--body); }
 .tab.on { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.25); border-color: var(--line); }
@@ -127,7 +127,14 @@ details p, details div { margin: 6px 0; }
 .fbh { font: 700 18px var(--display); margin: 14px 0 6px; }
 .item .tg { display: block; color: var(--gold); font-size: 13px; font-weight: 700; margin-top: 2px; }
 .cnt { color: var(--mute); font-size: 15px; margin: 0; }
-@media (max-width: 560px) { .tab { font-size: 13px; padding: 4px 4px; } .tab small { font-size: 11px; } }
+@media (max-width: 560px) { .tabs { grid-template-columns: 1fr 1fr; } .tab { font-size: 13px; padding: 4px 4px; } .tab small { font-size: 11px; } }
+.ab { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; font-size: 15px; color: var(--mute); }
+.abbtn { min-height: 40px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0 14px; cursor: pointer; font-size: 15px; }
+.abbtn.on { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 700; }
+.lsrow { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.lsrow .t { font-weight: 700; } .lsrow .n { color: var(--mute); font-size: 14px; }
+.stat { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 10px; border: 1px solid currentColor; white-space: nowrap; }
+.stat.ok { color: var(--good); } .stat.wip { color: var(--gold); } .stat.bad { color: var(--bad); } .stat.idle { color: var(--mute); }
 .simpleline { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid var(--gold); background: var(--panel2); border-radius: 0 10px 10px 0; font-weight: 600; }
 </style></head><body>
 <div class="wrap">
@@ -140,6 +147,7 @@ details p, details div { margin: 6px 0; }
     <button class="tab" id="tab1" type="button"></button>
     <button class="tab" id="tab2" type="button"></button>
     <button class="tab" id="tab3" type="button"></button>
+    <button class="tab" id="tab4" type="button"></button>
   </div>
   <div class="prog">
     <div class="bar" aria-hidden="true"><i class="k" id="barK"></i><i class="f" id="barF"></i><i class="c" id="barC"></i></div>
@@ -210,9 +218,38 @@ details p, details div { margin: 6px 0; }
   function ensure(id) { return S.qById[id] ? Promise.resolve() : loadTrack(S.ofId[id].track); }
   function prefetchNext() { var n = S.queue[S.pos + 3]; if (n && !S.qById[n]) loadTrack(S.ofId[n].track).catch(function () {}); }
 
+  function budget() { var b = Number(lsGet('libreview3.budget', 150)); return b > 0 ? b : 150; }
+  function todayCount() {
+    var day = new Date().toDateString(), n = 0;
+    Object.keys(S.reviews).forEach(function (id) { var r = S.reviews[id]; if (r && r.v && r.at && S.ofId[id] && new Date(r.at).toDateString() === day) n++; });
+    return n;
+  }
   function decided(id) { var r = S.reviews[id]; return !!(r && r.v); }
+  // ── Part 4: the sample review (docs/study/OVERBUILD_PLAN.md section 7) ─────────────────────────────────────────
+  var SAMPLE_FIRST = 10, SAMPLE_WIDE = 15;
+  function isUp(id) { var c = S.calls[id]; return !!(c && /Upgraded/.test(c.r || '')); }
+  function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function unitSample(u) {
+    var ups = u.ids.filter(isUp).sort(function (a, b) { return hash(a) - hash(b); });
+    var first = ups.slice(0, SAMPLE_FIRST).sort(function (a, b) { return ((S.calls[b].rk || 0) - (S.calls[a].rk || 0)) || (hash(a) - hash(b)); });
+    var firstDone = first.filter(decided), firstDefects = firstDone.filter(function (id) { return S.reviews[id].v !== 'keep'; }).length;
+    var wide = [], status = 'idle', label = 'not started';
+    if (!ups.length) { status = 'idle'; label = 'nothing upgraded yet'; }
+    else if (firstDone.length < first.length) { status = firstDone.length ? 'wip' : 'idle'; label = firstDone.length ? 'sampling' : 'not started'; }
+    else if (firstDefects === 0) { status = 'ok'; label = 'approved; the rest is machine-approved'; }
+    else if (firstDefects >= 3) { status = 'bad'; label = 'back to the pipeline'; }
+    else {
+      wide = ups.slice(SAMPLE_FIRST, SAMPLE_FIRST + SAMPLE_WIDE);
+      var wd = wide.filter(decided), wdef = wd.filter(function (id) { return S.reviews[id].v !== 'keep'; }).length;
+      if (wd.length < wide.length) { status = 'wip'; label = 'widened to ' + (first.length + wide.length) + ' (' + firstDefects + ' defect found)'; }
+      else if (firstDefects + wdef >= 3) { status = 'bad'; label = 'back to the pipeline'; }
+      else { status = 'ok'; label = 'approved after fixes'; }
+    }
+    return { ups: ups.length, first: first, wide: wide, status: status, label: label, done: firstDone.length + wide.filter(decided).length, total: first.length + wide.length };
+  }
   function buildQueue(stage) {
     if (stage === 3) return S.decs.map(function (d) { return 'dec:' + d.id; });
+    if (stage === 4) { var q4 = []; S.idx.units.forEach(function (u) { var sm = unitSample(u); q4 = q4.concat(sm.first, sm.wide); }); return q4; }
     var ids = [];
     S.idx.units.forEach(function (u) { u.ids.forEach(function (id) { if (stage === 2 || (S.calls[id] && S.calls[id].c === 'look')) ids.push(id); }); });
     return ids;
@@ -243,7 +280,7 @@ details p, details div { margin: 6px 0; }
     if (min < 90) return 'about ' + min + ' min left at your pace';
     return 'about ' + (Math.round(min / 6) / 10) + ' hours left at your pace';
   }
-  var STAGE_NAME = { 1: 'Part 1 · Claude changed or doubts', 2: 'Part 2 · every question', 3: 'Part 3 · rules waiting on you' };
+  var STAGE_NAME = { 1: 'Part 1 · Claude changed or doubts', 2: 'Part 2 · every question', 3: 'Part 3 · rules waiting on you', 4: 'Part 4 · sample review' };
   function tabLabel(stage) {
     var q = buildQueue(stage), d = 0; q.forEach(function (id) { if (decided(id)) d++; });
     return STAGE_NAME[stage] + '<small>' + (d >= q.length && q.length ? '✓ finished' : nf(d) + ' of ' + nf(q.length) + ' done') + '</small>';
@@ -255,8 +292,10 @@ details p, details div { margin: 6px 0; }
     var qd = k + f + c, left = paceLeft(n - qd);
     $('progress').innerHTML = '<span><b>' + nf(qd) + ' of ' + nf(n) + '</b> done' + (qd ? ' · <span style="color:var(--good)">' + nf(k) + ' ' + L[0] + '</span> · <span style="color:var(--warn)">' + nf(f) + ' ' + L[1] + '</span> · <span style="color:' + (S.stage === 3 ? 'var(--gold)' : 'var(--bad)') + '">' + nf(c) + ' ' + L[2] + '</span>' : '') + '</span>' + (left ? '<span>' + left + '</span>' : '');
     $('barK').style.width = (n ? 100 * k / n : 0) + '%'; $('barF').style.width = (n ? 100 * f / n : 0) + '%'; $('barC').style.width = (n ? 100 * c / n : 0) + '%';
-    $('tab1').innerHTML = tabLabel(1); $('tab2').innerHTML = tabLabel(2); $('tab3').innerHTML = tabLabel(3);
-    [1, 2, 3].forEach(function (i) { $('tab' + i).className = 'tab' + (S.stage === i ? ' on' : ''); });
+    $('tab1').innerHTML = tabLabel(1); $('tab2').innerHTML = tabLabel(2); $('tab3').innerHTML = tabLabel(3); $('tab4').innerHTML = tabLabel(4);
+    [1, 2, 3, 4].forEach(function (i) { $('tab' + i).className = 'tab' + (S.stage === i ? ' on' : ''); });
+    var td = todayCount(), bud = budget();
+    $('progress').insertAdjacentHTML('beforeend', '<span style="color:' + (td >= bud ? 'var(--bad)' : 'var(--mute)') + '">Today: ' + nf(td) + ' of ' + nf(bud) + (td >= bud ? ' (budget reached; stop here or raise it in the menu)' : '') + '</span>');
   }
 
   // ── tags, rules, notes ───────────────────────────────────────────────────────────────────────────────────────
@@ -334,6 +373,9 @@ details p, details div { margin: 6px 0; }
     if (ok) ok.onclick = function () { var c = S.curRule; persistRec({ id: 'rule:' + c.key, kind: 'rule', unit: c.unit, key: c.crit, v: 'keep', note: '', tags: [], q: String(c.r.s).slice(0, 300) }); renderCard(id); };
     if (fx) fx.onclick = function () { var c = S.curRule; openSide('rule', 'rule:' + c.key, c.r.s, c.unit, c.crit, id); };
     if (g) g.onclick = function () { lsSet('libreview3.guide', true); renderCard(id); };
+    document.querySelectorAll('[data-ab]').forEach(function (b) {
+      b.onclick = function () { persistRec({ id: 'ab:' + id, kind: 'ab', unit: m.slug, key: q.key, v: b.getAttribute('data-ab'), note: '', tags: [], q: String(q.q || '').slice(0, 160) }); renderCard(id); };
+    });
     document.querySelectorAll('[data-dec]').forEach(function (b) {
       b.onclick = function () { var q3 = buildQueue(3), i = q3.indexOf('dec:' + b.getAttribute('data-dec')); if (i >= 0) setStage(3, i); };
     });
@@ -406,6 +448,11 @@ details p, details div { margin: 6px 0; }
     }
     return '<div class="answerbox">' + esc(q.prefix || '') + esc(q.answer) + esc(q.suffix || '') + '</div>';
   }
+  function abRow(id) {
+    var mine = S.reviews['ab:' + id] || {};
+    function b(v, label) { return '<button type="button" class="abbtn' + (mine.v === v ? ' on' : '') + '" data-ab="' + v + '">' + label + '</button>'; }
+    return '<div class="ab"><span>Which is better?</span>' + b('old', 'The old one') + b('same', 'About the same') + b('new', 'The new one') + '</div>';
+  }
   function wasBlock(w) {
     var h = '<div class="was"><div class="lab">What it said before</div>';
     if (w.story) h += '<p class="story">' + esc(w.story) + '</p>';
@@ -441,9 +488,9 @@ details p, details div { margin: 6px 0; }
     renderProgress();
     var main = $('main');
     if (S.pos >= S.queue.length) {
-      var fb = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep'; }).length;
-      var heads = { 1: 'Part 1 is finished', 2: 'Part 2 is finished', 3: 'Part 3 is finished' };
-      var nextStage = S.stage === 1 ? 2 : S.stage === 2 ? 3 : 0;
+      var fb = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep' && x.kind !== 'ab'; }).length;
+      var heads = { 1: 'Part 1 is finished', 2: 'Part 2 is finished', 3: 'Part 3 is finished', 4: 'The sample review is finished' };
+      var nextStage = S.stage === 1 ? 2 : S.stage === 2 ? 3 : S.stage === 3 ? 4 : 0;
       main.innerHTML = '<div class="done"><h2>' + heads[S.stage] + '</h2><p>' + nf(fb) + ' pieces of feedback saved so far across questions, rules, decisions and notes.</p><p>Everything is saved on your computer.<br>When you are ready, tell Claude <b>"review done"</b> and I will make the changes.</p><div class="row" style="justify-content:center">' + (nextStage ? '<button class="primary" id="toNext" type="button">Go on to Part ' + nextStage + '</button>' : '') + '<button class="plain" id="toFb" type="button">See my feedback</button><button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
       var bn = $('toNext'); if (bn) bn.onclick = function () { setStage(nextStage); };
       $('toFb').onclick = openFeedback; $('toMenu').onclick = openMenu;
@@ -470,7 +517,7 @@ details p, details div { margin: 6px 0; }
       h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
     }
     var was = call && call.k === 'changed' ? call.was : null;
-    if (was) h += wasBlock(was) + '<div class="lab now">Now</div>';
+    if (was) h += wasBlock(was) + '<div class="lab now">Now</div>' + abRow(id);
     if (q.story) h += '<p class="story">' + esc(q.story) + '</p>';
     h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q, was);
     if (q.simple) h += '<p class="simpleline"><b>In one line:</b> ' + esc(q.simple) + '</p>';
@@ -531,7 +578,9 @@ details p, details div { margin: 6px 0; }
       if (!S.qById[id]) return;
       persistRec({ id: id, kind: 'q', unit: S.ofId[id].slug, key: S.qById[id].key, v: v, note: note || '', tags: tags, q: String(S.qById[id].q || '').slice(0, 160) });
     }
-    S.times.push(Date.now()); S.noteFor = null; S._tagsFor = null; S.noteTags = []; S.pos++; render();
+    S.times.push(Date.now()); S.noteFor = null; S._tagsFor = null; S.noteTags = []; S.pos++;
+    if (S.stage === 4) S.queue = buildQueue(4);     // a defect in the first ten widens the sample
+    render();
   }
   function back() { if (S.pos > 0) { S.noteFor = null; S.pos--; render(); } }
   function skip() { if (S.pos < S.queue.length) { S.noteFor = null; S.pos++; render(); } }
@@ -542,7 +591,7 @@ details p, details div { margin: 6px 0; }
     var out = [];
     Object.keys(S.reviews).forEach(function (id) {
       var r = S.reviews[id]; if (!r || !r.v) return;
-      var kind = r.kind || (S.ofId[id] ? 'q' : id.indexOf('rule:') === 0 ? 'rule' : id.indexOf('dec:') === 0 ? 'decision' : id.indexOf('unit:') === 0 ? 'unit' : id.indexOf('gen:') === 0 ? 'general' : 'q');
+      var kind = r.kind || (S.ofId[id] ? 'q' : id.indexOf('ab:') === 0 ? 'ab' : id.indexOf('rule:') === 0 ? 'rule' : id.indexOf('dec:') === 0 ? 'decision' : id.indexOf('unit:') === 0 ? 'unit' : id.indexOf('gen:') === 0 ? 'general' : 'q');
       if (kind === 'q' && !S.ofId[id]) return;
       out.push({ id: id, kind: kind, r: r });
     });
@@ -550,13 +599,16 @@ details p, details div { margin: 6px 0; }
   }
   function openMenu() {
     var c = counts(), look = buildQueue(1).length, nd = S.decs.length;
-    var fbn = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep'; }).length;
+    var fbn = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep' && x.kind !== 'ab'; }).length;
     var units = S.idx.units.map(function (u) { return '<option value="' + esc(u.slug) + '">' + esc(u.unit) + ' · ' + esc(u.title) + '</option>'; }).join('');
     $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>Menu</h2><button class="menubtn" id="mClose" type="button">Close</button></div>' +
       '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
       '<button class="big" id="mP1" type="button">Part 1: the ' + look + ' Claude changed or doubts<small>Start here. Each one shows what changed or worried Claude.</small></button>' +
       '<button class="big" id="mP2" type="button">Part 2: every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
       '<button class="big" id="mP3" type="button">Part 3: the ' + nd + ' decisions behind the rules<small>One answer here settles many rules and questions at once.</small></button>' +
+      '<button class="big" id="mP4" type="button">Part 4: the sample review<small>10 random upgraded questions per lesson, riskiest first. If all 10 are good, the lesson is approved.</small></button>' +
+      '<button class="big" id="mLessons" type="button">Lesson status board<small>Which lessons are approved, being sampled, or sent back.</small></button>' +
+      '<label for="mBud"><b>Daily review budget</b> (questions a day)</label><input id="mBud" type="number" min="10" max="2000" value="' + budget() + '" style="width:100%;min-height:52px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px">' +
       '<label for="mUnit"><b>Jump to a lesson</b></label><select id="mUnit"><option value="">Choose a lesson…</option>' + units + '</select>' +
       '<button class="big" id="mList" type="button">My feedback (' + fbn + ')<small>Everything you flagged, counted by reason. Copy it to send to Claude.</small></button>' +
       '<button class="big" id="mGen" type="button">Write a general note<small>A missing topic, a new rule or game idea, anything else.</small></button>' +
@@ -568,11 +620,32 @@ details p, details div { margin: 6px 0; }
     $('mP1').onclick = function () { closeMenu(); setStage(1); };
     $('mP2').onclick = function () { closeMenu(); setStage(2); };
     $('mP3').onclick = function () { closeMenu(); setStage(3); };
+    $('mP4').onclick = function () { closeMenu(); setStage(4); };
+    $('mLessons').onclick = openLessons;
+    $('mBud').onchange = function () { lsSet('libreview3.budget', Math.max(10, Number(this.value) || 150)); renderProgress(); };
     $('mUnit').onchange = function () { var s = this.value; if (!s) return; closeMenu(); jumpUnit(s); };
     $('mList').onclick = openFeedback;
     $('mGen').onclick = openGeneral;
     $('mGuide').onclick = function () { $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>How this works</h2><button class="menubtn" id="gBack" type="button">Back</button></div>' + GUIDE.replace('<button class="primary" id="guideOk" type="button">Got it</button>', ''); $('gBack').onclick = openMenu; };
     $('mBackup').onclick = downloadBackup;
+  }
+  function openLessons() {
+    var rows = S.idx.units.map(function (u) { return { u: u, sm: unitSample(u) }; }).filter(function (x) { return x.sm.ups; });
+    var ok = rows.filter(function (x) { return x.sm.status === 'ok'; }).length;
+    var h = '<div class="row" style="justify-content:space-between"><h2>Lesson status board</h2><button class="menubtn" id="lsBack" type="button">Back to menu</button></div>' +
+      '<p class="cnt">' + ok + ' of ' + rows.length + ' upgraded lessons approved. A lesson is approved when your sample of 10 is all good; one defect widens it to 25; three send it back to the pipeline.</p><div class="list">';
+    rows.forEach(function (x, i) {
+      h += '<button class="lsrow" type="button" data-i="' + i + '"><span><span class="t">' + esc(x.u.unit) + ' · ' + esc(x.u.title) + '</span><br><span class="n">' + x.sm.done + ' of ' + x.sm.total + ' sampled · ' + x.sm.ups + ' upgraded</span></span><span class="stat ' + x.sm.status + '">' + esc(x.sm.label) + '</span></button>';
+    });
+    $('panel').innerHTML = h + '</div>';
+    $('lsBack').onclick = openMenu;
+    $('panel').querySelectorAll('.lsrow').forEach(function (b) {
+      b.onclick = function () {
+        var x = rows[Number(b.getAttribute('data-i'))], q4 = buildQueue(4), i0 = -1;
+        for (var i = 0; i < q4.length; i++) { if (S.ofId[q4[i]].slug === x.u.slug && !decided(q4[i])) { i0 = i; break; } if (S.ofId[q4[i]].slug === x.u.slug && i0 < 0) i0 = i; }
+        closeMenu(); setStage(4, i0);
+      };
+    });
   }
   function jumpUnit(slug) {
     var q2 = buildQueue(2), first = -1, firstOpen = -1;
@@ -638,6 +711,8 @@ details p, details div { margin: 6px 0; }
     }
     var h = '<div class="row" style="justify-content:space-between"><h2>My feedback</h2><button class="menubtn" id="fBack" type="button">Back to menu</button></div>';
     h += '<p class="cnt">' + pl(g.q.length, 'question') + ' to change or remove · ' + pl(g.rule.length, 'rule') + ' need work · ' + pl(g.decision.length, 'decision') + ' changed or to discuss · ' + pl(g.unit.length, 'lesson note') + ' · ' + pl(g.general.length, 'general note') + '<br>Agreed: ' + pl(F.agreed.q, 'question') + ', ' + pl(F.agreed.rule, 'rule') + ', ' + pl(F.agreed.decision, 'decision') + '.</p>';
+    var abc = { old: 0, same: 0, 'new': 0 }; Object.keys(S.reviews).forEach(function (id) { if (id.indexOf('ab:') === 0 && abc[S.reviews[id].v] != null) abc[S.reviews[id].v]++; });
+    if (abc.old + abc.same + abc['new']) h += '<p class="cnt"><b>Old versus new:</b> the new one was better ' + abc['new'] + ' times, about the same ' + abc.same + ', the old one ' + abc.old + '.</p>';
     h += '<div class="row"><button class="primary" id="fCopy" type="button">Copy all as text</button><button class="plain" id="fBackup" type="button">Download backup</button></div>';
     if (tally.length) h += '<div class="fbh">What keeps coming up</div><div class="tagrow">' + tally.map(function (t) { return '<span class="tagc"><b>' + F.tally[t] + '</b> ' + esc(t) + '</span>'; }).join('') + '</div>';
     if (g.q.length) {
@@ -687,7 +762,7 @@ details p, details div { margin: 6px 0; }
     else if (k === 'ArrowRight') skip();
   });
   $('menuBtn').onclick = openMenu;
-  [1, 2, 3].forEach(function (n) { $('tab' + n).onclick = function () { if (S.stage !== n) setStage(n); }; });
+  [1, 2, 3, 4].forEach(function (n) { $('tab' + n).onclick = function () { if (S.stage !== n) setStage(n); }; });
 
   // ── start ────────────────────────────────────────────────────────────────────────────────────────────────────
   function jget(url, dflt) { return fetch(url).then(function (r) { return r.ok ? r.json() : dflt; }).catch(function () { return dflt; }); }

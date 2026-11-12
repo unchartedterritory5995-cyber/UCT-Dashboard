@@ -31,8 +31,8 @@ import threading
 import webbrowser
 
 LOCK = threading.Lock()
-VERDICT_VALUES = ("keep", "fix", "cut", "ask", "note", "")
-KINDS = ("q", "rule", "decision", "unit", "general")
+VERDICT_VALUES = ("keep", "fix", "cut", "ask", "note", "old", "same", "new", "")
+KINDS = ("q", "rule", "decision", "unit", "general", "ab")
 MAX_BODY = 64 * 1024
 BACKUP_EVERY = 50
 BACKUPS_KEPT = 40
