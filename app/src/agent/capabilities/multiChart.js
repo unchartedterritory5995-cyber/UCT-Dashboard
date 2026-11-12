@@ -82,6 +82,8 @@ const SAVED_OPS = new Set(['saveGrid', 'deleteSaved'])
 const savedSig = (snap) => JSON.stringify((snap?.saved || []).map(s => [s.id, s.name, s.scope]))
 const gridKind = {
   name: 'multiChart',
+  source: 'gridControl',  // #1112 rail: the host key this kind's list/read/commit reads (capabilities.noTargetSentence)
+  unavailable: "Multi Chart isn't available on this page — open Charts to use the chart grid.",
   boardScoped: false,          // the grid is the member's own board (multichart_state), whichever layout is open
   selfDescribing: true,
   list: (host) => { const s = gridSnap(host); return s ? [s] : [] },
@@ -218,6 +220,8 @@ function cellSnaps(host) {
 }
 const cellKind = {
   name: 'gridCell',
+  source: 'gridControl',  // #1112 rail: cellSnaps/commit read host.gridControl (capabilities.noTargetSentence)
+  unavailable: "Multi Chart isn't available on this page — open Charts to use the chart grid.",
   boardScoped: false,
   selfDescribing: true,
   list: (host) => cellSnaps(host),
