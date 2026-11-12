@@ -720,6 +720,12 @@
    "source": "s9",
    "quote": "if the stock price is “close to” or below the strike price of the long put (lower strike price), then the price of the bull put spread increases (and loses money) with passing time.",
    "claim": "With the stock near or below the long put strike, time passing works against a bull put spread."
+  },
+  {
+   "id": "f100",
+   "source": "s9",
+   "quote": "If the stock price is “close to” or above the strike price of the short put (higher strike price), then the price of the bull put spread decreases (and makes money) with passing of time.",
+   "claim": "With the stock near or above the short put strike, a bull put spread's price falls with time, and the seller makes money."
   }
  ],
  "walkthroughs": [
@@ -789,12 +795,12 @@
    "q": "You buy one option and sell another on the same stock. What makes it a vertical spread?",
    "choices": [
     "Same type and expiry, different strikes",
-    "Same strike, different expiry dates",
+    "Same type and strike, different expiries",
     "One call and one put, same strike",
     "Different strikes and expiry dates"
    ],
    "answer": "Same type and expiry, different strikes",
-   "why": "Same type and expiry, different strikes. Two calls or two puts on one stock: you buy one and sell the other.",
+   "why": "Same type and expiry, different strikes. A vertical spread is two calls or two puts on one stock. Both legs share one expiry and sit at two different strikes. You buy one leg and sell the other. Change the expiry as well and it is a different kind of spread. A spread uses one option type, so a call with a put is not one.",
    "lesson_line": "Vertical means one expiry and two strikes. One leg bought, one leg sold.",
    "facts": [
     "f1",
@@ -802,10 +808,19 @@
     "f39"
    ],
    "wrong": {
-    "Same strike, different expiry dates": "That spread is built across dates. A vertical keeps one expiry and uses two strikes.",
     "One call and one put, same strike": "Mixing a call and a put is a different kind of combination. A vertical uses two calls or two puts.",
-    "Different strikes and expiry dates": "Change the date too and it's a different spread. A vertical keeps both legs in one expiry."
-   }
+    "Different strikes and expiry dates": "Change the date too and it's a different spread. A vertical keeps both legs in one expiry.",
+    "Same type and strike, different expiries": "That spread is built across dates at one strike. A vertical keeps one expiry and uses two strikes."
+   },
+   "simple": "A vertical uses two calls or two puts with one expiry and two different strikes, one bought and one sold.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: stem and a distractor)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q02",
@@ -814,14 +829,23 @@
    "format": "tf",
    "q": "If the stock finishes above both strikes at expiry, a bear put spread loses the whole debit you paid.",
    "answer": "True",
-   "why": "True. Above the higher strike, both puts expire worthless, so you lose what you paid to open it. Fees aside.",
+   "why": "True. Above the higher strike, which is the long put's strike, both puts expire worthless. You lose the whole debit you paid to open the spread. That is also the most a bear put spread can lose. Fees come on top, since each leg carries its own costs.",
    "lesson_line": "On a debit spread, the worst case is the debit. Know it before you buy.",
    "facts": [
     "f18",
     "f17",
     "f86",
     "f42"
-   ]
+   ],
+   "simple": "True: above both strikes, both puts expire worthless, so you lose all you paid to open it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: 'exactly' became 'the whole debit')"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q03",
@@ -829,7 +853,7 @@
    "rung": 2,
    "format": "fill",
    "q": "Fill in the blank.",
-   "sentence": "A bear put spread buys the ___ strike put and sells a lower strike put.",
+   "sentence": "In a bear put spread, you buy the ___ strike put and sell the other one.",
    "bank": [
     "higher",
     "lower",
@@ -837,12 +861,20 @@
     "cheaper"
    ],
    "answer": "higher",
-   "why": "Higher. You buy the higher strike put for the drop and sell a lower strike put to pay for part of it.",
+   "why": "Higher. A bear put spread is long the higher strike put and short the lower strike put, in the same expiry. The bought put profits from a drop. The sold put brings in premium that offsets some of the cost. The higher put costs more than the lower one brings in, so the spread opens for a debit.",
    "lesson_line": "Bear put spread: buy the higher put, sell the lower one. The sold put pays for part of the bought one.",
    "facts": [
     "f16",
-    "f68"
-   ]
+    "f68",
+    "f80"
+   ],
+   "simple": "Higher: you buy the higher put to profit from a drop and sell a lower one to pay for part of it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q04",
@@ -853,20 +885,30 @@
    "choices": [
     "Help pay for the long call",
     "Add to gains on a big rally",
-    "Make the trade free to open"
+    "Make the trade free to open",
+    "Give you a right to sell shares"
    ],
    "answer": "Help pay for the long call",
-   "why": "Help pay for the long call. Its premium cuts your cost, and in exchange it caps your profit.",
+   "why": "Help pay for the long call. OIC names this as the short call's main purpose. Its premium lowers the cost, but the spread still always opens for a debit. The price is a ceiling: above the short strike, the profit stops growing. Selling a call is also an obligation, not a right.",
    "lesson_line": "The short leg is how you pay less. It's also why the upside stops.",
    "facts": [
     "f3",
     "f4",
-    "f2"
+    "f2",
+    "f67"
    ],
    "wrong": {
     "Add to gains on a big rally": "It does the opposite. Above the short strike, it sets a ceiling on the profit.",
-    "Make the trade free to open": "A bull call spread always costs money to open. The short call covers only part of the long call's price."
-   }
+    "Make the trade free to open": "A bull call spread always costs money to open. The short call covers only part of the long call's price.",
+    "Give you a right to sell shares": "A sold call is an obligation, not a right. If it is assigned you must sell, and you have no say in when."
+   },
+   "simple": "Its job is to help pay for the long call, and in return it puts a ceiling on your profit.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q05",
@@ -881,7 +923,7 @@
     "Bear put spread"
    ],
    "answer": "Bull put spread",
-   "why": "Bull put spread. You sell the higher put and buy a lower one, so it always opens for a credit. It does best if the stock holds steady or rises.",
+   "why": "Bull put spread. You sell the higher strike put and buy a lower one, so it always opens for a credit. Its most is the credit, likeliest if the stock holds steady or rises. A bull call spread is also bullish but costs money to open. A bear call spread also pays a credit, but it wants the stock to stay down.",
    "lesson_line": "Bullish with a credit: sell a put spread. Bullish with a debit: buy a call spread.",
    "facts": [
     "f20",
@@ -890,13 +932,21 @@
     "f79",
     "f80",
     "f2",
-    "f29"
+    "f29",
+    "f69"
    ],
    "wrong": {
     "Bull call spread": "Right direction, wrong cash flow. A bull call spread always costs money to open.",
     "Bear call spread": "It opens for a credit, but it's a bet the stock stays down. A rally hurts it.",
     "Bear put spread": "That one is bearish and costs money to open. Wrong on both counts."
-   }
+   },
+   "simple": "A bull put spread: it pays you a credit up front and is built for a stock that holds or rises.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q06",
@@ -911,34 +961,58 @@
     "Anywhere: the credit is already yours"
    ],
    "answer": "At or above the higher strike",
-   "why": "At or above the higher strike. Both puts expire worthless and you keep the whole credit.",
+   "why": "At or above the higher strike, the short put's strike. Both puts then expire worthless and you keep the full credit. Below the short strike, the profit starts to shrink. At or below the lower strike, the loss is at its maximum. The credit is in your account from the start, but it is only fully yours if both puts expire worthless.",
    "lesson_line": "The credit is fully yours only if the stock finishes on the right side of the short strike.",
    "facts": [
     "f21",
     "f69",
-    "f26"
+    "f26",
+    "f79"
    ],
    "wrong": {
     "Between the two strikes": "There the short put is in the money, so you give back part of the credit, or all of it and more.",
     "Below the lower strike": "That's the worst case. Losses peak at or below the lower strike.",
     "Anywhere: the credit is already yours": "Below the short strike, profits start to erode. The credit is only safe if the puts expire worthless."
-   }
+   },
+   "simple": "At or above the higher strike, so both puts expire worthless and the whole credit stays yours.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: lesson line)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q07",
    "skill": "options.verticals",
    "rung": 3,
    "format": "tf",
-   "q": "In general, time passing works for a credit spread and against a debit spread.",
+   "q": "You sold a bull put spread, and the stock sits above both strikes. All else equal, time passing tends to help you.",
    "answer": "True",
-   "why": "True, as a rule of thumb. The clock hurts a bull call spread and helps a bull put spread. Where the stock sits against the strikes can flip that.",
-   "lesson_line": "Buy a spread and the clock usually costs you. Sell one and it usually pays you. Check where the stock sits.",
+   "why": "True. OIC says time passing helps a bull put spread, though not as much as a plain short put. Fidelity agrees for a stock near or above the short put's strike. There the spread's price falls with time, and you make money. With the stock above both strikes, both puts are on track to expire worthless. Then you keep the whole credit.",
+   "lesson_line": "Sold a put spread with the stock above both strikes: the clock works for you.",
    "facts": [
-    "f12",
     "f25",
-    "f58",
+    "f100",
+    "f21",
+    "f69",
     "f99"
-   ]
+   ],
+   "simple": "True: with the stock above both strikes, each day brings both puts closer to expiring worthless, and you keep the credit.",
+   "deeper": {
+    "counter": "The clock follows where the stock sits. If the stock sinks to the long put's strike, Fidelity says the spread's price rises with passing time. Then the same clock costs the seller."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: why now names the flip)",
+     "sources differ on the general rule (conflicts line 1)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q08",
@@ -947,13 +1021,13 @@
    "format": "mcq",
    "q": "Why buy a bull call spread instead of the long call alone?",
    "choices": [
-    "It costs less, but caps your gain",
-    "It makes more on a big rally",
-    "It can't lose money",
-    "Time decay can't touch it"
+    "It's cheaper, but caps your gain",
+    "It keeps the call's full upside",
+    "It still pays if the stock falls",
+    "Time decay hurts it more than a call"
    ],
-   "answer": "It costs less, but caps your gain",
-   "why": "It costs less, but caps your gain. The short call pays for part of the long call and sets a ceiling on the profit.",
+   "answer": "It's cheaper, but caps your gain",
+   "why": "It's cheaper, but caps your gain. The short call pays for part of the long call, so the spread costs less than the lower strike call on its own. In exchange you give up any gains above the short strike. It can still lose the whole debit, and in general time still hurts it, just less than a plain call.",
    "lesson_line": "A call spread is a cheaper call with a ceiling. It fits a move up to the short strike.",
    "facts": [
     "f4",
@@ -962,13 +1036,24 @@
     "f90",
     "f57",
     "f6",
-    "f12"
+    "f12",
+    "f60"
    ],
    "wrong": {
-    "It makes more on a big rally": "The reverse. Above the short strike the spread stops gaining, while a plain call keeps going.",
-    "It can't lose money": "It can lose the whole debit. Below the long strike at expiry, both calls expire worthless.",
-    "Time decay can't touch it": "It still has time decay. In general the clock hurts it, just less than a plain long call."
-   }
+    "It still pays if the stock falls": "A drop hurts it, as it hurts the call. Below the long strike at expiry, both calls expire worthless and you lose the whole debit.",
+    "It keeps the call's full upside": "It gives that up. The short call sets a ceiling, and you forfeit gains above its strike.",
+    "Time decay hurts it more than a call": "The reverse. OIC says time hurts it, though not as much as a plain long call."
+   },
+   "simple": "A call spread costs less than the call alone, but the call you sell puts a ceiling on your gain.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: a wrong-note)",
+     "key and two choices reworded for length balance (wave7)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q09",
@@ -977,24 +1062,31 @@
    "format": "mcq",
    "q": "Implied volatility jumps and nothing else changes. What happens to a bull call spread's price?",
    "choices": [
-    "It moves only slightly",
-    "It jumps, like a long call",
+    "Not much: the two legs offset",
+    "It jumps, just like a long call",
     "It drops, since you sold a call",
-    "Nothing, ever: the legs cancel"
+    "Nothing: the two legs cancel out"
    ],
-   "answer": "It moves only slightly",
-   "why": "It moves only slightly. You're long one call and short another, so the volatility effects largely offset.",
-   "lesson_line": "A vertical barely reacts to volatility. Direction and time drive it.",
+   "answer": "Not much: the two legs offset",
+   "why": "Not much. You are long one call and short another in the same expiry, so the volatility effects on the two largely offset. Slight is not zero. Depending on where the stock sits, a change in volatility can hit one leg more than the other.",
+   "lesson_line": "A call spread barely reacts to volatility, because its two legs mostly offset.",
    "facts": [
     "f10",
     "f11",
     "f65"
    ],
    "wrong": {
-    "It jumps, like a long call": "A single long call gains a lot from higher volatility. Here the short call gains too and eats most of it.",
-    "It drops, since you sold a call": "The short call does get pricier, but so does the long call. They roughly offset.",
-    "Nothing, ever: the legs cancel": "They offset to a large degree, not fully. Depending on where the stock sits, one leg can move more."
-   }
+    "It drops, since you sold a call": "The short call does get pricier, but so does the long call. The two largely offset.",
+    "It jumps, just like a long call": "The short call reacts to volatility too. OIC says the two legs' effects offset each other to a large degree.",
+    "Nothing: the two legs cancel out": "They offset to a large degree, not fully. Depending on where the stock sits, one leg can move more."
+   },
+   "simple": "It barely moves, because the call you own and the call you sold both react, and they mostly cancel out.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q10",
@@ -1014,12 +1106,27 @@
      "multiplier": 100
     }
    },
-   "why": "$325. The most a call spread pays is 65 minus 60. Take off the 1.75 you paid and multiply by 100.",
+   "why": "$325. A call spread pays at most the gap between its strikes: 65 minus 60, or 5. Take off the 1.75 debit, then multiply by the 100 shares one contract covers. It needs the stock at 65 or higher at expiry to pay that much.",
    "lesson_line": "Debit spread max gain: the gap between the strikes, minus what you paid.",
    "facts": [
     "f5",
-    "f53"
-   ]
+    "f53",
+    "f54",
+    "f38",
+    "f51"
+   ],
+   "simple": "$325: the 5 points between the strikes, less the 1.75 you paid, times 100 shares.",
+   "deeper": {
+    "example": "Fidelity works the same sum. Buy the 100 call at 3.30 and sell the 105 call at 1.50, so the net cost is 1.80. The strikes are 5.00 apart, so the most the spread can make is 3.20 a share. Gap between the strikes, less what you paid: the method never changes."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q11",
@@ -1040,12 +1147,22 @@
      "contracts": 2
     }
    },
-   "why": "$720. Each spread can lose 35 minus 30, less the 1.40 credit, times 100. You sold 2.",
+   "why": "$720. A credit spread can lose at most the gap between its strikes, less the credit. Here that is 35 minus 30, less the 1.40 credit, times 100 shares for each spread. You sold 2, so double it.",
    "lesson_line": "Credit spread max loss: the gap between the strikes, minus the credit. That's your real risk.",
    "facts": [
     "f34",
-    "f82"
-   ]
+    "f82",
+    "f51"
+   ],
+   "simple": "$720: each spread can lose the gap between the strikes less the 1.40 credit, times 100, and you sold 2.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q12",
@@ -1061,7 +1178,7 @@
     "Sell the 85 put, buy the 80 put"
    ],
    "answer": "Sell the 85 call, buy the 90 call",
-   "why": "Sell the 85 call, buy the 90. That's a bear call spread, and it keeps the full credit if XYZ finishes below 85.",
+   "why": "Sell the 85 call, buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out.",
    "lesson_line": "Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
    "facts": [
     "f29",
@@ -1074,7 +1191,14 @@
     "Buy the 85 call, sell the 90 call": "That's a bull call spread. It costs money and needs XYZ above 85 to pay.",
     "Sell the 75 call, buy the 80 call": "The 75 call is already in the money. If XYZ just sits at 80, this spread takes its full loss.",
     "Sell the 85 put, buy the 80 put": "That's a bull put spread. It wants XYZ above 85, the opposite of your view."
-   }
+   },
+   "simple": "Sell the 85 call and buy the 90: it pays a credit and keeps all of it if XYZ stays under 85.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q13",
@@ -1092,13 +1216,22 @@
      "premium": 2.1
     }
    },
-   "why": "$77.90. Take the 2.10 debit off the long 80 put's strike.",
+   "why": "$77.90. A bear put spread breaks even at expiry at the long put's strike minus the debit: 80 minus 2.10. Below that price the spread makes money. Don't start from the short 75 strike. On a debit spread, break-even runs off the strike you bought.",
    "lesson_line": "Debit put spread break-even: the long strike minus the debit.",
    "facts": [
     "f19",
     "f87",
     "f85"
-   ]
+   ],
+   "simple": "$77.90: take the 2.10 you paid off the 80 strike of the put you bought.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q14",
@@ -1124,19 +1257,29 @@
      "underlying": 103
     }
    },
-   "why": "Made $120. The 100 call is worth 103 minus 100, and the 105 call is worth nothing. Take off the 1.80 you paid, times 100.",
+   "why": "Made $120. At 103 the long 100 call is worth its intrinsic value, 103 minus 100. The 105 call is out of the money and worth nothing. Take off the 1.80 you paid, then multiply by 100 shares.",
    "lesson_line": "At expiry, between the strikes, a call spread is worth the long call's intrinsic value. Profit is that minus the debit.",
    "facts": [
     "f54",
     "f5",
     "f7",
-    "f66"
+    "f66",
+    "f51"
    ],
    "wrong": {
     "Made $320": "That's the max gain, and it needs the stock at 105 or higher. At 103 you get part of it.",
     "Lost $180": "That happens at 100 or below, where both calls expire worthless. At 103 the 100 call is in the money.",
     "Made $300": "That's what the spread is worth at 103. You paid 1.80 for it, so take that off."
-   }
+   },
+   "simple": "Made $120: at 103 only the 100 call has value, 103 minus 100, and you take off the 1.80 you paid.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q15",
@@ -1151,18 +1294,26 @@
     "Nothing, only the strike moves"
    ],
    "answer": "Higher max gain, higher cost",
-   "why": "Higher max gain, higher cost. The 70 call pays you less than the 65 call would, so the debit goes up.",
+   "why": "Higher max gain, higher cost. The ceiling moves from 65 up to 70, so the spread can make more. But a higher strike call brings in less premium, so your debit goes up. A bigger debit also means a bigger loss if the stock finishes below 60.",
    "lesson_line": "Wider strikes on a debit spread: more upside, a bigger debit, a bigger loss if you're wrong.",
    "facts": [
     "f8",
     "f5",
-    "f92"
+    "f92",
+    "f6"
    ],
    "wrong": {
     "Higher max gain, lower cost": "The upside does grow, but the 70 call brings in less premium. Your debit goes up, not down.",
     "Lower max gain, lower cost": "That's what moving the short call lower would do. Moving it up does the reverse.",
     "Nothing, only the strike moves": "The short strike sets both the ceiling and the premium you collect. Move it and both change."
-   }
+   },
+   "simple": "Your max gain and your cost both go up, because the 70 call pays you less than the 65 call would.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q16",
@@ -1188,19 +1339,33 @@
      "multiplier": 100
     }
    },
-   "why": "$350, its max loss: 50 minus 45, less the 1.50 credit, times 100. Below 45, the long put covers every dollar the short put loses.",
+   "why": "$350, the spread's max loss. That is 50 minus 45, less the 1.50 credit, times 100. The gap to 38 does not make it worse. Below 45, the long put offsets every further loss on the short put.",
    "lesson_line": "A gap through both strikes costs the max loss, no more. That cap is why you pay for the long put.",
    "facts": [
     "f23",
     "f27",
     "f72",
-    "f35"
+    "f35",
+    "f40"
    ],
    "wrong": {
     "$1,050": "That ignores the long 45 put. Below 45, it covers every dollar the short put loses.",
     "$500": "That's the full gap between the strikes. You also keep the 1.50 credit, which cuts the loss.",
     "$150": "That's the credit you took in, your max gain. The loss is bigger."
-   }
+   },
+   "simple": "$350, its max loss: below 45, the long put covers every dollar the short put loses.",
+   "deeper": {
+    "trap": "A gap through both strikes feels like it must cost more than the max. It doesn't, while the long 45 put is still there. That cap is what you paid for. Sell the long put early, and the short put alone keeps losing all the way down."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (checker 2026-11-09: a wrong-note)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q17",
@@ -1224,24 +1389,34 @@
      "premium": 1.6
     }
    },
-   "why": "$68.40. Take the 1.60 credit off the short 70 put's strike. Above that, you keep some of the credit.",
+   "why": "$68.40. A bull put spread breaks even at expiry at the short put's strike minus the credit: 70 minus 1.60. Above that price you keep some of the credit. Below it you start losing, up to the max loss at or below 65.",
    "lesson_line": "Credit put spread break-even: the short strike minus the credit.",
    "facts": [
     "f24",
-    "f71"
+    "f71",
+    "f72"
    ],
    "wrong": {
     "$63.40": "That takes the credit off the long 65 strike. Break-even runs off the short strike.",
     "$71.60": "That adds the credit. On a put spread you subtract it from the short strike.",
     "$66.60": "That adds the credit to the long strike. Break-even is the short strike minus the credit."
-   }
+   },
+   "simple": "$68.40: take the 1.60 credit off the 70 strike of the put you sold.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q18",
    "skill": "options.verticals",
    "rung": 6,
    "format": "numeric",
-   "q": "Your plan risks $750 on this trade. The 25/20 put spread sells for 1.25. How many spreads keep the worst case at $750?",
+   "q": "Your plan risks $750 on this trade. You sell the 25/20 put spread for 1.25. How many spreads keep the total max loss at $750?",
    "answer": 2,
    "suffix": "spreads",
    "calc": {
@@ -1255,13 +1430,23 @@
      "multiplier": 100
     }
    },
-   "why": "2. Each spread can lose 25 minus 20, less the 1.25 credit, times 100. Two of those use up the $750.",
+   "why": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly.",
    "lesson_line": "Size a credit spread from its max loss, never from the credit.",
    "facts": [
     "f23",
     "f82",
-    "f96"
-   ]
+    "f96",
+    "f51"
+   ],
+   "simple": "2 spreads: work out one spread's max loss, then fit as many as the $750 allows.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q19",
@@ -1273,7 +1458,8 @@
    "choices": [
     "100/110: up $680 a spread",
     "100/105: up $300 a spread",
-    "110/120: up $915 a spread"
+    "110/120: up $915 a spread",
+    "100/105: up $500 a spread"
    ],
    "answer": "100/110: up $680 a spread",
    "calc": {
@@ -1286,7 +1472,7 @@
      "underlying": 110
     }
    },
-   "why": "The 100/110. At 110 it pays the full 110 minus 100, less the 3.20 you paid. Its short strike sat right at your target.",
+   "why": "The 100/110, up $680 a spread. At 110 it pays its full width, 110 minus 100, less the 3.20 debit, times 100. The 100/105 capped out at 105 and made $300. The 110/120 needed a move above 110 to pay anything, so it lost its 0.85.",
    "lesson_line": "Put the short strike near your target. A cheap spread above it needs a bigger move just to pay.",
    "facts": [
     "f5",
@@ -1296,23 +1482,51 @@
    ],
    "wrong": {
     "100/105: up $300 a spread": "It did make $300, its most. It capped out at 105, while the 100/110 kept paying up to 110.",
-    "110/120: up $915 a spread": "That's its max gain, and it needs 120. At 110 both calls expire worthless and you lose the 0.85."
-   }
+    "110/120: up $915 a spread": "That's its max gain, and it needs 120. At 110 both calls expire worthless and you lose the 0.85.",
+    "100/105: up $500 a spread": "That forgets the 2.00 you paid. The 100/105 is worth its full width at 110, less the debit, so it made $300."
+   },
+   "simple": "The spread with strikes at 100 and 110 made the most, $680, since its short strike sat at the 110 target.",
+   "deeper": {
+    "trap": "The cheapest spread looks like the best deal: the 110/120 costs 0.85 and can make $915. But it pays nothing unless the stock rises past 110, and its full gain needs 120. Fidelity's rule of thumb fits here: a call spread suits a gradual rise to the short strike. Put the short strike at your target."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "prices are made up, checked for plausibility only (conflicts)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q20",
    "skill": "options.verticals",
    "rung": 7,
    "format": "tf",
-   "q": "The stock is above your bull call spread's short strike. All else equal, time passing tends to lift the spread's value.",
-   "answer": "True",
-   "why": "True. Up there the short call is closer to the money and loses value faster than the long call. The clock now works for you.",
-   "lesson_line": "Once the stock clears your short strike, time is on your side. Near the long strike, it works against you.",
+   "q": "The stock is above your bull call spread's short strike. All else equal, time passing tends to cut the spread's value.",
+   "answer": "False",
+   "why": "False. With the stock near or above the short strike, the short call is closer to the money. It loses value faster than the long call, so the spread gains as time passes. OIC's general rule is that time hurts a bull call spread. Where the stock sits can flip that.",
+   "lesson_line": "Once the stock clears your short strike, time is on your side.",
    "facts": [
     "f58",
     "f59",
-    "f89"
-   ]
+    "f89",
+    "f12"
+   ],
+   "simple": "False: above your short strike, the call you sold loses value faster than the one you own, so time helps you.",
+   "deeper": {
+    "counter": "OIC's general line is that the passage of time hurts a bull call spread, though less than a plain long call. Fidelity and Investopedia add the other half. With the stock near or above the short strike, the spread's price rises as time passes."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: stem grammar)",
+     "rests on two Tier 2 publishers; OIC's general rule differs (conflicts line 1)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q21",
@@ -1321,13 +1535,25 @@
    "format": "tf",
    "q": "A bull call spread and a bull put spread on the same two strikes have the same payoff shape at expiry.",
    "answer": "True",
-   "why": "True. The profit and loss shapes match once you allow for the cost to carry. What differs is when the cash moves.",
+   "why": "True, once you allow for the cost to carry. On the same strikes, the profit and loss shapes match. What differs is the cash timing. The call spread costs cash up front for an unknown return. The put spread pays cash up front and may cost you later. OIC also names the potential for early assignment as a difference.",
    "lesson_line": "Same strikes, same shape. The call spread costs cash now. The put spread pays cash now and may cost later.",
    "facts": [
     "f9",
     "f36",
-    "f37"
-   ]
+    "f37",
+    "f45",
+    "f63"
+   ],
+   "simple": "True: both spreads make and lose money the same way, but one costs cash now and the other pays cash now.",
+   "deeper": {
+    "counter": "Same shape does not mean same experience. The bull put spread hands you a credit today, while the bull call spread takes a debit. OIC lists early assignment as the other difference. Both spreads have a short leg, and a short leg can be assigned at any time."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q22",
@@ -1343,7 +1569,7 @@
     "Sell only the long call"
    ],
    "answer": "Close the spread before the bell",
-   "why": "Close the spread. Exercise of your 60 call is certain, but assignment on the 65 call isn't. You may not know until Monday.",
+   "why": "Close the spread before the bell. At 65.10 your 60 call is in the money and will be exercised. Assignment on the short 65 call is not certain. You may not know until Monday. If it isn't assigned, you are long 100 shares over the weekend. Closing your short options before expiry is the only way to remove that after-hours risk.",
    "lesson_line": "Stock near the short strike on expiry day: close the spread. Don't guess on assignment.",
    "facts": [
     "f13",
@@ -1351,13 +1577,24 @@
     "f15",
     "f95",
     "f98",
-    "f50"
+    "f50",
+    "f51"
    ],
    "wrong": {
     "Hold it: max profit is locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
     "Sell 100 shares now to cover": "That bets against assignment. If the 65 call is assigned anyway, you've sold the shares twice and you're short.",
     "Sell only the long call": "That leaves the 65 call short and uncovered. If it's assigned, you're short 100 shares with nothing behind it."
-   }
+   },
+   "simple": "Close it before the bell, because you may not know until Monday if your short 65 call was assigned.",
+   "deeper": {
+    "trap": "Holding feels safe because the spread looks maxed out at 65.10. But the 65 call's owner decides whether to exercise, and the stock can move after the close. Your 60 call is exercised for sure. The 65 call may not be assigned, so you can start Monday holding shares you never meant to own."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q23",
@@ -1395,17 +1632,30 @@
    "skill": "options.verticals",
    "rung": 8,
    "format": "tf",
-   "q": "Hold any vertical spread through expiry and you can never lose more than its max loss.",
+   "q": "Hold a vertical spread through expiry, and your loss stays inside the spread's defined max loss.",
    "answer": "False",
-   "why": "False. If the stock finishes between the strikes or near the short strike, one leg can become a stock position. That stock can move against you before you can close it.",
+   "why": "False. The max loss assumes both legs finish the same way. If one leg expires in the money and the other doesn't, the spread is no longer defined risk. Assignment or exercise can leave you holding shares. That stock can move against you before you can close it. Risk can then run past the textbook max loss.",
    "lesson_line": "The max loss assumes both legs finish the same way. Near a strike at expiry, close before the bell.",
    "facts": [
     "f93",
     "f81",
     "f15",
     "f49",
-    "f44"
-   ]
+    "f44",
+    "f50"
+   ],
+   "simple": "False: if only one leg ends in the money, you can be left holding stock that keeps moving against you.",
+   "deeper": {
+    "trap": "Pin risk is worst when the stock closes at or very near a strike at expiry. Neither side knows what assignment will bring. Shares picked up on Friday can open Monday well against you."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: lesson line)"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q25",
@@ -1416,12 +1666,12 @@
    "q": "What does selling just the long call do to your risk?",
    "choices": [
     "Leaves the short call uncovered",
-    "Nothing, the calls are out of the money",
+    "Nothing, both are out of the money",
     "Locks in your max profit",
     "Cuts your max loss to zero"
    ],
    "answer": "Leaves the short call uncovered",
-   "why": "It leaves the short 50 call uncovered. The long call was what capped your risk, and an uncovered call's potential loss is unlimited.",
+   "why": "It leaves the short 50 call uncovered. The long 55 call was what capped your risk. Without it, a rally or a takeover bid could push the 50 call deep in the money. An uncovered call's potential loss is unlimited. To exit, buy back the short call first, or close both legs together.",
    "lesson_line": "Close the short leg first, or both together. Never leave a short call open without its cap.",
    "facts": [
     "f41",
@@ -1431,10 +1681,20 @@
     "f43"
    ],
    "wrong": {
-    "Nothing, the calls are out of the money": "Out of the money today. A rally or a takeover bid could put the 50 call deep in the money, with no ceiling.",
     "Locks in your max profit": "Max profit comes when both calls expire worthless. You still have a short call open.",
-    "Cuts your max loss to zero": "It does the opposite. Without the long call, the short call's loss has no cap."
-   }
+    "Cuts your max loss to zero": "It does the opposite. Without the long call, the short call's loss has no cap.",
+    "Nothing, both are out of the money": "Out of the money today. A rally or a takeover bid could put the 50 call deep in the money, with no ceiling."
+   },
+   "simple": "It leaves your short 50 call with no cap, and an uncovered call can lose without limit.",
+   "deeper": {
+    "trap": "The nickel looks free because both calls are out of the money. But you would trade 0.05 for an open short call with two weeks left and no ceiling. The disclosure document names the danger. A strong rally or a tender offer far above the market price can cause large losses for an uncovered call writer."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
   },
   {
    "key": "q26",
@@ -1453,14 +1713,26 @@
      "credit": 0.5
     }
    },
-   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less 0.50. That's nine times bigger.",
+   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit. That loss is nine times the credit. The ratio says how big each outcome is, not how often it happens.",
    "lesson_line": "A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
    "facts": [
     "f23",
     "f21",
     "f82",
     "f84"
-   ]
+   ],
+   "simple": "9: the most you can make is 0.50, and the most you can lose is nine times that.",
+   "deeper": {
+    "trap": "A small credit on a wide spread can feel like easy money. But one max loss takes back nine max wins, before costs. Know the ratio before you sell, and size from the max loss, never from the credit."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
   },
   {
    "key": "q27",
@@ -1476,7 +1748,7 @@
     "Short 100 shares at 35"
    ],
    "answer": "100 shares, bought at 40",
-   "why": "100 shares, bought at 40. The 40 put finished in the money and is likely assigned. The 35 put finished out of the money and simply expires.",
+   "why": "100 shares, bought at 40. At 37 the short 40 put is in the money. In the money options are generally exercised at expiry, so you are likely assigned. An assigned put seller buys 100 shares at the strike. The 35 put is out of the money and simply expires. To avoid this, close the spread before the bell.",
    "lesson_line": "Between the strikes, only one leg is in the money. Close before the bell, or be ready for the shares.",
    "facts": [
     "f70",
@@ -1484,13 +1756,26 @@
     "f47",
     "f48",
     "f52",
-    "f51"
+    "f51",
+    "f95"
    ],
    "wrong": {
     "Nothing: spreads settle in cash": "Stock options settle in shares. An assigned short put means you buy 100 shares at its strike.",
     "Nothing: the long put covers it": "The 35 put is out of the money at 37, so it isn't exercised. It covers nothing here.",
     "Short 100 shares at 35": "That would need your 35 put exercised, and it's out of the money. You're on the buying side, at 40."
-   }
+   },
+   "simple": "100 shares bought at 40: the 40 put you sold is in the money and likely assigned, while the 35 put expires.",
+   "deeper": {
+    "example": "tastytrade describes this exact case. A partly in the money put spread turns into 100 long shares through assignment on the short put. The out of the money long put is not exercised to offset them. Your 35 put has expired, so nothing caps the loss on those shares any more."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09: story says expiry Friday)"
+    ]
+   },
+   "batch": "wave7"
   }
  ],
  "conflicts": [
@@ -1524,135 +1809,135 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Fixed: the old stem ('a two-option position') let the distractor 'Two calls, both bought' also meet the key (same type, same expiry, different strikes). Stem now says one bought, one sold; that distractor became 'Different strikes and expiry dates' (ODD f39: spreads differ by strikes and/or dates; Schwab f78: a vertical has one expiry). Re-checked against OIC f1, ODD f39, Schwab f78.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f1/f78/f39: same type, same expiry, two strikes. Key matches. No longest-choice tell (key 39, a distractor 40). Each wrong note rests on f39/f78. No second defensible answer."
   },
   "q02": {
    "status": "pass",
-   "notes": "OIC s2 in context: above the higher (long put) strike both puts expire worthless and the loss is the debit; Investopedia f86 agrees (fetched today with the honest client, quote on page). Fixed: 'loses exactly the debit' became 'loses the whole debit' with 'at expiry', so fees cannot make True arguable; why keeps 'Fees aside'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q03": {
    "status": "pass",
-   "notes": "OIC s2 f16 and Fidelity s8 f68: long the higher strike put, short the lower. One blank, bank distractors are real confusions.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f68/f16: buy the higher put. The sentence no longer names the sold strike, so 'lower' is a live wrong answer. 'same' is the weakest bank word but not wrong. Why rests on f16, f68, f80."
   },
   "q04": {
    "status": "pass",
-   "notes": "OIC s1 verbatim: the short call's main purpose is to help pay for the long call; its premium caps the profit; the spread always opens for a debit. Both wrong choices really wrong.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q05": {
    "status": "pass",
-   "notes": "OIC s3 f20/f22/f28 and Schwab f79: bull put = credit, does best steady or rising. Bull call is a debit (OIC f2), bear call is a bearish credit, bear put a bearish debit: each wrong note correct.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold: bullish plus credit = bull put spread (f20, f79, f28). Why now matches f22 ('likeliest if the stock holds steady or rises'). Choices balanced, no tell."
   },
   "q06": {
    "status": "pass",
-   "notes": "Fidelity s9: full profit at or above the short (higher) strike at expiry; OIC s3: profit erodes below the short strike, max loss at or below the long strike. Fixed lesson line 'stays' to 'finishes' (an expiry fact).",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q07": {
    "status": "pass",
-   "notes": "Fixed. 'In general' holds as a rule of thumb (OIC s1 time hurts a bull call, s3 helps a bull put), but Fidelity s7/s9 show the sign flips with the stock's position, and by parity same-strike call and put spreads decay alike. Old why said only 'how much' depends; now says position can flip it. Added f99 (Fidelity bull put, verified on page); lesson says 'usually'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f25 (OIC, Tier 1) and f100: True. f100 re-fetched 2026-11-12 from the Fidelity bull put page; the quote is verbatim on the page. The stock above both strikes removes the flip case, so one answer only. Counter cites f99 correctly. Does not hand q20 its answer (different spread, and q20 needs the position rule)."
   },
   "q08": {
    "status": "pass",
-   "notes": "Fidelity f56, Investopedia f88 and OIC f4 agree: cheaper, profit capped. Fixed the 'Time decay can't touch it' note: it said 'Time still hurts it', which q20 shows is not always so; now 'In general the clock hurts it' per OIC f12.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f56, f88, f4, f90). Two defects. (1) 'It costs more, but has no cap' is a mirror rewording of the key, not a real misconception, and silly as a reason to buy; the key and its mirror form a pair that points at the answer. (2) 'Time decay can't hurt it at all' is the lone absolute, a tell. Replaced with a real misconception (a spread keeps the call's upside, f4/f90) and a non-absolute decay distractor that f12 refutes (time hurts it less than a plain long call, never more)."
   },
   "q09": {
    "status": "pass",
-   "notes": "OIC s1 in context: volatility impact slight, all other things equal, with the caveat that one leg can move more (f11); Fidelity 'changes very little', Investopedia agrees. Key and the 'Nothing, ever' note match the caveat.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Solved cold from f10/f11: slight, not zero. Key, choices, why and wrong notes are sound and stay inside f10/f11/f65. The unchanged lesson_line overreaches: 'A vertical' generalises OIC's bull call line to every vertical (the file's own conflicts note an out-of-the-money credit spread keeps some net exposure), and 'Direction and time drive it' is in no cited fact. Lesson line rewritten to what f10 says."
   },
   "q10": {
    "status": "pass",
-   "notes": "(65 - 60 - 1.75) x 100 = 325 by hand; OIC max gain = high strike - low strike - net premium paid; Fidelity example same method.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "(35 - 30 - 1.40) x 100 x 2 = 720 by hand; OIC s4 max loss = width reduced by the credit; Schwab f82 same.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q12": {
    "status": "pass",
-   "notes": "Bear call 85/90 keeps the credit below 85 (OIC s4, Fidelity s10). 75/80 at 80: short 75 worth 5, long 80 worth 0 = full width, full loss, checked. Bull call and bull put notes correct. Selling above a stalled level is standard placement.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q13": {
    "status": "pass",
-   "notes": "80 - 2.10 = 77.90 by hand; OIC f19, Investopedia f87 (fetched today with the honest client, quote on page) and Schwab f85 agree.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc: 80 - 2.10 = 77.90 (f19, f87). 'On a debit spread' fixes the earlier false 'always'. Consistent with q17. No unsupported claim left."
   },
   "q14": {
    "status": "pass",
-   "notes": "(103 - 100) - 0 - 1.80 = 1.20, x 100 = $120; matches Fidelity s7's own P/L table row at 103 (+1.20). $300 = spread value, $320 = max at 105+, -$180 at or below 100: all checked.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q15": {
    "status": "pass",
-   "notes": "OIC s1 f8 in context: a higher short strike raises max profit but brings in less premium, so the debit rises; Investopedia f92 wider strikes = more profit and more loss.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q16": {
    "status": "pass",
-   "notes": "(50 - 45 - 1.50) x 100 = 350; OIC s3: below the lower strike the long put offsets every further loss. Fixed the $1,050 note: (50 - 38 - 1.50) x 100 checked, but it called 1.50 the lone short put's credit when it is the spread's net credit; now 'That ignores the long 45 put'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right: (50 - 45 - 1.50) x 100 = 350 by calc; f27 caps it below 45. $1,050 is a printed choice, so it comes from the question. The deeper's last sentence ('Sell the long put early, and the short put alone keeps losing') rests on the disclosure document's leg-out risk (f40), which q16 does not cite. Added f40 to facts."
   },
   "q17": {
    "status": "pass",
-   "notes": "70 - 1.60 = 68.40 (OIC f24, Fidelity f71). 63.40, 71.60 and 66.60 are each a real slip; notes correct.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q18": {
    "status": "pass",
-   "notes": "(25 - 20 - 1.25) x 100 = 375; 750 / 375 = 2 exactly. Sizing from the max loss, never the credit, is a sound risk habit.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Second defensible answer: 'The 25/20 put spread sells for 1.25' gives a price but not the side. A reader who buys the spread for 1.25 risks $125 a spread and answers 6. The why ('not the credit') assumes a sale the stem never states. Stem now says you sell it. Calc unchanged: 750 / ((25 - 20 - 1.25) x 100) = 2. Not against the rulebook (A6 defined risk; B25 speaks only to premium paid); the owner flag on credit-spread sizing already covers it."
   },
   "q19": {
    "status": "pass",
-   "notes": "At 110: 100/110 = (10 - 3.20) x 100 = 680; 100/105 = (5 - 2) x 100 = 300; 110/120 both calls worthless, loses 0.85 ($85), its 915 max needs 120. Fidelity f57: short strike at the target. Prices plausible: checker re-ran Black-Scholes (100, 30 days, 35% vol) and got 1.98, 3.14, 0.86.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "Fidelity s7 and Investopedia s13 (two Tier 2 publishers) agree: near or above the short strike the spread gains as time passes; OIC's general 'hurts' is in conflicts. Fixed stem grammar only ('The stock is above your bull call spread's short strike').",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f58/f59 (Fidelity) and f89 (Investopedia), two Tier 2 publishers that agree: False. OIC f12 is the general rule, named as such, not a contradiction of the conditional case. Deep in the money the spread climbs toward its width, so the key holds. The deeper counter repeats the why's last two sentences in part; tolerable."
   },
   "q21": {
    "status": "pass",
-   "notes": "OIC s1 and s3: payoff profiles exactly the same once adjusted for carry; the timing of cash flows differs. Holds by put-call parity for the same strikes.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f9/f36: True, once adjusted for carry. Why and deeper rest on f36, f37, f45, f63. Stem reveals neither cash flow, so it does not answer q05."
   },
   "q22": {
    "status": "pass",
-   "notes": "OIC s1 expiration risk in context: long call ITM, short roughly ATM, exercise certain, assignment not; guessing wrong leaves long stock or a double sale (the wrong notes match); close early. tastytrade f95 and FINRA pin risk agree. 65.10 vs the 65 strike is roughly at the money.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Solved cold from f13, f15, f95: close the spread. Each wrong note checks out (selling 100 shares leaves you short if assigned; selling only the long call leaves the 65 call uncovered). Split why sentences are all 22 words or fewer."
   },
   "q23": {
    "status": "cut",
@@ -1668,27 +1953,27 @@
   },
   "q24": {
    "status": "pass",
-   "notes": "tastytrade f93, Schwab f81, OIC f15 and FINRA f49 support False. Fixed the lesson: 'Max loss holds only while both legs are options' overstated (an early-assigned short call with the long call still open stays capped); now 'assumes both legs finish the same way'.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (f93, f81, f49). Deeper now generic pin risk (f50, f15, f49) and no longer describes q27. But the statement's 'never' is a lone absolute, the classic True/False tell for False. Reworded without the absolute word; the claim and the False key are unchanged."
   },
   "q25": {
    "status": "pass",
-   "notes": "ODD s5 in context: uncovered call loss unlimited; a rally or tender offer can cause large losses (f43). Fidelity f64: buy back the short and keep the long. Teaches a sound risk habit; notes correct.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Deeper sentences now 21 words or fewer. 'far above the market price' paraphrases f43's 'substantially above the prevailing market price'. Key right (f41, f30)."
   },
   "q26": {
    "status": "pass",
-   "notes": "(55 - 50 - 0.50) / 0.50 = 9 by hand; OIC s3 max gain = credit, max loss = width less credit. No win-rate claim made.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Calc: (55 - 50 - 0.50) / 0.50 = 9. 'nine' is from the calc; 'before costs' rests on f82. The unsourced 'often wins' is gone."
   },
   "q27": {
    "status": "pass",
-   "notes": "Fidelity s9 in context: below the higher strike but not the lower, the short put is assigned and long stock is created; tastytrade f94: the OTM long put is not auto-exercised; FINRA f48: put seller buys at the strike. Fixed story to 'expiry Friday' so 'Monday' fits.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold from f70, f47, f48, f94: 100 shares bought at 40. Why and deeper sentences split; f95 added for 'close before the bell'. Two 'Nothing:' choices are both wrong, so they point at nothing."
   }
  }
 }
