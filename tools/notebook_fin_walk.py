@@ -477,7 +477,7 @@ SURFACES = {
     "my_playbook_door": ("css", '[data-testid="open-my-playbook"]'),
     "my_playbook": ("css", '[data-testid="my-playbook"]'),
     "setups_board_card": ("css", "[data-board-card]"),
-    "setups_board_heading": ("heading", "Active setups"),
+    "setups_board_heading": ("heading", "Setups"),   # S7 renamed "Active setups"
     "find_similar_button": ("buttonprefix", "Find more like"),
     "gallery_door": ("button", "Browse the Template library"),   # S7 renamed "Browse the community gallery"
     "transcript_door": ("button", "Save from a transcript"),
@@ -832,7 +832,7 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         else:
             pg.get_by_role("button", name=re.compile(r"^Blank")).filter(visible=True).first.click()
         pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
-        title = pg.locator('input[aria-label="Note title"]').first
+        title = pg.locator('[aria-label="Note title"]').first
         title.fill(f"Fin walk note {vp}")
         pm = pg.locator(".ProseMirror").first
         pm.click()
@@ -1137,7 +1137,7 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
             goto(pg, base, "/journal/notebook/setups")
             pg.wait_for_timeout(5000)
             step(pg, inst, "setups board without chart plan", "the board page: an honest message, not an error", "INFO",
-                 heading=pg.get_by_role("heading", name="Active setups").count(), cards=pg.locator("[data-board-card]").count(),
+                 heading=pg.get_by_role("heading", name="Setups", exact=True).count(), cards=pg.locator("[data-board-card]").count(),
                  alerts=[a[:200] for a in pg.get_by_role("alert").all_inner_texts()], page_text=page_text())
         except Exception as e:  # noqa: BLE001
             step(pg, inst, "setups board without chart plan", "driver exception", "FAIL", error=str(e)[:400])

@@ -628,7 +628,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         # write the main member's first note through the list's "+ New" (the gallery step publishes it)
         C.press_through(pg, pg.get_by_role("button", name="+ New", exact=True).first)
         pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
-        pg.locator('input[aria-label="Note title"]').first.fill("My first note")
+        pg.locator('[aria-label="Note title"]').first.fill("My first note")
         pg.locator(".ProseMirror").first.click()
         pg.keyboard.type("Watching the leaders into earnings.", delay=15)
         for _ in range(30):
@@ -690,7 +690,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             title = picks[0].get("title") or picks[0].get("name")
             made, added, err = None, False, None
             try:
-                pg.get_by_role("button", name=f"Preview {title}").first.click(timeout=10000)
+                pg.get_by_role("button", name=re.compile("^Preview " + re.escape(title))).first.click(timeout=10000)   # S7 adds ", from the Template library"
                 dlg = pg.get_by_role("dialog", name=title)
                 dlg.first.wait_for(state="visible", timeout=15000)
                 use = dlg.get_by_role("button", name=re.compile(r"^Use( this template)?$"))   # S7: "Use"
@@ -716,10 +716,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         open_templates(pg)
         sent, perr = False, None
         try:
-            share = pg.get_by_role("button", name=f"Share {name} to the community gallery")
+            share = pg.get_by_role("button", name=f"Share {name} to the Template library")   # S7 (was "to the community gallery")
             share.first.wait_for(state="visible", timeout=20000)
             share.first.click()
-            form = pg.get_by_role("form", name=f"Share {name} to the community gallery")
+            form = pg.get_by_role("form", name=f"Share {name} to the Template library")
             form.get_by_label("What it's for (optional)").fill("A weekly plan layout.")
             form.get_by_label("Category").select_option(index=1)
             form.get_by_role("button", name="Submit for review").click()
@@ -966,7 +966,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── the setups board (before any overnight run) ─────────────────────────────────────
     def board(tag):
         C.goto(pg, base, "/journal/notebook/setups")
-        hd = C.vis_loc(pg.get_by_role("heading", name="Active setups"), 60000)
+        hd = C.vis_loc(pg.get_by_role("heading", name="Setups", exact=True), 60000)   # S7 renamed "Active setups"
         C.vis(pg, "[data-board-card]", 30000)
         pg.wait_for_timeout(2500)
         cards = pg.locator("[data-board-card]").evaluate_all("els => els.map(e => e.getAttribute('data-board-card'))")
@@ -1778,11 +1778,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 res["more"] = more.evaluate(COVER_JS)
                 h2.press(more, touch)
                 # on touch the More menu is a sheet of plain buttons (ContextPopover's touch branch, not role=menu)
-                plan_item = p_.get_by_role("button", name=re.compile(r"^Plan")).filter(visible=True).first
+                plan_item = p_.locator("[role=dialog] button").filter(has_text=re.compile(r"^\s*Plan\b")).filter(visible=True).first
                 C.vis_loc(plan_item, 8000)
                 res["menu_items"] = [re.sub(r"\s+", " ", t).strip()[:40] for t in p_.locator("[role=dialog] button").filter(visible=True).all_inner_texts()][:12]
                 res["plan_in_more"] = plan_item.count() > 0
-                res["replay_in_more"] = p_.get_by_role("button", name=re.compile(r"^Replay")).filter(visible=True).count() > 0
+                res["replay_in_more"] = p_.locator("[role=dialog] button").filter(has_text=re.compile(r"^\s*Replay\b")).filter(visible=True).count() > 0
                 plan_item.click(timeout=8000)
                 panel = p_.locator("[data-chart-plan-panel]").first
                 panel.wait_for(state="visible", timeout=20000)
@@ -2306,12 +2306,15 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         r = M.post(base + "/api/j2/notes", data={"title": "Walk source", "ticker": "NVDA", "kindId": "thesis"})
         src = r.json()["note"]
         C.goto(pg, base, f"/journal/notebook?note={src['id']}", wait=".ProseMirror")
+        # Notebook simplify Task 4: the blocks door is a choice inside the note's one "Save as template" entry ("Keep
+        # live blocks"); S7 renamed the form's words (Template name, Save template, "Saved as the template ...").
         pg.get_by_role("button", name="More note actions").first.click()
-        pg.get_by_role("button", name="Save this note's setup as a style").click()
-        pg.get_by_label("Style name").fill("Walk style")
-        pg.get_by_role("button", name="Save style").click()
-        saved = C.vis_loc(pg.get_by_text("Saved as the style “Walk style”."), 10000)
-        C.step(pg, inst, "styles.save-as-style", "More -> Save this note's setup as a style creates the style",
+        pg.get_by_role("button", name="Save as template", exact=True).first.click()
+        pg.get_by_role("button", name="Keep live blocks", exact=True).first.click()
+        pg.get_by_label("Template name").last.fill("Walk style")
+        pg.get_by_role("button", name="Save template").last.click()
+        saved = C.vis_loc(pg.get_by_text("Saved as the template “Walk style”.", exact=False), 10000)
+        C.step(pg, inst, "styles.save-as-style", "More -> Save as template -> Keep live blocks creates the template (style)",
                "PASS" if saved else "FAIL", saved=saved)
         listing = M.get(base + "/api/j2/journal-styles").json()
         mine = next((s for s in listing["styles"] if s["name"] == "Walk style"), None)
