@@ -114,3 +114,90 @@ show the old 3M until the next session close (the RS payload is cached per ET da
 
 Rollback is as one-way as the long restate: the old `m3` of a restated session is not kept. Take a `VACUUM INTO` copy of
 `screener.db` first if you want a restore point.
+
+# The rated universe (2026-11-12): every non-ETF stock with a recent price
+
+Owner decision, "everything until the indicator is 100% perfect". The nightly rating ranked each stock against the
+3,418-name cap universe. It now ranks against **every non-ETF ticker that holds a daily bar**, about 6,000 names on any
+session (`rs_history.ranking_universe()`; each session still keeps only names with a bar inside the five-calendar-day
+freshness window and enough closes for the term, exactly the rules it always used).
+
+| | Before | Now |
+|---|---|---|
+| Ranked set | cap universe minus ETFs (3,418 names) | every rankable symbol with a fresh daily bar, minus ETFs (about 6,000) |
+| Warrants, rights, units, preferreds | in the cap universe only if listed there | in |
+| Penny / thin names | out unless in the cap universe | in (no price or volume floor) |
+| Index and crypto feeds in `bars.db` (`$SPX`, `^VIX`, `X:BTCUSD`, `VIX`) | out | out (`rankable_symbol`) |
+| ETFs | rated by interpolation, never ranked | unchanged |
+| Methods per horizon, composite weights, split guard | | unchanged |
+| The hourly "fast" rank (`rs_ranking`) | cap universe | unchanged |
+
+Why: the production fit against 61 Deepvue readings (2026-11-12, `u5d_fit_pod.py`) ranked the same methods over eight
+universe definitions. Ranked over the cap universe our ratings sat 5 to 8 points BELOW Deepvue's at every horizon (it
+ranks every stock); ranked over everything they sit 3.0 points from Deepvue's on average, bias +0.1, 285 of 305
+comparisons (93 %) within 10. Removing warrants, rights, units and preferreds moved the mean miss by 0.02 points, a $1 or
+$5 price floor made it 2.7 and 7.4 points worse, and a $250k dollar-volume floor 2.6 worse; the simplest rule won. The
+record is `tests/fixtures/indicators/rs_parity_deepvue_universe.json`.
+
+## What members will see
+
+* Ratings rise about 4 to 8 points for the same stock (thin names rank below most liquid ones, so a liquid name beats
+  more of the field than before). The chart's RS tag and ranks strip, the RS badge, the screener's `RS` and `Rank`
+  columns, the RS lists and the Compass RS answers all read this rating once `RS_RANK_IBD_ENABLED` is on (it is).
+* Stocks outside the cap universe now carry ratings (about 3,200 more names). The by-symbol rank map appends them like
+  ETFs (`rs_rank_source = "ibd"`, no hourly score).
+* Saved screens and the seven starter screens that threshold on `rs_rank` or a `Rank` column change membership.
+* The RS Leaders / Emerging lists keep their published liquidity floors, so thin names do not enter them.
+
+## Restating the stored history against the wide universe
+
+One command re-ranks EVERY stored session (254) for ALL six rating columns (`ibd, m1, m3, m6, m9, m12`) against the wide
+universe as of that session. It calls the same `compute_ratings` the nightly job calls, over the same candidate list, so
+the stored history cannot disagree with tonight's rows. **It also writes the long and the m3 markers, so the owner does
+NOT run the m3-only restate (`--restate-ranks --columns m3`): this one rewrites `m3` too.**
+
+What it writes, one transaction per session (retried with a growing wait on `database is locked`, the helper from #1133):
+an UPSERT of the rating columns, `score` and `bars` for every ticker rated that session (a stock the cap universe never
+held is a NEW row; an ETF row is rewritten because its interpolation distribution moved); `NULL` ratings for a stored
+ticker that no longer has a window or is split-guarded (never an old-universe number); the session's marker in
+`rs_history_restated_universe` (method `universe_u1_v1`) and in the two older marker tables. The hourly `fast` value is
+never touched. About 3,200 new rows per session, so the table grows by roughly a million rows.
+
+It REFUSES, writing nothing, when (a) a session would rank fewer than 3,000 names or its ranked count is outside 15 % of
+the median session's (`--universe-band`, 0.02 to 0.5): a stale bars store or a half-listed night; (b) on a real run, more
+split lists are unknown than the backfill allows (the lists it did fetch are kept; run it again). The values change by
+design, so the drift check of `--restate-ranks` does not apply: the last line prints the shift instead.
+
+Order:
+
+1. Merge the PR. Wait for the master deploy gate and the production deploy. From that deploy the nightly job ranks against
+   the wide set; sessions before it keep the cap-universe ratings until step 3, so do not wait long.
+2. DRY RUN (read-only; it reads about 13,000 tickers' bars and ranks every session, roughly 25 minutes; the shell moves
+   it to the background after two minutes, which is normal):
+
+   ```
+   MSYS_NO_PATHCONV=1 railway ssh --service web -- "/opt/venv/bin/python -m api.services.screener.rs_history --backfill-days 260 --restate-universe --dry-run"
+   ```
+
+   Read the last line before the `receipt {...}`:
+   `ranked_min / ranked_median / ranked_max` (about 5,500 to 6,700 is plausible), `new_rows` (about 800,000 over 254
+   sessions), `shift_mean` (expect +4 to +8), `shift_over15` (the share of stocks that moved by more than 15 points),
+   `split_unknown` (a dry run reads stored answers and the cache only: expect about 3,000 unknown, which the real run
+   fetches), `reason=None` and `ok=True`. A `reason=implausible_universe` line names the sessions: nothing was written;
+   send me the counts.
+3. REAL RUN: the same command without `--dry-run`. It first fetches the ~3,000 missing split lists (they are kept as it
+   goes; the 2026-11-07 backfill fetched about 9,500 lists in a little over an hour, so ~3,000 is roughly 20 to 25
+   minutes), then ranks and writes newest first. Expect about an hour in all (unmeasured). If a deploy interrupts it or it ends
+   `reason=split_lists_unknown`, run the same line again: it continues from the first session without a marker.
+4. Verify: the dry run again must print `todo=0` and `reason=nothing_to_do`.
+
+Memory: the series are held as typed arrays (12 bytes a bar), about 90 MB for the whole universe, not the ~500 MB two
+lists of Python floats would take.
+
+Cached chart payloads: the chart's RS payload is cached per ET day, so a chart opened before the real run can show the
+old ratings until the next session close or the next web restart.
+
+Rollback: the cap-universe ratings of a restated session are not kept. Take a `VACUUM INTO` copy of `screener.db` on the
+pod before step 3 if you want a restore point (a copy, never a plain file copy of a WAL database). To stop ranking
+against the wide set without touching history, revert the PR: new sessions are written against the cap universe again,
+and the already-restated sessions stay as they are.
