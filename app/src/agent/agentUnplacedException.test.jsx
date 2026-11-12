@@ -1,3 +1,4 @@
+// head re-merged onto fecbf19fb6 (engine move inside spatialCheck's closure); this line triggers the Agent CI push run
 // An exception the readers cannot PLACE but whose words name a CHART is UNPLACED — the plan is asked, never applied — not
 // silently "nothing" (AUDIT #1143 follow-up 2: the chart the member excluded was not protected; live on master fc564e7096).
 // Own phrasings. Controls: an exception that is a value or a time ("except on Fridays", "except volume", "except the 50 day",
