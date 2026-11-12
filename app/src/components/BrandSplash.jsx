@@ -3,7 +3,7 @@
  * The compass mark breathing over the wordmark instead of a bare "Loading..."
  * — this is the literal first paint of every session. Reduced-motion: static.
  */
-import compassLogo from './intro/assets/compass-mark.png'
+import compassLogo from './intro/assets/compass-mark.webp'
 import styles from './BrandSplash.module.css'
 
 export default function BrandSplash({ label = 'Loading' }) {
