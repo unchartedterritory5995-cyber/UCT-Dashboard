@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -2452,6 +2452,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  a reference to a global mutable variable is refused BY NAME rather than
    *  arriving at the columnar resolver as an undefined name. */
   let guardOuter = null
+  /** ⭐⭐ ENGINE 49/50 — the v3+ `pine:cycle` refusal of a declaration that reads its own history,
+   *  with the host's one sentence (`pine.js::selfReferenceSentence`). Marked `selfDeclaration` so
+   *  a function definition does not defer it to a call (the definition's catch, below): Pine
+   *  refuses the whole script, called or not. Engine 48's v1/v2 refusal is not marked. */
+  const v3SelfDeclarationRefusal = (nameTok) => {
+    const err = new PineRefusal('pine:cycle',
+      `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(nameTok.value, pineVersion)}`,
+      locate(nameTok))
+    err.selfDeclaration = true
+    return err
+  }
   /** ⭐⭐ C11 — A GLOBAL THIS FUNCTION BODY MAY READ, or null.
    *
    *  Pine lets a function body read any variable declared above it, at its
@@ -12230,6 +12241,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           try {
             defineFunction(st, toks, arrow)
           } catch (err) {
+            // ⭐⭐ ENGINE 50 — EXCEPT A v3+ SELF-REFERENCING DECLARATION. That is not a body this
+            // lane cannot compile but one Pine does not compile: TradingView refuses the whole
+            // script whether or not anything calls the function, and so does the host walk. So it
+            // is not deferred to a call that may never come (`v3SelfDeclarationRefusal`).
+            if (err && err.selfDeclaration === true) throw err
             const nameTok = toks[0]
             const fname = nameTok && nameTok.kind === 'ident' ? nameTok.value : null
             if (!fname) throw err
@@ -12733,6 +12749,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
             '`varip x = if/switch …` — a block-valued `varip` is not carried from tick to tick here',
             locate(first))
         }
+        // ⭐⭐ ENGINE 50 — a v3+ `x = if …` / `x = switch …` whose block reads `x[k]`, `x` not
+        // declared before (review ENG49-1122 note 6): the host's `pine:cycle`, with its one
+        // sentence (`pine.js::blockDeclarationReadsOwnHistory`, the detector both lanes ask). This
+        // lane declares the slot BEFORE it lowers the arms, so the arm's `x[1]` read that slot and
+        // the script was drawn; asked here, before the slot exists. A `var` keeps its own path.
+        if (!listingSeedIsUnpinned(pineVersion)
+            && !(first.kind === 'ident' && (first.value === 'var' || first.value === 'varip'))
+            && !(scope.lookup(nameTok.value) !== null || env.has(nameTok.value)
+              || (guardOuter && guardOuter.lookup(nameTok.value) !== null))
+            && blockDeclarationReadsOwnHistory(list, i, nameTok.value)) {
+          throw v3SelfDeclarationRefusal(nameTok)
+        }
         if (atObjectDoor && first.kind === 'ident' && first.value === 'var') {
           objectDoorRefuses(`\`var ${nameTok.value} = ${rhsHead.value} …\` (a block initialised once)`, locate(first))
         }
@@ -12815,15 +12843,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // before the initialiser is lowered, so no later wall of this lane speaks first. "Declared
         // before" is this lane's scope chain, its env (a parameter of an inlined body is there),
         // and the root scope a function body reads through (`guardOuter`).
-        // ⚠️ Asked at the STATEMENT, so it also refuses shapes the host draws (it refuses only what
-        // its `Resolver` resolves): an unread declaration, one read only through `color=`, and a
-        // name an earlier user function holds (review ENG49-1122 notes 1-3; none compiles in v3+).
+        // ⭐ Asked at the STATEMENT, so an unread declaration, one read only through `color=`, and a
+        // name an earlier user function holds refuse here; since engine 50 the host walk refuses
+        // them too (review ENG49-1122 notes 1-3; none compiles in v3+).
         if (!listingSeedIsUnpinned(pineVersion) && selfReferencingDeclaration(value, nameTok.value,
           scope.lookup(nameTok.value) !== null || env.has(nameTok.value)
             || (guardOuter && guardOuter.lookup(nameTok.value) !== null))) {
-          throw new PineRefusal('pine:cycle',
-            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(nameTok.value, pineVersion)}`,
-            locate(nameTok))
+          throw v3SelfDeclarationRefusal(nameTok)
         }
         // ⭐⭐ ENGINE 48 (review N1) — the host's `pine:cycle` refusal, with its one sentence, for the
         // bindings this lane would make a slot and so never send to the `Resolver` (see

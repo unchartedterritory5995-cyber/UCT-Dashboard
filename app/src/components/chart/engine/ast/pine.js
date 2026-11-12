@@ -4042,6 +4042,72 @@ export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'clos
   'tr', 'vwap', 'obv', 'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na',
   ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.clock || {})])
 
+/** ⭐⭐ ENGINE 50 — DECLARED BEFORE AS A VARIABLE (the host's answer to `declaredBefore`). Pine
+ *  keeps variables and functions in separate namespaces (`atr = atr(14)` is legal in v4), so a user
+ *  function of the same name written earlier (`x(a) => a * 2`) does not declare the VARIABLE `x`:
+ *  in `x = nz(x[1]) + 1` the `x[1]` still reads a variable nothing declared (review ENG49-1122
+ *  note 3; the runtime lane's scope never held the function, and already refused). The host env
+ *  holds a function under its name (`kind: 'fn'`, or an opaque `isFunction` one that did not
+ *  fold), so only a binding that is not a function counts. */
+export function declaredAsVariable(env, name) {
+  if (!env || typeof env.has !== 'function' || !env.has(name)) return false
+  const b = env.get(name)
+  return !(b && (b.kind === 'fn' || (b.kind === 'opaque' && b.isFunction === true)))
+}
+
+/** ⭐⭐ ENGINE 50 — A BLOCK-VALUED DECLARATION THAT READS ITS OWN HISTORY: `x = if …` /
+ *  `x = switch …` (statement `i` of `stmts`, with `=`, never `:=`) whose conditions or arms read
+ *  `x[k]` (review ENG49-1122 note 6). The rule of `selfReferencingDeclaration`, for a declaration
+ *  whose value is a block: `x` is not declared until the whole statement ends, so in v3+ the read
+ *  is of an undeclared variable. The caller answers "declared before" and gates on the version;
+ *  both lanes ask this one function.
+ *  ⛔ CONSERVATIVE: a block that declares `x` itself anywhere (an inner `x = …`, typed or `var`, a
+ *  tuple, a loop counter) is left alone, since its `x[k]` may read that inner `x`; a field read
+ *  `p.x[1]` is not a read of `x`; a built-in name is never asked (`PINE_BUILTIN_VARIABLE_NAMES`). */
+export function blockDeclarationReadsOwnHistory(stmts, i, name) {
+  const st = stmts && stmts[i]
+  const head = st && st.header
+  if (!head || typeof name !== 'string' || PINE_BUILTIN_VARIABLE_NAMES.has(name)) return false
+  const eq = findTop(head, (t) => isPunct(t, '='))
+  const kw = eq > 0 ? head[eq + 1] : null
+  if (!kw || kw.kind !== 'ident' || (kw.value !== 'if' && kw.value !== 'switch')) return false
+  const toks = head.slice(eq + 2)
+  const subs = [st.sub]
+  if (kw.value === 'if') {
+    const chain = ifBranches(stmts, i)
+    for (let j = i + 1; chain && j < chain.next; j += 1) {
+      toks.push(...(stmts[j].header || []))
+      subs.push(stmts[j].sub)
+    }
+  }
+  let declares = false
+  const visit = (list) => {
+    for (const s of list || []) {
+      const h = s && s.header
+      if (!h || !h.length) continue
+      toks.push(...h)
+      const e = findTop(h, (t) => isPunct(t, '='))
+      const bound = e > 0 ? boundName(h, e) : null
+      if (bound && bound.value === name) declares = true
+      if (isPunct(h[0], '[') || (h[0].kind === 'ident' && h[0].value === 'for')) {
+        const stop = e > 0 ? e : h.length
+        if (h.slice(0, stop).some((t) => t.kind === 'ident' && t.value === name)) declares = true
+      }
+      visit(s.sub)
+    }
+  }
+  subs.forEach(visit)
+  if (declares) return false
+  for (let k = 0; k < toks.length; k += 1) {
+    const t = toks[k]
+    if (!t || t.kind !== 'ident' || t.value !== name) continue
+    if (!isPunct(toks[k + 1], '[') || isPunct(toks[k + 2], ']')) continue
+    if (k > 0 && isPunct(toks[k - 1], '.')) continue
+    return true
+  }
+  return false
+}
+
 /** ⭐⭐ ENGINE 48/49 — the specifics of the `pine:cycle` refusal of a self-referencing
  *  declaration (the lead sentence is `REFUSALS['pine:cycle']`). One wording per version
  *  family, exported so both lanes' rails pin it:
@@ -8414,11 +8480,12 @@ export class Resolver {
     // in the env the declaration was written in: a shadowing local, a parameter, a `var`, a
     // tuple and the `x = 0.0` + `x := …` form are never marked. v1/v2 and no pragma compile the
     // spelling and keep their paths (engine 48's `na`-seeded refusal below included).
-    // ⚠️ THIS LANE REFUSES ONLY WHAT IT RESOLVES. A marked binding nothing reads, one read only
-    // through a `color=` argument, and a name an earlier user function holds (the env has it, so
-    // it is not marked) are still drawn here, while the runtime lane, which asks at the statement,
-    // refuses them (review ENG49-1122 notes 1-3). TradingView compiles none of them, so the split
-    // is between this lane's pre-existing leniency and a true refusal, never an over-refusal.
+    // ⭐ ENGINE 50 — this is no longer the only door: the walk also records every mark
+    // (`ctx.selfDeclarations`) and refuses the whole script by the first one after the walk, so a
+    // marked binding nothing reads, one read only through `color=`, a name an earlier user function
+    // holds (`declaredAsVariable`) and a block-valued `x = if/switch …` refuse too, as the runtime
+    // lane does (review ENG49-1122 notes 1-3, 6). This branch still speaks for a resolved binding,
+    // with the same sentence, so a plot's own refusal says the same thing.
     if (bound.selfDeclaration && !listingSeedIsUnpinned(this.pineVersion)) {
       throw new PineRefusal('pine:cycle',
         `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(bound.selfDeclaration, this.pineVersion)}`,
@@ -16203,11 +16270,16 @@ const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
 /** ⭐⭐ ENGINE 49 — mark a `name = rhs` declaration binding whose initialiser reads its own history
  *  while `name` was not declared before it (`selfReferencingDeclaration`, asked of `declEnv`, the
  *  env the declaration was written in). The `Resolver` refuses a marked binding `pine:cycle` in
- *  v3+ only. Returns the binding. */
-const markSelfDeclaration = (binding, name, declEnv) => {
+ *  v3+ only. Returns the binding.
+ *  ⭐⭐ ENGINE 50 — "declared before" counts a VARIABLE only (`declaredAsVariable`: an earlier
+ *  user function of the same name does not declare it), and every mark is also RECORDED in
+ *  `sink` (the walk's `ctx.selfDeclarations`), which refuses the whole script in v3+ after the
+ *  walk, read or not (`translatePineResult`). */
+const markSelfDeclaration = (binding, name, declEnv, sink) => {
   if (binding && binding.kind === 'expr'
-      && selfReferencingDeclaration(binding.node, name, !!declEnv && declEnv.has(name))) {
+      && selfReferencingDeclaration(binding.node, name, declaredAsVariable(declEnv, name))) {
     binding.selfDeclaration = name
+    if (Array.isArray(sink)) sink.push({ name, at: binding.at })
   }
   return binding
 }
@@ -18768,6 +18840,13 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (rhs.length === 0) {
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(first))
       }
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED here (review ENG49-1122 note 6); the walk refuses it in v3+ after the walk.
+      // Nothing about this statement's fold changes.
+      if (ctx && Array.isArray(ctx.selfDeclarations) && !declaredAsVariable(env, nameTok.value)
+          && blockDeclarationReadsOwnHistory(stmts, i, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       if (rhs[0].kind === 'ident' && rhs[0].value === 'if') {
         const folded = foldIfChain(stmts, i, ctx, env)
         consumeMutators(ctx, st.body)
@@ -18847,7 +18926,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const declEnv = new Map(env)
       env.set(nameTok.value, markSelfDeclaration(exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
-        declEnv, locate(nameTok)), nameTok.value, declEnv))
+        declEnv, locate(nameTok)), nameTok.value, declEnv, ctx && ctx.selfDeclarations))
       // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
       // has (and mints the parameters it always did); the OBJECT lane's Resolver
       // (`refuseCondCalls`) refuses it by the sentence carried here, or reads
@@ -25283,7 +25362,11 @@ function translatePineResult(source, opts = {}) {
     }
     return chartSeriesMemo
   }
-  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf }
+  // ⭐⭐ ENGINE 50 — `selfDeclarations`: every v3+-refusable self-referencing declaration THIS
+  // walk meets (`markSelfDeclaration`, and the block-valued form), read once after the walk. Only
+  // this ctx and the ones spread from it carry it: the harvest folds and the loop unroll build
+  // their own, so a re-fold over a partial env can never record a declaration.
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf, selfDeclarations: [] }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -26228,6 +26311,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       if (env.has(nameTok.value) && env.get(nameTok.value).kind === 'opaque') continue
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED (review ENG49-1122 note 6) and refused in v3+ after the walk; its fold below
+      // is unchanged.
+      if (!declaredAsVariable(env, nameTok.value) && blockDeclarationReadsOwnHistory(stmts, si - 1, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       // ⭐ `x = if cond` / … / `else` — an if EXPRESSION. Pine's `if` yields the
       // last value of the branch it takes, which is a ternary spelled across
       // lines, and folding it needs the same machinery a reassignment does.
@@ -26321,7 +26410,7 @@ function translatePineResult(source, opts = {}) {
           const declEnv = new Map(env)
           env.set(nameTok.value, markSelfDeclaration(exprBinding(
             stampInputName(parseWholeExpression(rhs), nameTok.value),
-            declEnv, locate(nameTok)), nameTok.value, declEnv))
+            declEnv, locate(nameTok)), nameTok.value, declEnv, ctx.selfDeclarations))
         }
         // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
         // that actually mattered. `scopeFor` used to re-parse EVERY name the
@@ -26485,6 +26574,21 @@ function translatePineResult(source, opts = {}) {
   }
   logPos = null
   delete env.set
+
+  // ⭐⭐ ENGINE 50 — A v3+ SELF-REFERENCING DECLARATION REFUSES THE WHOLE SCRIPT, WHETHER OR NOT
+  // ANYTHING READS IT (review ENG49-1122 notes 1, 2, 3, 6). TradingView does not compile such a
+  // script at all, so whether a plot happens to resolve the binding is beside the point: engine 49
+  // refused only what the `Resolver` resolved, and an unread declaration, one read only through
+  // `color=`, a name an earlier user function holds and a block-valued `x = if/switch …` were
+  // still drawn here while the runtime lane, which asks at the statement, refused them. Now the
+  // walk records each one where it is written (`ctx.selfDeclarations`) and the first in source
+  // order is a HARD refusal, with the one v3+ sentence the `Resolver` and the runtime lane give.
+  // v1/v2 and no pragma compile these spellings: nothing is read for them here.
+  if (!listingSeedIsUnpinned(version) && ctx.selfDeclarations.length) {
+    const first = ctx.selfDeclarations.slice().sort((a, b) => byPosition(a.at || {}, b.at || {}))[0]
+    hardRefusals.push(refusalValue('pine:cycle',
+      `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(first.name, version)}`, first.at || null))
+  }
 
   // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
   //
