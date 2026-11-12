@@ -137,6 +137,15 @@
    "title": "High Tight Flag dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/03-high-tight-flag.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "R-multiple (glossary)",
+   "url": "https://vantharpinstitute.com/glossary/r-multiple",
+   "accessed": "2026-11-11",
+   "why_reliable": "Dr. Van Tharp, a named trading-psychology author whose R-multiple idea is the standard definition; the institute's own glossary page."
   }
  ],
  "facts": [
@@ -985,6 +994,30 @@
    "source": "h1",
    "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
    "claim": "D40: prefer growing sales and earnings; the chart comes first."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "An HTF pauses 5 to 30 sessions after the double; a flat base rests at least 25 sessions after a 30% run in a box 15% deep or less. Past 30 sessions the HTF becomes that base.",
+   "claim": "The card: an HTF pauses 5 to 30 sessions; past 30 sessions it becomes a flat base."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "Flag depth: from the pattern's highest high to the flag's lowest low, at most 25% of price.",
+   "claim": "The card: flag depth runs from the pattern's highest high to the flag's lowest low, on price."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: one position is at most 40% of the account."
+  },
+  {
+   "id": "r01",
+   "source": "s27",
+   "quote": "All profits and losses can be expressed as a multiple of the initial risk (R) taken.",
+   "claim": "Van Tharp: results are measured as multiples of the initial risk, R."
   }
  ],
  "walkthroughs": [
@@ -1064,19 +1097,31 @@
     "A sharp rebound off a crash low"
    ],
    "answer": "A short rest after a near-double",
-   "why": "A short pause after a near-double. IBD: first the stock gains 100% to 120% in four to eight weeks. Then the flag forms as it pulls back.",
+   "why": "A short rest after a near-double. A quiet, liquid stock nearly doubles, then pauses a few weeks a little under its high. IBD: a gain of 100% to 120% in four to eight weeks. Then a pullback over the next three to five weeks. Bulkowski says it usually looks like a pause in the price rise, not a neat flag.",
    "lesson_line": "A high tight flag is a rocket catching its breath for a few weeks, a little under the high.",
    "facts": [
     "i01",
     "i02",
     "b02",
-    "c01"
+    "c01",
+    "c02",
+    "c33",
+    "b10"
    ],
    "wrong": {
-    "A long box after a modest run up": "That is a flat base. The flag follows a far bigger, faster run and rests for weeks, not months.",
+    "A long box after a modest run up": "That is a flat base. The flag follows a far bigger, faster run and pauses for weeks, not months.",
     "Pullbacks that shrink for months": "That is a VCP. The flag is one shelf a little under the high of the pole.",
     "A sharp rebound off a crash low": "That is a V. Bulkowski says to avoid V shapes, where price drops hard into the start of the pole."
-   }
+   },
+   "simple": "A short pause after a near-double, because the stock rests near its high after a fast, huge run.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the exact pole size differs by source (IBD 100% to 120%, Bulkowski 90%) and is a held decision, so the key avoids it"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q02",
@@ -1103,23 +1148,37 @@
    "format": "fill",
    "criterion": "htf.market_order",
    "q": "Tap the word that fits the blank.",
-   "sentence": "We buy at market as price trades above the peak of the ___, never on a trendline inside the flag.",
+   "sentence": "We buy at market as price trades above the peak of the ___.",
    "bank": [
     "pole",
-    "flag's low",
-    "first red day",
-    "200-day",
-    "open"
+    "prior base",
+    "first up day",
+    "gap day"
    ],
    "answer": "pole",
-   "why": "The pole. IBD: the breakout clears the peak of the flagpole. Bulkowski: buy above the highest high in the pattern, not a trendline break.",
+   "why": "The pole. We buy at market as price trades through the pattern high, which is usually the top of the pole. IBD: the breakout clears the peak of the flagpole. Bulkowski: buy above the highest high in the pattern, usually the flagpole top. Our card adds: at least a cent over the high, regular hours only.",
    "lesson_line": "The buy is above the top of the whole pattern, usually the pole's peak.",
    "facts": [
     "c05",
     "i04",
-    "b04"
+    "b04",
+    "b21",
+    "h22"
    ],
-   "house": true
+   "house": true,
+   "simple": "The pole, because we buy as price trades through the top of the run, the highest point of the whole pattern.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (entries are market orders, E57)",
+     "trigger choices are a held decision (D-027) but the key is the default every option keeps"
+    ]
+   },
+   "depends_on": [
+    "D-027"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q04",
@@ -1127,16 +1186,25 @@
    "rung": 1,
    "format": "tf",
    "criterion": "htf.flag_volume",
-   "q": "In a proper flag, volume runs heavier than it did on the pole.",
+   "q": "On our card, a proper flag's volume runs heavier than the pole's.",
    "answer": "False",
-   "why": "False. Flag volume runs below the pole's average. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
+   "why": "False. On our card, flag volume runs below the pole's average. IBD: volume generally dries up. Bulkowski: it recedes through the flag for best performance.",
    "lesson_line": "Loud on the way up, quiet in the flag. Holders are not selling.",
    "facts": [
     "c07",
     "i03",
     "b03"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because a proper flag is quiet, with volume lighter than it was on the pole.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the gate (below the pole's average) is a card proposal, not an owner ruling"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q05",
@@ -1146,24 +1214,43 @@
    "criterion": "htf.pole_not_v",
    "q": "Where does the best pole usually start?",
    "choices": [
-    "A quiet base, then real news",
-    "A crash low, still falling hard",
-    "The third leg of a long run",
-    "Under a falling 200-day average"
+    "A quiet base, then a real change",
+    "A crash low, then a sharp rebound",
+    "A third leg in a run already huge",
+    "A slow slide to lower lows all year"
    ],
-   "answer": "A quiet base, then real news",
-   "why": "A quiet base, then real news. Kuhn: a long, well-contained base first, then a news event lifts the stock. Bulkowski: poles springing from flat bases work better.",
+   "answer": "A quiet base, then a real change",
+   "why": "A quiet base, then a real change. Kuhn: the stock first sits in a well-contained base for months or years. Then an important news event usually lifts it out of dormancy. Bulkowski: poles springing from flat bases work better, and V shapes should be avoided. Our card grades a real change like earnings or a contract best.",
    "lesson_line": "A sleeper that wakes up on news is the start you want, not a crash bounce.",
    "facts": [
     "g01",
     "b11",
-    "b10"
+    "b10",
+    "p03",
+    "c11",
+    "d02",
+    "c39",
+    "c01",
+    "c12"
    ],
    "wrong": {
-    "A crash low, still falling hard": "That is the V Bulkowski says to avoid. A rebound off a crash is not a fresh pole.",
-    "The third leg of a long run": "Late legs break down. Bonde: a tight flag late in the move breaks down.",
-    "Under a falling 200-day average": "We do not buy under the 200-day. A real pole starts from a base, not a downtrend."
-   }
+    "A crash low, then a sharp rebound": "That is the V Bulkowski says to avoid: price drops hard into the start of the pole. A rebound off a crash is not a fresh pole.",
+    "A third leg in a run already huge": "Late legs break down. Our card wants the first or second big leg, and Bonde says a tight flag late in the move breaks down.",
+    "A slow slide to lower lows all year": "Kuhn describes a well-contained base first, not a slide."
+   },
+   "simple": "A quiet base, then a real change, because a sleeper that wakes up for a reason starts a real pole.",
+   "deeper": {
+    "example": "SRPT, 2015. A +60% day on 2015-05-20, after the 2015-05-07 report, topped a near-vertical two-week run. Seven of the ten examples on our card had a report inside the pole."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the context cue is a card proposal, not an owner ruling",
+     "Kuhn's page is a publisher store page with only the opening paragraphs public"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q06",
@@ -1173,13 +1260,23 @@
    "criterion": "htf.tightness",
    "q": "Bulkowski says a high tight flag often does not look like a flag at all.",
    "answer": "True",
-   "why": "True. It is just a pause in the price rise. IBD: the action looks tight next to the steep run-up before it.",
+   "why": "True. Bulkowski: a high and tight flag is often not a flag at all. It usually looks like a pause in the price rise, not a flag or pennant. IBD says the action looks tight next to the steep run-up before it. So do not hunt for a neat shape. Look for a pause a little under the pole high.",
    "lesson_line": "Do not hunt for a neat flag shape. Look for a pause that holds near the high.",
    "facts": [
     "b17",
     "b02",
-    "i08"
-   ]
+    "i08",
+    "c02"
+   ],
+   "simple": "True, because Bulkowski says it is often just a pause in the price rise, not a neat flag shape.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "both Bulkowski quotes come from one author"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q07",
@@ -1189,13 +1286,13 @@
    "criterion": "htf.pole_size",
    "q": "IBD says how many of these you might find in a whole bull market?",
    "choices": [
-    "One or two, with some luck",
-    "About one every single week",
-    "A dozen or so every month",
-    "Hundreds in each daily scan"
+    "One or two in a whole bull market",
+    "A handful of new ones each month",
+    "About one new one every week",
+    "A couple of dozen in a bull market"
    ],
-   "answer": "One or two, with some luck",
-   "why": "One or two, if you are lucky. Bonde: if you find too many high tight flags, your reading is wrong. Our scan found only 12 liquid hits in 36 years before 2020.",
+   "answer": "One or two in a whole bull market",
+   "why": "One or two, if you are lucky. IBD, quoted by Bonde: you may spot one or two in a bull market. Bonde adds that finding too many means your reading is wrong. Our own scan found only 12 liquid hits in 36 years before 2020. Seeing one every week means ordinary flags are getting this name.",
    "lesson_line": "If you see one every week, you are calling ordinary flags by the wrong name.",
    "facts": [
     "i15",
@@ -1204,11 +1301,21 @@
     "d24"
    ],
    "wrong": {
-    "About one every single week": "Far too many. It is rare, and Bonde warns that seeing too many means a misreading.",
-    "A dozen or so every month": "That many means ordinary tight flags are being called by this name.",
-    "Hundreds in each daily scan": "A scan that returns hundreds is catching bull flags, not near-doubles."
+    "A handful of new ones each month": "Too many. Bonde: if you find too many high tight flags, your reading is wrong.",
+    "About one new one every week": "Far too many. Bonde: it is rare, and seeing too many means a misreading.",
+    "A couple of dozen in a bull market": "Far too many. Our scan found only 12 liquid hits in 36 years before 2020."
    },
-   "house": true
+   "house": true,
+   "simple": "One or two, because the pattern is rare and finding many means you are misreading it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a count that can change (12 hits in 36 years comes from our own scan of today's tickers)",
+     "IBD's words are second-hand through Bonde"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q08",
@@ -1218,13 +1325,28 @@
    "criterion": "htf.pole_size",
    "q": "A 30% run followed by a very tight flag counts as a high tight flag.",
    "answer": "False",
-   "why": "False. Measure the pole. A tight flag in a leader that never doubled is a bull flag, however tight.",
+   "why": "False. Measure the pole first. A tight flag in a leader that never doubled is a bull flag, however tight. A high tight flag follows a near-double. A bull flag follows a much smaller run. The pole names the setup, not the tightness.",
    "lesson_line": "The pole names the setup. Tightness alone never does.",
    "facts": [
     "c47",
-    "d18"
+    "d18",
+    "d17",
+    "c32"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because a 30% run never doubled, so even a very tight flag after it is a bull flag.",
+   "deeper": {
+    "example": "TSLA, 2023-07-14. A tight 8-day flag, 6.7% deep, on 0.78x volume. But the pole was 78% in 40 sessions, so it never doubled. A tight flag in a leader that never doubled is a bull flag, however tight. Best 1.88R, then stopped."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's lookalike rule (single source)",
+     "the exact pole size is a held decision (D-048), but 30% fails every option"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q09",
@@ -1235,24 +1357,38 @@
    "q": "How do we measure the flag's depth?",
    "choices": [
     "Pattern high to flag low, on price",
-    "As a share of the pole's height",
-    "From the first close to the last",
-    "From the 200-day to the low"
+    "As a share of the pole's whole height",
+    "From the first flag close to the last",
+    "From the pole's low to the flag low"
    ],
    "answer": "Pattern high to flag low, on price",
-   "why": "On price, from the pattern's highest high to the flag's lowest low, divided by the high. Kuhn measures on the advance instead, which gives a bigger number for the same flag.",
+   "why": "On price: the pattern's highest high down to the flag's lowest low, divided by that high. Kuhn measures against the advance, the pole's height. That gives a bigger number for the same flag. Kuhn's 10% to 20% limit is of the advance, so it is not the same yardstick.",
    "lesson_line": "Depth is high to low on price. Measure it; do not eyeball it.",
    "facts": [
     "c02",
     "g03",
-    "i02"
+    "i02",
+    "c54"
    ],
    "wrong": {
-    "As a share of the pole's height": "That is Kuhn's way, on the advance. For the same flag it gives a bigger number, so it rejects flags IBD accepts.",
-    "From the first close to the last": "That is drift, not depth. Depth runs from the highest high to the lowest low.",
-    "From the 200-day to the low": "The 200-day is a context line, not part of the flag."
+    "As a share of the pole's whole height": "That is Kuhn's way, on the advance. It gives a bigger number for the same flag, so it is a different yardstick from price.",
+    "From the first flag close to the last": "That is drift, not depth. Depth runs from the highest high to the lowest low.",
+    "From the pole's low to the flag low": "That counts the whole run up as well. Depth is only the pullback, from the high down to the flag low."
    },
-   "house": true
+   "house": true,
+   "simple": "We measure depth on price, from the pattern high down to the flag low, not as a share of the pole.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-050, flag depth)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-050"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q10",
@@ -1261,25 +1397,39 @@
    "format": "scenario",
    "criterion": "htf.tightness",
    "q": "Do the closes pass our tightness test?",
-   "story": "A stock doubled in five weeks after an earnings beat. It now pauses nine sessions under the high. Daily ranges are wide, but the last five closes sit 4% apart.",
+   "story": "A stock doubled in five weeks after an earnings beat. It now pauses nine sessions under the high. The last five closes sit 8% apart.",
    "choices": [
     "Yes, within 10% of each other",
-    "No, the daily ranges are too wide",
-    "No, they must sit within 1%"
+    "No, they must sit within 5%",
+    "No, they must sit within 1%",
+    "Yes, but only with light volume"
    ],
    "answer": "Yes, within 10% of each other",
-   "why": "Yes. In the last 5 sessions before the trigger, the highest close is no more than 10% above the lowest. These sit 4% apart.",
-   "lesson_line": "Test the closes, not the wicks. Wild ranges with tight closes still count.",
+   "why": "Yes. In the last 5 sessions before the trigger, the highest close must be no more than 10% above the lowest. These sit 8% apart, so they pass. Volume has its own separate line.",
+   "lesson_line": "Five closes within 10% of each other pass. Volume has its own line.",
    "facts": [
     "c09",
-    "i06",
-    "b05"
+    "c07"
    ],
    "wrong": {
-    "No, the daily ranges are too wide": "The test is on closes. IBD on JDSU: wild weekly ranges, but the closes were tight.",
-    "No, they must sit within 1%": "Our line is 10%. A pause that tight is rare and not required."
+    "No, they must sit within 1%": "Our line is 10%, not 1%. Closes 8% apart pass.",
+    "No, they must sit within 5%": "Our line is 10%. Closes 8% apart are inside it.",
+    "Yes, but only with light volume": "Volume is graded on its own line. The tightness test looks at closes only."
    },
-   "house": true
+   "house": true,
+   "simple": "Yes, because the last five closes sit 8% apart, inside our 10% line.",
+   "deeper": {
+    "trap": "The trap is the stricter line. A limit of 1% or 5% sounds more careful, but ours is wider. The highest close in the last 5 sessions is no more than 10% above the lowest."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 10% closes line is a card proposal, not an owner ruling",
+     "rests on one card line (c09)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q11",
@@ -1289,13 +1439,22 @@
    "criterion": "htf.inv_close_under_flag_low",
    "q": "Before the entry, a close below the flag's low ends the setup.",
    "answer": "True",
-   "why": "True. A close below the flag's low before entry ends it. The flag low is the line that kills the idea.",
+   "why": "True. A close below the flag's low before entry ends the setup. The flag low is the line that kills the idea, so you wait for a new setup.",
    "lesson_line": "Under the flag low, the idea is dead. Wait for a new setup.",
    "facts": [
     "c16",
     "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because a close under the flag's low means the idea is dead, so you wait for a new setup.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card only (single source, c16)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q12",
@@ -1305,25 +1464,37 @@
    "criterion": "htf.flag_slope",
    "q": "Which flag top grades best?",
    "choices": [
-    "Flat or sloping down",
-    "Rising, higher highs each day",
-    "Loose and jagged",
-    "A sharp V back to the pole low"
+    "A top that is flat or slopes down",
+    "A top that climbs a little each day",
+    "A top full of loose, wide swings",
+    "A top that sags to the pole low"
    ],
-   "answer": "Flat or sloping down",
-   "why": "Flat or sloping down. Bulkowski: flags with a down-sloping top tend to outperform. TraderLion says the same, with no statistic.",
-   "lesson_line": "A flag that leans back against the run is holders resting, not buyers chasing.",
+   "answer": "A top that is flat or slopes down",
+   "why": "A top that is flat or slopes down. Our card calls a down-sloping or flat top on the flag the A+ shape. Bulkowski: flags with a down-sloping top trendline tend to outperform. TraderLion says the same, with no statistics. Bulkowski also says to trade tight flags, not loose ones.",
+   "lesson_line": "Flat or sloping down is the A+ shape. A rising top is not.",
    "facts": [
     "c15",
     "b08",
-    "t02"
+    "t02",
+    "b05",
+    "c02"
    ],
    "wrong": {
-    "Rising, higher highs each day": "Higher highs through the pause is buyers chasing. The A+ shape is flat or down.",
-    "Loose and jagged": "Bulkowski: trade tight flags, not loose ones.",
-    "A sharp V back to the pole low": "Falling back to the pole low gives back the whole run. That is no flag."
+    "A top that climbs a little each day": "Our card names a flat or down-sloping top the A+ shape. A top that keeps climbing is not that shape.",
+    "A top full of loose, wide swings": "Bulkowski: trade tight flags, not loose ones.",
+    "A top that sags to the pole low": "That gives back the whole run. Our flag is a pause a little under the pole high."
    },
-   "house": true
+   "house": true,
+   "simple": "A flat or down-sloping top, because our card grades it A+ and Bulkowski says down-sloping tops tend to outperform.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the flat-top half rests on the card only; Bulkowski and TraderLion speak of down-sloping tops",
+     "TraderLion's page could not be fetched live, so it only supports"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q13",
@@ -1341,13 +1512,26 @@
     "30"
    ],
    "answer": "10",
-   "why": "10. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "why": "10 trading days. A trade still under 1R after 10 trading days is sold, freeing the money. It counts trading days, not calendar days. A trade at 1R or better is not caught by this rule.",
    "lesson_line": "Give it two weeks to pay. Under 1R by then, it goes.",
    "facts": [
     "h15",
-    "c22"
+    "c22",
+    "c40"
    ],
-   "house": true
+   "house": true,
+   "simple": "After 10 trading days, a trade still under 1R is sold so the money is free.",
+   "deeper": {
+    "counter": "TMDX took 23 sessions to reach 3R, but it was above 1R by day 10. The time stop sells only trades still under 1R, so TMDX would have been kept."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q14",
@@ -1357,14 +1541,23 @@
    "criterion": "htf.stop_broker",
    "q": "Once you are filled, a real stop order goes in with the broker straight away.",
    "answer": "True",
-   "why": "True. A real stop order with the broker, not one kept in your head. It only moves up.",
-   "lesson_line": "Filled, then stop in. Same minute.",
+   "why": "True. Every position has a real stop order with the broker, not a stop kept in your head. It goes in at once after the fill. It only moves up, never down or wider.",
+   "lesson_line": "Filled, then the stop goes in at once. Never a stop kept in your head.",
    "facts": [
     "c05",
     "h18",
     "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. A real stop order goes in with the broker as soon as you are filled.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (D41, A4)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q15",
@@ -1374,25 +1567,41 @@
    "criterion": "htf.flag_volume_a",
    "q": "What flag volume makes the A grade on our card?",
    "choices": [
-    "60% of the pole's or less",
-    "Above the pole's average",
-    "Exactly the pole's average",
-    "Twice the pole's average"
+    "60% of the pole's volume or less",
+    "About 80% of the pole's volume",
+    "A bit above the pole's volume",
+    "Exactly equal to the pole's volume"
    ],
-   "answer": "60% of the pole's or less",
-   "why": "60% of the pole's or less is the A grade. Any flag volume below the pole's passes the gate; the lighter, the better.",
+   "answer": "60% of the pole's volume or less",
+   "why": "60% of the pole's volume or less is the A grade on our card. Any flag volume below the pole's average passes the gate, and the lighter the better. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
    "lesson_line": "Quieter flag, better grade. Under the pole's volume is the floor.",
    "facts": [
     "c08",
     "c07",
-    "i03"
+    "i03",
+    "c17",
+    "d08",
+    "d09"
    ],
    "wrong": {
-    "Above the pole's average": "That ends the setup: supply is coming in, not drying up.",
-    "Exactly the pole's average": "The gate is below the pole's. Equal is not drying up.",
-    "Twice the pole's average": "Heavy volume in the rest is selling. That is the opposite of the A grade."
+    "About 80% of the pole's volume": "That passes the gate but grades below A. The A grade is at most 60% of the pole's.",
+    "A bit above the pole's volume": "That is above the pole's average, so it fails the gate.",
+    "Exactly equal to the pole's volume": "The gate is below the pole's. Equal is not drying up."
    },
-   "house": true
+   "house": true,
+   "simple": "60% of the pole's volume or less, because our card gives the A grade to the quietest flags.",
+   "deeper": {
+    "example": "CRNC, December 2020. Flag volume ran 0.95x the pole's, barely under it. That passes the gate, but it is only a B on this line."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 60% A-grade line is a card proposal that can change",
+     "rests on one card line (c08)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q16",
@@ -1402,13 +1611,13 @@
    "criterion": "htf.stop",
    "q": "Which stop is ours on a high tight flag?",
    "choices": [
-    "A few cents under the day's low",
-    "At the very bottom of the flag",
-    "A flat 8% under the buy price",
-    "Half the pole under the high"
+    "A few cents under the entry day's low",
+    "Just under the lowest low of the flag",
+    "A flat 8% below the price you paid",
+    "One average day's range under the buy"
    ],
-   "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low. A few cents under the entry day's low, or the prior day's low. The size comes from that stop.",
+   "answer": "A few cents under the entry day's low",
+   "why": "A few cents under the entry day's low, or under the prior day's low. Stop first: the size comes from the stop. It usually sits within about 3% of the buy and only moves up. The flag low is the line that kills the idea, not the stop.",
    "lesson_line": "Stop first, a few cents under the day's low. Then the size.",
    "facts": [
     "c03",
@@ -1417,14 +1626,27 @@
     "b19",
     "i17",
     "h04",
-    "k02"
+    "k02",
+    "c45"
    ],
    "wrong": {
-    "At the very bottom of the flag": "That is Bulkowski's stop. For us the flag low kills the idea; it is not the stop.",
-    "A flat 8% under the buy price": "That is IBD's general sell rule, not a stop for this base. Taser triggered it and then recovered.",
-    "Half the pole under the high": "That is far too wide. Our stop usually sits within about 3% of the buy."
+    "Just under the lowest low of the flag": "That is Bulkowski's stop. For us the flag low kills the idea but is not the stop. His study of a penny under the flag low averaged a 26% loss.",
+    "A flat 8% below the price you paid": "That is IBD's 8% sell rule, not our stop. It triggered on Taser, which then regained the buy point.",
+    "One average day's range under the buy": "Kullamagi uses the average range only as a cap on width. Our stop sits a few cents under the day's low."
    },
-   "house": true
+   "house": true,
+   "simple": "Our stop sits a few cents under the entry day's low, close to the buy, because the stop sets the size.",
+   "deeper": {
+    "counter": "Bulkowski's automated study found that a penny under the flag low as a stop meant an average 26% loss. Our stop is far tighter. The flag low ends the idea but does not set the stop."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q17",
@@ -1434,14 +1656,23 @@
    "criterion": "htf.after_entry_stop",
    "q": "You are in, and the breakout day ends on light volume. That alone is a reason to sell before the stop.",
    "answer": "False",
-   "why": "False. Light breakout volume is not a reason to exit. After the entry, the stop is the exit, with the time stop and the trail.",
+   "why": "False. Light breakout volume grades the trade, but it is not a reason to exit. After the entry, the stop is the exit, with the time stop and the trail.",
    "lesson_line": "Once you are in, the stop decides. Not the volume bar.",
    "facts": [
     "c26",
     "c25",
     "h02"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because light volume only grades the trade and the stop is the exit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, the stop is the exit)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q18",
@@ -1453,24 +1684,34 @@
    "choices": [
     "A reference, not a sell rule",
     "Our target; sell it all there",
-    "Where the stop goes",
-    "Where the first third goes"
+    "A level to add more shares",
+    "Where the first third comes off"
    ],
    "answer": "A reference, not a sell rule",
-   "why": "A reference, not a sell rule. We have no price target: a third at 3R, another third at 5R, then trail the rest.",
+   "why": "A reference, not a sell rule. Bulkowski's measure adds half the pole to the flag low, and 82% of his perfect trades met it. We have no price target. A third comes off at 3R, another third at 5R, and the last third rides the trail.",
    "lesson_line": "We sell by R and by the trail, never by a projected target.",
    "facts": [
     "c19",
     "b09",
     "h05",
-    "h20"
+    "h20",
+    "c24"
    ],
    "wrong": {
     "Our target; sell it all there": "We have no price target. The trims are in R and the rest rides the trail.",
-    "Where the stop goes": "The stop is a few cents under the day's low, not a projection.",
-    "Where the first third goes": "The first third comes off at 3R, measured from your fill and stop."
+    "A level to add more shares": "We never add to a trade. The full size goes in at one price with one stop.",
+    "Where the first third comes off": "The first third comes off at 3R, measured from your fill and stop."
    },
-   "house": true
+   "house": true,
+   "simple": "It is only a reference. We sell by R multiples and the trail, not at a projected price.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q19",
@@ -1480,13 +1721,23 @@
    "criterion": "htf.trim_1",
    "q": "On a high tight flag our hard rule sells the first third at 5R.",
    "answer": "False",
-   "why": "False. The hard rule for the first trim is a third at 3R. Ideally anywhere from 3R to 6R; in practice we mostly wait for 5R.",
+   "why": "False. The hard rule sells the first third at 3R. Another third comes off at 5R, and the last third rides the trail.",
    "lesson_line": "A third at 3R is the hard rule. Know the price before the open.",
    "facts": [
     "h05",
-    "c20"
+    "c20",
+    "h20"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The hard rule sells the first third at 3R, and the next third at 5R.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q20",
@@ -1496,11 +1747,12 @@
    "criterion": "htf.trim_1",
    "q": "Bought at 27.50 with the stop at 26.59. Where is 3R?",
    "answer": 30.23,
-   "why": "30.23. One R is the fill minus the stop. Add three of those to the fill. SRPT got there on day 5.",
+   "why": "30.23. One R is the fill minus the stop. Add three of those to the fill: 27.50 plus three times (27.50 minus 26.59) is 30.23. SRPT got there on day 5.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
-    "d01"
+    "d01",
+    "h03"
    ],
    "house": true,
    "calc": {
@@ -1512,7 +1764,20 @@
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "Add three times the risk per share to the fill, which puts 3R at 30.23.",
+   "deeper": {
+    "trap": "Do not add three times the fill. Add three times the gap between the fill and the stop."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q21",
@@ -1522,25 +1787,38 @@
    "criterion": "htf.catalyst",
    "q": "What usually sits behind the pole?",
    "choices": [
-    "A real business change or news",
-    "Nothing at all; poles are random",
+    "A real change in the business",
+    "A rally in the whole market",
     "A stock split or a name change",
     "A big index fund rebalance"
    ],
-   "answer": "A real business change or news",
-   "why": "A real change, like an earnings beat. With heavy volume it is the A+ context. Seven of the ten examples had a report inside the pole.",
+   "answer": "A real change in the business",
+   "why": "A real change in the business, such as earnings, a product or a contract. With heavy volume it is the A+ context. Seven of the ten examples had a report inside the pole. Kuhn: a news event usually lifts the stock out of dormancy.",
    "lesson_line": "Ask why it doubled. A real change in the business is the best answer.",
    "facts": [
     "c12",
     "c39",
-    "g01"
+    "g01",
+    "c01"
    ],
    "wrong": {
-    "Nothing at all; poles are random": "Kuhn: an important news event usually lifts the stock out of dormancy.",
     "A stock split or a name change": "A split changes the share count, not the business. It is no reason to double.",
-    "A big index fund rebalance": "Flows can move a stock, but the card's A+ context is a change in the business."
+    "A big index fund rebalance": "Flows can move a stock, but the card's A+ context is a change in the business.",
+    "A rally in the whole market": "A market-wide rally does not explain one quiet stock nearly doubling. The card says usually a real change in that company."
    },
-   "house": true
+   "house": true,
+   "simple": "Usually a real change in the business, like earnings, a product or a contract, wakes a quiet stock.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed decision (D-007, catalyst grade)"
+    ]
+   },
+   "depends_on": [
+    "D-007"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q22",
@@ -1550,13 +1828,22 @@
    "criterion": "htf.above_200",
    "q": "At the trigger, the close must be above the 200-day average.",
    "answer": "True",
-   "why": "True. The close is above the 200-day at the trigger. No longs below the 200-day is a hard rule.",
-   "lesson_line": "Above the 200-day, always. Most of these are far above it.",
+   "why": "True. The close is above the 200-day simple moving average at the trigger. Our rule is no longs below the 200-day.",
+   "lesson_line": "The close must be above the 200-day at the trigger. Below it, we pass.",
    "facts": [
     "c13",
     "h10"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. We take no long below the 200-day average, so the close must be above it at the trigger.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q23",
@@ -1564,13 +1851,14 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "htf.pole_size",
-   "q": "The lowest low of the 40 sessions was 12.40 and the pole high is 26.00. How big is the pole, in percent?",
+   "q": "The lowest low of the 40 sessions was 12.40 and the pole high is 26.00. How far did price rise, in percent?",
    "answer": 109.7,
-   "why": "109.7%. The pole high over the low, minus one. IBD looks for 100% to 120%; Bulkowski for at least 90%. This one more than doubled.",
+   "why": "109.7%. The pole is the high over the low, minus one: 26.00 over 12.40 is a rise of 109.7%. That is more than a double. Measure from the lowest low of the 40 sessions ending at the pole high. IBD looks for 100% to 120%. Bulkowski wants at least 90%.",
    "lesson_line": "Measure the pole before you look at the flag.",
    "facts": [
     "i01",
-    "b01"
+    "b01",
+    "c48"
    ],
    "calc": {
     "fn": "pct_change",
@@ -1580,7 +1868,20 @@
     },
     "round": 1
    },
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "The pole rose 109.7% from its low to its high, which is more than a double.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on a held decision (D-048, pole size)"
+    ]
+   },
+   "depends_on": [
+    "D-048"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q24",
@@ -1590,7 +1891,7 @@
    "criterion": "htf.flag_depth",
    "q": "Pattern high 100.00, flag low 84.00. How deep is the flag, in percent?",
    "answer": 16.0,
-   "why": "16%. The pattern high minus the flag low, divided by the high. IBD's flag usually pulls back 10% to 20%.",
+   "why": "16%. Depth is the pattern high minus the flag low, divided by the high. Here that is 100.00 minus 84.00, over 100.00. IBD says the flag usually pulls back 10% to 20%, sometimes 25%.",
    "lesson_line": "Depth is high to low on price, divided by the high.",
    "facts": [
     "c02",
@@ -1605,7 +1906,20 @@
     },
     "round": 1
    },
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "Depth is the drop from the pattern high to the flag low as a share of the high, here 16%.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on a held decision (D-050, flag depth)"
+    ]
+   },
+   "depends_on": [
+    "D-050"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q25",
@@ -1615,7 +1929,7 @@
    "criterion": "htf.stop",
    "q": "Fill 14.65, stop 14.24. How far below the fill is the stop, in percent?",
    "answer": 2.8,
-   "why": "2.8%. The fill minus the stop, divided by the fill. Inside the 3% the stop usually sits within. That was SOFI's stop.",
+   "why": "2.8%. Take the fill minus the stop, 14.65 minus 14.24, and divide it by the fill, 14.65. That is 2.8%. Our stop usually sits within about 3% of the buy. This was SOFI's stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
@@ -1632,7 +1946,17 @@
     },
     "round": 2
    },
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "The stop is 2.8% under the 14.65 fill, which is inside the usual 3%.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A13)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q26",
@@ -1642,7 +1966,7 @@
    "criterion": "htf.trim_2",
    "q": "Bought at 264.95, stop 255.06. The stock trades to 314.40. How many R is that?",
    "answer": 5.0,
-   "why": "5R. The gain divided by the fill minus the stop. That is where the second third comes off; BIDU got there.",
+   "why": "5R. The gain is 314.40 minus 264.95. One R is 264.95 minus 255.06. The gain divided by one R is 5.0. That is where the second third comes off, after the first third at 3R. BIDU got there.",
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "facts": [
     "h20",
@@ -1658,7 +1982,17 @@
     },
     "round": 1
    },
-   "suffix": "R"
+   "suffix": "R",
+   "simple": "The gain is five times the risk per share, so the stock is up 5R.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (E51)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q27",
@@ -1668,12 +2002,13 @@
    "criterion": "htf.no_adds",
    "q": "Account 100,000. Risk 0.5%. Fill 132.97, stop 128.10. How many shares?",
    "answer": 102,
-   "why": "102. Account times risk percent, divided by the fill minus the stop, rounded down. The full size at one price and one stop.",
+   "why": "102 shares. The risk budget is 0.5% of 100,000. Divide it by the fill minus the stop, 132.97 minus 128.10, and round down. That gives 102 shares, the full size at one price with one stop.",
    "lesson_line": "The stop sets the size. Never the other way round.",
    "facts": [
     "h03",
     "c24",
-    "d07"
+    "d07",
+    "h32"
    ],
    "house": true,
    "calc": {
@@ -1686,7 +2021,20 @@
     },
     "round": 0
    },
-   "suffix": " shares"
+   "suffix": " shares",
+   "simple": "Divide the 0.5% risk on 100,000 by the risk per share, then round down to 102 shares.",
+   "deeper": {
+    "trap": "Always round down, never up. Rounding up would risk more than the 0.5% you set. This size is also well under the 40% cap on one position."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A5)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q28",
@@ -1696,7 +2044,7 @@
    "criterion": "htf.not_stretched",
    "q": "The 10-day average is 50.00. Above what price is a buy too stretched?",
    "answer": 55.0,
-   "why": "55.00. Skip a long more than 10% above its 10-day average. About 5% over it is the A+ zone.",
+   "why": "55.00. Skip a long that is more than 10% above its 10-day average. 10% over 50.00 is 50.00 times 1.10, or 55.00. About 5% over the average is the A+ zone, and 8% to 10% is B-.",
    "lesson_line": "Read the stretch in percent before you read the pattern.",
    "facts": [
     "h13",
@@ -1711,7 +2059,18 @@
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "The limit is 10% over the 10-day average, and 10% over 50.00 is 55.00.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (C29)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q29",
@@ -1724,23 +2083,36 @@
    "choices": [
     "Pass; past the 4% line",
     "Buy; the breakout is real",
-    "Buy half size",
-    "Buy with a wider stop"
+    "Buy half size at the open",
+    "Pass; any gap is skipped"
    ],
    "answer": "Pass; past the 4% line",
-   "why": "Pass. 63.30 is more than 4% over 60.00. Chasing costs size, not risk: the stop stays under the buy point, so the shares shrink.",
+   "why": "Pass. We never buy more than 4% above the pattern high, and a gap over it by more than 4% is skipped. The open at 63.30 is past that line from 60.00. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. A gap that stays inside 4% is still bought at the open.",
    "lesson_line": "I would rather miss it than chase it. Four percent and done.",
    "facts": [
     "c06",
     "h11",
-    "h12"
+    "h12",
+    "d04"
    ],
    "wrong": {
     "Buy; the breakout is real": "Real and too far away are both true. The chase line is 4%.",
-    "Buy half size": "Half of a bad entry is still a bad entry.",
-    "Buy with a wider stop": "Widening the stop to fit a late entry is the mistake, not the fix."
+    "Buy half size at the open": "Half of a bad entry is still a bad entry.",
+    "Pass; any gap is skipped": "A gap that stays inside 4% is still bought at the open. SOFI's was, 1.5% past the high."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the open is more than 4% above the pattern high and we never chase past that line.",
+   "deeper": {
+    "trap": "The alert fires at the pattern high, so the move feels like one you already own. The 4% line is measured from the pattern high, not from your alert or the news. A gap that stays inside it is still bought at the open: SOFI opened 1.5% past the high and was bought."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28, no chasing)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q30",
@@ -1748,27 +2120,38 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "htf.earnings_window",
-   "q": "Buy the break today?",
+   "q": "Buy the break today, and why?",
    "story": "The pole came off a report. The flag is 12 sessions old and tight. The next report is in 2 sessions.",
    "choices": [
-    "No; a report is too close",
-    "Yes; the flag is tight",
-    "Yes, at half size",
+    "No; the report is too close",
+    "No; the flag is too young",
+    "Yes; the flag is tight enough",
     "Yes, and sell before the report"
    ],
-   "answer": "No; a report is too close",
-   "why": "No. No new buy in the 3 sessions before a report. These poles often follow a report, and the next one can land inside the flag.",
+   "answer": "No; the report is too close",
+   "why": "No. We take no new buy in the 3 sessions before an earnings report, and this report is 2 sessions away. A tight flag does not change the calendar. Check the date every time: the pole often follows a report, and the next one can land inside the flag.",
    "lesson_line": "Check the report date every time. Inside 3 sessions, wait.",
    "facts": [
     "c28",
-    "h08"
+    "h08",
+    "c02"
    ],
    "wrong": {
-    "Yes; the flag is tight": "A tight flag does not change the calendar. The window comes first.",
-    "Yes, at half size": "The rule is no new buy, not a smaller one.",
-    "Yes, and sell before the report": "The rule is no new buy inside the window, not a quick trip in and out."
+    "Yes, and sell before the report": "The rule is no new buy inside the window, not a quick trip in and out.",
+    "No; the flag is too young": "A 12-session flag fits our card, which allows 5 to 30 sessions. The report is the problem.",
+    "Yes; the flag is tight enough": "A tight flag does not change the calendar. The window comes first."
    },
-   "house": true
+   "house": true,
+   "simple": "No. A report is 2 sessions away, and we take no new buys in the 3 sessions before one.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B22)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q31",
@@ -1777,26 +2160,40 @@
    "format": "scenario",
    "criterion": "htf.stop_gap",
    "q": "What is your stop now?",
-   "story": "Bought at 52.00, stop 51.00. Bad news overnight: it opens at 50.40. The first 30-minute bar's low is 50.10.",
+   "story": "Bought at 52.00, stop 51.00. Bad news overnight: it opens at 50.40. The first 5-minute bar's low is 50.25 and the first 30-minute bar's low is 50.10.",
    "choices": [
-    "The first 30-minute low",
-    "Sell at the open, no matter what",
-    "The flag's low",
-    "No stop until it recovers"
+    "The low of the first 30-minute bar",
+    "Sell at the open price of 50.40",
+    "The flag's low, to give it room",
+    "The low of the first 5-minute bar"
    ],
-   "answer": "The first 30-minute low",
-   "why": "The first 30-minute low is the new stop. A gap against the stop: the first 30 minutes of the gap-down day decide. The loss at that low is inside the 2R ceiling.",
+   "answer": "The low of the first 30-minute bar",
+   "why": "The low of the first 30-minute bar, 50.10, is the new stop. On a gap against the stop, the first 30 minutes of the gap-down day decide. The loss to that low is under twice your starting risk, so it is inside the 2R ceiling. Past 2R, you get out.",
    "lesson_line": "On a gap through the stop, let the first 30 minutes set the new stop.",
    "facts": [
     "h06",
-    "h07"
+    "h07",
+    "h02"
    ],
    "wrong": {
-    "Sell at the open, no matter what": "Our gap rule lets the first 30 minutes decide, with a ceiling at 2R.",
-    "The flag's low": "That widens the stop. The gap rule is the one exception, and it uses the 30-minute low.",
-    "No stop until it recovers": "Every position has a real stop. A gap changes where it sits, not whether it exists."
+    "Sell at the open price of 50.40": "Our gap rule lets the first 30 minutes decide, with a ceiling at 2R. It does not say to sell at the open.",
+    "The flag's low, to give it room": "That widens the stop. The gap rule is the one exception, and it uses the 30-minute low.",
+    "The low of the first 5-minute bar": "The gap rule uses the first 30 minutes of the gap-down day. A 5-minute bar is a different line."
    },
-   "house": true
+   "house": true,
+   "simple": "Use the low of the first 30-minute bar as the new stop, because the gap rule lets those 30 minutes decide.",
+   "deeper": {
+    "trap": "Check the ceiling first. If the first 30-minute bar's low were far lower, so the loss passed 2R, you would get out instead of holding."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B20)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q32",
@@ -1806,13 +2203,27 @@
    "criterion": "htf.strong_close",
    "q": "A wicky breakout bar that closes well off its high grades lower than a strong close.",
    "answer": "True",
-   "why": "True. A strong close on the breakout day raises the grade; a wicky bar that closes off its high is B-.",
+   "why": "True. A strong close on the breakout day raises the grade. A wicky bar that closes off its high is B-. It is a grade cue on our card, so where the day closes counts.",
    "lesson_line": "Where the breakout day closes tells you who won the day.",
    "facts": [
     "c31",
-    "d12"
+    "d12",
+    "d11"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because a strong close on the breakout day raises the grade, while a bar closing off its high is a B-.",
+   "deeper": {
+    "example": "FSLR, 2022-08-26. The breakout day gapped open at 125.50, over the 121.91 buy point, on 1.47x volume. It then closed at the low of its range, 121.75, back under the buy point. That is a weak close, the opposite of the strong close that raises the grade."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card only (single source, c31)",
+     "a house grading line, not a web fact"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q33",
@@ -1821,7 +2232,7 @@
    "format": "scenario",
    "criterion": "htf.stop_broker",
    "q": "Widen the stop, hold it, or sell?",
-   "story": "Four days after the breakout the stock drifts back to the pattern high. Your stop under the entry day's low has not been touched.",
+   "story": "Four days after the breakout the stock drifts back to the pattern high. Your stop has not been touched.",
    "choices": [
     "Hold; the stop is the exit",
     "Widen it to the flag low",
@@ -1829,19 +2240,29 @@
     "Add more at the pattern high"
    ],
    "answer": "Hold; the stop is the exit",
-   "why": "Hold. The stop only moves up, never down or wider. Two in three winners come back to the breakout price within a month.",
-   "lesson_line": "A test of the breakout is normal. The stop is the answer, not your nerves.",
+   "why": "Hold. After the entry, the stop is the exit. It only moves up, never down or wider. A pullback to the pattern high is not a signal to sell early, widen the stop or add.",
+   "lesson_line": "Until the stop is hit, the plan holds. The stop is the answer, not your nerves.",
    "facts": [
     "h02",
-    "c27",
-    "c24"
+    "c24",
+    "c25"
    ],
    "wrong": {
     "Widen it to the flag low": "The stop never moves down. Widening it is the mistake the rule exists to stop.",
-    "Sell now, before it fails": "A pullback to the breakout price is common. Selling early turns a normal test into a loss.",
+    "Sell now, before it fails": "The stop has not been hit, and the stop is the exit. Selling early swaps the plan for nerves.",
     "Add more at the pattern high": "We never add. The full size goes on at one price with one stop."
    },
-   "house": true
+   "house": true,
+   "simple": "Hold, because the stop is the exit and it has not been touched.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (A4, the stop only moves up)",
+     "+1 fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q34",
@@ -1854,23 +2275,34 @@
    "choices": [
     "Keep it; it is over 1R",
     "Sell; it has not reached 3R",
-    "Sell half now",
+    "Keep it, and add a little more",
     "Move the stop to the flag low"
    ],
    "answer": "Keep it; it is over 1R",
-   "why": "Keep it. The time stop sells a trade still under 1R after 10 trading days. This one is over 1R. TMDX took 23 sessions to 3R.",
+   "why": "Keep it. The time stop sells a trade still under 1R after 10 trading days. This one is up 1.3R, so it is over the line. Slow is not a reason to sell. TMDX took 23 sessions to 3R but was above 1R by day 10.",
    "lesson_line": "Slow is not wrong. Under 1R after ten days is the line.",
    "facts": [
     "h15",
+    "c22",
     "c40",
-    "d07"
+    "d07",
+    "c24"
    ],
    "wrong": {
     "Sell; it has not reached 3R": "The time stop is 1R after ten days, not 3R.",
-    "Sell half now": "No rule sells half here. The trims come at 3R and 5R.",
-    "Move the stop to the flag low": "The stop only moves up. The flag low is below it."
+    "Move the stop to the flag low": "The stop only moves up. The flag low is below it.",
+    "Keep it, and add a little more": "We never add. The full size goes on at one price with one stop."
    },
-   "house": true
+   "house": true,
+   "simple": "Keep it, because the time stop only sells a trade still under 1R after 10 trading days.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C33, time stop)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q35",
@@ -1887,18 +2319,30 @@
     "Do nothing at all until 5R"
    ],
    "answer": "Sell one third at the open",
-   "why": "Sell the first third at the open. If a stock opens above a trim level, take that trim at the open.",
+   "why": "Sell the first third at the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. Here 3R is 43.00 and the open is 43.60. The second third waits for 5R.",
    "lesson_line": "A trim level the open jumps over is taken at the open, not waited for.",
    "facts": [
     "h25",
-    "h05"
+    "h05",
+    "h20",
+    "c20"
    ],
    "wrong": {
     "Wait for a dip back to 43.00": "The open already passed 3R. Waiting for a dip can leave the trim untaken.",
     "Sell the whole lot at the open": "A third comes off at 3R. The rest keeps working.",
     "Do nothing at all until 5R": "The hard rule is a third at 3R. The open is past it."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell one third at the open, because the open is already past the 3R price.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F63, trim at the open)",
+     "+1 fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q36",
@@ -1906,26 +2350,37 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "htf.breakeven",
-   "q": "The first third is off at 3R. Where does the stop go?",
+   "q": "The first third is off at 3R. Where does our default put the stop?",
    "choices": [
-    "To breakeven, your fill",
+    "To breakeven, your fill price",
     "Leave it under the entry day",
-    "Down to the flag low",
-    "Up to the 3R price"
+    "Down to the flag low for room",
+    "Up to the 3R price you sold at"
    ],
-   "answer": "To breakeven, your fill",
-   "why": "To breakeven. The stop moves to breakeven between 2R and 5R, at the first trim by default.",
+   "answer": "To breakeven, your fill price",
+   "why": "To breakeven, your fill price. Our default moves the stop to breakeven at the first trim. The allowed window is 2R to 5R, ideally. Leaving the stop where it was is not the default. The stop only moves up, never down or wider.",
    "lesson_line": "First trim, then breakeven. The rest of the trade is free.",
    "facts": [
     "c21",
-    "h05"
+    "h05",
+    "h02"
    ],
    "wrong": {
-    "Leave it under the entry day": "At the first trim it moves up to breakeven by default.",
-    "Down to the flag low": "A stop never moves down.",
-    "Up to the 3R price": "The default at the first trim is breakeven, not the trim price."
+    "Leave it under the entry day": "At the first trim our default moves it up to breakeven.",
+    "Down to the flag low for room": "A stop never moves down or wider.",
+    "Up to the 3R price you sold at": "The default at the first trim is breakeven, not the trim price."
    },
-   "house": true
+   "house": true,
+   "simple": "Move the stop to your fill price, because our default is breakeven at the first trim.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19, breakeven window and default)",
+     "+1 reworded: the old stem allowed a second answer"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q37",
@@ -1936,20 +2391,20 @@
    "q": "This stock trades 3,000,000 shares a day. The most you would own?",
    "choices": [
     "30,000 shares, 1% of a day",
-    "300,000 shares",
-    "3,000 shares",
-    "No limit with a tight stop"
+    "300,000 shares, 10% of a day",
+    "As many as the risk size allows",
+    "No limit if the stop is tight"
    ],
    "answer": "30,000 shares, 1% of a day",
-   "why": "30,000 shares. Never own more than 1% of a stock's average daily volume. Thin, fast names limit size.",
+   "why": "30,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 3,000,000 is 30,000. The rule has no exception for a tight stop. Illiquid stocks are not even watched.",
    "lesson_line": "One percent of the daily volume is the ceiling, however tight the stop.",
    "facts": [
     "h19"
    ],
    "wrong": {
-    "300,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
-    "3,000 shares": "That is a tenth of the ceiling. The line is 1%.",
-    "No limit with a tight stop": "A tight stop cannot catch a gap. The ceiling stands."
+    "300,000 shares, 10% of a day": "That is ten times the 1% line.",
+    "As many as the risk size allows": "The risk-based size is only one limit. We also never own more than 1% of a stock's average daily volume.",
+    "No limit if the stop is tight": "The rule says never, with no exception for a tight stop."
    },
    "house": true,
    "calc": {
@@ -1959,7 +2414,18 @@
      "adv": 3000000
     },
     "round": 0
-   }
+   },
+   "simple": "We own at most 1% of the average daily volume, and 1% of 3,000,000 is 30,000 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only",
+     "computed key",
+     "rests on the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q38",
@@ -1970,25 +2436,35 @@
    "q": "Take it or pass?",
    "story": "The stock doubled in six weeks and now flags tight. It trades at 8.40, about $35 million a day.",
    "choices": [
-    "Pass; it is under $10",
+    "Pass; it is under the $10 floor",
     "Take it; the dollar volume is fine",
-    "Take it at half size",
-    "Take it with a wider stop"
+    "Take it at half size to limit risk",
+    "Pass; the double came too fast"
    ],
-   "answer": "Pass; it is under $10",
-   "why": "Pass. Only stocks at $10 or more that trade at least $20 million a day. Bonde: some hits are too low priced and need liquidity.",
+   "answer": "Pass; it is under the $10 floor",
+   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day. At 8.40 this one fails the price test, even though $35 million a day clears the volume test. Both tests must pass. Bonde: some hits are too low priced and need liquidity.",
    "lesson_line": "Cheap and thin is not ours, however good the chart.",
    "facts": [
     "h09",
     "c29",
-    "p02"
+    "p02",
+    "i01"
    ],
    "wrong": {
     "Take it; the dollar volume is fine": "Both tests apply: $10 or more and $20 million a day. Price fails.",
-    "Take it at half size": "The floor is a gate, not a size cue.",
-    "Take it with a wider stop": "A wider stop does not fix a stock we do not trade."
+    "Take it at half size to limit risk": "The floor is a gate, not a size cue.",
+    "Pass; the double came too fast": "A double in four to eight weeks is the pole this pattern needs. Six weeks is not too fast."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the stock trades under $10 and we only trade stocks at $10 or more.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B23, price and dollar volume floor)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q39",
@@ -1999,13 +2475,13 @@
    "q": "What do you do?",
    "story": "A clean flag sets up after a double. The market reading has been Red for two weeks. Most leaders are breaking down.",
    "choices": [
-    "Pass; Red is mostly cash",
+    "Pass; this market says wait",
+    "Pass; the flag is too tight",
     "Buy full size; the chart is A+",
-    "Buy and widen the stop",
-    "Buy a starter, add later"
+    "Buy a starter; add on strength"
    ],
-   "answer": "Pass; Red is mostly cash",
-   "why": "Pass. A Red reading is mostly cash and shorts. Bulkowski: if the market looks about to drop, avoid the trade.",
+   "answer": "Pass; this market says wait",
+   "why": "Pass. The market reading is a guide. Green is full risk, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. In Red a long mostly waits, however clean the flag. Bulkowski: if the market looks about to drop, avoid the trade.",
    "lesson_line": "The market first, then the chart. A great flag in a Red market waits.",
    "facts": [
     "h26",
@@ -2014,10 +2490,19 @@
    ],
    "wrong": {
     "Buy full size; the chart is A+": "Red is mostly cash. Even Orange takes only A+ setups, and this is Red.",
-    "Buy and widen the stop": "A wider stop is never the answer, in any market.",
-    "Buy a starter, add later": "We never add. And Red is not the time to start."
+    "Pass; the flag is too tight": "A tight flag is what we want. The market reading is the reason to wait.",
+    "Buy a starter; add on strength": "We never add. And Red is not the time to start."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because a Red market reading means mostly cash and shorts, however good the chart looks.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (F65, the market reading as a guide)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q40",
@@ -2028,25 +2513,33 @@
    "q": "What relative strength do we want on this setup?",
    "choices": [
     "An RS rating of 80 or more",
-    "Anything over 50 is fine",
-    "RS does not matter on this one",
-    "Only a rating of 99 or better"
+    "A rating over 50 is enough",
+    "RS is not a factor here",
+    "A rating of 99 or better"
    ],
    "answer": "An RS rating of 80 or more",
-   "why": "An RS rating of 80 or more, in one of the strongest groups. After a doubling it is almost automatic: Taser showed a 98 RS at its breakout.",
-   "lesson_line": "Buy leaders. A double usually makes one.",
+   "why": "An RS rating of 80 or more, in one of the strongest groups. We buy leaders. IBD gave Taser a 98 RS grade at its breakout.",
+   "lesson_line": "Buy leaders. An RS rating of 80 or more is the floor.",
    "facts": [
     "h14",
-    "c41",
-    "i12",
-    "c46"
+    "i12"
    ],
    "wrong": {
-    "Anything over 50 is fine": "Our floor is 80. Half the market sits above 50.",
-    "RS does not matter on this one": "Buy leaders is our rule on every long setup except parabolic and mean-reversion trades.",
-    "Only a rating of 99 or better": "Too narrow. The floor is 80, with 90 or more as the A+ cue."
+    "A rating over 50 is enough": "Our floor is 80, well above 50.",
+    "RS is not a factor here": "Buy leaders is our rule on every long setup except parabolic and mean-reversion trades.",
+    "A rating of 99 or better": "Too narrow. Our floor is 80, not 99."
    },
-   "house": true
+   "house": true,
+   "simple": "We want an RS rating of 80 or more, because we buy leaders.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C31, RS 80 or more)",
+     "+1 fixed before (variety rewrite)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q41",
@@ -2056,12 +2549,21 @@
    "criterion": "htf.pole_size",
    "q": "A VCP is one shelf a little under the high; a high tight flag strings shrinking pullbacks.",
    "answer": "False",
-   "why": "False. The two are swapped. A VCP strings several contractions after an advance; this setup is one shelf under the high of a huge pole.",
+   "why": "False. The two are swapped. A VCP strings two to six contractions over 15 sessions or more after a 30% advance. A high tight flag is one shelf a little under the high of a near-double pole.",
    "lesson_line": "Several shrinking dips is a VCP. One shelf after a rocket is the flag.",
    "facts": [
     "c33"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. A VCP strings shrinking pullbacks, while a high tight flag is one shelf after a huge run.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q42",
@@ -2072,24 +2574,38 @@
    "q": "Take it or pass?",
    "story": "The stock was up 250% in the six months before this pole began. Now it doubles again and pauses tight.",
    "choices": [
-    "Pass; too late in the move",
-    "A+, with more momentum",
-    "Buy it; tight is tight",
-    "A fresh first base off a low"
+    "Pass; it is too late in the move",
+    "Pass; a flag this tight is a trap",
+    "Take it; it is a fresh first base",
+    "Take it; momentum makes it A+"
    ],
-   "answer": "Pass; too late in the move",
-   "why": "Pass. The gate is not late: no more than 200% up in the 6 months before the pole. This one was up 250%. Bonde: a tight flag late in the move breaks down.",
+   "answer": "Pass; it is too late in the move",
+   "why": "Pass. Our not-late test: the pole is the first or second big leg. The stock must not be up more than 200% in the 6 months before the pole began. This one was up 250%. Bonde: if a tight flag appears late in the move, it will break down. Tight does not fix a late flag.",
    "lesson_line": "Early legs pay. A flag after a giant run is where tired moves end.",
    "facts": [
     "c11",
-    "p03"
+    "p03",
+    "b05"
    ],
    "wrong": {
-    "A+, with more momentum": "Momentum this late is the risk, not the edge. The not-late line is a gate.",
-    "Buy it; tight is tight": "Tightness does not fix a late flag. Bonde: late flags break down.",
-    "A fresh first base off a low": "After 250% in six months it is not first. The count starts at the quiet base."
+    "Pass; a flag this tight is a trap": "Bulkowski: trade tight flags, not loose ones. Tight is not the problem; the 250% run before the pole is.",
+    "Take it; it is a fresh first base": "Our card wants the first or second big leg. A stock already up 250% in six months is not a fresh first base.",
+    "Take it; momentum makes it A+": "Momentum this late is the risk, not the edge. The not-late line is a gate: no more than 200% up in the 6 months before the pole."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the stock was already up 250% in six months, past our 200% limit, so the move is late.",
+   "deeper": {
+    "trap": "The trap is momentum. A stock up 250% in six months that doubles again looks strong, so the flag feels earned. Our test looks backward instead: no more than 200% up in the 6 months before the pole began. Past that line, Bonde says a tight flag late in the move breaks down."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the 200% in 6 months line is a card proposal that can change",
+     "Bonde's late-flag point comes from one post"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q43",
@@ -2105,21 +2621,40 @@
     "A close above the pole top"
    ],
    "answer": "A trendline break in the flag",
-   "why": "A trendline break in the flag. Too many fail even after a trendline break. Buy above the highest high in the pattern instead.",
+   "why": "A trendline break in the flag. Bulkowski: new research says high and tight flags fail too often on a flag trendline break, so place a buy stop above the highest high in the pattern. A close above its highest peak, usually the pole top, confirms the pattern. We buy at market as price trades through the pattern high.",
    "lesson_line": "Never buy the line inside the flag. Buy the top of the pattern.",
    "facts": [
     "b04",
     "b14",
     "c36",
     "v01",
-    "b21"
+    "b21",
+    "c05",
+    "h22"
    ],
    "wrong": {
     "A trade above the highest high": "That is the entry he recommends, and ours: through the pattern high.",
-    "A buy at the next day's open": "That is a timing choice, not the entry he tested and rejected.",
+    "A buy at the next day's open": "That is a timing choice. His warning is about the trendline break inside the flag.",
     "A close above the pole top": "He uses a close above the top to confirm the pattern, not to reject it."
    },
-   "house": true
+   "house": true,
+   "simple": "Buying a trendline break inside the flag fails too often, so buy above the highest high of the pattern instead.",
+   "deeper": {
+    "trap": "Some chart vendors teach an early entry: buy when price breaks above the downward trendline inside the flag. It feels smarter because it is earlier. Bulkowski says too many of these patterns fail to move higher even after a trendline break, so the trigger is the pattern high, not the line inside the flag."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "+2 Bulkowski's finding is new research and can change",
+     "+2 held decision D-027 (which trigger we use)",
+     "+1 fixed before (variety rewrite)"
+    ]
+   },
+   "depends_on": [
+    "D-027"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q44",
@@ -2129,7 +2664,7 @@
    "criterion": "htf.no_target",
    "q": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level?",
    "answer": 22.0,
-   "why": "22.00. Take half of the pole and add it to the bottom of the flag. A reference only; we sell by R and the trail.",
+   "why": "22.00. Bulkowski: take half of the pole and add it to the bottom of the flag. The pole runs from 10.00 to 20.00, so half of it is added to the flag low of 17.00. His rule was met by 82% of his perfect trades. For us it is a reference only. We sell by R and the trail.",
    "lesson_line": "Know the level if you like. It is never the reason to sell.",
    "facts": [
     "b09",
@@ -2146,7 +2681,16 @@
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "Half the pole added to the flag low lands at 22.00, which is a reference only.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 computed key"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q45",
@@ -2159,21 +2703,40 @@
    "choices": [
     "A bull flag",
     "A high tight flag",
-    "A flat base"
+    "A flat base",
+    "A VCP base"
    ],
    "answer": "A bull flag",
-   "why": "A bull flag. Measure the pole: this one never doubled. A tight flag that never doubled is a bull flag, however tight.",
+   "why": "A bull flag. Measure the pole: 45% is far short of a near-double. A tight flag in a leader that never doubled is a bull flag, however tight.",
    "lesson_line": "Doubled and paused is the rare one. Ran and paused is the common flag.",
    "facts": [
     "c32",
     "c47",
-    "d18"
+    "c33",
+    "c53"
    ],
    "wrong": {
-    "A high tight flag": "The run is less than half a double. The pole names the setup.",
-    "A flat base": "A flat base rests for weeks in a box. This is a short drift right after a run."
+    "A high tight flag": "The card wants a near-double, 90% or more in 40 sessions or fewer. A 45% run is far short.",
+    "A flat base": "A flat base rests at least 25 sessions. This one paused six sessions.",
+    "A VCP base": "A VCP strings two to six contractions over 15 sessions or more. Six tight sessions is one short pause, not a string of shrinking dips."
    },
-   "house": true
+   "house": true,
+   "simple": "It is a bull flag. The pole is only 45%, nowhere near a double, and tightness alone never makes a high tight flag.",
+   "deeper": {
+    "trap": "Do not let the tight box name the setup. Measure the pole first: a near-double is 90% or more in 40 sessions or fewer."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-048, pole size)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-048"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q46",
@@ -2184,23 +2747,43 @@
    "q": "Which card do you grade it on?",
    "story": "The stock doubled in seven weeks. Then it rested 38 sessions in a 9% box near the high.",
    "choices": [
-    "Flat base; the rest is too long",
+    "Flat base; the pause is too long",
     "High tight flag; the price doubled",
-    "Bull flag; the box is tight"
+    "Bull flag; the box is tight",
+    "VCP; the base is quiet and tight"
    ],
-   "answer": "Flat base; the rest is too long",
-   "why": "The flat base. Count the rest. IBD's flag forms over the next three to five weeks, and 38 sessions is far past that.",
-   "lesson_line": "A flag is a few weeks. A rest of months is a different base, graded as that base.",
+   "answer": "Flat base; the pause is too long",
+   "why": "The flat base. Count the rest. Our card allows a pause of 5 to 30 sessions, and past 30 the flag becomes that base. IBD gives three to five weeks, and Kuhn three to six. The double fits, but 38 sessions is too long.",
+   "lesson_line": "A flag rests a few weeks. A much longer rest is a different base, graded as that base.",
    "facts": [
     "c02",
     "i02",
-    "b05"
+    "g03",
+    "c33",
+    "c53"
    ],
    "wrong": {
-    "High tight flag; the price doubled": "The double fits, but the rest runs far past a few weeks. It has become a base.",
-    "Bull flag; the box is tight": "A bull flag is a short drift after a smaller run. This is a long box."
+    "High tight flag; the price doubled": "The double fits, but the rest runs past 30 sessions. Past that, the flag has become a base.",
+    "Bull flag; the box is tight": "A bull flag follows a smaller run, 20% to 30%. This stock doubled, and then it sat far longer than a flag does.",
+    "VCP; the base is quiet and tight": "A VCP strings two to six contractions after a 30% advance. This is one 9% box with no string of dips."
    },
-   "house": true
+   "house": true,
+   "simple": "It is a flat base, because past 30 sessions the flag has become a base.",
+   "deeper": {
+    "trap": "Count the rest in sessions. Our card allows 5 to 30. IBD gives three to five weeks and Kuhn three to six, so 38 sessions is past even Kuhn's longest flag."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-049, flag length)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-049"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q47",
@@ -2209,25 +2792,41 @@
    "format": "scenario",
    "criterion": "htf.inv_parabolic_top",
    "q": "Buy the pause, or not?",
-   "story": "The pole's last three days gapped up each morning on rising volume. The climax day opened high and closed below its open. Now it pauses.",
+   "story": "The pole's last three days each opened on a gap up, on rising volume and wider ranges. The last one, the climax day, closed below its open. Now it pauses.",
    "choices": [
-    "Not; a possible parabolic top",
-    "Buy it; the pause is tight",
+    "Not; it reads as a parabolic top",
+    "Not; a gap means the move is over",
+    "Buy it; the pause is very tight",
     "Buy over the climax day's high"
    ],
-   "answer": "Not; a possible parabolic top",
-   "why": "Not. A burst into a climax day that closed below its open is a possible parabolic top, not a flag. Bulkowski prefers a pole of about 45 degrees.",
+   "answer": "Not; it reads as a parabolic top",
+   "why": "Not. The last leg of the pole was a burst: gap ups, rising volume and wider ranges. The climax day closed below its open. Our card calls that a possible parabolic top, not a flag. A pause afterward does not cancel the reversal.",
    "lesson_line": "Read the last leg of the pole. A burst that reverses is a top, not a flag.",
    "facts": [
     "c18",
     "c42",
-    "b07"
+    "d03",
+    "d04"
    ],
    "wrong": {
-    "Buy it; the pause is tight": "Tight does not cancel the reversal. The card calls it a possible top.",
-    "Buy over the climax day's high": "The trigger is fine on a flag. This is not a flag."
+    "Buy over the climax day's high": "The trigger is fine on a flag. This is not a flag.",
+    "Not; a gap means the move is over": "Gaps alone do not end a move. SOFI gapped over its pattern high and ran to 6.2R. The warning is the climax day closing below its open.",
+    "Buy it; the pause is very tight": "Tight does not cancel the reversal. The card calls it a possible top."
    },
-   "house": true
+   "house": true,
+   "simple": "Not, because the pole ended in a burst and the climax day closed below its open, which marks a possible top.",
+   "deeper": {
+    "trap": "The trap is the tidy pause. A tight pause looks like a flag, so the eye skips the last leg. The card reads that leg first. A burst of gap ups, then a climax day that closed below its open, is a possible top. It is not a flag."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the card's parabolic-top test only (c18, c42)",
+     "a proposed test, not an owner ruling"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q48",
@@ -2240,20 +2839,37 @@
    "choices": [
     "Qullamaggie breakout",
     "High tight flag setup",
-    "A V off a crash low"
+    "A V off a crash low",
+    "A flat base or a cup"
    ],
    "answer": "Qullamaggie breakout",
-   "why": "The Qullamaggie breakout. It needs only a 30% move in the past 1 to 3 months. The high tight flag needs the double in 8 weeks or less.",
-   "lesson_line": "Same buy, same stop. The pole decides which card you are on.",
+   "why": "The Qullamaggie breakout. It needs only a 30% move in the past 1 to 3 months and rests 2 weeks to 2 months. A high tight flag needs the double in 8 weeks or less. This stock rose 35% in six weeks, so it fits his breakout, not the near-double. His stock surfs the rising 10- and 20-day through the rest.",
+   "lesson_line": "The pole decides which card you are on.",
    "facts": [
     "c34",
-    "k01"
+    "k01",
+    "k03",
+    "c43"
    ],
    "wrong": {
     "High tight flag setup": "35% is nowhere near a double. The flag needs the near-double first.",
-    "A V off a crash low": "Nothing here fell. It rose and tightened."
+    "A V off a crash low": "Nothing here fell. It rose and tightened.",
+    "A flat base or a cup": "A base that lost the fast averages is a flat base or a cup. This one rides its rising short averages."
    },
-   "house": true
+   "house": true,
+   "simple": "The Qullamaggie breakout, because it needs only a 30% move, while the high tight flag needs a double.",
+   "deeper": {
+    "trap": "The trap is the shared look. Both end in a tight pause near the high, so the chart alone does not name the card. Measure the pole. His breakout needs a 30% move in the past 1 to 3 months. The high tight flag needs the double in 8 weeks or less."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the card's summary of his breakout; his page gives 30% to 100%+ in 1 to 3 months",
+     "the near-double size is a held decision (D-048), but 35% fails every option"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q49",
@@ -2262,24 +2878,41 @@
    "format": "scenario",
    "criterion": "htf.pole_not_v",
    "q": "Take it or pass?",
-   "story": "The stock fell 45% in two months. Then it doubled off the low in five weeks and now pauses near the high.",
+   "story": "The stock fell 45% in six weeks. Then it doubled off the low in five weeks and now pauses near the high.",
    "choices": [
-    "Pass; a V off a crash",
+    "Pass; it is a V off a crash",
     "Take it; the pole doubled",
-    "Take it; the flag is tight"
+    "Take it; the flag is tight",
+    "Pass; the rise was too fast"
    ],
-   "answer": "Pass; a V off a crash",
-   "why": "Pass. Not a V: in the 40 sessions before the pole began, the stock did not fall more than 30%. This one fell 45%. Bulkowski: avoid V shapes.",
+   "answer": "Pass; it is a V off a crash",
+   "why": "Pass. Not a V: in the 40 sessions before the pole began, the stock must not fall over 30% from high to low. This one fell 45% in six weeks, so the pole is a rebound off a crash. Bulkowski: avoid V shapes, where price drops hard into the start of the pole. He says poles springing from flat bases work better.",
    "lesson_line": "A double off a crash is a repair, not a launch.",
    "facts": [
     "c10",
-    "b10"
+    "b10",
+    "b11",
+    "c48"
    ],
    "wrong": {
     "Take it; the pole doubled": "The double is real, but it starts from a crash. That is the V the card rules out.",
-    "Take it; the flag is tight": "A tight flag does not fix where the pole began."
+    "Take it; the flag is tight": "A tight flag does not fix where the pole began.",
+    "Pass; the rise was too fast": "Speed is part of the pattern. The rise takes 40 sessions or fewer, and five weeks fits."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the stock fell 45% before the pole began, which makes it a V off a crash, not a fresh launch.",
+   "deeper": {
+    "trap": "The trap is the double. A pole that doubles looks like the pattern, but a double off a crash low only repairs the damage. Check what came before it: in the 40 sessions before the pole began, a fall of more than 30% fails the test."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the 30% fall limit is a card proposal that can change",
+     "Bulkowski independently says to avoid V shapes"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q50",
@@ -2288,28 +2921,45 @@
    "format": "scenario",
    "criterion": "htf.after_entry_stop",
    "q": "What do you do?",
-   "story": "You bought a stock that rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it trades through your stop.",
+   "story": "You bought a stock that rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it falls to your stop.",
    "choices": [
-    "Sell at the stop",
+    "Sell at the stop, as planned",
     "Hold; the pole was huge",
     "Widen the stop to the flag low",
     "Buy more; it is cheaper"
    ],
-   "answer": "Sell at the stop",
-   "why": "Sell at the stop. After the entry, the stop is the exit. SRRK, December 2020: the biggest pole in the scan, and stopped the next session.",
+   "answer": "Sell at the stop, as planned",
+   "why": "Sell at the stop. After the entry, the stop is the exit, with the time stop and the trail. The stop only moves up, never down or wider. SRRK, December 2020: the biggest pole in the scan, 291% in 34 sessions, but the breakout day traded about a tenth of its average volume. It was stopped the next session. Light breakout volume grades the trade; it is not a reason to exit.",
    "lesson_line": "The stop is an appointment, not a debate. Even after a perfect-looking pole.",
    "facts": [
     "c25",
     "h02",
     "d15",
-    "d16"
+    "d16",
+    "c26"
    ],
    "wrong": {
     "Hold; the pole was huge": "The size of the pole does not move the stop. The stop is the exit.",
     "Widen the stop to the flag low": "The stop only moves up. Widening it is the mistake.",
     "Buy more; it is cheaper": "We never add, least of all to a trade going through its stop."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell at the stop, because after the entry the stop is the exit and the size of the pole does not change that.",
+   "deeper": {
+    "trap": "A perfect-looking pole. 291% in 34 sessions was the biggest pole in our scan, and the flag was 6 days and 15.5% deep. None of that moves the stop. A pole is a reason to buy, never a reason to hold past the stop. The breakout day traded 0.10x its 50-day average, and light volume only grades the trade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rests on the owner's rulebook (A4, the stop is the exit)",
+     "+2 held decision D-006 (breakout volume as a gate)"
+    ]
+   },
+   "depends_on": [
+    "D-006"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q51",
@@ -2318,29 +2968,44 @@
    "format": "scenario",
    "criterion": "htf.no_chase",
    "q": "The next morning it takes your stop. Was buying the gap a mistake?",
-   "story": "A 101% pole, then a nine-day flag 8.8% deep. The stock gaps open at 125.50 over the 121.91 buy point. You are filled. It closes at 121.75, the low of its day.",
+   "story": "A 101% pole, then a nine-day flag 8.8% deep. The stock gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled. It closes at 121.75, the low of its day.",
    "choices": [
     "No; a planned loss at the stop",
-    "Yes; never buy a gap",
-    "Yes; the stop was too tight",
+    "Yes; skip gaps next time",
+    "No; but widen the stop next time",
     "Yes; volume was too light"
    ],
    "answer": "No; a planned loss at the stop",
-   "why": "No. A gap over the high inside the 4% line is bought at the open, and the stop is the exit. FSLR, August 2022: the next session's low, 118.13, took it.",
+   "why": "No. A gap over the high that stays inside the 4% line is bought at the open, and the stop is the exit. The open at 125.50 was past the 121.91 buy point but inside that line. FSLR, August 2022: the next session's low, 118.13, took the stop. A loss at the stop is the system working.",
    "lesson_line": "A loss at the stop is the cost of being there for the ones that work.",
    "facts": [
     "d11",
     "d12",
     "h11",
     "d04",
-    "h02"
+    "h02",
+    "h01",
+    "h24",
+    "d03"
    ],
    "wrong": {
-    "Yes; never buy a gap": "A gap over the high is bought at the open when it is inside 4%. SOFI was, and ran.",
-    "Yes; the stop was too tight": "The stop was the rule's stop, a few cents under the day's low.",
-    "Yes; volume was too light": "It broke out on 1.47x volume. The close, not the volume, told the story."
+    "Yes; volume was too light": "It broke out on 1.47x volume. A weak close is not why the buy was wrong; the stop is the exit.",
+    "Yes; skip gaps next time": "A gap over the high is bought at the open when it is inside 4%. SOFI was, and ran.",
+    "No; but widen the stop next time": "Our stop sits a few cents under the day's low. A wider stop means fewer shares, not a better trade."
    },
-   "house": true
+   "house": true,
+   "simple": "No, because a gap inside the 4% line is bought at the open, and a loss at the stop is a planned cost.",
+   "deeper": {
+    "trap": "Judging the trade by its result. The gap was bought by the rule, inside the 4% line, so the loss was a planned cost. The bar did close at the low of its day, back under the buy point, and a wicky bar that closes off its high grades B-. SOFI also gapped, 1.5% past the high, and reached 3R on day 3."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C28, 4% line; A4, the stop is the exit)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q52",
@@ -2352,25 +3017,40 @@
    "story": "Bought at 175.81, stop 168.86. It reaches 2.35R, then falls back. On day 3 it trades through your stop.",
    "choices": [
     "No; it never reached the 3R trim",
+    "No; but skip this stock next time",
     "Yes; you should sell at 2R",
-    "Yes; widen the stop next time",
-    "Yes; you should have added"
+    "Yes; widen the stop next time"
    ],
    "answer": "No; it never reached the 3R trim",
-   "why": "No. The first trim is a third at 3R, and it never got there. The stop is the exit. Breakeven is allowed from 2R, ideally, which would make it a scratch.",
+   "why": "No. The first trim is a third at 3R, and this trade topped out at 2.35R. The stop is the exit, so the loss was planned. Our rule also lets the stop go to breakeven anywhere from 2R to 5R, ideally. Had that been done at 2R, this would have been a scratch.",
    "lesson_line": "A trade that reaches 2R and comes back is still a planned loss, or a scratch.",
    "facts": [
     "d10",
     "h05",
-    "c21",
-    "h02"
+    "h02",
+    "h24",
+    "h01",
+    "h28"
    ],
    "wrong": {
     "Yes; you should sell at 2R": "No rule sells at 2R. The hard rule is a third at 3R.",
-    "Yes; widen the stop next time": "A wider stop is a bigger loss when it fails. The stop only moves up.",
-    "Yes; you should have added": "We never add. The full size goes on at one price with one stop."
+    "Yes; widen the stop next time": "Our stop sits a few cents under the day's low. A wider stop means fewer shares, not a better trade.",
+    "No; but skip this stock next time": "A stop-out is not a ban. After one, buy again only on a new trigger, as a new trade."
    },
-   "house": true
+   "house": true,
+   "simple": "No, because a third only comes off at 3R and this trade never got there, so the stop did its job.",
+   "deeper": {
+    "counter": "The same trade with the stop moved to breakeven at 2R would have been a scratch. That is allowed, ideally anywhere from 2R to 5R. It is a choice to give back less, not proof that the buy was wrong. MRVL, May 2026: bought at 175.81, best 2.35R, stopped on day 3 at a low of 165.10."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B19, breakeven window)",
+     "+2 held owner question: should breakeven at 2R be the default?"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q53",
@@ -2378,29 +3058,44 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "htf.stop",
-   "q": "What went wrong?",
+   "q": "Why did this trade end in a loss?",
    "story": "A 101% pole, then a 15-day flag 8.5% deep. It breaks out on 1.48x volume, reaches 1.66R, then stalls. On day 7 it trades through your stop.",
    "choices": [
-    "Nothing; a valid flag failed",
-    "The stop should have been wider",
-    "You should have sold at 1R",
+    "A valid flag simply failed",
+    "The stop was set too tight",
+    "The first trim came too late",
     "The pole was too small"
    ],
-   "answer": "Nothing; a valid flag failed",
-   "why": "Nothing. A valid flag that simply failed. IBD: these are high-risk bases, and many fail. The stop kept it to one R.",
+   "answer": "A valid flag simply failed",
+   "why": "A valid flag simply failed. IBD: high tight flags are high-risk bases, and many fail. It reached 1.66R, stalled and was stopped on day 7, so the loss stayed at the risk you set when you sized from the stop. The pole more than doubled, so the setup was valid.",
    "lesson_line": "Not every good setup works. The stop is what makes that fine.",
    "facts": [
     "d13",
     "d14",
     "i05",
-    "h02"
+    "h02",
+    "h01",
+    "h24",
+    "h05"
    ],
    "wrong": {
-    "The stop should have been wider": "A wider stop only makes the same failure cost more.",
-    "You should have sold at 1R": "No rule sells at 1R. The first trim is a third at 3R.",
-    "The pole was too small": "The pole more than doubled. The setup was valid."
+    "The pole was too small": "The pole more than doubled. The setup was valid.",
+    "The stop was set too tight": "Our stop sits a few cents under the day's low. A wider stop means fewer shares, not a setup that works.",
+    "The first trim came too late": "The first trim is a third at 3R, and this trade topped out at 1.66R."
    },
-   "house": true
+   "house": true,
+   "simple": "A valid flag simply failed, and the stop kept the loss to the risk you chose.",
+   "deeper": {
+    "trap": "Treating a failure as an error. Reaching 1.66R and then stalling is a normal path for a flag that fails. IBD warns that many fail, so the stop and the size do the real work. Changing the rules after one stop-out would not have saved this trade. MDB, June 2023: best 1.66R, stopped on day 7."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (A4; the stop sets the size)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q54",
@@ -2413,22 +3108,38 @@
    "choices": [
     "Pass; supply is coming in",
     "Take it; the pole is huge",
-    "Take it at half size"
+    "Take it, but at half size",
+    "Pass; the flag is too deep"
    ],
    "answer": "Pass; supply is coming in",
-   "why": "Pass. Flag volume ran 1.27x the pole's. Supply was coming in during the rest, not drying up. PDD, December 2020: best 0.0R, stopped.",
+   "why": "Pass. Flag volume ran 1.27x the pole's average. Our card ends the setup when flag volume runs above the pole's average, because supply is coming in, not drying up. IBD: volume generally dries up in a good flag. PDD, December 2020, had a 123% pole and a 17.2% flag, yet best 0.0R, stopped.",
    "lesson_line": "Heavy volume in the flag is somebody selling. Wait for quiet.",
    "facts": [
     "c17",
     "d19",
     "d20",
-    "i03"
+    "i03",
+    "i02"
    ],
    "wrong": {
     "Take it; the pole is huge": "A huge pole does not cancel heavy selling in the flag.",
-    "Take it at half size": "Rising flag volume ends the setup. It is not a size cue."
+    "Take it, but at half size": "Rising flag volume ends the setup. It is not a size cue.",
+    "Pass; the flag is too deep": "A flag 17.2% deep is inside IBD's usual 10% to 20%. Depth is not the failed line; volume is."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because flag volume ran heavier than the pole's, which means supply is coming in, not drying up.",
+   "deeper": {
+    "trap": "The trap is the huge pole. A 123% pole feels like proof, but it only shows the stock can run. The flag shows who is selling. PDD's flag volume ran 1.27x the pole's average, and the trade reached 0.0R at best before it was stopped."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on one card line (c17) plus our own dossier example",
+     "the flag depth band is a held decision (D-050), but 17.2% is inside every band"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q55",
@@ -2468,12 +3179,13 @@
    "q": "Which grades higher on volume?",
    "story": "Two flags after a double. Flag A trades 45% of the pole's average volume. Flag B trades 95% of it.",
    "choices": [
-    "Flag A",
-    "Flag B",
-    "The same; both pass"
+    "Flag A, the quieter flag",
+    "Flag B, the busier flag",
+    "The same; both pass the gate",
+    "Neither; both fail the gate"
    ],
-   "answer": "Flag A",
-   "why": "Flag A. Flag volume at most 60% of the pole's is the A grade. CRNC's flag volume was barely under the pole's: a B on that line.",
+   "answer": "Flag A, the quieter flag",
+   "why": "Flag A. Both pass the gate, because flag volume below the pole's average is required. Flag A trades 45% of the pole's average, so it earns the A grade, which is flag volume at most 60% of the pole's. Flag B trades 95%, a B on that line. CRNC's flag volume was 0.95x the pole's, barely under it: a B on that line.",
    "lesson_line": "Both pass the gate. The quieter flag earns the higher grade.",
    "facts": [
     "c08",
@@ -2482,10 +3194,24 @@
     "d09"
    ],
    "wrong": {
-    "Flag B": "Heavier flag volume is less drying up. It passes the gate but grades lower.",
-    "The same; both pass": "Passing the gate is not the same grade. The card grades the lighter flag higher."
+    "Flag B, the busier flag": "Heavier flag volume is less drying up. It passes the gate but grades lower.",
+    "The same; both pass the gate": "Passing the gate is not the same grade. The card grades the lighter flag higher.",
+    "Neither; both fail the gate": "Both sit below the pole's average, so both pass. The 60% line is only the A grade."
    },
-   "house": true
+   "house": true,
+   "simple": "Flag A, because quieter flag volume earns a higher grade, and only Flag A is at 60% or less of the pole's.",
+   "deeper": {
+    "trap": "The trap is stopping at the gate. Both flags pass it, so it is easy to call them equal. The card grades by how quiet the flag is, and 60% or less of the pole's volume is the A. CRNC's flag ran at 0.95x the pole's and got a B on this line."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 60% A-grade line is a card proposal that can change",
+     "rests on one card line (c08)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q57",
@@ -2498,20 +3224,41 @@
    "choices": [
     "The earnings beat",
     "The news story",
-    "They grade the same"
+    "They grade the same",
+    "Neither can be traded"
    ],
    "answer": "The earnings beat",
-   "why": "The earnings beat. A real change behind the pole with heavy volume is the A+ context; a news-only story with no earnings is B-.",
+   "why": "The earnings beat. A real change behind the pole (earnings, a product, a contract) with heavy volume is the A+ context. A news-only story with no earnings is B-. Growth or a real catalyst is preferred, not required, and the chart comes first. Bonde: weigh the earnings and whether it is the first base.",
    "lesson_line": "Ask why it doubled. Earnings beat a headline.",
    "facts": [
     "c12",
-    "p04"
+    "p04",
+    "c51",
+    "h31",
+    "c39"
    ],
    "wrong": {
     "The news story": "A news-only story with no earnings is B- context on our card.",
-    "They grade the same": "The pole's cause is a grade cue. A real change grades higher."
+    "They grade the same": "The pole's cause is a grade cue. A real change grades higher.",
+    "Neither can be traded": "Earnings are preferred, not required. A news-only story is graded B-, not banned."
    },
-   "house": true
+   "house": true,
+   "simple": "The earnings beat grades higher, because a real change in the business with heavy volume beats a story with no earnings.",
+   "deeper": {
+    "counter": "A news-only pole is not banned. It is graded B-, and the chart still comes first. Bonde: weigh the earnings and whether it is the first base. Seven of the ten examples in our scan had a report inside the pole, so earnings are the usual cause, not the only one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 held decision D-007 and proposed card grades (A+ versus B-)",
+     "+2 the grades are the card's proposal, not an owner ruling"
+    ]
+   },
+   "depends_on": [
+    "D-007"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q58",
@@ -2522,22 +3269,39 @@
    "q": "Buy the break?",
    "story": "A fast pole, then a flag of eight sessions, 18% deep. At the pattern high, price sits 11% above the 10-day average.",
    "choices": [
-    "Pass; too far over the 10-day",
+    "Pass; it is too stretched",
+    "Pass; the flag is too deep",
     "Buy; it is clearing the high",
-    "Buy with a wider stop"
+    "Buy with a wider stop for room"
    ],
-   "answer": "Pass; too far over the 10-day",
-   "why": "Pass. Skip a long more than 10% above its 10-day average, even at the pattern high.",
-   "lesson_line": "If the averages have not caught up, the flag is not done.",
+   "answer": "Pass; it is too stretched",
+   "why": "Pass. We skip a long that is more than 10% above its 10-day average, and this one sits 11% above. That holds even at the pattern high. The break is real, and the 18% flag depth is within IBD's usual 10% to 20%. The stretch rule still wins.",
+   "lesson_line": "A clean break can still be too stretched. Over 10% above the 10-day, we pass.",
    "facts": [
     "h13",
-    "c30"
+    "c30",
+    "h11",
+    "i02"
    ],
    "wrong": {
-    "Buy; it is clearing the high": "The trigger is real, but the stretch rule says skip it.",
-    "Buy with a wider stop": "A wider stop does not fix a stretched entry."
+    "Buy; it is clearing the high": "The break is real, but the stretch rule says skip it.",
+    "Pass; the flag is too deep": "At 18% the flag sits inside IBD's usual 10% to 20%. Depth does not stop this buy. The stretch does.",
+    "Buy with a wider stop for room": "A wider stop does not fix a stretched entry."
    },
-   "house": true
+   "house": true,
+   "simple": "Pass, because the price is 11% over its 10-day average and our limit is 10%.",
+   "deeper": {
+    "trap": "Two separate rules. Never buy more than 4% above the buy point. Skip a long more than 10% above its 10-day average. A buy at the pattern high can pass the first and still fail the second."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C29)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q59",
@@ -2545,28 +3309,41 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "htf.climax",
-   "q": "What about the last third?",
+   "q": "By our rule, what about the last third?",
    "story": "Two weeks after the breakout, the stock gaps up three days running on rising volume. You have already sold two thirds.",
    "choices": [
     "Sell a big part into the burst",
-    "Hold; only the trail decides",
-    "Add; it is working",
+    "Hold it all for the trail",
+    "Add on strength; it is working",
     "Move the stop to the flag low"
    ],
    "answer": "Sell a big part into the burst",
-   "why": "Sell a big part into it. A climax run on your own long: sell a big part into it, a judgment call. These breakouts often go vertical.",
+   "why": "Sell a big part into it. For a climax run on your own long, our rule is to sell a big part into it, and it is a judgment call. These breakouts often go vertical. Bulkowski: these rockets go up fast and can return to earth just as quickly. The rest stays on the trail, and we never add.",
    "lesson_line": "When it goes vertical, sell into the buyers. Do not wait for the trail.",
    "facts": [
     "h30",
     "c23",
-    "b15"
+    "b15",
+    "h21"
    ],
    "wrong": {
-    "Hold; only the trail decides": "The trail still runs, but a climax burst is the time to sell into strength.",
-    "Add; it is working": "We never add. The full size went on at one price.",
-    "Move the stop to the flag low": "The stop only moves up, and the flag low is far below."
+    "Move the stop to the flag low": "The stop only moves up, and the flag low is far below.",
+    "Hold it all for the trail": "Our rule for a climax run on a long you own is to sell a big part into it. The trail handles the rest.",
+    "Add on strength; it is working": "We never add. The full size went on at one price."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell a big part into the burst, because these breakouts often go straight up and can fall back just as fast.",
+   "deeper": {
+    "trap": "Waiting for the trail. The trail is a close below the 10-day or 21-day average, so it sells after the burst has turned, not into it. A climax run can fall back as fast as it rose. The rule asks you to sell a big part into the burst, and it is a judgment call."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (C34, a judgment call)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q60",
@@ -2577,27 +3354,42 @@
    "q": "What gets you out of the last third?",
    "story": "Bought at 264.95, stop 255.06. You took a third at 3R and a third at 5R. It ran to about 354 and now turns down hard.",
    "choices": [
-    "A close below the trailing average",
-    "A trade under the flag low",
-    "A trade back to your 3R price",
-    "Nothing; hold for a double"
+    "A close below the trail average",
+    "A close under the flag low itself",
+    "A close back down at your 3R price",
+    "Nothing; hold on for a double"
    ],
-   "answer": "A close below the trailing average",
-   "why": "A close below the trailing average. BIDU went to about 354 in three weeks, then collapsed under the flag low by late March. The trail gets you out first.",
+   "answer": "A close below the trail average",
+   "why": "A close below the trailing average. After a third at 3R and a third at 5R, the last third rides the trail: sell on a close below it. The default trail is the 10-day average for fast movers, the 21-day for steadier ones. BIDU went to about 354 in three weeks, then collapsed under the flag low by late March. The trail is what gets you out.",
    "lesson_line": "These rockets come back as fast as they went up. The trail is your exit.",
    "facts": [
     "h21",
+    "h20",
     "d05",
     "d06",
-    "b15",
-    "c37"
+    "b15"
    ],
    "wrong": {
-    "A trade under the flag low": "By then most of the run is gone. BIDU fell under it by late March.",
-    "A trade back to your 3R price": "That is not an exit rule. The last third rides the trail.",
-    "Nothing; hold for a double": "Only 6% doubled in Bulkowski's study. Hoping is not a plan."
+    "A close under the flag low itself": "By then most of the run is gone. BIDU fell under it by late March.",
+    "A close back down at your 3R price": "That is not an exit rule. The last third rides the trail.",
+    "Nothing; hold on for a double": "Holding for more is not an exit rule. Bulkowski: these rockets go up fast and can return to earth just as quickly."
    },
-   "house": true
+   "house": true,
+   "simple": "A close below the trailing average gets you out of the last third before a fast run unwinds.",
+   "deeper": {
+    "example": "BIDU, February 2021. Bought at 264.95, stop 255.06. A third came off at 3R on day 2 and another at 5R. It ran to about 354 within three weeks, then collapsed under the flag low by late March. The trail is what gets you out of the last third."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 held decision D-024 (which average is the trail)"
+    ]
+   },
+   "depends_on": [
+    "D-024"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q61",
@@ -2605,15 +3397,28 @@
    "rung": 7,
    "format": "tf",
    "criterion": "htf.no_target",
-   "q": "An 85% success rate quoted on vendor sites is a win rate you can expect.",
+   "q": "In our scan of 54 hits, most reached 3R before the stop.",
    "answer": "False",
-   "why": "False. It is 100 minus a 15% break-even failure rate on perfect trades with no stop. Our scan: 29.6% reached 3R before a fixed stop.",
-   "lesson_line": "Read a statistic before you trust it. Ask what it measured.",
+   "why": "False. 16 of 54 hits (29.6%) reached 3R before the stop, and 12 of 54 (22.2%) reached 5R, on a fixed stop with no trims. IBD: high tight flags are high-risk bases, and many fail.",
+   "lesson_line": "Most hits stall before 3R. The stop and the size do the real work.",
    "facts": [
-    "c38",
-    "d23"
+    "d23",
+    "i05"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because only 29.6% of the 54 hits in our scan reached 3R before the stop.",
+   "deeper": {
+    "trap": "A base rate is not a forecast. In our own scan of 54 hits on a fixed stop with no trims, 29.6% reached 3R and 22.2% reached 5R. Read what a statistic measured before you lean on it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+2 rests on our own scan (d23), a Tier 3 fact",
+     "+1 the scan figures change with the data"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q62",
@@ -2621,28 +3426,42 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "htf.not_late",
-   "q": "A reader's mechanical scan of these found them a good short. What was Bonde's answer?",
+   "q": "A reader tested these with a mechanical scan. What was Bonde's reply?",
    "choices": [
     "Late flags fail; context decides",
-    "The scan is right; skip them all",
-    "Use a much wider stop on them",
-    "Buy the trendline break early"
+    "The scan is right; avoid them all",
+    "Trade the scan as a mechanical system",
+    "Early flags fail; late flags work"
    ],
    "answer": "Late flags fail; context decides",
-   "why": "Late flags fail; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base.",
+   "why": "Late flags fail; context decides. Bonde: if a tight flag appears late in the move, it will break down. He adds that you must weigh the earnings and whether it is the first base. He says it cannot be traded as a mechanical system, because the interpretation becomes critical. Our not-late test applies this: the pole must be the first or second big leg.",
    "lesson_line": "The pattern is the start. The context decides whether it is ours.",
    "facts": [
     "p03",
     "p04",
     "p05",
-    "c11"
+    "c11",
+    "p01"
    ],
    "wrong": {
-    "The scan is right; skip them all": "Bonde did not drop the pattern. He said the reading becomes critical.",
-    "Use a much wider stop on them": "He said nothing about the stop. His point was where the flag sits in the move.",
-    "Buy the trendline break early": "Bulkowski found that entry fails too often. Bonde's answer was context."
+    "The scan is right; avoid them all": "Bonde did not drop the pattern. He called it rare but very profitable and said the reading becomes critical.",
+    "Trade the scan as a mechanical system": "Bonde said the opposite: it cannot be traded as a mechanical system.",
+    "Early flags fail; late flags work": "Backwards. Bonde: a tight flag late in the move breaks down."
    },
-   "house": true
+   "house": true,
+   "simple": "Bonde said late flags tend to fail, so you must judge the context, since it cannot be traded as a mechanical system.",
+   "deeper": {
+    "trap": "The trap is trusting the scan. A scan can find 'doubled, then tight' mechanically, but it cannot see where the flag sits in the move. Bonde's two checks are the earnings and whether it is the first base. Our card turns the second into a gate: the pole is the first or second big leg."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "all three quotes come from one Bonde post (single source)",
+     "the reader's scan is described only on that page"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q63",
@@ -2650,25 +3469,40 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "htf.earnings_window",
-   "q": "You are up 3.5R and a report lands in two days. Hold through it?",
+   "q": "You are up 3.5R and a report lands later this week. Hold through it?",
    "choices": [
-    "No; hold only if up 5R",
-    "Yes; it is a winner",
-    "Yes, with a wider stop",
-    "Yes, if the flag was tight"
+    "Sell it all before the report",
+    "Sell half and hold the rest",
+    "Hold it; a 3.5R winner has cushion",
+    "Hold it, with the stop at breakeven"
    ],
-   "answer": "No; hold only if up 5R",
-   "why": "No. Hold through a report only if the trade is up 5R. At 3.5R you sell before it.",
-   "lesson_line": "Earnings are a coin flip on a gap. Only a 5R cushion rides through.",
+   "answer": "Sell it all before the report",
+   "why": "Sell before it. Hold through a report only if the trade is up 5R. At 3.5R you are short of that line. A tight flag or a breakeven stop does not bend the rule.",
+   "lesson_line": "Up 5R rides through a report. Anything less, you sell first.",
    "facts": [
-    "h08"
+    "h08",
+    "h05",
+    "h02"
    ],
    "wrong": {
-    "Yes; it is a winner": "Being a winner is not enough. The line is 5R.",
-    "Yes, with a wider stop": "A gap can jump any stop. The rule is about the cushion, not the stop.",
-    "Yes, if the flag was tight": "The chart does not change the report rule."
+    "Sell half and hold the rest": "Holding any part through the report breaks the rule. Only a trade up 5R holds through it.",
+    "Hold it; a 3.5R winner has cushion": "Being a winner is not enough. The line is 5R.",
+    "Hold it, with the stop at breakeven": "A stop at breakeven is allowed from 2R. It does not lift the trade to the 5R line."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell it. Hold through a report only if up 5R, and 3.5R is short of that line.",
+   "deeper": {
+    "trap": "Judge the cushion in R, not by the chart. A third may be off and the stop at breakeven, yet the report rule still says sell. Only 5R carries a trade through."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q64",
@@ -2677,15 +3511,15 @@
    "format": "scenario",
    "criterion": "htf.stop",
    "q": "Buy it again?",
-   "story": "You were stopped out the day after a breakout. Two weeks later the stock builds a fresh tight flag and trades through its high.",
+   "story": "You were stopped out the day after a breakout. Two weeks later the stock builds a fresh tight flag, meets every test again and trades through its high.",
    "choices": [
     "Yes, as a new trade, new stop",
     "No; it already failed once",
-    "Yes, at double size",
-    "Yes, on the old stop"
+    "Yes, at double size to recover",
+    "No; wait a full month first"
    ],
    "answer": "Yes, as a new trade, new stop",
-   "why": "Yes, as a new trade. After a stop-out, buy again only if the setup triggers again, with its own stop and every rule.",
+   "why": "Yes, as a new trade. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. A fresh tight flag trading through its high is a new trigger when every test is met again. The limit is at most 3 tries in a week and 6 in a month on one stock.",
    "lesson_line": "A stop-out is not a ban. A new trigger is a new trade.",
    "facts": [
     "h28",
@@ -2693,10 +3527,22 @@
    ],
    "wrong": {
     "No; it already failed once": "One stop-out does not end the stock. A new trigger is a new trade.",
-    "Yes, at double size": "Size comes from the new stop and our risk, never from making it back.",
-    "Yes, on the old stop": "A new trade gets its own stop, under the new day's low."
+    "Yes, at double size to recover": "Size comes from the new stop and our risk, never from making it back.",
+    "No; wait a full month first": "No rule sets a waiting period. After a stop-out we buy again on a new trigger, as a new trade."
    },
-   "house": true
+   "house": true,
+   "simple": "Yes, if the setup triggers again, because a stop-out is not a ban and the new trade gets its own stop.",
+   "deeper": {
+    "trap": "Revenge. After a stop-out the pull is to win it back with more size or the old stop. A new trigger is a new trade: its own stop under the new day's low, its size from that stop, and every rule again. The cap is 3 tries in a week and 6 in a month on one stock."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (B21 and E56)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q65",
@@ -2704,25 +3550,28 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "htf.pole_size",
-   "q": "Hidden ticker, the day before a breakout. Count the pole. Take it or pass?",
+   "q": "Hidden ticker, the day before a breakout. Take it or pass?",
    "choices": [
     "Take it; the pole doubled",
+    "Take it; flag volume is rising",
     "Pass; the run is far too small",
     "Pass; the flag is far too deep"
    ],
    "answer": "Take it; the pole doubled",
-   "why": "Take it. +129% in 14 sessions, then a 14-day sideways flag 15.0% deep that held the 21-day EMA. It ran to 10.9R.",
+   "why": "Take it. The pole was +129% in 14 sessions, a real double. The flag ran 14 days sideways, 15.0% deep. IBD says a flag usually pulls back 10% to 20%. Flag volume was 0.66x the pole's, so it was drying up.",
    "lesson_line": "Count the pole first. A real double, then a quiet shelf: that is the setup.",
    "facts": [
     "d01",
     "d02",
     "c32",
-    "c47",
-    "i02"
+    "i01",
+    "i02",
+    "i03"
    ],
    "wrong": {
     "Pass; the run is far too small": "Look at the run in front of the shelf: well over a double, in weeks.",
-    "Pass; the flag is far too deep": "The flag gave back 15.0% of price, a normal depth for this pattern."
+    "Pass; the flag is far too deep": "The flag gave back 15.0% of price, a normal depth for this pattern. IBD: usually 10% to 20%.",
+    "Take it; flag volume is rising": "Flag volume ran at 0.66x the pole's: drying up, not rising. IBD: volume generally dries up in the flag."
    },
    "house": true,
    "chart": {
@@ -2730,7 +3579,19 @@
     "asof": "2015-06-09",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Take it, because the stock more than doubled in a few weeks and then rested in a flag of normal depth.",
+   "deeper": {
+    "example": "SRPT, June 2015. A report on 2015-05-07, then a +60% day on 2015-05-20 topped a near-vertical two-week run. A 14-day sideways flag held the 21-day EMA. Bought at 27.50 with the stop at 26.59, it reached 3R on day 5. Count the pole first, then judge the shelf."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the figures are read off our own daily bars and can change"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q66",
@@ -2738,24 +3599,27 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "htf.pole_size",
-   "q": "Hidden ticker, the day before it trades through a tight flag's high. Count the pole. Take it or pass?",
+   "q": "Hidden ticker, the day before it trades through a tight flag's high. Weigh the last 8 weeks. Take it as a high tight flag, or pass?",
    "choices": [
-    "Pass; the pole never doubled",
+    "Pass; the run never doubled",
     "Take it; the flag is tight",
-    "Take it; it is a leader"
+    "Take it; it is a strong leader",
+    "Pass; flag volume is too heavy"
    ],
-   "answer": "Pass; the pole never doubled",
-   "why": "Pass. The pole was +78% in 40 sessions. A tight flag in a leader that never doubled is a bull flag, however tight. Best 1.88R, stopped.",
+   "answer": "Pass; the run never doubled",
+   "why": "Pass. The pole was +78% in 40 sessions; the rule asks for 90% or more. A tight flag in a leader that never doubled is a bull flag, however tight. The flag itself was tight, 8 days and 6.7% deep on 0.78x volume, but the pole decides the setup. Best 1.88R, stopped.",
    "lesson_line": "Tight is not enough. No double, no high tight flag.",
    "facts": [
     "d17",
     "d18",
     "c32",
-    "c47"
+    "c47",
+    "c48"
    ],
    "wrong": {
     "Take it; the flag is tight": "The flag is tight, and that is all. The pole decides the setup.",
-    "Take it; it is a leader": "Leaders make bull flags too. The near-double is what this card needs."
+    "Take it; it is a strong leader": "Leaders make bull flags too. The rule asks for a pole of 90% or more.",
+    "Pass; flag volume is too heavy": "Flag volume ran at 0.78x the pole's: lighter, not heavier. The flag was fine; the pole is what failed."
    },
    "house": true,
    "chart": {
@@ -2763,7 +3627,23 @@
     "asof": "2023-07-13",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Pass, because the pole was only 78% in 40 sessions, and a tight flag after a smaller run is a bull flag.",
+   "deeper": {
+    "counter": "Tight is not wrong, it is just not enough. This flag was a clean 8 days, 6.7% deep, on 0.78x volume, and it still reached only 1.88R before it was stopped. A bull flag has its own card. The question here is which card applies, and the pole answers it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "+2 held decision D-048 (how big the pole must be)",
+     "+2 the figures are read off our own daily bars"
+    ]
+   },
+   "depends_on": [
+    "D-048"
+   ],
+   "batch": "wave2"
   },
   {
    "key": "q67",
@@ -2781,14 +3661,23 @@
     "100"
    ],
    "answer": "40",
-   "why": "40. Our card wants the rise done in 40 sessions, about 8 weeks. IBD describes a span of four to eight weeks.",
+   "why": "40. Our card wants the rise done in 40 sessions, about 8 weeks. IBD describes a span of four to eight weeks. Bulkowski allows 2 months or less. The sources agree the rise is fast: eight weeks, or about two months at most.",
    "lesson_line": "The pole is fast: 40 sessions or fewer, about 8 weeks.",
    "facts": [
     "c48",
     "i01",
     "b01"
    ],
-   "house": true
+   "house": true,
+   "simple": "40, because our card wants the rise done in 40 sessions, which is about 8 weeks.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a number that can change (40 sessions) set by our card, with IBD and Bulkowski giving slightly different spans"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q68",
@@ -2810,14 +3699,26 @@
     "The cause test: no real change": "An earnings beat is a real change, so that test passes."
    },
    "answer": "The time test: too many weeks",
-   "why": "The time test. Our card wants the rise done in 40 sessions, about 8 weeks. 14 weeks is far past that, so it is no pole.",
+   "why": "The time test. Our card wants the rise done in 40 sessions or fewer, about 8 weeks. This pole took 14 weeks, far past that, so it is no pole even though it rose 110%. IBD describes four to eight weeks, and Bulkowski 2 months or less. The size, the quiet base and the earnings beat all pass.",
    "lesson_line": "A double over 14 weeks is not a pole. Speed is part of the pattern.",
    "facts": [
     "c48",
     "i01",
     "b01"
    ],
-   "house": true
+   "house": true,
+   "simple": "The time test, because the card wants the rise done in 40 sessions, about 8 weeks, and 14 weeks is far longer.",
+   "deeper": {
+    "trap": "The trap is the double. A rise of 110% is more than a double, so the size test passes and the eye stops there. The pole must also be fast: the rise takes 40 sessions or fewer, about 8 weeks. Over 14 weeks it is a slow climb, not a pole."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a number that can change (40 sessions) set by our card, backed by IBD and Bulkowski"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q69",
@@ -2827,13 +3728,21 @@
    "criterion": "htf.above_50",
    "q": "On our card, the close is above the 50-day average at the trigger.",
    "answer": "True",
-   "why": "True. Our card wants the close above the 50-day simple moving average at the trigger. It also wants the close above the 200-day.",
-   "lesson_line": "At the trigger, the close is above the 50-day and the 200-day.",
+   "why": "True. Our card wants the close above the 50-day simple moving average at the trigger.",
+   "lesson_line": "At the trigger, the close is above the 50-day average.",
    "facts": [
-    "c49",
-    "c13"
+    "c49"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because our card wants the close above the 50-day average at the trigger.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card only (single source, c49)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q70",
@@ -2843,13 +3752,22 @@
    "criterion": "htf.holds_fast_averages",
    "q": "On our card, price is above a rising 10-day and a rising 21-day EMA at the trigger.",
    "answer": "True",
-   "why": "True. The card wants price above both rising averages at the trigger. Kullamagi has the stock surf the rising 10- and 20-day through the consolidation.",
+   "why": "True. At the trigger the card wants price above a rising 10-day and a rising 21-day EMA. Kullamagi describes the same ride: during the consolidation the stock surfs the rising 10- and 20-day averages. Our card uses the 21-day.",
    "lesson_line": "Price should ride rising fast averages into the trigger.",
    "facts": [
     "c52",
     "k03"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because our card wants price above both fast averages, and both rising, when the stock triggers.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 the 21-day EMA line is the card's proposal, not an owner ruling"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q71",
@@ -2882,25 +3800,38 @@
    "criterion": "htf.weekly_closes_tight",
    "q": "Which tightness cue marks the A+ flag on our card?",
    "choices": [
-    "Closes that stay tight each week",
+    "Weekly closes bunched together",
     "Narrow daily ranges on every bar",
-    "The lowest volume seen in the pole",
-    "A gap up out of the flag"
+    "Light volume on every flag day",
+    "A gap up through the flag's top"
    ],
    "wrong": {
     "Narrow daily ranges on every bar": "IBD's JDSU flag had wide weekly ranges and still had tight closes. Closes are the cue.",
-    "The lowest volume seen in the pole": "Light volume grades the flag's volume. It is not the tightness cue.",
-    "A gap up out of the flag": "A gap is a trigger event. It says nothing about tight closes inside the flag."
+    "Light volume on every flag day": "Flag volume has its own line: at most 60% of the pole's is the A grade. It is not the tightness cue.",
+    "A gap up through the flag's top": "A gap is a trigger event. It says nothing about tight closes inside the flag."
    },
-   "answer": "Closes that stay tight each week",
-   "why": "Tight weekly closes. IBD's JDSU flag had wild weekly ranges, but its closes were relatively tight. Our card calls tight weekly closes the A+ cue.",
+   "answer": "Weekly closes bunched together",
+   "why": "Closes that stay tight each week. Our card calls tight weekly closes through the flag the A+ tightness cue. That sits on top of the gate: the last 5 closes before the trigger within 10%. IBD's JDSU flag shows why: wild weekly ranges, relatively tight closes. Light volume grades the flag's volume, and a gap is a trigger event. Neither is the tightness cue.",
    "lesson_line": "Judge a flag by where it closes, not by its wicks.",
    "facts": [
     "c50",
     "i06",
-    "b05"
+    "b05",
+    "c08",
+    "c06",
+    "c09"
    ],
-   "house": true
+   "house": true,
+   "simple": "Tight weekly closes, because our card calls them the A+ cue, even when the weekly ranges look wide.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the A+ cue rests on one card line (c50)",
+     "IBD's JDSU example supports the closes-over-ranges idea"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q73",
@@ -2908,7 +3839,7 @@
    "rung": 2,
    "format": "tf",
    "criterion": "htf.fundamentals",
-   "q": "A high tight flag needs growing sales and earnings, or we skip it.",
+   "q": "We skip a high tight flag when sales and earnings are not growing.",
    "answer": "False",
    "why": "False. Growing sales and earnings, or a real catalyst, are preferred but not required. The chart comes first.",
    "lesson_line": "Preferred, not required. The chart comes first.",
@@ -2916,7 +3847,16 @@
     "c51",
     "h31"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because growing sales and earnings are preferred but not required, and the chart comes first.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D40, the chart comes first)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q74",
@@ -2927,7 +3867,7 @@
    "q": "What does our rule say?",
    "story": "Every chart test is met: a double in seven weeks off a quiet base, a tight flag and a trigger. Sales growth stalled last quarter. A big new contract drove the pole.",
    "choices": [
-    "Keep it; the chart comes first",
+    "Buy it; the chart comes first",
     "Pass; sales have to be growing",
     "Wait until sales turn back up",
     "Buy it, but only at half size"
@@ -2935,17 +3875,29 @@
    "wrong": {
     "Pass; sales have to be growing": "Growth is preferred, not required. A real catalyst counts, and the chart comes first.",
     "Wait until sales turn back up": "Waiting on sales is not a rule. The chart sets the entry.",
-    "Buy it, but only at half size": "Size follows the grade and the stop, not a sales dip. The catalyst is real."
+    "Buy it, but only at half size": "No rule halves the size for a sales dip. The size comes from the stop, and a real catalyst drove the pole."
    },
-   "answer": "Keep it; the chart comes first",
-   "why": "Keep it; the chart comes first. Growing sales and earnings, or a real catalyst, are preferred but not required. Here a contract drove the pole.",
+   "answer": "Buy it; the chart comes first",
+   "why": "Buy it; the chart comes first. Growing sales and earnings, or a real catalyst, are preferred but not required. Here a big new contract drove the pole, and every chart test is met.",
    "lesson_line": "Growth is preferred, never required. The chart comes first.",
    "facts": [
     "c51",
     "h31",
-    "c12"
+    "h01"
    ],
-   "house": true
+   "house": true,
+   "simple": "Buy it, because growth is preferred but not required and a real contract drove the pole.",
+   "deeper": {
+    "trap": "Treating preferred as required. The rule asks for growing sales and earnings, or a real catalyst, and the chart still comes first. A big new contract is a real change in the business, so the setup keeps its place. Skipping a clean chart over one soft quarter would be a rule we do not have."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (D40, preferred not required)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q75",
@@ -2955,7 +3907,7 @@
    "criterion": "htf.stop_not_flag_low",
    "q": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent?",
    "answer": 12.0,
-   "why": "12.0%. Our stops usually sit within about 3% of the buy. The flag low is far too wide, so it kills the idea but is not the stop.",
+   "why": "12.0%. The fill minus the stop, divided by the fill: 100.00 minus 88.00 is 12.00, and 12.00 divided by 100.00 is 12.0%. Our stop usually sits within about 3% of the buy, so the flag low is about four times too wide. It kills the idea but is not the stop.",
    "lesson_line": "The flag low ends the idea. The stop is much closer.",
    "facts": [
     "c04",
@@ -2972,7 +3924,17 @@
     "round": 1
    },
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "A stop at the flag low would sit 12.0% under the fill, far wider than the usual 3%.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A13)"
+    ]
+   },
+   "batch": "wave2"
   },
   {
    "key": "q76",
@@ -2980,16 +3942,63 @@
    "rung": 8,
    "format": "tf",
    "criterion": "htf.stop_not_flag_low",
-   "q": "In Bulkowski's study, a stop a penny under the flag low meant taking an average 26% loss.",
+   "q": "Bulkowski's own stop for a high tight flag is the bottom of the flag.",
    "answer": "True",
-   "why": "True. That wide stop is why we do not use it. Ours is a few cents under the day's low; the flag low is the line that kills the idea.",
-   "lesson_line": "A flag-low stop is too far away. Ours is the day's low.",
+   "why": "True. Bulkowski says to use the bottom of the congestion area formed in the flag phase as the stop price. Ours is different: a few cents under the day's low. For us the flag low is the line that kills the idea, not the stop.",
+   "lesson_line": "Bulkowski stops at the flag bottom. Ours is a few cents under the day's low.",
    "facts": [
-    "c45",
+    "b19",
     "c04",
-    "h24"
+    "h24",
+    "h04"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because Bulkowski puts the stop at the bottom of the flag, but our stop is much closer, under the day's low.",
+   "deeper": {
+    "trap": "Copying the textbook stop. Bulkowski's stop is the bottom of the flag, which can sit far more than 3% under the buy. Our rulebook says the stop usually sits within about 3% of the buy. A flag-low stop would force a much smaller size or no trade, so the flag low stays the line that kills the idea."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "+3 the key rests on one cited fact (Bulkowski's stop locations page)"
+    ]
+   },
+   "batch": "wave2"
+  },
+  {
+   "key": "q77",
+   "skill": "setup.high_tight_flag",
+   "rung": 2,
+   "format": "numeric",
+   "criterion": "htf.stop",
+   "q": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share?",
+   "answer": 2.5,
+   "why": "2.50. One R is the risk you take on the trade, the fill minus the stop. Here that is 60.00 minus 57.50. A 3R winner is three times that.",
+   "lesson_line": "1R is what you risk on each share: fill minus stop.",
+   "simple": "1R is what you risk on each share, the fill minus the stop, so 60.00 minus 57.50.",
+   "facts": [
+    "r01",
+    "h05"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a - b",
+     "a": 60.0,
+     "b": 57.5
+    },
+    "round": 2
+   },
+   "prefix": "$",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a published definition (Van Tharp R-multiple)"
+    ]
+   },
+   "batch": "wave2"
   }
  ],
  "conflicts": [
@@ -3035,9 +4044,9 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key by the card's pattern line and lookalikes; IBD i01/i02 found on the page. The IBD 100% to 120% in the why is a source figure, not a gate. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key follows c01/i01/i02/c02. Notes cite c33, b10, c02. Lengths 31 to 32. Note on q41 overlap is minor (q41 is outside this check)."
   },
   "q02": {
    "status": "cut",
@@ -3047,315 +4056,315 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "Settled entry: c05 (market order as it trades through), IBD i04 and Bulkowski b04 found on the pages. 'The peak of the pole' is 'usually' the pattern high (card trigger line); fine for a fill.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "pole is supported by i04, b04, b21, c05; tiles are real peaks the sources rule out; no trendline clause left, so q43 is not given away."
   },
   "q04": {
    "status": "pass",
-   "notes": "Key c07 (proposed); IBD i03 and Bulkowski b03 found. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False follows c07 (below the pole's average). Bulkowski/IBD lines are supported. Does not state q54's key."
   },
   "q05": {
    "status": "pass",
-   "notes": "Kuhn g01 and Bulkowski b10/b11 found on the pages. Key is a context cue (proposed). variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The key says 'real news', but q57 teaches that a news-only story with no earnings is B- (c12). Rename the key to 'a real change' (c01/c12 wording) so the two do not clash. Everything else (V b10, late leg p03/c11, base g01) is grounded."
   },
   "q06": {
    "status": "pass",
-   "notes": "Bulkowski b17 found on his page ('often not a flag at all'); b02 and IBD i08 found.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q07": {
    "status": "pass",
-   "notes": "IBD i15 (via Bonde) found; d24 verbatim (12 liquid hits in 36 years before 2020). variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "(1) 'IBD calls it rare' in a wrong note has no cited IBD quote; the 'rare' quote is Bonde's (p01). (2) 'over the whole span' has no antecedent beside the stem's 'bull market'; tie the choices to the bull market. Lengths 28 to 34, key mid."
   },
   "q08": {
-   "status": "pass",
-   "notes": "Key c47 (the card's lookalike rule) and TSLA d18 verbatim. 30% is under every pole_size option.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave2: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
-   "notes": "Measure (pattern high to flag low, on price) is the card's htf.flag_depth measure, the same in both D-050 options. The why and a wrong note said Kuhn's advance measure makes a flag look shallower; it gives a bigger number for the same flag (a 15% flag after a double is 30% of the pole), which is why the card says it rejects IBD's own examples. Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q10": {
    "status": "pass",
-   "notes": "Key c09 (last 5 closes within 10%, proposed); IBD i06 found ('relatively tight closes'). 4% apart is inside the line.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The 1% wrong note says a pause that tight 'is rare', which no cited fact supports. Reword to the card line only. Key, 8% story and the 10% rule (c09) are grounded; 2 Yes / 2 No."
   },
   "q11": {
    "status": "pass",
-   "notes": "Key c16 (proposed) verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True follows c16 and c04 directly."
   },
   "q12": {
    "status": "pass",
-   "notes": "Key c15 (proposed) and Bulkowski b08 found. t02 (TraderLion) is unreachable by script and by WebFetch (403) but the sentence is verbatim in dossier section 3; the key does not rest on it alone.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key follows c15, b08, t02; the sags-to-pole-low and loose-swings notes rest on c02 and b05. Key is not the longest."
   },
   "q13": {
    "status": "pass",
-   "notes": "Settled: C33 verbatim (h15) and the card's time stop (c22).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q14": {
    "status": "pass",
-   "notes": "Settled: D41 verbatim (h18) and c05.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q15": {
    "status": "pass",
-   "notes": "Key c08 (proposed, 60% or less is the A grade) verbatim; c07 is the gate.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Wrong note for 'A bit above' still says 'supply is coming in, not drying up', which is q54's key line; reword to the gate fact only. 60% A grade (c08), 80% note (c07/c08), CRNC 0.95x (d08/d09) are grounded."
   },
   "q16": {
    "status": "pass",
-   "notes": "Settled stop (c03, F62); Bulkowski b19 and IBD i17 found for the wrong notes; A13 for the 3%. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q17": {
    "status": "pass",
-   "notes": "Key c26/c25 and A4: the stop is the exit; light volume is a grade cue (D-006 never a gate here).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q18": {
    "status": "pass",
-   "notes": "Key c19 (Bulkowski's half-pole measure is a reference) and b09 found; trims are B19/E51.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q19": {
    "status": "pass",
-   "notes": "Settled: B19 verbatim (a third at 3R is the hard rule). variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q20": {
    "status": "pass",
-   "notes": "Re-derived: 27.50 + 3 x (27.50 - 26.59) = 30.23. SRPT d01 verbatim (3R on day 5).",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key 30.23 is correct (27.50 + 3 x 0.91). But the why says one R is the fill minus the stop and no cited quote states that; h03 (entry minus stop in the sizing formula) does."
   },
   "q21": {
    "status": "pass",
-   "notes": "Key c12 (proposed) and Kuhn g01 found; c39 (seven of ten examples had a report inside the pole) is on the card. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected. Mild overlap with q05 (real news); different facet, accepted."
   },
   "q22": {
    "status": "pass",
-   "notes": "Settled: htf.above_200 and B26 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q23": {
    "status": "pass",
-   "notes": "Re-derived: 26.00 / 12.40 - 1 = 109.7%. IBD 100% to 120% and Bulkowski 90% are quoted as sources only; the pole_size options (D-048) are not keyed.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q24": {
    "status": "pass",
-   "notes": "Re-derived: (100 - 84) / 100 = 16.0%. Measure is on price (same in both D-050 options); 16% is inside every band.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q25": {
    "status": "pass",
-   "notes": "Re-derived: (14.65 - 14.24) / 14.65 = 2.80%. SOFI d03 verbatim; the 3% line is A13.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q26": {
    "status": "pass",
-   "notes": "Re-derived: (314.40 - 264.95) / (264.95 - 255.06) = 49.45 / 9.89 = 5.0R. BIDU d05 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
-   "notes": "Re-derived: 100,000 x 0.5% = 500; 500 / (132.97 - 128.10) = 102.7, rounded down 102. TMDX d07 verbatim; the position (about 13,600) is under the 40% cap.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q28": {
    "status": "pass",
-   "notes": "Re-derived: 50.00 x 1.10 = 55.00. The why's last sentence ('a short, deep flag after a fast pole can leave the pivot that far out') had no source; replaced with the card's 5% A+ zone (c30). Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q29": {
    "status": "pass",
-   "notes": "Re-derived: 63.30 / 60.00 - 1 = 5.5%, past the C28 4% line (settled).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer Pass (63.30 is 5.5% over 60.00, past the 4% line, h11/c06). Two Pass/two Buy, no lone tell. Notes grounded (d04)."
   },
   "q30": {
    "status": "pass",
-   "notes": "Settled B22. The story said the pole came off a report six weeks ago and the next report is in 2 sessions, which cannot happen on a quarterly cycle; 'six weeks ago' removed (the card's own seed wording). Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q31": {
    "status": "pass",
-   "notes": "Settled B20. Re-derived: R = 1.00; the gap open 50.40 is 1.6R, the first 30-minute low 50.10 is 1.9R, inside the 2R ceiling. The why said 'under 2R from the fill', which reads as a price; reworded to 'the loss at that low is inside the 2R ceiling' (no uncalculated number). Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q32": {
    "status": "pass",
-   "notes": "Key c31 (proposed, UCT basis) verbatim; FSLR d12 closed at its low.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Deeper example matches d12 exactly (125.50 gap, 121.91 buy point, 1.47x, 121.75 close); sentences are short."
   },
   "q33": {
    "status": "pass",
-   "notes": "Settled A4 and the card's throwback line (c27, two in three winners). variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key Hold is right (h02, c25). But the why and a wrong note lean on c27 (two in three winners come back), which the owner flagged as not sourced as the card states it. Dropped the stat and rebuilt the note and glosses on the stop rule alone."
   },
   "q34": {
    "status": "pass",
-   "notes": "Settled C33 (under 1R after 10 days); TMDX d07/c40 verbatim (3R on day 23, above 1R by day 10).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer: up 1.3R at day 10 is over the 1R time-stop line (h15). Keep appears twice so no lone tell; never add is in the rulebook (section 5, no adds)."
   },
   "q35": {
    "status": "pass",
-   "notes": "Re-derived: 3R = 40.00 + 3 x 1.00 = 43.00; the open 43.60 is past it. Settled F63 (h25) verbatim. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "3R = 43.00, open 43.60, so a third comes off at the open (h25, h05, h20). Math from the question. Choices balanced, no tell."
   },
   "q36": {
-   "status": "pass",
-   "notes": "Settled: breakeven between 2R and 5R, at the first trim by default (c21, B19).",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave2: see the resolver's notes"
   },
   "q37": {
    "status": "pass",
-   "notes": "Re-derived: 1% of 3,000,000 = 30,000. Settled D42 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected. Mild: both numeric choices state the percent, but the why teaches the 1% rule; accepted."
   },
   "q38": {
    "status": "pass",
-   "notes": "Settled B23 verbatim ($10 and $20 million); 8.40 fails the price test.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Price 8.40 fails the $10 floor (h09) though $35M clears $20M. Two Pass/two Take; six weeks is inside IBD four to eight weeks. No second defensible answer."
   },
   "q39": {
    "status": "pass",
-   "notes": "Settled: F65/D46 Red = mostly cash; Bulkowski b13 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Red = mostly cash and shorts (F65/D46); a guide, so key says wait. Add choice is refuted by the no-adds rule. Balanced 2/2. Minor: the flag-too-tight choice is weak but not silly enough to cut."
   },
   "q40": {
    "status": "pass",
-   "notes": "Settled C31 (RS 80 or more); IBD i12 found (Taser 98 RS). variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key (80 or more) is right (h14). But the why and the 99 wrong note teach the 90-plus A+ cue from the card; E50 says grades (A+) are discretionary with no checklist taught as ours. Removed the A+ cue and c46."
   },
   "q41": {
    "status": "pass",
-   "notes": "Key c33 (the card's VCP tell) verbatim. variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q42": {
    "status": "pass",
-   "notes": "Key c11 (not up more than 200% in the 6 months before the pole, proposed) and Bonde p03 found. variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass answer rests on c11 (200%/6 months) and p03; two Pass / two Take; each wrong choice is refuted by a cited fact. Card-proposal risk already flagged."
   },
   "q43": {
    "status": "pass",
-   "notes": "Bulkowski b04/b14 found on his pages; c36 is the card's named mistake; b21 (close above the peak confirms) found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key is b04/b14 (trendline break fails too often). Wrong notes grounded in b04/b21/b14. Minor odd-one-out shape but each wrong choice is a real entry or confirm idea; acceptable."
   },
   "q44": {
    "status": "pass",
-   "notes": "Re-derived: 17.00 + (20.00 - 10.00) / 2 = 22.00. Bulkowski b09 found; the card says reference only.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q45": {
    "status": "pass",
-   "notes": "Key c32/c47 and TSLA d18. The why said 'a bull flag follows a 20% to 30% run' while the story has a 45% run (the bull flag pole is 20% or more, 30%+ A+); rewritten to the sourced point that this pole never doubled. Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q46": {
    "status": "pass",
-   "notes": "Key c02/c32 and the card's flat-base lookalike (a rest of 25+ sessions in a box 15% or less); 38 sessions is past every source's maximum (IBD 3 to 5 weeks, Kuhn 3 to 6), so no pending flag_length number is keyed. The why said 'Bulkowski avoids flags that are too long', which b05 does not say; removed. Fixed. variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q47": {
    "status": "pass",
-   "notes": "Key c18/c42 (proposed parabolic-top test) verbatim; the burst description matches B26. The Bulkowski 45-degree line is a loose support, not the key.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The reveal says 'three straight up days' and the story only says the last three days gapped up on rising volume (no up days, no wider ranges), so the reveal states details the story never gives. Put the burst details in the story so the key is derivable from c42."
   },
   "q48": {
    "status": "pass",
-   "notes": "Key c34 and Kullamagi k01 found (a 30% to 100% move in the past 1 to 3 months). variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "35% in six weeks, four-week rest and rising short averages fit c34/k01/k03; HTF, V and flat base each refuted by c34, c10-style story logic and c43. Bull-flag overlap is already an owner flag."
   },
   "q49": {
    "status": "pass",
-   "notes": "Key c10 (not a V, proposed) and Bulkowski b10 found; the 45% fall is over the card's 30%.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "45% fall in six weeks (under 40 sessions) fails c10; Bulkowski b10/b11 back it; speed note rests on c48. Two Pass / two Take."
   },
   "q50": {
    "status": "pass",
-   "notes": "SRRK d15/d16 verbatim (291% in 34 sessions, 6-day flag, a tenth of average volume, stopped next session). The key is only that the stop is the exit (A4), so D-006's gate option does not change it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Stop is the exit (h02, c25), light volume is not a reason to exit (c26); SRRK numbers match d15/d16. Story now says it falls to the stop, so the gap rule does not interfere. Thin-ish but a distinct applied case; acceptable."
   },
   "q51": {
    "status": "pass",
-   "notes": "FSLR d11/d12 verbatim. Re-derived: 125.50 / 121.91 - 1 = 2.9%, inside the C28 4% line; 118.13 is under the 120.92 stop.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (2.9% gap, inside 4%, loss at the stop is planned). The volume wrong note says the weak close 'graded the bar lower', teaching card grades E50 says are not taught as ours (c31). Reworded on the stop rule and dropped c31."
   },
   "q52": {
    "status": "pass",
-   "notes": "MRVL d10 verbatim (175.81 / 168.86, best 2.35R, day 3). Reasoning rests on B19 ('ideally' 2R to 5R) and the first trim at 3R; the card's own note and the conflicts line flag the owner question (breakeven at 2R as default).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key is right: stop is the exit, no trim was due before 3R (h05, h02). Yes/No balance fixed; no rule sells at 2R (B19 replaced it). Why states only the 2R-5R window."
   },
   "q53": {
    "status": "pass",
-   "notes": "MDB d13/d14 verbatim (101% pole, 15-day flag 8.5%, 1.48x, best 1.66R, stopped day 7); IBD i05 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key matches d14 (valid flag that simply failed); numbers match the dossier row (101% pole in 39 sessions, 15-day flag 8.5%, 1.48x, 1.66R, day 7). All four choices name a cause, no lone tell."
   },
   "q54": {
    "status": "pass",
-   "notes": "PDD d19/d20 verbatim (1.27x); key c17 (proposed).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c17 and PDD d19/d20 support the key; the depth note rests on i02. Choices 25 to 26 characters, no tell."
   },
   "q55": {
    "status": "cut",
@@ -3364,94 +4373,94 @@
    "by": "resolver"
   },
   "q56": {
-   "status": "pass",
-   "notes": "Key c08 (60% or less, proposed); CRNC d08/d09 verbatim (0.95x).",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave2: see the resolver's notes"
   },
   "q57": {
-   "status": "pass",
-   "notes": "Key c12 (proposed) verbatim; Bonde p04 found.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave2: see the resolver's notes"
   },
   "q58": {
    "status": "pass",
-   "notes": "Settled C29. The why's last sentence (a short deep flag leaves the pivot too far out) had no source; removed. Fixed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
   },
   "q59": {
    "status": "pass",
-   "notes": "Settled C34 (a judgment call); B26's burst shape; Bulkowski b15 found.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "By our rule (C34) a climax run on a long is sold into; story matches the burst (gaps, rising volume). Never add and stop-only-moves-up are in the rulebook. No tell."
   },
   "q60": {
    "status": "pass",
-   "notes": "BIDU d05/d06 verbatim. The key names no average, so the pending D-024 (10-day or 20 EMA) does not matter. Bulkowski's 6% doubled is the card's c37.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right: last third rides the trail, sell on a close below it (h21, h20). 3R/5R figures consistent with 264.95/255.06. All choices are closes, grammar tell fixed. D-024 stays an owner flag."
   },
   "q61": {
    "status": "pass",
-   "notes": "Key c38 verbatim (85% is 100 minus a 15% break-even failure rate); d23 verbatim (29.6% to 3R).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False is right: 16 of 54 is 29.6% (d23), quote exact. Framed as our own scan, not a forecast; D-048 dependence is flagged."
   },
   "q62": {
    "status": "pass",
-   "notes": "Bonde p03/p04/p05 found; the reader's 'good short scan' is on the same Stockbee page (checked by reading the page text). flagged-question fix checked 2026-11-11",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The stem asserts 'a reader's scan found them a good short' with no cited fact (the source note says the reader's test itself is not used). Reword the stem to what s6 says: Bonde replied to a reader's mechanical test. Key and notes rest on p03, p04, p05, p01. Single-publisher risk is already an owner flag; reveal overlaps q42's Bonde line (minor)."
   },
   "q63": {
    "status": "pass",
-   "notes": "Settled B22: hold through a report only if up 5R; 3.5R is under it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected. Mild: holding part through the report is read as breaking B22 (inference, owner flag raised). Accepted."
   },
   "q64": {
    "status": "pass",
-   "notes": "Settled B21 (h28); the E56 limit of 3 tries a week is not breached.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "B21: buy again only on a new trigger as a new trade; no waiting rule exists. Story says every test is met again. Balanced 2/2, no second defensible answer."
   },
   "q65": {
    "status": "pass",
-   "notes": "SRPT d01/d02 verbatim; trigger 2015-06-10 follows chart date 2015-06-09. 15.0% is inside IBD's 10% to 20%. Chart not viewed (no browser). flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Take is right: +129% in 14 sessions, 15.0% deep, 0.66x volume (d01). Flag-volume-rising is a Take for a wrong reason, so 2/2 balance. Chart-based and grounded."
   },
   "q66": {
    "status": "pass",
-   "notes": "TSLA d17/d18 verbatim (+78% in 40 sessions, best 1.88R); trigger 2023-07-14 follows chart date 2023-07-13. 78% fails both pole_size options. Chart not viewed.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Second defensible answer: a 78% pole with a tight flag is a good bull flag (setup 02), so 'Take it' could be right as a different setup. Stem now asks about the high tight flag. Key unchanged."
   },
   "q67": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "40 sessions = 8 weeks per c48; IBD four to eight weeks (i01) and Bulkowski 2 months (b01) agree. Bank is fine."
   },
   "q68": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q69": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "True restates c49 only; weak but grounded and the 200-day line is no longer in it. Card-proposal risk already flagged."
   },
   "q70": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: why said trigger close and called the consolidations good; now matches the card and k03",
-   "by": "checker",
-   "fixed": true
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave2: see the resolver's notes"
   },
   "q71": {
    "status": "cut",
@@ -3461,33 +4470,39 @@
   },
   "q72": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "Weekly closes is the card's A+ cue (c50); JDSU i06 supports closes over ranges; light volume and gap notes rest on c08 and c06. The 10% gate sentence rests on c09."
   },
   "q73": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "False is right (c51, h31): preferred, not required; chart first. Applied cousin q74 is rung 7, acceptable."
   },
   "q74": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "Buy is right (c51, h31); size comes from the stop (h01). Balanced choices, grounded notes. Mild 'chart' echo with story is tolerable because the stem asks for the rule."
   },
   "q75": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q76": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave2; awaiting cold re-read"
+  },
+  "q77": {
+   "status": "pass",
    "by": "checker",
-   "fixed": false
+   "fixed": false,
+   "notes": "5R is right: B19 says breakeven at 2R to 5R, ideally (h05). Bank has one correct value; 3R is inside the window, not its end. Grounded, house, risk noted."
   }
  }
 }
