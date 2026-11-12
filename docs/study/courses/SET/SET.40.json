@@ -830,6 +830,42 @@
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: a position is at most 40% of the account."
+  },
+  {
+   "id": "d07b",
+   "source": "d1",
+   "quote": "leaves 76,719 buys at 30.7% to 3R and 20.8% to 5R",
+   "claim": "A stricter count of the same buys gives 30.7% to 3R; the truth sits between the two figures."
+  },
+  {
+   "id": "dvol",
+   "source": "d1",
+   "quote": "lighter volume than the mother bar 26.6% vs heavier 27.1%",
+   "claim": "In the scan, the split by volume came out 26.6% for lighter against 27.1% for heavier."
+  },
+  {
+   "id": "d07c",
+   "source": "d1",
+   "quote": "dropping them leaves 76,719 buys at 30.7% to 3R and 20.8% to 5R, the truth sits between the two figures",
+   "claim": "A stricter count of the same buys gives 30.7% to 3R; the truth sits between the two figures."
+  },
+  {
+   "id": "d10b",
+   "source": "d1",
+   "quote": "closed back under the inside day's high (NVDA 90.36, TSLA 281.67, NFLX 31.84, AMZN 49.84)",
+   "claim": "The four failures were NVDA, TSLA, NFLX and AMZN, and each entry day closed back under the inside day's high."
+  },
+  {
+   "id": "h38",
+   "source": "h1",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "D38: A and B setups are normal size, A+ is sized up, and B- or lower is sized down."
+  },
+  {
+   "id": "h50",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "E50: grading a setup is discretionary and hard to define; no fixed checklist is taught as ours."
   }
  ],
  "walkthroughs": [
@@ -911,7 +947,7 @@
     "An open inside yesterday's range"
    ],
    "answer": "Both ends inside yesterday's range",
-   "why": "A high below yesterday's high and a low above yesterday's low. Crabel, Bulkowski, Mish and TraderLion all say it the same way: the whole day fits inside the prior day's range.",
+   "why": "Both ends inside yesterday's range: today's high is below yesterday's high and today's low is above yesterday's low. Crabel, Bulkowski, Mish and TraderLion all describe the whole day fitting inside the prior day. The close and the open do not decide it. A narrow day, such as an NR7, can still poke out.",
    "lesson_line": "Both ends inside yesterday's bar. That is the whole definition.",
    "facts": [
     "c01",
@@ -919,14 +955,24 @@
     "bk01",
     "tl01",
     "mi01",
-    "sc01"
+    "sc01",
+    "c46"
    ],
    "house": true,
    "wrong": {
     "A close well inside yesterday's range": "The close is not the test. The high and the low are, and both must be inside.",
-    "The narrowest range in seven days": "That is an NR7. A narrow day can still poke above yesterday's high.",
-    "An open inside yesterday's range": "Most days open inside yesterday's range. The inside day keeps its whole range there."
-   }
+    "The narrowest range in seven days": "That is an NR7, the narrowest range in seven days. A narrow day can still poke above yesterday's high.",
+    "An open inside yesterday's range": "The open is only one price. The high and the low of the whole day must sit inside."
+   },
+   "simple": "An inside day has a high and a low that both sit inside yesterday's high and low.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "five sources agree; the key uses only the part that strict and tie rules share"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q02",
@@ -934,15 +980,24 @@
    "rung": 1,
    "format": "tf",
    "criterion": "id.not_setup_alone",
-   "q": "The inside day is a setup by itself, with no bigger setup needed around it.",
+   "q": "The inside day is a setup by itself.",
    "answer": "False",
-   "why": "False. The inside day is an entry tool inside a bigger setup. The bar alone is near random; the stock, the location and the market carry the edge.",
+   "why": "False. The inside day is an entry tool inside a bigger setup, not a setup by itself. The bar alone is near random. The stock, the location and the market carry the edge.",
    "lesson_line": "The inside day is how you get in. The setup is what you are getting into.",
    "facts": [
     "c06",
     "c48"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The inside day is only a way to get in, and the stock, the location and the market carry the edge.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card, a proposed criterion"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q03",
@@ -952,13 +1007,13 @@
    "criterion": "id.stop",
    "q": "Where does the stop go on an inside-day buy?",
    "choices": [
-    "Cents under the inside day's low",
+    "A few cents under the inside low",
     "A few cents under the mother low",
-    "A few cents under the entry",
+    "A few cents under the entry price",
     "Seven percent under the fill price"
    ],
-   "answer": "Cents under the inside day's low",
-   "why": "A few cents under the inside day's low, not exactly on it. Never the mother bar's low to give it room. Kullamagi: the stop is always the low of the day.",
+   "answer": "A few cents under the inside low",
+   "why": "A few cents under the inside day's low, not exactly on it. Never use the mother bar's low just to give it room. The stop usually sits within about 3% of the buy. If the stop does not fit the risk, skip the trade. Kullamagi also puts the stop at the low of the day. Bulkowski's 7% loss limit is not our rule.",
    "lesson_line": "Stop first: a few cents under the inside day's low.",
    "facts": [
     "c14",
@@ -971,9 +1026,19 @@
    "house": true,
    "wrong": {
     "A few cents under the mother low": "That is the named mistake: the mother low to give it room, then sizing as if it were tight.",
-    "A few cents under the entry": "That is not the inside day's low. The stop sits under the low; breakeven comes later in the trade.",
-    "Seven percent under the fill price": "That is Bulkowski's loss limit, not ours. Our stop is the inside day's low, usually within about 3%."
-   }
+    "Seven percent under the fill price": "That is Bulkowski's loss limit, not ours. Our stop is the inside day's low, usually within about 3%.",
+    "A few cents under the entry price": "That is not the inside day's low. The stop sits under the low; breakeven comes later in the trade."
+   },
+   "simple": "Put the stop a few cents under the inside day's low, never the mother bar's low just for room.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q04",
@@ -991,13 +1056,22 @@
     "150"
    ],
    "answer": "200",
-   "why": "200. Close above the 200-day with the 50-day above the 200-day. No longs below the 200-day is a hard rule.",
+   "why": "200. The inside-day card needs the close above the 200-day, with the 50-day above the 200-day. That keeps us out of longs below the 200-day.",
    "lesson_line": "Above the 200, the 50 over the 200. Then look at the bar.",
    "facts": [
     "c04",
     "h10"
    ],
-   "house": true
+   "house": true,
+   "simple": "It is the 200-day, because we buy no longs below that line.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q05",
@@ -1007,14 +1081,23 @@
    "criterion": "id.mother_bar",
    "q": "The mother bar is the day the inside day sits inside.",
    "answer": "True",
-   "why": "True. The mother bar is the day the inside day sits inside; the inside day's entire range falls within it.",
+   "why": "True. The mother bar is our name for the day the inside day sits inside. The whole inside day falls within it: its high is lower and its low is higher.",
    "lesson_line": "Two bars: the mother bar, and the quiet day inside it.",
    "facts": [
     "c02",
     "mi01",
     "tl01"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. The mother bar is the bigger day that holds the inside day within its range.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a naming convention from the card, not a word the web sources use"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q06",
@@ -1031,14 +1114,22 @@
     "five"
    ],
    "answer": "two",
-   "why": "Two. A double inside day is two inside days in a row, each inside the day before; a triple is three. Mish: two in a row is an even clearer sign of indecision.",
+   "why": "Two. A double inside day is two inside days in a row, each inside the day before. A triple is three. Mish says two in a row is an even clearer sign of indecision.",
    "lesson_line": "Two quiet days, each inside the last. The spring winds tighter.",
    "facts": [
     "c03",
-    "mi02",
-    "br02"
+    "mi02"
    ],
-   "house": true
+   "house": true,
+   "simple": "Two. A double inside day is two quiet days in a row, each one inside the day before.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the card's alternate reading of a double also gives two"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q07",
@@ -1063,15 +1154,15 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "id.trail",
-   "q": "In our test, inside-day buys with a fixed stop and no trims lost on average. What do they need?",
+   "q": "Our research says inside-day buys with a fixed stop and no trims are a loser on average unless something is added. What?",
    "choices": [
-    "A trail on the winners",
+    "A trail on the winning trades",
     "A wider stop on every buy",
-    "A tighter inside day",
-    "Buying more of them each week"
+    "A tighter, smaller inside day",
+    "A bigger share size on each buy"
    ],
-   "answer": "A trail on the winners",
-   "why": "A trail on the winners. With a fixed stop and no trims the buys lost on average unless the winners were trailed, and 88.2% were eventually stopped. We sell a third at 3R, a third at 5R and trail the rest.",
+   "answer": "A trail on the winning trades",
+   "why": "A trail on the winners. Our research says a fixed stop with no trims is a loser on average unless the winners are trailed. Also, 88.2% were stopped within 60 days. We sell a third at 3R and a third at 5R, then trail the last third. That is our answer to the problem, not a tested result.",
    "lesson_line": "Sell partials into strength and trail the rest. A fixed stop alone loses on average.",
    "facts": [
     "d17",
@@ -1084,10 +1175,23 @@
    ],
    "house": true,
    "wrong": {
-    "A wider stop on every buy": "A wider stop means fewer shares, not better exits.",
-    "A tighter inside day": "Tinier is not better. A sliver with its low in the noise is the B- end.",
-    "Buying more of them each week": "Buying every inside day is the named mistake. The bar alone is near random."
-   }
+    "A wider stop on every buy": "A wider stop means fewer shares for the same risk. It does not manage the winners.",
+    "A tighter, smaller inside day": "Tinier is not better. A sliver with its low in the noise is the B- end.",
+    "A bigger share size on each buy": "A bigger size scales every loss too. The size comes from the stop and the risk percent, not from a wish."
+   },
+   "simple": "Our research says a fixed stop with no trims loses on average, so the winners need a trail.",
+   "deeper": {
+    "trap": "Do not read this as proof that trims and a trail win. The scan used a fixed stop with no trims, so it never tested them. It shows only that the bar needs its winners trailed, and that the bar alone is near random. The trail is the part we add."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a number from our own test that can be rerun (88.2%)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q09",
@@ -1097,8 +1201,8 @@
    "criterion": "id.gap_over",
    "q": "The inside day's high is 50.00. What is the highest open we would still buy?",
    "answer": 52.0,
-   "why": "52.00. The open can be at most 4% over the inside day's high. More is a gap trade, not this setup.",
-   "lesson_line": "Four percent over the high is the line. A bigger gap is another setup.",
+   "why": "52.00. The open can be at most 4% over the inside day's high: 50.00 times 1.04.",
+   "lesson_line": "Four percent over the high is the line. Work it out before the open.",
    "facts": [
     "c13",
     "h11"
@@ -1112,7 +1216,18 @@
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "We buy an open at most 4% over the high, so 50.00 plus 4% is 52.00.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (C28)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q10",
@@ -1122,13 +1237,22 @@
    "criterion": "id.earnings_window",
    "q": "A clean inside day two sessions before an earnings report is still a buy.",
    "answer": "False",
-   "why": "False. No new buys in the 3 days before an earnings report. Hold through one only if the trade is up 5R.",
+   "why": "False. No new buys in the 3 days before an earnings report. Two sessions before is inside that window. We hold through a report only when the trade is already up 5R.",
    "lesson_line": "Stay three days clear of the report, or wait. A report is a gap you cannot stop.",
    "facts": [
     "c12",
     "h08"
    ],
-   "house": true
+   "house": true,
+   "simple": "A buy two sessions before earnings breaks our rule of no new buys in the 3 days before a report.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q11",
@@ -1140,22 +1264,32 @@
    "choices": [
     "It is off; the low traded first",
     "Nothing; keep waiting for the high",
-    "Buy now; it is a cheaper price"
+    "Buy now; it is a cheaper price",
+    "Not yet; only a close under counts"
    ],
    "answer": "It is off; the low traded first",
-   "why": "It is off. Before the entry, the inside day's low trading first cancels the buy over the high. StockCharts: a move below the low is negative. Watch for the reclaim instead.",
+   "why": "It is off. If the inside day's low trades first, before the entry, the buy over the high is cancelled. That is the failure mode on our card. A cheaper price is not a reason to buy.",
    "lesson_line": "Which side trades first decides the trade. The low first, and the break is off.",
    "facts": [
     "c21",
-    "c48",
-    "sc05"
+    "c48"
    ],
    "house": true,
    "wrong": {
-    "Nothing; keep waiting for the high": "The low traded first. A later trade over the high is a different day's story, not this trigger.",
-    "Buy now; it is a cheaper price": "Cheaper is under the stop. There is no trade there, only a possible reclaim later."
+    "Nothing; keep waiting for the high": "The card says the buy over the high is off once the low trades first. Waiting for the high is the old plan.",
+    "Buy now; it is a cheaper price": "That price is under the inside day's low, where our stop belongs. A buy there is not this setup.",
+    "Not yet; only a close under counts": "The card says the buy over the high is off once the low trades first. It does not wait for a close."
    },
-   "story": "Your buy order sits a cent over the inside day's high. The stock opens flat and trades under the inside day's low at 9:45."
+   "story": "Your buy order sits a cent over the inside day's high. The stock opens flat and trades under the inside day's low at 9:45.",
+   "simple": "The buy is off. The stock broke the inside day's low before it broke the high.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card, a proposed criterion"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q12",
@@ -1179,24 +1313,40 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "id.not_tighter_better",
-   "q": "A sliver of an inside day, 0.3 ATR wide, with the stop 0.8% away. Better than a normal-sized pause?",
+   "q": "A very narrow inside day, with the stop only 0.8% away. How does it compare with a normal-sized pause?",
    "choices": [
-    "No; its low sits in the noise",
-    "Yes; tighter is always better",
-    "Yes; the stop is tiny"
+    "Not better; narrow is not a plus",
+    "Better; a tighter bar is stronger",
+    "Better; its stop is much smaller",
+    "The same; only the shape counts"
    ],
-   "answer": "No; its low sits in the noise",
-   "why": "No. A sliver under 0.4 ATR whose low sits inside the noise is the B- end. Tinier is not better; a normal-sized pause is.",
-   "lesson_line": "A stop inside one ordinary wiggle is a coin flip, not a tight stop.",
+   "answer": "Not better; narrow is not a plus",
+   "why": "Not better. Do not treat a tiny inside day, an NR4 or an NR7 as better. A sliver's low sits inside the day's noise, so it is the weak end.",
+   "lesson_line": "A sliver is not a tight stop. Its low sits in the noise.",
    "facts": [
     "c08",
-    "c43"
+    "sc01",
+    "h03"
    ],
    "house": true,
    "wrong": {
-    "Yes; tighter is always better": "A tiny inside day is not better. A sliver under 0.4 ATR is the B- end.",
-    "Yes; the stop is tiny": "A stop that small sits inside ordinary noise and gets hit by it. That is the B- end."
-   }
+    "Better; a tighter bar is stronger": "The card says not to treat a tiny inside day, an NR4 or an NR7 as better.",
+    "Better; its stop is much smaller": "The stop only sets the share count. Our risk is the percent we set, and a stop that small sits inside the day's noise.",
+    "The same; only the shape counts": "Size counts. A tiny sliver is not better, and its low sits in the noise."
+   },
+   "simple": "Not better. A very narrow day is not a plus, because its low sits in the noise.",
+   "deeper": {
+    "counter": "An NR7 is the narrowest range in seven days, and an NR4 the narrowest in four. That says a day is quiet, not that it is better. Our card does not treat a tiny inside day, an NR4 or an NR7 as better."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source for the key: the criteria card, a cue",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q14",
@@ -1208,21 +1358,34 @@
    "choices": [
     "No; Red is mostly cash and shorts",
     "Yes; a leader is a leader, so buy",
-    "Yes, but at half the usual size"
+    "Yes, but at half the usual size",
+    "Short it; Red favors shorts"
    ],
    "answer": "No; Red is mostly cash and shorts",
-   "why": "No. Green or Yellow for the setup; Orange A+ only; Red mostly cash and shorts.",
+   "why": "No. In a Red reading we are mostly in cash and shorts. Green or Yellow is when we take this setup, and Orange is A+ only. The reading is a guide, but the stock and the bar can be perfect and the market still says no.",
    "lesson_line": "The best bar in a Red market is a bar. Sit on your hands.",
    "facts": [
     "c25",
-    "h26"
+    "h26",
+    "h10"
    ],
    "house": true,
    "wrong": {
     "Yes; a leader is a leader, so buy": "The stock is one of three things that carry the edge. The market is another, and it says no.",
-    "Yes, but at half the usual size": "Half size does not change the reading. Red is mostly cash and shorts."
+    "Yes, but at half the usual size": "Half size does not change the reading. Red is mostly cash and shorts.",
+    "Short it; Red favors shorts": "Our shorts sit below the 200-day, and this leader is above it. Red cuts buying; it does not turn a leader into a short."
    },
-   "story": "The reading is Red. A leader prints a clean inside day after a breakout."
+   "story": "The reading is Red. A leader above its 200-day prints a clean inside day after a breakout.",
+   "simple": "No, because a Red market means mostly cash and shorts, even for a good leader.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F65)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q15",
@@ -1232,13 +1395,13 @@
    "criterion": "id.order",
    "q": "An inside day's high is 50.00. How do we buy the break?",
    "choices": [
-    "At market, once it trades over 50.00",
+    "At market as it trades over 50.00",
     "A limit order under the inside low",
-    "Wait for the close, buy the next open",
+    "A limit order a cent over 50.00",
     "In premarket if it gaps over 50.00"
    ],
-   "answer": "At market, once it trades over 50.00",
-   "why": "At market, once it trades over the high, in regular hours. Our default is a market order as it trades through, and there are no new buys outside regular trading hours.",
+   "answer": "At market as it trades over 50.00",
+   "why": "At market, once it trades over the high, in regular hours. Entries are market orders, bought as price trades through the high. There are no new buys outside regular trading hours, so a premarket gap is not bought there. A limit under the low waits for the very weakness that cancels the buy.",
    "lesson_line": "Market order, regular hours, as it trades through. No limit, no premarket.",
    "facts": [
     "h22",
@@ -1248,9 +1411,26 @@
    "house": true,
    "wrong": {
     "A limit order under the inside low": "A limit under the low waits for the very weakness that cancels the buy.",
-    "Wait for the close, buy the next open": "Waiting for the close is another way to trade it. Our default buys as it trades over the high.",
-    "In premarket if it gaps over 50.00": "No new buys outside regular trading hours."
-   }
+    "In premarket if it gaps over 50.00": "No new buys outside regular trading hours.",
+    "A limit order a cent over 50.00": "Entries are market orders, not limit orders."
+   },
+   "simple": "We buy at market as price trades over the high, and only in regular hours.",
+   "deeper": {
+    "trap": "The trap is the careful-looking limit order. A limit under the low waits for the weakness that cancels the buy. Our entries are market orders, bought as price trades over the high."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E57, E58) and a held decision on entry timing",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-003",
+    "D-038"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q16",
@@ -1269,7 +1449,7 @@
     },
     "round": 2
    },
-   "why": "21.43. One R is the fill minus the stop; add three of those to the fill. JBLU got there the next day.",
+   "why": "21.43. One R is the fill minus the stop. Add three of those to the fill, 20.71. We take a third off at 3R. JBLU got there the next day.",
    "lesson_line": "A small stop makes 3R a small move. Know the number before the open.",
    "facts": [
     "h05",
@@ -1277,7 +1457,16 @@
     "d01b"
    ],
    "house": true,
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "Three R is the fill plus three times the distance down to the stop, so 21.43.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a computed key"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q17",
@@ -1285,24 +1474,38 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "id.inv_close_under_21",
-   "q": "The stock closed under its 21-day EMA this week and now prints an inside day. Our read?",
+   "q": "The stock closed under its 21-day EMA yesterday. Today it prints an inside day, still under that line. Our read?",
    "choices": [
     "A pause in a range, not a setup",
     "A buy; any inside day will work",
-    "A buy, as long as volume is light"
+    "Skip it; the 8-day is under the 21",
+    "A continuation; buy over its high"
    ],
    "answer": "A pause in a range, not a setup",
    "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation.",
    "lesson_line": "Under the fast average, a quiet day is a stall, not a spring.",
    "facts": [
     "c22",
-    "c23"
+    "c23",
+    "c35",
+    "c05"
    ],
    "house": true,
    "wrong": {
     "A buy; any inside day will work": "Buying every inside day is the named mistake. The location decides.",
-    "A buy, as long as volume is light": "Light volume grades a valid inside day up. It does not fix the location."
-   }
+    "Skip it; the 8-day is under the 21": "The story gives no 8-day reading, and the full stack is only a cue. The reason to skip is the close under the 21-day EMA.",
+    "A continuation; buy over its high": "An inside day under the fast average is a pause in a range, not a continuation."
+   },
+   "simple": "Skip it. After a close under the 21-day EMA, a quiet day is only a pause in a range.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source: the criteria card, a proposed criterion",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q18",
@@ -1312,13 +1515,23 @@
    "criterion": "id.no_full_stack",
    "q": "The full fast stack of the 8, 21 and 50-day is required before an inside-day buy.",
    "answer": "False",
-   "why": "False. The full stack is a cue, not a requirement. Above the 200-day with the 50 over it is the gate.",
-   "lesson_line": "The stack is a plus. The 200-day and the location are the gate.",
+   "why": "False. The full stack of the 8, 21 and 50-day is a cue, not a requirement. One hard test is a close above the 200-day, with the 50-day above it. Our rule is no longs below the 200-day, except a parabolic long.",
+   "lesson_line": "The stack is a plus. A close above the 200-day is the test.",
    "facts": [
     "c05",
-    "c04"
+    "c04",
+    "h10"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. The stack is only a cue, and one hard test is a close above the 200-day, with the 50-day over it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the hard 200-day rule in the rulebook"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q19",
@@ -1336,14 +1549,23 @@
     "15"
    ],
    "answer": "10",
-   "why": "10. A trade still under 1R after 10 trading days is sold, freeing the money. StockCharts: a short-term setup should start working right away.",
+   "why": "10. Our time stop: a trade still under 1R after 10 trading days is sold, freeing the money. StockCharts says a short-term setup should start working right away. It does not set our 10 days.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
     "h15",
     "c55",
     "sc02"
    ],
-   "house": true
+   "house": true,
+   "simple": "We sell a trade that is still under 1R after 10 trading days, to free the money.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q20",
@@ -1351,23 +1573,34 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "id.room",
-   "q": "A clean inside day at the 20-day with an unfilled bearish gap 2% overhead. What does the gap do to the grade?",
+   "q": "A clean inside day at the 20-day with an unfilled bearish gap 2% above. What does the gap do to the grade?",
    "choices": [
-    "Lowers it; no room overhead",
-    "Nothing; gaps always fill",
-    "Raises it; a target to run to"
+    "Lowers it; no clear air above",
+    "Nothing; only the bar is graded",
+    "Raises it; the gap is a target",
+    "Rules it out; the trade is void"
    ],
-   "answer": "Lowers it; no room overhead",
-   "why": "Lowers it. Room means clear air to the next level; a bearish gap or an old high just overhead is the B- end.",
-   "lesson_line": "Check the ceiling before the floor. No room, no grade.",
+   "answer": "Lowers it; no clear air above",
+   "why": "Lowers it. Room means clear air to the next level. A bearish gap or an old high just overhead is the B- end. That is a lower grade, not a ban on the trade.",
+   "lesson_line": "Check the room above before you buy. A gap or old high just overhead lowers the grade.",
    "facts": [
     "c28"
    ],
    "house": true,
    "wrong": {
-    "Nothing; gaps always fill": "They do not, and a gap just overhead is supply waiting. That is the B- end.",
-    "Raises it; a target to run to": "We manage by R, not by targets. The gap overhead is a wall, not a goal."
-   }
+    "Nothing; only the bar is graded": "Room is graded too. A bearish gap just overhead is the B- end.",
+    "Raises it; the gap is a target": "Room means clear air to the next level. A bearish gap overhead is the B- end, not a plus.",
+    "Rules it out; the trade is void": "Room is a grade cue. A bearish gap just overhead is the B- end, a lower grade, not a ban."
+   },
+   "simple": "The gap lowers the grade, because a bearish gap just overhead leaves no clear air to run.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (a proposed grade cue)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q21",
@@ -1377,14 +1610,24 @@
    "criterion": "id.trend_200",
    "q": "Bulkowski expects an inside day to break out in the direction of the trend going in.",
    "answer": "True",
-   "why": "True. Bulkowski says to expect the breakout in the direction of the inbound trend, and TraderLion describes the move continuing the same way. It is an expectation, not a guarantee.",
+   "why": "True. Bulkowski says to expect the breakout in the same direction as the inbound trend. TraderLion also says price hints at continuing in its current direction. It is an expectation, not a guarantee. Bulkowski does not require a trend, so we add the 200-day gate ourselves.",
    "lesson_line": "A pause can resume the trend. So we want a leader in an uptrend.",
    "facts": [
     "bk03",
     "tl01",
+    "bk02",
     "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. Bulkowski expects the breakout to follow the trend going in, but it is only an expectation.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "a pattern expectation from the web, not a guarantee"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q22",
@@ -1394,12 +1637,13 @@
    "criterion": "id.stop_wide",
    "q": "What do you do?",
    "choices": [
-    "Size down or skip; honest stop",
-    "Put the stop under the mother low",
-    "Pull the stop to 3% to fit"
+    "Keep the stop; cut the shares",
+    "Use the mother low; size down",
+    "Pull the stop to 3%; size down",
+    "Keep the stop; buy the usual size"
    ],
-   "answer": "Size down or skip; honest stop",
-   "why": "Size down or skip. A stop well over 3% means a smaller position or no trade. Never the mother low to give it room, and never a stop pulled in to fit the size.",
+   "answer": "Keep the stop; cut the shares",
+   "why": "Size down or skip. A stop well over 3% from the buy means a smaller position or no trade. The stop stays under the inside day's low, and the size follows it. Never use the mother low to give it room, and never pull the stop in to fit.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "c15",
@@ -1409,10 +1653,26 @@
    ],
    "house": true,
    "wrong": {
-    "Put the stop under the mother low": "That is the named mistake: the mother low to give it room. Room is paid for in size, not in a wider stop.",
-    "Pull the stop to 3% to fit": "A stop pulled inside the inside day's range is not a stop. The honest stop stays; the size moves."
+    "Use the mother low; size down": "Never use the mother low just to give it room. The stop stays under the inside day's low.",
+    "Pull the stop to 3%; size down": "A 3% stop sits above the inside day's low. The stop stays under the low; the size moves.",
+    "Keep the stop; buy the usual size": "The same shares on a wider stop risk more than planned. The size comes from the stop, so a wide stop means fewer shares or no trade."
    },
-   "story": "The inside day is wide: the stop under its low sits 4.5% from the trigger. The mother bar's low is 7% away."
+   "story": "The inside day is wide: the stop under its low sits 6% from the trigger. The mother bar's low is 8% away.",
+   "simple": "Keep the stop under the inside low and cut the shares, because the size follows the stop.",
+   "deeper": {
+    "counter": "A wide stop is not a flaw in the setup. It is information. The planned loss is the shares times the distance to the stop. A wider stop means fewer shares, never the same shares with the stop moved closer."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A3, A5) and a stop-size line still held"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q23",
@@ -1431,7 +1691,7 @@
     },
     "round": 2
    },
-   "why": "1.56%. The buy minus the stop, divided by the buy. ATI's stop sat well inside the 3% habit.",
+   "why": "1.56%. The buy minus the stop, divided by the buy: 41.09 minus 40.45, over 41.09. That is well inside the 3% habit for the stop. ATI's inside day gave a small stop.",
    "lesson_line": "Trigger minus stop, over the trigger. Inside days give small stops.",
    "facts": [
     "d05",
@@ -1439,7 +1699,16 @@
     "h04"
    ],
    "house": true,
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "Take the buy minus the stop, divide by the buy, and you get 1.56%.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a computed key"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q24",
@@ -1459,12 +1728,26 @@
     },
     "round": 2
    },
-   "why": "0.8, near the high. Close minus low, over high minus low. A close in the upper half is preferred, as a cue and not a rule.",
+   "why": "0.8, near the high. Close minus low, over high minus low. A close in the upper half of the inside day's range is preferred. It is a grading cue, not a rule.",
    "lesson_line": "Close minus low, over high minus low. Near the top is the picture we like.",
    "facts": [
     "c37"
    ],
-   "house": true
+   "house": true,
+   "simple": "The close is 0.8 of the way up the day's range, so it sits near the high.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "a computed key",
+     "cue or rule is a held decision",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-039"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q25",
@@ -1474,12 +1757,13 @@
    "criterion": "id.stop_gap",
    "q": "What now?",
    "choices": [
-    "Out; the loss is past 2R",
-    "The new stop is 46.70",
-    "Hold; gaps usually fill"
+    "Out now; the loss is past 2R",
+    "The new stop is the 46.70 low",
+    "Hold for the gap to fill back",
+    "Sell half now, hold the rest"
    ],
-   "answer": "Out; the loss is past 2R",
-   "why": "Out. A gap through the stop hands it to the first 30-minute low, with a ceiling: past 2R, get out. A low of 46.70 is past it.",
+   "answer": "Out now; the loss is past 2R",
+   "why": "Out. A gap through the stop hands it to the first 30-minute low, with a ceiling: past 2R, get out. One R is the buy minus the stop. The low of 46.70 is further below the buy than two of those.",
    "lesson_line": "A gap through the stop is the one exception, and it has a ceiling of 2R.",
    "facts": [
     "h06",
@@ -1488,10 +1772,24 @@
    ],
    "house": true,
    "wrong": {
-    "The new stop is 46.70": "The 30-minute low becomes the stop only while the loss is inside 2R. This one is past it, so you are out.",
-    "Hold; gaps usually fill": "Hope is not a rule. The gap rule has a ceiling, and this is past it."
+    "The new stop is the 46.70 low": "The 30-minute low becomes the stop only while the loss is inside 2R. This one is past it, so you are out.",
+    "Hold for the gap to fill back": "Hope is not a rule. The gap rule has a ceiling, and this is past it.",
+    "Sell half now, hold the rest": "Past 2R the rule is get out, not scale out. Half now and half hoped for is not the plan."
    },
-   "story": "You bought the break at 50.00 with the stop at 48.70. The next morning it gaps open at 47.80. The first 30-minute bar's low is 46.70."
+   "story": "You bought the break at 50.00 with the stop at 48.70. The next morning it gaps open at 47.80. The first 30-minute bar's low is 46.70.",
+   "simple": "The first 30-minute low is more than 2R below the buy, so the rule says get out.",
+   "deeper": {
+    "counter": "The gap open was already below the stop, so a stop order alone could not protect you. The first 30 minutes then decide. Inside 2R the first 30-minute low is the new stop. Past 2R you are out. This is the one place the stop is allowed to move down, and it has a ceiling."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B20)",
+     "the key is a computed comparison in R"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q26",
@@ -1503,10 +1801,11 @@
    "choices": [
     "Sell a third at the open",
     "Wait for the close to sell",
-    "Sell it all at the open"
+    "Sell it all at the open",
+    "Just raise the stop; no trim"
    ],
    "answer": "Sell a third at the open",
-   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there.",
+   "why": "Sell a third at the open. If a stock opens above a trim level, we take that trim at the open. This one opens at 3.5R, past the 3R level, so the first third comes off. The rest stays in with its stop.",
    "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
    "facts": [
     "h25",
@@ -1514,10 +1813,20 @@
    ],
    "house": true,
    "wrong": {
-    "Wait for the close to sell": "The level is already passed. Waiting gives the gap a chance to fill.",
-    "Sell it all at the open": "A third at 3R. The rest waits for 5R and the trail."
+    "Wait for the close to sell": "We take the trim at the open, not later. A stock that opens above a trim level gets that trim at the open.",
+    "Sell it all at the open": "The trim is a third at 3R. The rest stays in with its stop.",
+    "Just raise the stop; no trim": "Raising the stop is a separate step. A trim level the open has passed is taken at the open."
    },
-   "story": "Your inside-day long sits at 2.7R at the close. It opens the next morning at 3.5R."
+   "story": "Your inside-day long sits at 2.7R at the close. It opens the next morning at 3.5R.",
+   "simple": "The open is already past 3R, so we sell the first third right at the open.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F63)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q27",
@@ -1525,25 +1834,41 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "id.trend_200",
-   "q": "Mish's 2009 AAPL inside-day buy sat about 17% under its 200-day. Would we take it?",
+   "q": "Mish's 2009 AAPL inside-day buy sat about 17% under its long-term average. What decides whether we take it?",
    "choices": [
-    "No; no longs below the 200-day",
-    "Yes; the pattern is the pattern",
-    "Yes; it was a market bottom"
+    "The 200-day rule; it fails it",
+    "The pattern; it was textbook",
+    "The market; it was a bottom",
+    "The size; we would go half"
    ],
-   "answer": "No; no longs below the 200-day",
-   "why": "No. No longs below the 200-day, however well the example worked. Mish's AAPL buy sat about 17% under it.",
+   "answer": "The 200-day rule; it fails it",
+   "why": "The 200-day rule. The inside-day card needs the close above the 200-day, and Mish's AAPL buy sat about 17% under it. So it fails our rule, however well the example worked.",
    "lesson_line": "Other people's rules can be right for them. The 200-day line is ours.",
    "facts": [
     "d20",
     "c04",
-    "h10"
+    "c38",
+    "bk02",
+    "c35"
    ],
    "house": true,
    "wrong": {
-    "Yes; the pattern is the pattern": "The pattern is an entry tool. Below the 200-day there is nothing to enter.",
-    "Yes; it was a market bottom": "Bottoms are known later. The rule is known before: no longs below the 200-day."
-   }
+    "The pattern; it was textbook": "The pattern is an entry tool. The card needs the close above the 200-day first.",
+    "The market; it was a bottom": "Bottoms are known later. The rule is known before: the card needs the close above the 200-day.",
+    "The size; we would go half": "Size does not lift the 200-day line. The inside-day card needs the close above it."
+   },
+   "simple": "The 200-day rule decides it, because that buy sat about 17% under the line and the card needs the close above it.",
+   "deeper": {
+    "counter": "Bulkowski finds no trend is required into an inside day; the trend is upward 53% of the time. Our card asks for more, the close above the 200-day. A good example on the wrong side of the line is still a pass."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q28",
@@ -1554,12 +1879,12 @@
    "q": "Yesterday ran 52.00 to 49.00. Which day today is an inside day?",
    "choices": [
     "High 51.50, low 49.50",
-    "High 52.40, low 50.00",
+    "High 52.40, low 51.00",
     "High 51.00, low 48.50",
     "High 53.00, low 48.00"
    ],
    "answer": "High 51.50, low 49.50",
-   "why": "High 51.50, low 49.50. Both ends sit inside yesterday's range: the high is under 52.00 and the low is over 49.00.",
+   "why": "High 51.50, low 49.50. Both ends sit inside yesterday's range of 49.00 to 52.00: the high is under 52.00 and the low is over 49.00. One end inside is not enough.",
    "lesson_line": "Check both ends. One end inside is half a definition.",
    "facts": [
     "c01",
@@ -1568,10 +1893,19 @@
    ],
    "house": true,
    "wrong": {
-    "High 52.40, low 50.00": "The low is inside, but the high is above 52.00. Both ends must be inside.",
     "High 51.00, low 48.50": "The high is inside, but the low is under 49.00. Both ends must be inside.",
-    "High 53.00, low 48.00": "Both ends poke out. That day covers yesterday's whole range."
-   }
+    "High 53.00, low 48.00": "Both ends poke out. That day covers yesterday's whole range.",
+    "High 52.40, low 51.00": "The low is inside, but the high is above 52.00. Both ends must be inside."
+   },
+   "simple": "Only that day has a high under 52.00 and a low over 49.00, so both ends sit inside.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "a plain comparison of the question's own numbers; three sources agree"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q29",
@@ -1581,13 +1915,23 @@
    "criterion": "id.breakeven",
    "q": "On an inside-day trade the stop moves to breakeven between 2R and 5R.",
    "answer": "True",
-   "why": "True. Stop to breakeven between 2R and 5R; the first trim at 3R is the natural moment.",
-   "lesson_line": "Breakeven between 2R and 5R, at the first trim by default.",
+   "why": "True. We move the stop to breakeven at 2R to 5R, ideally. The first trim, a third at 3R, comes inside that range.",
+   "lesson_line": "Breakeven somewhere between 2R and 5R. The first third comes off at 3R.",
    "facts": [
     "c17",
     "h05"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we move the stop to breakeven somewhere between 2R and 5R.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q30",
@@ -1598,11 +1942,12 @@
    "q": "Which trade is it now?",
    "choices": [
     "The reclaim, with its own stop",
-    "The inside-day break; buy the high",
-    "No trade; the low broke"
+    "Buy over the high, as planned",
+    "No trade; the low broke first",
+    "A short, since the low gave way"
    ],
    "answer": "The reclaim, with its own stop",
-   "why": "The reclaim. Once the low trades first, the buy over the high is off. Our Sunday Scans name the second scenario: undercut and reclaim, with a stop at the new support.",
+   "why": "The reclaim, with its own stop. Once the low trades first, the buy over the high is off. Our Sunday Scans name the second scenario: undercut and reclaim, with a stop at the new support. Price took the low back and holds above it, so that is the trade.",
    "lesson_line": "Two scenarios: the break of the high, or the undercut and reclaim. The low first means the break is off.",
    "facts": [
     "c21",
@@ -1611,10 +1956,24 @@
    ],
    "house": true,
    "wrong": {
-    "The inside-day break; buy the high": "The low traded first, so the break is off. The reclaim is the trade now.",
-    "No trade; the low broke": "The break is off; the reclaim is its own trade with its own stop."
+    "Buy over the high, as planned": "The low traded first, so the break is off. The reclaim is the trade now.",
+    "No trade; the low broke first": "The break is off; the reclaim is its own trade with its own stop.",
+    "A short, since the low gave way": "Price took the low back and holds above it. A break that fails is not a short; the reclaim is the trade."
    },
-   "story": "The inside day's low broke at 10:05. By 11:00 price has reclaimed that low and holds above it."
+   "story": "The inside day's low broke at 10:05. By 11:00 price is back above that low and holding there.",
+   "simple": "The low broke first so the buy over the high is off, and the reclaim is a new trade.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the reclaim is a held decision (D-002)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-002"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q31",
@@ -1633,15 +1992,25 @@
     },
     "round": 1
    },
-   "why": "5R. Each R is the fill minus the stop. By default the second third comes off here.",
-   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "why": "5R. One R is the fill minus the stop. The gain over the fill, divided by that, is five.",
+   "lesson_line": "Count in R, not dollars: the gain divided by the risk.",
    "facts": [
     "h20",
     "c20",
     "d04"
    ],
    "house": true,
-   "suffix": "R"
+   "suffix": "R",
+   "simple": "The gain is five times the risk of buying at 55.02 with a stop at 54.28.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q32",
@@ -1651,25 +2020,37 @@
    "criterion": "id.after_entry_stop",
    "q": "What was the close, and what decides the exit?",
    "choices": [
-    "A warning; the gap rule decides",
+    "A warning; the stop decides",
     "The exit; sell at that weak close",
-    "Noise; give the stop more room"
+    "Noise; give the stop more room",
+    "Fine; pull the stop to breakeven"
    ],
-   "answer": "A warning; the gap rule decides",
-   "why": "A warning, not an exit; hold to the stop. The next open was under the stop, so the first 30-minute low decides the real exit.",
-   "lesson_line": "The weak close warns. The stop exits. The gap rule handles the gap.",
+   "answer": "A warning; the stop decides",
+   "why": "A warning, not an exit. After the entry the stop is the exit, so you hold to it. The close under the inside day's high is a warning. Here the stop, 31.76, had not traded: the day's low was 31.84.",
+   "lesson_line": "A weak close is a warning. The stop is the exit.",
    "facts": [
     "c40",
-    "c41",
     "c24",
-    "h06"
+    "c41",
+    "c17"
    ],
    "house": true,
    "wrong": {
     "The exit; sell at that weak close": "The close under the high is a warning. The stop is the exit, and it had not traded at the close.",
-    "Noise; give the stop more room": "The stop only moves up. A weak close is a reason to watch, never to widen."
+    "Noise; give the stop more room": "After the entry the stop is the exit, and we hold to it. A weak close is a warning, not a reason to widen the stop.",
+    "Fine; pull the stop to breakeven": "Breakeven comes between 2R and 5R. After a weak close the card says hold to the stop."
    },
-   "story": "You bought the break at 32.35, stop 31.76. The entry day closes at its low, 31.84, back under the inside day's high. The next session opens at 31.58."
+   "story": "You bought the break at 32.35, stop 31.76. The entry day closes at its low, 31.84, back under the inside day's high.",
+   "simple": "A warning, not an exit. After the entry the stop is the exit, so hold to it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's after-entry rule",
+     "example numbers read from our own bars"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q33",
@@ -1681,10 +2062,11 @@
    "choices": [
     "A planned loss at a B- spot",
     "A mistake; the stop needed room",
-    "A mistake; inside days never work"
+    "A mistake; inside days never work",
+    "Plain bad luck; the spot was fine"
    ],
    "answer": "A planned loss at a B- spot",
-   "why": "A planned loss at a B- spot. Six up days in a row before the pause is the B- end, and the stop did its job.",
+   "why": "A planned loss at a B- spot. An inside day after six up days in a row is the B- end of the spots. The stop was set 1.06% away, at 49.41. The stock later fell to 46.35 within 10 sessions.",
    "lesson_line": "Grade the spot before the bar. Late in a run, the quiet day is the B- end.",
    "facts": [
     "c42",
@@ -1695,9 +2077,21 @@
    "house": true,
    "wrong": {
     "A mistake; the stop needed room": "Room means a bigger loss. The stock fell to 46.35 within 10 sessions.",
-    "A mistake; inside days never work": "They can work. The spot, late in a run, was the problem, not the bar."
+    "A mistake; inside days never work": "They can work. The spot, late in a run, was the problem, not the bar.",
+    "Plain bad luck; the spot was fine": "Six up days in a row before the pause is the B- end. The spot was the problem, not luck."
    },
-   "story": "Six up closes in a row, then an inside day. You bought the break at 49.94 with a 1.06% stop at 49.41. The next session's low was 49.11."
+   "story": "Six up closes in a row, then an inside day. You bought the break at 49.94 with a 1.06% stop at 49.41. The next session's low was 49.11.",
+   "simple": "It was a planned loss at a weak spot, because the pause came after six up days in a row.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source for the key: the criteria card",
+     "example numbers read from our own bars",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q34",
@@ -1738,21 +2132,35 @@
    "choices": [
     "About one in four, 26.7%",
     "About half, a coin flip",
-    "About nine in ten, 88.2%"
+    "About nine in ten, 88.2%",
+    "About one in five, 18.2%"
    ],
    "answer": "About one in four, 26.7%",
-   "why": "About one in four: 26.7% reached 3R and 88.2% were eventually stopped. The bar alone is near random; the rule set is a filter, not an edge by itself.",
+   "why": "About one in four: 26.7% reached 3R and 88.2% were eventually stopped inside the 60-day window. A stricter count of the same buys gives 30.7% to 3R, so the truth sits between the two. The bar alone is near random; the rule set is a filter, not an edge by itself.",
    "lesson_line": "The bar is a filter. The stock, the location, the market and the trail are the edge.",
    "facts": [
     "d07",
+    "d07c",
     "d08",
     "c35"
    ],
    "house": true,
    "wrong": {
     "About half, a coin flip": "Our test found 26.7%, nowhere near half. The bar is a filter.",
-    "About nine in ten, 88.2%": "Nine in ten were stopped, not winners. The inside day alone is near random."
-   }
+    "About nine in ten, 88.2%": "Nine in ten were stopped, not winners. The inside day alone is near random.",
+    "About one in five, 18.2%": "That is the share that reached 5R. The question asks about 3R, where 26.7% got there."
+   },
+   "simple": "About one in four. Our test of every qualifying inside day found most were stopped out, so the bar alone is weak.",
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "one cited fact for the number: our own test",
+     "a computed figure with a known range, 26.7% to 30.7%",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q36",
@@ -1762,13 +2170,23 @@
    "criterion": "id.trim_2",
    "q": "By default, the second third of an inside-day winner comes off at 4R.",
    "answer": "False",
-   "why": "False. After the first third at 3R, the default is another third at 5R, then trail the last third. It is adjustable.",
+   "why": "False. After the first third at 3R, the default is another third at 5R, then trail the last third. It is adjustable, but 4R is not the default.",
    "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
    "facts": [
     "c20",
     "h20"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because the default second third comes off at 5R, not 4R.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E51)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q37",
@@ -1780,7 +2198,8 @@
    "choices": [
     "No; a gap trade, not this setup",
     "Yes; strength is strength",
-    "Yes; the stop is the inside low"
+    "Yes; the stop is the inside low",
+    "No; we skip gaps over the high"
    ],
    "answer": "No; a gap trade, not this setup",
    "why": "No. Buy the open only if it opens no more than 4% over the inside day's high. This one opened 6.0% over, an earnings gap trade with its own rules. The stop under the inside low would be 6.95% away.",
@@ -1795,9 +2214,23 @@
    "house": true,
    "wrong": {
     "Yes; strength is strength": "Strength 6% over the high is a gap trade. The inside-day rules stop at 4%.",
-    "Yes; the stop is the inside low": "That stop would be 6.95% away. Far outside the 3% habit, and the wrong setup anyway."
+    "Yes; the stop is the inside low": "That stop would be 6.95% away. Far outside the 3% habit, and the wrong setup anyway.",
+    "No; we skip gaps over the high": "A gap up to 4% over the high is bought at the open. This one is 6.0% over, past the line."
    },
-   "story": "A clean inside day sits at the 21-day EMA. Earnings come after the close, and the next open is 6.0% over its high."
+   "story": "AAPL, August 2017: a clean inside day sits at the 21-day EMA. Earnings come after the close, and the next open is 6.0% over its high.",
+   "simple": "No, because an open more than 4% over the high is a gap trade, not an inside-day buy.",
+   "deeper": {
+    "trap": "Strength after a report feels like confirmation. But the gap is the report's reaction, and the setup caps a gap at 4% over the inside day's high. Past that, the stop under the inside low sits too far away to keep the loss small."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C28)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q38",
@@ -1808,12 +2241,12 @@
    "q": "The last third of an inside-day winner trails which line?",
    "choices": [
     "The 10-day or the 21-day line",
-    "The 50-day, sold on a close",
-    "The mother bar's low",
-    "No trail; hold it for 10R or more"
+    "The 20-day or the 50-day line",
+    "The mother bar's low as a floor",
+    "No trail; hold until it stops out"
    ],
    "answer": "The 10-day or the 21-day line",
-   "why": "The 10-day for a fast mover, the 21-day for a steadier one, sold on a close below it.",
+   "why": "The 10-day for a fast mover, the 21-day for a steadier one, sold on a close below it. A touch is not a sale; a close under is.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "c51",
@@ -1821,10 +2254,20 @@
    ],
    "house": true,
    "wrong": {
-    "The 50-day, sold on a close": "The trail is the 10-day or the 21-day, not the 50-day.",
-    "The mother bar's low": "The mother bar is history by then. The trail is a moving average.",
-    "No trail; hold it for 10R or more": "The last third needs an exit rule, and the rule is the trail, not a hope for 10R."
-   }
+    "The 20-day or the 50-day line": "The trail is the 10-day or the 21-day, not these.",
+    "The mother bar's low as a floor": "The mother bar is history by then. The trail is a moving average.",
+    "No trail; hold until it stops out": "The last third needs an exit rule, and the rule is the trail: a close under the 10-day or the 21-day."
+   },
+   "simple": "We trail the last third on the 10-day or 21-day line and sell on a close below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E52)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q39",
@@ -1834,23 +2277,37 @@
    "criterion": "id.leadership",
    "q": "Take the break?",
    "choices": [
-    "No; not a leader",
+    "No; this one is not a leader",
     "Yes; the breakout carries it",
-    "Yes, as a B at half size"
+    "No; wait for the market to read Green",
+    "Yes, if the volume is light"
    ],
-   "answer": "No; not a leader",
-   "why": "No. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. An RS rating of 55 is not one.",
+   "answer": "No; this one is not a leader",
+   "why": "No. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. This stock has an RS rating of 55 in a lagging group, so a clean bar does not change the answer.",
    "lesson_line": "A clean bar in a laggard is a clean bar going nowhere.",
    "facts": [
     "c11",
-    "h14"
+    "h14",
+    "c09",
+    "c25"
    ],
    "house": true,
    "wrong": {
     "Yes; the breakout carries it": "A breakout in a laggard is still a laggard. Buy the leaders.",
-    "Yes, as a B at half size": "Size does not make a laggard a leader. The RS gate comes first."
+    "No; wait for the market to read Green": "The story gives no market reading, and Green would not fix it. The gate is an RS rating of 80 or more, in a strong group.",
+    "Yes, if the volume is light": "Lighter volume is a grading cue for a valid inside day. It does not make a laggard a leader."
    },
-   "story": "A clean inside day after a breakout, in a stock with an RS rating of 55 in a lagging group."
+   "story": "A clean inside day after a breakout, in a stock with an RS rating of 55 in a lagging group.",
+   "simple": "No, because we only buy leaders and this stock is a laggard. A clean bar does not fix that.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's leadership rule",
+     "the card's B- row words it differently"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q40",
@@ -1858,7 +2315,7 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "id.stop",
-   "q": "Account 50,000. Risk 0.25%. Trigger 38.00, stop 37.53. How many shares?",
+   "q": "Account 50,000. Risk 0.25%. Trigger 38.00, stop 37.53. How many shares, rounded down?",
    "answer": 265,
    "calc": {
     "fn": "shares_from_risk",
@@ -1870,8 +2327,8 @@
     },
     "round": 0
    },
-   "why": "265. Account times risk percent, divided by the trigger minus the stop, rounded down. That is well under the cap of 40% of the account. VST's stop was 37.53.",
-   "lesson_line": "Stop first, distance second, size last.",
+   "why": "265. Account times risk percent, divided by the trigger minus the stop, rounded down. That is well under the cap of 40% of the account, so the risk-based size stands. VST's stop was 37.53.",
+   "lesson_line": "Risk dollars over the stop distance, rounded down. Then check the cap.",
    "facts": [
     "h03",
     "h01",
@@ -1879,7 +2336,18 @@
     "h40"
    ],
    "house": true,
-   "suffix": " shares"
+   "suffix": " shares",
+   "simple": "Risk of 0.25% of 50,000 divided by the distance to the stop gives 265 shares, rounded down.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "a computed key",
+     "rests on the owner's rulebook (A5, A7)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q41",
@@ -1890,24 +2358,39 @@
    "q": "Which grades higher?",
    "choices": [
     "The 0.6x one; lighter is preferred",
-    "The 1.4x one; volume is strength",
-    "Equal; volume is not a rule"
+    "The 1.4x one; heavy volume is strength",
+    "Equal; volume is not part of a grade",
+    "The 1.4x one; the red bar capitulated"
    ],
    "answer": "The 0.6x one; lighter is preferred",
-   "why": "The lighter one. Volume lighter than the mother bar is preferred, not required; a heavy, wide, red mother bar is the B- end. TraderLion and Morpheus want the inside bar on lighter volume.",
+   "why": "The 0.6x one. Volume lighter than the mother bar is preferred, not required, so it grades higher. TraderLion and Morpheus both want the inside bar on lighter volume.",
    "lesson_line": "A quiet bar on quiet volume after a loud move. That is the picture.",
    "facts": [
     "c09",
-    "c53",
     "tl02",
-    "mo01"
+    "mo01",
+    "dvol",
+    "d07"
    ],
    "house": true,
    "wrong": {
-    "The 1.4x one; volume is strength": "Heavy volume on the pause is noise, not strength. The expansion day wants volume; the inside day wants quiet.",
-    "Equal; volume is not a rule": "Not a rule, but a grade. Lighter is preferred, and the red mother bar grades it down further."
+    "The 1.4x one; heavy volume is strength": "Lighter than the mother bar is preferred. Heavy volume on the pause is not the picture.",
+    "Equal; volume is not part of a grade": "Volume is a grading cue, not a rule, but it does count. Lighter is preferred.",
+    "The 1.4x one; the red bar capitulated": "Our card prefers volume lighter than the mother bar. A heavy pause is not preferred."
    },
-   "story": "Two inside days after the same kind of breakout. One printed on 0.6x the mother bar's volume. The other on 1.4x, under a wide red mother bar."
+   "story": "Two inside days after the same kind of breakout. One printed on 0.6x the mother bar's volume. The other on 1.4x, under a wide red mother bar.",
+   "simple": "The 0.6x day grades higher, because lighter volume than the mother bar is preferred.",
+   "deeper": {
+    "counter": "Lighter volume is a grading cue, not an edge. In our test, 26.6% reached 3R with lighter volume and 27.1% with heavier. The two came out about the same."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "a grading cue, preferred and not required"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q42",
@@ -1915,25 +2398,41 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "id.shape",
-   "q": "Inside day or wick play?",
+   "q": "How do an inside day and a wick play relate?",
    "choices": [
-    "Both; a wick play is an inside day",
-    "A wick play, and not an inside day",
-    "An inside day, not a wick play"
+    "A strict wick play is an inside day",
+    "Every inside day is a wick play",
+    "Neither one can be the other",
+    "A wick play must break the prior high"
    ],
-   "answer": "Both; a wick play is an inside day",
-   "why": "Both. Every strict wick play is an inside day; most inside days are not wick plays. Where the small day sits inside the big one is the difference.",
-   "lesson_line": "Look where the small day sits. In the upper wick, it carries two names.",
+   "answer": "A strict wick play is an inside day",
+   "why": "Every strict wick play is an inside day, and most inside days are not wick plays. A wick play sits wholly above the prior day's body top, inside its upper wick. An ordinary inside day can sit anywhere inside the prior range.",
+   "lesson_line": "Look where the small day sits. In the upper wick, an inside day is also a wick play.",
    "facts": [
     "c29",
     "c30"
    ],
    "house": true,
    "wrong": {
-    "A wick play, and not an inside day": "Its high is under yesterday's high and its low above yesterday's low. That is an inside day too.",
-    "An inside day, not a wick play": "It sits wholly inside the upper wick, above the body top. That is the wick play's shape."
+    "Every inside day is a wick play": "Most inside days are not wick plays. A day lower in the prior range is an inside day only.",
+    "Neither one can be the other": "Every strict wick play is an inside day, so the bar in the story is both.",
+    "A wick play must break the prior high": "A wick play sits inside the prior day's upper wick, so its high stays under the prior high."
    },
-   "story": "The small bar sits entirely above yesterday's body, inside yesterday's upper wick. Its high is under yesterday's high and its low is over yesterday's low. We call that a wick play."
+   "story": "The small bar sits entirely above yesterday's body, inside yesterday's upper wick. We call that a wick play.",
+   "simple": "Every strict wick play is an inside day, but most inside days are not wick plays.",
+   "deeper": {
+    "counter": "Most inside days are not wick plays. A day in the middle or lower part of yesterday's range is an inside day only. The wick play is the one that sits above yesterday's body top, inside its upper wick."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source: the criteria card",
+     "'wick play' is a house word with no unit yet",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q43",
@@ -1960,23 +2459,37 @@
    "criterion": "id.not_setup_alone",
    "q": "Take the break?",
    "choices": [
-    "No; no setup behind it",
-    "Yes; this bar is tight",
-    "Yes, but small size"
+    "No; the bar alone is no trade",
+    "Yes; the bar is tight and quiet",
+    "Yes, but at a small size only",
+    "No; wait for a second inside day"
    ],
-   "answer": "No; no setup behind it",
-   "why": "No. The inside day is an entry tool inside a bigger setup. A choppy range under a falling 50-day has nothing to enter. It is the B- end of the spots.",
+   "answer": "No; the bar alone is no trade",
+   "why": "No. The inside day is an entry tool inside a bigger setup, and there is no setup here. The bar alone is near random.",
    "lesson_line": "A quiet day in chop is just a quiet day in chop.",
    "facts": [
-    "c06",
-    "c54"
+    "c06"
    ],
    "house": true,
    "wrong": {
-    "Yes; this bar is tight": "Tight inside nothing is nothing. The location carries the edge.",
-    "Yes, but small size": "Small size does not create a setup. There is no structure here to buy."
+    "Yes; the bar is tight and quiet": "Tight inside nothing is nothing. The bar alone is near random.",
+    "Yes, but at a small size only": "Small size does not create a setup. The inside day is an entry tool for a setup, and there is none here.",
+    "No; wait for a second inside day": "A second inside day adds no setup behind the bar. The bar alone is near random."
    },
-   "story": "A stock in the middle of a choppy range, under a falling 50-day, prints a tight inside day."
+   "story": "A stock has gone sideways in a choppy range for weeks, under a falling 50-day. No breakout, gap or pullback sits behind it. Today it prints a tight inside day.",
+   "simple": "No, because with no breakout, gap or pullback behind it, the tight bar is not a setup.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the location rows are a held decision (D-066)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-066"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q45",
@@ -1987,11 +2500,12 @@
    "q": "Take it?",
    "choices": [
     "No; under $10 and $20 million",
-    "Yes; the bar is the bar",
-    "Yes, small"
+    "Yes; the chart is clean enough",
+    "No; it must first clear its 200-day",
+    "Yes, if my size exits in one day"
    ],
    "answer": "No; under $10 and $20 million",
-   "why": "No. Price $10 or more and $20 million or more traded a day. The chart is fine and the stock is not ours.",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one is under both floors, so it is not ours however clean the chart looks.",
    "lesson_line": "A clean bar in a thin stock is still a thin stock.",
    "facts": [
     "c10",
@@ -1999,10 +2513,20 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the bar is the bar": "The liquidity rule comes before the chart.",
-    "Yes, small": "Size does not make a thin stock liquid."
+    "Yes; the chart is clean enough": "The liquidity rule comes before the chart. A clean chart in a thin stock is still a thin stock.",
+    "No; it must first clear its 200-day": "The story gives no 200-day reading. The stated fail is the floor: $10 and $20 million a day.",
+    "Yes, if my size exits in one day": "The rule is a floor on the stock: $10 or more and $20 million or more traded a day. Your own size does not move it."
    },
-   "story": "A $6 stock trading $4 million a day prints a perfect inside day after a breakout."
+   "story": "A $6 stock trading $4 million a day prints a perfect inside day after a breakout.",
+   "simple": "No, because this stock is under both of our floors for price and daily dollars traded.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's price and volume floors"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q46",
@@ -2010,15 +2534,30 @@
    "rung": 6,
    "format": "tf",
    "criterion": "id.after_entry_stop",
-   "q": "In our four failure examples, the entry day held above the inside day's high in each one.",
-   "answer": "False",
-   "why": "False. In all four the entry day itself closed back under the inside day's high. That close is the warning; the stop is the exit.",
+   "q": "In each of our four failure examples, NVDA, TSLA, NFLX and AMZN, the entry day closed back under the inside day's high.",
+   "answer": "True",
+   "why": "True. All four were stopped on the first session after the entry. In all four, the entry day itself closed back under the inside day's high. That close is the warning; the stop is the exit.",
    "lesson_line": "A break that does not hold into the close is a warning. The stop is still the exit.",
    "facts": [
     "d10",
+    "d10b",
     "c41"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. In all four failures the entry day closed back under the inside day's high, which is a warning.",
+   "deeper": {
+    "trap": "The count covers only the four failures we looked at. It does not show that every weak close fails. The weak close is a warning, not an exit."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one cited fact: our own dossier",
+     "numbers read from our own bars",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q47",
@@ -2064,14 +2603,28 @@
     },
     "round": 2
    },
-   "why": "1.33 ATR. The stop distance divided by the ATR. The card flags a stop over 1 ATR as wide: size down or skip, and never the mother low.",
+   "why": "1.33 ATR. The stop distance divided by the ATR. Over 1 ATR is wide, so we size down or skip, and never use the mother low to give it room. Kullamagi also keeps the stop no wider than the ATR or ADR.",
    "lesson_line": "Measure the stop in ATR. Over one ATR, size down or skip.",
    "facts": [
     "c15",
     "k03"
    ],
    "suffix": " ATR",
-   "house": true
+   "house": true,
+   "simple": "The stop is 1.33 ATR away, which is over 1 ATR, so it counts as wide.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "a computed key",
+     "the 1 ATR gate is a held decision (D-005)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q49",
@@ -2081,12 +2634,13 @@
    "criterion": "id.shape",
    "q": "Inside day, Kicker, or gap trade?",
    "choices": [
-    "A Kicker; gap over a weak red day",
+    "A Kicker, its own setup",
     "An inside day break after the gap",
-    "Nothing; we skip gaps this size"
+    "Nothing; we skip gaps this size",
+    "A gap trade; the gap is over 4%"
    ],
-   "answer": "A Kicker; gap over a weak red day",
-   "why": "A Kicker. It needs a weak red day closing in the lowest 35% of its range. Then a gap of 1.5% or more over its close. An inside day is a quiet bar bought over its own high.",
+   "answer": "A Kicker, its own setup",
+   "why": "A Kicker. It needs a weak red day closing in the lowest 35% of its range. Then it needs a gap of 1.5% or more over that close. Here the gap is 3%, and today trades above yesterday's high. An inside day is a quiet bar bought over its own high.",
    "lesson_line": "Check the bar before the gap. A weak red day under a gap is the Kicker.",
    "facts": [
     "c32",
@@ -2094,10 +2648,24 @@
    ],
    "house": true,
    "wrong": {
-    "An inside day break after the gap": "There is no inside day here. Today gapped over yesterday's high; nothing sat inside it.",
-    "Nothing; we skip gaps this size": "A gap is a setup of its own. This one has a name: the Kicker."
+    "An inside day break after the gap": "There is no inside day here. Yesterday made a lower low, and today trades through its high.",
+    "Nothing; we skip gaps this size": "A gap is a setup of its own. This one has a name: the Kicker.",
+    "A gap trade; the gap is over 4%": "The 4% line is for a gap over an inside day's high. This gap is 3% over the close, and there was no inside day."
    },
-   "story": "Yesterday was a weak red day closing in the bottom of its range. Today gaps 3% over its close and trades through yesterday's high."
+   "story": "Yesterday made a lower low than the day before. It was a weak red day, closing in the lowest 35% of its range. Today gaps 3% over its close and trades through yesterday's high.",
+   "simple": "It is a Kicker: a weak red day followed by a gap up. An inside day is a quiet bar inside the day before.",
+   "deeper": {
+    "trap": "Check the bar before the gap. A day that trades above yesterday's high cannot have been an inside day. An inside day's high stays below the day before. A weak red day closing near its low, then a gap, points to the Kicker."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source: the criteria card",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q50",
@@ -2108,21 +2676,40 @@
    "story": "A clean inside day sits three sessions after an earnings gap. It closes 14% over its 10-day average.",
    "q": "Take the break?",
    "choices": [
-    "No; it is too stretched",
-    "Yes; the bar is very clean",
-    "Yes, but on half size"
+    "No; the stock is too stretched",
+    "Yes; the bar is clean and tight",
+    "Yes, but on half the usual size",
+    "No; earnings were too recent"
    ],
-   "answer": "No; it is too stretched",
-   "why": "No. Skip a long that is more than 10% above its 10-day average. This one closes 14% over it, so the pause came too high.",
+   "answer": "No; the stock is too stretched",
+   "why": "No. We skip a long that is more than 10% above its 10-day average. This one closes 14% over it, so the pause came too high. A clean bar does not fix a stretched stock.",
    "lesson_line": "A clean bar, too far above its average, is still a pass.",
    "facts": [
-    "h13"
+    "h13",
+    "h08"
    ],
    "wrong": {
-    "Yes; the bar is very clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
-    "Yes, but on half size": "Half size does not cure a stretch. Skip the long over the line."
+    "Yes; the bar is clean and tight": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
+    "Yes, but on half the usual size": "Half size does not cure a stretch. Skip the long over the line.",
+    "No; earnings were too recent": "The earnings rule covers the 3 days before a report. This report is already past. The stretch is the problem."
    },
-   "house": true
+   "house": true,
+   "simple": "No, because a close 14% over the 10-day average is past our 10% limit.",
+   "deeper": {
+    "trap": "A clean pause three sessions after an earnings gap looks safe, because the news is known. The stretch rule ignores how clean the bar is. It asks only how far the stock sits over its 10-day average, and 14% is past the 10% line."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "which 10-day average the rule means is a held decision (D-017)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-017"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q51",
@@ -2133,22 +2720,37 @@
    "q": "What is the inside day here?",
    "choices": [
     "The flag's entry, not a setup",
-    "A second setup; two buys",
-    "A warning; the flag has failed"
+    "A second setup; take two buys",
+    "A warning; the flag has failed",
+    "Noise; the flag ignores single bars"
    ],
    "answer": "The flag's entry, not a setup",
-   "why": "The flag's entry. An inside day inside a flag is the flag's entry, not a second setup. One structure, one trade, one stop.",
+   "why": "The flag's entry. An inside day inside a flag is the flag's entry, not a second setup. The flag is the setup; the quiet day is how you get in.",
    "lesson_line": "The structure is the setup. The quiet day is how you get in.",
    "facts": [
     "c34",
-    "c06"
+    "c06",
+    "c48"
    ],
    "house": true,
    "wrong": {
-    "A second setup; two buys": "Full size at one price with one stop. The inside day times the flag's entry; it does not double it.",
-    "A warning; the flag has failed": "A quiet day inside a flag is the drift the flag wants, not a failure."
+    "A warning; the flag has failed": "Nothing here says the flag has failed. An inside day inside a flag is the flag's entry.",
+    "Noise; the flag ignores single bars": "It is not noise. The inside day is how you get into the flag.",
+    "A second setup; take two buys": "The inside day is not a second setup. It is the flag's entry, so there is one trade, not two."
    },
-   "story": "A 20% pole, then eight sessions of quiet drift. The sixth drift day is an inside day."
+   "story": "A 20% pole, then eight sessions of quiet drift. The sixth drift day is an inside day.",
+   "simple": "It is the flag's entry, not a new setup. The flag is the setup and the quiet day is how you get in.",
+   "deeper": {
+    "trap": "Do not grade the quiet day alone. The bar alone is near random. The stock, the location and the market carry the edge. The quiet day only times the entry."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card, a look-alike line"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q52",
@@ -2183,16 +2785,28 @@
    "rung": 7,
    "format": "tf",
    "criterion": "id.trend_200",
-   "q": "Bulkowski found that the trend leading into an inside day is upward only 53% of the time.",
+   "q": "Bulkowski found that the trend leading into an inside day is upward 53% of the time.",
    "answer": "True",
-   "why": "True. There is no requirement of a trend leading to the inside day; the trend is upward 53% of the time. The bar alone is near random, so we add the 200-day and the location.",
+   "why": "True. Bulkowski writes that no trend is required before an inside day, and that the trend is upward 53% of the time. Our card cites that 53% when it calls the bar alone near random. So we add the 200-day and the location.",
    "lesson_line": "The bar does not know which way. The trend and the location do.",
    "facts": [
     "bk02",
     "c35",
     "c04"
    ],
-   "house": true
+   "house": true,
+   "simple": "True. Bulkowski found the trend into an inside day is up 53% of the time, so we add our own trend rules.",
+   "deeper": {
+    "trap": "Do not read 53% as a bullish tilt. It is how often the trend into an inside day was up, not a win rate. It says an inside day does not need an uptrend, so we add our own."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a figure on a web page that is updated over time"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q54",
@@ -2202,7 +2816,7 @@
    "criterion": "id.earnings_window",
    "q": "What do you do?",
    "answer": "Sell; hold through only if up 5R",
-   "why": "Sell. Hold through a report only if the trade is up 5R, and this one is at 2R.",
+   "why": "Sell. We hold through an earnings report only if the trade is up 5R, and this one is at 2R. The stop does not change that: the rule is about the report, not the stop.",
    "lesson_line": "Hold through a report only at 5R. Below that, take the money before it.",
    "facts": [
     "h08",
@@ -2213,12 +2827,26 @@
    "choices": [
     "Sell; hold through only if up 5R",
     "Hold; it is working well so far",
-    "Hold; the stop is at breakeven now"
+    "Hold; the stop is at breakeven now",
+    "Sell half; hold the rest through it"
    ],
    "wrong": {
-    "Hold; it is working well so far": "Working at 2R is not 5R. A report can gap through any stop.",
-    "Hold; the stop is at breakeven now": "A report can gap through the stop. Below 5R, the rule is to be out before it."
-   }
+    "Hold; it is working well so far": "The rule asks for 5R before holding through a report, and this trade is at 2R.",
+    "Hold; the stop is at breakeven now": "The rule does not depend on where the stop sits. Below 5R, we are out before the report.",
+    "Sell half; hold the rest through it": "Half left on is still held through the report. Below 5R the rule is to be out before it."
+   },
+   "simple": "Sell before the report. We only hold through earnings when the trade is up 5R, and this one is at 2R.",
+   "deeper": {
+    "counter": "Flip the story. The same trade up 5R may be held through the report, because the rule allows it once the trade is up 5R. At 2R the rule is to be out before it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's earnings rule"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q55",
@@ -2229,22 +2857,33 @@
    "q": "Trade them tomorrow?",
    "choices": [
     "Wait for the indexes to break",
-    "Yes; three setups is a list",
-    "Yes, half size"
+    "Yes; the inside days point up",
+    "No; skip inside days all week",
+    "Yes; leaders ignore the index"
    ],
    "answer": "Wait for the indexes to break",
-   "why": "Wait. When the indexes print a cluster of inside days, wait for the break. Contraction comes before expansion, in either direction.",
+   "why": "Wait. When the indexes print a cluster of inside days, wait for the break. Contraction comes before expansion, in either direction. The market carries part of the edge, and it has not picked a side.",
    "lesson_line": "Coiled indexes break both ways. Let them pick first.",
    "facts": [
     "c26",
-    "c50"
+    "c48"
    ],
    "house": true,
    "wrong": {
-    "Yes; three setups is a list": "Three breaks into an undecided market are three coin flips.",
-    "Yes, half size": "Half size does not tell you which way the market breaks."
+    "Yes; the inside days point up": "An inside day does not call a direction. Contraction comes before expansion, in either direction.",
+    "No; skip inside days all week": "The card says wait for the break, not skip the week.",
+    "Yes; leaders ignore the index": "The market carries part of the edge, and the indexes have not picked a side. Even a leader trades into that."
    },
-   "story": "SPY and QQQ both printed inside days today. Your focus list holds three inside-day breaks for tomorrow."
+   "story": "SPY, QQQ and IWM, the big index ETFs, all printed inside days today. Your focus list holds a few inside-day breaks for tomorrow.",
+   "simple": "Wait for the indexes to break first. After a quiet stretch the move can go either way.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source: the criteria card, a proposed criterion"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q56",
@@ -2252,25 +2891,42 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "id.trail",
-   "q": "Crabel took profits at the close of the first day. Is that our exit?",
+   "q": "Crabel usually took profits at the close of the first day. Is that our exit?",
    "choices": [
     "No; ours is trims and a trail",
     "Yes; same bar, same exit",
-    "Yes, if volume is light"
+    "Yes, on the first profitable close",
+    "No; ours is Bulkowski's target"
    ],
    "answer": "No; ours is trims and a trail",
-   "why": "No. Crabel's exit is the close of the first trading day. Ours is a third at 3R, a third at 5R and a trail.",
+   "why": "No. Crabel took profits at the close of the first trading day, or on the first profitable close. That is not our exit. Ours is a third at 3R, a third at 5R and a trail on the last third.",
    "lesson_line": "Same bar, different trade. Ours holds for the trims and the trail.",
    "facts": [
     "sc06",
     "c49",
-    "h05"
+    "h05",
+    "h20",
+    "sc02",
+    "h15"
    ],
    "house": true,
    "wrong": {
     "Yes; same bar, same exit": "The bar is the same. The exit is not: ours is trims and a trail.",
-    "Yes, if volume is light": "Volume does not change the exit."
-   }
+    "No; ours is Bulkowski's target": "Bulkowski's target of twice the pattern height is not ours either. Ours is a third at 3R, a third at 5R and a trail.",
+    "Yes, on the first profitable close": "That was Crabel's other exit. It is not ours either. Ours is trims and a trail."
+   },
+   "simple": "No. Crabel usually sold at the first close, but we sell thirds at 3R and 5R and trail the rest.",
+   "deeper": {
+    "counter": "StockCharts says a narrow-range trade should start working right away, and Crabel took profits quickly. Our trade runs longer. We sell a third at 3R, a third at 5R and trail the rest. A trade still under 1R after 10 trading days is sold."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's trim and trail rules"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q57",
@@ -2282,23 +2938,44 @@
    "choices": [
     "Buy 55.02, stop 54.28, a third at 3R",
     "Buy 55.02, stop 52.00, and hold it all",
-    "Wait for the close; mother-low stop"
+    "Wait for the close; mother-low stop",
+    "Buy 55.02, stop 54.28, no trims"
    ],
    "answer": "Buy 55.02, stop 54.28, a third at 3R",
-   "why": "Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28. A third comes off at 3R, which took two days.",
+   "why": "Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28. A third comes off at 3R, which took two days. Then another third at 5R, and trail the last third.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
    "facts": [
     "d04",
     "c14",
     "h22",
-    "h05"
+    "h05",
+    "h20",
+    "h21",
+    "d17"
    ],
    "house": true,
    "wrong": {
     "Buy 55.02, stop 52.00, and hold it all": "The stop belongs a few cents under the inside day's low, 54.28. And a third comes off at 3R.",
-    "Wait for the close; mother-low stop": "The trigger is the trade over the high, our default, not the close. The mother low is the named mistake."
+    "Wait for the close; mother-low stop": "The trigger is the trade over the high, our default, not the close. The mother low is the named mistake.",
+    "Buy 55.02, stop 54.28, no trims": "The stop is right, but a fixed stop with no trims is a loser on average unless the winners are trailed. A third comes off at 3R."
    },
-   "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high."
+   "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
+   "simple": "Buy at market, put the stop just under the inside low, and sell a third at 3R.",
+   "deeper": {
+    "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. Three R takes the first third, five R the second, and the last third trails the 10-day or the 21-day. Written before the open, the plan leaves nothing to argue about when the stock moves."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "entry timing is a held decision (D-003)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q58",
@@ -2308,23 +2985,37 @@
    "criterion": "id.market_reading",
    "q": "What does Yellow change?",
    "choices": [
-    "Smaller and fewer",
-    "Nothing; Yellow is Green",
-    "A+ only"
+    "Smaller and fewer than in Green",
+    "Nothing; Yellow acts like Green",
+    "Only A+ setups get taken",
+    "Mostly cash, plus shorts only"
    ],
-   "answer": "Smaller and fewer",
-   "why": "Smaller and fewer. Green or Yellow for the setup; Yellow means smaller and fewer, Orange A+ only, Red mostly cash.",
-   "lesson_line": "Yellow is a go, with the size turned down.",
+   "answer": "Smaller and fewer than in Green",
+   "why": "Smaller and fewer. The market reading is a guide. Green is full risk per grade and up to 10 positions. Yellow is smaller and fewer. Orange takes only A+ setups, and Red is mostly cash and shorts. Inside days are for Green or Yellow.",
+   "lesson_line": "Yellow is still a go, but smaller and fewer.",
    "facts": [
     "c25",
     "h26"
    ],
    "house": true,
    "wrong": {
-    "Nothing; Yellow is Green": "Green is full risk. Yellow is smaller and fewer.",
-    "A+ only": "A+ only is Orange. Yellow still allows a B, at smaller size."
+    "Nothing; Yellow acts like Green": "Green is full risk and up to 10 positions. Yellow is smaller and fewer.",
+    "Only A+ setups get taken": "A+ only is Orange. Yellow is smaller and fewer, and the card takes inside days in Green or Yellow.",
+    "Mostly cash, plus shorts only": "That is Red. In Yellow the inside days on your list can still be taken, smaller and fewer."
    },
-   "story": "The reading is Yellow. Two inside days on your list, both graded B."
+   "story": "The reading is Yellow. Two inside days sit on your list.",
+   "simple": "Yellow means you still trade, but smaller and fewer than in Green.",
+   "deeper": {
+    "trap": "The reading is a guide. Yellow means smaller and fewer than Green. The setup must still pass every other rule."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's market reading, a guide that may change"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q59",
@@ -2335,22 +3026,39 @@
    "q": "Buy again?",
    "choices": [
     "Yes; a new trade, its own stop",
-    "No; one try per stock",
-    "Yes, with the stop under Monday's low"
+    "No; one try per stock each week",
+    "Yes, with the stop under Monday's low",
+    "Yes, at double size to win it back"
    ],
    "answer": "Yes; a new trade, its own stop",
-   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. Here a new inside day printed and its high traded. The limit is 3 tries in a week and 6 in a month on one stock. This is the second try this week.",
    "lesson_line": "A stop-out is not a verdict on the setup. The next trigger is a new trade.",
    "facts": [
     "h28",
-    "h29"
+    "h29",
+    "h01",
+    "h03",
+    "c14"
    ],
    "house": true,
    "wrong": {
-    "No; one try per stock": "The limit is 3 tries in a week and 6 in a month, not one.",
-    "Yes, with the stop under Monday's low": "The stop is the new inside day's low. Monday's low is the old trade."
+    "Yes, with the stop under Monday's low": "The stop is under the new inside day's low. Monday's low belongs to the old trade.",
+    "No; one try per stock each week": "The limit is 3 tries in a week and 6 in a month on one stock, not one.",
+    "Yes, at double size to win it back": "A new trade follows every rule, sizing included. The size comes from the stop and the risk percent, not from the last loss."
    },
-   "story": "Stopped out of an inside-day break on Monday. Wednesday prints a new inside day and Thursday trades over its high."
+   "story": "You bought an inside-day break on Monday, your first try on this stock this week, and were stopped out. Wednesday prints a new inside day and Thursday trades over its high.",
+   "simple": "Yes. A stop-out does not end the stock, and a fresh trigger is a new trade with its own stop and every rule.",
+   "deeper": {
+    "trap": "The pull after a loss is to size up and win it back. A re-entry is a new trade with every rule. The tries still count toward 3 a week and 6 a month."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's re-entry and tries rules"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q60",
@@ -2360,23 +3068,40 @@
    "criterion": "id.not_setup_alone",
    "q": "A leader breaks out of a base on Friday and you are not in. What do you watch for?",
    "choices": [
-    "An inside day or two up here",
-    "A buy at Monday's open, at market",
-    "A pullback to the 200-day"
+    "An inside day or two after it",
+    "Buy at once, even 6% over the buy point",
+    "A deep pullback to the 200-day",
+    "A narrow-range day, an NR7"
    ],
-   "answer": "An inside day or two up here",
-   "why": "An inside day or two up here. The breakout is the setup; the inside day is the entry tool inside it.",
+   "answer": "An inside day or two after it",
+   "why": "An inside day or two after it. The breakout is the setup, and the inside day is the entry tool inside it. UCT's Sunday Scan on SHOP says the same: if you are not in, look for an inside day or two.",
    "lesson_line": "Missed the breakout, so watch for the quiet day after it. That is the second door.",
    "facts": [
     "u05",
-    "c06"
+    "c06",
+    "c14",
+    "h11",
+    "c46"
    ],
    "house": true,
    "wrong": {
-    "A buy at Monday's open, at market": "Chasing Monday's open is a buy with no level under it. The inside day gives the level.",
-    "A pullback to the 200-day": "A leader just out of a base is far from its 200-day. The inside day is the nearer, tighter entry."
+    "A deep pullback to the 200-day": "The note says an inside day or two right after the breakout, not a deep pullback.",
+    "A narrow-range day, an NR7": "A narrow-range day can still poke above the prior high. The note asks for an inside day or two.",
+    "Buy at once, even 6% over the buy point": "We never buy more than 4% above the buy point. Waiting for the quiet day gives a level and a stop."
    },
-   "story": "A leader breaks out of a base on Friday. You are not in."
+   "story": "A leader breaks out of a base on Friday. You are not in.",
+   "simple": "Watch for an inside day or two after the breakout. That quiet bar gives you a clear entry and stop.",
+   "deeper": {
+    "example": "UCT's Sunday Scan on SHOP said it finally broke out on Friday. If you were not in, look for an inside day or two."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's published Sunday Scan words"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q61",
@@ -2384,27 +3109,46 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "id.location",
-   "q": "Which gets the bigger size?",
-   "answer": "A; every cue lines up",
-   "why": "A. Just after a breakout, with clear air and a Green market, is the A+ end. An old high just overhead and the indexes printing inside days is the B- end.",
-   "lesson_line": "Same bar, different grade. The stock, the spot and the market decide the size.",
+   "q": "Which is the better inside-day buy?",
+   "answer": "A; more room, better market",
+   "why": "A. Both are leaders above the 200-day, but A has clear air and a Green market. B has an old high just overhead, the B- end. The indexes are printing inside days, so we wait for the break. The bar is the same; the stock, the spot and the market carry the edge.",
+   "lesson_line": "Same bar, different spot. The stock, the room and the market decide which one we buy.",
    "facts": [
     "c28",
     "c26",
     "c25",
-    "c48"
+    "c48",
+    "c04"
    ],
    "house": true,
-   "story": "Two inside days, both above the 200-day. A: a leader just after a breakout, Green market, clear air overhead. B: a leader under an old high just overhead, with the indexes printing inside days.",
+   "story": "Two inside days on different days, both leaders above the 200-day. A: just after a breakout, Green market, clear air overhead. B: under an old high just overhead, with the indexes printing inside days.",
    "choices": [
-    "A; every cue lines up",
-    "B; it has the tighter stop",
+    "A; more room, better market",
+    "B; the old high is a target",
+    "B; the indexes are coiling up",
     "Equal; the bar is the same"
    ],
    "wrong": {
-    "B; it has the tighter stop": "Nothing says B's stop is tighter. Its room and its market grade it down.",
-    "Equal; the bar is the same": "The bar is the same, but the market and the room are not. They carry the edge."
-   }
+    "Equal; the bar is the same": "The bar is the same, but the room and the market differ. They carry the edge, not the bar alone.",
+    "B; the old high is a target": "An old high just overhead is the B- end of the room, not a target.",
+    "B; the indexes are coiling up": "Inside days in the indexes mean wait for the break. Contraction comes before expansion, in either direction."
+   },
+   "simple": "A is the better buy, because its room and its market line up and B's do not.",
+   "deeper": {
+    "trap": "The trap is to grade the bar. Both are inside days above the 200-day, so the bar does not separate them. Look at the room overhead and the market behind it. The stop still sits under the inside day's low."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the A+ and B- location rows are a held decision (D-066)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-066"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q62",
@@ -2415,28 +3159,47 @@
    "q": "Hidden ticker, an inside day days after a breakout. Is it above the 200-day with the 50-day over it? Take it or pass.",
    "choices": [
     "Take it; the lines are stacked",
-    "Pass; under the 200-day",
-    "Pass; the 50-day is under the 200"
+    "Pass; price is under the 200-day",
+    "Pass; the 50-day is under the 200",
+    "Take it; the tiny bar is better"
    ],
    "answer": "Take it; the lines are stacked",
-   "why": "Take it. Above the 200-day with the 50-day over it, days after a breakout, on light volume. The break came the next session and reached 3R in two days.",
+   "why": "Take it. The inside day sits above a rising 50-day and 200-day, with the 50-day over the 200-day. It came four days after a breakout, on light volume. The break came the next session and reached 3R in two days.",
    "lesson_line": "Check the lines and the location before the bar. Stacked, after a breakout: that is the spot.",
    "facts": [
     "c04",
     "h10",
-    "d04"
+    "d04",
+    "d19",
+    "tl04",
+    "c08",
+    "c05"
    ],
    "house": true,
    "wrong": {
-    "Pass; under the 200-day": "Price sits well above the 200-day here, days after a breakout.",
-    "Pass; the 50-day is under the 200": "Look again: the 50-day runs above the 200-day."
+    "Pass; the 50-day is under the 200": "Look again: the 50-day runs above the 200-day.",
+    "Pass; price is under the 200-day": "Price sits above the 200-day on this chart, days after a breakout.",
+    "Take it; the tiny bar is better": "A tiny inside day is not better. The reason to take it is the location: above the 200-day, with the 50 over it."
    },
    "chart": {
     "sym": "NVDA",
     "asof": "2024-01-12",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Take it. The price is above the 200-day, the 50-day is over it, and this is days after a breakout.",
+   "deeper": {
+    "trap": "Do the lines first, then the bar. An inside day under the 200-day is not ours, however clean it looks. The full stack of the 8, 21 and 50-day is only a cue."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the hard 200-day rule",
+     "the chart read rests on the dossier"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q63",
@@ -2448,10 +3211,11 @@
    "choices": [
     "Pass; its high is above yesterday's",
     "Take it; the narrowest day in a week",
-    "Take it; the low is inside"
+    "Take it; its low is inside yesterday's",
+    "Pass; the bar is too narrow to trade"
    ],
    "answer": "Pass; its high is above yesterday's",
-   "why": "Pass. The high is 0.30% above the prior day's high while the low is 1.26% inside; both ends must be inside. A narrow-range day after a breakout, not an inside day.",
+   "why": "Pass. The high is 0.30% above the prior day's high, while the low is 1.26% inside. Both ends must be inside. So this is a narrow-range day after a breakout, not an inside day.",
    "lesson_line": "Narrow is not inside. The high gives it away.",
    "facts": [
     "c01",
@@ -2462,14 +3226,31 @@
    "house": true,
    "wrong": {
     "Take it; the narrowest day in a week": "A narrow day can still poke above yesterday's high. This one did.",
-    "Take it; the low is inside": "One end inside is half a definition. The high is above yesterday's."
+    "Take it; its low is inside yesterday's": "One end inside is half a definition. The high is above yesterday's.",
+    "Pass; the bar is too narrow to trade": "A narrow bar is not banned. This one fails because its high is above yesterday's, so it is not an inside day."
    },
    "chart": {
     "sym": "MSFT",
     "asof": "2024-02-08",
     "window": 120,
     "forward": 20
-   }
+   },
+   "simple": "Pass. The high is above yesterday's high, so only one end is inside and it is not an inside day.",
+   "deeper": {
+    "trap": "Hindsight trap: bought over its high, this bar went 1.7R. That says nothing about the rule. It was a narrow-range day after a breakout, not an inside day. One good result cannot make it one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "bar numbers read from our own bars",
+     "tied to the held decision D-002 on the narrow-range look-alike"
+    ]
+   },
+   "depends_on": [
+    "D-002"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q64",
@@ -2481,23 +3262,45 @@
    "choices": [
     "Take it; stock, spot, market agree",
     "Pass; the bar alone is near random",
-    "Wait for the close to confirm"
+    "Take it; stop at the mother low",
+    "Take it, at half the usual size"
    ],
    "answer": "Take it; stock, spot, market agree",
-   "why": "Take it, at market. The bar alone is near random; the stock, the location and the market carry the edge, and all three agree here. Our Sunday Scans point to this picture: an inside day and a higher low at a rising 20 EMA.",
+   "why": "Take it, at market. The bar alone is near random, but the stock, the location and the market carry the edge, and all three agree here. Our Sunday Scans point to this picture: an inside day and a higher low at a rising 20 EMA. The trigger is the trade over the high.",
    "lesson_line": "When the stock, the spot and the market all say yes, the quiet day is the door.",
    "facts": [
     "c06",
     "c48",
     "u02",
-    "h22"
+    "h22",
+    "d07",
+    "d08",
+    "h26",
+    "c15"
    ],
    "house": true,
    "wrong": {
-    "Pass; the bar alone is near random": "Alone, yes. Here it sits inside a leader's pullback in a Green market. That is the setup.",
-    "Wait for the close to confirm": "The trigger is the trade over the high, bought at market. Our default does not wait for the close."
+    "Pass; the bar alone is near random": "Alone, yes. Here the stock, the spot and the market all agree, so it is not the bar alone.",
+    "Take it, at half the usual size": "The market is Green and the stock, spot and market agree. Green means full risk for the grade. Nothing here calls for half.",
+    "Take it; stop at the mother low": "Never use the mother low just to give it room. The stop stays a few cents under the inside day's low."
    },
-   "story": "A clean inside day at a rising 20-day in a leader. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades."
+   "story": "A clean inside day at a rising 20-day in a leader above its 200-day. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades.",
+   "simple": "Take it, because the stock, the spot and the market all agree, even though the bar alone is near random.",
+   "deeper": {
+    "trap": "The trap is to read 'near random' as 'never'. In our test, only 26.7% reached 3R and 88.2% were eventually stopped. The rule set is a filter, not an edge by itself. We buy it where the stock, the spot and the market agree, and manage it with the stop, trims and trail."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "entry timing is a held decision (D-003)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-003"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q65",
@@ -2505,17 +3308,65 @@
    "rung": 9,
    "format": "tf",
    "criterion": "id.stop",
-   "q": "Breakout whipsaws can be brutal, so the stop is a real order a few cents under the inside day's low.",
-   "answer": "True",
-   "why": "True. Breakout strategies win often, but whipsaws can be brutal. A real stop order, a few cents under the inside day's low, keeps a whipsaw small.",
-   "lesson_line": "The stop is an appointment, not a debate.",
+   "q": "A stop kept in your head is enough for an inside-day buy.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head. For an inside-day buy it sits a few cents under the inside day's low.",
+   "lesson_line": "A stop in your head is not a stop. Use a real order.",
    "facts": [
-    "ra01",
+    "h18",
     "c14",
     "h24",
-    "h18"
+    "h06",
+    "h07"
    ],
-   "house": true
+   "house": true,
+   "simple": "False. We use a real stop order with the broker, a few cents under the inside day's low.",
+   "deeper": {
+    "trap": "A real stop order is not the whole answer. When a stock gaps open under the stop, our gap rule applies. The first 30-minute low becomes the new stop, and a loss past 2R means out."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's real-stop-order rule"
+    ]
+   },
+   "batch": "wave4"
+  },
+  {
+   "key": "q66",
+   "skill": "setup.inside_day",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Size follows the setup's grade. What happens to the size on a B- setup?",
+   "choices": [
+    "Sized down from normal size",
+    "Sized up, as for an A+ setup",
+    "Normal size, the same as a B",
+    "Skipped; only A and B trade"
+   ],
+   "answer": "Sized down from normal size",
+   "why": "Sized down. Our rule sets size by grade: A and B setups are normal size, A+ is sized up, and B- or lower is sized down. How a setup earns its grade is a judgment call, not a checklist.",
+   "lesson_line": "Grade sets the size. A+ up, A and B normal, B- down.",
+   "facts": [
+    "h38",
+    "h50"
+   ],
+   "house": true,
+   "wrong": {
+    "Sized up, as for an A+ setup": "A+ setups are sized up. B- or lower is sized down.",
+    "Normal size, the same as a B": "A and B setups are normal size. B- or lower is sized down.",
+    "Skipped; only A and B trade": "The rule says B- or lower is sized down. It does not say to skip it."
+   },
+   "simple": "It is sized down. A and B setups are normal size, A+ is sized up, and B- or lower is sized down.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "rests on the owner's rulebook, D38 and E50"
+    ]
+   },
+   "batch": "wave4"
   }
  ],
  "conflicts": [
@@ -2559,39 +3410,39 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Key is the shape that strict (Crabel, Bulkowski) and tie-allowing (Brooks) share, so D-063 is not leaned on. cr01/bk01/tl01/mi01/sc01 verbatim on the sources (web quotes found). Wrong notes true. Choices 40 characters or fewer. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Both ends inside is right and rests on c01, cr01, bk01, tl01, mi01. Key is not the longest choice. NR7 note rests on sc01 and c46. No tell found."
   },
   "q02": {
    "status": "pass",
-   "notes": "c06 verbatim on the card (criterion id.not_setup_alone, proposed; its basis is the owner's own approach plus Bulkowski's 53% and the dossier test). Key right. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c06 and c48 support False. Stem is the card's own line negated. No second answer."
   },
   "q03": {
    "status": "pass",
-   "notes": "Settled: id.stop (A3, F62), id.stop_wide. k03 and bk04 verbatim on the web sources. Wrong notes true. variety rewrite checked 2026-11-10; edited: wrong note for the entry-stop choice reworded (choice is under the entry, not at it).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key matches c14/h24/c15. Key is tied-shortest. Seven percent note grounded in bk04 and h04."
   },
   "q04": {
    "status": "pass",
-   "notes": "c04 and h10 verbatim. The 200-day half is B26 (hard). The 50-over-200 half is the card's settled id.trend_200 but the card's own evidence says it is the dossier's proposal, not B26; the key (200) does not depend on it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "200 per c04/h10; sentence gives the 50-day over it, bank plausible."
   },
   "q05": {
    "status": "pass",
-   "notes": "c02 is a proposed criterion ('my proposal'; the term is a common price-action label, not in the sources) so the key is a naming convention, kept because the walk-throughs and later questions use 'mother bar' and the item defines it plainly. mi01/tl01 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "True, c02 verbatim. A vocabulary item, flagged for the owner as the card's own name."
   },
   "q06": {
    "status": "pass",
-   "notes": "c03 proposed; the card's alternative reading (days inside the first mother bar) also gives 'two'. mi02/br02 verbatim. Key right under both.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q07": {
    "status": "cut",
@@ -2601,27 +3452,27 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "d17 says the buys lose on average 'unless the winners are trailed'; nobody tested a trim-and-trail plan, so 'what fixes that' with 'the trims and the trail' over-claimed. Rewritten to what d17 says (a trail on the winners). 'the scan' (an untaught research word) became 'our test'. Lesson line no longer says 'that is where the money is'. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (d17). The why says 'Our dossier', internal jargon that clashes with the stem's 'Our research'. Reworded."
   },
   "q09": {
    "status": "pass",
-   "notes": "52.00 = 50.00 x 1.04, rechecked. Facts listed c10 (the liquidity line) instead of c13 (the 4% gap line); corrected.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "50.00 x 1.04 = 52.00; c13/h11."
   },
   "q10": {
    "status": "pass",
-   "notes": "B22 verbatim (h08), c12 verbatim. Key right.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "c21 (proposed id.inv_low_first) and sc05 verbatim. The story's resting order is the same under D-038 either way. Key right; wrong notes true. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c21 supports the key. Story gives low trading before the high. Two Nothing/Not-yet distractors are refuted by c21. Key is not the longest. No overlap with q30 that gives it away in order."
   },
   "q12": {
    "status": "cut",
@@ -2631,129 +3482,129 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "c08 verbatim (proposed id.not_tighter_better, a cue). The wrong note 'Tighter did worse in the test' was unsourced and the scan's own cuts show a stop of 2% or tighter slightly ahead (27.1% vs 25.9% to 3R); replaced with the card's wording. The garbled 'gets hit by nothing at all' note is plain now.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Teaches the 0.4 ATR cut-off through a 0.3 ATR story, against rulebook E50 (no fixed grading checklist taught as ours). The key reason 'its low sits in the noise' is not in the story, ATR is undefined, 'always' is a lone absolute, and the key is the lone No. Rebuilt without numbers on c08's plain first sentence; choices no longer split Yes/No."
   },
   "q14": {
    "status": "pass",
-   "notes": "Red per F65/B18 (c25, h26 verbatim). The wrong note 'half a mistake' replaced with the rule; A10 makes the reading a guide, so the wording stays 'mostly cash'. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Red is mostly cash and shorts (c25, h26); the leader is above the 200-day so the short is wrong (h10). Key is not longest or lone."
   },
   "q15": {
    "status": "pass",
-   "notes": "Rests on E57 (market orders, settled) and E58 (regular hours, settled). The 'when' (trade-through, not the close) is the card default while D-003 is pending; the wrong note on 'wait for the close' no longer says it is wrong in itself, it says our default buys as it trades through.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (h22/h23). Tell: the key is the longest choice (36 chars against 34, 34, 31). Shortened to 33 so it sits mid-pack. The wrong-note keys are unchanged."
   },
   "q16": {
    "status": "pass",
-   "notes": "20.71 + 3 x (20.71 - 20.47) = 21.43, recomputed. Bars: JBLU 2003-08-07 inside, buy 2003-08-08, 3R 21.43 hit 2003-08-11 (the next session). d01/d01b verbatim in the dossier table.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q17": {
    "status": "pass",
-   "notes": "c22/c23 verbatim on the card (proposed id.inv_close_under_21). why split to sentences of 22 words or fewer. Requoted 2026-11-10: card text now reads 'An inside day under the fast average is a pause...'; why reworded to match. Key holds. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "requoter"
+   "by": "checker",
+   "fixed": false,
+   "notes": "c22, c23 support the key. Two buys and two skips. The 'Skip it; 8-day' choice shares the action but its reason is not in the story and the note says so, same design as q39/q45. Accepted."
   },
   "q18": {
    "status": "pass",
-   "notes": "c05 proposed (a cue); c04 settled. Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False, c05 verbatim; 200-day half rests on h10 (B26). The no-longs-below-200 line is the owner's rule. No problem."
   },
   "q19": {
    "status": "pass",
-   "notes": "C33 (h15) verbatim, sc02 verbatim on StockCharts. Key right.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q20": {
    "status": "pass",
-   "notes": "c28 proposed (room, a grade cue). Key right; wrong notes true.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key lowers the grade per c28 (a cue, not a ban). E50 discretion is an owner flag, not a defect."
   },
   "q21": {
    "status": "pass",
-   "notes": "The original keyed a pattern prediction as a fact (README section 4: candle and pattern predictions are never keyed as facts). Rewritten as what Bulkowski says (bk03, tl01 verbatim, two publishers), with 'not a guarantee'; 'usually resumes' softened.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "bk03 verbatim supports True; the caveat and the 200-day addition are fair. Not a duplicate of q53 (different facts). Bulkowski AI-use notice already flagged."
   },
   "q22": {
    "status": "pass",
-   "notes": "Settled: id.stop_wide (A3, A5, A13), c15/c36 verbatim. 4.5% is well over 3%. No share count asked. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "6% is well over 3% (c15); keep stop, cut shares; key is not longest; wrong notes grounded in c15/c36."
   },
   "q23": {
    "status": "pass",
-   "notes": "(41.09 - 40.45) / 41.09 = 1.5575%, rounds to 1.56, recomputed. Bars: ATI inside day 2006-01-19 inside 2006-01-18, trigger 41.09, stop 40.45 (inside low 40.50 minus 0.05). d05 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q24": {
    "status": "pass",
-   "notes": "(20.80 - 20.00) / 1.00 = 0.80. id.close_upper_half is pending (D-039); the item computes the position only and the why now says 'a cue and not a rule'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q25": {
    "status": "pass",
-   "notes": "R = 1.30; the gap open 47.80 is a 1.69R loss; the first 30-minute low 46.70 is a 2.54R loss, past the 2R ceiling, so out (B20 verbatim, h06/h07). Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "R = 1.30; 46.70 is 3.30 below, about 2.5R, past 2R, so out (h06/h07). Choices balanced."
   },
   "q26": {
    "status": "pass",
-   "notes": "F63 (h25) verbatim; 3.5R is past 3R, so the third comes off at the open. Key right. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (h25, 3.5R is past 3R). One wrong note says 'Breakeven is a separate step, between 2R and 5R', which hands q29 its whole answer. Rewrote that note."
   },
   "q27": {
    "status": "pass",
-   "notes": "d20 and c38 say AAPL sat about 17% under its 200-day; B26 verbatim. The item asks whether we would take it, not whether it worked. Key right.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (d20, c04, c38). Tell: the stem says 'under its 200-day' and the key repeats '200-day', the only choice that echoes it. Stem now says 'long-term average'; the 200-day is named only in the key and why."
   },
   "q28": {
    "status": "pass",
-   "notes": "Checked all four: only High 51.50 / Low 49.50 sits inside 52.00 / 49.00. Wrong notes true. Uses only the shape that strict and tie rules share.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Only 51.50/49.50 has both ends inside 49.00 to 52.00; the key is not the narrowest day."
   },
   "q29": {
    "status": "pass",
-   "notes": "B19 (h05) verbatim: breakeven 2R to 5R, at the first trim by default (card management). Lesson line 'earlier is noise; later is giving it back' was unsourced; replaced.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True per c17/h05; the first-trim line is accurate."
   },
   "q30": {
    "status": "pass",
-   "notes": "id.scenario_b is pending (D-002), so the original why ('the Oops off the inside day, stop under that day's low') keyed the Oops's own rules. Re-keyed on the proposed id.inv_low_first plus u06 (the RDDT scenario wording, verbatim). The story said 'reclaimed the prior close', ambiguous between two closes; it now says the inside day's low, which is what u06 names. 'Never both' in the lesson line was unsupported; replaced.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key grounded in c21, c31, u06. Held D-002 stays flagged. Leak: q11's why ends 'Watch for the reclaim instead', which answers this question; that is outside this chunk and needs q11 fixed."
   },
   "q31": {
    "status": "pass",
-   "notes": "(58.72 - 55.02) / (55.02 - 54.28) = 3.70 / 0.74 = 5.0, recomputed. The why said 'NVDA got there in days'; the dossier gives 3R in two days, not 5R, so the claim is removed. E51 says the 5R trim is adjustable, so 'by default'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "(58.72 - 55.02) / (55.02 - 54.28) = 3.70 / 0.74 = 5.0."
   },
   "q32": {
    "status": "pass",
-   "notes": "Bars: NFLX 2018-03-15 inside day (32.34 / 31.81 inside 32.39 / 31.77), buy 32.35 on 03-16, stop 31.76, close 31.84 at the low, next open 31.58 under the stop, low 30.73. Key (the weak close warns, the gap rule decides the exit) right by c24/c41/B20. A hypothetical-looking story with true numbers, no outcome invented. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c24, c40, c41 support the key. Numbers 32.35, 31.76, 31.84 are in c40; stop 31.76 under the day's low 31.84 is true. Breakeven note rests on c17. Gap rule removed so it does not collide with q47 or q25. No tell."
   },
   "q33": {
    "status": "pass",
-   "notes": "Bars: AMZN 2017-05-26 inside day after six up closes (05-18 to 05-25), buy 49.94 on 05-30, stop 49.41 (1.06%), next low 49.11, low 46.35 on 06-09 (8 sessions later). Numbers true. The old question 'Was the loss a mistake?' had an answer that did not answer it and 'No; A+ setups fail too' as a wrong choice; rewritten so the rules-followed loss is not framed as a mistake.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q34": {
    "status": "cut",
@@ -2763,51 +3614,51 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "d07/d08 verbatim: 26.7% to 3R, 88.2% eventually stopped, 101,129 buys. The truth sits between 26.7% and 30.7% (dossier caveat), so 'about one in four' stands. 'the scan' reworded to 'our test'. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "101,129 buys and 26.7%, 18.2%, 88.2% verified in dossier line 1002; 30.7% and 76,719 verified in d07c. Key is not the longest; 18.2% distractor is correctly the 5R share."
   },
   "q36": {
    "status": "pass",
-   "notes": "E51 (h20) says 'adjustable'; a flat TF overstated it. Now 'by default'. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q37": {
    "status": "pass",
-   "notes": "Bars: AAPL inside day 2017-08-01 (37.55 / 37.10 inside 37.58 / 37.03), next open 39.82 = 6.05% over the high, report that evening, stop 37.05 is 6.95% under the open. Key right on the gap alone (the earnings window also fails it; conflicts notes it). why split to sentences of 22 words or fewer.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "6.0% over, 4% line (c13, d15); 21-day EMA is on the card's own AAPL line; 6.95% from d16. The two No choices differ by reason and the 'we skip gaps' absolute is false by c13."
   },
   "q38": {
    "status": "pass",
-   "notes": "E52 (h21) and c51 verbatim. Key right. variety rewrite checked 2026-11-10; edited: wrong note no longer says nothing is banked (two thirds are).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "10-day or 21-day, close below (h21, c51); distractors false by the same facts."
   },
   "q39": {
    "status": "pass",
-   "notes": "C31 settled (h14, c11). Kept over q12. The B- row on the card ('RS under 80') conflicts with the gate; the item keys the gate.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key rests on rulebook C31 (RS 80 or more), which beats the card's B- row. Two Yes, two No. Distractor notes true. Owner flag on the B- row stands."
   },
   "q40": {
    "status": "pass",
-   "notes": "A5 caps the size at the smaller of the risk-based size and the 40% position cap (A7). The original (0.5% risk) gave 531 shares = 20,178 dollars = 40.4% of the account, over the cap (526 shares). Changed to 0.25% risk (A1 allows 0.25%; C37's new-trader rate): 125 / 0.47 = 265.96, rounded down to 265 shares = 10,070 dollars = 20.1% of the account. New fact h40 quotes A7.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "50,000 x 0.25% = 125; 125 / 0.47 = 265.96, rounded down 265; 265 x 38 is about 20%, under the 40% cap."
   },
   "q41": {
    "status": "pass",
-   "notes": "c09/c53/tl02/mo01 verbatim; a cue, per the card. The scan found lighter vs heavier within a point (26.6% vs 27.1% to 3R), so the item says 'grades higher', never 'wins more'.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c09 supports the key as a cue; dvol (26.6% vs 27.1%) is verified in the dossier and the deeper note says the cue is not an edge. Key is not the longest."
   },
   "q42": {
    "status": "pass",
-   "notes": "c29/c30 verbatim (the card's lookalike tell). 'Wick play' is a house word with no unit yet; the story now says what it is and names it, so the question no longer assumes it is taught. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "c29 and c30 verbatim. The story gives the strict geometry, so the key follows. 'Strict' is the card's word; acceptable."
   },
   "q43": {
    "status": "cut",
@@ -2817,21 +3668,21 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "The old why called the spot 'the B- end' and then said no trade; the card puts it in the B- row, not the no-trade list. Now the no rests on c06 (nothing to enter) and the B- mention is only a description. flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story states no setup behind the bar; key per c06 and D44. Second inside day adds no setup."
   },
   "q45": {
    "status": "pass",
-   "notes": "B23 (h09) verbatim; the story fails both halves. Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Rulebook B23 (h09) verbatim; $6 and $4 million are under both floors. Two Yes, two No; no second answer."
   },
   "q46": {
    "status": "pass",
-   "notes": "d10 verbatim; bars confirm NFLX (31.84 under 32.34) and AMZN (49.84 under 49.93). 'You will see most often' was unsupported (the four were picked as failures); removed. 'The scan's named failures' reworded. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "True, supported by d10 and d10b; dossier lines 1072-1075 and 1088 confirm each entry-day close is under the inside day's high. The stem names all four. Owner re-read of NVDA and TSLA bars already flagged."
   },
   "q47": {
    "status": "cut",
@@ -2841,27 +3692,27 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "(50.00 - 48.40) / 1.20 = 1.333, recomputed. Facts listed c13 (the gap line) instead of c15 (the wide-stop line); corrected. The 1 ATR line is on the card's settled id.stop_wide (the pending id.stop_size, D-005, is not asked). Stop is 3.2%, so the item does not claim it is 'well over 3%'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q49": {
    "status": "pass",
-   "notes": "c32/c33 verbatim (card lookalike). Story: 3% gap is over 1.5%, trades through the prior high. why split to sentences of 22 words or fewer. variety rewrite checked 2026-11-10.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "The key repeated the story's words (weak red day, gap), so a learner could match words without knowing the Kicker. Reworded the key to carry no story vocabulary; the story keeps c32's conditions (35%, 1.5%, 3% from the story) and elimination still works."
   },
   "q50": {
    "status": "pass",
-   "notes": "The original used QCOM 2020-08-04: 13.0% over the 10-day SIMPLE average (bars: 110.95 vs 98.17, confirmed) but only about 9.7% over a 10-day EMA. The conflicts line claimed 'past the line either way'; that is wrong. Which 10-day average C29 means is pending (D-017), so the QCOM key would flip with the owner's choice. Replaced with a hypothetical 14% (past 10% on either average); QCOM facts d21/d22 no longer cited. flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "14% over the 10-day is past 10% (h13). The 3-day earnings rule does not apply to a past report. D-017 stays flagged."
   },
   "q51": {
    "status": "pass",
-   "notes": "c34 verbatim on the card's lookalike; the story matches the flag's 3 to 15 sessions after a 20% pole. Key right. flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Only the deeper trap changed; it rests on c06 and c48. Key correct per c34."
   },
   "q52": {
    "status": "cut",
@@ -2871,81 +3722,87 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "bk02 verbatim. The old statement added 'so the bar says little about direction', an inference no source makes; removed, the item now asks only the 53%.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "bk02 verbatim: trend is upward 53% of the time. Stem is Bulkowski's own line. The deeper trap is a fair reading. Web figure may change over time; already risk-noted."
   },
   "q54": {
    "status": "pass",
-   "notes": "B22 (h08) verbatim: hold through a report only if up 5R; the story sits at 2R. Key right. variety rewrite checked 2026-11-10.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q55": {
    "status": "pass",
-   "notes": "c26 (proposed id.index_inside_days) and c50 (Bracco) verbatim. Key right; the rule is a cue on the card, taught as 'wait for the break'.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c26 supports waiting for the break. Key is 1 character longer than the others but is not a Yes/No form, which is right here because a flat No would over-claim. Accepted."
   },
   "q56": {
    "status": "pass",
-   "notes": "sc06 verbatim on StockCharts; c49 'not ours'. Key right.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Yes, when the volume is light' is a silly non-sequitur (volume has no link to the exit). Replaced with Crabel's other exit from sc06 (the first profitable close), which is a real temptation. Key stays; Bulkowski choice is the longest, not the key."
   },
   "q57": {
    "status": "pass",
-   "notes": "Bars: NVDA open 55.02 on 2024-01-16 (inside high 54.97), stop 54.28, 3R in two days. Wrong note on 'the close' no longer rules the close out in general (D-003 is pending); it says our default is the trade over the high. variety rewrite checked 2026-11-10.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only the no-trims wrong note changed; supported by d17 and h05/h20."
   },
   "q58": {
    "status": "pass",
-   "notes": "F65 (h26) verbatim: Yellow smaller and fewer. Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Rulebook F65 (h26) verbatim; key uses only its words. Every distractor is another reading's row. Owner flag on 'fewer of what' stands."
   },
   "q59": {
    "status": "pass",
-   "notes": "B21 and E56 (h28, h29) verbatim: a new trade after a stop-out, 3 tries a week. Key right.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The why says this is the second try this week, but the story never says Monday was the first try; with earlier tries the 3-a-week limit could apply. Story now states it so the count is grounded in the question."
   },
   "q60": {
    "status": "pass",
-   "notes": "u05 (the owner's published SHOP line) verbatim on the Substack. Key right. variety rewrite checked 2026-11-10.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'A buy at Monday's open, at market' is defensible (no chasing only bars buys over 4%) and the note's 4% reason is not in the story; the question asks what to watch for. Replaced with a choice that plainly breaks C28 (h11)."
   },
   "q61": {
    "status": "pass",
-   "notes": "Facts cited c38/c39/c40 (AAPL 17%, NVDA and NFLX failures) had nothing to do with this question; replaced with c28 (room), c26 (index inside days), c25 (market), c48. The A+/B- location rows are used as grade cues only (D-066 pending); the story gives no session count.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key per c28/c26/c25; the comparison is easy but the story is complete and no unsupported claim remains."
   },
   "q62": {
    "status": "pass",
-   "notes": "Chart: NVDA 2024-01-12 has 6,285 daily bars up to the date and 709 after; close 54.71, 50-day 48.43, 200-day 41.72 (so the 50 is over the 200, close over both). Key right by c04/d19. The question's phrase 'days after a breakout' is a mild lead but tells the member what to look at.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "c04, h10, d19, d04, tl04 support Take it; two Take, two Pass; chart is NVDA at 2024-01-12 where price is over a rising 50 and 200-day with 50 over 200. Notes true."
   },
   "q63": {
    "status": "pass",
-   "notes": "Chart: MSFT 2024-02-08 has 7,315 daily bars up to the date. Bars: high 415.56 vs prior 414.30 (+0.30%), low 412.53 vs 407.40 (inside by 1.26%). Not an inside day. d13/d14/c46 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "d13 and c46 support Pass: high 0.30% above the prior high. Two Take, two Pass; D-002 tie unaffected. The 0.30% gap needs the chart's OHLC readout, already noted."
   },
   "q64": {
    "status": "pass",
-   "notes": "u02 is a question in the owner's Sunday Scan ('...at a rising 20EMA?'); the claim and the why stated it as a settled spot. Reworded to 'point to this picture'. 'Wait for the close' wrong note no longer rules the close out beyond our default (D-003 pending). flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (c06, c48, h26). 'Wait for the close to confirm' is a second defensible answer while D-003 (entry timing) is held; the Resolver removed that same choice from q15 for this reason. Replaced it with a mother-low stop choice that c15 rules out."
   },
   "q65": {
    "status": "pass",
-   "notes": "ra01 verbatim, h18 (D41) and h24 (F62). Key right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "False, rulebook D41 (h18) verbatim. The deeper trap rests on B20 (h06, h07). No problem."
+  },
+  "q66": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Rulebook D38 (h38) and E50 (h50) quoted exactly; key is the rulebook's. Taught as a size rule, not a grading checklist. Guessable from the minus sign but correct and grounded."
   }
  }
 }

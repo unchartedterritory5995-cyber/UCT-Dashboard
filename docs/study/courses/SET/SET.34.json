@@ -625,6 +625,36 @@
    "source": "h1",
    "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
    "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "g41",
+   "source": "c1",
+   "quote": "go.market_reading: Red; Orange below A+",
+   "claim": "Card grading: the no-trade list names a Red market reading and an Orange reading below A+."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: on a climax run in your own long, sell a big part into it, a judgment call."
+  },
+  {
+   "id": "h10b",
+   "source": "h1",
+   "quote": "A hard rule (\"200SMA is hardened rule yes\").",
+   "claim": "B26: the 200-day rule is a hard rule."
+  },
+  {
+   "id": "h50",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "E50: grading is discretionary and hard to define; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "h03b",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size goes in at one price with one stop; no adding."
   }
  ],
  "walkthroughs": [
@@ -697,22 +727,34 @@
    "q": "On a Go Signal, red to green is measured against which price?",
    "choices": [
     "The prior day's close",
-    "The hourly candle's own open",
-    "The flag low",
-    "The session VWAP"
+    "The candle's own open",
+    "The low of the flag",
+    "The day's VWAP line"
    ],
    "answer": "The prior day's close",
-   "why": "The prior day's close. Red to green is measured against the prior day's close, not the candle's own open and not a flag low.",
+   "why": "The prior day's close. Red to green on a Go Signal is measured against the prior day's close. It is not the hourly candle's own open and not a flag low. A candle that closes above its own open is only green.",
    "lesson_line": "The line is yesterday's close. Nothing else.",
    "facts": [
-    "g01"
+    "g01",
+    "g02",
+    "g07"
    ],
    "wrong": {
-    "The hourly candle's own open": "A candle that merely closes above its own open is green, not a Go Signal. The line is the prior close.",
-    "The flag low": "The card says it is not measured against a flag low.",
-    "The session VWAP": "VWAP is not the line here. The Go Signal reads the prior day's close."
+    "The candle's own open": "A candle that merely closes above its own open is green, not a Go Signal. The line is the prior close.",
+    "The low of the flag": "The card says it is not measured against a flag low.",
+    "The day's VWAP line": "The card names only the prior day's close as the line."
    },
-   "house": true
+   "house": true,
+   "simple": "The line is the prior day's close, because the stock first trades under it and then climbs back above it.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (+3)",
+     "rests on our card (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q02",
@@ -722,14 +764,24 @@
    "criterion": "go.first_hour_under_pc",
    "q": "A Go Signal needs the first hourly candle to trade below the prior day's close.",
    "answer": "True",
-   "why": "True. Early in the session the stock trades under the prior day's close, then buyers push it back above.",
+   "why": "True. A Go Signal needs the first hourly candle to trade below the prior day's close. Early in the session the stock trades under that close. Then buyers push it back above in the first or second hourly candle. A gap up that never trades under the prior close is not a Go Signal.",
    "lesson_line": "Under the prior close first, then back over it.",
    "facts": [
     "g02",
     "g06",
-    "g07"
+    "g07",
+    "g03"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because the stock must first trade under the prior close before buyers push it back above.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on our card (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q03",
@@ -739,13 +791,13 @@
    "criterion": "go.reclaim_window",
    "q": "By the end of which hourly candle must the stock be back above the prior close?",
    "choices": [
-    "The second",
-    "The first only",
-    "The fourth",
+    "The second candle",
+    "The first candle only",
+    "The fourth candle",
     "The last of the day"
    ],
-   "answer": "The second",
-   "why": "The second. The reclaim comes by the end of the second hourly candle. A turn after that is a pivot, not a Go Signal.",
+   "answer": "The second candle",
+   "why": "The second. The reclaim must come by the end of the second hourly candle. So a turn in the first or the second candle counts. A turn after that is a pivot (setup 41), not a Go Signal.",
    "lesson_line": "First or second candle. After that it is a pivot.",
    "facts": [
     "g04",
@@ -753,11 +805,20 @@
     "g05"
    ],
    "wrong": {
-    "The first only": "The first or the second candle counts. A turn in the second is still a Go Signal.",
-    "The fourth": "By the fourth candle it is a pivot, not a Go Signal.",
-    "The last of the day": "A turn that late is a pivot. The Go Signal lives in the first two candles."
+    "The last of the day": "A turn that late is a pivot. The Go Signal lives in the first two candles.",
+    "The first candle only": "The first or the second candle counts. A turn in the second is still a Go Signal.",
+    "The fourth candle": "By the fourth candle it is a pivot, not a Go Signal."
    },
-   "house": true
+   "house": true,
+   "simple": "The stock must be back above the prior close by the end of the second hourly candle, or it is a pivot.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's criteria card (settled, D-145) (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q04",
@@ -782,23 +843,31 @@
    "format": "fill",
    "criterion": "go.stop",
    "q": "Tap the word that fits the blank.",
-   "sentence": "The stop sits a few cents under the session's ___ at the time of entry.",
+   "sentence": "The stop sits a few ___ under the session's low at the time of entry.",
    "bank": [
-    "low",
-    "high",
-    "open",
-    "close",
-    "VWAP"
+    "cents",
+    "dollars",
+    "percent",
+    "R"
    ],
-   "answer": "low",
-   "why": "Low. The stop is a few cents under the session's low at the time of entry.",
-   "lesson_line": "Stop a few cents under the session low.",
+   "answer": "cents",
+   "why": "Cents. The stop sits a few cents under the session's low at the time of entry, not exactly on it. A trade below it is the exit.",
+   "lesson_line": "Stop a few cents under the low.",
    "facts": [
     "g08",
     "h24",
-    "q1"
+    "g22"
    ],
-   "house": true
+   "house": true,
+   "simple": "The stop sits a few cents under the low, not exactly on it, so a trade below that is the exit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on our rulebook and card (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q06",
@@ -811,21 +880,34 @@
     "A pivot, not a Go Signal",
     "A Go Signal, but a late one",
     "An Oops at the prior low",
-    "A Remount of the line"
+    "A U&R at a swing low"
    ],
    "answer": "A pivot, not a Go Signal",
-   "why": "A pivot, not a Go Signal. A turn later in the day, however clean, is a 30-minute pivot bought over the pivot candle's high.",
+   "why": "A pivot, not a Go Signal. The reclaim has to come by the end of the second hourly candle. A turn later in the day, however clean, is a pivot bought over the pivot candle's high. It is a different setup, not a late Go Signal.",
    "lesson_line": "After the second candle, it is a pivot.",
    "facts": [
     "g04",
-    "g30"
+    "g30",
+    "g19",
+    "g32",
+    "g33"
    ],
    "wrong": {
     "A Go Signal, but a late one": "There is no late version. After the second candle it is a pivot.",
-    "An Oops at the prior low": "An Oops is a daily-bar pattern at the prior day's low.",
-    "A Remount of the line": "A Remount retakes a line lost over a long stay. This is one session."
+    "An Oops at the prior low": "An Oops is a daily bar at the prior day's low.",
+    "A U&R at a swing low": "A U&R takes back a swing low within 3 sessions on the daily chart. This is one session, hourly."
    },
-   "house": true
+   "house": true,
+   "simple": "A turn after the second candle is a pivot, because the Go Signal only lives in the first two hourly candles.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q07",
@@ -865,28 +947,38 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "go.market_reading",
-   "q": "On a Red market reading, how many Go Signals do we take?",
+   "q": "Which market reading means mostly cash, plus shorts below the 200-day?",
    "choices": [
-    "Zero",
-    "Only the A plus ones",
-    "Half size on each",
-    "As many as show up"
+    "Green",
+    "Yellow",
+    "Orange",
+    "Red"
    ],
-   "answer": "Zero",
-   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none in Red. Red is mostly cash.",
-   "lesson_line": "Green, yes. Orange, A plus. Red, none.",
+   "answer": "Red",
+   "why": "Red. A Red market reading is mostly cash, plus shorts below the 200-day. Orange takes only A+ setups, Yellow means smaller and fewer, and Green is full risk. The rulebook calls the reading a guide.",
+   "lesson_line": "Orange takes A plus only. Red is mostly cash.",
    "facts": [
     "g14",
     "g14b",
     "h26"
    ],
    "wrong": {
-    "Only the A plus ones": "A plus only is Orange. On Red there are none.",
-    "Half size on each": "Smaller size is the Yellow reading. Red is none.",
-    "As many as show up": "The market reading limits the book. Red means mostly cash."
+    "Green": "Green is full risk per grade, with up to 10 positions.",
+    "Yellow": "Yellow is smaller and fewer, not mostly cash.",
+    "Orange": "Orange takes only A+ setups."
    },
    "house": true,
-   "story": null
+   "story": null,
+   "simple": "Red, because a Red market reading means mostly cash, plus shorts below the 200-day.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook and card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q10",
@@ -904,13 +996,22 @@
     "2"
    ],
    "answer": "3",
-   "why": "3. No new buy in the 3 sessions before an earnings report.",
+   "why": "3. We take no new buy in the 3 sessions before an earnings report. An open trade can be held through the report only if it is up 5R.",
    "lesson_line": "Three sessions before a report: no new buy.",
    "facts": [
     "g15",
     "h08"
    ],
-   "house": true
+   "house": true,
+   "simple": "We take no new buy in the 3 sessions before an earnings report.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, B22 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q11",
@@ -920,13 +1021,21 @@
    "criterion": "go.entry",
    "q": "A Go Signal is bought with a market order.",
    "answer": "True",
-   "why": "True. Entries are market orders. The stop goes in with the buy as a real order with the broker.",
-   "lesson_line": "Market order in, real stop order out.",
+   "why": "True. Entries are market orders. The rule covers every entry we take, not only the Go Signal.",
+   "lesson_line": "Entries are market orders.",
    "facts": [
-    "h22",
-    "h18"
+    "h22"
    ],
-   "house": true
+   "house": true,
+   "simple": "Yes, we buy with a market order.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, E57 and D41 (+2); the order moment itself (D-003) is not keyed"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q12",
@@ -936,13 +1045,23 @@
    "criterion": "go.regular_hours",
    "q": "A Go Signal can be bought in the after-hours session.",
    "answer": "False",
-   "why": "False. No new buys outside regular trading hours. The signal also lives in the first two hourly candles by definition.",
+   "why": "False. No new buys outside regular trading hours, and after-hours is outside them. The card also says regular hours only, and the signal lives in the first two hourly candles by definition. Neither an order type nor good news changes that.",
    "lesson_line": "Regular hours only.",
    "facts": [
     "h23",
-    "g19"
+    "g19",
+    "h22"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because we make no new buys outside regular hours and the Go Signal lives in the first two hourly candles.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on our rulebook and card (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q13",
@@ -950,26 +1069,47 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "go.hourly_flag",
-   "q": "What makes a Go Signal more than a bare red to green?",
+   "q": "A red to green turn is common. What is the edge in a Go Signal?",
    "choices": [
-    "The setup around the turn",
+    "The stock and the level",
     "The hour the turn comes in",
     "The size of the candle",
-    "The ticker's share price"
+    "Heavy volume on the reclaim"
    ],
-   "answer": "The setup around the turn",
-   "why": "The setup around the turn. It needs a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level.",
+   "answer": "The stock and the level",
+   "why": "The stock and the level. The card says the turn itself is not the edge. A Go Signal needs the setup around it: a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level.",
    "lesson_line": "The turn is common. The stock and the level are the edge.",
    "facts": [
     "g31",
-    "g29"
+    "g29",
+    "g21",
+    "d16",
+    "g04"
    ],
    "wrong": {
-    "The hour the turn comes in": "The window is the first two candles, but the clock alone is not the edge.",
-    "The size of the candle": "A big first candle can widen the risk. The setup around the turn is what matters.",
-    "The ticker's share price": "Price only has to pass the liquidity rule."
+    "The hour the turn comes in": "The two-candle window is a gate, but the card says the stock and the level are the edge.",
+    "The size of the candle": "The card names the stock and the level as the edge, not the size of one candle.",
+    "Heavy volume on the reclaim": "Volume is not a rule. More volume on the reclaim than on the flag's first hours is only a plus for grading."
    },
-   "house": true
+   "house": true,
+   "simple": "The stock and the level, because the turn itself is common and the card calls them the edge.",
+   "deeper": {
+    "trap": "The clock is only a gate. A turn inside the first two hourly candles on a stock with no tight flag, like SNOW in a wild post-earnings range, is still a bare red to green."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on held decisions D-130, D-131, D-132 (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-130",
+    "D-131",
+    "D-132"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q14",
@@ -977,15 +1117,25 @@
    "rung": 2,
    "format": "tf",
    "criterion": "go.hourly_flag",
-   "q": "A bare red to green happens in about a third of all liquid sessions.",
+   "q": "A dip under the prior close, then a close back above it by candle two. In our scan, that happens in about a third of liquid sessions.",
    "answer": "True",
-   "why": "True. The card says the turn happens in about a third of all liquid sessions. That is why the turn itself is not the edge.",
+   "why": "True. In our scan the turn happens in about a third of all liquid sessions. A turn that common is not an edge by itself. The edge is the stock and the level. That means a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level.",
    "lesson_line": "A common turn is not an edge by itself.",
    "facts": [
     "g29",
     "g31"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because in our scan this turn shows up in about a third of liquid sessions, so it is not an edge.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a statistic from our own scan that can be re-measured, not a published figure (+2)",
+     "rests on the owner's criteria card (settled, D-145) (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q15",
@@ -997,23 +1147,36 @@
    "choices": [
     "Just under the session low",
     "Under the 20-day EMA",
-    "Under the low of the flag",
+    "Under the low of the hourly flag",
     "At the reclaimed level"
    ],
    "answer": "Just under the session low",
-   "why": "A few cents under the session low. Kullamagi's stop is the low of the day too.",
+   "why": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level.",
    "lesson_line": "The low of the day is the line you defend.",
    "facts": [
     "g08",
     "h24",
-    "q1"
+    "d02"
    ],
    "wrong": {
     "Under the 20-day EMA": "The average is context. The stop goes under the low of the session.",
-    "Under the low of the flag": "The flag low is not the line. The stop is under the session low at the time of entry.",
-    "At the reclaimed level": "Never raise the stop to the reclaimed level: the level is where the shake-out happens."
+    "At the reclaimed level": "Never raise the stop to the reclaimed level: the level is where the shake-out happens.",
+    "Under the low of the hourly flag": "The flag low is not the line. The stop is under the session low at the time of entry."
    },
-   "house": true
+   "house": true,
+   "simple": "Put the stop a few cents under the low of the session, because that low is the line you defend.",
+   "deeper": {
+    "example": "In our scan, META had a session low of 331.66 and the stop went to 331.63, a few cents under it. That stop sat 1.42% from the 336.42 buy."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's stop rule, F62 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q16",
@@ -1021,15 +1184,25 @@
    "rung": 3,
    "format": "tf",
    "criterion": "go.stop_not_raised",
-   "q": "To keep the loss small, move the stop up to the reclaimed level.",
+   "q": "A stop that is too wide should be raised to the reclaimed level so the trade fits.",
    "answer": "False",
-   "why": "False. Never raise the stop to the reclaimed level. The level is where the shake-out happens, so the stop would be taken for nothing.",
+   "why": "False. Never raise the stop to the reclaimed level to make it fit. The level is where the shake-out happens, so a stop there gets taken out. If the honest stop is too far, size down or skip the trade.",
    "lesson_line": "Do not tighten the stop to the reclaimed level.",
    "facts": [
     "g09",
-    "g10"
+    "g10",
+    "h01"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because the reclaimed level is where the shake-out happens, so size down or skip instead.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card line, go.stop_not_raised, and the owner's stop rule (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q17",
@@ -1039,13 +1212,23 @@
    "criterion": "go.above_50",
    "q": "A Go Signal needs the stock above its 50-day SMA.",
    "answer": "True",
-   "why": "True. The card wants the price above the 50-day, and lists a Go Signal in a downtrend, under the 50-day or 200-day, as a mistake.",
+   "why": "True. The card wants the price above the 50-day SMA. It lists a Go Signal in a downtrend, under the 50-day or 200-day, as a mistake. The 200-day is its own rule: no longs below it, unless it is a parabolic long.",
    "lesson_line": "Above the 50-day and the 200-day.",
    "facts": [
     "g12",
-    "g38"
+    "g38",
+    "h10"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because the card wants the price above the 50-day line and lists a Go Signal under it as a mistake.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card line, go.above_50 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q18",
@@ -1063,12 +1246,22 @@
     "breakeven"
    ],
    "answer": "1R",
-   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. The time stop does not wait for the stop to be hit. It is not set at breakeven, which starts at 2R, or at the first trim, which is 3R.",
    "lesson_line": "Ten days under 1R: out.",
    "facts": [
-    "h15"
+    "h15",
+    "h05"
    ],
-   "house": true
+   "house": true,
+   "simple": "A trade still under 1R after 10 trading days is sold, which frees up the money.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q19",
@@ -1135,14 +1328,17 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "go.stop_width",
-   "q": "Entry 37.18. The session low is 36.15 and the stop sits 3 cents under it. How far below the entry, in percent?",
+   "q": "Entry 37.18. The session low is 36.15 and the stop sits 3 cents under it. How far below the entry, in percent, to two decimals?",
    "answer": 2.85,
-   "why": "2.85%. The stop is a few cents under the session low. It sits inside the 3% the stop usually sits within, so it fits.",
+   "why": "2.85%. The stop sits 3 cents under the 36.15 session low. Measured from the 37.18 entry, that distance is 2.85%. A stop within about 3% fits. Past about 3%, we size down or skip.",
    "lesson_line": "Measure the stop in percent before you size it.",
    "facts": [
     "g08",
     "h04",
-    "h24"
+    "h24",
+    "g09",
+    "d02",
+    "d04"
    ],
    "house": true,
    "calc": {
@@ -1154,7 +1350,20 @@
     },
     "round": 2
    },
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "The stop is 3 cents under the 36.15 low, so it sits 2.85 percent below the 37.18 entry.",
+   "deeper": {
+    "example": "META: bought at 336.42 with the stop at 331.63, which is 1.42% away. VIAV: bought at 26.43 with the stop at 25.66, which is 2.91% away. Both fit inside about 3%."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q23",
@@ -1162,13 +1371,14 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "go.no_chase",
-   "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close, in percent?",
+   "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close, in percent, to one decimal?",
    "answer": 0.6,
-   "why": "0.6%. That is nowhere near 4% over the prior close, the buy point, so the chase rule does not block it.",
+   "why": "0.6%. Measure from the prior close, 168.84, because it is the buy point. The reclaim close of 169.79 is about 0.6% above it. Never buy more than 4% above the buy point. At 0.6% the chase rule does not block the buy. Chasing costs size, not risk.",
    "lesson_line": "Check the distance from the prior close before you buy.",
    "facts": [
     "g16",
-    "h11"
+    "h11",
+    "h12"
    ],
    "house": true,
    "calc": {
@@ -1179,7 +1389,17 @@
     },
     "round": 1
    },
-   "suffix": "%"
+   "suffix": "%",
+   "simple": "That is 0.6 percent over the prior close, far under the 4 percent chase limit.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q24",
@@ -1187,25 +1407,35 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "go.trim_1",
-   "q": "Bought at 24.48 with the stop at 24.01. Where is 3R?",
-   "answer": 25.89,
-   "why": "25.89. One R is the fill minus the stop. Add three of those to the fill. The first third comes off there.",
+   "q": "Bought at 336.42 with the stop at 331.63. One R is the gap between them. Where is 3R?",
+   "answer": 350.79,
+   "why": "350.79. One R is the fill minus the stop, 336.42 minus 331.63. Three R is the fill plus three of those. The hard rule is a third off at 3R. Ideally the first trim comes anywhere from 3R to 6R.",
    "lesson_line": "Know your 3R before the open.",
    "facts": [
     "h05",
-    "d06"
+    "d02"
    ],
    "house": true,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 24.48,
-     "b": 24.01
+     "a": 336.42,
+     "b": 331.63
     },
     "round": 2
    },
-   "prefix": "$"
+   "prefix": "$",
+   "simple": "Three R is the fill plus three times the gap between fill and stop, which gives 350.79.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q25",
@@ -1213,27 +1443,43 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "go.earnings_window",
-   "q": "Buy?",
+   "q": "Which rule decides this buy?",
    "choices": [
-    "No, a report inside 3 sessions",
-    "Yes, the setup is too good to skip",
-    "Yes, but only at half size",
-    "Yes, with a tight stop"
+    "No new buy 3 sessions before a report",
+    "No new buy over 4% above the buy point",
+    "Skip a long 10% over its 10-day line",
+    "Buy only in regular trading hours"
    ],
-   "answer": "No, a report inside 3 sessions",
-   "why": "No. No new buy in the 3 sessions before an earnings report. A clean setup does not change the calendar.",
+   "answer": "No new buy 3 sessions before a report",
+   "why": "No new buy in the 3 sessions before an earnings report. This stock reports in two sessions, so it is inside the window. The setup is fine, but the calendar decides. A day later the report is closer still.",
    "lesson_line": "Report inside 3 sessions: no new buy.",
    "facts": [
     "g15",
-    "h08"
+    "h08",
+    "g16",
+    "g17",
+    "g19"
    ],
    "wrong": {
-    "Yes, the setup is too good to skip": "The setup passes. The calendar does not.",
-    "Yes, but only at half size": "Half size is still a new buy inside the window.",
-    "Yes, with a tight stop": "A tight stop does not lift the earnings rule."
+    "No new buy over 4% above the buy point": "That rule is real, but the story gives no price above the buy point.",
+    "Skip a long 10% over its 10-day line": "That rule is real, but the story says nothing about the 10-day line.",
+    "Buy only in regular trading hours": "That rule is real, but the story is a first-hour reclaim, inside regular hours."
    },
    "house": true,
-   "story": "A perfect first-hour reclaim at the 20-day line. The stock reports earnings in two sessions."
+   "story": "A perfect first-hour reclaim at the 20-day line. The stock reports earnings in two sessions.",
+   "simple": "The rule is no new buy in the 3 sessions before an earnings report, and this stock reports in two sessions.",
+   "deeper": {
+    "trap": "The 5R line in our rulebook is about holding a trade through a report, and only if it is up 5R. It does not let you open a new buy inside the 3-session window."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook and card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q26",
@@ -1244,24 +1490,39 @@
    "q": "Is this a Go Signal?",
    "choices": [
     "No; it never went red first",
-    "Yes, it is green all morning",
-    "Yes, if the 20-day is rising",
-    "Yes, it held green after 11:00"
+    "Yes; it is green all morning",
+    "Yes; if the 20-day is rising",
+    "No; it needs heavier volume"
    ],
    "answer": "No; it never went red first",
-   "why": "No. A gap up that never trades under the prior close is not a Go Signal. The dip under it comes first.",
+   "why": "No. A gap up that never trades under the prior close is not a Go Signal. The first hourly candle has to trade under the prior close first, and then buyers push it back above. A stock that is green from the open has no turn in it. A rising 20-day or heavier volume does not make one.",
    "lesson_line": "No red, no red to green.",
    "facts": [
     "g03",
-    "g02"
+    "g02",
+    "g13",
+    "g21"
    ],
    "wrong": {
-    "Yes, it is green all morning": "Green is not red to green. There was no red first.",
-    "Yes, if the 20-day is rising": "A rising 20-day is context. Without a dip under the prior close there is no signal.",
-    "Yes, it held green after 11:00": "Time does not create the dip. A late turn is a pivot anyway."
+    "Yes; it is green all morning": "Green is not red to green. There was no red first.",
+    "Yes; if the 20-day is rising": "A rising 20-day is context. Without a dip under the prior close there is no signal.",
+    "No; it needs heavier volume": "Volume is not a rule for the Go Signal. What is missing is the dip under the prior close."
    },
    "house": true,
-   "story": "The stock opens 0.8% above the prior close and never trades under it. It grinds green all morning."
+   "story": "The stock opens 0.8% above the prior close and never trades under it. It grinds green all morning.",
+   "simple": "No, because the stock never traded under the prior close, so there was no red to green to buy.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "which open counts is held (D-128); the key uses only the settled rule (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-128"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q27",
@@ -1269,27 +1530,48 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "go.first_hour_under_pc",
-   "q": "U&R or Go Signal?",
+   "q": "Which setup is this?",
    "choices": [
-    "A Go Signal on the hourly bars",
-    "A U&R; it undercut and reclaimed",
-    "A Remount of the prior close",
-    "An Oops at the prior low"
+    "A Go Signal",
+    "A daily U&R",
+    "A late pivot",
+    "A daily Oops"
    ],
-   "answer": "A Go Signal on the hourly bars",
-   "why": "A Go Signal. Its undercut and reclaim happen inside the first two hours of one session and are measured against the prior close.",
+   "answer": "A Go Signal",
+   "why": "A Go Signal. Its undercut and reclaim happen inside the first two hours of one session and are measured against the prior close. A U&R undercuts a prominent prior swing low and closes back above it within 3 sessions on the daily chart. An Oops is a daily bar read at the prior day's low.",
    "lesson_line": "One session, prior close, hourly: a Go Signal.",
    "facts": [
     "g33",
-    "g34"
+    "g34",
+    "g32",
+    "g04",
+    "g31"
    ],
    "wrong": {
-    "A U&R; it undercut and reclaimed": "A U&R takes back a level over up to 3 sessions on the daily chart. This is one session, hourly.",
-    "A Remount of the prior close": "A Remount follows a line lost for days. The prior close is one day old.",
-    "An Oops at the prior low": "An Oops is a daily bar at the prior low. This line is the prior close."
+    "A daily U&R": "A U&R needs a prominent prior swing low and gives it up to 3 sessions on the daily chart. This is one session, hourly.",
+    "A late pivot": "A pivot is a turn after the second hourly candle. Here candle two already closed back above the prior close.",
+    "A daily Oops": "An Oops is a daily bar at the prior day's low. This line is the prior close."
    },
    "house": true,
-   "story": "In one session the first hourly candle dips under the prior close. The second hourly candle closes back above it."
+   "story": "A leader rests on its 20-day line in a tight hourly flag. In one session the first hourly candle dips under the prior close. The second hourly candle closes back above it.",
+   "simple": "It is a Go Signal, because the dip and the reclaim happen in one session against the prior close.",
+   "deeper": {
+    "counter": "A U&R is a daily setup. The stock undercuts a level and must close back above it within 3 sessions. The Go Signal packs its undercut and reclaim into the first two hours of one session."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-130",
+    "D-131",
+    "D-132"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q28",
@@ -1299,26 +1581,41 @@
    "criterion": "go.close_under_pc_warning",
    "q": "Sell at the close, or hold?",
    "choices": [
-    "Hold; it is a warning, not an exit",
-    "Sell at the close; the turn failed",
+    "Hold; it is a warning only",
+    "Sell at the close; it failed",
     "Move the stop up to 90.55",
-    "Add on the dip"
+    "Cut half now and hold the rest"
    ],
-   "answer": "Hold; it is a warning, not an exit",
-   "why": "Hold. A day that closes back under the prior close is a warning, not an exit. NVDA closed at 90.41 and was stopped the next day at 89.39.",
+   "answer": "Hold; it is a warning only",
+   "why": "Hold. A day that closes back under the prior close is a warning, not an exit. Those trades averaged -0.47R, but selling them at the close did not improve the average. The stop is still the exit, so you hold while the price stays above 89.39.",
    "lesson_line": "A close under the prior close is a warning. The stop is the exit.",
    "facts": [
     "g23",
     "d13",
-    "h02"
+    "h02",
+    "h20",
+    "g09"
    ],
    "wrong": {
-    "Sell at the close; the turn failed": "Selling at that close did not improve the average. The stop is the exit.",
     "Move the stop up to 90.55": "Never raise the stop to the reclaimed level.",
-    "Add on the dip": "Full size at one price with one stop. No adding."
+    "Sell at the close; it failed": "Selling at that close did not improve the average. The stop is the exit.",
+    "Cut half now and hold the rest": "The plan trims at 3R and 5R, not on a warning. The stop is the exit."
    },
    "house": true,
-   "story": "You bought a first-candle reclaim at 90.98 with the stop at 89.39. At 15:50 the stock is 90.41, under the prior close 90.55, above your stop."
+   "story": "You bought a first-candle reclaim at 90.98 with the stop at 89.39. At 15:50 the stock is 90.41, under the prior close 90.55, above your stop.",
+   "simple": "Hold, because a close under the prior close is only a warning and your stop is still the exit.",
+   "deeper": {
+    "counter": "Here, selling at 90.41 would have lost less than the 89.39 stop did. That is one trade. The card looks at the average of all such trades, which was -0.47R, and selling at the close did not improve it. Judge the rule on the average, not on the one that stings."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on a proposed card line, go.close_under_pc_warning, and the old template says otherwise (+2)",
+     "a statistic from our own scan (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q29",
@@ -1328,26 +1625,41 @@
    "criterion": "go.stop_gap",
    "q": "What do you do?",
    "choices": [
-    "Get out; that low is past 2R",
+    "Sell it all and take the loss",
     "Set the stop at 118.83 and hold",
     "Keep the 123.39 stop and wait",
     "Buy more at the lower price"
    ],
-   "answer": "Get out; that low is past 2R",
-   "why": "Get out. A gap through the stop hands it to the first 30-minute low, but if that takes the loss past 2R, get out.",
+   "answer": "Sell it all and take the loss",
+   "why": "Get out. A gap through the stop hands the stop to the first 30-minute low. But if the first 30 minutes take the loss past 2R, get out. Here 1R is 3.42. The stock is at 119.40 and the low is 118.83, both more than 2R under your 126.81 buy.",
    "lesson_line": "First 30 minutes decide. Past 2R, out.",
    "facts": [
     "h06",
     "h07",
-    "h02"
+    "h02",
+    "g18",
+    "h03b"
    ],
    "wrong": {
     "Set the stop at 118.83 and hold": "The first 30-minute low is the new stop, but only up to a ceiling. Past 2R, you are out.",
     "Keep the 123.39 stop and wait": "The stock is already through it. The gap rule hands the stop to the first 30 minutes.",
-    "Buy more at the lower price": "No adding, and never into a gap against the stop."
+    "Buy more at the lower price": "The full size goes in at one price with one stop. A second buy breaks that."
    },
    "house": true,
-   "story": "You bought at 126.81 with the stop at 123.39, so 1R is 3.42. The next morning gaps down to 121.00. The first 30-minute low is 118.83."
+   "story": "You bought at 126.81 with the stop at 123.39, so 1R is 3.42. The next morning gaps down to 121.00. The first 30-minute low is 118.83, and after 30 minutes the stock sits at 119.40.",
+   "simple": "Get out, because a gap through the stop hands it to the first 30-minute low unless that loss is past 2R.",
+   "deeper": {
+    "trap": "The trap is reading the gap rule as a free pass. The first 30-minute low becomes the new stop only while the loss stays within 2R. Here 1R is 3.42. The low of 118.83 is more than twice that under 126.81, so the answer is out, whatever the stock does next."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a computed key: the loss at the 30-minute low against 2R (+2)",
+     "rests on the owner's gap rule, B20 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q30",
@@ -1355,7 +1667,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "go.trim_gap_open",
-   "q": "What do you do at the open?",
+   "q": "What do you do?",
    "choices": [
     "Take a third off at the open",
     "Wait for 25.89 on the way down",
@@ -1363,7 +1675,7 @@
     "Sell it all at the open now"
    ],
    "answer": "Take a third off at the open",
-   "why": "Take the first third at the open. If a stock opens above a trim level, take that trim at the open.",
+   "why": "Take the first third at the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. It opens at 26.40, past the 3R level of 25.89, so the first third comes off at once. The next third waits for 5R, and the last third trails.",
    "lesson_line": "Gap past a trim level: take it at the open.",
    "facts": [
     "h25",
@@ -1371,12 +1683,22 @@
     "h20"
    ],
    "wrong": {
-    "Wait for 25.89 on the way down": "You may never see it again. A trim level the day opens past is taken at the open.",
+    "Wait for 25.89 on the way down": "A trim level the day opens past is taken at the open, not on a later dip.",
     "Hold it all and trail it up": "The trail is for the last third, after the trims.",
     "Sell it all at the open now": "The plan is a third at 3R, a third at 5R, then the trail."
    },
    "house": true,
-   "story": "You bought at 24.48 with the stop at 24.01. Your 3R level is 25.89. The next morning the stock opens at 26.40."
+   "story": "You bought at 24.48 with the stop at 24.01. Your 3R level is 25.89. The next morning the stock opens at 26.40.",
+   "simple": "Take a third off at the open, because a stock that opens past a trim level gets that trim at the open.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's trim rules, F63 and B19 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q31",
@@ -1384,26 +1706,36 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "go.trail",
-   "q": "What trails the last third of a fast Go Signal?",
+   "q": "What trails the last third of a Go Signal in a fast mover?",
    "choices": [
     "A close under the 10-day line",
     "A close under the 200-day line",
     "A new 5-day closing low",
-    "The session low"
+    "The low of the entry day"
    ],
    "answer": "A close under the 10-day line",
-   "why": "A close under the 10-day average. The 21-day suits a steady stock; sell on a close below it. Kullamagi trails the 10- or 20-day.",
+   "why": "A close under the 10-day average. After the trims at 3R and 5R, the last third trails the 10-day for fast movers. Steadier ones use the 21-day. You sell on a close below it.",
    "lesson_line": "Fast stock, 10-day. Steady stock, 21-day.",
    "facts": [
     "h21",
-    "q2"
+    "h20"
    ],
    "wrong": {
-    "A close under the 200-day line": "That is too slow for a fast stock. The 21-day suits a steadier one.",
+    "A close under the 200-day line": "That is not our trail. We trail the 10-day for fast movers and the 21-day for steadier ones.",
     "A new 5-day closing low": "A short-term low is not our trail. We use the 10-day or the 21-day.",
-    "The session low": "That is the first stop. After the trims it moves up and the trail takes over."
+    "The low of the entry day": "That is the first stop, and it only moves up. The last third trails an average instead."
    },
-   "house": true
+   "house": true,
+   "simple": "A fast mover is trailed with the 10-day average, and you sell on a close below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's trail rule, E52 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q32",
@@ -1441,14 +1773,23 @@
    "criterion": "go.no_chase",
    "q": "Skip the buy if the reclaim candle closes more than 4% above the prior close.",
    "answer": "True",
-   "why": "True. Never buy more than 4% above the buy point, and here the buy point is the prior close. Chasing costs size, not risk.",
+   "why": "True. Never buy more than 4% above the buy point, and for a Go Signal the buy point is the prior close. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Four percent over the prior close and I am done.",
    "facts": [
     "g16",
     "h11",
     "h12"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because we never buy more than 4% above the buy point, and here that point is the prior close.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, C28 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q34",
@@ -1458,7 +1799,7 @@
    "criterion": "go.stop_width",
    "q": "Account 100,000, risk 0.25%. Buy 336.42, stop 331.63. How many shares does the stop allow?",
    "answer": 52,
-   "why": "52 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That was META's stop, 1.42% from the buy.",
+   "why": "52 shares. Risk is 0.25% of 100,000. Divide it by the distance from the 336.42 buy to the 331.63 stop, then round down to 52. The size is the smaller of the risk size and the position cap. The cap is 40% of the account, and 52 shares are well under it.",
    "lesson_line": "The stop sets the size. Not the other way round.",
    "facts": [
     "h03",
@@ -1476,7 +1817,18 @@
      "stop": 331.63
     },
     "round": 0
-   }
+   },
+   "simple": "Divide the risk, 0.25 percent of 100,000, by the distance from buy to stop, then round down to 52 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q35",
@@ -1515,27 +1867,41 @@
    "criterion": "go.stop_width",
    "q": "The turn is valid. What do you do?",
    "choices": [
-    "Size down from the stop, or skip",
+    "Size down from the stop",
     "Buy full size at the close",
-    "Tighten the stop to 3% to fit",
-    "Buy the open and skip the wait"
+    "Tighten the stop to fit it",
+    "Buy the open, skip the wait"
    ],
-   "answer": "Size down from the stop, or skip",
-   "why": "Size down from the stop, or skip. CRS was a valid turn whose first candle was too big to buy at its close.",
+   "answer": "Size down from the stop",
+   "why": "Size down from the stop. The turn is valid, but the first candle was too big to buy at its close. The stop under its low is 4.96% from the entry. The size comes from the stop, so a far stop means fewer shares. If the honest stop does not fit the risk, skip. A stop usually sits within about 3% of the buy, and this one is wider.",
    "lesson_line": "A giant first candle widens the stop. Size follows the stop.",
    "facts": [
     "d18",
     "d19",
     "h01",
-    "g27"
+    "g27",
+    "h04"
    ],
    "wrong": {
-    "Buy full size at the close": "The first candle was too big to buy at its close at full size.",
-    "Tighten the stop to 3% to fit": "Never tighten the stop to fit. It marks the real low.",
-    "Buy the open and skip the wait": "The open is before the turn. Buying it is the blind open buy."
+    "Buy full size at the close": "That first candle was too big to buy at its close at full size: the stop is 4.96% away.",
+    "Tighten the stop to fit it": "Never tighten the stop to fit. The honest stop marks the real low. If it does not fit, skip.",
+    "Buy the open, skip the wait": "The open is before the turn. Buying it is the blind open buy."
    },
    "house": true,
-   "story": "After a 2.8% gap down the first candle runs from 315.73 to 329.02. The stop under its low is 4.96% from the entry."
+   "story": "After a 2.8% gap down the first candle runs from 315.73 to 329.02. The stop under its low is 4.96% from the entry.",
+   "simple": "Size the trade from the stop, because the stop is far away and fewer shares fit the risk.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "how wide a stop may be is held (D-005) (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-005"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q37",
@@ -1545,26 +1911,37 @@
    "criterion": "go.retry_limit",
    "q": "Take it?",
    "choices": [
-    "Yes, a new trade, its own stop",
-    "No, it already failed on Monday",
-    "Yes, with a wider stop this time",
-    "Yes, at double size"
+    "Yes; a new trade, its own stop",
+    "No; it already failed on Monday",
+    "Yes; with a wider stop this time",
+    "No; one try a week is the limit"
    ],
-   "answer": "Yes, a new trade, its own stop",
-   "why": "Yes, as a new trade with its own stop. A failed Go Signal that sets up again is a new trade, at most 3 tries a week and 6 a month.",
+   "answer": "Yes; a new trade, its own stop",
+   "why": "Yes, as a new trade with its own stop. After a stop-out you buy again only if the setup triggers again, and then it is a new trade with every rule. This is the second try this week and this month. That is inside the limit of 3 tries a week and 6 a month on one stock.",
    "lesson_line": "A new trigger is a new trade. Count the tries.",
    "facts": [
     "g25",
     "h28",
-    "h29"
+    "h29",
+    "h24"
    ],
    "wrong": {
-    "No, it already failed on Monday": "A new trigger is a new trade. The limit is 3 tries a week and 6 a month on one stock.",
-    "Yes, with a wider stop this time": "A wider stop to get back in is the mistake, not the fix.",
-    "Yes, at double size": "Doubling to win it back makes a small loss bigger."
+    "No; it already failed on Monday": "A new trigger is a new trade. The limit is 3 tries a week and 6 a month on one stock.",
+    "Yes; with a wider stop this time": "The stop sits a few cents under the session low. A wider one to get back in is not the rule.",
+    "No; one try a week is the limit": "The limit is 3 tries a week and 6 a month on one stock. Two tries is well inside it."
    },
    "house": true,
-   "story": "A Go Signal in this stock failed on Monday. On Wednesday it sets up and turns again, a fresh trigger."
+   "story": "A Go Signal in this stock failed on Monday, the only try this month. On Wednesday it sets up and turns again, a fresh trigger.",
+   "simple": "Yes, because a fresh trigger is a new trade with its own stop, and a second try is inside the limit.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook, B21 and E56 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q38",
@@ -1574,25 +1951,37 @@
    "criterion": "go.market_reading",
    "q": "Can you take it?",
    "choices": [
-    "Yes; Orange takes A plus setups",
-    "Yes, and size above Green risk",
+    "Yes; only the top grade passes",
+    "Yes, but only at half size",
     "No; only a Green reading trades",
     "No; Orange means mostly cash"
    ],
-   "answer": "Yes; Orange takes A plus setups",
-   "why": "Yes. Orange allows only A+ setups, and this one grades A plus. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "answer": "Yes; only the top grade passes",
+   "why": "Yes. In an Orange market reading we take only A+ setups, and this one grades A plus. Yellow is smaller and fewer, which is a different reading.",
    "lesson_line": "Orange means A plus only. An A plus still goes.",
    "facts": [
     "g14",
-    "h26"
+    "g14b",
+    "h26",
+    "g37"
    ],
    "wrong": {
-    "Yes, and size above Green risk": "Green is already full risk. Orange is two steps down from it.",
-    "No; only a Green reading trades": "Orange still allows A+ setups. Only Red is mostly cash.",
-    "No; Orange means mostly cash": "Mostly cash is the Red reading. Orange allows only A+ setups."
+    "No; only a Green reading trades": "Orange still allows A+ setups.",
+    "No; Orange means mostly cash": "Orange allows A+ setups, so this one can go.",
+    "Yes, but only at half size": "Smaller and fewer is the Yellow reading. In Orange the rule is A+ only."
    },
    "house": true,
-   "story": "The market reading is Orange. A Go Signal sets up cleanly, and you grade it A plus."
+   "story": "The market reading is Orange. A Go Signal sets up cleanly, and you grade it A plus.",
+   "simple": "Yes, because an Orange market reading allows only A plus setups and this one grades A plus.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook and card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q39",
@@ -1602,13 +1991,26 @@
    "criterion": "go.volume",
    "q": "Heavy volume on the reclaim is a hard rule for the Go Signal.",
    "answer": "False",
-   "why": "False. Volume is not a rule. More volume on the reclaim than on the flag's first hours is a plus for grading.",
+   "why": "False. Volume is not a rule. More volume on the reclaim than on the flag's first hours is a plus for grading, not a gate. Gil Morales says the same of his U&R: volume is generally not a factor.",
    "lesson_line": "Volume grades the signal. It does not gate it.",
    "facts": [
     "g21",
     "o2"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because volume is not a rule and more of it on the reclaim is only a plus when grading.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line, go.volume (D-006) (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-006"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q40",
@@ -1620,24 +2022,34 @@
    "choices": [
     "Pass; no longs under the 200-day",
     "Take it; the 20-day is rising",
-    "Take it at half size",
-    "Take it if the market is Green"
+    "Take it, but only at half size",
+    "Pass; it came too late in the day"
    ],
    "answer": "Pass; no longs under the 200-day",
-   "why": "Pass. No longs below the 200-day simple moving average, unless it is a parabolic long. A Go Signal is not one.",
+   "why": "Pass. The Go Signal needs the price above the 200-day SMA, and our rule is no longs below it. It is a hard rule, so a rising 20-day or a smaller size does not lift it.",
    "lesson_line": "The 200-day is a hard line. Under it, no Go Signal.",
    "facts": [
     "g11",
     "h10",
-    "g38"
+    "g38",
+    "h10b"
    ],
    "wrong": {
     "Take it; the 20-day is rising": "A rising 20-day is one gate. The 200-day is another, and it is a hard rule.",
-    "Take it at half size": "Half size does not lift a hard rule.",
-    "Take it if the market is Green": "A Green market does not lift the 200-day rule."
+    "Take it, but only at half size": "Half size does not lift a hard rule.",
+    "Pass; it came too late in the day": "The story calls it a first-hour reclaim, so the timing is fine. The 200-day is the problem."
    },
    "house": true,
-   "story": "A textbook first-hour reclaim at a rising 20-day EMA. The stock is under its 200-day SMA."
+   "story": "A textbook first-hour reclaim at a rising 20-day EMA. The stock is under its 200-day SMA.",
+   "simple": "Pass, because we take no longs under the 200-day line and this stock is under it.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's hard 200-day rule, B26 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q41",
@@ -1647,26 +2059,38 @@
    "criterion": "go.above_50",
    "q": "Take it?",
    "choices": [
-    "Pass; it is in a downtrend",
-    "Take it; the turn is clean",
-    "Take it; downtrends bounce",
-    "Take it on the second candle only"
+    "Pass; it is under the 50-day",
+    "Take it; the turn looks clean",
+    "Take it; the 200-day still holds",
+    "Pass; it needs a gap down first"
    ],
-   "answer": "Pass; it is in a downtrend",
-   "why": "Pass. Taking a Go Signal in a downtrend, under the 50-day or 200-day, is a listed mistake.",
-   "lesson_line": "Leaders in uptrends only.",
+   "answer": "Pass; it is under the 50-day",
+   "why": "Pass. The card wants the price above the 50-day, and this stock is under it. The card also lists a Go Signal taken in a downtrend, under the 50-day or 200-day, as a mistake. The Go Signal needs the setup around the turn, so a clean turn alone does not change the answer.",
+   "lesson_line": "Under the 50-day is a downtrend. Pass.",
    "facts": [
     "g38",
     "g12",
-    "g11"
+    "g11",
+    "g31",
+    "g02"
    ],
    "wrong": {
-    "Take it; the turn is clean": "A clean turn in a downtrend is a listed mistake.",
-    "Take it; downtrends bounce": "A bounce is not our setup. The Go Signal is a leader in an uptrend.",
-    "Take it on the second candle only": "The candle does not fix the trend."
+    "Take it; the turn looks clean": "A clean turn under the 50-day is a listed mistake.",
+    "Take it; the 200-day still holds": "The 200-day is one line. The card also wants the price above the 50-day.",
+    "Pass; it needs a gap down first": "No gap is needed. The first hourly candle only has to trade under the prior close."
    },
    "house": true,
-   "story": "A first-hour reclaim of the prior close in a stock under every moving average, in a downtrend."
+   "story": "A first-hour reclaim of the prior close in a stock under its 50-day but above its 200-day.",
+   "simple": "Pass, because the card wants the price above the 50-day and this stock is under it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line, go.above_50 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q42",
@@ -1676,25 +2100,35 @@
    "criterion": "go.entry",
    "q": "What is wrong with that?",
    "choices": [
-    "It buys before the turn",
-    "Nothing; early is better",
-    "It is fine at half size",
-    "The stop should be wider"
+    "There is no signal to buy yet",
+    "Nothing; early entries do better",
+    "Half size is the safe way in",
+    "A wider stop would make it fine"
    ],
-   "answer": "It buys before the turn",
-   "why": "It is the blind open buy. Buying the open before the turn gets stopped at the low. Wait for the stock to get back above the prior close.",
+   "answer": "There is no signal to buy yet",
+   "why": "There is no signal yet. At 9:35 the stock is still under the prior close, so the turn has not happened. Buying the open before the turn is the blind open buy, and it gets stopped at the low. Wait for the stock to get back above the prior close.",
    "lesson_line": "Do not buy the red. Wait for the green.",
    "facts": [
     "g27",
     "g07"
    ],
    "wrong": {
-    "Nothing; early is better": "Buying the open before the turn gets stopped at the low. The turn is the signal.",
-    "It is fine at half size": "Half size does not fix a buy before the turn.",
-    "The stop should be wider": "A wider stop does not fix the timing."
+    "Nothing; early entries do better": "Buying the open before the turn gets stopped at the low. The turn is the signal.",
+    "Half size is the safe way in": "Half size does not fix a buy before the turn.",
+    "A wider stop would make it fine": "A wider stop does not fix the timing."
    },
    "house": true,
-   "story": "At 9:35 the stock is red, 1% under the prior close. You buy now to get ahead of the turn."
+   "story": "At 9:35 the stock is red, 1% under the prior close. You buy now to get ahead of the turn.",
+   "simple": "The stock has not turned yet, so there is nothing to buy until it is back above the prior close.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's criteria card, go.entry mistake (+2)",
+     "fixed before: flagged-question fix (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q43",
@@ -1702,9 +2136,9 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "go.trim_1",
-   "q": "Bought at 26.43, stop 25.66. The stock trades to 28.74. How many R is that?",
+   "q": "Bought at 26.43, stop 25.66. One R is the gap between them. The stock trades to 28.74. How many R is that?",
    "answer": 3.0,
-   "why": "3R. Each R is the fill minus the stop. That is where the first third comes off. VIAV got there in 3 days.",
+   "why": "3R. One R is the fill minus the stop, 26.43 minus 25.66. The move from 26.43 to 28.74 is exactly three of those. The hard rule takes a third off at 3R. VIAV got there in 3 days.",
    "lesson_line": "Count in R. Three R is the first trim.",
    "facts": [
     "h05",
@@ -1720,7 +2154,17 @@
     },
     "round": 1
    },
-   "suffix": "R"
+   "suffix": "R",
+   "simple": "The stock is up three times the gap between fill and stop, so the trade is at 3R.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q44",
@@ -1736,7 +2180,7 @@
     "A Remount of the prior close"
    ],
    "answer": "A pivot, not a Go Signal",
-   "why": "A 30-minute pivot. AXON closed back above the prior close on the third candle, after the two-candle window. It is bought over the pivot candle's high.",
+   "why": "A pivot, not a Go Signal. AXON closed back above the prior close, 359.35, on the third hourly candle, after the two-candle window. The reclaim has to come by the end of the second candle. It is a 30-minute pivot, bought over the pivot candle's high, not at a candle close.",
    "lesson_line": "A third-candle turn is a pivot.",
    "facts": [
     "d14",
@@ -1746,10 +2190,23 @@
    "wrong": {
     "A Go Signal, a little late": "There is no late version. After the second candle it is a pivot.",
     "An Oops at the prior low": "An Oops is a daily bar at the prior low.",
-    "A Remount of the prior close": "A Remount follows a line lost over a long stay."
+    "A Remount of the prior close": "Nothing here is a long-lost line retaken. The prior close was reclaimed, just too late."
    },
    "house": true,
-   "story": "The close back above the prior close, 359.35, comes on the third hourly candle at 361.39. Everything else passes."
+   "story": "The close back above the prior close, 359.35, comes on the third hourly candle at 361.39. Everything else passes.",
+   "simple": "It is a pivot, because the reclaim came on the third candle, after the two-candle window.",
+   "deeper": {
+    "example": "AXON, 2024-09-11: the third hourly candle closed at 361.39, above the prior close of 359.35. Every other gate passed, but the clock failed. A pivot is its own setup, bought over the pivot candle's high."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q45",
@@ -1760,24 +2217,41 @@
    "q": "Is this a Go Signal?",
    "choices": [
     "No; a bare turn with no flag",
-    "Yes, it turned inside the window",
-    "Yes, after earnings are best",
-    "Yes, if volume is heavy enough"
+    "Yes; it turned inside the window",
+    "Yes; news days give strong turns",
+    "No; only candle one counts"
    ],
    "answer": "No; a bare turn with no flag",
-   "why": "No. A red to green inside a wild post-earnings range, with no tight flag to buy against, is a bare red to green. SNOW did it and failed.",
+   "why": "No. A red to green inside a wild post-earnings range, with no tight flag to buy against, is a bare red to green. The clock is only one gate. The card also needs the setup around the turn. That is a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level. SNOW had this shape.",
    "lesson_line": "No flag, no Go Signal. Just a common turn.",
    "facts": [
     "d16",
     "g31"
    ],
    "wrong": {
-    "Yes, it turned inside the window": "The clock is only one gate. The turn also needs the setup around it.",
-    "Yes, after earnings are best": "A wild range after earnings leaves no tight flag to defend.",
-    "Yes, if volume is heavy enough": "Volume is not the issue and it is not a rule."
+    "Yes; it turned inside the window": "The clock is only one gate. The turn also needs the setup around it.",
+    "Yes; news days give strong turns": "A wild range after earnings leaves no tight flag to defend.",
+    "No; only candle one counts": "The first or the second candle counts. Here the turn is on time; the missing flag is the problem."
    },
    "house": true,
-   "story": "The stock swings wildly after earnings, with no tight flag. The first candle dips under the prior close and the next closes above it."
+   "story": "The stock swings wildly after earnings, with no tight flag. The first candle dips under the prior close and the next closes above it.",
+   "simple": "No, because the turn came on time but a wild range with no tight flag leaves nothing to buy against.",
+   "deeper": {
+    "trap": "The trap is the clock. The turn came on time, in candle two, so it feels like a Go Signal. But the card wants the setup around it. That is a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level. A wild post-earnings range has no tight flag to buy against, so it is only a bare red to green."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the tight flag as a gate is held (D-131, D-132) (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-131",
+    "D-132"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q46",
@@ -1788,24 +2262,40 @@
    "q": "Is this a Go Signal?",
    "choices": [
     "No; a red to green in mid-air",
-    "Yes, it turned in the window",
-    "Yes, any dip under the close counts",
-    "Yes, if the market is Green"
+    "Yes; it turned in the window",
+    "Yes; any dip under it counts",
+    "No; it is a pivot, not a signal"
    ],
    "answer": "No; a red to green in mid-air",
-   "why": "No. A red to green in mid-air tested no level, so there is nothing to defend. CF was stopped the same session.",
+   "why": "No. A red to green in mid-air has no level under it, so no level was tested and there is nothing to defend. The card wants a dip into the 20-day line or a marked level before the turn. Here the session low sits well above every moving average and marked level, so being on time does not save it.",
    "lesson_line": "No level tested, nothing to defend.",
    "facts": [
     "d17",
     "g31"
    ],
    "wrong": {
-    "Yes, it turned in the window": "On time, but the turn has to come at a level it can defend.",
-    "Yes, any dip under the close counts": "The dip has to test the 20-day line or a marked level.",
-    "Yes, if the market is Green": "A Green market does not supply a level."
+    "Yes; it turned in the window": "On time, but the turn has to come at a level it can defend.",
+    "Yes; any dip under it counts": "The dip has to test the 20-day line or a marked level.",
+    "No; it is a pivot, not a signal": "A pivot is a turn after the second candle. This one came on the second candle."
    },
    "house": true,
-   "story": "The first candle dips under the prior close and the next closes above it. The session low sits well above every moving average and marked level."
+   "story": "The first candle dips under the prior close and the next closes above it. The session low sits well above every moving average and marked level.",
+   "simple": "No, because the turn tested no level, so there is nothing to defend.",
+   "deeper": {
+    "trap": "The trap is that the turn looks perfect on the clock. It dipped under the prior close and reclaimed it by the second candle. But the card wants the dip to come at a level, the 20-day line or a marked level. A turn with the session low far above every moving average has no level under it. A stop under that low defends nothing."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the level as a gate is held (D-130) (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-130"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q47",
@@ -1818,23 +2308,37 @@
     "Yes; candle two is in time",
     "No; it needed the first candle",
     "No; it is a pivot, not a signal",
-    "Only if volume is heavy too"
+    "Yes; wait for a third to confirm"
    ],
    "answer": "Yes; candle two is in time",
-   "why": "Yes. The reclaim comes by the end of the second hourly candle. VIAV was the second-candle version and ran to 44.2R.",
+   "why": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and reached 44.2R, but one trade proves nothing about the next.",
    "lesson_line": "First or second candle both count.",
    "facts": [
     "d05",
     "d04",
-    "g04"
+    "g04",
+    "d14"
    ],
    "wrong": {
     "No; it needed the first candle": "The first or the second candle counts. VIAV reclaimed on the second.",
     "No; it is a pivot, not a signal": "A pivot is a turn after the second candle. This one was on it.",
-    "Only if volume is heavy too": "Volume is not a rule."
+    "Yes; wait for a third to confirm": "Waiting past candle two turns it into a pivot. The close back above already came on the second."
    },
    "house": true,
-   "story": "Candle one is red and stays under the prior close. Candle two closes green back above it."
+   "story": "Candle one is red and stays under the prior close. Candle two closes green back above it. Everything else passes.",
+   "simple": "Yes, because the close back above the prior close came on candle two, which is still inside the window.",
+   "deeper": {
+    "counter": "A first-candle reclaim is not required. The card counts a turn in the first or the second candle. The second-candle version asks that candle one stays under the prior close and candle two closes green back above it. If the close back above comes on the third candle, it is a pivot, as AXON showed."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's criteria card (settled, D-145) (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q48",
@@ -1842,29 +2346,44 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "go.red_to_green_line",
-   "q": "Go Signal or Oops?",
+   "q": "What is this pattern?",
    "choices": [
-    "An Oops; a daily bar, prior low",
-    "A Go Signal; it reclaimed a line",
-    "A U&R of an older swing low",
-    "A Remount of the prior low"
+    "An Oops",
+    "A Go Signal",
+    "A U&R",
+    "A pivot"
    ],
-   "answer": "An Oops; a daily bar, prior low",
-   "why": "An Oops. An Oops gaps below the prior day's low and closes back above it on the daily bar. Deepvue and Williams define it at the prior low too.",
+   "answer": "An Oops",
+   "why": "An Oops. On our card an Oops gaps below the prior day's low and closes back above it on the daily bar. The Go Signal's line is the prior day's close, read on the first two hourly candles. Williams' Oops and Deepvue's Oops Reversal also use the prior day's low.",
    "lesson_line": "Daily bar and prior low: an Oops.",
    "facts": [
     "g32",
     "u1",
     "u2",
-    "g33"
+    "g33",
+    "g30"
    ],
    "wrong": {
-    "A Go Signal; it reclaimed a line": "The Go Signal line is the prior close, read on the first two hourly candles.",
-    "A U&R of an older swing low": "A U&R takes back a level over up to 3 sessions on the daily chart. This is one day at yesterday's low.",
-    "A Remount of the prior low": "A Remount follows a line lost for days."
+    "A Go Signal": "The Go Signal line is the prior close, read on the first two hourly candles. This is one daily bar at yesterday's low.",
+    "A U&R": "A U&R needs a prominent prior swing low and gives it up to 3 sessions on the daily chart. This story is just yesterday's low.",
+    "A pivot": "A pivot is a turn later in the day, bought over the pivot candle's high. This story is one daily bar at yesterday's low."
    },
    "house": true,
-   "story": "On the daily chart, a stock gaps under yesterday's low and closes back above yesterday's low by the end of the day."
+   "story": "On the daily chart, a stock gaps under yesterday's low and closes back above yesterday's low by the end of the day.",
+   "simple": "It is an Oops, because it gaps under yesterday's low and closes back above it on the daily bar.",
+   "deeper": {
+    "counter": "The Go Signal's line is the prior CLOSE and the Oops line is the prior LOW. A stock can open under yesterday's close and still be above yesterday's low. That is no Oops."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)",
+     "card wording differs from outside sources (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q49",
@@ -1872,27 +2391,42 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "go.ema20_rising",
-   "q": "Does it pass the context check?",
+   "q": "Which of the card's context checks does it fail?",
    "choices": [
-    "No; the 20-day is falling",
-    "Yes, it is above the 50-day",
-    "Yes, the turn is on time",
-    "Yes, but at half size only"
+    "The 20-day EMA trend",
+    "The 50-day SMA line",
+    "The 200-day SMA line",
+    "The reclaim window"
    ],
-   "answer": "No; the 20-day is falling",
-   "why": "No. The card wants the 20-day EMA higher than it was 5 sessions ago. A falling 20-day fails the check.",
+   "answer": "The 20-day EMA trend",
+   "why": "The 20-day EMA trend. The card wants the 20-day EMA higher than it was 5 sessions ago. Here it is lower, so that check fails. Being above the 50-day and 200-day is not enough.",
    "lesson_line": "Context first: the 20-day EMA should be rising.",
    "facts": [
     "g13",
-    "g12"
+    "g12",
+    "g11",
+    "g04"
    ],
    "wrong": {
-    "Yes, it is above the 50-day": "Above the 50-day is one gate. The 20-day EMA has to be rising too.",
-    "Yes, the turn is on time": "The clock is only one gate.",
-    "Yes, but at half size only": "Half size does not fix a failed gate."
+    "The 50-day SMA line": "The story has it above its 50-day, so that check passes.",
+    "The 200-day SMA line": "The story has it above its 200-day, so that check passes.",
+    "The reclaim window": "A first-hour reclaim is inside the two-candle window."
    },
    "house": true,
-   "story": "A first-hour reclaim in a stock above its 50-day and 200-day. Its 20-day EMA is lower than it was 5 sessions ago."
+   "story": "A first-hour reclaim in a stock above its 50-day and 200-day. Its 20-day EMA was 52.10 five sessions ago and is 51.40 today.",
+   "simple": "The 20-day EMA check fails, because the card wants it higher than it was 5 sessions ago and here it is lower.",
+   "deeper": {
+    "trap": "A tidy chart can still fail. This stock is above its 50-day and 200-day and the turn is on time, but its 20-day EMA is lower than it was 5 sessions ago. One check fails, so we pass."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q50",
@@ -1903,24 +2437,37 @@
    "q": "Can you tell?",
    "choices": [
     "No; you need the hourly bars",
-    "Yes, the wick shows the dip",
-    "Yes, green means red to green",
-    "Yes, if volume is high"
+    "Yes; the wick shows the dip",
+    "Yes; green means red to green",
+    "No; wait for tomorrow's close"
    ],
    "answer": "No; you need the hourly bars",
-   "why": "No. The daily footprint cannot show the turn, so grading from the daily chart is a listed mistake. Open the hourly bars.",
+   "why": "No. The daily footprint cannot show the turn, so grading from the daily chart is a listed mistake. A long lower wick could form at any hour, and a green close says nothing about the first two hourly candles. Open the hourly bars: the Go Signal lives in the first two hourly candles.",
    "lesson_line": "Daily wicks hide the clock. Use hourly bars.",
    "facts": [
     "g28",
-    "g04"
+    "g04",
+    "g19"
    ],
    "wrong": {
-    "Yes, the wick shows the dip": "A wick could be made any time of day. The Go Signal lives in the first two hourly candles.",
-    "Yes, green means red to green": "A green daily close says nothing about the first two hours.",
-    "Yes, if volume is high": "Volume cannot show the clock."
+    "Yes; the wick shows the dip": "A wick could be made any time of day. The Go Signal lives in the first two hourly candles.",
+    "Yes; green means red to green": "A green daily close says nothing about the first two hours.",
+    "No; wait for tomorrow's close": "Tomorrow tells you nothing about the first two hours of today. The hourly bars show them."
    },
    "house": true,
-   "story": "You look at a daily chart. A candle has a long lower wick and a green close. A friend calls it a Go Signal."
+   "story": "You look at a daily chart. A candle has a long lower wick and a green close. A friend calls it a Go Signal.",
+   "simple": "No, because a daily candle hides the clock, so you must open the hourly bars to see the first two candles.",
+   "deeper": {
+    "trap": "A daily candle is one summary of the whole day. The same long-wick green candle can come from a first-hour reclaim, a midday recovery or a late push. Only the hourly bars show whether the stock traded under the prior close. They also show whether it got back above it by the end of the second hourly candle."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's criteria card (settled, D-145) (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q51",
@@ -1936,19 +2483,37 @@
     "A U&R of a swing low"
    ],
    "answer": "A pivot over the candle high",
-   "why": "A pivot. A turn later in the day, however clean, is a 30-minute pivot bought over the pivot candle's high.",
+   "why": "A pivot. A turn later in the day, however clean, is a 30-minute pivot bought over the pivot candle's high. The Go Signal's reclaim must come by the end of the second hourly candle, and 13:30 is long past that. It is not an Oops or a U&R either: those are daily-bar patterns.",
    "lesson_line": "Clean but late is a pivot.",
    "facts": [
     "g30",
-    "g04"
+    "g04",
+    "g32",
+    "g33"
    ],
    "wrong": {
     "A Go Signal, and a strong one": "Too late in the day for a Go Signal, however clean the candle.",
-    "An Oops at the prior low": "An Oops is a daily bar at the prior low.",
-    "A U&R of a swing low": "A U&R is a daily setup on a swing low."
+    "An Oops at the prior low": "An Oops gaps below the prior day's low and closes back above it on the daily bar. This is an hourly turn against the prior close.",
+    "A U&R of a swing low": "A U&R undercuts a prominent swing low and must close back above it within 3 sessions on the daily chart."
    },
    "house": true,
-   "story": "The stock reclaims the prior close at 13:30 on a clean green candle at the 20-day line."
+   "story": "The stock reclaims the prior close at 13:30 on a clean green candle at the 20-day line.",
+   "simple": "A pivot, because a turn later in the day is a pivot however clean it looks, not a Go Signal.",
+   "deeper": {
+    "trap": "Clean is not the same as in time. A candle at the 20-day line can look perfect. But the Go Signal is defined by the clock: the reclaim by the end of the second hourly candle. A later turn can still be traded as a 30-minute pivot, bought over the pivot candle's high. It is a different setup."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "hourly bar alignment is held (D-031); 13:30 is late under either clock (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-031"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q52",
@@ -1987,27 +2552,43 @@
    "criterion": "go.after_entry_stop",
    "q": "How do you file this?",
    "choices": [
-    "A planned loss; the stop was the exit",
-    "A mistake; you should have held",
-    "A reason to widen stops",
-    "A sign to drop the setup"
+    "A planned loss; the risk was set",
+    "A mistake; you should have sold sooner",
+    "A reason to widen the next stop",
+    "A sign the setup has stopped working"
    ],
-   "answer": "A planned loss; the stop was the exit",
-   "why": "A planned loss. After the entry, a trade below the session low is the exit. The turn was real and TSLA gave it back within hours.",
+   "answer": "A planned loss; the risk was set",
+   "why": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and the fourth fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance.",
    "lesson_line": "The turn was real. The stock gave it back. The stop paid.",
    "facts": [
     "d08",
     "d09",
     "g22",
-    "g40"
+    "g40",
+    "h01",
+    "h02",
+    "h28"
    ],
    "wrong": {
-    "A mistake; you should have held": "The stop is the exit. Holding through it is how a small loss gets big.",
-    "A reason to widen stops": "The stop only moves up, never wider.",
-    "A sign to drop the setup": "One stop says nothing about the setup. The edge shows over many trades."
+    "A mistake; you should have sold sooner": "The card's exit is the stop under the session low. Selling earlier is not part of the plan.",
+    "A reason to widen the next stop": "We set the next stop the same way: a few cents under the session low, with the size coming from it.",
+    "A sign the setup has stopped working": "One stop-out does not change the setup. After a stop-out, we buy again only if the setup triggers again, as a new trade."
    },
    "house": true,
-   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79."
+   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79.",
+   "simple": "It is a planned loss, because the stop is the exit and the stock gave the turn back within hours.",
+   "deeper": {
+    "example": "TSLA: bought at 361.86 on the first candle with the stop at 353.79, which is 2.23% away. It was stopped the same session at the 12:30 candle, best 0.23R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q54",
@@ -2044,27 +2625,41 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "go.reclaim_window",
-   "q": "Which grades higher?",
+   "q": "On our card, which turn is the better grade cue?",
    "choices": [
-    "A; the strong first-candle turn",
+    "A; it is stronger and earlier",
     "B; it waited for confirmation",
-    "Both grade the same, both in time",
-    "Neither; both are pivots"
+    "Same cue; both are in time",
+    "Neither; both turns are pivots"
    ],
-   "answer": "A; the strong first-candle turn",
-   "why": "A. A strong green hourly candle back above the prior close in the first candle is an A plus cue. A weak turn only in the second is a B minus cue.",
-   "lesson_line": "Strong and early grades higher than weak and late.",
+   "answer": "A; it is stronger and earlier",
+   "why": "A. On our card, a strong green hourly candle back above the prior close in the first candle is an A plus cue. A weak turn only in the second candle is a B minus cue. Both are in time, so both are Go Signals. A cue is a hint, not a score: grading is discretionary and hard to define.",
+   "lesson_line": "A strong early turn is a better cue than a weak late one.",
    "facts": [
     "g36",
-    "g35"
+    "g35",
+    "h50"
    ],
    "wrong": {
     "B; it waited for confirmation": "A turn only in the second candle, and weak, is a B minus cue.",
-    "Both grade the same, both in time": "The cues differ: a strong first candle is A plus, a weak second candle is B minus.",
-    "Neither; both are pivots": "Both are inside the two-candle window, so both are Go Signals."
+    "Same cue; both are in time": "The cues differ: a strong first candle is an A plus cue, a weak second candle is a B minus cue.",
+    "Neither; both turns are pivots": "Both are inside the two-candle window, so both are Go Signals."
    },
    "house": true,
-   "story": "Two Go Signals, both in time. A: a strong green first-candle reclaim. B: a weak turn only in the second candle."
+   "story": "Two Go Signals, both in time. A: a strong green first-candle reclaim. B: a weak turn only in the second candle.",
+   "simple": "A shows the stronger cue, because it turned strongly in the first candle while B turned weakly in the second.",
+   "deeper": {
+    "trap": "The trap is treating the second candle as a flaw. It is not: both turns are in time, so both are Go Signals. The difference shows only in the grade, and only as a cue. A strong first-candle turn is an A plus cue, and a weak turn only in the second is a B minus cue."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "grade cues sit beside the rulebook's note that grading is discretionary, E50 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q56",
@@ -2074,25 +2669,41 @@
    "criterion": "go.climax",
    "q": "What do you do?",
    "choices": [
-    "Sell a big part into the climax",
+    "Sell a big part into the run",
     "Hold it all, it is working",
     "Add, momentum is strong",
     "Move the stop below the 50-day"
    ],
-   "answer": "Sell a big part into the climax",
-   "why": "Sell a big part into it. On a climax run in your own long, sell a big part into the run; how big is a judgment call.",
+   "answer": "Sell a big part into the run",
+   "why": "Sell a big part into the run. On a climax run in your own long, sell a big part into it. How big is a judgment call. You do not add. The stop only moves up.",
    "lesson_line": "Sell into the vertical run.",
    "facts": [
     "g26",
-    "h02"
+    "h31",
+    "h02",
+    "g18",
+    "h01"
    ],
    "wrong": {
     "Hold it all, it is working": "On a climax run in your own long, sell a big part into it.",
-    "Add, momentum is strong": "We do not add, and a climax is when to sell, not buy.",
-    "Move the stop below the 50-day": "The stop only moves up."
+    "Add, momentum is strong": "We buy full size at one price with one stop, so there is nothing to add. A climax is when to sell, not buy.",
+    "Move the stop below the 50-day": "Our stop sits a few cents under the session low at entry and only moves up. The 50-day is not the stop."
    },
    "house": true,
-   "story": "Three days after the buy the stock is up sharply on its biggest range and gap of the run, a vertical climax."
+   "story": "Three days after the buy, your stock is in a climax run. It has risen three days straight, gapped up twice, and shows its widest range and highest volume of the run.",
+   "simple": "Sell a big part into the run, because the card says to sell into a climax run in your own long.",
+   "deeper": {
+    "trap": "'It is working' is the reason people hold everything. The card names a climax run in your own long as the moment to sell a big part, and how big is a judgment call."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q57",
@@ -2108,20 +2719,35 @@
     "Move the stop to the 50-day"
    ],
    "answer": "Thesis over; the stop decides",
-   "why": "The pullback thesis is over, but the stop is still the exit. A close under the 20-day EMA is a warning; a close under the 50-day ends the thesis.",
+   "why": "The pullback thesis is over, but the stop is still the exit. A close under the 20-day EMA is a warning; a close under the 50-day ends the pullback thesis. Ending the thesis is not a sell order: the stop is the exit, and it only moves up.",
    "lesson_line": "A close under the 50-day ends the thesis. The stop still decides.",
    "facts": [
     "g24",
     "g22",
-    "h02"
+    "h02",
+    "g18",
+    "h03b"
    ],
    "wrong": {
     "Nothing yet; ignore the 50-day": "A close under the 50-day ends the pullback thesis.",
-    "Add a little on the dip": "We do not add, least of all when the thesis is ending.",
-    "Move the stop to the 50-day": "The stop only moves up, and the card keeps the session low as the stop."
+    "Add a little on the dip": "Entry is full size at one price with one stop, so there is nothing to add to.",
+    "Move the stop to the 50-day": "The stop stays where the plan put it. The 50-day sits above the price now, so a stop there would just sell the position."
    },
    "house": true,
-   "story": "You hold a Go Signal. The stock closes under its 50-day, though your stop is not hit yet."
+   "story": "You hold a Go Signal. The stock closes under its 50-day, though your stop is not hit yet.",
+   "simple": "The pullback idea is over once it closes under the 50-day, but your stop is still the exit.",
+   "deeper": {
+    "counter": "Read the two lines apart. A close under the 20-day EMA is only a warning. A close under the 50-day ends the pullback thesis. Neither is an exit by itself: the stop is the exit, and it only moves up. So you do not add, and you do not move the stop to a line that sits above the price."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a proposed card line, go.context_break, and the owner's stop rule A4 (+2)",
+     "fixed before: flagged-question fix (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q58",
@@ -2147,13 +2773,13 @@
    "criterion": "go.hourly_flag",
    "q": "Which one is the Go Signal?",
    "choices": [
-    "A; in time, trend intact, Green",
-    "B; the candle is cleaner and bigger",
-    "C; the gap shows the most strength",
-    "None of the three"
+    "Chart A",
+    "Chart B",
+    "Chart C",
+    "None of them"
    ],
-   "answer": "A; in time, trend intact, Green",
-   "why": "A. It dips under the prior close and reclaims by the second candle, with the trend intact and a Green market. B is a pivot and C never dipped.",
+   "answer": "Chart A",
+   "why": "Chart A. It dips under the prior close and reclaims it by the second hourly candle. Its trend is intact and the market is Green. B turns at 13:30, after the window, so it is a pivot. C never trades under the prior close, so it is not a Go Signal.",
    "lesson_line": "Dip, reclaim in time, trend and market in line.",
    "facts": [
     "g02",
@@ -2162,15 +2788,34 @@
     "g12",
     "g13",
     "g14",
-    "g03"
+    "g03",
+    "g31"
    ],
    "wrong": {
-    "B; the candle is cleaner and bigger": "A turn at 13:30 is a pivot, however clean.",
-    "C; the gap shows the most strength": "A gap up that never trades under the prior close is not a Go Signal.",
-    "None of the three": "A passes every gate."
+    "Chart B": "A turn at 13:30 comes after the second hourly candle. That is a pivot, not a Go Signal.",
+    "Chart C": "A gap up that never trades under the prior close is not a Go Signal.",
+    "None of them": "Chart A passes every check in the story."
    },
    "house": true,
-   "story": "Three charts. A: a leader above its 50-day and 200-day, 20-day EMA rising, dips under the prior close and closes back above it in the second candle, Green market. B: the same, but the turn comes at 13:30. C: a gap up all morning."
+   "story": "A: a leader above its 50-day and 200-day, rising 20-day EMA, in a tight flag at its 20-day line. It dips under the prior close, then closes back above it in the second hourly candle, in a Green market. B: the same, but the turn comes at 13:30. C: a gap up all morning that never trades under the prior close.",
+   "simple": "A is the only one that dips, reclaims in time and has the trend and market in line.",
+   "deeper": {
+    "trap": "B and C can look stronger than A. B fails the clock, because a turn at 13:30 is after the second candle. C fails the dip, because a gap up that never trades under the prior close is not a Go Signal."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our card with proposed gates (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "depends_on": [
+    "D-130",
+    "D-131",
+    "D-132"
+   ],
+   "batch": "wave4"
   },
   {
    "key": "q60",
@@ -2186,20 +2831,35 @@
     "Buy more at the 23.85 gap low"
    ],
    "answer": "The 23.85 low is the stop; hold",
-   "why": "The 23.85 low is the new stop. A gap through the stop hands it to the first 30-minute low. Here that low is under 2R, so you hold to it.",
+   "why": "The 23.85 low is the new stop, and you hold. On a gap through the stop, the low of the first 30-minute bar is the new stop. The ceiling is this: if the first 30 minutes take the loss past 2R, get out. Here one R is 24.48 minus 24.01, and a stop at 23.85 risks less than 2R. So you hold.",
    "lesson_line": "Gap through the stop: first 30-minute low, unless past 2R.",
    "facts": [
     "h06",
     "h07",
-    "d06"
+    "d06",
+    "g18"
    ],
    "wrong": {
     "Out at once; a gap is a full loss": "The rule hands the stop to the first 30-minute low, and out only if that is past 2R.",
     "Move the stop back up to 24.48": "24.48 is above the gap, so it would sell at once. The gap rule uses the first 30-minute low.",
-    "Buy more at the 23.85 gap low": "No adding."
+    "Buy more at the 23.85 gap low": "We do not add. It is full size at one price with one stop."
    },
    "house": true,
-   "story": "You bought a first-candle reclaim at 24.48 with the stop at 24.01. The next morning gaps through the stop. The first 30-minute low is 23.85."
+   "story": "You bought a first-candle reclaim at 24.48 with the stop at 24.01, so one R is the gap between them. The next morning gaps through the stop. The first 30-minute low is 23.85.",
+   "simple": "The first 30-minute low becomes the new stop, and since that loss is under 2R you hold.",
+   "deeper": {
+    "example": "The buy at 24.48 with the stop at 24.01 is a real BE trade. The gap and the 23.85 low are made up to show the rule. That stop risks less than the 2R ceiling, so the gap rule keeps the trade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q61",
@@ -2207,9 +2867,9 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "go.position_adv",
-   "q": "The stock's average daily volume is 400,000 shares. What is the most you may own at 1% of it?",
+   "q": "The stock's average daily volume is 400,000 shares. What is the most you may own?",
    "answer": 4000,
-   "why": "4,000 shares. Never own more than 1% of a stock's average daily volume, so that you can always get out.",
+   "why": "4,000 shares. Never own more than 1% of a stock's average daily volume. One percent of 400,000 is 4,000. The limit ties your size to what the stock trades. Illiquid stocks are not even watched.",
    "lesson_line": "One percent of daily volume is the ceiling.",
    "facts": [
     "h19"
@@ -2222,7 +2882,18 @@
      "a": 400000
     },
     "round": 0
-   }
+   },
+   "simple": "One percent of 400,000 shares is 4,000, so that is the most you may own.",
+   "tier": "core",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only (+3)",
+     "rests on our rulebook (+2)",
+     "computed key (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q62",
@@ -2260,15 +2931,15 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "go.above_200",
-   "q": "Which of these is NOT a reason to pass a Go Signal?",
+   "q": "Which one helps a Go Signal instead of blocking it?",
    "choices": [
-    "A rising 20-day EMA",
+    "A rising 20-day EMA line",
     "A report in two sessions",
     "A gap up that never dipped",
     "A close under the 200-day"
    ],
-   "answer": "A rising 20-day EMA",
-   "why": "A rising 20-day EMA. That is a point in its favour; the card wants it higher than it was 5 sessions ago. The other three are passes.",
+   "answer": "A rising 20-day EMA line",
+   "why": "A rising 20-day EMA. That is a point in its favor: the card wants it higher than it was 5 sessions ago. The other three are passes. A report in two sessions falls inside the 3-session no-buy window. A gap up that never dipped is not a Go Signal. A stock under its 200-day gets no long.",
    "lesson_line": "A rising 20-day helps. The other three block the trade.",
    "facts": [
     "g13",
@@ -2282,7 +2953,20 @@
     "A gap up that never dipped": "A gap up that never trades under the prior close is not a Go Signal.",
     "A close under the 200-day": "No longs below the 200-day simple moving average."
    },
-   "house": true
+   "house": true,
+   "simple": "A rising 20-day EMA helps the trade, while the other three each rule it out.",
+   "deeper": {
+    "trap": "A rising 20-day EMA is a plus, but it is not a rescue. It cannot fix a stock under its 200-day. It cannot fix a buy inside the 3 sessions before a report, or a gap up that never dipped. Each of those three rules the trade out, whatever the average does."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook, B22 and B26 (+2)",
+     "a NOT question whose key rests on a proposed card line, go.ema20_rising (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q64",
@@ -2292,13 +2976,24 @@
    "criterion": "go.not_stretched",
    "q": "Skip the buy if the stock is more than 10% above its 200-day average.",
    "answer": "False",
-   "why": "False. The stretch test is against the 10-day average. Skip a long that is more than 10% above its 10-day.",
+   "why": "False. The stretch test is against the 10-day average, not the 200-day. Skip a long that is more than 10% above its 10-day average. The card says not more than 10% above the 10-day at the buy. The 200-day is a separate trend rule: no longs below it.",
    "lesson_line": "Ten percent over the 10-day: skip.",
    "facts": [
     "g17",
-    "h13"
+    "h13",
+    "h10"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because the stretch test is against the 10-day average, not the 200-day.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q65",
@@ -2308,13 +3003,24 @@
    "criterion": "go.full_size",
    "q": "A Go Signal is built in two half-size buys to average the price.",
    "answer": "False",
-   "why": "False. Full size at once, one price, one stop. We do not add, and the size comes from the stop.",
+   "why": "False. A Go Signal goes in at full size at once, with one price and one stop. We do not add. The size comes from the stop: account times risk percent, divided by the distance from entry to stop, rounded down, then capped.",
    "lesson_line": "One price, one stop, no adding.",
    "facts": [
     "g18",
-    "h03"
+    "h03",
+    "h03b"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because we buy the full size at one price with one stop and we do not add.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook, A5 (+2)",
+     "fixed before: variety rewrite (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q66",
@@ -2324,12 +3030,24 @@
    "criterion": "go.reclaim_candle_green",
    "q": "Our card wants the reclaiming hourly candle to be green: a close above its own open.",
    "answer": "True",
-   "why": "True. Our card asks for a green reclaim candle, one that closes above its own open.",
+   "why": "True. Our card asks for a green reclaim candle, one that closes above its own open. Green here is about the candle's own open. The red-to-green line is still the prior close. Volume is not a rule, only a plus for grading.",
    "lesson_line": "Our card wants a green reclaim candle: it closes above its own open.",
    "facts": [
-    "g20"
+    "g20",
+    "g01",
+    "g21"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because our card wants the reclaim candle to close above its own open, which makes it green.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (+3)",
+     "rests on a proposed card line (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q67",
@@ -2345,7 +3063,7 @@
     "Any color, if the volume is high"
    ],
    "answer": "Green, closing above its open",
-   "why": "Green. Our card wants the reclaim candle to close above its own open. It treats volume as a plus, not a rule.",
+   "why": "Green, closing above its open. Our card wants the reclaim candle to close above its own open. Volume is not a rule. More volume on the reclaim than on the flag's first hours is only a plus when you grade.",
    "lesson_line": "Our card wants the reclaim candle green: a close above its open.",
    "facts": [
     "g20",
@@ -2356,7 +3074,17 @@
     "A doji, closing right at its open": "A doji shows no push. Our card wants the close above the open.",
     "Any color, if the volume is high": "Our card treats volume as a plus for grading, not a rule, and it asks for a green candle."
    },
-   "house": true
+   "house": true,
+   "simple": "The reclaim candle should be green, closing above its own open, and volume is only a plus.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on proposed card lines, go.reclaim_candle_green and go.volume (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q68",
@@ -2364,7 +3092,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "go.liquidity",
-   "q": "A stock trades 600,000 shares a day at about 24 dollars. How many millions of dollars trade a day?",
+   "q": "A stock trades 600,000 shares a day on average, at about 24 dollars. How many million dollars trade a day?",
    "answer": 14.4,
    "calc": {
     "fn": "arith",
@@ -2376,12 +3104,23 @@
     "round": 1
    },
    "suffix": "million",
-   "why": "14.4 million a day. We trade only stocks at $10 or more that trade at least $20 million a day, so this one fails.",
+   "why": "14.4 million. Dollars traded a day is shares times price, 600,000 times 24. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the dollar volume, so it fails.",
    "lesson_line": "Dollar volume is shares times price. Under $20 million a day, pass.",
    "facts": [
     "h09"
    ],
-   "house": true
+   "house": true,
+   "simple": "Shares times price gives dollars traded, and 600,000 times 24 is 14.4 million, under the 20 million floor.",
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only (+3)",
+     "rests on our rulebook (+2)",
+     "computed key (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q69",
@@ -2391,12 +3130,22 @@
    "criterion": "go.liquidity",
    "q": "Our floors pass a $9 stock that trades $30 million a day.",
    "answer": "False",
-   "why": "False. The floors are $10 a share and $20 million a day. Both must hold, and $9 fails the first.",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. Both floors must hold. A $9 stock fails the price floor, however much it trades. Dollar volume of $30 million does not buy back a failed price floor.",
    "lesson_line": "Two floors: $10 a share and $20 million a day.",
    "facts": [
     "h09"
    ],
-   "house": true
+   "house": true,
+   "simple": "False, because both floors must hold and a $9 stock fails the $10 price floor.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (+3)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q70",
@@ -2413,18 +3162,29 @@
     "A stop you place after the first trim"
    ],
    "answer": "A real stop order with the broker",
-   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head.",
-   "lesson_line": "The stop goes in with the fill. Your head is not a broker.",
+   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head. The stop sits a few cents under the session low, 25.69 so far, and it only moves up. In our scan that stop was 25.66.",
+   "lesson_line": "Every position has a real stop order. Your head is not a broker.",
    "facts": [
     "h18",
-    "d04"
+    "d04",
+    "h24",
+    "h02"
    ],
    "wrong": {
     "A mental stop; you watch the screen": "A stop kept in your head is a debate, not a stop order.",
     "An alert that pings you under the low": "An alert only tells you. A stop order with the broker acts.",
-    "A stop you place after the first trim": "Every position has its stop order from the fill, not from the first trim."
+    "A stop you place after the first trim": "Every position has a real stop order. It does not wait for the first trim."
    },
-   "house": true
+   "house": true,
+   "simple": "Keep a real stop order with the broker, because a stop kept in your head is not a stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, D41 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q71",
@@ -2432,15 +3192,25 @@
    "rung": 4,
    "format": "tf",
    "criterion": "go.stop_broker",
-   "q": "Once set with the broker, the stop only moves up, apart from the gap rule.",
+   "q": "The stop only moves up, never down or wider, apart from the gap rule.",
    "answer": "True",
-   "why": "True. The stop is the exit and it only moves up, never down or wider. The gap rule is the one exception.",
-   "lesson_line": "Set the stop at the fill. It only goes up from there.",
+   "why": "True. The stop is the exit and it only moves up, never down or wider. The gap rule is the one exception. After a gap through the stop, the first 30-minute low is the new stop, unless the loss there is past 2R. Then you get out.",
+   "lesson_line": "The stop only goes up. A gap through it hands it to the first 30-minute low.",
    "facts": [
     "h02",
-    "h18"
+    "h06",
+    "h07"
    ],
-   "house": true
+   "house": true,
+   "simple": "True, because the stop only moves up, never down or wider, except under the gap rule.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook, A4 and B20 (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q72",
@@ -2448,7 +3218,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "go.breakeven",
-   "q": "Bought at 24.48, stop 24.01. At what price may the stop first go to breakeven?",
+   "q": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open?",
    "answer": 25.42,
    "calc": {
     "fn": "arith",
@@ -2460,13 +3230,23 @@
     "round": 2
    },
    "prefix": "$",
-   "why": "25.42. Breakeven starts at 2R: the fill plus two times the distance to the stop. The rule runs from 2R to 5R.",
+   "why": "25.42. One R is the fill minus the stop, 24.48 minus 24.01. Two R is the fill plus two of those. The breakeven move runs from 2R to 5R, ideally. It is a window, not a trigger you must hit at once.",
    "lesson_line": "Breakeven starts at 2R and runs to 5R.",
    "facts": [
     "h05",
     "d06"
    ],
-   "house": true
+   "house": true,
+   "simple": "Breakeven starts at 2R, so add two times the gap between fill and stop to the fill, giving 25.42.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q73",
@@ -2475,24 +3255,38 @@
    "format": "scenario",
    "criterion": "go.breakeven",
    "q": "Can the stop go to breakeven now?",
-   "story": "You bought a Go Signal at 26.43 with the stop at 25.66. It trades to 27.00 and holds, up less than 1R. You want the stop at your entry.",
+   "story": "You bought a Go Signal at 26.43 with the stop at 25.66, so one R is the gap between them. It trades to 27.00 and holds, up less than 1R. You want the stop at your entry.",
    "choices": [
     "Not yet; breakeven starts at 2R",
+    "No; a stop never moves once set",
     "Yes; 1R is enough to move it up",
-    "Move it once the day closes green"
+    "Yes; trail it under the 10-day line"
    ],
    "answer": "Not yet; breakeven starts at 2R",
-   "why": "Not yet. The stop moves to breakeven between 2R and 5R, and this trade is not at 2R yet.",
-   "lesson_line": "Breakeven is earned in R, not by a green day.",
+   "why": "Not yet. The stop moves to breakeven between 2R and 5R, ideally. This trade is up less than 1R, so it is not near 2R. The test is R. The trail comes later, for the last third after the trims.",
+   "lesson_line": "Breakeven is earned in R, from 2R on.",
    "facts": [
     "h05",
-    "d04"
+    "d04",
+    "h20",
+    "h02"
    ],
    "wrong": {
     "Yes; 1R is enough to move it up": "Too soon, and it is not even at 1R. The rule starts at 2R.",
-    "Move it once the day closes green": "A green day is not a measure of R. The move is set in R, from 2R."
+    "No; a stop never moves once set": "The stop can move. It only moves up, never down or wider. Breakeven comes from 2R.",
+    "Yes; trail it under the 10-day line": "The trail is for the last third, after the trims at 3R and 5R. At this price it is far too early."
    },
-   "house": true
+   "house": true,
+   "simple": "Not yet, because our breakeven window starts at 2R and this trade is still under 1R.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q74",
@@ -2500,7 +3294,7 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "go.trim_2",
-   "q": "Bought at 26.43, stop 25.66. At what price does the second third come off?",
+   "q": "Bought at 26.43, stop 25.66. One R is the gap between them. At what price does our plan take the second third?",
    "answer": 30.28,
    "calc": {
     "fn": "arith",
@@ -2512,13 +3306,25 @@
     "round": 2
    },
    "prefix": "$",
-   "why": "30.28. The second third comes off at 5R: the fill plus five times the distance to the stop.",
+   "why": "30.28. One R is the fill minus the stop, 26.43 minus 25.66. Five R is the fill plus five of those. After the first third at 3R, another third comes off at 5R, then you trail the last third. The trims are adjustable.",
    "lesson_line": "Know your 5R before the open. The second third comes off there.",
    "facts": [
     "h20",
-    "d04"
+    "d04",
+    "h05"
    ],
-   "house": true
+   "house": true,
+   "simple": "The second third comes off at 5R, which is the fill plus five times the gap between fill and stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key (+2)",
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q75",
@@ -2530,24 +3336,33 @@
    "story": "You sold the first third of a Go Signal at 3R. Now the stock trades through 5R.",
    "choices": [
     "Sell a third more; trail the rest",
-    "Sell everything that is left now",
-    "Add a third while it is working",
-    "Hold all of it until the stop hits"
+    "Skip the trim and trail it all",
+    "Sell the last two thirds now",
+    "Move the stop to breakeven, then hold"
    ],
    "answer": "Sell a third more; trail the rest",
-   "why": "Sell another third and trail the rest. After the first third at 3R, another third comes off at 5R.",
+   "why": "Sell another third and trail the rest. After the first third at 3R, another third comes off at 5R, then you trail the last third. The plan is adjustable.",
    "lesson_line": "3R for the first third, 5R for the second, then trail.",
    "facts": [
     "h20",
-    "h05",
-    "g18"
+    "h05"
    ],
    "wrong": {
-    "Sell everything that is left now": "The plan trails the last third. It does not sell everything at 5R.",
-    "Add a third while it is working": "We buy full size at one price with one stop, so there is nothing to add. The plan sells at 5R.",
-    "Hold all of it until the stop hits": "The second third comes off at 5R. Holding it all skips that trim."
+    "Skip the trim and trail it all": "The plan takes another third at 5R first, then trails the last third.",
+    "Sell the last two thirds now": "The plan trails the last third. It does not sell everything at 5R.",
+    "Move the stop to breakeven, then hold": "Breakeven comes between 2R and 5R. At 5R the plan takes another third."
    },
-   "house": true
+   "house": true,
+   "simple": "Sell another third at 5R and trail the last third, because that is the plan after the first third at 3R.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our rulebook (+2)",
+     "fixed before (+1)"
+    ]
+   },
+   "batch": "wave4"
   },
   {
    "key": "q76",
@@ -2558,22 +3373,35 @@
    "q": "What is the plan now?",
    "story": "You planned a Go Signal buy on a reclaim of the prior close. By the end of the second hourly candle, there is still no hourly close back over it.",
    "choices": [
-    "Drop it; a later turn is a pivot",
-    "Keep waiting; any hour will still do",
-    "Buy now; the dip is deep enough"
+    "Drop it; no Go Signal today",
+    "Keep waiting; any hour will do",
+    "Buy now; the dip is deep enough",
+    "Buy tomorrow's open to catch it"
    ],
-   "answer": "Drop it; a later turn is a pivot",
-   "why": "Drop it. With no hourly close back over the prior close by candle two, there is no entry. A later turn is a pivot, not a Go Signal.",
+   "answer": "Drop it; no Go Signal today",
+   "why": "Drop it. With no hourly close back over the prior close by the end of the second hourly candle, there is no entry. A later turn is a pivot (setup 41), not a Go Signal, and a pivot is bought over the pivot candle's high.",
    "lesson_line": "Miss the first two hourly candles and the Go Signal is gone. Treat a later turn as a pivot.",
    "facts": [
     "g05",
-    "g04"
+    "g04",
+    "g27",
+    "g30"
    ],
    "wrong": {
-    "Keep waiting; any hour will still do": "The reclaim has to come by the end of the second hourly candle. After that it is a pivot.",
-    "Buy now; the dip is deep enough": "Depth is not the test. The close back over the prior close is, and it has not come."
+    "Buy now; the dip is deep enough": "Depth is not the test. The close back over the prior close is, and it has not come.",
+    "Keep waiting; any hour will do": "The reclaim has to come by the end of the second hourly candle. After that it is a pivot.",
+    "Buy tomorrow's open to catch it": "Buying the open before the turn is the blind open buy that gets stopped at the low."
    },
-   "house": true
+   "house": true,
+   "simple": "Drop it, because the two-candle window has passed and a later turn is a pivot, not a Go Signal.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's criteria card (settled, D-145) (+2)"
+    ]
+   },
+   "batch": "wave4"
   }
  ],
  "conflicts": [
@@ -2610,21 +3438,21 @@
   },
   "q01": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g01 (card, settled D-145).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Key from g01 (prior close; not own open, not flag low). Calc-free. Choices even length, no silly choice."
   },
   "q02": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g02, g06, g07; the settled rule, not the pending go.open_shape (D-128).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "g02/g06/g07/g03 verbatim support; True is right. Overlaps q26 (rule vs story) but kept: different rung and format."
   },
   "q03": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g04 (settled D-145). The card's 11:00 and the scan's 11:30 are never keyed.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q04": {
    "status": "cut",
@@ -2634,15 +3462,15 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. q1 (Kullamagi) verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "cents from g08/h24; bank fine; why supported by g22."
   },
   "q06": {
    "status": "pass",
-   "notes": "g04/g30 verbatim; key right. The Remount wrong note said 'a line lost for a week or more' (the pending D-074 count in words); now 'a long stay'. | variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "g04/g30 support key; Oops/U&R distractors supported by g32/g33. Overlaps q51/q76 in idea but different ask."
   },
   "q07": {
    "status": "cut",
@@ -2658,63 +3486,63 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g14, F65. Requoted 2026-11-10: the g14 quote now says mostly cash in Red; added g14b (the card's best-conditions line: 'in Red, none') so 'Zero' stays sourced; why mentions mostly cash.",
-   "fixed": true,
-   "by": "requoter"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Red = mostly cash plus shorts below 200-day (g14, g14b, h26, D46). Wrong notes match h26."
   },
   "q10": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B22 (3 days before the report; the card says sessions).",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q11": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E57, D41.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q12": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E58, g19.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "E58 settled; why supported by h23/g19."
   },
   "q13": {
    "status": "pass",
-   "notes": "g31 and g29 verbatim; categorical, no number. The setup around the turn (a leader that moved, a tight hourly flag, a dip to the 20-day line or a marked level) rests on go.already_moved, go.hourly_flag and go.at_support, all pending (D-132, D-131, D-130); no number is keyed. | variety rewrite checked 2026-11-10: why split to keep sentences at 22 words or fewer",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key right (g29/g31). Wrong note for candle size leaned on CRS facts not cited here; replaced with a note the cited facts support."
   },
   "q14": {
    "status": "pass",
-   "notes": "g29 verbatim ('about a third of all liquid sessions', the dossier's scan, 30%). The key is the dossier's measurement, not a published statistic; the question says 'a bare red to green'.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Stem matches the dossier scan (about 31% close back above by bar 2). Owner flag on teaching a scan figure stays."
   },
   "q15": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. q1 (Kullamagi) verbatim. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from g08/h24. Note q05 states the same stop line; kept as a ladder step with real distractors."
   },
   "q16": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g09 (the card's stop line) and g10 (proposed).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q17": {
-   "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g12 proposed; g38 card mistake.",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave4: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33. | flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "C33 (h15) right; why's breakeven 2R and trim 3R supported by h05."
   },
   "q19": {
    "status": "cut",
@@ -2736,63 +3564,63 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "Re-derived (37.18-(36.15-0.03))/37.18 = 1.06/37.18 = 2.85%. 3% is A13.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed: stop 36.12, (37.18-36.12)/37.18 = 2.851% = 2.85. Deeper numbers match d02/d04."
   },
   "q23": {
    "status": "pass",
-   "notes": "Re-derived (169.79-168.84)/168.84 = 0.56% -> 0.6. C28 is 4%.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 0.95/168.84 = 0.563% = 0.6. 4% rule from g16/h11."
   },
   "q24": {
    "status": "pass",
-   "notes": "Re-derived 24.48 + 3 x (24.48-24.01) = 25.89. BE d06 verbatim (buy 24.48, stop 24.01).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 336.42 + 3 x 4.79 = 350.79. h05 supports 3R and 3R-6R."
   },
   "q25": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B22: earnings in two sessions. | variety rewrite checked 2026-11-10: lengthened a wrong choice so the right one is not the longest",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "B22/g15 right; story gives 2 sessions, inside the window under either wording; wrong notes true."
   },
   "q26": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g03, g02 (settled, D-145). | variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q27": {
    "status": "pass",
-   "notes": "g33/g34 verbatim. The wrong note said a U&R undercuts 'a swing low'; the U&R unit's level list is wider (pending D-103), so the note now says 'a level' and keeps the 3-session daily frame (the card's own tell). | variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key right (g34); U&R/Oops/pivot wrong notes match g33/g32/g04."
   },
   "q28": {
    "status": "pass",
-   "notes": "g23 verbatim (card, proposed go.close_under_pc_warning); d13 (NVDA 2024-05-08: prior close 90.55, close 90.41 and next-day low 88.23 in the sandbox bars, stop 89.39). Key holds under A4 (the stop is the exit).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Numbers match d13; rests on proposed g23 (owner flag)."
   },
   "q29": {
    "status": "pass",
-   "notes": "Arithmetic: 1R = 3.42; a stop at the first 30-minute low 118.83 is a loss of 7.98 = 2.33R, past the 2R ceiling (B20), so out is right. The story is invented around NVDA's real buy and stop (conflicts) and never names it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. R=3.42 checks; 118.83 and 119.40 are both past 2R (6.84 under 126.81 is 119.97). Key matches B20 ceiling."
   },
   "q30": {
    "status": "pass",
-   "notes": "3R re-derived: 24.48 + 3 x 0.47 = 25.89; the open 26.40 is past 3R and under 5R (26.83), so the first third at the open (F63). | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q31": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E52; q2 (Kullamagi) verbatim. | variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (h21, h20). The 200-day note says \"far too slow\", which no cited fact supports. Reword from h21 only."
   },
   "q32": {
    "status": "cut",
@@ -2801,15 +3629,15 @@
   },
   "q33": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g16, C28: the buy point here is the prior close.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q34": {
    "status": "pass",
-   "notes": "Re-derived 250 / (336.42-331.63) = 52.2 -> 52 shares; stop 1.42% (d02). A7 check: 52 shares = $17,494, about 17% of the account, under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed floor(250/4.79) = 52; 40% cap (h30) far above ~17.5%."
   },
   "q35": {
    "status": "cut",
@@ -2819,99 +3647,99 @@
   },
   "q36": {
    "status": "pass",
-   "notes": "d18/d19 verbatim (CRS 2025-11-14: the first candle ran 315.73 to 329.02 after a 2.8% gap down; the stop under its low is 4.96% from the entry). Size down or skip follows A3/A5/A13; the pending D-005 only asks what the owner wants past 3%. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. d18/d19 plus rulebook A3/A5/A13; depends on D-005."
   },
   "q37": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g25, B21, E56: a second failed try this week is still under 3. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q38": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37. Requoted 2026-11-10: g37 now says Yellow (smaller and fewer), not 'Yellow or Orange', so it no longer supports an Orange item and was dropped from the facts. Key (Orange: A+ only, a B waits) rests on g14 and h26. | flagged-question fix checked 2026-11-11",
-   "fixed": true,
-   "by": "requoter"
+   "by": "checker",
+   "fixed": false,
+   "notes": "F65/g14b right: Orange allows A+; story grades it A+. Choices balanced Yes/No."
   },
   "q39": {
    "status": "pass",
-   "notes": "g21 (card, proposed go.volume) and o2 (Morales on the U&R) verbatim. 'Volume grades, it does not gate' holds under every D-006 option the card lists. | variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q40": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B26, g11, g38.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q41": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g38 card mistake; g12 proposed.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (g12, g38). The why says the Go Signal needs a leader that already moved, \"so\" a clean turn does not change the answer: no cited fact says an under-50-day stock is not a leader. Tie it to g31 as written. Lesson line also paraphrased past g38."
   },
   "q42": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g27 (card mistake: the blind open buy). Story is a 9:35 red candle bought before any turn. | flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q43": {
    "status": "pass",
-   "notes": "Re-derived (28.74-26.43)/(26.43-25.66) = 2.31/0.77 = 3.0R. VIAV d04 verbatim.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Recomputed 2.31/0.77 = 3.0R; d04 supports 3 days."
   },
   "q44": {
-   "status": "pass",
-   "notes": "d14/d15 verbatim (AXON 2024-09-11: close back above 359.35 on the third hourly candle, 361.39). The Remount wrong note said 'a line lost for a week or more'; now 'a long stay'. | variety rewrite checked 2026-11-10: why split to keep sentences at 22 words or fewer",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4: see the resolver's notes"
   },
   "q45": {
    "status": "pass",
-   "notes": "d16/g31 verbatim (SNOW near-miss: a red to green in a wild post-earnings range, no tight flag; 0.38R then the stop). Categorical, no number; rests on go.hourly_flag (pending D-131) being a requirement. The owner may rule a flag a cue rather than a gate. | variety rewrite checked 2026-11-10",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q46": {
    "status": "pass",
-   "notes": "d17/g31 verbatim (CF near-miss: a red to green in mid-air, stopped the same session). Categorical; rests on go.at_support (pending D-130) being a requirement, the 3% distance never keyed. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. d17 verbatim plus g31; rests on pending D-130 (owner flag)."
   },
   "q47": {
    "status": "pass",
-   "notes": "d04/d05 verbatim (VIAV second-candle version, 44.2R). The window is the settled go.reclaim_window (D-145). | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q48": {
    "status": "pass",
-   "notes": "u1: the Unger Academy page returned HTTP 520 to the quote checker and to my own fetch; the quote is confirmed only against the dossier's section 3 (42-go-signal.md line 212, also 30-oops-reversal.md line 149). g32, u1, u2 verbatim (Unger Academy on Williams: the open lower than the previous session's low; Deepvue: bought up and passes the prior day's low). The wrong note for the U&R choice said 'a prominent swing low'; now 'a level', up to 3 sessions on the daily chart. | variety rewrite checked 2026-11-10: wrong choice reworded so it cannot be read as yesterday's low",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from card g32; Williams and Deepvue lines supported by u1/u2. Story is a plain definition but the key is unambiguous."
   },
   "q49": {
    "status": "pass",
-   "notes": "g13 proposed (the 5-session test is the card's); the story gives a 20-day EMA lower than 5 sessions earlier. The lesson line said 'rising 50-day area', which no fact supports; now 'Context first: the 20-day EMA should be rising.' | variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "52.10 to 51.40 is lower, so the g13 check fails; other checks pass in the story. Rests on a proposed card line (g13)."
   },
   "q50": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g28 verbatim.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q51": {
-   "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g30, g04. 13:30 is plainly late under either clock. | variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in wave4: see the resolver's notes"
   },
   "q52": {
    "status": "cut",
@@ -2921,9 +3749,9 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "d08/d09 verbatim (TSLA: buy 361.86, stop 353.79, third candle back under the prior close, fourth through the stop). The wrong note 'about a quarter of Go Signals are stopped the same session' cites a number no fact quotes; now 'one stop says nothing about the setup'.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Planned loss follows A4/g22/h01; every number matches d08/d09. Story mirrors walk-through w3 but still a fair judgment."
   },
   "q54": {
    "status": "cut",
@@ -2932,22 +3760,22 @@
    "by": "checker"
   },
   "q55": {
-   "status": "pass",
-   "notes": "g35/g36 verbatim (card grading). Grading is discretionary (E50); the unit says 'cue' and 'grades higher', never a fixed score. Owner may want it dropped. | variety rewrite checked 2026-11-10",
+   "status": "cut",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Cut. Obvious from the story alone (strong and early beats weak and late), and the key echoes the story words \"strong\" and \"first\". It also teaches grade cues as ours while rulebook E50 (h50) says no fixed grading checklist is taught as ours. Rests on discretionary grading, owner-flagged."
   },
   "q56": {
    "status": "pass",
-   "notes": "g26 verbatim; C34 is 'sell a big part into it, a judgment call'. The why now says how big is a judgment call. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Story never said this was a climax, and no cited fact defines one, so the key rested on an ungrounded classification. Story now names the climax run (g26/h31)."
   },
   "q57": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g24 proposed (go.context_break). The key is 'thesis over, the stop still decides' (A4), which holds if the owner rejects the proposal. | flagged-question fix checked 2026-11-11",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Rests on proposed g24 (owner flag)."
   },
   "q58": {
    "status": "cut",
@@ -2957,21 +3785,21 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "g02, g03, g04, g11, g12, g13, g14 verbatim; A passes every gate, B turns at 13:30, C never dips. Key right. The same gates as q40/q41/q49, as a synthesis. Requoted 2026-11-10: g14 now ends with the full Red rule; A is Green and passes. No text change. | variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "requoter"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only A dips, reclaims by candle two and passes the context checks; B is late, C never dips. Wrong notes true."
   },
   "q60": {
    "status": "pass",
-   "notes": "Arithmetic: 1R = 0.47; the first 30-minute low 23.85 is a loss of 0.63 = 1.34R, under the 2R ceiling, so it becomes the stop (B20). The wrong note for 'Move the stop to 24.48' said 'the stop only moves up', which is not why it is wrong (24.48 is up); now 'it is above the gap, so it would sell at once'. | variety rewrite checked 2026-11-10: why split to keep sentences at 22 words or fewer",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "1R = 0.47; 24.48-23.85 = 0.63 = 1.34R, under the 2R ceiling (h07), so the first 30-minute low is the stop (h06). Invented numbers are labelled in deeper."
   },
   "q61": {
    "status": "pass",
-   "notes": "Re-derived 400,000 x 1% = 4,000 shares (D42). No risk-sizing here, so the 40% cap does not bind the answer.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "1% of 400,000 = 4,000 (h19)."
   },
   "q62": {
    "status": "cut",
@@ -2981,87 +3809,87 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "g13, g15, g03, B26, B22 verbatim. A 'which is NOT' question, but the key (a rising 20-day EMA is not a reason to pass) is right and the three wrong choices are true passes.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right. The deeper says \"Those three are rules. The rising average is only a good sign\", implying g13 is not a rule, but g13 is a card criterion the card wants (q21 teaches it as wanted). Reword so it only claims it cannot rescue the others."
   },
   "q64": {
    "status": "pass",
-   "notes": "g17/h13 verbatim. The why added 'a pullback setup like this rarely trips it', a claim no fact supports for the Go Signal (it is the Remount card's figure); removed. | variety rewrite checked 2026-11-10",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right: stretch test is 10-day (g17/h13), 200-day is a separate trend rule (h10)."
   },
   "q65": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g18, A5. | variety rewrite checked 2026-11-10",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q66": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the lesson line stated the proposed go.reclaim_candle_green line flat; it now reads as the card's stance (\"Our card wants...\"). Key follows quote g20 (proposed, gate and grade cue).",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4: see the resolver's notes"
   },
   "q67": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: why and lesson line stated the proposed green-candle and volume lines as flat fact; now \"our card\". Key follows g20 and g21 (both proposed).",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4: see the resolver's notes"
   },
   "q68": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. B23 settled. 600,000 x 24 = 14,400,000 = 14.4 million, under 20 million.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "600,000 x 24 = 14.4 million; under the 20 million floor, price floor met (h09)."
   },
   "q69": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. B23 settled; $9 fails the $10 floor.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Both floors must hold (h09); a $9 stock fails the price floor."
   },
   "q70": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. D41 settled; VIAV numbers match the dossier row d04.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q71": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. A4 settled, the gap rule (B20) is its one exception.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   },
   "q72": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"where is 2R\" (the price arithmetic, a neighbour); re-aimed at the breakeven price so it tests go.breakeven (B19). 24.48 + 2 x (24.48 - 24.01) = 25.42.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed 24.48 + 2 x 0.47 = 25.42; B19 window 2R to 5R."
   },
   "q73": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the right choice was the odd one out in opening (\"Later\" against two \"Now\"); the choices now open \"Not yet\", \"Yes\", \"Move it\". Story: 27.00 is about 0.74R over a 0.77 risk, under 1R. B19 settled.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "27.00-26.43 = 0.57 = 0.74R, under 1R; breakeven from 2R (h05). Choices balanced."
   },
   "q74": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"where is 5R\" (price arithmetic, a neighbour); re-aimed at the second-trim price so it tests go.trim_2 (E51). 26.43 + 5 x (26.43 - 25.66) = 30.28.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed 26.43 + 5 x 0.77 = 30.28; E51 (h20)."
   },
   "q75": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Fixed: the \"never add\" note had no cited fact; it now rests on card line g18 (full size at once, one price, one stop), added to facts; the \"gives the plan away\" note made plain. E51 settled.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "E51 right: another third at 5R, trail the last third; wrong notes true."
   },
   "q76": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10. Settled invalidation (D-145); the story uses the card's own \"hourly close back above\" wording, so D-129 (touch against close) is not asked. Not a repeat of q44 (classify a third-candle turn): this asks the plan when the window passes.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Pass. Key from cited quotes; no tell or second answer found."
   }
  }
 }
