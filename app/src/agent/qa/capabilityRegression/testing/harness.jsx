@@ -66,6 +66,8 @@ export const BOARDS = {
     { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
   TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
+  // family C (C1-061): a chart whose watermark was dragged by hand (ChartWidget endWatermarkAdjust's opts.watermarkPos)
+  WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -438,7 +440,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     const charts = mounted.h.charts
     // C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane.openSettings), read back as open
     st.settingsOpen = {}
-    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref] } : x)
+    // family C (C1-178): the chart's right-click "Ask AI about {sym}" door (ChartWidget openAskAi), recorded as the route it opens
+    st.askAi = []
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref], canAskAi: true } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
       // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
@@ -458,7 +462,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true },
-      openSettings: (ref) => { st.settingsOpen[ref] = true; return true } }
+      openSettings: (ref) => { st.settingsOpen[ref] = true; return true },
+      askAi: (ref) => { st.askAi.push(`/research/${charts.read(ref)?.symbol}?section=ai`); return true } }
     st.views = views
     // Tools → Custom-Period Sort (ChartsWorkspace runPeriodSort / handleDockPeriodSort), sharing the ONE Replay cutoff above
     const iso = (ymd) => { const s = String(ymd); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` }

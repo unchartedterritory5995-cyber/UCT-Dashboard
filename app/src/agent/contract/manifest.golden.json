@@ -6607,6 +6607,50 @@
    "shape": null
   },
   {
+   "name": "chartMenu.askAi",
+   "domain": "chartMenu",
+   "target": "chart",
+   "summary": "Open Ask AI about ONE chart's stock, as its right-click \"Ask AI about {symbol}\" does (Research, AI section). Leaves Charts; changes nothing; no Undo.",
+   "hints": "target = the chart. Only when they ask to OPEN Ask AI about it; answer data questions here.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartMenu.resetWatermark",
+   "domain": "chartMenu",
+   "target": "chart",
+   "summary": "Put ONE chart's dragged watermark back in the centre (Chart Settings → Watermark → \"Reset to center\"). Undo puts it back.",
+   "hints": "target = the chart. A set position, size or hiding is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "drawing.positionCalculator",
    "domain": "drawing",
    "target": "chart",

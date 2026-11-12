@@ -162,6 +162,8 @@
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
   "chartSetup.compareGroup": "compareGroups",
+  "chartMenu.askAi": "chartMenu",
+  "chartMenu.resetWatermark": "chartMenu",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -201,6 +203,10 @@
   {
    "id": "compareGroups",
    "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+  },
+  {
+   "id": "chartMenu",
+   "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
   },
   {
    "id": "chartGrid",
@@ -376,6 +382,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -569,6 +579,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -776,6 +790,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartGrid",
@@ -995,6 +1013,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1184,6 +1206,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1311,6 +1337,7 @@
     "charts",
     "chartSetup",
     "compareGroups",
+    "chartMenu",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1496,6 +1523,8 @@
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
     "chartSetup.compareGroup",
+    "chartMenu.askAi",
+    "chartMenu.resetWatermark",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",

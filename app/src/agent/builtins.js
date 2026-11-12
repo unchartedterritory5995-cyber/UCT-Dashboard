@@ -26,6 +26,7 @@ import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerCompareGroupCapability } from './capabilities/compareGroup'
+import { registerChartMenuCapabilities } from './capabilities/chartMenu'
 import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
@@ -79,6 +80,7 @@ export function registerBuiltins() {
   registerIndicatorAuthoringCapabilities()
   registerChartSetupCapabilities()
   registerCompareGroupCapability()          // C1-035 / C1-037 / C1-040: the Compare panel's group controls
+  registerChartMenuCapabilities()           // C1-178 / C1-061: the chart's right-click Ask AI and watermark Reset
   registerDrawingExtras()                   // C1-144 / C1-160 / C1-165: Position Calculator, Save as default, tool favourites
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()

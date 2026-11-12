@@ -1740,3 +1740,19 @@ def test_guard_withholds_the_chart_zoom_action_name_bare():
 ])
 def test_guard_still_passes_ordinary_prose_about_zooming(text):
     assert guard.suspicious(text) is False
+
+
+# ── #1106 right-click parity: its action names are withheld when a passage names them bare ─────────────────────────
+@pytest.mark.parametrize("name", ["chartMenu.askAi", "chartMenu.resetWatermark"])
+def test_guard_withholds_the_chart_menu_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Reset your stop to breakeven once the trade works.",
+    "Ask yourself whether the base is really tight.",
+    "I reset my watchlist every Sunday night.",
+    "Right-click the chart and ask about the stock if you are unsure.",
+])
+def test_guard_still_passes_ordinary_prose_about_asking_and_resetting(text):
+    assert guard.suspicious(text) is False

@@ -153,6 +153,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           // open now (the read-back). Absent when the adapter has no door (a Multi Chart cell): chartSetup.openSettings refuses.
           ...(typeof e.api.agent.openSettings === 'function'
             ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
+          // C1-178: the right-click "Ask AI about {sym}" door (absent = none: chartMenu.askAi refuses)
+          ...(typeof e.api.agent.askAi === 'function' ? { canAskAi: !!e.api.agent.canAskAi?.() } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -222,6 +224,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     openSettings: (ref) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.openSettings?.() } catch { return false }
+    },
+    // C1-178: THIS chart's right-click "Ask AI about {sym}" (ChartWidget's openAskAi: /research/:sym?section=ai)
+    askAi: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.askAi?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
