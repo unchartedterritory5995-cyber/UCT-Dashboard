@@ -41,8 +41,11 @@ beforeAll(async () => {
 // request — cubic in the group count, and ~97% of this file's time (#1074 at 971a1f6606: 99.6 s locally, 2.4 s without the
 // table; 344.6 s on CI vs the 300 s limit, after ONE words-only group was added). Tabled here: EVERY set of up to 2 groups
 // (the whole-or-refused invariant below still covers all of them) plus every 3-group need that one of this turn's accepted
-// plans actually asks for (the only 3-group entries measure() reads). Coverage, floors and invariants are unchanged; the eval
-// export (agentNl1EvalCapture, tools/agent_eval_run.py) keeps the full table (captureCase's default).
+// plans actually asks for (the only 3-group entries measure() reads). Floors and coverage are unchanged; the whole-or-refused
+// check HERE now covers every ≤2-group reroute and the 3-group needs an accepted plan asks for. A PARTIAL 3-group reroute is
+// caught by agentNl1Selection.test.js ('a reroute carries every group the model asked for — or says it cannot; never part of
+// them'), which must stay (AUDIT mutant, #1134: partial 3-group reroute survives this file, fails that rail). The eval export
+// (agentNl1EvalCapture, tools/agent_eval_run.py) keeps the full table (captureCase's default).
 function rerouteNeeds(s, expect) {
   const out = subsetsUpTo(s.unselected, 2)
   const seen = new Set(out.map(n => n.join('+')))
