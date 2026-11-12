@@ -31,6 +31,7 @@
 import * as barsStream from '../../lib/barsStreamManager'
 import * as candleFeed from '../../lib/realtimeCandle'
 import * as priceStream from '../../lib/priceStreamManager'
+import { realtimeBarsEnabled } from '../../lib/realtimeBarsGate'
 import { isRthBar, computeBarTime } from '../../components/chart/barTime'
 import { ACTION, parseKey, isDateTf, isIntradayTf, DEV_SRC, dateLabelToUnix } from './types'
 
@@ -85,10 +86,13 @@ export function foldMinute(st, m, tf, rev) {
  * @param {object} [o.candle]  realtimeCandle-shaped ({subscribe, getCandle, getLastTickAt})
  * @param {object} [o.prices]  priceStreamManager-shaped ({subscribe, getSnapshot})
  * @param {(key:string, lastBarT:number|null) => void} [o.onReconnect]  gap-backfill hook (network.kick)
+ * @param {() => boolean} [o.pushEnabled]  the push feed build gate (lib/realtimeBarsGate, the
+ *   ONE owner legacy Writer B's useRealtimeBars reads). Off ⇒ no stream subscription and the push
+ *   feed never counts as delivering, so the tick fallback is the live source (as legacy).
  */
 export function createLiveFeed({
   registry, stream = barsStream, candle = candleFeed, prices = priceStream,
-  onReconnect = null, now = () => Date.now(),
+  onReconnect = null, now = () => Date.now(), pushEnabled = realtimeBarsEnabled,
 } = {}) {
   const attached = new Map()   // key → { refs, off: Function[], fold? }
 
@@ -98,7 +102,7 @@ export function createLiveFeed({
   /** Is the push feed delivering for this key? (D/W/M: the 1m stream it folds.) */
   function isStreamLive(key, session) {
     const p = parseKey(key)
-    if (!p || !stream?.getStatus) return false
+    if (!p || !stream?.getStatus || !pushEnabled()) return false
     try { return !!stream.getStatus(p.sym, streamTf(p), streamSession(p, session))?.delivering } catch { return false }
   }
 
@@ -121,7 +125,8 @@ export function createLiveFeed({
     const sTf = streamTf(p)
     const sSess = streamSession(p, session)
 
-    if (isIntradayTf(p.tf) || isDateTf(p.tf)) {
+    // ⛔ THE PUSH FEED IS DARK UNLESS ITS BUILD GATE IS ON (barsStreamManager does not gate itself).
+    if (pushEnabled() && (isIntradayTf(p.tf) || isDateTf(p.tf))) {
       if (isDateTf(p.tf)) {
         a.fold = { base: null, anchor: null, minutes: new Map(), rev: null }
         // Track the SERVER's developing period bar as the fold base; anchor = its arrival.

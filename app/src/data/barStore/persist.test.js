@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import { reduce, initialState, isSealedRow } from './reducer'
 import { createRegistry } from './registry'
 import { createPersist, toCacheRows, encodeMeta, decodeEntry, rowHash, PERSIST_DEBOUNCE_MS } from './persist'
-import { forSeeds, simulateIntraday, rng } from './__fixtures__/seededSeries'
+import { forSeeds, simulateIntraday, rng, etUnix } from './__fixtures__/seededSeries'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { memClear, memPeekEntry, memPutMonotonic } from '../../utils/barsMemCache'
 import { idbGet, idbPut, idbPutMonotonic } from '../../utils/barsIDB'
@@ -321,5 +321,112 @@ describe('persist.js — the real write path (barsMemCache + barsIDB on a fake I
       expect(w.registry.getSnapshot(sim.key).baseRev).toBe(s.baseRev)
       expect(w.timers.length).toBe(0)
     }
+  })
+})
+
+
+// ⭐ P3-S1 review fix 6 — DEEP HISTORY SURVIVES A RELOAD, HOLES FORCE A FULL READ, A RE-BASED
+// COPY IS DISCARDED. Invariants (real write path: memPutMonotonic + idbPutMonotonic/idbPutHistory
+// on a fake IDB; persist.js is the only writer):
+//   • hydrate ∘ persist = base for an intraday series DEEPER than the capped tail record: the
+//     scroll-back windows come back (tail record + `@hist` segment), byte-identical rows;
+//   • a segment on another basis (a split since it was written) is refused whole;
+//   • a hydrated copy with an interior hole older than the next delta's start needs a FULL read;
+//   • a server answer whose overlap with the local copy disagrees > 2% (re-based) drops EVERY
+//     local row, including those left of the answer.
+describe('review fix 6: deep history, holes, basis', () => {
+  /** RTH 5m bars for the `days` weekdays ending 2026-11-10 (synthetic prices). */
+  function sessions(days, px = (i) => 50 + (i % 37) * 0.01) {
+    const dates = []
+    for (let d = new Date(Date.UTC(2026, 10, 10)); dates.length < days; d = new Date(d.getTime() - 86400000)) {
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.unshift(d.toISOString().slice(0, 10))
+    }
+    const out = []
+    for (const iso of dates) for (let m = 570; m < 960; m += 5) { const i = out.length; const c = px(i); out.push({ t: etUnix(iso, m), o: c, h: c + 0.05, l: c - 0.05, c, v: 100 + i }) }
+    return out
+  }
+  const key = keyOf({ sym: 'DEEP', tf: '5' })
+  const all = sessions(70)
+  const NOW_MS = (all[all.length - 1].t + 120) * 1000          // inside the last bucket (forming)
+
+  async function persistedDeep() {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW_MS)
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    registry.dispatch(key, { type: 'rest-full', key, payload: { ticker: 'DEEP', tf: '5', bars: all.slice(-2000) } })
+    registry.dispatch(key, { type: 'scroll-back', key, payload: { bars: all.slice(-4000, -1999) } })
+    registry.dispatch(key, { type: 'scroll-back', key, payload: { bars: all.slice(0, -3999) } })
+    const s = registry.peek(key)
+    expect(s.depth, 'the member scrolled back past the tail record cap').toBeGreaterThan(3000)
+    await createPersist({ registry }).writeOnce(key)
+    return s
+  }
+  async function reload() {
+    memClear()                                                   // a new page: mem gone, IDB kept
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    await createPersist({ registry }).hydrate(key)
+    return registry.peek(key)
+  }
+
+  it('INVARIANT: an intraday series deeper than the tail record round-trips (tail + @hist)', async () => {
+    const s = await persistedDeep()
+    const h = await reload()
+    expect(h.depth).toBe(s.depth)
+    expect(rowsOf(h)).toEqual(rowsOf(s))
+  })
+
+  it('INVARIANT: a @hist segment on another basis (a split since it was written) is refused whole', async () => {
+    await persistedDeep()
+    const { idbGetHistory } = await import('../../utils/barsIDB')
+    const seg = await idbGetHistory('DEEP', '5')
+    expect(seg?.length).toBeGreaterThan(3000)
+    // The tail record re-written on a NEW basis (÷2: a 2-for-1 split) by the store's next answer.
+    const registry = createRegistry({ ctx: () => ({ nowMs: NOW_MS }) })
+    const split = all.slice(-2000).map((b) => ({ ...b, o: b.o / 2, h: b.h / 2, l: b.l / 2, c: b.c / 2 }))
+    registry.dispatch(key, { type: 'rest-full', key, payload: { ticker: 'DEEP', tf: '5', bars: split } })
+    const before = registry.peek(key)
+    registry.dispatch(key, { type: 'idb-hit', key, payload: { bars: seg, history: true } })
+    expect(registry.peek(key)).toBe(before)
+  })
+
+  it('INVARIANT: a hydrated hole older than the next delta start needs a FULL read; a full answer clears it', () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW_MS)
+    const ctx = { nowMs: NOW_MS }
+    const rows = all.slice(-300)
+    // A persisted copy with RESTORED seals over rows[50..200]: the next request is a since= delta
+    // from the first row after the seal (rows[201]) — it never re-reads anything older.
+    const restored = (dropIdx) => ({
+      bars: rows.filter((_, i) => i !== dropIdx), cache_key: 'b1:DEEP:5:eth-clock', history_rev: 3, series_rev: 9,
+      sealed_spans: [[rows[50].t, rows[200].t + 300]], complete_through: rows[200].t + 300,
+      repair_from: rows[dropIdx - 1].t,                     // barsIDB repairFromT: the bar before the hole
+    })
+    const hit = (payload) => reduce(initialState(key, ctx), { type: 'idb-hit', payload }, ctx)
+    // CONTROL: no hole → the restored seal allows a delta.
+    const clean = hit({ ...restored(11), bars: rows, repair_from: null })
+    expect([clean.needsFull, clean.deltaFrom]).toEqual([false, rows[201].t])
+    // A hole INSIDE the sealed span is the server's absence → still a delta.
+    expect(hit(restored(100)).needsFull).toBe(false)
+    // A hole OLDER than the delta start, outside every seal → a FULL read (status rule).
+    const gapped = hit(restored(11))
+    expect(gapped.localHoleFrom).toBe(rows[10].t)
+    expect(gapped.needsFull, 'a hole no delta can reach forces a full read').toBe(true)
+    // A hole NEWER than the delta start is re-read by the delta itself → no full read.
+    expect(hit(restored(250)).needsFull).toBe(false)
+    // The full answer re-proves its span: the hole flag clears, the next poll can be a delta.
+    const full = reduce(gapped, { type: 'rest-full', payload: { ticker: 'DEEP', tf: '5', bars: rows } }, ctx)
+    expect([full.localHoleFrom, full.needsFull]).toEqual([null, false])
+  })
+
+  it('INVARIANT: a re-based server answer drops EVERY local row (left of the answer too)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW_MS)
+    const ctx = { nowMs: NOW_MS }
+    const local = reduce(initialState(key, ctx), { type: 'idb-hit', payload: { bars: all.slice(-3000) } }, ctx)
+    expect(local.depth).toBeGreaterThan(2000)
+    const split = all.slice(-500).map((b) => ({ ...b, o: b.o / 2, h: b.h / 2, l: b.l / 2, c: b.c / 2 }))
+    const s = reduce(local, { type: 'rest-full', payload: { ticker: 'DEEP', tf: '5', bars: split } }, ctx)
+    expect(s.bars.every((b) => b.src !== 'local'), 'no pre-split local row survives').toBe(true)
+    expect(s.bars[0].t).toBe(split[0].t)
+    // CONTROL: the same answer on the SAME basis keeps the deeper local history.
+    const same = reduce(local, { type: 'rest-full', payload: { ticker: 'DEEP', tf: '5', bars: all.slice(-500) } }, ctx)
+    expect(same.bars[0].t).toBe(all[all.length - 3000].t)
   })
 })

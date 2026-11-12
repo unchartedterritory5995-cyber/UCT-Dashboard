@@ -62,11 +62,14 @@ function seriesDisplayable(bars, tf) {
 /** SYNCHRONOUS readiness — the fast path. A neighbour the warmer already
  *  promoted to the mem cache commits in the SAME tick, so a warm switch pays
  *  nothing for this coordinator (measured ~19ms TC, and that must not move). */
-export function peekDisplayable(sym, tf) {
+// `showExtended`: the PANE's extended-hours setting (the chart key of 60m depends on it). Under
+// BARSTORE it selects the key through the facade's ONE view-key function (the chart's own);
+// omitted → the view-global fallback (the legacy source keeps that rule).
+export function peekDisplayable(sym, tf, { showExtended } = {}) {
   if (!sym || !tf) return false
   // Anything the handoff does not govern is displayable by definition.
   if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return true
-  if (BARSTORE) return storePrefetch.peekDisplayable(sym, tf)   // the store's status: context | current
+  if (BARSTORE) return storePrefetch.peekDisplayable(sym, tf, { showExtended })   // the store's status: context | current
   // The key the chart in this view reads ('60e' = 60m on the extended clock grid).
   return seriesDisplayable(memPeek(sym, viewCacheTf(tf)), tf)
 }
@@ -80,8 +83,11 @@ export function peekDisplayable(sym, tf) {
  * @param requestedSym the colour group's symbol — the one authority
  * @param tf           the timeframe the chart is showing
  * @param enabled      false → pass the request straight through (no lag at all)
+ * @param showExtended the pane's extended-hours setting (the 60m key depends on it): a boolean,
+ *                     or a ref read when a switch starts (a host that resolves its settings
+ *                     after this hook runs); omitted → the view-global fallback
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
@@ -143,7 +149,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
       return () => { live = false; clearTimeout(bound); ctl.abort() }
     }
 
-    if (peekDisplayable(requestedSym, tf)) { commit(); return undefined }
+    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
+    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
+    if (peekDisplayable(requestedSym, tf, sess)) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
     // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
@@ -172,8 +180,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     const prepCtl = typeof AbortController !== 'undefined' ? new AbortController() : null
     let committed = false
     const commitHere = () => { committed = true; commit() }
-    P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true })
-    P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null }).then((outcome) => {
+    P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
+    P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
       if (!alive || genRef.current !== gen) return   // a newer request owns the screen
       lastOutcomeRef.current = outcome
       commitHere()
@@ -186,7 +194,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     let timer = null
     const tick = () => {
       if (!alive || genRef.current !== gen) return
-      if (peekDisplayable(requestedSym, tf)) { commitHere(); return }
+      if (peekDisplayable(requestedSym, tf, sess)) { commitHere(); return }
       timer = setTimeout(tick, POLL_MS)
     }
     timer = setTimeout(tick, POLL_MS)
@@ -208,7 +216,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // says so). Depending on it re-runs this effect exactly once after a commit,
     // where the first guard immediately returns — so the extra pass costs one
     // comparison and correctly tears down the finished prepare.
-  }, [requestedSym, tf, enabled, displayedSym])
+  }, [requestedSym, tf, enabled, displayedSym, showExtended])
 
   return displayedSym
 }

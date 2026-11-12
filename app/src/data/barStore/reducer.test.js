@@ -188,7 +188,9 @@ describe('BarStore reducer', () => {
   // ⭐ INVARIANT (P3-S1): a forming bar RESTORED from a cache never outvotes the server's answer
   // for the same bucket — whatever its (stale) values, whichever answer shape (legacy / P1
   // contract), intraday and daily. Only live ticks folded in after the restore keep their close.
-  it('INVARIANT: the server answer for the forming bucket replaces a restored (local) forming bar whole', () => {
+  // (Review fix 3: the copy's extremes survive an answer that LAGS it — barStore.property.test
+  // "S4 across a cache restore"; here every copy is a narrower, earlier read, so the answer wins.)
+  it('INVARIANT: the server answer for the forming bucket outvotes a restored (local) forming bar', () => {
     let seed = 7
     const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
     const KD = keyOf({ sym: 'SIM', tf: 'D' })

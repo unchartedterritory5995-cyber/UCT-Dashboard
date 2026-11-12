@@ -89,6 +89,8 @@ vi.mock('../utils/barsIDB', () => ({
   idbDelete: async () => {}, idbDeleteIntraday: async () => {}, idbCountKeys: async () => 0,
   idbImportPack: async () => {}, idbApplyDelta: async () => {}, idbPutMonotonic: async () => {},
   _findRecentBarByT: () => null, _closeMismatch: () => false,
+  // BarStore persist (P3-S1 review fix 6): the deep-history segment + hole detector.
+  idbPutHistory: async () => null, idbGetHistory: async () => null, _intradayGapStart: () => null,
 }))
 
 function barsFor(spec) {
