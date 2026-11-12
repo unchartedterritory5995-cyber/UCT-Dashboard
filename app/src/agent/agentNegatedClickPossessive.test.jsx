@@ -187,8 +187,11 @@ describe('a whole-board quantifier excepting the click (any name) excludes it', 
 // on into the verb, so the click is read from its leading reference. Own phrasings; all three pointer families. Controls in the
 // same position: a NAMED chart (still that chart) and "my <non-chart noun>" (nothing).
 const SUBJ_Q = ['everything except', 'every chart except', 'all of them except', 'everything apart from', 'every chart other than']
-const SUBJ_X = ['this one', 'this chart', 'the one I clicked', "the one I'm on", 'the chart I am on', 'mine', 'my chart', 'my own one']
-const SUBJ_P = ['goes weekly', 'switches to weekly', 'should be weekly', 'gets the weekly', 'turns weekly', 'is going weekly']
+const SUBJ_X = ['this one', 'this chart', 'the one I clicked', "the one I'm on", 'the chart I am on', 'the one I tapped', 'the one I picked',
+  'the chart I chose', 'mine', 'my chart', 'my own one']
+// (round 3) predicates chosen to be in NO verb list anywhere in spatialCheck — the click is read from the phrase's START
+const SUBJ_P = ['flips to weekly', 'rolls over to weekly', 'jumps to the weekly', 'ends up on weekly', 'hops over to weekly',
+  'slides to weekly', 'drops back to weekly', 'gets bumped to weekly', 'flips weekly', 'goes weekly', 'should be weekly']
 const XS = []
 SUBJ_Q.forEach((q, qi) => SUBJ_X.forEach((x, xi) => XS.push(`${q} ${x} ${SUBJ_P[(qi + xi) % SUBJ_P.length]}`)))
 describe('subject position: "<all> except <the click> <verb> …" excludes the click', () => {
@@ -228,4 +231,28 @@ describe('a "but" between two charts with no whole-board quantifier excludes not
     '"%s" → nothing excluded', (t) => {
       expect([...excludedCharts(t, B, 'a')]).toEqual([])
     })
+})
+
+// ── (AUDIT #1143 T2, round 3) the RE-AIM guard: a click name followed by a possessive or a relation names ANOTHER chart. It must
+// never exclude the click (the neighbour would then be the one changed); which chart it is, this reader cannot say, so it is
+// UNPLACED and a plan is ASKED, never applied — the click is never changed by such a sentence on the strength of this reader.
+import { UNPLACED } from './spatialCheck'
+describe('the re-aim guard: "<click name> next to / beside / \'s …" never excludes the click', () => {
+  const B = [{ ref: 'a', symbol: 'SPY', position: 'top-left' }, { ref: 'b', symbol: 'QQQ', position: 'top-right' },
+    { ref: 'c', symbol: 'NVDA', position: 'bottom-left' }, { ref: 'd', symbol: 'AMD', position: 'bottom-right' }]
+  const RE = ['everything except mine next to it flips to weekly', 'every chart except this one beside QQQ rolls over to weekly',
+    'all of them except my chart above NVDA goes weekly', 'everything except the one I clicked to the left of AMD slides to weekly',
+    'every chart except this chart across from SPY ends up on weekly', 'everything except my own one below it hops to weekly']
+  it.each(RE.map(t => [t]))('reader: "%s" → never the click; unplaced', (t) => {
+    const ex = [...excludedCharts(t, B, 'a')]
+    expect(ex).not.toContain('a')
+    expect(ex).toContain(UNPLACED)
+  })
+  it.each(RE.filter((t, i) => i % 2 === 0).map(t => [t]))('panel: "%s" — a plan including the click is never applied', async (t) => {
+    const others = BOARDS['2x2'].map(x => x.id).filter(id => id !== 'TL')
+    const m = mount('2x2', 'TL')
+    p.st.envelopes.push(planOn('TL', ...others))
+    await m.say(t)
+    expect(changed(m.board), transcript()).not.toContain('TL')
+  }, 60000)
 })

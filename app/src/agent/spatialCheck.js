@@ -409,14 +409,11 @@ export const exceptMatches = (text) => [...exceptForm(text).matchAll(EXCEPT)]
 // bottom-left — …"), and any operator on the click named by the ACT ("other than the one I'm looking at": its apostrophe is
 // outside EXCEPT's phrase). An "X" the board cannot place excludes nothing.
 const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|aside\\s+from|other\\s+than|except(?:\\s+for)?|excluding|apart\\s+from)'
-  + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
-  + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$'
-  // (AUDIT #1143 T2, subject position) "everything except the one I'm on goes weekly": a predicate verb may also end it
-  + '|\\s+(?:goes|go|stays?|is|are|gets?|turns?|moves?|switch(?:es)?|changes?|becomes?|remains?|should|can|will|must|needs?)\\b)', 'gi')
-const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
-// (AUDIT #1143 T2, probe-25 class) the click named by a POSSESSIVE ("except mine", "apart from my chart"): the click, as
-// CLICK_ACT_ONLY is. Whole phrase only.
-const CLICK_POSS_ONLY = new RegExp('^' + CLICK_POSS + '$', 'i')
+  + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+('
+  // (AUDIT #1143 T2, subject position) the click named by the ACT is a complete phrase in itself: it ends where the act ends,
+  // whatever follows ("…except the one I'm on flips to weekly") — no list of the verbs that may come next
+  + CLICK_ACT_NP + '(?![A-Za-z0-9])'
+  + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$))', 'gi')
 // (AUDIT #1143 T2) a WHOLE-BOARD quantifier with "but" AFTER the change: "make every chart weekly but this one", "turn them all
 // weekly but the one I clicked", "everything to weekly but mine", "every chart weekly but the QQQ one". exceptForm only reads a
 // "but" glued to its scope word ("everything but …"); this reads the separated one, ONLY when (i) the words hold a whole-board
@@ -439,14 +436,27 @@ export function withoutExclusions(text) {
 // on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
 // change itself and excludes nothing.
 const NEG_CHART_WORD = /\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|last|row|column|this|that|it)\b/i
-// (AUDIT #1143 T2, subject position) "everything except mine goes weekly", "…except the one I'm on goes weekly": EXCEPT's lazy
-// capture runs on into the predicate ("mine goes"), so its anchored click test never matched. NEG_EXCEPT may now END its phrase at
-// a predicate verb (its lookahead), so the click phrase arrives whole through it; EXCEPT itself is untouched (the #988 equivalence
-// rail). Every click name is tested here: the act, a possessive, or this / this one / the clicked one.
-const CLICK_THIS_ONLY = /^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|the\s+(?:selected|clicked)\s+(?:one|chart))$/i
-const namesTheClick = (phrase) => { const p = String(phrase || '').trim(); return CLICK_ACT_ONLY.test(p) || CLICK_POSS_ONLY.test(p) || CLICK_THIS_ONLY.test(p) }
+// (AUDIT #1143 T2, subject position) "everything except mine goes weekly": an exception phrase can run on into the predicate
+// ("mine flips", "this one rolls over to …"), and members use ANY verb there. So the click is decided by the phrase's START, never
+// by a list of what may follow: a phrase that BEGINS with a click name (the act, a possessive, this one / this chart, the clicked
+// / selected one) names the click. Bare "this" counts only as the WHOLE phrase ("except this", never "except this week's …").
+// ⛔ WRONG-TARGET GUARD: a click name followed by a possessive or a RELATION re-aims the phrase at ANOTHER chart ("except this
+// one's neighbour", "except mine next to it", "the one I clicked to the left of AMD"): never the click. Which chart it is, this
+// reader cannot say — so never the click silently and never nothing (a plan there would run): 'reaimed' → UNPLACED (asked).
+// The re-aim is read from what follows the click name INSIDE the phrase AND after it in the words (`tail`): the exception readers
+// stop their phrase before "to / on / from …", so "to the left of AMD" or "across | from SPY" is often outside it.
+const CLICK_PREFIX = new RegExp('^(?:' + CLICK_ACT_NP + '|' + CLICK_POSS + '|(?:the\\s+)?this\\s+(?:one|chart)|the\\s+(?:selected|clicked)\\s+(?:one|chart)|(?:the\\s+)?this(?=\\s*$))(?![A-Za-z0-9])', 'i')
+const REAIMED = /^\s*(?:['’]s\b|(?:of|next(?:\s+to)?|beside|besides|above|below|beneath|under(?:neath)?|over|near|nearest|around|across(?:\s+from)?|opposite|diagonal(?:ly)?|adjacent\s+to|left\s+of|right\s+of|to\s+the\s+(?:left|right)\s+of|neighbou?rs?|next\s+door)\b)/i
+/** 'click' | 'reaimed' | null — the exception phrase's START names the click (whatever predicate follows), unless re-aimed. */
+const clickRole = (phrase, tail = '') => {
+  const p = String(phrase || '').trim()
+  const m = CLICK_PREFIX.exec(p)
+  if (!m) return null
+  return REAIMED.test(`${p.slice(m[0].length)} ${String(tail || '')}`.replace(/^\s+/, ' ')) ? 'reaimed' : 'click'
+}
+const tailOf = (m) => String(m.input || '').slice(m.index + m[0].length)
 function negNamesAChart(phrase, charts) {
-  if (namesTheClick(phrase) || NEG_CHART_WORD.test(phrase)) return true
+  if (clickRole(phrase) || NEG_CHART_WORD.test(phrase)) return true
   const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
   return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
 }
@@ -456,7 +466,9 @@ export function excludedCharts(text, charts = [], sel = null) {
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
   for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text)]) {
     const phrase = m[1].trim()
-    if (namesTheClick(phrase)) { if (sel) out.add(sel); continue }
+    const role = clickRole(phrase, tailOf(m))
+    if (role === 'click') { if (sel) out.add(sel); continue }
+    if (role === 'reaimed') { out.add(UNPLACED); continue }
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
     if (wl) {
       const line = pickLine(linesOf(charts, wl[2].toLowerCase()), wl[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), wl[2].toLowerCase())
