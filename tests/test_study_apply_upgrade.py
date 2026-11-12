@@ -58,3 +58,31 @@ def test_the_command_line_writes_a_copy_and_leaves_the_original(tmp_path):
     assert au.main([str(src), str(up), "--out", str(out), "--batch", "t"]) == 0
     assert json.loads(out.read_text(encoding="utf-8"))["questions"][0].get("simple")
     assert "simple" not in json.loads(src.read_text(encoding="utf-8"))["questions"][0]
+
+
+def test_new_questions_facts_and_cuts_are_applied_and_later_files_override_earlier_ones(tmp_path):
+    d = copy.deepcopy(_unit())
+    nq = {"key": "q90", "skill": "basics.spread", "rung": 2, "format": "tf", "facts": ["f9"], "why": "That's the bid.",
+          "lesson_line": "The bid is what a buyer pays you.", "q": "The bid is the most a buyer will pay right now.",
+          "answer": "True"}
+    extra = {"cut": ["q02"], "new_questions": [nq],
+             "new_facts": [{"id": "f9", "source": "s1", "quote": "The bid price is the highest price a buyer will pay.",
+                            "claim": "The bid is the most a buyer will pay right now."}], "new_sources": []}
+    notes = au.apply(d, {}, "pilot-1", None, extra)
+    assert notes == []
+    assert d["verify"]["q02"]["status"] == "cut" and any(q["key"] == "q90" and q["batch"] == "pilot-1" for q in d["questions"])
+    assert any(f["id"] == "f9" for f in d["facts"])
+    # the same fact and question again are not added twice
+    assert any("already exists" in n for n in au.apply(d, {}, "pilot-1", None, extra))
+    assert sum(1 for f in d["facts"] if f["id"] == "f9") == 1
+    # the command line layers files: the later one wins field by field
+    src = tmp_path / "unit.json"
+    src.write_text(json.dumps(_unit()), encoding="utf-8")
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text(json.dumps({"questions": {"q01": {"simple": "The bid is the most a buyer will pay right now.", "tier": "core"}}}), encoding="utf-8")
+    b.write_text(json.dumps({"questions": {"q01": {"tier": "extended"}}}), encoding="utf-8")
+    out = tmp_path / "out.json"
+    assert au.main([str(src), str(a), str(b), "--out", str(out)]) == 0
+    q1 = json.loads(out.read_text(encoding="utf-8"))["questions"][0]
+    assert q1["tier"] == "extended" and q1["simple"].startswith("The bid")

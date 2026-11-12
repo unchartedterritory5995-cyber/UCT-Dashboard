@@ -4,8 +4,12 @@
                                           [--batch NAME] [--out PATH | --write]
 
 UNIT_FILE     docs/study/courses/<track>/<unit>.json (never modified unless --write)
-UPGRADE_JSON  {"questions": {"<key>": {simple, why, lesson_line, deeper, tier, risk, depends_on, choices, wrong, ...}}}
-              from a Writer. Only the fields present are applied; `wrong` is merged, not replaced.
+UPGRADE_JSON  {"questions": {"<key>": {simple, why, lesson_line, deeper, tier, risk, depends_on, choices, wrong, ...}},
+               "cut": ["<key>", ...], "new_questions": [{full question}], "new_facts": [{id, source, quote, claim}],
+               "new_sources": [{id, tier, publisher, title, url, accessed}]}
+              from a Writer or a Resolver. Only the fields present are applied; `wrong` is merged, not replaced; later
+              files override earlier ones. New facts and sources are added when their id is not already in the lesson;
+              a new question is added when its key is not already there (a house fact quotes the owner's rulebook).
 CHECK_JSON    {"questions": {"<key>": {"status": "pass|fix|cut", "notes": "...", "fix": {fields}}}} from a cold checker.
               pass = the checker's pass; fix = apply `fix`, then pass; cut = cut. Without a check the upgraded question
               is marked pass by the writer ("awaiting cold re-read"), which is enough to validate and preview.
@@ -41,11 +45,32 @@ def _set_fields(q: dict, up: dict) -> list[str]:
     return changed
 
 
-def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None) -> list[str]:
-    """Mutate `doc`; return notes about anything that could not be applied."""
+def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, extra: dict | None = None) -> list[str]:
+    """Mutate `doc`; return notes about anything that could not be applied. `extra` holds cut / new_* lists."""
     notes: list[str] = []
+    extra = extra or {}
+    for src in extra.get("new_sources") or []:
+        if src.get("id") not in {x.get("id") for x in doc.get("sources") or []}:
+            doc.setdefault("sources", []).append(src)
+    for fact in extra.get("new_facts") or []:
+        if fact.get("id") not in {x.get("id") for x in doc.get("facts") or []}:
+            doc.setdefault("facts", []).append(fact)
+    have = {q["key"] for q in doc["questions"]}
+    for nq in extra.get("new_questions") or []:
+        if nq.get("key") in have:
+            notes.append(f"{nq.get('key')}: new question skipped, the key already exists")
+        else:
+            nq = dict(nq)
+            nq["batch"] = batch
+            doc["questions"].append(nq)
+            have.add(nq["key"])
     by_key = {q["key"]: q for q in doc["questions"]}
     verify = doc.setdefault("verify", {})
+    for key in extra.get("cut") or []:
+        if key in by_key:
+            verify[key] = {"status": "cut", "by": "writer", "fixed": False, "notes": f"cut in {batch}: see the resolver's notes"}
+        else:
+            notes.append(f"{key}: cut but not in the lesson, skipped")
     for key, up in upgrades.items():
         q = by_key.get(key)
         if q is None:
@@ -89,12 +114,17 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     doc = _load(a.unit)
     ups: dict = {}
+    extra: dict = {"cut": [], "new_questions": [], "new_facts": [], "new_sources": []}
     for u in a.upgrades:
-        ups.update(_load(u).get("questions") or {})
+        blob = _load(u)
+        for k, v in (blob.get("questions") or {}).items():
+            ups[k] = {**ups.get(k, {}), **v}      # later files override earlier ones, field by field
+        for name in extra:
+            extra[name].extend(blob.get(name) or [])
     cks: dict = {}
     for c in a.check:
         cks.update(_load(c).get("questions") or {})
-    notes = apply(doc, ups, a.batch, cks)
+    notes = apply(doc, ups, a.batch, cks, extra)
     problems = cl.unit_problems(doc)
     for n in notes:
         print("note:", n)
@@ -104,7 +134,7 @@ def main(argv=None) -> int:
     if dest is not None:
         dest.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="")
         print(f"wrote {dest}")
-    print(f"{doc['unit']}: {len(ups)} upgraded, {len(cks)} checked, {len(problems)} problem(s)")
+    print(f"{doc['unit']}: {len(ups)} upgraded, {len(extra['new_questions'])} new, {len(extra['cut'])} cut, {len(cks)} checked, {len(problems)} problem(s)")
     return 1 if problems else 0
 
 
