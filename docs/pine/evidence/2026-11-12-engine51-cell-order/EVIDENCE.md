@@ -1,4 +1,4 @@
-# Engine 51: `table.cell` positional order matches Pine
+# Engine 51: `table.cell` positional order, named addresses, every enum constant, computed enums
 
 Branch `fix/pine-engine51-cell-order`, rebased on master `fecbf19fb6` (engine 50, PR #1141, merged). Slice S1 of the
 drawing-objects lane (scope report `runs/objects-lane/SCOPE-2026-11-12.md`, outside the repo).
@@ -117,3 +117,197 @@ lane defects in the same family, each witnessed by a vendor capture:
   rsLine"): PR #1136 (`fecbf19fb6`, `feat/rs-exit`) added `rsExit` to the server-lane registry
   without updating them. They fail identically on master without this branch; not touched here.
   No h1Ratchet timeout.
+
+## Part 2 (coordinator, 2026-11-12): three witnessed object defects folded in, still engine 51
+
+The objects-v2 grader (PR #1150) found three drawings TradingView draws differently, each on a
+vendor capture v1 graded MATCH. All three are fixed here; the engine number stays 51.
+
+### 1. A named address was read by position (keltner-center-of-gravity-channel)
+`emitMethod` took the handle as the first argument and `table.cell`'s address as the next two,
+whatever their names. `table.cell(width, row=1, column=0, ...)` drew at column 1, row 0;
+TradingView draws column 0, row 1. `table.clear(table_id=t, ...)` addressed nothing.
+
+- `pineObjects.js::placeObjectArgs` places every argument by Pine's rule, once. The handle is
+  `table_id` for tables and `id` for the rest. The ops covered are `table.cell` (column, row,
+  then `CELL_POSITIONAL`), every `table.cell_set_*` (column, row, then the one property),
+  `table.clear` / `table.merge_cells` (`CLEAR_POSITIONAL`), every setter (`SETTER_PROPS`) and
+  `delete`.
+- A one-property setter takes its value under any name except the handle's. That is the runtime
+  lane's own rule; Pine names that value `x`, `color`, `width` and so on.
+- A multi-property setter takes the property names or Pine's (`SETTER_PINE_NAMES`, for example
+  `set_xy1(id, x, y)`).
+- A call Pine would not place is refused by name and never read by position. That covers an
+  unknown name, a value given twice, a positional after a named argument, and too many arguments.
+- Host getters accept a named `id` (`line.get_y2(id=l)`).
+- The runtime lane already placed arguments by name (`pineRuntimeFrontend.js` `objectCall`
+  lowering) and is unchanged.
+
+### 2. Label styles passed by pattern (extrapolated-pivot-connector)
+`objectEnumValue` let any `label.style_*` (and `box.style_*`) through and kept the text after the
+underscore. The v4 `label.style_labeldown` therefore reached the renderer as `labeldown`, a word
+it does not know, and drew centred with no pointer. TradingView records `label_down`.
+
+- `objectEnums.js` (new) is ONE table, by namespace, of every constant a drawing's enum slot can
+  hold. It holds every member the reference lists for `xloc`, `yloc`, `extend`, `line`, `label`
+  (21), `size`, `text`, `position` and `font`, plus the legacy spellings a capture witnesses:
+  `label.style_labelup` maps to `label_up` and `label.style_labeldown` to `label_down`.
+- `pine.js::objectEnumValue` reads only this table, for both lanes (the runtime frontend asks the
+  same function). A name the table does not hold is not a word.
+- Rails:
+  - `docs/pine/pine-v6-constants.md` is PARSED, and every constant it lists for those namespaces
+    must map. Each namespace must hold exactly the reference's count.
+  - The renderer's `objectCanvas.js::LABEL_ANCHOR` must equal the label words.
+
+### 3. A computed cell size became the default (ict-killzones-pivots-tfo)
+`text_size = get_size(input.string('Small', ...))`, where `get_size(x) => result = switch x ...`,
+was an `enumUnreadable` slot, dropped. The cell was drawn at the default size; TradingView draws
+`small`. The same was true of the table's `position` (`get_table_pos`).
+
+- C47 makes such a helper opaque to every lane except the drawing one, which reads it through
+  `objectLane`. The text reader (`textNodeOf`) now takes that same door, so the switch's word is
+  carried (`small`, `top_right`).
+- **An enum slot this door cannot read now WITHHOLDS its drawing by name.** That means a constant
+  the table does not hold, or a computed word the reader cannot follow. The guard is
+  `pine:enum-unreadable` and the drop is `enum:unreadable`, never the renderer's default. The
+  three ways an enum slot withholds (`na`, named-call, unreadable) are one table,
+  `enumNaRule.js::ENUM_DROPS`, read by the create, setter and cell converters. `objectLoss.js`,
+  `editorStatus.js` and `EDITOR-STATUS-PANEL-SPEC.md` section 4 carry the new reason.
+- `tableTextFormatting.test.js`'s "an unreadable text_formatting keeps the cell" now expects the
+  cell withheld (`text_formatting = close`, which Pine would not compile anyway).
+
+### What "withhold, never default" costs, measured in the rails it moved
+These rails pinned the old behaviour of drawing a default, or failing in a different way; each was
+updated with the reason written in.
+
+- **uncharted-volume-v2** (`memberPaneTables`, `pineTableVendorParity`, vendor `fillText`
+  captures, SPY and AGEN). The Volume table's position is `f_getTablePos(hasRecentHV ?
+  'Top Center' : volTablePosition)`, a per-bar choice this door cannot fold.
+  - It was drawn at the default `top_right`. That is right only while no HV event is recent,
+    which is what both captures show; the old test called it "a coincidence is not a result".
+  - **It is now withheld by name (`table@490`)**, so **this vendor capture moves from 4 drawn
+    cells (3 range + the Vol cell, text matching) to 3** (the range table, unchanged and
+    byte-identical).
+  - Three Vol-cell value cases are kept as `it.skip` with their pinned numbers, ready for the day
+    the per-bar position is served (`textEqTree` under enum reads, gated off since C22).
+  - **This is the one place the new rule moves a capture-backed drawing away. The coordinator
+    rule "never render at the default" was applied as written.**
+- **atr-bands** (`c45NamedInputDefaults`): the position comes from a helper that reassigns in its
+  switch arms, so the table is withheld. It used to be drawn `top_right` while the input says
+  Bottom Right. Its vendor capture holds no object.
+- **auto-trendline** (`capRound4`, `f4SpyDrawings`): still withheld whole. The guard is now
+  `pine:object-ops-refused`, because its `extend` is unreadable, instead of
+  `pine:object-removal-lost`.
+- `objectRuntimeValues`: the runtime-fed label is still dropped whole, now as `enum:unreadable`.
+- `objectLoss`: the emitted drop keys now include the `ENUM_DROPS` table.
+- `pineProbeReplay`: htf-liquidity's Resolver pin moved, because its label sizes are now read.
+- `tableTextFormatting`: an unreadable `text_formatting` now withholds the cell.
+
+### Same pattern, reported, not changed
+Props other than enums that cannot be read are still dropped and drawn at the default. This is the
+census tip, 1,605 files: 453 sites in 38 files.
+
+| prop | sites | files |
+|---|---|---|
+| `cell.bgcolor` | 213 | 20 |
+| `cell.text_color` | 156 | 17 |
+| `cell.tooltip` | 20 | 4 |
+| `label.textcolor` | 14 | 6 |
+| `table.border_color` | 10 | 7 |
+| `label.color` | 9 | 5 |
+| `table.frame_color` | 9 | 6 |
+| `line.color` | 6 | 3 |
+| `table.bgcolor` | 5 | 5 |
+| `table.rows` | 4 | 4 |
+| `table.columns` | 2 | 2 |
+| `label.tooltip`, `cell.width`, `linefill.color` | 2, 2, 1 | |
+
+Colours fall under the C44 colour rules. These are the next candidates for "withhold, never
+default".
+
+### Census, part 2 (base `caa39eee69`, cell order only, vs tip `49d4a35a32`; sources read from one tree)
+The census translates every file with the host translator. It hashes the object program, the
+outputs and the runtime verdict.
+
+- 128 of 1,605 files hashed differently. Re-translated one by one in isolation, **92 are
+  byte-identical**: their census difference came from state carried between translations in one
+  process. That is pre-existing; noted for follow-up.
+- The remaining **33 distinct scripts (36 rows) change**:
+
+| change | scripts |
+|---|---|
+| label `labeldown` -> `label_down` | extrapolated-pivot-connector (corpus + 2 captures); fikira-pivots-fibonacci-retracement-3, relative-strength-index-divergences-libertus (sample) |
+| named cell address now placed (col 1 -> 0) | keltner-center-of-gravity-channel (corpus + 2 captures) |
+| named cell address now placed (col was read as `'center'`) | smoothed-gaussian-trend-filter-algoalpha |
+| computed enum now carried | ict-killzones-pivots-tfo (table position + 12 cell sizes; corpus + 2 captures); htf-liquidity-dashboard-tfo (label sizes; corpus + 2 captures) |
+| drawing withheld by name (`enum:unreadable`) instead of drawn at a default | advanced-custom-multi-ma (11 -> 0 ops), atr-bands (29 -> 0; corpus + 2 captures, whose capture holds no object), auto-trendline-dojiemoji (8 -> 0; corpus + 2 captures, already withheld whole by the object gate), candlestick-patterns-on-backtest (2 -> 0), delta-imbalance-map (20 -> 0), stop-loss-clustering (19 -> 17), volume-footprint (27 -> 16), volume-spikes (2 -> 0), sector-rotation fixture (10 -> 3), ultimate-opening-range-breakout luxalgo (2 fixtures, 9 -> 0), seasonality, dynamic-support-and-resistance (94 -> 81), ichimoku-kinko-hyo (76 -> 0), rsi-multi-timeframe-dashboard (8 -> 0), cobra039s-crypto-market-visualizer and crypto-correlation-matrix (objects-only -> `pine:no-output`) |
+
+### Objects v2, before and after (PR #1150's grader on this branch's code, 152 captures)
+|  | MATCH | DIVERGE | INCONCLUSIVE |
+|---|---|---|---|
+| before (cell order only) | 69 | 41 | 15 |
+| after | 75 | 35 | 15 |
+
+| family | v2 before M/D | v2 after M/D |
+|---|---|---|
+| lines | 87/2 | 88/1 |
+| labels | 85/4 | 87/2 |
+| tableCells | 78/17 | 82/13 |
+| boxes, tables, linefills | unchanged | unchanged |
+
+- **All six named captures move DIVERGE -> MATCH:** extrapolated-pivot-connector rddt+spy,
+  ict-killzones-pivots-tfo rddt+spy, and keltner-center-of-gravity-channel rddt+spy.
+- htf-liquidity-dashboard-tfo-rddt: its lines family moves DIVERGE -> MATCH.
+- **0 captures and 0 families move away from TradingView.** v1 is unchanged: 79 / 31 / 15.
+
+### Mutants, part 2 (`engine51ObjectFixes.test.js`, 13 rails; restore from the copy, hash == HEAD blob, all true)
+| id | mutant | result |
+|---|---|---|
+| C0 | none | 13/13 green |
+| N1 | argument names ignored (all positional) | RED 7 |
+| N2 | handle taken as the first argument again | RED 2 |
+| N3 | legacy `labeldown` alias removed | RED 1 |
+| N4 | the `label.style_*` pattern pass-through restored | RED 1 |
+| N5 | an unreadable enum dropped to the default again | RED 3 |
+| N6 | text reader without the `objectLane` door | RED 1 |
+| N7 | a reference constant (`style_text_outline`) missing from the table | RED 2 (reference rail + renderer rail) |
+| N8 | a getter's named `id` not read | RED 1 |
+Cell-order mutants M1-M4, re-run on the new head: as before (RED 4 / 1 / 1 / 4).
+
+### linefill counts (read-only, NOT the same root cause, not changed)
+liquidity-pools-spy: TradingView holds 504 fills, ours 252. price-action-as-in-book-spy: 261
+against 49. In both captures TradingView keeps fills whose lines it no longer holds:
+
+| capture | fills whose lines are not held | of |
+|---|---|---|
+| liquidity-pools-spy | 252 | 504 |
+| price-action-as-in-book-spy | 212 | 261 |
+
+- Their lines were collected by the 500-object limit (both captures hold about 500 lines).
+- Our runtime reaps a fill with its line (`objectRuntime.js`: "Pine destroys a linefill when
+  either of its lines is deleted").
+- Ours equals TradingView's fills whose BOTH lines are held, exactly: 504 - 252 = 252, and
+  261 - 212 = 49. The rddt captures (no collection) match.
+- Whether TradingView DRAWS a fill whose lines were collected is not captured. A fill with no
+  lines likely has no geometry, so this may not be visible at all.
+- Follow-ups:
+  - the objects-v2 grader could pair only drawable fills, the C44 `undrawn` ruling;
+  - a probe capture could settle it.
+
+### Runs, part 2 (head after merging master `150283034b`)
+- Focused: `engine51ObjectFixes` (13), `cellPositionalOrder` (6), and PR #1150's
+  `vendorHarness.objectsV2` (merged), all green.
+- Mutants N1-N8 and M1-M4 re-run on the final head: as tabled above.
+- hostParity: `--check` HP-1 GREEN 166/166, before and after the merge. `--write` moved no digest
+  (the fixes change no runtime column); HP-4 GREEN (35 red).
+- `service_smoke.json` re-recorded against a local engine-51 service: identical (digest
+  `cf5a5f024e30`), so not re-committed. Plain smoke PASS.
+- Python engine-identity, codec, client and prebump: 408 passed.
+- Whole folders (`ast`, `runtime/__tests__`, `__tests__`, plus `editorStatus.families`) in ONE
+  heavy-lock run on `4af0da58e5`: 935 files, **16,413 passed, 2 failed, 187 skipped**. The 2 are
+  the master reds `rsRatingDef` / `rsVsEmaDef` (#1136). They are still red on master
+  `150283034b` and are not touched here.
+- Objects v2 on the merged head, with #1150's merged grader: v2 **75 MATCH / 35 DIVERGE /
+  15 INCONCLUSIVE** (v1 79 / 31 / 15). Four v1-MATCH captures still diverge under v2:
+  - the two linefill counts (cause established above, not this PR's);
+  - vw-call-site-history rddt+spy (creation order only).
