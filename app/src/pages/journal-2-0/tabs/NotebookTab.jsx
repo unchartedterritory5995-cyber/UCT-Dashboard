@@ -1915,7 +1915,7 @@ export default function NotebookTab() {
   // that passes one (S2/B1: never from app focus).
   // `stylesOn` is the switch read once above, beside the Styles manager's state.
   // `focus` is asked for only inside the New-note sheet, never on the inline empty-notebook mount.
-  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} /> : null)
+  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} noNotes={notesKnown && !hasAnyNotes} /> : null)
 
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network

@@ -53,9 +53,11 @@ describe('Learn: the done ticks and the New marks (S14)', () => {
     const plan = within(menu).getByRole('menuitem', { name: 'Chart plan basics' })
     expect(plan.querySelector('[data-learn-progress]')).toBeNull()
     expect(plan).not.toHaveAttribute('aria-describedby')
+    // Notebook simplify: a never-taken tour carries no "New" mark and no description at all.
     const writing = within(menu).getByRole('menuitem', { name: 'Writing help' })
-    expect(writing).toHaveAccessibleDescription('New')
-    expect(writing.querySelector('[data-learn-progress="new"]').textContent).toBe('New')
+    expect(writing).not.toHaveAttribute('aria-describedby')
+    expect(writing.querySelector('[data-learn-progress]')).toBeNull()
+    expect(within(menu).queryByText('New')).toBeNull()
     // no item name ends in " tour" any more
     for (const item of within(menu).getAllByRole('menuitem')) expect(item.firstChild.textContent).not.toMatch(/ tour$/)
   })
@@ -63,8 +65,9 @@ describe('Learn: the done ticks and the New marks (S14)', () => {
   it('a tour declined from the one-time offer before a step is still "New" (the What\'s new rule)', async () => {
     prefsBox.prefs = { notebook_tours: JSON.stringify({ 'writing-help': { v: 1, state: 'dismissed', step: null } }) }
     const menu = await openMenu()
-    expect(within(menu).getByRole('menuitem', { name: 'Writing help' })).toHaveAccessibleDescription('New')
-    // CONTROL: no record for the base tour either -> New
-    expect(within(menu).getByRole('menuitem', { name: 'Notebook basics' })).toHaveAccessibleDescription('New')
+    expect(within(menu).getByRole('menuitem', { name: 'Writing help' })).not.toHaveAttribute('aria-describedby')
+    // CONTROL: no record for the base tour either -> no mark
+    expect(within(menu).getByRole('menuitem', { name: 'Notebook basics' })).not.toHaveAttribute('aria-describedby')
+    expect(within(menu).queryByText('New')).toBeNull()
   })
 })

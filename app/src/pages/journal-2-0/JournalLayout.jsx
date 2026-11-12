@@ -35,6 +35,7 @@ import {
 } from './lib/journalToolsDoor'
 import { VIEW_MODES } from './lib/savedViewModes'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
+import { useIsDesktop } from '../../hooks/useBreakpoint'
 import usePreferences from '../../hooks/usePreferences'
 import { LANDING_PREF, resolveLanding } from './lib/todayHome'
 import RouteFocusTarget from './lib/routeFocus'
@@ -137,6 +138,10 @@ export default function JournalLayout() {
   const location = useLocation()
   const { pathname } = location
   const compactHeader = isCompactHeaderRoute(pathname)
+  // Notebook simplify: on the Notebook, on the desktop tier (>= 1025 px), the header is the six section tabs and
+  // Help only. Log Trade, the account selector, Generate report, the settings gear and More are not rendered there
+  // (they stay on every other Journal page). The touch tier (<= 1024) keeps today's header and its "Journal tools" fold.
+  const quietHeader = useIsDesktop() && compactHeader
   // D2 (D-1): the phone Notebook's header tools, folded until asked for.
   const [toolsOpen, setToolsOpen] = useState(false)
   // Fix round 1 (M-1): folded again on every route change. JournalLayout stays
@@ -284,11 +289,12 @@ export default function JournalLayout() {
     <div
       className={styles.root}
       data-compact-header={compactHeader ? 'true' : undefined}
+      data-quiet-header={quietHeader ? 'true' : undefined}
       data-tools-open={toolsOpen ? 'true' : undefined}
       data-tools-door={compactHeader && (toolsDoor || holdListFold) ? 'true' : undefined}
     >
       <div className={styles.header}>
-        <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
+        <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />{compactHeader ? 'Notebook' : 'Trade Journal'}</h1>
         <nav
           className={`${styles.nav} ${styles.navDesktop}`}
           aria-label="Journal sections"
@@ -339,7 +345,7 @@ export default function JournalLayout() {
               "Journal tools" disclosure below (the header's ⋯ there), so a phone's first screen is
               notes; off the Notebook it stays here. On a wider screen the fold is `display:
               contents`, so it still sits in the row. */}
-          {!compactHeader && <LogTradeButton />}
+          {!compactHeader && !quietHeader && <LogTradeButton />}
           {/* D2 (D-1): shown only on the Notebook route at <=640 px (the
               stylesheet decides the width). A disclosure, not a menu: the
               controls it reveals are the header's own, unchanged. */}
@@ -365,7 +371,7 @@ export default function JournalLayout() {
               controls stay flex items of this row (and the More menu keeps the
               row as its anchor on a phone). */}
           <div id="journal-header-tools" className={styles.headerTools}>
-          {compactHeader && <LogTradeButton />}
+          {compactHeader && !quietHeader && <LogTradeButton />}
           {/* S14 (audit 2026-11-05, details #3-#5): ONE Help menu. This was the keyboard-shortcuts "?", a second
               "?" beside the app's corner one with a different job. It now opens THE Help menu (FeedbackWidget's:
               Search help, Quick answers, Keyboard shortcuts, Tours, Send feedback), and while it is on screen the
@@ -384,8 +390,8 @@ export default function JournalLayout() {
           >
             <kbd className={styles.headerKbd}>?</kbd>
           </button>
-          <AccountSelector onNewAccount={() => setShowNewAccount(true)} />
-          <button
+          {!quietHeader && <AccountSelector onNewAccount={() => setShowNewAccount(true)} />}
+          {!quietHeader && <button
             type="button"
             className={styles.shortcutsBtn}
             onClick={() => setShowReport(true)}
@@ -393,8 +399,8 @@ export default function JournalLayout() {
             title="Generate Report (Ctrl/⌘+P after)"
           >
             <UIcon name="document" size={16} />
-          </button>
-          <button
+          </button>}
+          {!quietHeader && <button
             type="button"
             className={styles.settingsPill}
             onClick={openSettings}
@@ -403,11 +409,11 @@ export default function JournalLayout() {
             title="Settings (current account)"
           >
             <span className={styles.gearIcon} aria-hidden="true"><UIcon name="gear" size={16} /></span>
-          </button>
+          </button>}
 
           {/* Overflow "More" — Community + Accounts (not primary nav; A5). Real
               <NavLink>s so they stay first-class routes, just off the main rail. */}
-          <div className={styles.moreWrap}>
+          {!quietHeader && <div className={styles.moreWrap}>
             <button
               type="button"
               className={styles.shortcutsBtn}
@@ -446,7 +452,7 @@ export default function JournalLayout() {
                 </div>
               </>
             )}
-          </div>
+          </div>}
           </div>
         </div>
       </div>

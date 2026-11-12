@@ -72,11 +72,12 @@ describe('Research Home mounts the checklist', () => {
     expect(screen.queryByText('Open the sample notebook')).toBeNull()
   })
 
-  it('still there once the member has notes', async () => {
+  // Notebook simplify (task 1): the list is for a member with zero notes only.
+  it('gone once the member has notes', async () => {
     server.home = { ...EMPTY, continueWorking: [{ id: 'n1', title: 'My note', bodyPlain: 'words', updatedAt: new Date().toISOString() }] }
     renderHome({ hasAnyNotes: true })
-    expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
-    expect(screen.getByText('My note')).toBeInTheDocument()
+    expect(await screen.findByText('My note')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull()
   })
 
   it('absent while its own flag is off (onboarding on)', async () => {

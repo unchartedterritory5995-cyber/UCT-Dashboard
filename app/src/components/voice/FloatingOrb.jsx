@@ -140,8 +140,11 @@ export default function FloatingOrb({ context = 'global' }) {
   // (S12, FloatingOrb.module.css), so the card that names the compass button WAITS there too -- not dismissed.
   const pathname = useLocation().pathname
   const onPhoneNotebook = useIsPhone() && isCompactHeaderRoute(pathname)
+  // Notebook simplify: nor anywhere on the Notebook, at any width. The Notebook is the quiet surface; the card
+  // waits (not dismissed) and shows once on another page.
+  const onNotebook = isCompactHeaderRoute(pathname)
   const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld && !onViewportLockedPage
-    && !onPhoneNotebook
+    && !onPhoneNotebook && !onNotebook
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 

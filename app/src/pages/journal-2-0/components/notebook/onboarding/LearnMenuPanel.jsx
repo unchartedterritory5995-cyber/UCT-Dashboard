@@ -63,7 +63,7 @@ import styles from './LearnMenu.module.css'
 // stay out of the Notebook's first-open bytes.
 const CapabilityPreview = lazyChunk(() => import('./CapabilityPreview'))
 
-/** ✓ for a finished tour, "New" for one never taken, nothing in between. It is the item's DESCRIPTION, never part
+/** ✓ for a finished tour, nothing otherwise. It is the item's DESCRIPTION, never part
  *  of its name (aria-hidden here, referenced by the item's aria-describedby), so the item is still named by its tour. */
 function TourBadge({ id, progress }) {
   if (progress === TOUR_PROGRESS.done) {
@@ -74,9 +74,7 @@ function TourBadge({ id, progress }) {
       </>
     )
   }
-  if (progress === TOUR_PROGRESS.new) {
-    return <span id={id} className={styles.newBadge} data-learn-progress="new" aria-hidden="true">{LEARN_COPY.isNew}</span>
-  }
+  // Notebook simplify: no "New" mark. The menu is a quiet list; only a finished tour is marked.
   return null
 }
 
@@ -258,7 +256,7 @@ export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOp
                 role="menuitem"
                 className={styles.item}
                 data-learn-tour={t.id}
-                aria-describedby={tourProgress(t.id, prefs) === TOUR_PROGRESS.taken ? undefined : `${menuId}-p-${t.id}`}
+                aria-describedby={tourProgress(t.id, prefs) === TOUR_PROGRESS.done ? `${menuId}-p-${t.id}` : undefined}
                 onClick={() => choose(t.id)}
               >
                 <span className={styles.itemLabel}>{LEARN_COPY.tour(t.title)}</span>

@@ -49,7 +49,8 @@ export function makeChecklistGate(load, waitMs = RETRY_WAIT_MS) {
   function GettingStartedChecklist(props) {
     const enabled = checklistEnabled(notebookFlag)
     const { prefs, loading } = usePreferences()
-    if (!enabled || loading || checklistClosed(prefs?.[CHECKLIST_PREF])) return null
+    // Notebook simplify: the list is for a member with zero notes. With one note it is gone (and never fetched).
+    if (props.hasAnyNotes || !enabled || loading || checklistClosed(prefs?.[CHECKLIST_PREF])) return null
     return (
       <ChecklistCatch>
         <Suspense fallback={null}>
