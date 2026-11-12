@@ -6,11 +6,12 @@ import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
 import ComputedValue from './ComputedValue'
 import lazyChunk from '../../lib/lazyChunk'
-import RollupEditor, { rollupReady } from './RollupEditor'
+import { heldModule, useHeldModule } from '../../lib/heldModule'
+import whenIdle from '../../lib/whenIdle'
 import useSWR from 'swr'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { isOfferable } from '../../lib/kindOfNoteOffer'
-import { checkFormula, displayExpression, formulaInputIds } from '../../lib/formula/computed'
+import { checkFormula, displayExpression, formulaInputIds, rollupReady } from '../../lib/formula/computed'
 import { templateRevealFor } from '../../lib/templatePropertyDefs'
 import {
   AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
@@ -25,6 +26,20 @@ import Input from '../../../../components/ui/Input'
 // member writes or edits a formula, so it loads then, never with the note (perf-budgets.md, `lazyDialog` pattern: a
 // `lazyChunk` in a `null` Suspense). Rail: PropertiesSection.formulaLazy.test.js.
 const FormulaEditor = lazyChunk(() => import('./FormulaEditor'))
+// Go-live wave 1, fix round 2 (first-open bytes, paying for the find bar's stand-in): the rollup editor (native selects)
+// shows only while a member sets up or edits a rollup, so it is a chunk of its own, fetched once the panel is idle into
+// a module-level slot and drawn straight from it (lib/heldModule.js: never React.lazy, which holds a first render back
+// about 300 ms). Before it lands nothing is drawn (Save stays disabled: `rollupReady` is computed.js's); a fetch that
+// failed is said, and asked for again the next time the editor opens.
+export const rollupEditorLoaders = { editor: () => import('./RollupEditor') }
+export const rollupEditorModule = heldModule(() => rollupEditorLoaders.editor())
+export const ROLLUP_EDITOR_UNAVAILABLE = "Couldn't load the rollup settings. Close this and open it again to retry."
+export function RollupEditorSlot(props) {
+  const { status, Component } = useHeldModule(rollupEditorModule)
+  useEffect(() => { rollupEditorModule.warm() }, [])
+  if (Component) return <Component {...props} />
+  return status === 'failed' ? <div className={styles.error} role="alert">{ROLLUP_EDITOR_UNAVAILABLE}</div> : null
+}
 
 const savedViewsFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -74,6 +89,8 @@ const NO_OMIT = Object.freeze([])
  */
 export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false, omit = NO_OMIT }) {
   const { properties: resolved, isLoading, error: loadError, refresh } = useNoteProperties(noteId)
+  // Fix round 2: the rollup editor's chunk, once the panel is idle (in hand before a member opens a rollup).
+  useEffect(() => whenIdle(() => { rollupEditorModule.warm() }), [])
   // Notebook UX pass (2026-10-10): the editor's ONE ticker control is its own row in the note's
   // details, so the read-only `builtin:ticker` mirror of that same value is left out here
   // (`omit`). The server still derives it; the AUTHORITY is the note's `ticker` column, written
@@ -491,7 +508,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                       <Suspense fallback={null}><FormulaEditor value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
                         defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} /></Suspense>
                     ) : (
-                      <RollupEditor value={editing.config} onChange={(config) => setEditing({ ...editing, config, error: null })}
+                      <RollupEditorSlot value={editing.config} onChange={(config) => setEditing({ ...editing, config, error: null })}
                         defs={propertyDefs} savedViews={savedViews} selfId={p.id} />
                     )}
                     {editing.error && <div className={styles.error} role="alert">{editing.error}</div>}
@@ -588,7 +605,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                     onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} /></Suspense>
                 )}
                 {isRollup && (
-                  <RollupEditor value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />
+                  <RollupEditorSlot value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />
                 )}
                 {isChoiceType && (
                   <Input aria-label="Property options, comma separated"

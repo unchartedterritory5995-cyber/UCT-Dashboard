@@ -25,11 +25,12 @@ const LAZY = [
   // Audit 2026-11-05, S15: the Today home (the Daily brief since Notebook simplify, Task 5), through `lazyView` -- its
   // cards are a chunk of their own and the Notebook's first-open bytes pay only for lib/todayHome.js.
   '../components/notebook/TodayHome',
-  // Notebook simplify, Task 5: Research Home is no longer routed (it left this list with its import); its notebook-wide
-  // Ask is the list toolbar's AI section, fetched on the first press through `lazyView` (null fallback).
-  '../components/notebook/NotebookAiPanel',
-  // Go-live wave 1, fix round 1 (first-open bytes): the View menu's saved views and the zero-notes sample door through
-  // `lazyView` (null fallback), and the review drafting door, fetched on the first Reviews press (importWithOneRetry).
+  // Notebook simplify, Task 5: Research Home is no longer routed (it left this list with its import). Its notebook-wide
+  // Ask (NotebookAiPanel) left this list in go-live wave 1, fix round 2: its one dynamic import is in
+  // components/notebook/NotebookAiPanelSlot.jsx (a warmed slot, never React.lazy), pinned below.
+  // Go-live wave 1, fix round 1 (first-open bytes): the View menu's saved views (a warmed slot since fix round 2,
+  // lib/heldModule.js), the zero-notes sample door through `lazyView` (null fallback), and the review drafting door,
+  // fetched on the first Reviews press (importWithOneRetry).
   '../components/notebook/SavedViewsMenuGroup',
   '../components/notebook/onboarding/SampleNotebookDoor',
   '../lib/reviewDraftRun',
@@ -111,6 +112,12 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
   it('the tour is reached only through NotebookTourGate, never imported here', () => {
     expect(staticImports).toContain('../components/notebook/onboarding/NotebookTourGate')
     expect([...staticImports, ...dynamicImports].filter((s) => /onboarding\/NotebookTour$/.test(s))).toEqual([])
+  })
+
+  // Go-live wave 1, fix round 2: the AI section is reached through its slot, never imported here.
+  it('the AI section is reached only through NotebookAiPanelSlot', () => {
+    expect(staticImports).toContain('../components/notebook/NotebookAiPanelSlot')
+    expect([...staticImports, ...dynamicImports].filter((s) => /NotebookAiPanel$/.test(s))).toEqual([])
   })
 
   it('the editor, the first paint, stays static', () => {

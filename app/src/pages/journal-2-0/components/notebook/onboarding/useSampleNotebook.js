@@ -8,7 +8,7 @@ import usePreferences from '../../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../../context/AuthContext'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
-import { SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
+import { SAMPLE_ADD_FAILED, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
 /** The sample's client, on demand (a named-export module: accepted when it carries the add action). */
 export const loadSampleNotebook = () => importWithOneRetry(() => import('./sampleNotebook'), undefined,
@@ -26,7 +26,7 @@ export function useAddSampleNotebook({ onOpenNote } = {}) {
     let m
     try { m = await loadSampleNotebook() } catch {
       setAdding(false)
-      setError("We couldn't add the sample notebook. Try again in a moment.")
+      setError(SAMPLE_ADD_FAILED)
       return
     }
     const out = await m.addSampleNotebook()

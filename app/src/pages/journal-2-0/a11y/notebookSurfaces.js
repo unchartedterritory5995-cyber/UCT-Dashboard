@@ -368,6 +368,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/NotebookAiPanel.jsx': { recipe: 'notebook-ai-panel' },
   // Fix round 1 (first-open bytes): the Daily brief's two note sections, a chunk of their own, read with rows.
   'components/notebook/TodayHomeNotes.jsx': { recipe: 'today-home-notes' },
+  // Fix round 2: the find bar's and the AI section's slots (a warmed chunk drawn directly), read in the state drawn
+  // before or instead of the chunk: the find stand-in after a failed fetch, and the AI section's failure line.
+  'components/notebook/EditorToolSlots.jsx': { recipe: 'editor-find-stand-in' },
+  'components/notebook/NotebookAiPanelSlot.jsx': { recipe: 'notebook-ai-panel-failed' },
   // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
   // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.

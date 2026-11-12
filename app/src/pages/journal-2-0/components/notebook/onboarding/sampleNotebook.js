@@ -15,7 +15,7 @@
 // offers "Trash anyway" -- and the confirmed re-run still refuses a note it finds unsent.
 
 import { FAILURE_WORDS, UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
-import { SAMPLE_ROW_COPY, SAMPLE_URL, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
+import { SAMPLE_ADD_FAILED, SAMPLE_ROW_COPY, SAMPLE_URL, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
 // Fix round 1: the route, the key, its reader and the More menu row's words are sampleNotebookKeys.js (on the
 // Notebook's first open); re-exported so every import from here keeps working.
@@ -29,7 +29,7 @@ export const SAMPLE_COPY = Object.freeze({
   add: 'Add a sample notebook',
   adding: 'Adding the sample…',
   tour: 'Take the tour',
-  addFailed: "We couldn't add the sample notebook. Try again in a moment.",
+  addFailed: SAMPLE_ADD_FAILED,
   // M-13: the first-run screen shows while a member has no ACTIVE notes, so the server's
   // refusal ("you already have notes") has to say where they are.
   refused: "You already have notes, so we didn't add the sample. If you can't see them, look in Trash or Archive.",

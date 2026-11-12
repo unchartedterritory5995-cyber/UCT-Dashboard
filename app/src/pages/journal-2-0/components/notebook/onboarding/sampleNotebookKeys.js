@@ -12,6 +12,10 @@ export const SAMPLE_ROW_COPY = Object.freeze({
   removingLine: 'Removing the sample notebook…',
 })
 
+/** Said when the sample cannot be added (the press-time client could not load, or the server refused without a word of
+ *  its own). Here, not in sampleNotebook.js, so the add hook can say it without fetching that client. */
+export const SAMPLE_ADD_FAILED = "We couldn't add the sample notebook. Try again in a moment."
+
 /** The recorded sample, or null. Tolerates a string (the server's TEXT) or an object. */
 export function readSamplePref(raw) {
   let v = raw

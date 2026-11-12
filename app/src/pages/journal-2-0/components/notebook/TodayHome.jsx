@@ -612,6 +612,14 @@ export default function TodayHome({
   useTodayRefresh(mutate, data)
   // Review 4e: a registry walkthrough running now (the signal MoreBoxes unfolds the boxes on).
   const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  // Fix round 2 (re-review): the hold covers only what has not been drawn yet. Once Notices or the note sections are on
+  // screen they stay, so a walkthrough that starts later never unmounts them and shifts the boxes up mid-tour.
+  const [noticesDrawn, setNoticesDrawn] = useState(false)
+  const [notesDrawn, setNotesDrawn] = useState(false)
+  const showNotices = noticesDrawn || !tourWanted
+  const showNotes = notesDrawn || (Boolean(data || error) && !tourWanted)
+  if (showNotices && !noticesDrawn) setNoticesDrawn(true)
+  if (showNotes && !notesDrawn) setNotesDrawn(true)
 
   // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
   const madeRef = useRef(null)
@@ -682,11 +690,12 @@ export default function TodayHome({
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
       {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing).
           Fix round 1 (review 4e): held while a walkthrough is wanted, with the note sections below: both land late and
-          would push the folded boxes a tour has just scrolled into view. They come in when the tour ends. */}
-      {!tourWanted && <Suspense fallback={null}><NoticesPanel /></Suspense>}
+          would push the folded boxes a tour has just scrolled into view. They come in when the tour ends. Fix round 2:
+          only what has not been drawn yet is held; once drawn, they stay. */}
+      {showNotices && <Suspense fallback={null}><NoticesPanel /></Suspense>}
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
       <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
-      {Boolean(data || error) && !tourWanted && (
+      {showNotes && (
         <Suspense fallback={null}><HomeNotes ready onOpenNote={onOpenNote} styles={styles} /></Suspense>
       )}
       <MoreBoxes onOpenNote={onOpenNote} />

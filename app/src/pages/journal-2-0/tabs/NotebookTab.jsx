@@ -72,6 +72,8 @@ import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
+import { heldModule, useHeldModule } from '../lib/heldModule'
+import NotebookAiPanelSlot, { warmAiPanel } from '../components/notebook/NotebookAiPanelSlot'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
@@ -129,10 +131,17 @@ const fetchSampleStatus = (url) => fetch(url, { credentials: 'include' }).then((
 })
 const REMOVE_SAMPLE_OP = 'remove-sample'
 // Fix round 1 (first-open bytes): the View menu's "Saved views" group is a chunk of its own. It is asked for when the
-// browser is idle after the list's first paint, and again when a pointer or focus reaches "View" (the same loader, so
-// one fetch), so it is in hand by the time the menu opens; until then the group is simply not drawn yet.
-const loadSavedViewsGroup = () => import('../components/notebook/SavedViewsMenuGroup')
-const preloadSavedViewsGroup = () => { loadSavedViewsGroup().catch(() => {}) }
+// browser is idle after the list's first paint, and again when a pointer or focus reaches "View", into a module-level
+// slot, so it is in hand by the time the menu opens; until then the group is simply not drawn yet. Fix round 2: drawn
+// straight from the slot, never React.lazy (a lazy view suspends on its first render even with its chunk in hand, and
+// the rows would arrive about 300 ms after the menu, under a member's arrow keys; lib/heldModule.js). A fetch that
+// fails leaves the group undrawn (never a page reload) and is asked for again on the next pointer or focus.
+const savedViewsGroupModule = heldModule(() => import('../components/notebook/SavedViewsMenuGroup'))
+const preloadSavedViewsGroup = () => { savedViewsGroupModule.warm() }
+function SavedViewsMenuGroup(props) {
+  const { Component } = useHeldModule(savedViewsGroupModule)
+  return Component ? <Component {...props} /> : null
+}
 // Fix round 1: the zero-notes "Add a sample notebook" door, fetched when the empty state draws (it renders nothing until
 // it lands, and nothing at all for a member it is not for).
 
@@ -203,13 +212,12 @@ const loadTodayHome = () => {
   return todayHomeImport
 }
 const TodayHome = lazyView(loadTodayHome, 'today')
-// Go-live wave 1, fix round 1 (first-open bytes; see the loaders near the top): the View menu's saved views and the
-// zero-notes sample door, through `lazyView` with a null fallback (nothing flashes while a chunk lands).
-const SavedViewsMenuGroup = lazyView(loadSavedViewsGroup, 'saved views', null)
+// Go-live wave 1, fix round 1 (first-open bytes): the zero-notes sample door, through `lazyView` with a null fallback
+// (nothing flashes while the chunk lands).
 const SampleNotebookDoor = lazyView(() => import('../components/notebook/onboarding/SampleNotebookDoor'), 'sample notebook', null)
 // Notebook simplify, Task 5: Research home is no longer routed (`?view=home` opens the list). Its notebook-wide Ask
-// is the list toolbar's "AI" section, a chunk of its own fetched on the first press (nothing flashes while it loads).
-const NotebookAiPanel = lazyView(() => import('../components/notebook/NotebookAiPanel'), 'ask', null)
+// is the list toolbar's "AI" section, a chunk of its own: fix round 2 draws it from a warmed slot, so the question
+// field has focus without React.lazy's first-render hold (components/notebook/NotebookAiPanelSlot.jsx).
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 // Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
@@ -2183,6 +2191,8 @@ export default function NotebookTab() {
   // whichever door opened it.
   // Fix round 1: the saved-views group's chunk, once, when the browser is idle after the first paint (see above).
   useEffect(() => whenIdle(preloadSavedViewsGroup), [])
+  // Fix round 2: the AI section's chunk, the same way (and on pointer or focus of "AI", below).
+  useEffect(() => whenIdle(warmAiPanel), [])
   const [aiOpen, setAiOpen] = useState(false)
   const aiBtnRef = useRef(null)
   const aiOpenerRef = useRef(null)
@@ -3058,6 +3068,8 @@ export default function NotebookTab() {
               type="button"
               className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.aiBtn}`}
               onClick={toggleAi}
+              onPointerEnter={warmAiPanel}
+              onFocus={warmAiPanel}
               aria-expanded={aiOpen}
               aria-controls={aiOpen ? 'notebook-ai-panel' : undefined}
               title="Ask your Notebook"
@@ -3118,7 +3130,7 @@ export default function NotebookTab() {
         </div>
 
         {aiOpen && (
-          <NotebookAiPanel id="notebook-ai-panel" onOpenNote={openNote} onClose={closeAi} blockedNoteIds={blockedNoteIds} />
+          <NotebookAiPanelSlot id="notebook-ai-panel" onOpenNote={openNote} onClose={closeAi} blockedNoteIds={blockedNoteIds} />
         )}
 
         <NoteConnectorsTrustStrip />

@@ -137,6 +137,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChunk'
 import whenIdle from '../../lib/whenIdle'
+import { FindBarSlot, TableToolbarSlot, warmEditorTools } from './EditorToolSlots'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
@@ -246,16 +247,10 @@ const DocumentPreviewSheet = lazyChunk(() => sourceSheetLoaders.documentPreview(
 const CapturedSourceSheet = lazyChunk(() => sourceSheetLoaders.capturedSource())
 // Go-live wave 1, fix round 1 (first-open bytes; this branch added to the first open, so something moves off it): the
 // find bar (Ctrl+F, or More > Find) and the table toolbar (drawn only while the caret is in a table) are chunks of
-// their own, warmed once idle like the palette, so Find opens without a wait and a table's toolbar is there when the
-// caret reaches it. A failed warm costs nothing: the render asks again (lazyChunk).
-const loadNoteFindBar = () => import('./NoteFindBar')
-const NoteFindBar = lazyChunk(loadNoteFindBar)
-const loadTableToolbar = () => import('./TableToolbar')
-const TableToolbar = lazyChunk(loadTableToolbar)
-const warmEditorTools = () => whenIdle(() => {
-  loadNoteFindBar().catch(() => {})
-  loadTableToolbar().catch(() => {})
-})
+// their own, fetched once the editor is idle into module-level slots. Fix round 2: never React.lazy, which held the
+// bar back about 300 ms even with its chunk in hand; the slots draw the real bar in the press's own commit, a stand-in
+// field before the chunk lands, and a plain "could not be loaded" (never a reload) when it cannot (EditorToolSlots.jsx).
+const warmEditorToolsWhenIdle = () => whenIdle(warmEditorTools)
 const warmSourceSheets = () => whenIdle(() => {
   sourceSheetLoaders.documentPreview().catch(() => {})
   sourceSheetLoaders.capturedSource().catch(() => {})
@@ -1295,7 +1290,7 @@ export default function NoteEditorPage({
   const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(warmWidgetPalette, [])
   useEffect(warmSourceSheets, [])
-  useEffect(warmEditorTools, [])
+  useEffect(warmEditorToolsWhenIdle, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
@@ -6199,18 +6194,16 @@ export default function NoteEditorPage({
         )}
 
         {findOpen && (
-          <Suspense fallback={null}>
-            <NoteFindBar
-              editor={editor}
-              initialReplace={findWithReplace}
-              onClose={closeFind}
-            />
-          </Suspense>
+          <FindBarSlot
+            editor={editor}
+            initialReplace={findWithReplace}
+            onClose={closeFind}
+          />
         )}
 
         {/* Wave 6: the table toolbar floats over the table the caret is in,
             and renders nothing anywhere else (or on a read-only note). */}
-        <Suspense fallback={null}><TableToolbar editor={editor} /></Suspense>
+        <TableToolbarSlot editor={editor} />
         <LinkPasteMenu editor={editor} />
         {smartChipsEnabled() && (
           <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>

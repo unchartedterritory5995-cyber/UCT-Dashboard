@@ -7,6 +7,11 @@
 //   * notebook-ai-panel     -- the notes list's AI section: the notebook-wide question panel open and, with its switch
 //                              on, "Or tell Notebook what to change";
 //   * today-home-notes      -- the Daily brief's "Needs review" and "Notes on your open positions", with rows.
+// Fix round 2: the two slots that draw a chunk straight from a warmed module (lib/heldModule.js), in the state a member
+// sees before or instead of the chunk:
+//   * editor-find-stand-in  -- the find stand-in after a failed fetch: the field, "Find could not be loaded.", Try
+//                              again and Close;
+//   * notebook-ai-panel-failed -- the AI section's "Ask could not be loaded." with Try again and Close.
 // Each recipe proves its state rendered before axe runs.
 import { describe, beforeEach, afterEach, expect } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
@@ -19,6 +24,8 @@ import NotebookAiPanel from '../components/notebook/NotebookAiPanel'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import HomeNotes from '../components/notebook/TodayHomeNotes'
 import todayStyles from '../components/notebook/TodayHome.module.css'
+import { editorToolLoaders, findBarModule, FindBarSlot, FIND_UNAVAILABLE } from '../components/notebook/EditorToolSlots'
+import NotebookAiPanelSlot, { aiPanelLoaders, aiPanelModule, ASK_UNAVAILABLE } from '../components/notebook/NotebookAiPanelSlot'
 
 const VIEWS = [
   { id: 'v1', name: 'Active theses', viewType: 'list' },
@@ -109,5 +116,36 @@ describe('the simplification\'s own menus and panel, open', () => {
     expect(screen.getByRole('heading', { name: 'Notes on your open positions' })).toBeTruthy()
     expect(screen.getByText('review due today')).toBeTruthy()
     return { root: container }
+  })
+
+  axeSurface('editor-find-stand-in', async () => {
+    const real = editorToolLoaders.findBar
+    editorToolLoaders.findBar = () => Promise.reject(new Error('boom'))
+    findBarModule.resetForTests()
+    try {
+      const { container } = render(<main><FindBarSlot editor={null} onClose={() => {}} /></main>)
+      expect(await screen.findByText(FIND_UNAVAILABLE)).toBeTruthy()
+      expect(screen.getByRole('searchbox', { name: 'Find in note' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+      return { root: container }
+    } finally {
+      editorToolLoaders.findBar = real
+      findBarModule.resetForTests()
+    }
+  })
+
+  axeSurface('notebook-ai-panel-failed', async () => {
+    const real = aiPanelLoaders.panel
+    aiPanelLoaders.panel = () => Promise.reject(new Error('boom'))
+    aiPanelModule.resetForTests()
+    try {
+      const { container } = render(<main><NotebookAiPanelSlot id="notebook-ai-panel" onClose={() => {}} /></main>)
+      expect((await screen.findByRole('alert')).textContent).toBe(ASK_UNAVAILABLE)
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+      return { root: container }
+    } finally {
+      aiPanelLoaders.panel = real
+      aiPanelModule.resetForTests()
+    }
   })
 })

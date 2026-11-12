@@ -135,4 +135,16 @@ describe('a walkthrough running: the late pieces wait', () => {
     expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
     expect(await screen.findByTestId('today-needs-review')).toBeInTheDocument()
   })
+
+  // Fix round 2 (re-review): only what has not been drawn is held. A tour that starts after they are on screen leaves
+  // them there (unmounting them would shift the boxes up mid-tour).
+  it('a tour wanted after Notices and the note sections are drawn leaves both on screen', async () => {
+    renderToday()
+    expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
+    expect(await screen.findByTestId('today-needs-review')).toBeInTheDocument()
+    act(() => { publishRegistryTourWanted('earnings-prep') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.getByTestId('notices-box')).toBeInTheDocument()
+    expect(screen.getByTestId('today-needs-review')).toBeInTheDocument()
+  })
 })
