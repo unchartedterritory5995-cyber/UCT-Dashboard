@@ -5517,6 +5517,74 @@
    "shape": null
   },
   {
+   "name": "drawing.duplicate",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Duplicate ONE drawing (its menu's Duplicate): an unlocked duplicate drawing just below the original on the same symbol — every chart on that symbol shows it. The duplicate is the drawing \"it\" means next. Undo removes the duplicate only.",
+   "hints": "target = the drawings entry; drawing = its id (the one marked recent for \"duplicate it\"). Not offered for a hidden drawing (show it first) or a retired tool. To copy a drawing to a DIFFERENT symbol there is no capability — say so.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "drawing"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setPositionAlerts",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Set a POSITION drawing's alerts (its menu's Alerts row): entry, stop, target, or all three. Each is an alert bound to that level, going off on the side the menu gives it (stop = the losing side, target = the winning side, entry = toward the entry from the current price). Always shown first; Undo removes them unless one already went off.",
+   "hints": "target = the drawings entry; drawing = the position's id; levels = any of \"entry\", \"stop\", \"target\" (\"all three\" / \"all its alerts\" = all three). The side is the position's own — never ask the member. A line, ray or Fibonacci is drawing.setAlert.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "levels": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "entry",
+        "stop",
+        "target"
+       ]
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "levels"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicator.list",
    "domain": "indicator",
    "target": "indicators",
