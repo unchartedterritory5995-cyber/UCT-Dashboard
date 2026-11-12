@@ -177,6 +177,10 @@ _DEFAULT_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 _DATES_CACHE_TTL_S = float(os.environ.get("FLOW_DATES_CACHE_TTL_S", "60"))
 
 
+
+#: The -wal file is truncated back to this after each checkpoint reset (see FlowDB._conn).
+WAL_SIZE_LIMIT_BYTES = 256 * 1024 * 1024
+
 class FlowDB:
     def __init__(self, db_path: str = _DEFAULT_DB_PATH):
         self.db_path = db_path
@@ -188,6 +192,12 @@ class FlowDB:
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        # ⛔ WAL SIZE CAP (2026-11-12). SQLite never shrinks the -wal file on its own:
+        # after a bulk write it stays at its peak size forever (measured 6.9 GB holding
+        # 427 live frames). On a volume that has already corrupted from running out of
+        # space, a WAL that keeps its peak is dead disk. 256 MB: when a checkpoint
+        # resets the log, it is truncated back to this.
+        conn.execute(f"PRAGMA journal_size_limit={WAL_SIZE_LIMIT_BYTES}")
         try:
             yield conn
             conn.commit()
