@@ -48,7 +48,7 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
   it('⭐ the bar source is a MODULE constant with ONE call site (hook order cannot depend on it)', () => {
     expect(src).toMatch(/^const useChartBars = BARSTORE \? useBarSnapshotBars : useLegacyChartBars\s*$/m)
     expect(src).toContain('} = useChartBars({')
-    expect(src).not.toMatch(/(?:useLegacyChartBars|useBarSnapshotBars)\(/)
+    expect(src).not.toMatch(/\b(?:useLegacyChartBars|useBarSnapshotBars)\(/)
   })
 
   describe('symbol-switch paint ordering', () => {

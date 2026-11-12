@@ -166,15 +166,18 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // ⭐ 'authoritative' is the halted / illiquid symbol: we asked with `since=`
     // and the server has nothing newer, so its cache IS the frontier. Without
     // this the handoff would wait forever for a bar that will never print.
-    // The prepare is ABORTED when this request is left (a newer symbol / unmount): the store's
-    // prepare owns its key, so the abort really cancels its request (the legacy prepare ignores it).
+    // The prepare is ABORTED when this request is LEFT before it committed (a newer symbol /
+    // unmount): the store's prepare owns its key, so the abort really cancels its request (the
+    // legacy prepare ignores it). Once committed the chart owns the key — never aborted then.
     const prepCtl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let committed = false
+    const commitHere = () => { committed = true; commit() }
     P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true })
     P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null }).then((outcome) => {
       if (!alive || genRef.current !== gen) return   // a newer request owns the screen
       lastOutcomeRef.current = outcome
-      commit()
-    }).catch(() => { if (alive && genRef.current === gen) commit() })
+      commitHere()
+    }).catch(() => { if (alive && genRef.current === gen) commitHere() })
 
     // A poll alongside it, because the ±6 neighbour warmer may repair this
     // symbol from the shared queue before our own prepare resolves — committing
@@ -183,7 +186,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     let timer = null
     const tick = () => {
       if (!alive || genRef.current !== gen) return
-      if (peekDisplayable(requestedSym, tf)) { commit(); return }
+      if (peekDisplayable(requestedSym, tf)) { commitHere(); return }
       timer = setTimeout(tick, POLL_MS)
     }
     timer = setTimeout(tick, POLL_MS)
@@ -196,10 +199,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     const deadline = setTimeout(() => {
       if (!alive || genRef.current !== gen) return
       lastOutcomeRef.current = 'hang'
-      commit()
+      commitHere()
     }, HANDOFF_HANG_MS)
 
-    return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); try { prepCtl?.abort() } catch { /* ignore */ } }
+    return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
     // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
     // ref while rendering is unsafe under concurrent rendering (and the lint rule
     // says so). Depending on it re-runs this effect exactly once after a commit,

@@ -63,6 +63,19 @@ describe('P3-S1 adapter items 3 + 4 under BARSTORE', () => {
     expect(calls.prepare.some((c) => c.sym === 'CCC' && c.signal && !c.signal.aborted)).toBe(true)
   })
 
+  it('4b: once the handoff COMMITTED, its prepare is not aborted (the chart owns the key now)', async () => {
+    const pf = await import('../../data/barStore/prefetch')   // the mock (shared by this graph)
+    const { rerender, result } = renderHook(({ s }) => mods.useSymbolHandoff(s, '5'), { initialProps: { s: 'EEE' } })
+    rerender({ s: 'FFF' })
+    const c = calls.prepare.find((x) => x.sym === 'FFF')
+    pf.peekDisplayable.mockReturnValue(true)                  // the poll finds it displayable
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 80)) })
+      expect(result.current).toBe('FFF')
+      expect(c.signal.aborted).toBe(false)
+    } finally { pf.peekDisplayable.mockReturnValue(false) }
+  })
+
   it('3: a daily set the STORE holds (mem empty) commits the handoff at once and feeds useDayFacts', async () => {
     const store = mods.index.getBarStore()
     const key = mods.types.keyOf({ sym: 'DDD', tf: 'D' })
