@@ -815,63 +815,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -892,7 +837,7 @@
         },
         "y1": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "x2": {
          "v": "tree",
@@ -900,7 +845,7 @@
         },
         "y2": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "color": {
          "v": "color",
@@ -916,63 +861,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -1062,10 +952,6 @@
       {
        "type": "num",
        "value": 2
-      },
-      {
-       "type": "num",
-       "value": 0
       },
       {
        "type": "offset",

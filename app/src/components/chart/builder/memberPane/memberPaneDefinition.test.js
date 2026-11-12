@@ -150,7 +150,14 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // the delete beside it, so it is one more attempted step and one more counted
     // drop. It used to vanish without a count.
     expect(Object.keys(byName).sort()).toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
-    expect(byName.Drawings).toMatch(/^9 of 18 drawing elements in this script aren't supported yet/)
+    // ⛔ 10 of 18 since engine 51: the Volume table's create is withheld by name
+    // (`enum:unreadable`). Its position is `f_getTablePos(hasRecentHV ? 'Top Center' :
+    // volTablePosition)` on the last bar; both arms are fixed strings and are read,
+    // but `hasRecentHV` reads `lastHVBarIdx`, latched on `isHVEvent`, which reads
+    // `ta.highest` inside a block that does not run on every bar — refused on this
+    // lane (C31). With no reading of the condition the corner is not drawn at a
+    // default. Evidence: docs/pine/evidence/2026-11-12-engine51-cell-order.
+    expect(byName.Drawings).toMatch(/^10 of 18 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
     expect(byName.alertcondition).toContain("'HVE Trigger'")

@@ -123,6 +123,13 @@ export const DROP_KEYS = Object.freeze({
   // argument, which this door does not read (Q-HS7). Missing, never extra.
   'enum:named-call': C(LOSS.PARTIAL,
     'a drawing whose style, size or position a helper computes from a named argument — withheld, never drawn with a default style'),
+  // ⛔ Engine 51 — the same word, unreadable (an unknown constant, or a computation this door
+  // cannot follow): withheld, never drawn with a default (`ENUM_DROPS.unreadable`).
+  // ⛔ Engine 51 — an integer point text size (`ENUM_DROPS.points`): withheld, never sized as a word.
+  'enum:points': C(LOSS.PARTIAL,
+    'a drawing whose text size is an integer point size — withheld, never drawn at a named size'),
+  'enum:unreadable': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position this chart cannot read — withheld, never drawn with a default style'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
