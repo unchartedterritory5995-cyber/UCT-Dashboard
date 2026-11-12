@@ -1141,8 +1141,8 @@ _RS_HISTORY_COLUMNS = {
     "rs_rating_ibd": "ibd",       # IBD-style rating 1-99 (plan §7 item 17)
     "rs_rating_chg_5": "d5",      # rating minus its value 5 stored sessions ago
     "rs_rating_chg_20": "d20",    # ... 20 stored sessions ago (item 20)
-    "rs_rating_1m": "m1",         # component percentiles of the plain
-    "rs_rating_3m": "m3",         #   21/63/126/252-bar returns (item 19)
+    "rs_rating_1m": "m1",         # component percentiles (item 19): 1M the plain 21-bar return,
+    "rs_rating_3m": "m3",         #   3M the equal-weighted 1/2/3-month average (2026-11-12),
     "rs_rating_6m": "m6",
     "rs_rating_9m": "m9",         # S1 (2026-11-10): the 189-bar window the chart ranks strip prints
     "rs_rating_12m": "m12",
