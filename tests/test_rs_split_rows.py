@@ -40,7 +40,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "tests" / "fixtures" / "rs_line_rows_pre_phase3.json"
 LEDGER = REPO / "docs" / "feature_flags.json"
 
-SPLIT_IDS = ("rsRating", "rsPhases", "rsVsEma")
+SPLIT_IDS = ("rsRating", "rsPhases", "rsVsEma", "rsExit")
 
 #: ⭐ THE CONTRACT FOR U6: per id, the wire columns and the payload paths.
 RS_SPLIT_CONTRACT = {
@@ -73,6 +73,18 @@ RS_SPLIT_CONTRACT = {
                   "legend.lastValue", "legend.asOf", "legend.stale", "legend.fast", "legend.slow",
                   "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
                   "inputs.maLength", "inputs.maType", "intraday", "state"],
+    },
+    # 2026-11-12: UCT RS Exit Warnings (Webster's Quick Break / Quicksand / Grateful Dead Break).
+    "rsExit": {
+        "columns": ["rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead"],
+        "inputs": ["benchmark", "customBenchmark", "fastLength", "slowLength"],
+        "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
+                  "benchmark.note", "benchmark.bars",
+                  "legend.summary", "legend.chipText", "legend.lastKind", "legend.lastLabel", "legend.barsAgo", "legend.lastAsOf",
+                  "legend.status", "legend.statusLabel", "legend.rs", "legend.fast", "legend.slow",
+                  "legend.fastLength", "legend.slowLength", "legend.asOf", "legend.stale",
+                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+                  "inputs.fastLength", "inputs.slowLength", "inputs.maType", "intraday", "state"],
     },
 }
 
@@ -129,7 +141,7 @@ def test_flag_off_serves_the_four_rows_and_the_rsline_row_unchanged():
         assert json.dumps(got["rsLine"]) == json.dumps(rd._rs_line_row(True, True))
 
 
-def test_flag_on_adds_the_three_rows_after_rsline_and_leaves_rsline_byte_identical():
+def test_flag_on_adds_the_four_rows_after_rsline_and_leaves_rsline_byte_identical():
     off, _ = _serve_fresh(_IDS_AND_RSLINE, None)
     on, _ = _serve_fresh(_IDS_AND_RSLINE, "1")
     assert json.loads(on)["ids"] == json.loads(off)["ids"] + list(SPLIT_IDS)
@@ -148,13 +160,13 @@ def test_flag_on_leaves_the_v3_and_v1_rsline_rows_byte_identical_too():
     assert out == json.dumps(frozen["v1"])
 
 
-def test_the_router_registers_the_three_providers_only_with_the_flag():
+def test_the_router_registers_the_four_providers_only_with_the_flag():
     code = ("import json, sys\n"
             "from api.routers import signature\n"
             "from api.services.signature import registry_defs as rd\n"
             "sys.stdout.write(json.dumps(sorted(k for k in rd._PROVIDERS if k.startswith('rs'))))\n")
     assert json.loads(_serve_fresh(code, None)[0]) == ["rsLine"]
-    assert json.loads(_serve_fresh(code, "1")[0]) == ["rsLine", "rsPhases", "rsRating", "rsVsEma"]
+    assert json.loads(_serve_fresh(code, "1")[0]) == ["rsExit", "rsLine", "rsPhases", "rsRating", "rsVsEma"]
 
 
 def test_the_rows_are_built_whether_or_not_the_flag_is_on():
@@ -187,7 +199,7 @@ def test_the_rating_row_has_no_benchmark_and_reuses_the_rev_5_rating_columns():
 
 def test_the_two_ratio_rows_declare_the_rsline_v4_benchmark_pair_exactly():
     v4 = {i["key"]: i for i in rd._rs_line_row(True, True)["inputs"]}
-    for def_id in ("rsPhases", "rsVsEma"):
+    for def_id in ("rsPhases", "rsVsEma", "rsExit"):
         by_key = {i["key"]: i for i in next(d for d in rd.RS_SPLIT_DEFS if d["id"] == def_id)["inputs"]}
         assert by_key["benchmark"] == v4["benchmark"], def_id
         assert by_key["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS_V4) and "CUSTOM" in by_key["benchmark"]["options"]
@@ -382,7 +394,7 @@ def test_the_rating_envelope_draws_the_stored_rating_and_its_blocks(split_rows, 
 
 # ── blank states, the RS line's own words ─────────────────────────────────────
 
-@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma"])
+@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit"])
 def test_same_symbol_blanks_everything_with_the_rs_line_reason(def_id, split_rows, monkeypatch):
     _store(monkeypatch, n=300)
     env = sig.RS_SPLIT_PROVIDERS[def_id]("SPY", "D", rd.resolve_inputs(def_id, {"benchmark": "SPY"}))
@@ -392,7 +404,7 @@ def test_same_symbol_blanks_everything_with_the_rs_line_reason(def_id, split_row
     assert env["payload"]["benchmark"]["resolved"] == "SPY"
 
 
-@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma"])
+@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit"])
 def test_no_benchmark_bars_blanks_everything_and_caches_for_a_minute(def_id, split_rows, monkeypatch):
     store = _long_daily(n=300)
     del store["SPY"]

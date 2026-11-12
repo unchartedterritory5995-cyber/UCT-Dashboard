@@ -175,6 +175,33 @@
       "definition": "An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line's readout prints as its distance from the average.",
       "key": "uctRsVsEma",
       "term": "UCT RS vs 21 EMA"
+    },
+    {
+      "aliases": [
+        "RS exit warnings",
+        "Webby Quick and Grateful Dead"
+      ],
+      "definition": "An indicator that draws the RS line with a fast and a slow simple average of it, and marks three warnings on the line: Quick Break, Quicksand and Grateful Dead Break, Mike Webster's method for noticing a leader weaken. The averages are 21 and 50 bars on a daily chart and 8 and 21 on a weekly one, and both can be changed.",
+      "key": "uctRsExit",
+      "term": "UCT RS Exit Warnings"
+    },
+    {
+      "definition": "The first warning on the RS line: it drops below its fast average. It asks you to look at the position again, not to act by itself.",
+      "key": "quickBreak",
+      "term": "Quick Break"
+    },
+    {
+      "definition": "The second warning: after a Quick Break, the RS line falls lower than it was at that break. The weakness has deepened rather than recovered.",
+      "key": "quicksand",
+      "term": "Quicksand"
+    },
+    {
+      "aliases": [
+        "Dead Break"
+      ],
+      "definition": "The third warning, drawn as the largest dot: the RS line drops below its slow average. It does not need a Quick Break first.",
+      "key": "gratefulDeadBreak",
+      "term": "Grateful Dead Break"
     }
   ],
   "misconceptions": [

@@ -5661,9 +5661,129 @@ const RS_VS_EMA_RAW = {
   ],
 }
 
+// ⭐⭐ UCT RS EXIT WARNINGS (`rsExit`, 2026-11-12): Mike Webster's three warnings on
+// the RS line. A QUICK BREAK is the RS line dropping below its fast average;
+// QUICKSAND is the line then falling lower than it was at that break; a GRATEFUL
+// DEAD BREAK is the line dropping below its slow average. The averages are SIMPLE
+// averages OF THE RS LINE (not of price): daily 21 and 50, weekly 8 and 21, both
+// inputs (0 is auto). The server computes it (`relative_strength.rs_exit_events`
+// states the rules, and says plainly that they are OUR reading of a published
+// idea: the names and one-line meanings are public, the mechanics are not).
+// ⭐ THE DOTS RIDE THE LINE: the server sends the RS value on the bar a warning
+// fired and nothing elsewhere, so each glyph sits exactly on the line. Declared
+// quick, quicksand, dead, so on a bar where two fire the worse paints on top.
+// ⭐ THE TOGGLES ARE PRESENTATION KEYS: `plots[].activeWhen` (the `rsMa` rule) draws a
+// dot only while its switch holds, and the server never hears of them.
+// ⭐ DAILY AND WEEKLY ONLY (`meta.timeframes`, the VWAP and rsRating precedent): on any
+// other timeframe the instance is hidden, not dropped, and comes back on D or W.
+// ⭐ COLOURS: the line is the RS info blue, the two averages the neutral (the fast one
+// solid, the slow one dashed), and the three dots climb the caution ramp the brand
+// already draws: gold (`--warn`) for the first warning, an orange between gold and
+// red for the second, the bear red for the third. The ramp is one warm family, so
+// the pane stays at one blue and one warm hue plus the neutral. No emoji, no text on
+// the canvas (platform §7).
+const RS_CAUTION_ORANGE = '#dd8a3a'
+const RS_QUICK_ON = Object.freeze({ key: 'showQuick', equals: true })
+const RS_QUICKSAND_ON = Object.freeze({ key: 'showQuicksand', equals: true })
+const RS_DEAD_ON = Object.freeze({ key: 'showDead', equals: true })
+const RS_EXIT_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsExit',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsExit', rev: 1 },
+  meta: {
+    name: 'UCT RS Exit Warnings', shortName: 'UCT RS Exit', category: CAT.RELATIVE_STRENGTH,
+    description: 'Three warnings on the RS line, from Mike Webster\'s method: a Quick Break below its fast average, Quicksand when it falls lower than at that break, and a Grateful Dead Break below its slow average. Daily and weekly charts.',
+    tags: ['rs', 'relative strength', 'rs line', 'exit', 'exit warnings', 'warning', 'sell', 'trim', 'webster',
+      'mike webster', 'quick break', 'quick', 'quicksand', 'grateful dead', 'dead break', 'moving average',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    timeframes: ['D', 'W'],
+    legendParams: ['benchmark'],
+    // The pane label's value while there is nothing to draw: the server's words
+    // (`daily and weekly charts only`, `benchmark is the symbol`, `not enough bars yet`).
+    legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
+    // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_exit_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'fastLength', 'slowLength'],
+    groupsCollapsed: ['Averages', 'Style'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    { key: 'showQuick', type: 'bool', label: 'Quick Break', default: true, group: 'Simple',
+      tooltip: 'A dot where the RS line drops below its fast average: the first warning. It fires once, until the line is back above the average.' },
+    { key: 'showQuicksand', type: 'bool', label: 'Quicksand', default: true, group: 'Simple',
+      tooltip: 'A dot where, after a Quick Break, the RS line falls lower than it was at that break: the second warning. It fires once per Quick Break.' },
+    { key: 'showDead', type: 'bool', label: 'Dead Break', default: true, group: 'Simple',
+      tooltip: 'Grateful Dead Break: a dot where the RS line drops below its slow average. The third warning, and the largest dot.' },
+    // The two lengths are the row's (`relative_strength.EXIT_LENGTH_RANGE`): 0 is auto.
+    { key: 'fastLength', type: 'int', label: 'Fast avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Fast average of the RS line, in bars. 0 is automatic: 21 on a daily chart, 8 on a weekly one. A Quick Break is the RS line dropping below it. These lengths come from a community summary of Mike Webster\'s teaching, not a published rule: test what suits you.' },
+    { key: 'slowLength', type: 'int', label: 'Slow avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Slow average of the RS line, in bars. 0 is automatic: 50 on a daily chart, 21 on a weekly one. A Grateful Dead Break is the RS line dropping below it. It is kept longer than the fast average.' },
+    { ...colorInput('color', 'Line colour', RS_INFO), group: 'Style', tooltip: 'Colour of the RS line; the two averages stay in the neutral' },
+    { ...colorInput('quickColor', 'Quick Break dot', RS_GOLD), group: 'Style', activeWhen: RS_QUICK_ON,
+      tooltip: 'Colour of the Quick Break dot; gold, the caution colour' },
+    { ...colorInput('quicksandColor', 'Quicksand dot', RS_CAUTION_ORANGE), group: 'Style', activeWhen: RS_QUICKSAND_ON,
+      tooltip: 'Colour of the Quicksand dot; between the caution gold and the loss red' },
+    { ...colorInput('deadColor', 'Dead Break dot', RS_BEAR), group: 'Style', activeWhen: RS_DEAD_ON,
+      tooltip: 'Colour of the Grateful Dead Break dot; the loss red' },
+  ],
+  plots: [
+    // ⭐ `legend.showValue: false`: the RS ratio means nothing to a member (the slim RS
+    // line's F3 ruling), so the pane label reads the name, the benchmark and the last
+    // warning (the two chip rows below), not 0.4378.
+    { key: 'rsLine', label: 'RS line', style: 'line', color: '$color', width: 1,
+      precision: 4, role: 'primary', legend: { decimals: 4, showValue: false } },
+    { key: 'fast', label: 'Fast average', style: 'line', color: RS_NEUTRAL, width: 1,
+      precision: 4, role: 'context', legend: { hide: true } },
+    { key: 'slow', label: 'Slow average', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 4, role: 'context', legend: { hide: true } },
+    // Glyph sizes: small, middle, largest, so the severity reads at a glance. The member's
+    // Dot size scales all three (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotQuick', label: 'Quick Break', style: 'markers', color: '$quickColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.9 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICK_ON },
+    { key: 'dotQuicksand', label: 'Quicksand', style: 'markers', color: '$quicksandColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.3 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICKSAND_ON },
+    { key: 'dotDead', label: 'Dead Break', style: 'markers', color: '$deadColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.8 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_DEAD_ON },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // The glance row is the server's sentence; its numbers follow. The short form rides the
+    // pane label (`UCT RS Exit · SPY · Quicksand · 6 bars ago`).
+    { key: 'lastWarning', label: 'Last warning', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'The newest of three warnings on the RS line, and how many bars ago it fired. Quick Break: the RS line drops below its fast average. Quicksand: after a Quick Break, the RS line falls lower than it was at that break. Grateful Dead Break: the RS line drops below its slow average. They are judged on closed bars. The averages are simple averages of the RS line: 21 and 50 bars on a daily chart, 8 and 21 on a weekly one.',
+        origin: 'Mike Webster\'s method for holding a leader and noticing when it weakens, as summarised by a community write-up of his teaching and the open-source TradingView script Webby\'s Quick & Grateful Dead RS. The names and one-line meanings are public; the exact rules here are UCT\'s reading of them.',
+        evidence: 'A warning to review the position, not an instruction to act on it. ' + RS_HONESTY_SENTENCE } },
+    { key: 'lastWarningChip', label: 'Last warning', source: 'scalar:legend.chipText', format: 'text', chip: true,
+      detailOf: 'lastWarning' },
+    { key: 'status', label: 'RS vs averages', source: 'scalar:legend.statusLabel', format: 'text',
+      card: { what: 'Where the RS line sits against its two averages on the newest bar it can be judged on: above both, below its fast average, below its slow average, or below both. The numbers are the two averages and the lengths in use.',
+        origin: 'The same two simple averages the Quick Break and the Grateful Dead Break are measured against.',
+        evidence: 'A reading of where the line sits now, not a forecast. ' + RS_HONESTY_SENTENCE } },
+    { key: 'barsAgo', label: 'Bars ago', source: 'scalar:legend.barsAgo', format: 'int', detailOf: 'lastWarning' },
+    { key: 'fastAvg', label: 'Fast average', source: 'scalar:legend.fast', format: 'ratio', detailOf: 'status' },
+    { key: 'slowAvg', label: 'Slow average', source: 'scalar:legend.slow', format: 'ratio', detailOf: 'status' },
+    { key: 'fastLen', label: 'Fast length (bars)', source: 'scalar:legend.fastLength', format: 'int', detailOf: 'status' },
+    { key: 'slowLen', label: 'Slow length (bars)', source: 'scalar:legend.slowLength', format: 'int', detailOf: 'status' },
+    rsSplitHistoryRow(),
+  ],
+}
+
 // Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
-// same four ids in the same order.
-const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW])
+// same five ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }

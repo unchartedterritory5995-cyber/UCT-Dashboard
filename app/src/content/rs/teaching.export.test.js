@@ -17,8 +17,9 @@ import {
   buildTeachingExport, cardsFromReadout, rsTeachingReadout, serializeTeachingExport,
 } from './teaching.js'
 
-// U9: 15 terms of 04 §c + the three RS indicators the split added (teachingData.js).
-const GLOSSARY_COUNT = 18
+// U9: 15 terms of 04 §c + the three RS indicators the split added (teachingData.js);
+// 2026-11-12: + UCT RS Exit Warnings and its three warnings (Quick Break, Quicksand, Grateful Dead Break).
+const GLOSSARY_COUNT = 22
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const EXPORT_PATH = path.resolve(HERE, '..', '..', '..', '..', 'api', 'data', 'rs_teaching.json')
