@@ -10,7 +10,7 @@
 //
 //   status        intraday frame                         live writers
 //   empty         nothing (the skeleton)                 —
-//   provisional   CONTEXT: the held history minus its    FROZEN (provisionalStaleRef)
+//   provisional   CONTEXT: the held history minus its    FROZEN (developing channel → null)
 //                 last (cached-while-forming) candle
 //   context       the snapshot (legacyBars)              live
 //   current       the snapshot                           live
@@ -23,17 +23,17 @@
 //
 // The full legacy-selector → rule map (and what is intentionally dropped) is in the P3-S1 PR
 // body and docs/architecture/barstore.md §P3-S1.
-import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { getBarStore } from '../../data/barStore/index'
-import { legacyBars } from '../../data/barStore/adapter'
-import { prefetch as storePrefetch } from '../../data/barStore/prefetch'
+import { legacyBars, legacyDevelopingOf } from '../../data/barStore/adapter'
+import { prefetch as storePrefetch, viewKeyFor } from '../../data/barStore/prefetch'
 import { keyOf, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
-import { createTailPollState } from '../../utils/intradayTailPoll'
+import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
 
@@ -41,16 +41,42 @@ const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
 const PAINTS = new Set([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
 
-/** The store key a chart reads, or null when it reads none (override, economic, no symbol). */
+/** The store key a chart reads, or null when it reads none (override, economic, no symbol).
+ *  The key itself is the facade's ONE view-key function (prefetch.viewKeyFor), so a handoff
+ *  prepare for this pane (same showExtended) names exactly this key. */
 export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride }) {
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
-  const tf = custom ? fetchTf(resolvedTf) : resolvedTf
   // Replay: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date).
   const to = (replayCutoff && !custom) ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
-  try {
-    return keyOf({ sym, tf, session: showExtended ? 'eth' : 'rth', window: Number.isFinite(to) ? { to } : null })
-  } catch { return null }
+  return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
+}
+
+/**
+ * THE developing bar a view paints (P3-S2): snapshot.developing in the legacy shape `{t,o,h,l,c,v}`
+ * plus its `devRev`, or null (no server answer yet / nothing forming / the view is frozen).
+ * A CUSTOM timeframe gets its own forming bucket: the native developing bar folded with the
+ * native rows of the same custom bucket (`resampleForSpec`, the base path's own resampler; its
+ * bucket key is ≤ every member's `t`, so the members are the base's tail from that key on).
+ * @param {object|null} s      the snapshot carrying the developing bar
+ * @param {object|null} base   the base snapshot of the same key (its rows: the legacyBars memo)
+ * @param {{frozen?: boolean, spec?: object|null}} [view]
+ */
+export function viewDevelopingOf(s, base, view = {}) {
+  if (!s?.restSeen || view?.frozen) return null
+  const d = legacyDevelopingOf(s)
+  if (!d) return null
+  if (!view?.spec) return { ...d, devRev: s.devRev }
+  const k = resampleForSpec([d], view.spec)?.[0]?.t
+  if (k == null) return null
+  const rows = base ? legacyBars(base) : []
+  const before = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a < b : String(a) < String(b))
+  let i = rows.length
+  while (i > 0 && !before(rows[i - 1].t, k)) i--
+  const members = rows.slice(i).filter((r) => before(r.t, d.t))
+  const out = resampleForSpec([...members, d], view.spec)
+  const last = out?.length ? out[out.length - 1] : null
+  return last ? { t: last.t, o: last.o, h: last.h, l: last.l, c: last.c, v: last.v, devRev: s.devRev } : null
 }
 
 /** Daily value sanity of a LOCAL copy's last bar (the legacy `_idbDailyLastInsane`). */
@@ -68,8 +94,12 @@ export function useBarSnapshotBars({
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
   _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount, _intradayDeepArmed,
   _setIntradayDeepArmed, axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
-  _onScreenSrcRef, tfSwitchHoldRef, provisionalStaleRef, _developingBarISO, _effLivePrice,
+  _onScreenSrcRef, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
   _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled,
+  // P3-S1 review fix 1 — the developing bar's OWN channel (StockChart's refs; the legacy hook
+  // ignores them): `_storeDevRef` holds the newest developing bar (legacy shape), and
+  // `_storeDevPaintRef.current()` paints it with series.update() (Writer D's re-top).
+  _storeDevRef, _storeDevPaintRef,
 }) {
   const store = getBarStore()
   const _symU = sym ? sym.toUpperCase() : ''
@@ -89,7 +119,12 @@ export function useBarSnapshotBars({
   // restart the key's whole life cycle.
   const _wantDepth = _isCustomTf ? (_customBaseIntraday ? 5000 : 6000) : barCount
   const _subDepth = useMemo(() => _wantDepth, [key])  // eslint-disable-line react-hooks/exhaustive-deps
-  const snap = useBarSnapshot(key, { depth: _subDepth, session: _session, priority: 'visible', store })
+  // ⭐ THE BASE SNAPSHOT (wake 'base', the registry's split notify): this hook — and so the whole
+  // StockChart render, legacyBars' O(n) copy, the custom-tf resample, setData of candles /
+  // volume / indicators — runs on BASE changes only (closed rows, seal, identity, status). A
+  // push frame / tick that moves only the developing bar (devRev) never re-renders the chart;
+  // it is painted by the developing-bar channel below with series.update().
+  const snap = useBarSnapshot(key, { depth: _subDepth, session: _session, priority: 'visible', store, wake: 'base' })
   useEffect(() => {
     if (!key || isIntraday || !snap?.restSeen) return
     if (_wantDepth > (snap.depth || 0) && snap.status !== STATUS.UNAVAILABLE) {
@@ -215,19 +250,78 @@ export function useBarSnapshotBars({
   dailyRepairTodayRef.current = resolvedTf === 'D' && !!bars && bars === all && _localOnly
     && isDailyTodayBarStaleForPaint(tailT, savedAt)
   const paintSymRef = useRef(null)
-  // The store owns the catch-up budget (network.js nextTailPollMs); this state only answers
-  // "spent?" for the currentness badge, which the store's own status already carries.
+  // ⭐ DELAYED = THE STORE'S CATCH-UP BUDGET SPENT. The store owns the budget (network.js
+  // nextTailPollMs, per key); `network.tailExhausted` exposes "spent" and a flip re-renders this
+  // hook. It is mapped onto the legacy state the badge reads (`tailRetriesExhausted(state,
+  // <the chart's series key>)`) — the badge's rule is unchanged, only its input is the store's.
+  // The state carries THE store key (keyOf: the same `${SYM}_${cacheTf}` string the chart's
+  // idbReadyForRef carries and StockChart compares against) — never a second key builder.
+  const _tailSpent = useSyncExternalStore(
+    useCallback((cb) => (key ? store.network.subscribeTailBudget(key, cb) : () => {}), [store, key]),
+    () => (key ? store.network.tailExhausted(key) : false),
+    () => false,
+  )
   const _tailCatchupRef = useRef(null)
   if (_tailCatchupRef.current == null) _tailCatchupRef.current = createTailPollState()
+  _tailCatchupRef.current.key = key ?? ''
+  _tailCatchupRef.current.tries = _tailSpent ? TAIL_CATCHUP_MAX_TRIES : 0
   const _lastTailStatusRef = useRef(null)
 
-  // ⛔ THE LIVE-WRITER FREEZE, FROM THE SNAPSHOT: CONTEXT (status provisional) is on screen, or
-  // the tail on screen is from a PRIOR session (> 8 h) — never fuse a live print onto it.
+  // ── THE DEVELOPING-BAR CHANNEL (devRev) ────────────────────────────────────────
+  // The newest developing bar of THIS key, never older than the one the base snapshot holds:
+  // a render takes the base's when it is at least as new (devRev), the channel takes every
+  // later one — coalesced by the registry to one call per animation frame — and paints it at
+  // once through `_storeDevPaintRef` (series.update). It paints only onto the base it belongs
+  // to (same baseRev): a base change re-renders, setData()s and re-tops from this ref anyway.
+  // ⛔ THE LIVE FREEZE, FROM THE SNAPSHOT: CONTEXT (status provisional) is on screen, or the tail
+  // on screen is from a PRIOR session (> 8 h) — no developing bar is painted onto it. P3-S2: the
+  // freeze is the developing channel yielding NULL (the store paint then paints nothing); the
+  // legacy `provisionalStaleRef` belongs to the legacy writers and is not written here.
   const _barsTailT = (Array.isArray(bars) && bars.length && typeof bars[bars.length - 1]?.t === 'number')
     ? bars[bars.length - 1].t : null
   // eslint-disable-next-line react-hooks/purity -- the tail's age is a wall-clock question (as legacy)
-  provisionalStaleRef.current = isIntraday && ((_barsTailT != null && (Date.now() / 1000 - _barsTailT) > PRIOR_SESSION_S)
+  const _devFrozen = isIntraday && ((_barsTailT != null && (Date.now() / 1000 - _barsTailT) > PRIOR_SESSION_S)
     || (!!bars && bars === _staleContext))
+  // What the channel callback needs from this render (the view's freeze and custom spec).
+  const _devViewRef = useRef(null)
+  _devViewRef.current = { frozen: _devFrozen, spec: _isCustomTf ? _customSpec : null }
+
+  const _devHeldRef = useRef({ key: null, devRev: -1 })
+  const _baseSnapRef = useRef(null)
+  _baseSnapRef.current = snap
+  if (_storeDevRef) {
+    // Review fix (a): the base snapshot's developing bar can be OLDER than the store's newest for
+    // the same base — a dev flush that arrived while this render's base was still pending was
+    // dropped by the channel (baseRev mismatch). So the render takes the store's CURRENT snapshot
+    // whenever it belongs to the same base (same baseRev), else the base's own.
+    const live = key ? store.getSnapshot(key) : null
+    const src = (live && snap && live.key === snap.key && live.baseRev === snap.baseRev && live.devRev >= snap.devRev) ? live : snap
+    const h = _devHeldRef.current
+    if (h.key !== key || !src || src.devRev >= h.devRev) {
+      _devHeldRef.current = { key, devRev: src?.devRev ?? -1 }
+      _storeDevRef.current = viewDevelopingOf(src, snap, _devViewRef.current)
+    }
+  }
+  const _heldDevRev = _devHeldRef.current.devRev
+  useEffect(() => {
+    if (!key || !_storeDevRef) return undefined
+    return store.subscribeDeveloping(key, (s) => {
+      const base = _baseSnapRef.current
+      // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
+      if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
+      const h = _devHeldRef.current
+      if (h.key === key && s.devRev <= h.devRev) return
+      _devHeldRef.current = { key, devRev: s.devRev }
+      _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
+      try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
+    })
+  }, [key, store])  // eslint-disable-line react-hooks/exhaustive-deps
+  // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
+  // (the paint refuses a stale / foreign series and an older frame by itself).
+  useEffect(() => {
+    if (!_storeDevRef || !key) return
+    try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the render */ }
+  }, [key, _heldDevRev, _devFrozen])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── per-key housekeeping ───────────────────────────────────────────────────────
   useEffect(() => {
