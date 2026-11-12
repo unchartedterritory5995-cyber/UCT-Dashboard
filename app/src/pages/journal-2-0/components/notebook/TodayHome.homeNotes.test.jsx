@@ -1,14 +1,16 @@
 // Go-live wave 1 (A1, A4): Research home's "Needs review", "Connected to your open positions" and Notices live on the
 // Daily brief. The two note sections are drawn only when they have rows, read only after the cards' own read has
 // answered, and open the note on a click; the Notices box sits at the top of the cards.
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./FirstRunGate', () => ({ FirstRunInlineSlot: () => null }))
 vi.mock('./NoticesBox', () => ({ default: () => <section data-testid="notices-box">Notices</section> }))
 
-import TodayHome, { NEEDS_REVIEW_TITLE, OPEN_POSITIONS_TITLE, OPEN_POSITION_TAG, TODAY_URL, reviewReasonsLine } from './TodayHome'
+import TodayHome, { TODAY_URL } from './TodayHome'
+import { NEEDS_REVIEW_TITLE, OPEN_POSITIONS_TITLE, OPEN_POSITION_TAG, reviewReasonsLine } from './TodayHomeNotes'
+import { __resetRegistryTourControl, publishRegistryTourWanted } from './onboarding/tourRegistryControl'
 
 const HOME_URL = '/api/j2/notebook/home'
 const TODAY = {
@@ -46,7 +48,7 @@ beforeEach(() => {
     return ok({})
   }))
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); __resetRegistryTourControl() })
 
 const renderToday = (props = {}) => render(
   <MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} {...props} /></MemoryRouter>)
@@ -115,5 +117,22 @@ describe('Notices on the Daily brief', () => {
     const notices = await screen.findByTestId('notices-box')
     const plan = await screen.findByTestId('today-plan')
     expect(notices.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+// Fix round 1 (review 4e): during a walkthrough the Daily brief holds back what lands late and would push the folded
+// boxes the tour scrolls into view: the Notices box and the note sections (and their read). They come in when it ends.
+describe('a walkthrough running: the late pieces wait', () => {
+  it('while a tour is wanted: no Notices box, no note sections, no home read; after it ends, both arrive', async () => {
+    act(() => { publishRegistryTourWanted('earnings-prep') })
+    renderToday()
+    await screen.findByTestId('today-plan')
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.queryByTestId('notices-box')).toBeNull()
+    expect(screen.queryByTestId('today-needs-review')).toBeNull()
+    expect(S.calls).not.toContain(HOME_URL)
+    act(() => { publishRegistryTourWanted(null) })
+    expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
+    expect(await screen.findByTestId('today-needs-review')).toBeInTheDocument()
   })
 })

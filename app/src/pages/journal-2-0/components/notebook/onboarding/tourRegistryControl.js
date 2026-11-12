@@ -63,12 +63,12 @@ export function stripTourState(state) {
 }
 
 // ── Which registered tour the gate is running right now (Notebook UX pass, 2026-10-10) ───────
-// Research Home folds an empty box (Reporting soon, Passed setups) to its one-line header, and a
-// folded box's content is UNMOUNTED -- so a walkthrough whose anchors live in that box would wait
-// on a screen that does not show them and close with nothing shown. The gate publishes the tour
-// it is running (`wantedId`) here, whatever opened it (Help's Replay, the Learn menu, the offer,
-// the checklist, a request carried across a page change), and Research Home opens its folded
-// boxes while one is wanted. The gate is the one writer; nothing here opens a tour.
+// The Daily brief (TodayHome.jsx; Research Home until go-live wave 1) folds its boxes (Reporting soon, Passed setups),
+// and a folded box's content is UNMOUNTED -- so a walkthrough whose anchors live in that box would wait on a screen
+// that does not show them and close with nothing shown. The gate publishes the tour it is running (`wantedId`) here,
+// whatever opened it (Help's Replay, the offer, the checklist, a request carried across a page change), and the Daily
+// brief opens its folded boxes while one is wanted (and holds back what would land late and shift them: the Notices
+// box and the note sections). The gate is the one writer; nothing here opens a tour.
 let wantedNow = null
 const wantedListeners = new Set()
 

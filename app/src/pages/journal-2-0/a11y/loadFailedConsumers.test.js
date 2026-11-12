@@ -35,7 +35,8 @@ const ROWS = [
   ['GET /api/j2/saved-views', 'tabs/NotebookTab.jsx', 'your saved views', 'hooks/useJ2SavedViews.js', "'/api/j2/saved-views'"],
   ['GET /api/j2/property-defs', 'tabs/NotebookTab.jsx', 'your note properties', 'hooks/useJ2PropertyDefs.js', "'/api/j2/property-defs'"],
   // Go-live wave 1: Research home (its strip) was this read's consumer; the notes list's ⋯ "Remove the sample notebook" is now.
-  ['GET /api/j2/onboarding/sample-notebook', 'tabs/NotebookTab.jsx', "your sample notebook's status", 'components/notebook/onboarding/sampleNotebook.js', "'/api/j2/onboarding/sample-notebook'"],
+  // Fix round 1 (first-open bytes): the route's one literal moved to sampleNotebookKeys.js (sampleNotebook.js re-exports it).
+  ['GET /api/j2/onboarding/sample-notebook', 'tabs/NotebookTab.jsx', "your sample notebook's status", 'components/notebook/onboarding/sampleNotebookKeys.js', "'/api/j2/onboarding/sample-notebook'"],
   ['GET /api/j2/notes/{id}/documents', 'components/notebook/NoteEditorPage.jsx', "this note's attachments", 'hooks/useNoteDocuments.js', '/documents`'],
   ['GET /api/j2/notes/{id}/excerpts', 'components/notebook/NoteEditorPage.jsx', "this note's saved passages", 'hooks/useNoteExcerpts.js', '/excerpts`'],
   ['GET /api/j2/notes/{id}/trade-ref/resolve', 'components/notebook/NoteEditorPage.jsx', "this note's linked trades", 'components/notebook/NoteEditorPage.jsx', '/trade-ref/resolve`'],

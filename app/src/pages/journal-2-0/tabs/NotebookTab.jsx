@@ -11,7 +11,7 @@ import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
-import SavedViewsMenuGroup from '../components/notebook/SavedViewsMenuGroup'
+import whenIdle from '../lib/whenIdle'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -65,12 +65,13 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
 import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
-import { REVIEW_PERIODS, draftReview, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewDraftRun'
+// Fix round 1 (first-open bytes): the Reviews rows' words are on first open; the drafting door is fetched on the first press.
+import { REVIEW_PERIODS, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewPeriods'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
-import lazyChunk from '../lib/lazyChunk'
+import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
@@ -97,10 +98,13 @@ import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
-import SampleNotebookDoor, { useAddSampleNotebook } from '../components/notebook/onboarding/SampleNotebookDoor'
+// Fix round 1 (first-open bytes): what the list needs before a press about the sample notebook is its keys module and
+// the two hooks; the sample's client (sampleNotebook.js: add, the removal's sentences, remove) is fetched on a press,
+// and the zero-notes door is a lazy chunk (below).
+import { loadSampleNotebook, useAddSampleNotebook } from '../components/notebook/onboarding/useSampleNotebook'
 import {
-  SAMPLE_COPY, SAMPLE_PREF, SAMPLE_URL, describeSampleHold, isNotebookKey, readSamplePref, removeSampleNotebook, removedMessage,
-} from '../components/notebook/onboarding/sampleNotebook'
+  SAMPLE_PREF, SAMPLE_ROW_COPY, SAMPLE_URL, readSamplePref,
+} from '../components/notebook/onboarding/sampleNotebookKeys'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
@@ -124,6 +128,13 @@ const fetchSampleStatus = (url) => fetch(url, { credentials: 'include' }).then((
   return r.json()
 })
 const REMOVE_SAMPLE_OP = 'remove-sample'
+// Fix round 1 (first-open bytes): the View menu's "Saved views" group is a chunk of its own. It is asked for when the
+// browser is idle after the list's first paint, and again when a pointer or focus reaches "View" (the same loader, so
+// one fetch), so it is in hand by the time the menu opens; until then the group is simply not drawn yet.
+const loadSavedViewsGroup = () => import('../components/notebook/SavedViewsMenuGroup')
+const preloadSavedViewsGroup = () => { loadSavedViewsGroup().catch(() => {}) }
+// Fix round 1: the zero-notes "Add a sample notebook" door, fetched when the empty state draws (it renders nothing until
+// it lands, and nothing at all for a member it is not for).
 
 function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
@@ -192,6 +203,10 @@ const loadTodayHome = () => {
   return todayHomeImport
 }
 const TodayHome = lazyView(loadTodayHome, 'today')
+// Go-live wave 1, fix round 1 (first-open bytes; see the loaders near the top): the View menu's saved views and the
+// zero-notes sample door, through `lazyView` with a null fallback (nothing flashes while a chunk lands).
+const SavedViewsMenuGroup = lazyView(loadSavedViewsGroup, 'saved views', null)
+const SampleNotebookDoor = lazyView(() => import('../components/notebook/onboarding/SampleNotebookDoor'), 'sample notebook', null)
 // Notebook simplify, Task 5: Research home is no longer routed (`?view=home` opens the list). Its notebook-wide Ask
 // is the list toolbar's "AI" section, a chunk of its own fetched on the first press (nothing flashes while it loads).
 const NotebookAiPanel = lazyView(() => import('../components/notebook/NotebookAiPanel'), 'ask', null)
@@ -2166,6 +2181,8 @@ export default function NotebookTab() {
   // section, moved) under the toolbar; pressed again it closes it. On a phone the button gives way (the row holds
   // Folders, View, sort and ⋯) and ⋯ carries "Ask your Notebook". Closing the question panel hands focus back to
   // whichever door opened it.
+  // Fix round 1: the saved-views group's chunk, once, when the browser is idle after the first paint (see above).
+  useEffect(() => whenIdle(preloadSavedViewsGroup), [])
   const [aiOpen, setAiOpen] = useState(false)
   const aiBtnRef = useRef(null)
   const aiOpenerRef = useRef(null)
@@ -2278,6 +2295,10 @@ export default function NotebookTab() {
     setReviewDrafting(period)
     setBulkNotice({ message: reviewDraftingSentence(period), tone: 'info', busy: true })
     try {
+      // Fix round 1: fetched on the first press, under the busy line already on screen (a failed fetch says the
+      // draft failed, like a failed draft).
+      const { draftReview } = await importWithOneRetry(() => import('../lib/reviewDraftRun'), undefined,
+        (m) => typeof m?.draftReview === 'function')
       await draftReview(period, {
         accountId: reviewAccountId,
         onOpenNote: openNote,
@@ -2328,27 +2349,41 @@ export default function NotebookTab() {
   const removeSample = async ({ acceptUnchecked = false } = {}) => {
     if (removingSampleRef.current || !sampleActiveIds.length) return
     removingSampleRef.current = true
-    setBulkNotice({ message: SAMPLE_COPY.removingLine, tone: 'info' })
+    setBulkNotice({ message: SAMPLE_ROW_COPY.removingLine, tone: 'info', busy: true })
+    let m = null
     try {
-      const hold = describeSampleHold(
-        await precheckNoteBatch({ ids: sampleActiveIds, op: 'trash', blockedNoteIds, acceptUnchecked }),
+      // Fix round 1 (first-open bytes): the sample's client is fetched on the press, under the busy line.
+      m = await loadSampleNotebook()
+      // Fix round 1 (review 4d): the pre-check runs over the sample notes out of Trash NOW, not as they were when ⋯
+      // first opened (a sample note restored from Trash since then is one the DELETE will trash too).
+      const fresh = await refreshSampleStatus()
+      if (!fresh) throw new Error('the sample status could not be read')   // said below; LoadFailed says it too
+      const ids = Array.isArray(fresh?.activeIds) ? fresh.activeIds : []
+      if (!ids.length) {
+        setBulkNotice(null)
+        return
+      }
+      const hold = m.describeSampleHold(
+        await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked }),
         { titleOf },
       )
       if (hold) {
         setBulkNotice({ message: hold.message, tone: 'error', anyway: hold.anyway ? { ...hold.anyway, op: REMOVE_SAMPLE_OP } : undefined })
         return
       }
-      const out = await removeSampleNotebook()
+      const out = await m.removeSampleNotebook()
       if (!out.ok) {
         setBulkNotice({ message: out.message, tone: 'error' })
         return
       }
-      swrMutate(isNotebookKey)
+      // Review 4d: the row leaves at once (no second press between the DELETE and the re-read).
+      refreshSampleStatus({ activeIds: [] }, { revalidate: false })
+      swrMutate(m.isNotebookKey)
       handleImported()   // the list, the tree, the counts and the folders (the sample's folder may be gone)
-      setBulkNotice({ message: removedMessage(out), tone: 'info' })
+      setBulkNotice({ message: m.removedMessage(out), tone: 'info' })
     } catch (e) {
       console.error('[notebook] remove sample notebook failed', e)
-      setBulkNotice({ message: SAMPLE_COPY.removeFailed, tone: 'error' })
+      setBulkNotice({ message: m?.SAMPLE_COPY?.removeFailed || "We couldn't remove the sample notebook. Try again in a moment.", tone: 'error' })
     } finally {
       removingSampleRef.current = false
     }
@@ -2445,7 +2480,7 @@ export default function NotebookTab() {
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
     // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so).
-    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_COPY.removeRow, icon: 'trash', run: () => removeSample() },
+    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
   ].filter(Boolean)
 
   // A successful import can create notes AND folders — refresh both. Notes
@@ -2937,7 +2972,7 @@ export default function NotebookTab() {
           {!isShelfView && (
             <div className={styles.menuSlot}>
               <button {...viewMenu.triggerProps} type="button" className={`btn btn-secondary btn-sm ${styles.toolBtn}`}
-                data-tour="view-switcher">
+                data-tour="view-switcher" onPointerEnter={preloadSavedViewsGroup} onFocus={preloadSavedViewsGroup}>
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
                 <UIcon name="chevronDown" {...TOOLBAR_ICON} />

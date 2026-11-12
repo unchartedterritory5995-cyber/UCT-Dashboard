@@ -10,14 +10,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const draft = vi.hoisted(() => ({ calls: [], release: null }))
+const draft = vi.hoisted(() => ({ calls: [], release: null, notice: null }))
 vi.mock('../lib/reviewDraftRun', async (importOriginal) => {
   const real = await importOriginal()
   return {
     ...real,
     draftReview: vi.fn((period, opts) => {
       draft.calls.push({ period, accountId: opts.accountId })
-      return new Promise((resolve) => { draft.release = resolve })
+      return new Promise((resolve) => { draft.release = () => { if (draft.notice) opts.onNotice(draft.notice); resolve() } })
     }),
   }
 })
@@ -30,7 +30,7 @@ import NotebookTab from './NotebookTab'
 import styles from './NotebookTab.module.css'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
-beforeEach(() => { draft.calls = []; draft.release = null })
+beforeEach(() => { draft.calls = []; draft.release = null; draft.notice = null })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
 
 async function renderTab(routes = []) {
@@ -115,12 +115,15 @@ describe('D3: a failed saved-views read is said in the View menu', () => {
 
 describe('D4: drafting a review from the New menu', () => {
   beforeEach(() => latchNotebookFlags({ notebook_review_drafts_enabled: true }))
+  afterEach(() => { vi.useRealTimers() })
 
-  it('shows "Drafting today\'s recap…" while it runs, disables the rows, drafts for the selected account, then clears', async () => {
+  it("shows 'Drafting today's recap…' while it runs, disables the rows, drafts for the selected account, then clears", async () => {
+    // Fix round 1 (review 4a): fake timers from the start, so the 8 s auto-dismiss is really reached below.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     await renderTab()
     fireEvent.click(within(openNew()).getByRole('menuitem', { name: "Today's recap" }))
     expect(await screen.findByText("Drafting today's recap…")).toBeInTheDocument()
-    expect(draft.calls).toEqual([{ period: 'daily', accountId: 'acct-9' }])
+    await waitFor(() => expect(draft.calls).toEqual([{ period: 'daily', accountId: 'acct-9' }]))
     // pressed again meanwhile: every Reviews row is disabled, and nothing new starts
     const menu = openNew()
     for (const name of ["Today's recap", "This week's review", "This month's review"]) {
@@ -128,12 +131,33 @@ describe('D4: drafting a review from the New menu', () => {
     }
     fireEvent.click(within(menu).getByRole('menuitem', { name: "This week's review" }))
     expect(draft.calls).toHaveLength(1)
+    // Fix round 1 (review 4b): the disabled rows are not stops. Down from Import (the last enabled row) wraps to the
+    // first row instead of sticking on a disabled one, and End lands on Import.
+    const importRow = within(menu).getByRole('menuitem', { name: 'Import' })
+    importRow.focus()
+    fireEvent.keyDown(importRow, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(within(menu).getAllByRole('menuitem')[0])
+    fireEvent.keyDown(document.activeElement, { key: 'End' })
+    expect(document.activeElement).toBe(importRow)
     fireEvent.keyDown(menu, { key: 'Escape' })
-    // the busy line does not time out on its own while the draft runs
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    // the busy line does not time out on its own while the draft runs: well past the 8 s other notices get
+    await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
     expect(screen.getByText("Drafting today's recap…")).toBeInTheDocument()
     await act(async () => { draft.release() })
     await waitFor(() => expect(screen.queryByText("Drafting today's recap…")).toBeNull())
     expect(within(openNew()).getByRole('menuitem', { name: "Today's recap" })).not.toBeDisabled()
+  })
+
+  it('CONTROL: the sentence a landed draft says (not busy) does leave after 8 s, so the advance above is real', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    draft.notice = 'Saved in your Daily folder.'
+    await renderTab()
+    fireEvent.click(within(openNew()).getByRole('menuitem', { name: "Today's recap" }))
+    await screen.findByText("Drafting today's recap…")
+    await waitFor(() => expect(draft.release).toBeTypeOf('function'))
+    await act(async () => { draft.release() })
+    expect(await screen.findByText('Saved in your Daily folder.')).toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
+    expect(screen.queryByText('Saved in your Daily folder.')).toBeNull()
   })
 })

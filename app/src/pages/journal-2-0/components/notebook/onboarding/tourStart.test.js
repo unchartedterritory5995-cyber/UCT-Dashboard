@@ -7,6 +7,11 @@ import {
 } from './tourStart'
 import { NEEDS_NOTES, NOTEBOOK_ROOT, OTHER_TOURS, getTourEntry, startKind } from './tourRegistry'
 
+// Go-live wave 1, fix round 1: the real NEEDS_NOTES is empty (the voice tour left it). The "make a note first"
+// mechanism is railed with a PROBE id put in the list for this file only; the real list is read through importActual.
+const PROBE = 'needs-a-note-probe'
+vi.mock('./tourRegistry', async (importOriginal) => ({ ...(await importOriginal()), NEEDS_NOTES: Object.freeze(['needs-a-note-probe']) }))
+
 const loc = (pathname, search = '') => ({ pathname, search })
 
 // ── (d) start detection ──────────────────────────────────────────────────────────────────
@@ -145,7 +150,7 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
   it('the chart copy (a member WITH notes) says /chart, offers no sample, and never says "from Help"', () => {
     const c = UNREACHABLE_COPY.chart
     expect(c.title).toBe('This walkthrough needs a chart in a note')
-    expect(c.body).toBe('None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Learn.')
+    expect(c.body).toBe('None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Walkthroughs on the Support page.')
     expect(c.action).toBeUndefined()
     expect(c.actionLabel).toBeUndefined()
     expect(c.exitLabel).toBe('Go to my notes')
@@ -155,21 +160,23 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
   it('the chartNoNotes copy (a member with NO notes) offers the sample', () => {
     const c = UNREACHABLE_COPY.chartNoNotes
     expect(c.title).toBe('This walkthrough needs a chart in a note')
-    expect(c.body).toBe('None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.')
+    expect(c.body).toBe('None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Walkthroughs on the Support page.')
     expect(c.action).toBe('add-sample')
     expect(c.actionLabel).toBe('Add the sample notebook')
     expect(c.exitLabel).toBe('Go to my notes')
     expect(c.exitPath).toBe(NOTEBOOK_ROOT)
   })
 
-  it('no card says "from Help" or "Notebook home"', () => {
+  // Fix round 1 (4h): the Learn menu was deleted in go-live wave 1; the cards name the Support page's Walkthroughs.
+  it('no card says "from Help", "Notebook home" or the deleted Learn menu', () => {
     for (const [kind, x] of Object.entries(UNREACHABLE_COPY)) {
       expect(x.body, kind).not.toMatch(/from Help/)
       expect(x.body, kind).not.toMatch(/Notebook home/)
+      expect(x.body, kind).not.toMatch(/\bLearn\b/)
     }
-    expect(UNREACHABLE_COPY.note.body).toBe('You do not have a note it can open yet. Write a note, or add the sample notebook from Learn, then start it again from Learn.')
-    expect(UNREACHABLE_COPY.trade.body).toMatch(/start it again from Learn\.$/)
-    expect(UNREACHABLE_COPY.error.body).toMatch(/start it again from Learn\.$/)
+    expect(UNREACHABLE_COPY.note.body).toBe('You do not have a note it can open yet. Write a note, or add the sample notebook from your empty notes list, then start it again from Walkthroughs on the Support page.')
+    expect(UNREACHABLE_COPY.trade.body).toMatch(/start it again from Walkthroughs on the Support page\.$/)
+    expect(UNREACHABLE_COPY.error.body).toMatch(/start it again from Walkthroughs on the Support page\.$/)
   })
 
   it('every real chart tour reaches the chart outcome, and only the chart tours do', async () => {
@@ -220,12 +227,22 @@ describe('(b) a trade start opens the member\'s most recent trade page', () => {
 // note. Learn hides it from a member with none, but Help > Walkthroughs and What's new still start
 // it; the engine waited for an anchor that could not appear and failed with "start it again".
 describe('(D) a tour whose first anchor needs a note: "make a note first", from every door', () => {
-  const voice = getTourEntry('voice-notes')
+  // A probe entry shaped like the real voice tour (a list start), listed in NEEDS_NOTES by the mock above.
+  const voice = Object.freeze({ id: PROBE, replayable: true, start: `${NOTEBOOK_ROOT}?view=all` })
 
-  it('the real voice tour is the one NEEDS_NOTES names (non-vacuity: a real, replayable entry)', () => {
-    expect(NEEDS_NOTES).toContain('voice-notes')
-    expect(voice).toBeTruthy()
-    expect(voice.replayable).toBe(true)
+  it('the mock lists the probe (non-vacuity), and the REAL list no longer names the voice tour', async () => {
+    expect(NEEDS_NOTES).toEqual([PROBE])
+    const real = await vi.importActual('./tourRegistry')
+    expect(real.NEEDS_NOTES).toEqual([])
+    expect(real.getTourEntry('voice-notes')?.replayable).toBe(true)   // a real tour, so its absence is a choice
+  })
+
+  // Fix round 1: every voice-notes step is drawn with zero notes (the list's New menu, or the phone More menu).
+  it('the real voice tour, started by a member with NO note, goes to its start (no card)', async () => {
+    const f = fakeFetch({ notes: [] })
+    const realVoice = getTourEntry('voice-notes')
+    expect(await resolveStart(realVoice, loc('/support'), { fetchImpl: f })).toEqual({ path: realVoice.start })
+    expect(f).not.toHaveBeenCalled()
   })
 
   it('a member with NO note gets the one card, wherever they start it from (Home included)', async () => {
@@ -235,8 +252,8 @@ describe('(D) a tour whose first anchor needs a note: "make a note first", from 
     expect(writes(f)).toEqual([]) // read-only
   })
 
-  // Go-live wave 1: the voice tour starts on the notes list (`?view=all`, its New menu); Research Home is gone. From
-  // the bare Notebook (the list too, but not the address the start names) it navigates to the named address.
+  // A list start (as the voice tour's): from the bare Notebook (the list too, but not the address the start names) it
+  // navigates to the named address.
   it('a member WITH a note: the start goes on exactly as before (navigate, or stay)', async () => {
     const f = fakeFetch({ notes: [{ id: 'n1' }] })
     expect(voice.start).toBe(`${NOTEBOOK_ROOT}?view=all`)

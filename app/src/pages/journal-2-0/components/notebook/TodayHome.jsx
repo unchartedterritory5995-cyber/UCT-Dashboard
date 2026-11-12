@@ -30,8 +30,6 @@ import useSWR from 'swr'
 import { AuthContext } from '../../../../context/AuthContext'
 import usePreferences from '../../../../hooks/usePreferences'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
-import useNotebookHome from '../../hooks/useNotebookHome'
-import NoticesPanel from '../../surfaces/today/panels/NoticesPanel'
 import LoadFailed from '../LoadFailed'
 import CollapsibleSection from '../CollapsibleSection'
 import EmptyNamesAsk from './EmptyNamesAsk'
@@ -58,6 +56,11 @@ export const TODAY_URL = '/api/j2/notes/today'
 // Research home's two boxes, fetched only while their switch is on and the member opens them.
 const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
 const PassedSetups = lazyChunk(() => import('./PassedSetups'))
+// Go-live wave 1, fix round 1: Research home's two note sections, a chunk of their own (TodayHomeNotes.jsx).
+const HomeNotes = lazyChunk(() => import('./TodayHomeNotes'))
+// Fix round 1: the Notices box's panel (the Journal Today panel, its own boundary inside) is fetched when the brief
+// draws it, not with the brief (it renders nothing until it lands, and nothing with nothing to tell).
+const NoticesPanel = lazyChunk(() => import('../../surfaces/today/panels/NoticesPanel'))
 
 /** S18's button, verbatim. */
 export const RECAP_ACTION = "Write today's recap (about 1 minute)"
@@ -521,60 +524,6 @@ function MoreBoxes({ onOpenNote }) {
   )
 }
 
-/** Go-live wave 1: the headings of Research home's two review sections, as the Daily brief names them. */
-export const NEEDS_REVIEW_TITLE = 'Needs review'
-export const OPEN_POSITIONS_TITLE = 'Notes on your open positions'
-export const OPEN_POSITION_TAG = 'Open position'
-
-/** Why a note is in "Needs review": the server's own reasons (notebook_home.py `reviewReasons`), joined. */
-export function reviewReasonsLine(note) {
-  return (Array.isArray(note?.reviewReasons) ? note.reviewReasons : [])
-    .map((r) => (typeof r?.text === 'string' ? r.text.trim() : '')).filter(Boolean).join(' · ')
-}
-
-/** One of Research home's note sections. Drawn only when it has rows: no heading, no empty line, no skeleton. The
- *  server already caps each section at five. */
-function HomeNotesCard({ id, title, notes, line, onOpenNote }) {
-  if (!Array.isArray(notes) || notes.length === 0) return null
-  return (
-    <Card id={id} title={title} testId={`today-${id}`}>
-      <ul className={styles.list}>
-        {notes.map((n) => {
-          const sub = line(n)
-          return (
-            <li key={n.id}>
-              <button type="button" className={styles.memory} onClick={() => onOpenNote?.({ id: n.id, title: n.title })}>
-                <span className={styles.noteTitle}>
-                  {n.ticker && <span className={styles.tk}>{n.ticker}</span>} {n.title?.trim() || 'Untitled'}
-                </span>
-                {sub && <span className={styles.from}>{sub}</span>}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </Card>
-  )
-}
-
-/** "Needs review" and "Notes on your open positions", after the phase cards. The read waits for the cards' own read
- *  (`ready`), so it never competes with it, and nothing is drawn while it is in flight or when both are empty. A failed
- *  read draws nothing either: these are extras on a page whose cards already answered. */
-function HomeNotes({ ready, onOpenNote }) {
-  const { home } = useNotebookHome({ enabled: ready })
-  const review = home?.needsReview || []
-  const positions = home?.openPositionResearch || []
-  if (!ready || (review.length === 0 && positions.length === 0)) return null
-  return (
-    <div className={styles.grid} data-today-home-notes="">
-      <HomeNotesCard id="needs-review" title={NEEDS_REVIEW_TITLE} notes={review} line={reviewReasonsLine}
-        onOpenNote={onOpenNote} />
-      <HomeNotesCard id="open-positions" title={OPEN_POSITIONS_TITLE} notes={positions} line={() => OPEN_POSITION_TAG}
-        onOpenNote={onOpenNote} />
-    </div>
-  )
-}
-
 // ── the page ─────────────────────────────────────────────────────────────────────────────────
 
 /** Milliseconds to the next ET wall-clock time `hh:mm` (today's, else tomorrow's). */
@@ -661,6 +610,8 @@ export default function TodayHome({
   const order = data ? cardOrder(data.session, { recapOn }) : SKELETON_ORDER
   const reasons = data?.reasons || {}
   useTodayRefresh(mutate, data)
+  // Review 4e: a registry walkthrough running now (the signal MoreBoxes unfolds the boxes on).
+  const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
 
   // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
   const madeRef = useRef(null)
@@ -729,11 +680,15 @@ export default function TodayHome({
         </div>
       </header>
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
-      {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing). */}
-      <NoticesPanel />
+      {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing).
+          Fix round 1 (review 4e): held while a walkthrough is wanted, with the note sections below: both land late and
+          would push the folded boxes a tour has just scrolled into view. They come in when the tour ends. */}
+      {!tourWanted && <Suspense fallback={null}><NoticesPanel /></Suspense>}
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
       <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
-      <HomeNotes ready={Boolean(data || error)} onOpenNote={onOpenNote} />
+      {Boolean(data || error) && !tourWanted && (
+        <Suspense fallback={null}><HomeNotes ready onOpenNote={onOpenNote} styles={styles} /></Suspense>
+      )}
       <MoreBoxes onOpenNote={onOpenNote} />
     </div>
   )

@@ -18,13 +18,16 @@ import NotebookTab from './NotebookTab'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 const SAMPLE = { v: 1, ids: ['s1', 's2'], at: '2026-11-01T00:00:00Z' }
-const S = { active: ['s1', 's2'], deletes: 0, statusReads: 0, prefs: { notebook_sample: JSON.stringify(SAMPLE) } }
+const S = { active: ['s1', 's2'], deletes: 0, statusReads: 0, prefs: { notebook_sample: JSON.stringify(SAMPLE) }, holdStatus: null, holdAfterDelete: false, releaseStatus: null }
 
 beforeEach(() => {
   S.active = ['s1', 's2']
   S.deletes = 0
   S.statusReads = 0
   S.prefs = { notebook_sample: JSON.stringify(SAMPLE) }
+  S.holdStatus = null
+  S.holdAfterDelete = false
+  S.releaseStatus = null
   precheck.fn = vi.fn(async ({ ids }) => ({ blocked: [], unsent: [], unchecked: [], send: ids }))
   latchNotebookFlags({ notebook_onboarding_enabled: true })
 })
@@ -43,8 +46,12 @@ async function renderTab() {
     if (url.startsWith('/api/j2/onboarding/sample-notebook') && opts.method === 'DELETE') {
       S.deletes += 1
       S.active = []
+      // every status read after the DELETE waits until the test lets it answer (a slow server)
+      if (S.holdAfterDelete) S.holdStatus = new Promise((r) => { S.releaseStatus = r })
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ trashed: ['s1', 's2'] }) })
     }
+    // a status read the test holds back (the server answering slowly)
+    if (url.startsWith('/api/j2/onboarding/sample-notebook') && S.holdStatus) return S.holdStatus.then(() => base(input, opts))
     return base(input, opts)
   })
   render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
@@ -116,5 +123,34 @@ describe('Remove the sample notebook, from the notes list', () => {
     fireEvent.click(screen.getByRole('button', { name: SAMPLE_COPY.removeAnywayYes }))
     await waitFor(() => expect(S.deletes).toBe(1))
     expect(precheck.fn).toHaveBeenLastCalledWith(expect.objectContaining({ acceptUnchecked: true }))
+  })
+
+  // Fix round 1 (review 4d): the pre-check runs over the sample notes out of Trash at the PRESS, not as they were when
+  // the menu first opened -- a sample note restored from Trash since then is one the DELETE trashes too.
+  it('the press re-reads the status and pre-checks the ids out of Trash now', async () => {
+    S.active = ['s1']
+    await renderTab()
+    await openMore()
+    await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow })
+    S.active = ['s1', 's2']   // s2 restored from Trash since the menu first read the status
+    fireEvent.click(screen.getByRole('menuitem', { name: SAMPLE_COPY.removeRow }))
+    await waitFor(() => expect(S.deletes).toBe(1))
+    expect(precheck.fn).toHaveBeenCalledWith(expect.objectContaining({ ids: ['s1', 's2'] }))
+    expect(S.statusReads).toBeGreaterThanOrEqual(2)
+  })
+
+  // Review 4d: between a successful DELETE and the status re-read the row must already be gone, so it cannot be
+  // pressed a second time. The re-read is held back here; only the cache written at once can take the row away.
+  it('after the DELETE the row leaves at once, before any re-read answers', async () => {
+    S.holdAfterDelete = true
+    await renderTab()
+    await openMore()
+    fireEvent.click(await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow }))
+    await waitFor(() => expect(S.deletes).toBe(1))
+    expect(await screen.findByText(/^Sample notebook moved to Trash\./)).toBeInTheDocument()
+    await openMore()
+    expect(screen.queryByRole('menuitem', { name: SAMPLE_COPY.removeRow })).toBeNull()
+    expect(S.deletes).toBe(1)
+    S.releaseStatus?.()
   })
 })

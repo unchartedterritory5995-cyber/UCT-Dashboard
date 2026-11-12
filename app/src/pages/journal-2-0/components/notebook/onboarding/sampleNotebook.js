@@ -15,9 +15,15 @@
 // offers "Trash anyway" -- and the confirmed re-run still refuses a note it finds unsent.
 
 import { FAILURE_WORDS, UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
+import { SAMPLE_ROW_COPY, SAMPLE_URL, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
-export const SAMPLE_URL = '/api/j2/onboarding/sample-notebook'
-export const SAMPLE_PREF = 'notebook_sample'
+// Fix round 1: the route, the key, its reader and the More menu row's words are sampleNotebookKeys.js (on the
+// Notebook's first open); re-exported so every import from here keeps working.
+export { SAMPLE_URL, SAMPLE_PREF, readSamplePref }
+// The two WRITES below name their route as a literal of this file, because the door rail
+// (lib/offline/doorEnumeration.test.js) reads every note-touching write's URL from the file it is in and does not
+// follow an import. sampleNotebook.test.js pins it to sampleNotebookKeys.js's SAMPLE_URL, the one authority.
+export const SAMPLE_WRITE_URL = '/api/j2/onboarding/sample-notebook'
 
 export const SAMPLE_COPY = Object.freeze({
   add: 'Add a sample notebook',
@@ -27,12 +33,12 @@ export const SAMPLE_COPY = Object.freeze({
   // M-13: the first-run screen shows while a member has no ACTIVE notes, so the server's
   // refusal ("you already have notes") has to say where they are.
   refused: "You already have notes, so we didn't add the sample. If you can't see them, look in Trash or Archive.",
+  // `strip`, `remove` and `tour` are read only by tools/notebook_wave8_walk.py (and its Python test): walker-only since
+  // go-live wave 1 retired the strip, kept until the instruments task re-points that walk.
   strip: "You're looking at the sample notebook",
   remove: 'Remove it',
-  removing: 'Removing…',
-  // Go-live wave 1 (A7): the notes list's ⋯ row, and its status line while it runs.
-  removeRow: 'Remove the sample notebook',
-  removingLine: 'Removing the sample notebook…',
+  // Go-live wave 1 (A7): the notes list's ⋯ row, and its status line while it runs (sampleNotebookKeys.js).
+  ...SAMPLE_ROW_COPY,
   removed: 'Sample notebook moved to Trash. You can restore it from there.',
   removeFailed: "We couldn't remove the sample notebook. Try again in a moment.",
   notRemoved: 'The sample was not removed:',
@@ -40,20 +46,7 @@ export const SAMPLE_COPY = Object.freeze({
   removeAnyway: 'Remove anyway',
   removeAnywayConfirm: 'Remove the sample notebook without checking this device? Words typed here that have not reached the server may not be kept.',
   removeAnywayYes: 'Yes, remove anyway',
-  cancel: 'Cancel',
-  dismiss: 'Hide this message',
 })
-
-/** The recorded sample, or null. Tolerates a string (the server's TEXT) or an object. */
-export function readSamplePref(raw) {
-  let v = raw
-  if (typeof v === 'string') {
-    try { v = JSON.parse(v) } catch { return null }
-  }
-  if (!v || typeof v !== 'object' || !Array.isArray(v.ids)) return null
-  const ids = v.ids.filter((i) => typeof i === 'string' && i)
-  return ids.length ? { ...v, ids } : null
-}
 
 async function detail(res, fallback) {
   try {
@@ -70,7 +63,7 @@ async function detail(res, fallback) {
  *  Trash and Archive (M-13); any other refusal keeps the server's own sentence. */
 export async function addSampleNotebook() {
   try {
-    const res = await fetch(SAMPLE_URL, { method: 'POST', credentials: 'include' })
+    const res = await fetch(SAMPLE_WRITE_URL, { method: 'POST', credentials: 'include' })
     if (res.status === 409) return { ok: false, message: SAMPLE_COPY.refused }
     if (!res.ok) return { ok: false, message: await detail(res, SAMPLE_COPY.addFailed) }
     const body = await res.json()
@@ -83,7 +76,7 @@ export async function addSampleNotebook() {
 /** DELETE: `{ok: true, trashed}` or `{ok: false, message}`. Never throws. */
 export async function removeSampleNotebook() {
   try {
-    const res = await fetch(SAMPLE_URL, { method: 'DELETE', credentials: 'include' })
+    const res = await fetch(SAMPLE_WRITE_URL, { method: 'DELETE', credentials: 'include' })
     if (!res.ok) return { ok: false, message: await detail(res, SAMPLE_COPY.removeFailed) }
     const body = await res.json()
     return {

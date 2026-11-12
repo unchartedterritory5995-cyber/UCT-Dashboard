@@ -24,8 +24,8 @@
 /* Go-live wave 1 (D3): the one quiet line when the saved views could not be read. */
 .failed {
   margin: 0;
-  padding: 4px 12px 8px;
-  font-size: 13px;
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  font-size: var(--text-md);
   color: var(--text-muted);
 }
 .apply {

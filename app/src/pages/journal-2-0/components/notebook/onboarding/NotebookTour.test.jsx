@@ -288,7 +288,8 @@ describe('how it walks', () => {
    * reads NO-DOOR ("not reached with Tab in 220 presses") for the keyboard
    * door on G-171. Reproduced live in a sandbox (docs/notebook/proof/
    * fx2-<sha>/): the WALK checks `skip.count() > 0` the instant the page's
-   * OWN "Welcome to your Notebook" heading (ResearchHome's h2, NOT the tour)
+   * OWN "Welcome to your Notebook" heading (Research Home's h2 then, NOT the tour; Research Home was deleted in
+   * go-live wave 1, and the tour's first step is the folders panel now)
    * becomes visible -- which happens ~400ms before the lazy-loaded tour's
    * async open, so the check reads 0 and the walk skips dismissing it, then
    * tries to reach "Add a sample notebook" while the tour (correctly, by

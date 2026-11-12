@@ -184,17 +184,16 @@ export function startPath(entryOrId, registry = TOUR_REGISTRY) {
 
 
 
-/** Tours whose FIRST anchor exists only once the member has a note. The voice tour was written for
- *  Research Home's "New note" control, drawn only when the member had notes, so for a member with
- *  none it could never open. Every door (Help > Walkthroughs, What's new, the offer) still starts
- *  them, so the engine checks before it waits (tourStart.js `resolveStart`): with no note it shows
- *  one card that says to make a note first and goes to the Notebook, instead of waiting for an
- *  anchor that cannot appear and failing with "start it again" (D, polish round).
- *  ⚠️ Go-live wave 1: the voice tour now opens on the notes list's New menu, which is on screen with
- *  no notes too, so this entry is stricter than it needs to be (the card's "Show me where" focuses
- *  the list's "+ New", `data-start-note`). Kept, and recorded in the ledger as a follow-up.
+/** Tours whose FIRST anchor exists only once the member has a note. Every door (Help > Walkthroughs, What's new,
+ *  the offer) still starts them, so the engine checks before it waits (tourStart.js `resolveStart`): with no note it
+ *  shows one card that says to make a note first and goes to the Notebook, instead of waiting for an anchor that
+ *  cannot appear and failing with "start it again" (D, polish round).
+ *  EMPTY since go-live wave 1, fix round 1: the voice tour, its one entry, was written for Research Home's "New note"
+ *  control (drawn only with notes); it now starts on the notes list, whose New menu arrow and "Voice note" row (and,
+ *  on a phone, the More menu and its "Voice note" row) are drawn with zero notes too, so every step is reachable
+ *  without a note. The mechanism stays for the next tour that needs one (its rails use a probe id).
  *  (The registry's `requires` is a list of FLAG keys, which cannot say "has a note".) */
-export const NEEDS_NOTES = Object.freeze(['voice-notes'])
+export const NEEDS_NOTES = Object.freeze([])
 
 /** Every tour Help should offer a Replay button for, in registry order. */
 export function replayableTours(registry = TOUR_REGISTRY) {

@@ -63,10 +63,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('the failure notice points at Learn, where the walkthroughs start', () => {
-  it('says Learn, not Help', () => {
-    expect(TOUR_FAILED_NOTICE).toMatch(/start it again from Learn\.$/)
-    expect(TOUR_FAILED_NOTICE).not.toMatch(/Help/)
+// Fix round 1 (4h): the Learn menu was deleted in go-live wave 1; the walkthroughs start from the Support page's
+// "Walkthroughs" section, named in that page's own words.
+describe('the failure notice points at Walkthroughs on the Support page, where the walkthroughs start', () => {
+  it('names the Support page section, never the deleted Learn menu', () => {
+    expect(TOUR_FAILED_NOTICE).toMatch(/start it again from Walkthroughs on the Support page\.$/)
+    expect(TOUR_FAILED_NOTICE).not.toMatch(/Learn/)
   })
 })
 

@@ -338,7 +338,7 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, on
   const plan = result.plan
   rows.push(plan?.ok
     ? { text: `Today's plan written${plan.created ? `. ${DAILY_FOLDER_NOTICE}` : ''}`, plan: true }
-    : "Couldn't write today's plan. Choose Today's note on the notes list to try again.")
+    : "Couldn't write today's plan. Open today's note from the notes list to try again.")
   const sym = names[0] || 'NVDA'
   rows.push({ text: `Try it: draw entry, stop and target on ${sym}, and watch the setups board track it →`, tryIt: sym })
 

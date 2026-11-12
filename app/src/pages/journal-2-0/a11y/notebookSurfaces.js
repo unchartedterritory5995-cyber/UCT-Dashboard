@@ -360,6 +360,14 @@ export const SURFACES = Object.freeze({
   // The Notebook's menu engine (useMenuButton + MenuRows). It began as P0.1's New note split button on Research Home,
   // deleted in go-live wave 1; a11y/newNoteMenu.a11y.test.jsx reads the list's New menu closed and OPEN.
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // Go-live wave 1, fix round 1: the simplification's own menus and panel, each read OPEN with its rows drawn
+  // (a11y/simplifyMenus.a11y.test.jsx): the note's "Aa" menu (Task 4), the View menu's saved views (Task 2) and the
+  // notes list's AI section (Task 5).
+  'components/notebook/NoteFormatMenu.jsx': { recipe: 'note-format-menu' },
+  'components/notebook/SavedViewsMenuGroup.jsx': { recipe: 'saved-views-menu-group' },
+  'components/notebook/NotebookAiPanel.jsx': { recipe: 'notebook-ai-panel' },
+  // Fix round 1 (first-open bytes): the Daily brief's two note sections, a chunk of their own, read with rows.
+  'components/notebook/TodayHomeNotes.jsx': { recipe: 'today-home-notes' },
   // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
   // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.

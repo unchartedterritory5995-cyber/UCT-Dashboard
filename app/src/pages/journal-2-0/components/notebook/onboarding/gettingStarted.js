@@ -42,7 +42,7 @@
 import { WALKTHROUGH_TITLES } from '../../../lib/templateBlocks'
 import { BASE_TOUR_ID, TOUR_REGISTRY, getTourEntry, tourLive } from './tourRegistry'
 import { TOUR_PREF, readTourPref } from './tourPref'
-import { SAMPLE_PREF, readSamplePref } from './sampleNotebook'
+import { SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
 import { CHECKLIST_PREF as CHECKLIST_PREF_KEY, recordedDone } from './gettingStartedPref'
 

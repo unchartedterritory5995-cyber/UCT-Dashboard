@@ -141,7 +141,9 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(screen.queryByRole('search', { name: 'Find in note' })).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: 'More note actions' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Find in note' }))
-    expect(screen.getByRole('search', { name: 'Find in note' })).toBeInTheDocument()
+    // Go-live wave 1, fix round 1: the find bar is a lazy chunk (warmed when idle), so its first open can land a tick
+    // after the click, like the palette below.
+    expect(await screen.findByRole('search', { name: 'Find in note' })).toBeInTheDocument()
   })
 })
 

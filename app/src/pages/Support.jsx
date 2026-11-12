@@ -338,7 +338,7 @@ function PublishSentence() {
  *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
-// The anchor is components/helpAnchors.js's (one authority: the Help menu and the Learn menu link to it too).
+// The anchor is components/helpAnchors.js's (one authority: the Help menu links to it too).
 export { WALKTHROUGHS_ID }
 
 function WalkthroughsSection() {

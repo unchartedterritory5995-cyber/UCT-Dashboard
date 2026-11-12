@@ -92,8 +92,10 @@ const ROW = '[role="menuitem"], [role="menuitemradio"]'
 // Tier 1b fix round 1 (review Important 4): a row with NO BOX (the list's phone-only ⋯ rows on a desktop) is not a
 // stop -- focusing it is a no-op that left the menu open with focus nowhere useful. Where NOTHING has a box (a test
 // environment with no layout) every row counts: the same rule as lib/useToolbarRoving.js.
+// Go-live wave 1, fix round 1 (review 4b): nor is a DISABLED row (the Reviews rows while a draft runs): focus() on a
+// disabled button does nothing, so Up/Down/End stuck on it.
 function rowsOf(menuEl) {
-  const all = [...(menuEl?.querySelectorAll(ROW) || [])]
+  const all = [...(menuEl?.querySelectorAll(ROW) || [])].filter((el) => !el.disabled)
   const shown = all.filter((el) => el.getClientRects().length > 0)
   return shown.length ? shown : all
 }

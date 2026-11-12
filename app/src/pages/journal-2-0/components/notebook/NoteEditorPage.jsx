@@ -72,12 +72,10 @@ import { PRECISE_STATES, resolveNoteCitation, selectResolvedPassage } from '../.
 import { appendAskInsert } from '../../lib/askInsert'
 import { VOICE_NOTE_EVENT, VOICE_NOTE_LOCKED_SENTENCE, appendVoiceNote, voiceNotesEnabled } from '../../lib/voiceNote'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
-import NoteFindBar from './NoteFindBar'
 import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
-import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
@@ -246,6 +244,18 @@ export const sourceSheetLoaders = {
 }
 const DocumentPreviewSheet = lazyChunk(() => sourceSheetLoaders.documentPreview())
 const CapturedSourceSheet = lazyChunk(() => sourceSheetLoaders.capturedSource())
+// Go-live wave 1, fix round 1 (first-open bytes; this branch added to the first open, so something moves off it): the
+// find bar (Ctrl+F, or More > Find) and the table toolbar (drawn only while the caret is in a table) are chunks of
+// their own, warmed once idle like the palette, so Find opens without a wait and a table's toolbar is there when the
+// caret reaches it. A failed warm costs nothing: the render asks again (lazyChunk).
+const loadNoteFindBar = () => import('./NoteFindBar')
+const NoteFindBar = lazyChunk(loadNoteFindBar)
+const loadTableToolbar = () => import('./TableToolbar')
+const TableToolbar = lazyChunk(loadTableToolbar)
+const warmEditorTools = () => whenIdle(() => {
+  loadNoteFindBar().catch(() => {})
+  loadTableToolbar().catch(() => {})
+})
 const warmSourceSheets = () => whenIdle(() => {
   sourceSheetLoaders.documentPreview().catch(() => {})
   sourceSheetLoaders.capturedSource().catch(() => {})
@@ -1285,6 +1295,7 @@ export default function NoteEditorPage({
   const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(warmWidgetPalette, [])
   useEffect(warmSourceSheets, [])
+  useEffect(warmEditorTools, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
@@ -6188,16 +6199,18 @@ export default function NoteEditorPage({
         )}
 
         {findOpen && (
-          <NoteFindBar
-            editor={editor}
-            initialReplace={findWithReplace}
-            onClose={closeFind}
-          />
+          <Suspense fallback={null}>
+            <NoteFindBar
+              editor={editor}
+              initialReplace={findWithReplace}
+              onClose={closeFind}
+            />
+          </Suspense>
         )}
 
         {/* Wave 6: the table toolbar floats over the table the caret is in,
             and renders nothing anywhere else (or on a read-only note). */}
-        <TableToolbar editor={editor} />
+        <Suspense fallback={null}><TableToolbar editor={editor} /></Suspense>
         <LinkPasteMenu editor={editor} />
         {smartChipsEnabled() && (
           <Suspense fallback={null}><AlertPhraseMenu editor={editor} noteTicker={note?.ticker || null} /></Suspense>

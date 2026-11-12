@@ -544,8 +544,8 @@
   padding: 0;
 }
 .capabilityRow {
-  padding: 7px 2px;
-  font-size: 13px;
+  padding: var(--space-sm) var(--space-xs);
+  font-size: var(--text-md);
   line-height: 1.45;
   color: var(--text);
   border-bottom: 1px solid var(--border);

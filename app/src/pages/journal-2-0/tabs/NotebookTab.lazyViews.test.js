@@ -28,6 +28,11 @@ const LAZY = [
   // Notebook simplify, Task 5: Research Home is no longer routed (it left this list with its import); its notebook-wide
   // Ask is the list toolbar's AI section, fetched on the first press through `lazyView` (null fallback).
   '../components/notebook/NotebookAiPanel',
+  // Go-live wave 1, fix round 1 (first-open bytes): the View menu's saved views and the zero-notes sample door through
+  // `lazyView` (null fallback), and the review drafting door, fetched on the first Reviews press (importWithOneRetry).
+  '../components/notebook/SavedViewsMenuGroup',
+  '../components/notebook/onboarding/SampleNotebookDoor',
+  '../lib/reviewDraftRun',
   // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
   '../components/notebook/BulkActionBar',
   // Wave 7 Task 7.4: the template picker (and the catalog it loads), through `lazyView` with its skeleton fallback.
