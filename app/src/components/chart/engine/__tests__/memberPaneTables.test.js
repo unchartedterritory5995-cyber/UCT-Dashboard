@@ -105,7 +105,9 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
       a[k] = (a[k] || 0) + 1
       return a
     }, {})
-    expect(kinds).toEqual({ 'create:table': 2, cell: 6, update: 1 })
+    // ⛔ Engine 51: ONE `table.new` — the Volume table's create is withheld by name
+    // (`enum:unreadable`, its position below), never drawn in a default corner.
+    expect(kinds).toEqual({ 'create:table': 1, cell: 6, update: 1 })
   })
 
   it('⛔⛔ and every object tree EVALUATES — wires 2 and 3, measured as a count', () => {
@@ -134,10 +136,12 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     // defaults FALSE so the DCR cell runs and folds to `''`, and an empty cell is
     // not drawn. Four is the number a member sees, and the number the vendor's
     // `fillText` capture recorded on the same script.
-    expect(state.tables).toHaveLength(2)
-    expect(stats).toEqual({ tables: 2, cells: 4, skipped: 0 })
-    expect(root.querySelectorAll('table')).toHaveLength(2)
-    expect(root.querySelectorAll('td')).toHaveLength(4)
+    // ⛔ Engine 51: the Volume table (one of the four) is withheld by name, so the
+    // member sees the Range table's three and no table in a guessed corner.
+    expect(state.tables).toHaveLength(1)
+    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
+    expect(root.querySelectorAll('table')).toHaveLength(1)
+    expect(root.querySelectorAll('td')).toHaveLength(3)
   })
 
   it('⛔ the two switched-off cells are ABSENT, not blank', () => {
@@ -166,7 +170,16 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     expect(el.style.right).toBe('')
   })
 
-  it('⚠️ and the VOLUME table\'s position is an APPROXIMATION, named to its line', () => {
+  it('⛔⛔ and the VOLUME table is WITHHELD by name — no longer drawn at an approximated corner (engine 51)', () => {
+    // ⭐ What the case below recorded as a dangerous coincidence is now a refusal:
+    // an enum slot this door cannot read withholds its drawing (`enum:unreadable`),
+    // named to its line, rather than drawing the renderer's `top_right`.
+    expect(state.tables.find((t) => t.cells.some((c) => c.text.includes('Vol :')))).toBeUndefined()
+    expect(built.translation.objectDiagnostics.createDropWhy
+      .some((w) => w.startsWith('create table@490 position: pine:enum-unreadable'))).toBe(true)
+  })
+
+  it.skip('⚠️ [engine 51: withheld, see above] and the VOLUME table\'s position is an APPROXIMATION, named to its line', () => {
     // ⛔⛔ THIS ONE IS NOT RESOLVED, AND IT LANDS ON THE RIGHT ANSWER ANYWAY,
     // WHICH IS THE DANGEROUS CASE. `volPosName = hasRecentHV ? 'Top Center' :
     // volTablePosition` picks the string at RUNTIME, so the comparison inside

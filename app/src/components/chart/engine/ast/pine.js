@@ -890,7 +890,8 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
-import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -19054,31 +19055,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
 // references. Inlining the trees here would work and would silently undo C2C's
 // ×48 compaction — a line whose y-coordinate is `close` must be an integer in
 // the saved document, not a second copy of a tree a plot already stores.
-const OBJECT_ENUM_VALUES = Object.freeze({
-  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
-  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
-  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
-  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
-  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
-  'line.style_arrow_both': 'arrow_both',
-  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
-  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
-  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
-  'text.align_top': 'top', 'text.align_bottom': 'bottom',
-  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
-  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
-  // are carried because a table that knew one of three would drop the other two
-  // with no trace, which is the failure this property was added to stop.
-  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
-  // does not resolve here — it falls to `valueRef`, which returns null, and the
-  // converter records it via `dropProp`. Counted, never half-applied.
-  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
-  'position.top_left': 'top_left', 'position.top_center': 'top_center',
-  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
-  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
-  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
-  'position.bottom_right': 'bottom_right',
-})
+// ⭐ Engine 51 — the vocabulary is ONE table, `../objectEnums.js` (every member of
+// the reference's namespaces and the witnessed legacy spellings), imported here.
 
 /**
  * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
@@ -19120,19 +19098,15 @@ export function canonicalTextFormat(flags) {
   return out.length ? out.join('_') : 'none'
 }
 
-/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
- *  decides what a style draws; this door only has to carry what was written. */
-const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
-const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
 // ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
 export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
 
 export function objectEnumValue(name) {
-  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
-  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
-  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
-  return undefined
+  // ⛔ Engine 51 — only a constant the table holds. `label.style_<anything>` used to
+  // pass by pattern, so `label.style_labeldown` (v4) reached the renderer as an
+  // unknown `labeldown` and drew centred with no pointer.
+  return Object.hasOwn(OBJECT_ENUM_VALUES, name) ? OBJECT_ENUM_VALUES[name] : undefined
 }
 
 /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
@@ -20896,7 +20870,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // parameter and render a cell that is confidently wrong — the one outcome a
     // dashboard must never produce.
     if (node.type === 'call' && node.name) {
-      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      const declared = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐ Engine 51 — a helper whose body is `name = switch …` (C47) is opaque to
+      // every lane but the drawing one, which reads it through `objectLane` (the
+      // Resolver's own door, `resolveCall`). The text reader takes the same door,
+      // so `text_size = get_size(input.string(…))` (ict-killzones-pivots-tfo) is the
+      // word the switch picks rather than an unreadable slot drawn at the default.
+      const bound = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
       // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
       //
       // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
@@ -21640,7 +21621,345 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Pine's own default and the drawing survives. Serving the value is better
    *  and is a real capability (`input.string` read as an enum word — 689 sites
    *  across 109 drawing scripts); crashing is very much worse than either. */
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 1) — AN ENUM WORD THE SCRIPT FIXES
+   *  BEFORE BAR 0, READ STATICALLY.
+   *
+   *  Every value this walk follows is the same on every bar: a literal, an enum
+   *  constant, an `input.string` (or a bare `input` with a string default — this
+   *  product gives it no knob, its default is the only value: C16), names bound to
+   *  those, a `var` nothing reassigns (it holds its initializer: read once on bar 0,
+   *  exactly as without `var`), `?:` / `==` / `!=` / `and` / `or` / `not` over them,
+   *  a user function called with such arguments, and a `switch` over such a subject
+   *  — its arm keys literals or names of string constants (`pTR => …`), and the
+   *  three function-body shapes the fold reads as a switch: `pos = switch s …` with
+   *  a final `pos`, `result = switch x …`, and `pos = <default>` / `switch s` /
+   *  `"x" => pos := …` / `pos` (the default is the switch's fallback).
+   *  Returns `{w}` (an enum word), `{s}` (a string), `{b}` (a boolean) or null for
+   *  anything not fixed before bar 0 — the per-bar reader (`textNodeOf`) takes those.
+   *  ⛔ A switch that matches no arm and has no fallback is `na`: null here, so the
+   *  ordinary reader decides (and refuses it by name). */
+  /** ⭐ Engine 51 — a name the script never reassigns anywhere (`mutableNames`, read off
+   *  the raw tokens). Unknown (no ledger handed in) is NOT never-reassigned. */
+  const neverReassigned = (name) => !!(objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function')
+    && !objectOpts.mutableNames.has(name)
+  /** ⛔ Engine 51 — a name the member can move: a DECLARED input (the member door's
+   *  knobs, `declareInputs` — an `input.string` with options is an enum knob there) or
+   *  one the caller hands a value for (`inputValues`). Its default is NOT its only value,
+   *  so the static enum reader leaves it to the per-bar reader, which reads the knob. */
+  const isKnob = (name) => {
+    const d = objectOpts.declareInputs
+    if (d && (d === 'all' || (Array.isArray(d) ? d.includes(name) : typeof d.has === 'function' && d.has(name)))) return true
+    const v = objectOpts.inputValues
+    return !!(v && Object.prototype.hasOwnProperty.call(v, name))
+  }
+  /** ⭐ Engine 51 — `var [type] x = <one-line expr>` declared inside a block, the ONLY
+   *  declaration of `x` in the script and never reassigned: its initializer, parsed.
+   *  The object pass's scope does not hold a block `var` (a mutable local is opaque,
+   *  `inlinedLocalBinding`), so the static enum reader asks this; it reads the seed
+   *  only where every name in it is fixed before bar 0, so when the block first runs
+   *  does not matter. */
+  const staticBlockVars = (() => {
+    const out = new Map()
+    const declCount = new Map()
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const visit = (list, inBlock) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        const eq = findTop(h, (t) => isPunct(t, '='))
+        if (eq > 0) {
+          let at = h[0] && h[0].kind === 'ident' && h[0].value === 'var' ? 1 : 0
+          if (h[at] && h[at].kind === 'ident' && TYPE_WORDS.has(h[at].value) && h[at + 1] && h[at + 1].kind === 'ident') at += 1
+          const nameTok = at === eq - 1 ? h[at] : null
+          if (nameTok && nameTok.kind === 'ident') {
+            declCount.set(nameTok.value, (declCount.get(nameTok.value) || 0) + 1)
+            const rhs = h.slice(eq + 1)
+            if (inBlock && h[0].value === 'var' && !(st.sub || []).length) {
+              let node = null
+              try { node = parseWholeExpression(rhs) } catch { node = null }
+              if (node) out.set(nameTok.value, node)
+            } else if (inBlock && rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (st.sub || []).length) {
+              // `x = switch s` / arms, declared inside a block (seasonality's
+              // `tablePosition = switch tablePositionInput` under `if barstate.islast`):
+              // its arms, parsed, as the static reader's switch (`staticSwitch`)
+              let sw = null
+              try {
+                const arms = []
+                let fallback = null
+                for (const arm of st.sub) {
+                  const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+                  const value = at < 0 || (arm.sub || []).length ? null : parseWholeExpression(arm.header.slice(at + 1))
+                  if (!value) { arms.length = 0; fallback = null; break }
+                  const binding = { kind: 'expr', node: value }
+                  if (at === 0) fallback = binding
+                  else arms.push({ match: arm.header.slice(0, at), binding })
+                }
+                const subject = rhs.length > 1 ? parseWholeExpression(rhs.slice(1)) : { type: 'number', value: 1, tok: { ...rhs[0], value: 'true' } }
+                if (arms.length || fallback) sw = { kind: 'switch', subject, arms, fallback, env: null }
+              } catch { sw = null }
+              if (sw) out.set(nameTok.value, sw)
+            }
+          }
+        }
+        if ((st.sub || []).length) visit(st.sub, true)
+      }
+    }
+    visit(stmts, false)
+    for (const name of [...out.keys()]) if (declCount.get(name) !== 1 || !neverReassigned(name)) out.delete(name)
+    return out
+  })()
+  /** ⭐ Engine 51 — the script's own `enum` declarations, by name and member
+   *  (`enum PanelPosition` / `bottom_right = "Bottom Right"`). The static enum reader
+   *  reads a member (`PanelPosition.bottom_right`) as a value of its own kind, equal
+   *  only to itself, so `input.enum(PanelPosition.bottom_right)` handed to a helper that
+   *  switches on the members is read like a string input. */
+  const scriptEnums = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length >= 2 && h[0].kind === 'ident' && h[0].value === 'enum' && h[1].kind === 'ident') {
+        // the members: the first word of each line after the name (the grouper folds an
+        // enum's member lines into its header), or of each statement under it
+        const members = new Set()
+        for (let i = 2; i < h.length; i += 1) {
+          if (h[i].kind === 'ident' && h[i].line !== h[i - 1].line) members.add(h[i].value)
+        }
+        for (const m of st.sub || []) {
+          const mh = m.header || []
+          if (mh[0] && mh[0].kind === 'ident') members.add(mh[0].value)
+        }
+        out.set(h[1].value, members)
+      }
+    }
+    return out
+  })()
+  const enumMemberOf = (name) => {
+    const dot = typeof name === 'string' ? name.indexOf('.') : -1
+    if (dot <= 0) return null
+    const members = scriptEnums.get(name.slice(0, dot))
+    return members && members.has(name.slice(dot + 1)) ? { s: `\u0000enum:${name}` } : null
+  }
+  const staticEnumValue = (node, scope, frame = null, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    const look = (name) => {
+      if (frame && frame.locals && frame.locals.has(name)) return { b: frame.locals.get(name), local: true }
+      const b = scope && typeof scope.get === 'function' ? scope.get(name) : null
+      return b ? { b, local: false } : null
+    }
+    if (node.type === 'string') return { s: String(node.value) }
+    // the parser reads `true` / `false` as the numbers 1 / 0; the token keeps the word
+    if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
+    if (node.type === 'name') {
+      if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
+      if (frame && Array.isArray(frame.params)) {
+        const k = frame.params.indexOf(node.name)
+        if (k >= 0) {
+          const a = frame.args[k]
+          return a ? staticEnumValue(a, frame.callerEnv, frame.callerFrame, depth + 1) : null
+        }
+      }
+      const member = enumMemberOf(node.name)
+      if (member) return member
+      const hit = look(node.name)
+      if (!(hit && hit.local) && isKnob(node.name)) return null
+      if (!hit) {
+        // a `var` declared once inside a block and never reassigned (`staticBlockVars`)
+        const bv = staticBlockVars.get(node.name)
+        if (bv && bv.kind === 'switch') return staticSwitch(bv, null, depth + 1)
+        if (bv) return staticEnumValue(bv, scope, null, depth + 1)
+        const w = objectEnumValue(node.name)
+        return w === undefined ? null : { w: String(w) }
+      }
+      const { b, local } = hit
+      const sub = local ? frame : null
+      if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
+        return staticEnumValue(b.node, b.env || scope, sub, depth + 1)
+      }
+      if (b.kind === 'switch') return staticSwitch(b, sub, depth + 1)
+      // a top-level `var x = switch [s]` (its switch hung on the binding, `varSwitch`)
+      if (!local && b.varSwitch && neverReassigned(node.name)) return staticSwitch(b.varSwitch, null, depth + 1)
+      // a `var` NOTHING reassigns holds its initializer on every bar (enumWordOf's rule)
+      if (!local && b.kind === 'state' && b.seed && b.update && b.update.type === 'selfref') {
+        let last = null
+        try { last = makeResolver(scopeEnv).finalBindings.get(node.name) } catch { last = null }
+        return last === b && neverReassigned(node.name) ? staticEnumValue(b.seed, b.seedEnv || scope, null, depth + 1) : null
+      }
+      return null
+    }
+    if (node.type === 'call') {
+      const args = node.args || []
+      // `input.enum(E.m, …)`: its default member is the only value (C16 — no knob)
+      if (node.name === 'input.enum') {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        return dv && dv.type === 'name' ? enumMemberOf(dv.name) : null
+      }
+      if (node.name === 'input.string' || node.name === 'input') {
+        const typed = args.find((a) => a && a.name === 'type')
+        if (typed && !(typed.value && typed.value.type === 'name' && typed.value.name === 'input.string')) return null
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        if (!dv) return null
+        if (dv.type === 'string') return { s: String(dv.value) }
+        // a default NAMED (`input.string(bcenter, …)` with `bcenter = position.bottom_center`)
+        return dv.type === 'name' ? staticEnumValue(dv, scope, frame, depth + 1) : null
+      }
+      const hit = look(node.name)
+      const declared = hit ? hit.b : null
+      const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
+      if (!fn || fn.kind !== 'fn' || !fn.value || !Array.isArray(fn.params)) return null
+      // a parameter typed by one of the script's own enums (`parse_position(PanelPosition p)`)
+      // reaches this binding as two names, the type and the parameter: the type is dropped
+      const params = fn.params.filter((q, i) => !(scriptEnums.has(q) && i + 1 < fn.params.length && !scriptEnums.has(fn.params[i + 1])))
+      if (args.some((a) => !a || a.name) || args.length !== params.length) return null
+      const inner = { params, args: args.map((a) => a.value), callerEnv: scope, callerFrame: frame, locals: fn.locals || null }
+      if (fn.value.kind === 'switch') return staticSwitch(fn.value, inner, depth + 1)
+      if (fn.value.kind === 'expr' && fn.value.node) return staticEnumValue(fn.value.node, fn.value.env || scope, inner, depth + 1)
+      return null
+    }
+    if (node.type === 'ternary') {
+      if (node.noElse) return null
+      const c = staticEnumValue(node.test, scope, frame, depth + 1)
+      if (!c || typeof c.b !== 'boolean') return null
+      return staticEnumValue(c.b ? node.yes : node.no, scope, frame, depth + 1)
+    }
+    if (node.type === 'unary' && node.op === 'not') {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && typeof v.b === 'boolean' ? { b: !v.b } : null
+    }
+    if (node.type === 'binary') {
+      const l = staticEnumValue(node.left, scope, frame, depth + 1)
+      if (!l) return null
+      if (node.op === 'and' || node.op === 'or') {
+        if (typeof l.b !== 'boolean') return null
+        if (node.op === 'and' && !l.b) return { b: false }
+        if (node.op === 'or' && l.b) return { b: true }
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        return r && typeof r.b === 'boolean' ? { b: r.b } : null
+      }
+      if (node.op === '==' || node.op === '!=') {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        const key = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : `b:${v.b}`)
+        const eq = key(l) === key(r)
+        return { b: node.op === '==' ? eq : !eq }
+      }
+    }
+    return null
+  }
+  /** A `switch` binding read statically (see `staticEnumValue`). */
+  const staticSwitch = (sw, frame, depth) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms) || depth > 24) return null
+    const env = sw.env || scopeEnv
+    const subj = staticEnumValue(sw.subject, env, frame, depth + 1)
+    // a string subject (a string input, an enum member) or `true` (a switch with no subject)
+    const kindOf = (v) => (v && 's' in v ? 's' : v && typeof v.b === 'boolean' ? 'b' : null)
+    const kind = kindOf(subj)
+    if (!kind) return null
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      const label = m ? staticEnumValue(m, env, frame, depth + 1) : null
+      if (kindOf(label) !== kind) return null
+      if (label[kind] !== subj[kind]) continue
+      const b = arm.binding
+      return b && b.kind === 'expr' && b.node ? staticEnumValue(b.node, b.env || env, frame, depth + 1) : null
+    }
+    const f = sw.fallback
+    return f && f.kind === 'expr' && f.node ? staticEnumValue(f.node, f.env || env, frame, depth + 1) : null
+  }
+
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 2) — A PER-BAR CHOICE BETWEEN FIXED
+   *  STRINGS, HANDED TO A HELPER, IS LIFTED OUT OF THE CALL.
+   *
+   *  uncharted-volume-v2 positions its Volume table with
+   *  `f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`, on the last bar
+   *  (`if barstate.islast …`: the `var table` is made there and `table.set_position`
+   *  re-applies it every run). The helper compares its parameter with string
+   *  literals, which no tree can say about a per-bar string — but each ARM of the
+   *  choice is fixed before bar 0, so
+   *      f(c ? a : b)  ==  c ? f(a) : f(b)
+   *  and each side is read statically (`staticEnumValue`). The condition is the
+   *  ordinary per-bar condition (`textNodeOf`'s own reading of a test), evaluated
+   *  where the op runs. Only a NAMED argument chain to a `?:` whose two arms are
+   *  fixed strings is lifted; anything else returns null and the reader goes on. */
+  const hoistEnumChoice = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution
+        ? hoistEnumChoice(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || !Array.isArray(node.args) || node.args.some((a) => !a || a.name)) return null
+    const declared = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane ? declared.objectLane : declared
+    if (!fn || fn.kind !== 'fn') return null
+    // the `?:` an argument names, through plain name bindings
+    const choiceOf = (n, env, d = 0) => {
+      if (!n || d > 8) return null
+      if (n.type === 'ternary' && !n.noElse) return { t: n, env }
+      if (n.type !== 'name') return null
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution ? choiceOf(b.node, b.env || env, d + 1) : null
+    }
+    for (let i = 0; i < node.args.length; i += 1) {
+      const ch = choiceOf(node.args[i].value, scope)
+      if (!ch) continue
+      if (staticEnumValue(ch.t.test, ch.env)) continue // a fixed test is the static reader's
+      const yes = staticEnumValue(ch.t.yes, ch.env)
+      const no = staticEnumValue(ch.t.no, ch.env)
+      if (!yes || !no || !('s' in yes) || !('s' in no)) return null
+      const withArg = (s) => ({ ...node, args: node.args.map((a, k) => (k === i ? { ...a, value: { type: 'string', value: s, tok: a.value && a.value.tok } } : a)) })
+      const side = (s) => {
+        const st = staticEnumValue(withArg(s), scope)
+        return st && 'w' in st ? { t: 'lit', s: st.w } : hoistEnumChoice(withArg(s), scope, depth + 1)
+      }
+      const then = side(yes.s)
+      const other = side(no.s)
+      if (!then || !other) return null
+      let cond = null
+      try {
+        const liveCond = stateOk && readsState(ch.t.test)
+        cond = liveCond ? liftTextCond(ch.t.test, null, ch.env) : internTree(canonicalOf(ch.t.test, null, ch.env))
+      } catch { cond = null }
+      return cond ? { t: 'if', cond, then, else: other } : null
+    }
+    return null
+  }
+
+  /** ⭐ Engine 51 — is this a NUMBER (a point size): a numeric literal, an
+   *  `input.int` / `input.float` (or a bare `input` with a numeric default), or a name
+   *  bound to one, through plain bindings? */
+  const pointSizeNode = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return false
+    if (node.type === 'number') return true
+    if (node.type === 'unary' && node.op === '-') return pointSizeNode(node.arg, scope, depth + 1)
+    if (node.type === 'call' && (node.name === 'input.int' || node.name === 'input.float' || node.name === 'input')) {
+      const args = node.args || []
+      const named = args.find((a) => a && a.name === 'defval')
+      const first = args.find((a) => a && !a.name)
+      const dv = named ? named.value : first ? first.value : null
+      return !!dv && dv.type === 'number'
+    }
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return !!(b && b.kind === 'expr' && b.node) && pointSizeNode(b.node, b.env || scope, depth + 1)
+    }
+    return false
+  }
+
   const enumNodeOf = (node, scope) => {
+    // ⭐ Engine 51 — a word fixed before bar 0 is that word (`staticEnumValue`).
+    {
+      let st = null
+      try { st = staticEnumValue(node, scope) } catch { st = null }
+      if (st && 'w' in st) return { t: 'lit', s: st.w }
+      let ho = null
+      try { ho = hoistEnumChoice(node, scope) } catch { ho = null }
+      if (ho) return ho
+    }
     enumNaSeen = false
     enumLeaves = true
     textEqGate.off = true
@@ -21982,6 +22301,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // dropped prop and a table silently anchored to `top_right`, Pine's default,
     // in the opposite corner from the one the author asked for.
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
+      // ⛔ Engine 51 (review of #1149, minor 4) — Pine v6 takes an INTEGER `text_size` /
+      // `size` in typographic points (`text_size = 11`, `input.int(12)`). This chart's
+      // renderers size text by the six `size.*` words only, so a point size is withheld
+      // by name (`ENUM_DROPS.points`), never drawn at a word's size.
+      if ((slot === 'text_size' || slot === 'size') && pointSizeNode(node, scopeEnv)) {
+        diagnostics.textSizePoints = (diagnostics.textSizePoints || 0) + 1
+        enumNaDrop = 'points'
+        return null
+      }
       const e = enumNodeOf(node, scopeEnv)
       if (e) return { v: 'text', node: e }
       // ⛔⛔ HONESTY-SWEEP item 1 — an `na` this walk reached is not an unreadable
@@ -22017,6 +22345,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `objectDiagnostics` counts the drop so it is visible rather than
       // silent.
       diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      // ⛔⛔ Engine 51 — AND THE DRAWING IS WITHHELD BY NAME (`pine:enum-unreadable`),
+      // read by the create / setter / cell converters. Dropping the prop drew the
+      // renderer's default in its place: a table in the wrong corner, a cell at the
+      // wrong size (ict-killzones-pivots-tfo: TradingView `small`, ours the default).
+      enumNaDrop = 'unreadable'
       return null
     }
     // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
@@ -22577,7 +22910,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     let regName = null
     let handleBack = 0
     if (OBJECT_NS.has(head)) {
-      if (args.length !== 1 || args[0].name) return null
+      // ⭐ Engine 51 — the handle may be NAMED (`line.get_y1(id=l)`, Pine's own
+      // parameter name); any other name is not this getter's and is not read.
+      if (args.length !== 1 || (args[0].name && args[0].name !== 'id')) return null
       const a = args[0].value
       // ⭐⭐ C48 — `line.get_y1(c[1])`: A GETTER ON THE HANDLE THE VARIABLE HELD n
       // BARS AGO (the register's own ring, `MAX_HANDLE_BACK`). Capture
@@ -23081,6 +23416,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const list = diagnostics[key] || (diagnostics[key] = [])
     const s = String(line).slice(0, 260)
     if (list.length < 40 && !list.includes(s)) list.push(s)
+  }
+  /** ⭐ Engine 51 (review of #1149, minor 5) — a drawing WITHHELD by the enum rule
+   *  (`ENUM_DROPS`), structured: what it is, where, and why. The no-output verdict
+   *  reads the first one so its headline names the withheld drawing instead of
+   *  "no plot and no alert condition". */
+  const noteWithheld = (op, family, kind) => {
+    const list = diagnostics.withheldDrawings || (diagnostics.withheldDrawings = [])
+    const d = ENUM_DROPS[kind]
+    if (d && list.length < 20) list.push({ family: family || null, line: op && op.line !== undefined ? op.line : null, guard: d.guard, sentence: d.sentence })
   }
   const noteCreateDrop = (op, slot, r) => {
     noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
@@ -24003,9 +24347,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v) {
           if (enumNaDrop) {
             // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
-            noteCreateDrop(op, k, enumNaDrop === 'named'
-              ? { guard: 'pine:enum-named-call', message: ENUM_NAMED_CALL_SENTENCE }
-              : { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
+            noteCreateDrop(op, k, { guard: ENUM_DROPS[enumNaDrop].guard, message: ENUM_DROPS[enumNaDrop].sentence })
+            noteWithheld(op, op.family, enumNaDrop)
             enumNa = enumNaDrop
             bad = true
             break
@@ -24027,7 +24370,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa === 'named') dropped('enum:named-call'); else if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa) dropped(ENUM_DROPS[enumNa].drop); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
@@ -24065,8 +24408,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         contentLostBy(op, target)
         stateLostBy(op, target)
         // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
-        if (enumNaDrop === 'named') dropped('enum:named-call')
-        else if (enumNaDrop) dropped('enum:na')
+        // ⛔⛔ Engine 51 (review of #1149, major 3) — a setter whose style / size / position
+        // this door cannot read WITHHOLDS THE OBJECT it would have restyled (`contentLost`,
+        // handle-wide), never leaves it drawn in the value it was made with.
+        if (enumNaDrop) { contentLost.push(target); noteWithheld(op, op.family, enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop) }
         else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
@@ -24139,10 +24484,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v && enumNaDrop) {
           // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
           // computed by a helper called with a named argument, is withheld by name.
-          noteWhy('cellTextWhy', enumNaDrop === 'named'
-            ? `cell@${op.line === undefined ? '?' : op.line}: pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 200)}`
-            : `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
-          badCell = enumNaDrop === 'named' ? 'enum:named-call' : 'enum:na'
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS[enumNaDrop].guard} ${ENUM_DROPS[enumNaDrop].sentence.slice(0, 200)}`)
+          badCell = ENUM_DROPS[enumNaDrop].drop
+          noteWithheld(op, 'table', enumNaDrop)
           break
         }
         if (!v) {
@@ -24165,8 +24509,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         props[k] = v
       }
-      if (badCell === 'enum:named-call') { dropped('enum:named-call'); continue }
-      if (badCell === 'enum:na') { dropped('enum:na'); continue }
+      if (typeof badCell === 'string' && badCell.startsWith('enum:')) { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
@@ -24177,6 +24520,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (!target) { dropped('cellpatch:target'); continue }
       if (!col || !row) { dropped('cellpatch:address'); continue }
       const node = op.args[0] && op.args[0].value
+      enumNaDrop = false
       const v = node ? valueRef(node, op.prop) : null
       // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
       // with an unreadable colour still draws, because the rest of that call is
@@ -24185,6 +24529,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // operation that runs every bar and means nothing. It is named twice on
       // purpose — by property and line, so an engineer can find the expression,
       // and by drop reason, so the op count still adds up.
+      // ⛔⛔ Engine 51 (review of #1149, major 3) — a size / alignment patch this door cannot
+      // read withholds its TABLE by name (`contentLost`): the cell would otherwise stay at
+      // the size an earlier write gave it, which is not what TradingView shows.
+      if (!v && enumNaDrop) { contentLost.push(target); noteWithheld(op, 'table', enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop); continue }
       if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
       ops.push(withUnwitnessedMarked({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } }))
     } else if (op.k === 'clear') {
@@ -25887,10 +26235,25 @@ function translatePineResult(source, opts = {}) {
         if (vec === false) continue
       }
       if (word === 'var' && nameTok && eq > 0) {
+        // ⭐ Engine 51 — `var x = switch [s]` / arms: whatever the value lane makes of it
+        // (a refusal, or a state over the bare word), the drawing lane's static enum
+        // reader takes the switch hung on the binding here (`varSwitch`;
+        // `buildObjectProgram`'s `staticEnumValue`). A switch with no subject takes its
+        // first arm whose condition holds: read as a switch on `true`.
+        const hangSwitch = () => {
+          const rhs = toks.slice(eq + 1)
+          if (!(rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (stmt.sub || []).length)) return
+          const subject = rhs.length > 1 ? rhs.slice(1) : [{ ...rhs[0], value: 'true' }]
+          let built = null
+          try { built = switchBinding(subject, stmt.sub, ctx, env, rhs[0]) } catch { built = null }
+          const marked = env.get(nameTok.value)
+          if (built && marked && typeof marked === 'object') Object.defineProperty(marked, 'varSwitch', { value: built, enumerable: false })
+        }
         try {
           env.set(nameTok.value, stateBinding(
             parseWholeExpression(toks.slice(eq + 1)),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
+          hangSwitch()
           continue
         } catch (err) {
           const r = fromError(err)
@@ -25898,6 +26261,7 @@ function translatePineResult(source, opts = {}) {
             { line: r.line, column: r.column, index: r.index, token: r.token },
             `\`${nameTok.value}\``)
           notes.push({ ...r, code: r.guard })
+          hangSwitch()
           continue
         }
       }
@@ -27691,6 +28055,10 @@ function translatePineResult(source, opts = {}) {
       walkStarts,
       topStatements: new Set(stmts),
       mutableNames: reassigned,
+      // ⭐ Engine 51 — the member's knobs: a declared input (or one the member set) is
+      // never read at its default by the static enum reader (`staticEnumValue`)
+      declareInputs: opts.declareInputs || null,
+      inputValues: opts.inputValues && typeof opts.inputValues === 'object' ? opts.inputValues : null,
       windowAmbiguity: objectWindowAmbiguity,
       runtimeCheck,
       runtimeExclude,
@@ -27858,7 +28226,16 @@ function translatePineResult(source, opts = {}) {
       // fall through — `objectOnlyCleanWin` / `paintOnlyWin` decide, below
     } else {
     const guard = draws ? 'pine:objects-only' : 'pine:no-output'
-    const r = refusalValue(guard, REFUSALS[guard], null)
+    // ⛔ Engine 51 (review of #1149, minor 5) — WHEN A WITHHELD DRAWING IS WHY NOTHING IS
+    // LEFT, THE HEADLINE SAYS SO. "No plot and no alert condition" is true of such a
+    // script and names nothing its author can act on; the drawing it lost, and the
+    // reason, is the fact that matters.
+    const withheld = !cleanObjectOnly && objectPass.diagnostics
+      && (objectPass.diagnostics.withheldDrawings || [])[0]
+    const r = withheld
+      ? refusalValue(withheld.guard, withheldHeadline(withheld),
+        withheld.line === null ? null : { line: withheld.line, column: null, index: null, token: null })
+      : refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
       presentation: { overlay, levels, ...(paintRecs ? { paints: paintRecs } : {}) },
@@ -31419,6 +31796,14 @@ function verifyRoundTrip(formula, ast) {
 // --------------------------------------------------------------------------- //
 // refusal values
 // --------------------------------------------------------------------------- //
+
+/** ⭐ Engine 51 (review of #1149, minor 5) — the headline of a script with no plot and
+ *  no alert condition whose drawing was withheld by the enum rule. */
+function withheldHeadline(w) {
+  const what = w.family ? `the ${w.family}` : 'the drawing'
+  const where = w.line === null || w.line === undefined ? '' : ` at line ${w.line}`
+  return `this script has no plot or alert condition, and ${what} it draws${where} is withheld: ${w.sentence}`
+}
 
 function refusalValue(guard, message, at, suggest, span) {
   return {
