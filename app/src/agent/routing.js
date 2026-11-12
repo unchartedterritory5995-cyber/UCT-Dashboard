@@ -204,6 +204,15 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
+  // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's Alerts row in their OWN group, WORDS-ONLY
+  // (as #1027's watchlistShow / #1073's compareGroups), so `alerts` and `drawings` keep master's exact size: one more action in
+  // either moved the nothing-recognised fill, which sits exactly at the 55-action budget (data / boardEdit / screener / undo cut).
+  // Its words: a duplicate / copy / clone verb with a drawing noun; an alert word with a position's entry / stop / target.
+  // Plain "alert at 150" stays `alerts` and "draw a line" stays `drawings` (no position or duplicate word).
+  { id: 'drawingOps', title: 'Duplicate a drawing on its chart; set a position drawing\'s entry / stop / target alerts', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.duplicate', 'drawing.setPositionAlerts'],
+    words: [/\b(?:duplicate|copy|clone)\b.*\b(?:drawings?|trend ?lines?|lines?|rays?|shapes?|rectangles?|boxe?s?|fib\w*|channels?|pitchforks?|arrows?|annotations?|positions?)\b/,
+      /\balerts?\b.*\b(?:entry|stops?|targets?|positions?)\b|\b(?:entry|stops?|targets?|positions?)\b.*\balerts?\b|\b(?:alert|notify|ping|tell) me\b.*\b(?:entry|stops?|targets?)\b/] },
   { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap', 'drawing.add'],
     // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
@@ -340,6 +349,9 @@ export const GROUPS = [
       /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
+      // #1076: an undo is MATCHED by its own words whatever the pack size (v1's fallback fill can reach the budget and
+      // cut the 1-action undo group): "scratch that", "never mind", "go back to how it was (before)", "put it back"
+      /\bscratch (?:that|it|this)\b|\bnever ?mind\b|\bgo back to (?:how|the way|what) (?:it|they|things|everything) (?:was|were)\b|\bput (?:it|that|them) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
   // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)

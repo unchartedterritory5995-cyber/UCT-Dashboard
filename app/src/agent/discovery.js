@@ -104,9 +104,11 @@ export const TOPICS = [
       // W1-B: the time-anchored tools, from the dates and prices the member gives
       'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
       // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
-      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert'], productHas: true,
-    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
-    known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
+      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert',
+      // the menu's Duplicate and a position's Alerts row (capabilities/drawingOps.js)
+      'drawing.duplicate', 'drawing.setPositionAlerts'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level, or the entry, stop and target alerts of a position drawing (always shown to you first); duplicate a drawing; show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
+    known: () => ['Save as default, copying a drawing to a different symbol, reordering drawings and switching Drawing Boards — those are done on the chart'],
     planned: null,
   },
   {
