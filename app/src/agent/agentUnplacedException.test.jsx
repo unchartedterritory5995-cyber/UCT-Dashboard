@@ -93,3 +93,5 @@ describe('control: a non-chart possessive is never read as a chart exception', (
     expect(ex(t)).toContain(UNPLACED)
   })
 })
+
+// agent-ci-required validation B (Agent path): expect pending, then success after the push run. Close unmerged.
