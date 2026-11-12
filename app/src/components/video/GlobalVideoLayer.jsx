@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
+import { useAfterFirstPaintIdle, useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
 import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter, getDockEl, seekTo as storeSeekTo, consumeStartAt } from './videoStore'
 import { computeHostStyle, dockPinTransform } from './hostStyle'
@@ -54,11 +54,14 @@ export default function GlobalVideoLayer() {
   // module scope) so tests can flip import.meta.env before rendering — see
   // the identical VITE_GRID_WARM_ENABLED pattern in MultiChartGrid.jsx.
   const bgAudioEnabled = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED === '1'
-  const apiReady = useYouTubeApi()
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const { vw, vh } = useViewport()
   const { list, index, mode, pos, dockRect } = snap
   const active = mode !== 'closed' && list.length > 0
+  // The player API loads when a video opens, or once the page has drawn its first chart and gone idle
+  // (so a first play is still instant): never at boot, competing with the first paint.
+  const warm = useAfterFirstPaintIdle()
+  const apiReady = useYouTubeApi({ start: active || warm })
   const docked = mode === 'docked'
   const current = active ? list[index] : null
   const upNext = active && index + 1 < list.length ? list[index + 1] : null
