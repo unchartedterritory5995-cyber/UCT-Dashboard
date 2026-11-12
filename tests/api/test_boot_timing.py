@@ -38,3 +38,14 @@ def test_the_previous_pods_shutdown_is_read_from_the_volume(tmp_path, monkeypatc
     (tmp_path / "last_shutdown.json").write_text(_json.dumps({"took_s": 12.3, "at": _time.time() - 40}))
     d = m._previous_shutdown()
     assert d["took_s"] == 12.3 and 39 <= d["ago_s"] <= 45
+
+
+def test_the_gap_fill_startup_check_runs_off_the_boot_path():
+    """It took 7.45 s of the pod's 19.8 s to serving (2026-11-12); a deploy is a member-facing gap until
+    the pod serves, so lifespan starts it in a thread and never calls it inline."""
+    src = pathlib.Path(m.__file__).read_text(encoding="utf-8")
+    life = next(n for n in ast.parse(src).body if isinstance(n, ast.AsyncFunctionDef) and n.name == "lifespan")
+    inline = [c for c in ast.walk(life) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+              and c.func.attr == "startup_check" and getattr(c.func.value, "id", "") == "flow_gap_autofill"]
+    assert inline == []
+    assert "target=flow_gap_autofill.startup_check" in ast.get_source_segment(src, life)

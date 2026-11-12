@@ -64,6 +64,38 @@ function recorder(impl) {
 }
 const keyOfUrl = (url) => decodeURIComponent(url.split('/api/bars/')[1].split('?')[0])
 
+// P3-S1 review fix 5 — THE DELAYED SIGNAL. INVARIANT: `tailExhausted(key)` is true exactly while
+// the key's fast catch-up budget is spent (the tail stayed unverified / behind through every
+// fast retry), a listener hears every flip, it clears the moment a poll finds the tail current,
+// and a stopped key reports false.
+describe('tailExhausted — the catch-up budget the DELAYED badge maps', () => {
+  it('unverified through the burst ⇒ exhausted (flip heard); current again ⇒ cleared; stop ⇒ false', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '1' })
+    let status = 'unverified'
+    const rec = recorder(async () => answer(key, { tailStatus: status }))
+    const w = world({ request: rec.fn })
+    const flips = []
+    const off = w.net.subscribeTailBudget(key, () => flips.push(w.net.tailExhausted(key)))
+    const stop = w.net.start(key)
+    expect(w.net.tailExhausted(key)).toBe(false)
+    for (let i = 0; i < 40 && !w.net.tailExhausted(key); i++) await vi.advanceTimersByTimeAsync(1000)
+    expect(w.net.tailExhausted(key), 'budget spent after the fast burst').toBe(true)
+    expect(rec.calls.length).toBe(TAIL_CATCHUP_MAX_TRIES)
+    expect(flips).toEqual([true])
+    status = 'verified'
+    await vi.advanceTimersByTimeAsync(INTRADAY_POLL_MS + 1000)
+    expect(w.net.tailExhausted(key), 'a current tail clears it').toBe(false)
+    expect(flips).toEqual([true, false])
+    status = 'unverified'
+    for (let i = 0; i < 80 && !w.net.tailExhausted(key); i++) await vi.advanceTimersByTimeAsync(1000)
+    expect(w.net.tailExhausted(key)).toBe(true)
+    stop()
+    expect(w.net.tailExhausted(key), 'a stopped key is never DELAYED').toBe(false)
+    expect(flips).toEqual([true, false, true, false])
+    off()
+  })
+})
+
 describe('S9 poll budget per simulated hour', () => {
   it('a current, verified tail polls on the 30 s cadence — within budget, never silent', async () => {
     const key = keyOf({ sym: 'SIM', tf: '5' })

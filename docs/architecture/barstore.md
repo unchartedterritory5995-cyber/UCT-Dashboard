@@ -29,8 +29,8 @@ IDB / mem caches already use. Only 60m differs by session: `AAPL_60` (TradingVie
 ## Snapshot (frozen, identity-stable)
 
 `{key, sym, tf, bars, developing, completeThrough, verifiedThrough, seriesRev, historyRev,
-cacheKey, grid, tailStatus, sealedSpans, restFrom, deltaFrom, status, baseRev, devRev, depth,
-source, restSeen, needsFull, error, invalidatedFor, gen, pendingHistoryRev, depthFloor}`
+cacheKey, adjBasis, grid, tailStatus, sealedSpans, restFrom, deltaFrom, status, baseRev, devRev, depth,
+source, restSeen, needsFull, error, invalidatedFor, gen, pendingHistoryRev, depthFloor, localHoleFrom}`
 
 - `bars`: CLOSED buckets, strictly increasing unique `t`, UNIX SECONDS (intraday: bucket start;
   D/W/M: 00:00 UTC of the label date — `toISOString().slice(0,10)` is the server's label). Each
@@ -54,6 +54,28 @@ source, restSeen, needsFull, error, invalidatedFor, gen, pendingHistoryRev, dept
   on screen (status `updating`, `needsFull`), deltas are refused, and the full read of that
   history replaces the entry atomically.
 - `depthFloor`: the depth a scroll-back reached; the per-tf depth cap never trims below it.
+- `localHoleFrom`: an interior hole a hydrated copy reported (`repair_from`) that no restored
+  seal explains; while it is older than `deltaFrom`, `needsFull` is forced (a delta could never
+  re-read it). A full answer clears it.
+- `adjBasis` (P4): the server's `adj_basis` (bar-contract.md §2) of the held rows — the price
+  basis. A LOCAL row carries the stamp of the copy it came from (`ab`; absent = unstamped).
+
+### Price basis (P4) — one rule, replaces the 2% close test
+- Identity: an answer / copy / scroll-back window whose `adj_basis` differs from the held one
+  (both non-null) is another row series — the `cache_key` mechanism: a full answer resets the
+  entry, a delta / window sets `needsFull` (gen + 1), a local copy is refused whole.
+- A server answer keeps a local row only when its basis is PROVEN: stamped with the answer's
+  `adj_basis`, or (unstamped legacy copy / answer without `adj_basis`) by
+  `reducer.basisVerdict` over the rows the answer also carries — 'changed' iff ≥ 2 rows are ONE
+  uniform rescale (o/h/l/c share r, |r − 1| > 0.5%, volume ≈ 1/r or unchanged) ⇒ every local
+  row goes; 'same' ⇒ re-stamped with the answer's basis; 'unknown' (no overlap) ⇒ a FULL answer
+  naming its basis discards those rows once. Chosen over "discard every unstamped record": it
+  keeps a legacy copy's depth whenever its overlap proves it, and a close-only difference (a
+  bucket the copy caught while forming — a volatile name's > 2%) is never a basis change
+  (the 2% rule's false positive). Railed: `reducer.test.js` "P4 price basis" (B1–B4, B2 a
+  seeded property).
+- A local copy that lands after a server answer adds deeper rows only on the held basis
+  (stamped, or proven 'same').
 
 ### One guard for every server-sourced action
 `staleReason` refuses a payload whole when its `gen` is stale or its `history_rev` is OLDER than
@@ -135,7 +157,7 @@ absence rule, the rev gate, the stream-live tick gate or the foreign check each 
 
 ### Persist
 - Writes on a `baseRev` change only, only for a server-backed snapshot (`restSeen` — a copy read FROM the cache is never written back, which would re-stamp its `savedAt`), debounced 1 s then at idle, ≤1 write per key in flight. Rows in the cache's legacy shape (`{t,o,h,l,c,v}`, D/W/M `t` = 'YYYY-MM-DD'); the developing bar is not persisted. Windowed keys never.
-- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row.
+- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, adj_basis (P4), complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row. The `@hist` segment carries only its stamp (cache_key, history_rev, adj_basis). A stamped write onto a record of another stamp (or onto an unstamped one, when it names a basis / is `@hist`) REPLACES it — rows are never merged under a stamp that does not describe them (`barsIDB.idbPutMonotonic`).
 - Invalidation: any other writer's put replaces the record WITHOUT `meta`; on hydrate a span survives only if the stored rows inside it (clipped to the stored depth) are exactly the sealed rows, same fingerprints; the reducer then refuses another key / cache_key / older history_rev / stale gen. Restored seals clear `needsFull`, so the first request after a reload is a `since=` delta — and they must be RE-PROVEN by the first server answer: a legacy answer, a null or different history_rev / cache_key voids them (rows drop to local; a delta is refused, a full read follows). Two local copies: one of a newer history replaces the other; one with an older series_rev only adds deeper rows.
 
 ### Network
@@ -199,18 +221,18 @@ close through Writer D's "live close stands" rule). Railed: `reducer.test.js` IN
 | IDB read once per (sym, tf) in render; mem fast path | `persist.hydrate` on subscribe (mem synchronous, then IDB) |
 | cross-ticker guards (`idbReadyForRef`, `data.ticker`, `sameSymTf`, load seq) | S7 key identity; `useBarSnapshot` returns the new key's snapshot in the same render |
 | 60m answer on the other grid refused | reducer: `cache_key` / `grid` identity |
-| `since=` from the IDB / mem tail (+1 s back-off), `repairFromT` hole re-ask | network `deltaFrom` / mutable-window deltas; holes inside a sealed span are the server's absences — `repairFromT` **dropped** |
+| `since=` from the IDB / mem tail (+1 s back-off), `repairFromT` hole re-ask | network `deltaFrom` / mutable-window deltas; holes inside a sealed span are the server's absences; **review fix 6**: a hydrated hole (`repairFromT` → `repair_from` → `localHoleFrom`) older than the delta start forces a FULL read |
 | fresh / behind / gapped + `isCacheCurrentForView` (`_idbNotCurrent`, mem refused) | `status.js` (one freshness contract): provisional vs context |
 | `_staleContext`, `_idbProvisional` (+ Part 2 drop-last) | status provisional → context minus last, writers frozen |
 | daily paint authority, `idbStaleDaily`, `_memTailStaleDaily`, `_idbDailyLastInsane` | same predicates on a local-only D snapshot |
-| `_idbBasisMismatch` close-compare + `idbDelete` purge | server rows replace local rows over the answer span; `history_rev` / `cache_key` reset. **Dropped** for local rows left of the server window (returns `false`) |
+| `_idbBasisMismatch` close-compare + `idbDelete` purge | server rows replace local rows over the answer span; `history_rev` / `cache_key` / `adj_basis` reset; **P4**: a local row is kept only on a proven basis (its `adj_basis` stamp, or `basisVerdict` — see §Price basis), else EVERY local row is dropped (full: reset + apply; delta: needsFull). `_idbBasisMismatch` stays `false` (the reducer owns it) |
 | keep deeper IDB over a shallow full set; `spliceDeepLeftOfFresh` | reducer: local rows OLDER than the server-covered region are kept |
 | delta merged in render; no-op poll skip | reducer merge (one snapshot); a no-op returns the same snapshot |
 | split-fetch `/api/bars-history` (edge, `d=` date), Fix 2 cold-tail paint, fp dwell | **dropped**: D/W/M depth = `ensure({depth})` on the store's one URL builder; edge history is a follow-up |
-| intraday `@hist` IDB segment | **dropped** (the store persists its series; windows re-fetched) |
+| intraday `@hist` IDB segment | **review fix 6**: persist.js writes it (`idbPutHistory`) for a series deeper than the tail record when history grew / `historyLagsTail`; hydrate reads it (`idbGetHistoryEntry`) as a prepend-only `history` copy (reach + basis). **P4**: the segment is STAMPED (`histStamp`: cache_key, history_rev, adj_basis); the reducer refuses it on another cache_key / adj_basis or a history_rev that is not exactly the held one; unstamped needs a proven seam (`basisVerdict` 'same'); hydrate cuts it at its newest interior hole (`barsIDB._newestInteriorHoleEnd`); a write under another stamp replaces it |
 | left windows (`_loadOlder`), 900 ms dwell, PREFETCH_WINDOWS warm | `store.scrollBack` (#1116 seam rule); same dwell + loop |
 | background warm of the other tfs (sequential, abort on switch, `&warm=1`) | facade `prefetch` at background rank, `&warm=1`, aborted on switch (the lane gate bounds concurrency) |
-| SWR poll cadence / dedupe / Retry-After / catch-up budget | network.js (same modules); `_tailCatchupRef` is a fresh state, so the badge's DELAYED (budget spent) is not reached — **dropped** |
+| SWR poll cadence / dedupe / Retry-After / catch-up budget | network.js (same modules); **review fix 5**: `network.tailExhausted(key)` / `subscribeTailBudget` → `_tailCatchupRef` (DELAYED) |
 | replay `to=` window, no polling | windowed key (`@to=`), read once |
 | custom tf: base SWR + resample | base key subscription + memoized `resampleForSpec` |
 | W/M synthesized from the mem Daily | resample of the held D snapshot |
@@ -221,3 +243,125 @@ close through Writer D's "live close stands" rule). Railed: `reducer.test.js` IN
 | `window.__uctBarsDebug` traces | **dropped** |
 | IDB first-paint timeouts (600 ms / 4 s once the browser has a cache) | **dropped**: the request never waits on the cache read (same request count) |
 | compare SWR | `useCompareBars`, shared by both hooks |
+
+### P3-S1 review fixes (BARSTORE path; the switch stays OFF)
+
+1. **Render cost — split notify.** `registry.subscribe(key, cb, {wake})`: `'base'` subscribers
+   (the chart's `useBarSnapshot(…, {wake: 'base'})` → `getBaseSnapshot`) are not woken by a
+   developing-only change (`reducer.isDevOnlyChange`); `'dev'` subscribers
+   (`store.subscribeDeveloping`) get one call per animation frame with the newest snapshot. The
+   chart re-renders / `legacyBars` copies / resamples / setData()s per BASE change only; the
+   developing bar is painted by Writer D's one function (`_writerDRef.retop`, series.update of
+   candle + volume) from the dev channel. Railed: `StockChart.barStoreWriterD.test.jsx` (60
+   developing-only ticks ⇒ ≤ 1 setData, ≤ 1 repaint pass), `useBarSnapshotBars.test.jsx`.
+   Indicators / legend follow the developing bar at base changes (as the legacy poll did).
+2. **Push gate.** `liveFeed` subscribes to barsStreamManager only when
+   `lib/realtimeBarsGate.realtimeBarsEnabled()` (`VITE_REALTIME_BARS`, the owner
+   `useRealtimeBars` reads too); off ⇒ push never counts as delivering, ticks are the source.
+3. **Restored forming bar.** The server answer takes its open / close; its extremes / volume
+   replace the copy's only when `verified_through ≥ seenAt` (the copy's savedAt), else H/L/V merge
+   monotonically (S4). Railed: property suite "S4 across a cache restore".
+4. **One key function.** `prefetch.viewKeyFor(sym, tf, {showExtended, window})` serves
+   `chartKeyFor` and every facade call; the handoff passes the PANE's `showExtended`
+   (`ChartWidget` → `useSymbolHandoff`).
+5. **DELAYED** — see the table above.
+6. **Deep history / holes / basis** — see the table above (`persist.test.js` "review fix 6").
+
+## P3-S2 — the store is the ONLY writer of the developing candle (BARSTORE on)
+
+`components/chart/legacyLiveWriters.js` holds every legacy live writer, MOVED out of StockChart
+unchanged: A (livePrices tick effect), B (`onRealtimeBar` + `useRealtimeBars` + reconnect backfill +
+60m grid opt-in), C (realtimeCandle registry), D (`legacyAfterSetData` seed / Finnhub re-top +
+`legacyPushRetop`), E (fast D/W/M 1m tick + the legend's `liveTickRef`), F (custom-tf), the frozen-chart
+watchdog, the per-switch ref reset and the tf-switch push-hold fold. Their state (`liveBarRef`,
+`lastBarRef`, `lastBarSymRef`, `barsPushActiveRef`, `provisionalStaleRef`, `sessionOwnsDailyRef`,
+`gapHealAtRef`, `watchdogTriesRef`, `barStartVolRef`) is written only there.
+
+**One structural gate.** Each export is chosen once at module load: `LEGACY_LIVE = !BARSTORE`; a hook
+export is the writer or an inert stand-in that calls no hook; `liveAfterSetData` /
+`liveAfterVolumeSetData` (updateChart's two post-setData steps) are the legacy step or "call the store
+paint". So under BARSTORE no legacy writer is mounted: no subscription, no effect, no ref write.
+Deleted with the switch (P3-S3).
+
+**The store paint** (StockChart `_storeDevPaintRef`): the only candle / volume `update()` under BARSTORE.
+Triggers: after updateChart's setData (`paint(true)`) and the store's dev channel (one call per frame).
+It paints `_storeDevRef` = `useBarSnapshotBars.viewDevelopingOf(snapshot)`:
+- the view's freeze (provisional CONTEXT on screen, or a tail > 8 h old) is the channel yielding `null`;
+- a custom tf gets its own forming bucket: `resampleForSpec` of the native developing bar with the
+  native rows of the same bucket (= the last bucket of the base path's resample — railed);
+- Heikin-Ashi: `indicators.heikinAshiNext` (the ONE recurrence; `toHeikinAshi` and the adapter's tail
+  step with it) continued from the HA bar before the bucket in `displayBars` (review fix (b));
+- skipped on replay / cutoff, a D/W/M bar the session preview owns, a non-RTH bucket on an RTH view,
+  and (dev channel only) a static chart (`liveUpdates` off);
+- never an older state after a newer: a lower `devRev` or an earlier time than the last paint / the
+  series tail is refused.
+Every reader of "the developing bar on screen" (legend, MA overlay extension, session chip, screenshot
+price, the live-tick sanity baseline) goes through `devOnScreenSource` — the legacy refs or the bar the
+store paint recorded (`_storeDevBarRef`). Under BARSTORE the legend no longer folds a quote feed into
+O/H/L/C, and the D/W/M volume no longer takes the live day volume: both are snapshot.developing's.
+
+**Review fix (a).** A dev flush whose `baseRev` the hook has not rendered yet is dropped by the channel;
+the render of that base now takes `store.getSnapshot(key)`'s developing bar whenever its `baseRev`
+equals the rendered base's, and paints it in an effect — the final developing state paints even when
+no further tick arrives. Railed: `useBarSnapshotBars.devChannel.test.jsx` (deferred render + seeded
+interleavings: the bar handed to the paint never goes back and settles on the store's newest).
+
+**Review fix (c).** `utils/viewSession.resolveShowExtended(cs, forceExtendedHours)` is the one
+showExtended rule (StockChart, ChartWidget's handoff key, ChartPane / GridChartCell EXT toggles).
+
+Rails: `engine/__tests__/r1StoreWriterCensus.test.js` (R1: the candle-write sites of StockChart are the
+base paint, two static Model Book repaints and the store paint; every legacy export is inert under
+BARSTORE), `singleWriterIndex.test.js` (derives writers in both files; StockChart holds only writer S),
+`StockChart.barStoreLive.test.jsx` (painted P1 H↑ L↓ open-once V↑ per bucket, P2 painted = newest, P3 a
+rolled candle = the store's closed row, HA, R1 at runtime with a quote that only the legacy source paints).
+
+## P3-S2b — the live input is whichever live source is active; gaps and tick rows are statuses
+
+- **One D/W/M fold base, two live sources** (`liveFeed.js`). The fold state (the server's developing
+  period bar + its arrival) is tracked whether or not push is on. Push gated off (prod:
+  `VITE_REALTIME_BARS=0`): the tick fallback drives the period bar — price (H/L union, close; RTH
+  ticks only, as the 1m fold) and VOLUME from the live-price feed's cumulative day volume
+  (`periodTickVolume`, the one owner). The SERVER's period bar defines the volume (D = the Massive
+  daily aggregate, extended hours included; the feed's day volume is the snapshot's regular-session
+  `day.v` in RTH and a summed-aggregates total outside it — a different definition), so the feed only
+  ADDS what traded since the server's bar arrived: v = base.v + (dayVol − dayVol at arrival), for D/W/M
+  alike (unknown arrival / another day ⇒ nothing: v ≤ truth until REST). S4: within a period the
+  developing volume never falls (a non-final REST answer merges by max — liveBarMerge.mergePushBar). The reducer
+  takes it on `tick-fallback` as `event.v` (period keys only), never lowering the volume. Push is not
+  enabled by this.
+- **Legend (BARSTORE)**: reads the bar the store paint painted (every tick → dev channel → paint;
+  the off-cursor legend re-reads it ≤ 500 ms). **Decision (intentional difference from legacy):**
+  the D % is the SHOWN bar vs the PREVIOUS daily bar's close — it matches the candle
+  (TradingView-style). Legacy used the feed's change_pct / prev_close, which outside RTH (pre-market,
+  before today's bar exists; after hours) names another day's move than the bar on screen.
+- **Live gap** (`reducer.liveGapStart`, `liveGapFrom`): a bucket is MISSING only if it starts at or
+  after max(verifiedThrough, end of the newest row) — the server never vouched for it (bar-contract.md
+  §verified_through); a thin name's proven-empty buckets are not a gap. A live action opening a bucket
+  past a missing one records it: `deltaFrom` ≤ it and the store kicks ONE read (index.js). Status is
+  untouched and the forming candle still paints. Any server answer clears it.
+- **Tick-closed rows**: a closed row the tick fallback produced (src `tick`) after the newest REST row
+  sets `snapshot.tailUnverified` (`status.tickClosedTail`) until a REST answer replaces it (rest >
+  tick). It is a FLAG, not a status: the status never flaps across tick bucket rolls.
+- **R1 census widened**: candle AND volume write sites, per (statement, method); updateChart's
+  `_applyData` incremental `update()` is its own row.
+
+## P3-S2c — the open / close switch of the feed's volume; no `tailUnverified`
+
+- The live-price feed's day volume changes DEFINITION at 09:30 (pre-market summed aggregates →
+  regular-session `day.v`, which restarts below the pre-market total) and at 16:00. The D/W/M fold
+  anchor now records that definition (`def0`: the snapshot's `ext_session`, else the clock), and
+  `liveFeed.anchorTick` re-anchors ONLY when the definition or the day changes: `dayVol0` = the
+  reading now, `vBase` = the volume already shown (never lower). Within one definition and day a
+  falling (stale) reading never re-anchors: the fold keeps the reading's high-water mark and
+  v = vBase + (hwm − dayVol0), so a dip-and-recover is never counted twice. The definition is the
+  wire `ext_session` ('pre_market' | 'post_market' ⇒ extended; null ⇒ the clock decides).
+  The first RTH tick after a pre-market anchor asks the server for the period bar once
+  (`onReanchor` → `network.kick`) for what traded between 09:30 and that tick. Railed (seeded,
+  across both boundaries): painted v never falls and never under-counts the feed's RTH gain after
+  the first post-open tick.
+- `snapshot.tailUnverified` is REMOVED. Its only candidate reader, the live badge
+  (`intradayTailPoll.liveBadgeState`: live / updating / delayed / stale / unavailable, fed by
+  `network.tailExhausted` → `_tailCatchupRef`), cannot express "a tick-closed row awaits the next
+  poll" without flapping at every tick bucket roll with push off — the flap the status rule just
+  removed — and nothing is late or missing: the next delta re-reads those rows (`deltaFrom` starts at
+  or before every unsealed row) and REST replaces them. `status.tickClosedTail` stays as the predicate.
