@@ -43,9 +43,9 @@ Local files and a local server, not Artifacts (he cannot use them).
 |---|---|---|---|
 | Pilot | SET.07, F9.02, F6.04 | 117 in, 113 live | DONE, commit 8d38c1f902. 33 agents, 6.03M tokens. Owner has not yet reviewed it. |
 | 1 | SET.08 to SET.11 | 287 | DONE and COMMITTED (d312c84b88). 60+4 agents, 12.1M + 0.65M tokens. Verification round fixed 18 of 61 more. |
-| 2 | SET.12 to SET.21 | 652 (balanced planner: 105 full-route, 547 light-route, 21 chunks) | RUNNING, run `wf_b969ceca-6df`, scratch `wave2`, args `wave2_args.json`. Next: sync_scratch, integrate_wave, verify the fixed questions, gates, commit. |
+| 2 | SET.12 to SET.21 | 652 | Workflow DONE (90 agents, 20.6M tokens, about 32k per question). Integrated and WRITTEN, 13 validator problems fixed by hand, 0 left. NOT yet committed. Final re-check fix rate: full 22%, light 20%. VERIFY running: `wf_1b446492-b0e` over 114 questions (args `wave2_verify_args.json`). Then apply the verify fixes (`apply_upgrade <lesson> empty.json --check <scratch>/agents/wave2/verify/<unit>.check.json --batch wave2 --write`), gen_courses, strict audit, tests, quote check, commit. |
 | 3 | SET.22 to SET.31 | 667 (86 full-route, 581 light-route, 22 chunks) | RUNNING, run `wf_5c8cc8c2-a84`, scratch `wave3`, args `wave3_args.json` (launched while wave 2 was still running). |
-| 4 | SET.32, 33, 34, 40 to 46 (SET.35 to 39 do not exist) | 670 (151 full-route, 519 light, 22 chunks) | planned: `wave4_args.json` |
+| 4 | SET.32, 33, 34, 40 to 46 (SET.35 to 39 do not exist) | 670 (151 full-route, 519 light, 22 chunks) | RUNNING, run `wf_2646149c-298`, scratch `wave4`. |
 | 5 | SET.47 to SET.54 | 503 (65 full-route, 438 light, 16 chunks) | planned: `wave5_args.json` |
 | 6 | Foundations F1, F5, F7, F10, F10b (30 lessons) | 663 (all light-route, 30 chunks) | planned: `wave6_args.json` |
 | 7 | F6 (17 lessons, not F6.04) | 399 (all light-route) | planned: `wave7_args.json` |
@@ -72,7 +72,7 @@ Exact unit lists: `_study-resume\overbuild\wave_units.json`. The full-library co
    calc or the question (say intermediate results in words); a `format` change (cut it and add a new question instead); `simple` longer
    than 25 words or with a semicolon; a lone Yes against three No. Small ones by hand; many at once by a repair agent that writes a
    `repair.json` in the `final.json` shape, layered on with `apply_upgrade`.
-6. **Verify the questions edited after the last independent check** (the pilot's round 3 still found 10 fixes in 24): one fresh cold-check
+6. **Verify the questions edited after the last independent check** (build the work list with `python _study-resume\overbuild\make_verify_args.py waveN --extra UNIT:qNN,qNN ...` after `integrate_wave --write`; it prints the args to paste; add `--extra` for any keys you hand-edited) (the pilot's round 3 still found 10 fixes in 24): one fresh cold-check
    agent per lesson over only those keys (see `overbuild-pilot-verify` in the pilot scripts; copy it, change the file paths and keys), then
    apply with `apply_upgrade <lesson> empty.json --check <their check file> --write`.
 7. **Gates.** `python -m scripts.study.gen_courses`, `python -m scripts.study.library_audit --strict`, `python -m pytest tests/test_study_courses.py tests/test_study_library_audit.py tests/test_study_apply_upgrade.py tests/test_study_wave_tools.py -q`,
