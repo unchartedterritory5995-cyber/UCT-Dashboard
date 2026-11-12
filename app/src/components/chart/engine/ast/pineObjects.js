@@ -71,9 +71,18 @@ export const CREATE_POSITIONAL = Object.freeze({
 })
 
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
- *  ADDRESS, not properties, so they are split out by the reader. */
+ *  ADDRESS, not properties, so they are split out by the reader.
+ *
+ *  ⛔⛔ ENGINE 51 — SLOTS 6-8 ARE `text_size, bgcolor, tooltip`, IN THAT ORDER
+ *  (Pine v4-v6 reference). Until engine 51 this list read `bgcolor, tooltip,
+ *  text_size`, so a positional cell with seven or more arguments after the
+ *  address read its size as a colour, its colour as a tooltip and its tooltip
+ *  as a size, while the same call written with names was read correctly. The
+ *  runtime lane's `objectStore.js` `table.cell` signature always had Pine's
+ *  order; `cellPositionalOrder.test.js` now derives one from the other, so the
+ *  two lanes cannot drift again. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  'text_halign', 'text_valign', 'text_size', 'bgcolor', 'tooltip',
   // ⭐⭐ SLOTS 9 AND 10, FOR `text_formatting` — PINE'S FOURTEENTH ARGUMENT.
   // Master's, restored 2026-09-23: taking this file wholesale in the merge
   // dropped them, and a COMPUTED `text_formatting = cond ? bold : normal`
