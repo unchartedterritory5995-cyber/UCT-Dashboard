@@ -103,6 +103,8 @@ describe('quiet Journal header on the desktop Notebook', () => {
   it('CONTROL: on the touch tier the Notebook header keeps every control (the phone fold still has them)', () => {
     setViewport(false)
     renderAt('/journal/notebook')
+    // the page title is "Notebook" on every tier (the title is not gated on the desktop tier)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Notebook$/)
     for (const get of [LOG, ACCOUNT, REPORT, GEAR, MORE, HELP]) expect(get()).not.toBeNull()
   })
 })
