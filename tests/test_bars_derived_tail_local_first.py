@@ -206,6 +206,19 @@ def test_derived_tail_inherits_the_bases_verification(env):
     assert bars_fetch.tail_verified_through("SPY", "30") == _NOW.timestamp() - 5
 
 
+def test_derived_tail_inherits_the_bases_seal(env):
+    """Bar contract: a derived bucket that ended by the base's `sealed_through` is built
+    only from final base buckets, so the derived series is sealed through the same
+    instant (and `complete_through` on 30m never outruns the 15m it is built from)."""
+    sq, *_ = env
+    _seed(sq, "30")
+    base_last = sq.get_last_ts("SPY", "15")
+    sq.record_sealed("SPY", "15", float(base_last), 0.0, _NOW.timestamp() - 5)
+    r = bars_fetch._local_tail_repair("SPY", "30", sq.get_last_ts("SPY", "30"))
+    assert r is not None
+    assert sq.series_meta("SPY", "30")["sealed_through"] == float(base_last)
+
+
 def test_provider_delta_for_a_derived_tf_persists_its_base_first(env):
     """The provider's 15m answer for a 30m repair lands in the 15m store, so the base
     the derived store is built from is the base the next 15m/30m/60m read sees."""

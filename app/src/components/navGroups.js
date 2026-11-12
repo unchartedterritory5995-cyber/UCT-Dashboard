@@ -19,9 +19,9 @@ export const NAV_GROUPS = [
   // routes[0] = the group's primary navigable target. `/morning-wire` is a
   // match-prefix here only (it lights Home); it is NOT a free-tier tab — there
   // is no free tier (owner ruling 2026-10-02, TERM-081 / OI-12).
-  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/terminal', '/morning-wire', '/charts', '/calendar'] },
+  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/charts', '/terminal', '/morning-wire', '/calendar'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
-    routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
+    routes: ['/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
              '/post-market', '/screener', '/catalysts', '/catalysts/history', '/ai-search', '/uct-20'] },
   { key: 'charts', label: 'Charts', icon: 'chart',
     routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library', '/formulas/reference'] },

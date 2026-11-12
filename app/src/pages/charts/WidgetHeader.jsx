@@ -25,6 +25,11 @@ export default function WidgetHeader({
   onAddTab,             // (type) => void — add a new tab of this widget type
   addMenuTheme = null,  // --menu-* bag so the "+" add menu wears THIS widget's canvas color
   tabsOnly = false,     // merged mode: render ONLY the tab strip (no header chrome)
+  // Chart widget's integrated header (/charts board): the chart has NO header bar of its
+  // own — its identity row hosts the chrome. 'dot' renders ONLY the link-colour button,
+  // 'controls' ONLY the window controls (add tab · float · pop out · close). null (default)
+  // = the full header bar, unchanged for every other widget.
+  part = null,
   // In-canvas float: pop a widget off the grid to float on top of another widget.
   onFloat,              // (grid mode) => pop this widget out to a floating panel
   floating = false,     // true while this header is inside a floating panel
@@ -251,7 +256,7 @@ export default function WidgetHeader({
         data-guide="widget.addTab"
         aria-label="Add a tab to this widget"
         title="Add a tab — hold multiple widgets in this one slot"
-      >+</button>
+      >{part ? <UIcon name="plus" size={16} strokeWidth={1.9} gold={false} /> : '+'}</button>
       {addOpen && addPos && createPortal(
         <div
           data-wtab-add-menu
@@ -278,6 +283,66 @@ export default function WidgetHeader({
   // Merged mode: no header chrome (drag grip / color dot / close), just the tab
   // strip floating at the top-left so multi-tab slots stay switchable without
   // breaking the seamless merged look. Nothing renders for a single-tab slot.
+  // ── Chart widget integrated header pieces (see the `part` prop) ──
+  if (part === 'dot') {
+    return (
+        <button
+          type="button"
+          className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
+          onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
+          data-group-suspended={suspended ? color : undefined}
+          data-guide="widget.link"
+          aria-label={suspended
+            ? `Group ${color} is switched off: not linked — click to pick a color group`
+            : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
+          title={suspended
+            ? `Group ${color} is switched off: not linked. This widget keeps group ${color} in the saved layout and links again when extra groups are on. Click to pick a color group.`
+            : isNone
+            ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
+            : `Color group ${color} — click to cycle (grey = not linked)`}
+        />
+    )
+  }
+  if (part === 'controls') {
+    // Grid mode only (WidgetHost never integrates a floating widget). The group is
+    // charts-no-drag, so the gaps between buttons can't start a widget drag.
+    return (
+      <span className={`${styles.ctrlGroup} charts-no-drag`} data-guide="widget.controls">
+        {addControl}
+        {onFloat && (
+          <button
+            type="button"
+            className={styles.popOutBtn}
+            onClick={onFloat}
+            data-guide="widget.float"
+            aria-label="Float widget on top of another"
+            title="Pop out to float on top of another widget (e.g. onto a chart)"
+          ><UIcon name="copy" size={15} strokeWidth={1.9} gold={false} /></button>
+        )}
+        {onPopOut && (
+          <button
+            type="button"
+            className={styles.popOutBtn}
+            onClick={onPopOut}
+            data-guide="widget.popOut"
+            aria-label="Pop out widget"
+            title="Open this widget in its own window you can drag to another monitor"
+          ><UIcon name="popOut" size={15} strokeWidth={1.9} gold={false} /></button>
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onRemove}
+            data-guide="widget.close"
+            aria-label="Close widget"
+            title="Remove this widget"
+          ><UIcon name="x" size={15} strokeWidth={1.9} gold={false} /></button>
+        )}
+      </span>
+    )
+  }
+
   if (tabsOnly) {
     if (!tabRegion) return null
     return <div className={styles.wtabMergedBar}>{tabRegion}</div>

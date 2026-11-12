@@ -13,9 +13,9 @@ beforeEach(() => { document.title = 'Some Previous Title' })
 test('mounting Layout at a nav-covered surface sets document.title', () => {
   renderWithProviders(
     <Layout><div>child</div></Layout>,
-    { route: '/dashboard' }
+    { route: '/breadth' }
   )
-  expect(document.title).toBe(`Dashboard — ${APP_BRAND}`)
+  expect(document.title).toBe(`Breadth — ${APP_BRAND}`)
 })
 
 test('a different nav-covered route gets its OWN title, not a stale one', () => {

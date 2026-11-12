@@ -137,6 +137,8 @@ const tplSig = (list) => JSON.stringify(list ?? [])
 
 export const chartTemplatesKind = {
   name: 'chartTemplates',
+  source: 'prefs',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Chart templates aren't available on this page — open Charts to use a chart template.",
   boardScoped: false,                // a member's templates are the same in every layout
   selfDescribing: true,
   list: (host) => (host?.prefs ? [templatesSnap(host)] : []),

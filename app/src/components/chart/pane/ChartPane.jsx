@@ -8,6 +8,10 @@ import StockChart from '../../StockChart'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
+import SymbolActionsMenu from './SymbolActionsMenu'
+// /charts integrated header: at or above this pane width the timeframe row joins the
+// title row (one header row); below it, two rows. Measured pane width, px.
+const ONE_ROW_HEADER_MIN_W = 1180
 import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
@@ -43,6 +47,7 @@ import useDelisted from '../../../hooks/useDelisted'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
+import { warmTypedSymbol } from '../../../utils/prefetchBars'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -815,6 +820,8 @@ function ChartPane({
       focusableRef.current?.focus({ preventScroll: true })
     })
   }, [onSymbolChange])
+  // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
+  const handleTypedIntent = useCallback((s) => { warmTypedSymbol(s, effectiveTf) }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
@@ -944,6 +951,96 @@ function ChartPane({
   // dock OVERLAYS the right edge instead (the narrow fallback) — still no backdrop.
   const studioDockW = studioDockWidth(paneOuterWidth)
   const studioDocked = studioOpen && (paneOuterWidth == null || paneOuterWidth >= STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W)
+  // ── /charts integrated header (WidgetHost → ChartWidget slots.identityDragClass) ──
+  // The session switch is always the short RTH|EXT form (left of the clock), the settings
+  // gear sits with the window buttons on the right, and when the pane is wide
+  // enough the whole timeframe row moves INTO the title row (one header row). Narrow
+  // panes keep two rows. Every other surface: unchanged (session in the identity row).
+  const integratedHeader = !!slots?.identityDragClass
+  const oneRowHeader = integratedHeader && !mini && showTfBar
+    && Number.isFinite(paneWidth) && paneWidth >= ONE_ROW_HEADER_MIN_W
+  const sessionCfg = (compact || isEcon) ? null : (isDWMtf
+    ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: integratedHeader || sessionForceAbbrev }
+    : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: integratedHeader || sessionForceAbbrev })
+  // The chart widget's symbol menu (▾ after the company name): leverage + holdings.
+  const symbolMenuEl = (integratedHeader && slots?.symbolActions) ? (
+    <SymbolActionsMenu styles={styles} themeVars={menuVars}>{slots.symbolActions}</SymbolActionsMenu>
+  ) : null
+  const tfBarEl = showTfBar ? (
+    <ChartTfBar
+      rootRef={tfBarRef}
+      tf={(isBreadthLike || isEcon) ? breadthTf : tf}
+      visibleTfs={responsiveTfs}
+      onTf={handleTf}
+      /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
+         with it — otherwise the host restricts the row and the user reaches
+         right past it into the full TF_MENU. */
+      showMenu={!Array.isArray(effTfCodes)}
+      menu={{
+        favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
+        customCodes: customTfs,
+        onToggleFav: toggleTfFav,
+        onAddCustom: addCustomTf,
+        onRemoveCustom: removeCustomTf,
+        themeVars: menuVars,
+      }}
+      styles={styles}
+    >
+      {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
+          fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
+      {slots?.tfBarAfterTf}
+      {!compact && !mini && (
+        /* tight: when the Time Navigator sits before the fields, drop the wide
+           left margin so MARKET CAP hugs the box's divider (matches its left gap). */
+        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
+      )}
+      <div className={styles.tfBarRight}>
+        {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
+            to a clean canvas-contrasting line and back; a regular ticker on this
+            surface is unaffected and keeps the user's saved chart type. The
+            button shows the view you'll GET (Line when on candles, and vice-versa).
+            Placed FIRST — before the shared right-cluster slots — so on a breadth
+            chart (where the leverage pill is absent) it inherits the leverage
+            pill's exact seat: the same margin-right + the same trailing
+            [+ / gear / share], so its right edge lands on the leverage pill's
+            right edge, and the + (new chart tab) sits after it next to the gear. */}
+        {isBreadthLike && !mini && (
+          <button
+            type="button"
+            className={styles.breadthLineBtn}
+            onClick={toggleBreadthLine}
+            title={breadthIsLine ? 'Switch to candlesticks' : 'Switch to line chart'}
+            aria-pressed={breadthIsLine}
+          >
+            <UIcon name={breadthIsLine ? 'chart' : 'wave'} size={12} gold={false} />
+            {breadthIsLine ? 'Candles' : 'Line'}
+          </button>
+        )}
+        {slots?.tfBarRight}
+        {/* Chart settings gear — omitted for mini (no room, no chrome) and
+            for a surface that IS the user's one chart (stored=null, no
+            onStore): its settings read now resolves from the /charts
+            workspace, so an edit made HERE would write the global
+            chart_settings pref — a layer that read now outranks — and
+            appear to silently do nothing. Settings stay editable on
+            /charts, where they're edited anyway. */}
+        {!mini && !isOwnChartSurface && !integratedHeader && (
+          <button
+            type="button"
+            className={styles.chartSettingsBtn}
+            data-guide="chart.settings"
+            onClick={openSettings}
+            title="Chart settings"
+            aria-label="Chart settings"
+          >
+            <UIcon name="gear" size={15} />
+          </button>
+        )}
+        {slots?.tfBarEnd}
+      </div>
+    </ChartTfBar>
+  ) : null
+
   const paneClass = styles.chartWidget
     + (studioOpen ? ` ${styles.studioOpen}` : '')
     + (studioDocked ? ` ${styles.studioDocked}` : '')
@@ -968,6 +1065,7 @@ function ChartPane({
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
           showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
@@ -976,88 +1074,36 @@ function ChartPane({
             up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
-          session={(compact || isEcon) ? null : (isDWMtf
-            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: sessionForceAbbrev }
-            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: sessionForceAbbrev })}
+          session={sessionCfg}
+          middleSlot={oneRowHeader ? tfBarEl : null}
+          afterNameSlot={symbolMenuEl}
           showClock={!compact}
-          rightSlot={slots?.headerRight}
+          rightSlot={integratedHeader
+            ? (
+              <>
+                {/* Integrated /charts header: the settings gear sits with the window buttons. */}
+                {!mini && !isOwnChartSurface && (
+                  <button
+                    type="button"
+                    className={styles.chartSettingsBtn}
+                    data-guide="chart.settings"
+                    onClick={openSettings}
+                    title="Chart settings"
+                    aria-label="Chart settings"
+                  >
+                    <UIcon name="gear" size={15} gold={false} />
+                  </button>
+                )}
+                {slots?.headerRight}
+              </>
+            )
+            : slots?.headerRight}
+          leftSlot={slots?.headerLeft ?? null}
+          dragHandleClass={slots?.identityDragClass ?? null}
           styles={styles}
         />
       )}
-      {showTfBar && (
-        <ChartTfBar
-          rootRef={tfBarRef}
-          tf={(isBreadthLike || isEcon) ? breadthTf : tf}
-          visibleTfs={responsiveTfs}
-          onTf={handleTf}
-          /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
-             with it — otherwise the host restricts the row and the user reaches
-             right past it into the full TF_MENU. */
-          showMenu={!Array.isArray(effTfCodes)}
-          menu={{
-            favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
-            customCodes: customTfs,
-            onToggleFav: toggleTfFav,
-            onAddCustom: addCustomTf,
-            onRemoveCustom: removeCustomTf,
-            themeVars: menuVars,
-          }}
-          styles={styles}
-        >
-          {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
-              fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
-          {slots?.tfBarAfterTf}
-          {!compact && !mini && (
-            /* tight: when the Time Navigator sits before the fields, drop the wide
-               left margin so MARKET CAP hugs the box's divider (matches its left gap). */
-            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
-          )}
-          <div className={styles.tfBarRight}>
-            {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
-                to a clean canvas-contrasting line and back; a regular ticker on this
-                surface is unaffected and keeps the user's saved chart type. The
-                button shows the view you'll GET (Line when on candles, and vice-versa).
-                Placed FIRST — before the shared right-cluster slots — so on a breadth
-                chart (where the leverage pill is absent) it inherits the leverage
-                pill's exact seat: the same margin-right + the same trailing
-                [+ / gear / share], so its right edge lands on the leverage pill's
-                right edge, and the + (new chart tab) sits after it next to the gear. */}
-            {isBreadthLike && !mini && (
-              <button
-                type="button"
-                className={styles.breadthLineBtn}
-                onClick={toggleBreadthLine}
-                title={breadthIsLine ? 'Switch to candlesticks' : 'Switch to line chart'}
-                aria-pressed={breadthIsLine}
-              >
-                <UIcon name={breadthIsLine ? 'chart' : 'wave'} size={12} gold={false} />
-                {breadthIsLine ? 'Candles' : 'Line'}
-              </button>
-            )}
-            {slots?.tfBarRight}
-            {/* Chart settings gear — omitted for mini (no room, no chrome) and
-                for a surface that IS the user's one chart (stored=null, no
-                onStore): its settings read now resolves from the /charts
-                workspace, so an edit made HERE would write the global
-                chart_settings pref — a layer that read now outranks — and
-                appear to silently do nothing. Settings stay editable on
-                /charts, where they're edited anyway. */}
-            {!mini && !isOwnChartSurface && (
-              <button
-                type="button"
-                className={styles.chartSettingsBtn}
-                data-guide="chart.settings"
-                onClick={openSettings}
-                title="Chart settings"
-                aria-label="Chart settings"
-              >
-                <UIcon name="gear" size={15} />
-              </button>
-            )}
-            {slots?.tfBarEnd}
-          </div>
-        </ChartTfBar>
-      )}
+      {!oneRowHeader && tfBarEl}
       <div
         ref={focusableRef}
         className={styles.chartFill}
@@ -1081,6 +1127,8 @@ function ChartPane({
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
           hideCompare
+          /* /charts chart widget: a tighter price-axis floor (less empty space at the right). */
+          axisFloor={integratedHeader ? 60 : null}
           {...(isBreadthLike ? {
             // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
             // just freeze the live paths. Watermark = the SYMBOL on top (e.g. UCTA50)
