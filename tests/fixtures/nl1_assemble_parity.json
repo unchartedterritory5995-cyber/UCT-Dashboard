@@ -129,6 +129,8 @@
   "drawing.setProps": "drawings",
   "drawing.setFibLevels": "drawings",
   "drawing.setAlert": "alerts",
+  "drawing.duplicate": "drawingOps",
+  "drawing.setPositionAlerts": "drawingOps",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -173,7 +175,9 @@
   "agent.undo": "undo",
   "guide.explain": "guide",
   "guide.show": "guide",
-  "calendar.day": "calendar"
+  "calendar.day": "calendar",
+  "multiChart.set": "multiChart",
+  "multiChart.cell": "multiChart"
  },
  "groups": [
   {
@@ -201,6 +205,10 @@
    "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
   },
   {
+   "id": "multiChart",
+   "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+  },
+  {
    "id": "layouts",
    "title": "Saved layouts (open, save, create, copy, rename, delete)"
   },
@@ -219,6 +227,10 @@
   {
    "id": "definitions",
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+  },
+  {
+   "id": "drawingOps",
+   "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
   },
   {
    "id": "drawingTools",
@@ -352,6 +364,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -370,6 +386,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
      {
       "id": "drawingTools",
@@ -521,6 +541,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -539,6 +563,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
      {
       "id": "drawingTools",
@@ -704,6 +732,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -722,6 +754,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
      {
       "id": "drawingTools",
@@ -897,6 +933,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -915,6 +955,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
      {
       "id": "drawingTools",
@@ -1062,6 +1106,10 @@
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
@@ -1080,6 +1128,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
      {
       "id": "drawingTools",
@@ -1156,11 +1208,13 @@
     "chartGrid",
     "boardEdit",
     "workspace",
+    "multiChart",
     "layouts",
     "layoutBar",
     "indicators",
     "indicatorSetup",
     "definitions",
+    "drawingOps",
     "drawingTools",
     "drawings",
     "lists",
@@ -1299,6 +1353,8 @@
     "drawing.setProps",
     "drawing.setFibLevels",
     "drawing.setAlert",
+    "drawing.duplicate",
+    "drawing.setPositionAlerts",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -1343,7 +1399,9 @@
     "agent.undo",
     "guide.explain",
     "guide.show",
-    "calendar.day"
+    "calendar.day",
+    "multiChart.set",
+    "multiChart.cell"
    ],
    "routing": null
   }

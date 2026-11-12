@@ -4122,6 +4122,46 @@
     }
    }
   },
+  "drawing.duplicate": {
+   "digest": "8d5c7e8ac3961968",
+   "phrasings": {
+    "duplicate this trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate that drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a duplicate of the trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setPositionAlerts": {
+   "digest": "e5b1a99d6dccea5a",
+   "phrasings": {
+    "set the stop and target alerts on my position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me on my position's stop and target": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the stop and target alerts for that position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setRange": {
    "digest": "c7d636cd12bccc5a",
    "phrasings": {
@@ -4315,6 +4355,36 @@
    "digest": "b2a365594b174c3d",
    "phrasings": {
     "keep a copy of that one": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multiChart.grid.layout": {
+   "digest": "20021a750af90a29",
+   "phrasings": {
+    "can you split my screen into a two by three grid of charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open Multi Chart with two rows and three columns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multiChart.grid.syncCrosshair": {
+   "digest": "e260682e60609d94",
+   "phrasings": {
+    "link the crosshairs across the multi chart grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on crosshair sync for the grid": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -4530,6 +4600,11 @@
   },
   "refuse.arrangeColumns-standin": {
    "digest": "bb2d172e740d8613",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.multiChart.cell-grid-closed": {
+   "digest": "0638b246c841cc2a",
    "gap": false,
    "mode": null
   }

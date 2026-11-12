@@ -29,7 +29,8 @@ import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
 import { makeGridWarmer } from './gridWarm'
 import { prefetchGridWarm } from '../../../utils/prefetchBars'
-import { fetchPeers, fetchGroupTop, fetchGroups, pinEtf } from './groupsApi'
+import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
+import { switchGroup } from './gridGroupActions'
 import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
@@ -101,7 +102,12 @@ export default function MultiChartGrid({ mc }) {
   // ── Maximize: one cell expands to cover the whole grid body (no remount —
   // the cell stays mounted and its wrapper is CSS-promoted over the grid, so
   // the chart just autoSizes up and back). ──
-  const [maxId, setMaxId] = useState(null)
+  // The state lives on `mc` (useMultiChartState) so the UCT Agent maximizes through this same writer; a host whose `mc`
+  // carries none (the screener's results grid) keeps it here.
+  const [localMaxId, setLocalMaxId] = useState(null)
+  const liftedMax = typeof mc.setMaxId === 'function'
+  const maxId = liftedMax ? (mc.maxId ?? null) : localMaxId
+  const setMaxId = liftedMax ? mc.setMaxId : setLocalMaxId
   const onToggleMaxFns = useMemo(
     () => cells.map((_, i) => () => {
       const id = cellsRef.current[i]?.id
@@ -452,24 +458,13 @@ export default function MultiChartGrid({ mc }) {
   // groups, swapping the current group INTO the switcher list so you can flip
   // back. Participates in the shared fill sequence (a stale switch response
   // must never clobber a newer typed fill) and never fails silently.
+  // (gridGroupActions.switchGroup — the same function the UCT Agent runs for "switch to the group it's also in")
   const handleSwitchGroup = useCallback(async (groupId, groupName) => {
     if (spikeActive) return
     const mine = ++fillSeqRef.current.n
-    const g = state.group
-    const n = cells.length
-    let res = null
-    try {
-      res = await fetchGroupTop(groupId, { n, by: 'today' })
-    } catch { res = null }
-    if (mine !== fillSeqRef.current.n) return    // superseded by a newer fill
-    if (!res) { setNotice(`Couldn't load ${groupName} — kept your board`); return }
-    const filled = pinEtf(res.syms, res.etf, n)
-    if (!filled.length) { setNotice(`${groupName} has no chartable names right now`); return }
-    const curName = (g && (g.name || groupMeta.name)) || (g && g.id) || null
-    const others = (g?.alsoIn || []).filter(x => x.id !== groupId)
-    const newAlsoIn = (g?.id && curName) ? [{ id: g.id, name: curName }, ...others] : others
-    mc.fillCells(filled, { id: groupId, name: groupName, by: 'today', n, alsoIn: newAlsoIn, seed: g?.seed })
-  }, [state.group, cells.length, groupMeta.name, mc, spikeActive])
+    const r = await switchGroup(mc, groupId, groupName, { curName: groupMeta.name || null, stale: () => mine !== fillSeqRef.current.n })
+    if (!r.ok && !r.stale) setNotice(r.error)
+  }, [groupMeta.name, mc, spikeActive])
 
   return (
     // Flex column: the grid takes exactly the space remaining under the heat

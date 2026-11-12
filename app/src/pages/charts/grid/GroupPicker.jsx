@@ -3,9 +3,9 @@
 // Groups picker for the Multi Charts menu. Pick a theme -> the grid repopulates
 // with its today's-move leaders (top-N for the CURRENT grid size; no resize).
 import { useEffect, useMemo, useState } from 'react'
-import { parseLayoutId } from './gridLayouts'
-import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
-import { pushRecent, getRecents } from './groupRecents'
+import { fetchGroups } from './groupsApi'
+import { getRecents } from './groupRecents'
+import { pickGroup } from './gridGroupActions'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 
@@ -27,15 +27,10 @@ export default function GroupPicker({ mc, onClose }) {
     return getRecents().map(id => byId.get(id)).filter(Boolean)
   }, [groups])
 
+  // the fetch-and-fill is gridGroupActions.pickGroup — the same function the UCT Agent runs
   const pick = async (g) => {
     setBusy(g.id)
-    const n = parseLayoutId(mc.state.layout).cellCount
-    if (mc.state.mode !== 'grid') mc.enterGrid(mc.state.layout)
-    mc.setGroupsMode(true)
-    const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
-    const filled = pinEtf(syms, etf, n)
-    if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n, name: g.name })
-    pushRecent(g.id)
+    await pickGroup(mc, g)
     setBusy('')
     onClose?.()
   }
