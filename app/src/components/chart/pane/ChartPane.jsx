@@ -57,6 +57,7 @@ import { BARSTORE } from '../barStoreSwitch'
 import styles from '../../../pages/charts/ChartsWorkspace.module.css'
 
 import { STUDIO_DOCK_W_MAX, STUDIO_DOCK_W_MIN, STUDIO_DOCK_MIN_CHART_W, studioDockWidth } from './studioDock'
+import { resolveShowExtended } from '../../../utils/viewSession'
 
 // Letters only, no modifier combos. Period allowed for class-share tickers
 // (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
@@ -294,7 +295,7 @@ function ChartPane({
     onStore,
     chartsTheme,
   })
-  const extHoursOn = chartCs.extendedHoursShading ?? true
+  const extHoursOn = resolveShowExtended(chartCs)
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //

@@ -60,8 +60,8 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     ])
   })
 
-  it('empty → nothing; provisional → CONTEXT minus its last candle, live writers FROZEN', () => {
-    const p = params()
+  it('empty → nothing; provisional → CONTEXT minus its last candle, developing channel FROZEN (null)', () => {
+    const p = params({ _storeDevRef: { current: 'unset' }, _storeDevPaintRef: { current: vi.fn() } })
     const { result } = renderHook(() => useBarSnapshotBars(p))
     expect(result.current.bars).toBeNull()
     // A local copy that stops at 10:00 (behind the 13:15 frontier).
@@ -70,7 +70,9 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     const r = result.current
     expect(r.bars).toHaveLength(local.length - 1)
     expect(r.bars).toBe(r._staleContext)
-    expect(p.provisionalStaleRef.current).toBe(true)
+    expect(p._storeDevRef.current).toBeNull()
+    // P3-S2: the legacy writers' freeze flag is not the store path's — never written here.
+    expect(p.provisionalStaleRef.current).toBe(false)
     expect(r.data).toBeUndefined()                   // no server answer yet
   })
 
@@ -82,7 +84,6 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     const r = result.current
     expect(r.bars).toHaveLength(rows.length)
     expect(r.bars[r.bars.length - 1].t).toBe(et(13, 15))
-    expect(p.provisionalStaleRef.current).toBe(false)
     expect(r._staleContext).toBeNull()
     // `data.developing` is THE developing bar Writer D re-tops from.
     expect(r.data.developing).toEqual({ t: et(13, 15), o: 10, h: 11, l: 9, c: 10.5, v: 100 })
@@ -94,10 +95,11 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     renderHook(() => useBarSnapshotBars(p))
     dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: fiveMin(9, 30, 13, 15) } })
     expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), o: 10, h: 11, c: 10.5 })
+    const n0 = p._storeDevPaintRef.current.mock.calls.length   // a render that advanced the bar paints it too
     dispatch({ type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 15) * 1000, o: 10, h: 11.6, l: 9, c: 11.4, v: 180 }, rev: Date.now() } })
     await act(() => new Promise((r) => setTimeout(r, 40)))   // one frame: the dev channel flushes
     expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), o: 10, h: 11.6, c: 11.4 })
-    expect(p._storeDevPaintRef.current).toHaveBeenCalledTimes(1)
+    expect(p._storeDevPaintRef.current.mock.calls.length - n0).toBe(1)
   })
 
   // INVARIANT (P3-S1 review fix 1, render cost): a change that moves ONLY the developing bar
@@ -112,6 +114,7 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     const { result } = renderHook(() => { renders++; return useBarSnapshotBars(p) })
     dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: fiveMin(9, 30, 13, 15) } })
     const bars0 = result.current.bars, data0 = result.current.data, r0 = renders
+    const n0 = paint.mock.calls.length
     // seeded random walk of 200 frames inside the 13:15 bucket (synthetic prices)
     let seed = 7, hi = 11, lo = 9, c = 10.5
     const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
@@ -124,7 +127,7 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     expect(result.current.bars).toBe(bars0)
     expect(result.current.data).toBe(data0)
     await act(() => new Promise((r) => setTimeout(r, 40)))
-    expect(paint).toHaveBeenCalledTimes(1)                   // coalesced: one frame, one paint
+    expect(paint.mock.calls.length - n0).toBe(1)             // coalesced: one frame, one paint
     expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), h: hi, l: lo, c })
     // A new bucket is a BASE change: one re-render, the closed bar is in `bars`.
     dispatch({ type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 20) * 1000, o: c, h: c, l: c, c, v: 5 }, rev: Date.now() + 1000 } })
@@ -132,14 +135,15 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     expect(result.current.bars).not.toBe(bars0)
   })
 
-  it('a prior-session tail (> 8 h) freezes the writers even after the server answered', () => {
-    const p = params()
+  it('a prior-session tail (> 8 h) freezes the developing channel even after the server answered', () => {
+    const p = params({ _storeDevRef: { current: 'unset' }, _storeDevPaintRef: { current: vi.fn() } })
     renderHook(() => useBarSnapshotBars(p))
     const y = (h, m) => et(h, m) - 86400
     const rows = []
     for (let t = y(9, 30); t <= y(15, 55); t += 300) rows.push(b(t))
     dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: rows } })
-    expect(p.provisionalStaleRef.current).toBe(true)
+    expect(p._storeDevRef.current).toBeNull()
+    expect(p.provisionalStaleRef.current).toBe(false)
   })
 
   it('no_data → data.no_data, no error; warming → error.warming (the legacy SWR shapes)', () => {

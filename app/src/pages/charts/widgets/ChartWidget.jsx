@@ -22,7 +22,7 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
-import { viewCacheTf } from '../../../utils/viewSession'
+import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import useSymbolSettle from '../../../hooks/useSymbolSettle'
@@ -283,8 +283,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onStore: persistActiveSettings,
     chartsTheme,
   })
-  // StockChart's own rule (`showExtended = cs.extendedHoursShading ?? true`) on the same settings.
-  paneExtRef.current = chartCs?.extendedHoursShading ?? true
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
+  paneExtRef.current = resolveShowExtended(chartCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings
