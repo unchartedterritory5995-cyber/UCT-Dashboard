@@ -26,8 +26,11 @@ from api.services.uct_agent import turn as t1, turn_v2 as v2  # noqa: E402
 #: not re-stub the context to get back under it. Lower this when the planner gets cheaper; raise it only with the owner.
 #: Moved from $0.2956: #834 widened the screener section; v2 is off; activation requires the owner's v2 cost decision.
 FLAGSHIP_BASELINE_USD = 0.3454
-#: room for ordinary registry growth (about 15 screener fields), so a new field does not fail a test for a planner that is off
-FLAGSHIP_GROWTH_USD = 0.005
+#: room for ordinary registry growth, so a new field or Charts action does not fail a test for a planner that is off.
+#: Raised $0.005 → $0.03 on 2026-11-11 by the owner (answered in the Lead's session: "Raise growth room"), because the queued
+#: Charts action families (~13 actions, ~+$0.006) would otherwise fail it while v2 is off. The $0.25 cap and the
+#: "v2 cannot be enabled until an owner decision" rule are unchanged; this is NOT a v2 activation decision.
+FLAGSHIP_GROWTH_USD = 0.03
 
 
 @pytest.fixture(autouse=True)

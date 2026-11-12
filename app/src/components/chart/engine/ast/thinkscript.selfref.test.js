@@ -45,8 +45,10 @@ describe('a plain self-referencing `def`', () => {
     // dialects, one engine function; if these ever diverge, one of them is
     // translating a member's indicator into something the other calls different.
     const ts = one('def s = if IsNaN(s[1]) then close else (s[1] + close) / 2;\nplot p = s;\n')
+    // ⭐ engine 49: the Pine side is v2 (in v3+ this declaration does not compile, and refuses
+    // `pine:cycle`; `v3SelfDeclaration.test.js`)
     const pine = translatePine(
-      '//@version=5\nindicator("t")\ns = na(s[1]) ? close : (s[1] + close) / 2\nplot(s)\n')
+      '//@version=2\nstudy("t")\ns = na(s[1]) ? close : (s[1] + close) / 2\nplot(s)\n')
     expect(pine.refusal).toBe(null)
     expect(ts.formula).toBe(pine.outputs.find((o) => !o.refusal).formula)
   })

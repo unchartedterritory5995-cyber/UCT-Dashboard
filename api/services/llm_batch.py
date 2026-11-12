@@ -42,6 +42,14 @@ _log = logging.getLogger(__name__)
 
 _LOCK = threading.Lock()
 
+# One reap per surface at a time. Two reapers (a sweep's reap-first and the */20
+# collector) used to run over the SAME ended batch: each read the ledger before the
+# other dropped the row, so every result was handled, stored and billed twice in our
+# own accounting (prod 2026-11-11: 191 call_recap rows for 131 distinct results, same
+# request ids seconds apart; the doubled spend tripped the recap cap early). Anthropic
+# bills a request once, so this was a ledger/cap defect, not a second charge.
+_REAP_LOCKS: dict[str, threading.Lock] = {}
+
 MAX_AGE_HOURS = float(os.environ.get("LLM_BATCH_MAX_AGE_HOURS", "24"))
 
 # The Batch API's discount. Consumers multiply their own cost accounting by
@@ -181,6 +189,21 @@ def reap(surface: str, handle: Callable[[str, Any, dict], None], *,
     out = {"batches": 0, "succeeded": 0, "errored": 0, "pending": 0, "abandoned": 0}
     if not enabled():
         return out
+    with _LOCK:
+        lock = _REAP_LOCKS.setdefault(surface, threading.Lock())
+    if not lock.acquire(blocking=False):
+        out["busy"] = 1                 # another reap of this surface is collecting
+        return out
+    try:
+        return _reap_locked(surface, handle, door, out)
+    finally:
+        lock.release()
+
+
+def _reap_locked(surface: str, handle: Callable[[str, Any, dict], None],
+                 door: Optional[str], out: dict[str, Any]) -> dict[str, Any]:
+    # Read the ledger INSIDE the lock: a reap that started after another finished
+    # must see the rows that one already dropped.
     rows = _read()
     mine = [r for r in rows if r.get("surface") == surface]
     if not mine:

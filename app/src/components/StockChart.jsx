@@ -1,9 +1,10 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, isRthBar } from './chart/barTime'
 import { composeDevelopingTail } from './chart/developingTail'
 import { liveStreamSession } from './chart/liveBuckets'
+import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
@@ -70,7 +71,7 @@ import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
-import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
+import { applySessionCandle, computeSessionTagLines } from './chart/sessionPreview'
 import { etDayOf, snapSyncedBar } from './chart/crosshairSync'
 import useMarketOpen from '../hooks/useMarketOpen'
 import { useIsPhone } from '../hooks/useBreakpoint'
@@ -239,7 +240,7 @@ import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
-import { _packStillIngesting, joinPendingBars, setPrefetchShowExtended } from '../utils/prefetchBars'
+import { _packStillIngesting, joinPendingBars, setPrefetchShowExtended, barsBeforeUrl } from '../utils/prefetchBars'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import { mergePushBar, reconcileWithServerTail, foldPrice, mergeRegistryMinute, isCompleteOhlc, LIVE_PERIOD_SECONDS, provisionalOpen } from '../lib/liveBarMerge'
@@ -1301,23 +1302,8 @@ export const _IDB_TAIL_WAIT_MS = 120
 // Module-wide load number for the intraday tail SWR key — unique across chart instances.
 let _tailLoadNonce = 0
 let _browserHasCachedBars = false
-// Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
-// timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
-// bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
-const LAST_CANDLE_POS = 0.95
-// …but 4% of the plot is ~40px on a full-width chart and only ~12px inside a
-// narrow workspace widget, which parks the newest candle right on top of the
-// price-scale tags (most visibly the pre-market "Pre" label). So treat the gap
-// as a PIXEL minimum instead of a pure fraction: wide charts keep the exact
-// 0.96 anchor, narrow ones give the last candle real clearance. Capped so a
-// very thin widget doesn't spend a sixth of its width on blank space.
-const MIN_RIGHT_GAP_PX = 34
-const MAX_RIGHT_GAP_FRAC = 0.16
-function lastCandlePos(plotWidthPx) {
-  if (!Number.isFinite(plotWidthPx) || plotWidthPx <= 0) return LAST_CANDLE_POS
-  const gap = Math.min(MAX_RIGHT_GAP_FRAC, Math.max(1 - LAST_CANDLE_POS, MIN_RIGHT_GAP_PX / plotWidthPx))
-  return 1 - gap
-}
+// Default-zoom right margin (newest candle at LAST_CANDLE_POS of the plot width, a pixel
+// minimum gap, a thin-widget cap): ONE owner, ./chart/rightMargin.js — imported, not copied.
 // The candle plot's own width in px (excludes the right price axis). On a cold
 // mount the time scale can still report 0, and falling through to the fixed
 // fraction there would leave a freshly-opened narrow widget with no clearance —
@@ -1330,6 +1316,28 @@ function plotWidthOf(chart, containerEl = null) {
   } catch { /* not laid out */ }
   const cw = containerEl?.clientWidth
   return Number.isFinite(cw) && cw > 70 ? cw - 62 : null
+}
+
+// ⭐ THE ONE "NEWEST CANDLE PINNED RIGHT" FRAME (TC2000 rule, W-R 2026-11-11): every arm that
+// pins the newest candle — symbol switch (typed / watchlist / scan / Agent all change `sym`),
+// timeframe switch, the settling re-assert on each load phase, the drift net and the
+// never-blank backstop — builds its logical range with rightMargin.pinNewestRange, so the
+// newest REAL bar sits a constant margin from the right edge at spacing plot/width, whatever
+// path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
+// into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
+
+// The logical index of the newest REAL candle on the time scale (the axis every series
+// shares — a compare/overlay series adds interior times, so the candle count is not it).
+// Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
+function newestLogicalIndex(chart, candleSeries, fallbackCount) {
+  try {
+    const d = candleSeries?.data?.() || []
+    let i = d.length - 1
+    while (i >= 0 && isWhitespacePoint(d[i])) i--
+    if (i < 0) return fallbackCount - 1
+    const ix = chart?.timeScale?.().timeToIndex?.(d[i].time, false)
+    return (typeof ix === 'number' && Number.isFinite(ix)) ? ix : i
+  } catch { return fallbackCount - 1 }
 }
 
 // Per-timeframe default number of visible bars (Daily on the workspace is
@@ -1345,24 +1353,6 @@ const DEFAULT_VISIBLE_BARS = {
   'M': 36,    // ~3 years of monthly bars
 }
 
-// Decide whether a captured visible range still DESCRIBES THE OLD DATA EXTENT
-// (safe to re-anchor bars-from-right against the old count) or was ALREADY
-// re-mapped by LWC to the new extent during setData (re-anchoring against the
-// stale old count would extrapolate the view thousands of bars off the data —
-// the blank multi-chart cells on series-length swaps). Any range whose right
-// edge sits within the old extent's plausible window — which includes EVERY
-// scrolled-back position — is treated as old, so scrolled-back users always
-// keep the bars-from-right re-anchor. Only a range that is impossible for the
-// old extent AND hugs the new extent's right edge is trusted as re-mapped;
-// anything else falls back to the re-anchor (whose validity guard drops
-// out-of-range results safely).
-function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
-  if (!oldRange) return false
-  if (oldRange.to <= oldCount + 8) return true
-  const padNew = newCount - oldRange.to
-  return !(padNew >= -8 && padNew <= 8)
-}
-
 // The canonical default-zoom visible logical range: the newest candle anchored at
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
@@ -1371,11 +1361,6 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // loading skeleton is shown over it. UX only — the hold itself ends when the server answers.
 const TF_SWITCH_HOLD_SKELETON_MS = 1200
 
-// RTH window test for a unix-`t` intraday bar (half-day aware) — the view filter for a mem source.
-function _inRthWindow(t) {
-  const m = etMinuteOfDay(t)
-  return m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(t)
-}
 
 function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null, rightReserve = 0 } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
@@ -1555,11 +1540,12 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
-import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
+import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory } from '../utils/barsIDB'
+import { createHistoryLoader, prependOlder, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS, historyReachesTail, historyLagsTail } from '../utils/historyPrepend'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isCacheCurrentForView, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -1783,6 +1769,27 @@ export const fetcher = async (url, extSignal, { background = false } = {}) => {
 // says no price history was found. The retry schedule below spends ~100s on 12
 // polls; a genuine cold fetch lands in a few seconds, so 75s is generous.
 export const WARMING_GIVE_UP_MS = 75000
+
+// ── Intraday deep history: ONE page-wide left-window loader (utils/historyPrepend.js) ──
+// <=1 window in flight per series key across every chart on the page; background windows
+// take BACKGROUND fetch slots, so they never queue the chart a member is looking at.
+export const _historyLoader = createHistoryLoader({
+  urlFor: barsBeforeUrl,
+  fetchJson: (url, { background = false, signal } = {}) => fetcher(url, signal, { background }),
+})
+// Background prefetch stops at HISTORY_PREFETCH_TARGET_BARS (historyPrepend); anything
+// deeper loads as the member scrolls toward it (LOOKAHEAD_SCREENS ahead).
+export { HISTORY_PREFETCH_TARGET_BARS }
+// Deep-history persistence is debounced per series: a burst of windows is one IDB write.
+const _histPersistTimers = new Map()
+function _persistHistorySoon(sym, ck, bars) {
+  const k = `${sym}_${ck}`
+  clearTimeout(_histPersistTimers.get(k))
+  _histPersistTimers.set(k, setTimeout(() => {
+    _histPersistTimers.delete(k)
+    try { Promise.resolve(idbPutHistory(sym, ck, bars)).catch(() => {}) } catch { /* best-effort */ }
+  }, 1000))
+}
 
 // Conservative retry for transient (5xx / aborted-network) failures.
 // Cold Massive fetches can legitimately take 5–15s, so aggressive 1s
@@ -2445,8 +2452,8 @@ if (typeof window !== 'undefined') {
 // ── Switch-anchor developing-slot reserve (dark canary) ─────────────────────
 // THE cold-daily "chart shifts back one bar on load" root cause (traced live, 2026-09-08):
 // the primary ChartWidget runs keepPresentOnSymbolChange=false, so a symbol switch frames
-// through updateChart's `rangeDescribesOldExtent`/else branches — which pin to present but
-// do NOT add the developing-bar reserve — while the settling-guard re-assert DOES reserve.
+// through updateChart's keep-present-off switch branch — which pinned to present but
+// did NOT add the developing-bar reserve — while the settling-guard re-assert DOES reserve.
 // The initial frame lands 1 bar short and the guard then slides it +1 the instant today's
 // bar commits. Fix: apply the SAME `_intradayLoadReserve` in those switch branches so the
 // initial frame already matches the final one → no +1, ever. Rides `_intradayLoadReserve`
@@ -2474,9 +2481,9 @@ if (typeof window !== 'undefined') {
   }
 }
 // Slots to reserve to the right so a settling load doesn't shift when the current developing
-// bar/bucket lands in a later commit. 0 unless the gate is on. Covers ALL timeframes:
-//   • intraday (unix `t`): the count of whole tf-intervals the last loaded bucket is behind NOW,
-//     capped at INTRADAY_RESERVE_MAX (a deeply-stale/overnight last bar can't open a big gap).
+// bar/bucket lands in a later commit. 0 unless the gate is on. D/W/M ONLY — the reserve is
+// backed by a slot SEEDED into the candle series (see the ohlcData seed), so it is a real point:
+//   • intraday (unix `t`): always 0 — see the ⛔ note inside (framing owner: pinNewestRange).
 //   • daily/weekly/monthly (ISO-date `t`): ONE slot when the last loaded bar is still a SEALED
 //     prior period (its date < the ET sealed-period cutoff). The daily deep-history tail
 //     (bars-history) transiently ends at the last SEALED day before the primary /api/bars tail's
@@ -2484,17 +2491,23 @@ if (typeof window !== 'undefined') {
 //     ("today's candle lands on tomorrow, then snaps back"). Reserving today's slot up front keeps
 //     the frame invariant. When the developing bar IS present, the last date is NOT < the cutoff
 //     → reserve 0 → self-cancels, so the anchor is byte-identical once settled.
-export const INTRADAY_RESERVE_MAX = 3
 export function _intradayLoadReserve(bars, tf) {
   if (!_intradayLoadAnchorEnabled()) return 0
   if (!Array.isArray(bars) || bars.length === 0) return 0
   const lt = bars[bars.length - 1] && bars[bars.length - 1].t
-  if (tf === '1' || tf === '5' || tf === '15' || tf === '30' || tf === '60') {
-    if (typeof lt !== 'number') return 0
-    const tfSec = (Number(tf) || 5) * 60
-    const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
-    return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
-  }
+  // ⛔ INTRADAY RESERVES NOTHING (W-R 2026-11-11, owner: "it should stay locked in place").
+  // The intraday arm used to return floor((now - lastT)/tf) slots (≤3) — a right margin that
+  // was a function of HOW FAR BEHIND THE LOADED TAIL WAS, with nothing in the series to fill
+  // it (no seeded slot, unlike daily below). So the newest candle's x depended on the data
+  // state: a behind cache / a behind server answer / every RTH chart after 16:00 (the last
+  // bar is always >3 buckets "behind" the wall clock then) framed the newest candle up to 3
+  // bars further left, a current one did not — NVDA→TZA landed at two different x's. The
+  // intraday framing policy is the TC2000 one, owned by `pinNewestRange`: the newest REAL bar
+  // sits a constant gap from the right edge at a constant bar spacing, whatever the data
+  // state; a bucket that lands later appends AT that x (LWC shiftVisibleRangeOnNewBar). Not
+  // painting an incomplete right edge is the load layer's job (developingTail / the hold),
+  // never a framing reserve. Rail: StockChart.symSwitchPinned.test.jsx.
+  if (tf === '1' || tf === '5' || tf === '15' || tf === '30' || tf === '60') return 0
   if (tf === 'D') {
     // ⭐ COUNT THE SESSIONS, DON'T ASSUME ONE. This used to return a flat 1, which is
     // right only when exactly one session is missing. A tail k sessions behind then had
@@ -3368,6 +3381,11 @@ export default function StockChart({
   // only as wide as its labels (hugging the right edge, no 76px floor; the
   // width ratchet still stops it oscillating), and small A/L/% chips.
   compactAxes = false,
+  // The price axis's minimum width in px at text size 11 (scaled with the text size like
+  // the default). null = the verified 76px floor. The /charts chart widget passes a tighter
+  // floor (owner 11-11: too much empty space right of the price labels); the width
+  // ratchet below still only ever widens the axis, so it cannot oscillate.
+  axisFloor = null,
   // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
@@ -5022,6 +5040,8 @@ export default function StockChart({
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
   const pendingTfReframeRef = useRef(null)  // On a TF switch, holds { tf, pos, width } of the OUTGOING view; re-asserts that exact anchor+zoom on every commit until the bar count settles, so flipping timeframes doesn't move the chart (and can't snap hard-left during the phased load)
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
+  const paintedGeomRef = useRef(null) // { ro, width } of the frame on screen — see the top of updateChart
+  const paintedRsvRef = useRef(0)     // the D/W/M developing-slot reserve of the series last painted
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
   // ⛔ WHOSE BARS `prevBarsRef` IS HOLDING. It carries no symbol of its own, and the
@@ -5871,8 +5891,7 @@ export default function StockChart({
     // frozen at the RTH close, so keep the LEGEND on it too — don't fold the live
     // pre/post-market price into close/high/low (else the legend disagrees with the
     // frozen candle). D/W/M keys off sessionView; intraday off the EXT/RTH toggle.
-    const _nowMin = etMinutes(Math.floor(Date.now() / 1000))
-    const _nowExt = _nowMin < 570 || _nowMin >= 960
+    const _nowExt = !isRthBar(Math.floor(Date.now() / 1000))
     const _isDWMtf = ['D', 'W', 'M'].includes(resolvedTfRef.current)
     const _rthLock = _nowExt && (
       (_isDWMtf && sessionViewRef.current === 'regular')
@@ -8513,11 +8532,14 @@ export default function StockChart({
   // ⭐ MEASURED, NOT ASSERTED: with this gate absent the harness records a 23 ms
   // first paint that is 38 five-minute buckets stale, 19/19 switches — i.e. the
   // best-looking number in the run was the defect.
+  // ⭐ (W-L 2026-11-11) ONE CONTRACT: `isCacheCurrentForView` — the same call the warmers
+  // (prefetchBars) make — judged on the tail THIS VIEW DRAWS. 'fresh' by the repair
+  // classifier is no longer an exemption: on an extended view pre-market, or an RTH view
+  // whose cache ends in pre-market bars, a 'fresh' raw tail is not what is on screen.
   const _idbNotCurrent = isIntraday && typeof idbSinceRef.current === 'number'
-    && _intradayTail === 'behind'
-    && !isCurrentEnoughForPaint(idbSinceRef.current, resolvedTf, {
-      session: showExtended ? 'extended' : 'rth',
-    })
+    && _intradayTail !== 'gapped'
+    && !isCacheCurrentForView(idbReadyForRef.current === `${sym}_${_barsTf}` ? idbBars : null,
+      idbSinceRef.current, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
@@ -8820,8 +8842,11 @@ export default function StockChart({
     }
     const url = since != null ? `${base}&since=${encodeURIComponent(String(since))}` : base
     // A cold open whose exact URL an urgent/intent warm is already fetching joins it.
-    const joined = since == null ? joinPendingBars(url) : null
-    const json = await (joined || instFetcher(url, { sym: req.sym, tf: req.tf, seq }))
+    // (W-L 2026-11-11) …or, for a tail, the scan warm's in-flight `since=` twin. A joined
+    // background warm may be shed (503 warm-shed) where this request would not: fall back.
+    const joined = joinPendingBars(url)
+    const _own = () => instFetcher(url, { sym: req.sym, tf: req.tf, seq })
+    const json = joined ? await joined.catch(_own) : await _own()
     if (json && !json.delta) _tailFullDoneRef.current = base
     return json
   }, [instFetcher])
@@ -8975,27 +9000,60 @@ export default function StockChart({
     : null
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
-  // ── Phase 3' Part 3: intraday deep-backfill (OFF the critical path) ──
-  // First paint is the shallow tail SWR above (instant, cold-safe). Once the sym/tf has been stable
-  // ~900ms (_intradayDeepArmed) we pull the deep window in ONE fetch and prepend it via mergeDelta
-  // (the effect below). Gated so it never runs on a quick flip (armed only after the dwell), never
-  // on override/replay/pinned/overlay/custom charts, and stops firing once idb is already deep. It
-  // does NOT touch fetchDepth → the 30s tail poll stays a tiny since= delta.
-  const _intradayDeepFire = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
-    && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive
-    && _intradayDeepArmed
-    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
-    && (idbBars?.length || 0) < INTRADAY_DEFAULT_BARS
-  const _intradayDeepUrl = _intradayDeepFire
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}${_sessQ}`
-    : null
-  const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, instFetcher, {
-    dedupingInterval: 60_000,
-    revalidateOnFocus: false,
-    refreshInterval: 0,          // one-shot deep pull; the tail SWR owns freshness + the live bar
-    refreshWhenHidden: false,
-    onErrorRetry: barsSwrOnErrorRetry,
-  })
+  // ── Intraday deep history = LEFT-PREPEND windows (2026-11-11, utils/historyPrepend.js) ──
+  // ⛔ Replaces the one-shot `bars=3000` deep pull AND the scroll-back `setFetchDepth` x8
+  // whole-series re-download: both asked `/api/bars?bars=N`, whose deep branch answers from
+  // what SQLite already holds (production 2026-11-11: no added depth on 60m for 14 of 21
+  // names). Every deeper bar now arrives as "the N bars before my oldest bar"
+  // (`&to=<ET date of oldest>`), merged by `prependOlder` — older bars only, so the newest
+  // bar, the developing candle and the tail poll's bars are never touched (the right edge
+  // cannot move) and `fetchDepth` never grows (the poll stays a `since=` delta).
+  // Order after the ~900 ms dwell: (1) the persisted `@hist` segment from IDB (no network),
+  // (2) background windows up to HISTORY_PREFETCH_TARGET_BARS, (3) further windows as the
+  // visible left edge comes within LOOKAHEAD_SCREENS of the oldest bar (effect next to the
+  // pan-backfill). Gate kept from the old deep pull: `_intradayDeepBackfillEnabled` (the
+  // existing 100% flag) — it is the instant revert, no new flag.
+  const _histPrependOn = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
+    && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive && !!sym
+  const _histLoadRef = useRef(null)
+  _histLoadRef.current = { on: _histPrependOn, key: _depthKey, sym, tf: resolvedTf, ck: _barsTf, sessQ: _sessQ }
+  // A window belongs to THIS chart's (sym, tf): leaving it (or unmounting) aborts the
+  // request, which frees its connection and fetch slot at once.
+  const _histAbortRef = useRef(null)
+  useEffect(() => {
+    const ctl = new AbortController()
+    _histAbortRef.current = ctl
+    return () => { try { ctl.abort() } catch { /* ignore */ } }
+  }, [sym, _barsTf])
+  // Merge one window into THIS chart's series (same cross-ticker guard as every bars merge).
+  const _applyOlderRef = useRef(null)
+  _applyOlderRef.current = (key, win, { persist = true } = {}) => {
+    if (idbReadyForRef.current !== key || _histLoadRef.current?.key !== key) return false
+    const cur = idbBarsRef.current
+    const merged = prependOlder(cur, win)
+    if (merged === cur) return false
+    idbBarsRef.current = merged
+    setIdbBars(merged)
+    memPut(sym, _barsTf, merged)
+    if (persist) _persistHistorySoon(sym, _barsTf, merged)
+    return true
+  }
+  const _loadOlder = useCallback((background, attempt = 0) => {
+    const r = _histLoadRef.current
+    if (!r?.on || idbReadyForRef.current !== r.key) return Promise.resolve(null)
+    const oldestT = idbBarsRef.current?.[0]?.t
+    if (typeof oldestT !== 'number') return Promise.resolve(null)
+    return _historyLoader.loadOlder(r.key, { sym: r.sym, tf: r.tf, sessQ: r.sessQ, oldestT, background, signal: _histAbortRef.current?.signal })
+      .then((res) => {
+        if (!res || _histLoadRef.current?.key !== r.key) return null
+        const added = res.bars?.length ? _applyOlderRef.current(r.key, res.bars) : false
+        // `filling` / warming: the server is fetching the older stretch — ask again once it lands.
+        if (res.retryAfterMs && !res.canceled && attempt < 3) {
+          setTimeout(() => { if (_histLoadRef.current?.key === r.key) _loadOlder(background, attempt + 1) }, res.retryAfterMs)
+        }
+        return { ...res, added }
+      })
+  }, [])
 
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
@@ -9173,38 +9231,42 @@ export default function StockChart({
     if (!_intradayDeepBackfillEnabled()) return undefined
     if (!isIntraday || !sym || _isCustomTf) return undefined
     if (_intradayDeepArmed) return undefined
-    if ((idbBarsRef.current?.length || 0) >= INTRADAY_DEFAULT_BARS) return undefined
+    // (No "already deep" skip: the armed step first reads the persisted history and stops on
+    // its own at HISTORY_PREFETCH_TARGET_BARS, so arming a deep series costs nothing.)
     const id = setTimeout(() => _setIntradayDeepArmed(true), 900)
     return () => clearTimeout(id)
   }, [sym, resolvedTf, isIntraday, _isCustomTf, _intradayDeepArmed])
 
-  // ── Phase 3' Part 3: fold the intraday DEEP window into idbBars (off the critical path) ──
-  // Mirrors the daily edge split-fetch merge above, but the deep intraday history comes from
-  // /api/bars (there's no sealed edge endpoint intraday). Older bars are PREPENDED via mergeDelta
-  // (the fresher tail wins the overlap); the right-anchored default view holds so there's no jump.
-  // fetchDepth is untouched → the tail SWR keeps polling a tiny since= delta, and its deeperInIdb
-  // branch keeps this deep set if a full tail fetch ever lands. Same cross-ticker guards as the tail.
+  // ── Deep history after the dwell: persisted segment first, then background windows ──
+  // Needs a series to prepend to (`idbBars` set for THIS key — the first network answer sets
+  // it on a cold open), so it re-checks when that lands. Cancelled on sym/tf change.
+  const _histHasBase = idbLoaded && idbReadyForRef.current === _depthKey && (idbBars?.length || 0) > 0
   useEffect(() => {
-    if (!_intradayDeepData?.bars?.length || !sym || !resolvedTf) return
-    if (_intradayDeepData.ticker && _intradayDeepData.ticker !== sym.toUpperCase()) return
-    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return
-    const cur = idbBarsRef.current
-    if (!cur?.length) {
-      idbBarsRef.current = _intradayDeepData.bars
-      setIdbBars(_intradayDeepData.bars)
-      idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
-      idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, _barsTf, _intradayDeepData.bars)
-      memPut(sym, _barsTf, _intradayDeepData.bars)
-      return
-    }
-    const merged = mergeDelta(_intradayDeepData.bars, cur)
-    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
-    idbBarsRef.current = merged
-    setIdbBars(merged)
-    idbPut(sym, _barsTf, merged)
-    memPut(sym, _barsTf, merged)
-  }, [_intradayDeepData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
+    if (!_histPrependOn || !_intradayDeepArmed || !_histHasBase) return undefined
+    const key = _depthKey
+    let cancelled = false
+    ;(async () => {
+      let hist = null
+      try { hist = await idbGetHistory(sym, _barsTf) } catch { hist = null }   // best-effort, like every IDB read
+      if (cancelled || idbReadyForRef.current !== key) return
+      if (hist && historyReachesTail(hist, idbBarsRef.current)) {
+        // Re-persist only when the tail is about to outrun the segment (historyLagsTail).
+        _applyOlderRef.current(key, hist, { persist: false })
+        if (historyLagsTail(hist[hist.length - 1]?.t, idbBarsRef.current)) _persistHistorySoon(sym, _barsTf, idbBarsRef.current)
+      }
+      // ⛔ NETWORK prefetch only on a chart that warms in the background (the focused /
+      // standalone chart). Grid cells (`backgroundWarm=false`) still hydrate their persisted
+      // segment above and load windows when SCROLLED, but a 16-cell open must not fire
+      // 16 × PREFETCH_WINDOWS provider-backed `to=` asks (the 2026-05-24 herd class).
+      if (!backgroundWarm && !deepWarm) return      // a maximized cell (deepWarm) prefetches too
+      for (let i = 0; i < PREFETCH_WINDOWS && !cancelled; i++) {
+        if ((idbBarsRef.current?.length || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
+        const res = await _loadOlder(true)
+        if (!res || !res.added || res.exhausted || res.retryAfterMs) break
+      }
+    })()
+    return () => { cancelled = true }
+  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder, backgroundWarm, deepWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
@@ -9414,8 +9476,7 @@ export default function StockChart({
   const _memIntradayRefused = isIntraday && Array.isArray(_memBarsRaw) && _memBarsRaw.length > 0
     && (() => {
       const t = _memBarsRaw[_memBarsRaw.length - 1]?.t
-      return typeof t !== 'number' || classifyIntradayTail(t, resolvedTf) === 'gapped'
-        || !isCurrentEnoughForPaint(t, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
+      return !isCacheCurrentForView(_memBarsRaw, t, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
     })()
   const _memBars = (_memTailStaleDaily(_memBarsRaw, memPeekSavedAt(sym, resolvedTf)) || _memIntradayRefused) ? null : _memBarsRaw
   // A mem entry that is a SOUND base (not gapped) even if it is not current.
@@ -9589,7 +9650,7 @@ export default function StockChart({
     const session = showExtended ? 'extended' : 'rth'
     const nowMs = Date.now()
     if (expectedFormingBar(resolvedTf, nowMs, { session }) == null) return null   // nothing forming → nothing to complete
-    const rth = (b) => !showExtended ? _inRthWindow(b.t) : true
+    const rth = (b) => !showExtended ? isRthBar(b.t) : true
     const sources = []
     if (_switchSrc) sources.push(_switchSrc)
     for (const [f, m] of [['1', _memSrc1], ['5', _memSrc5], ['15', _memSrc15], ['30', _memSrc30]]) {
@@ -10088,12 +10149,8 @@ export default function StockChart({
     const gridBars = isIntraday ? foldOffGridBars(bars, resolvedTf, { showExtended }) : bars
     if (showExtended) return gridBars
 
-    return gridBars.filter(b => {
-      if (typeof b.t !== 'number') return true
-      const mins = etMinutesOfUnix(b.t)
-      // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
-      return mins >= 570 && mins < 960
-    })
+    // Regular session = 09:30 to the day's close (13:00 on an NYSE half-day): barTime.isRthBar.
+    return gridBars.filter(b => typeof b.t !== 'number' || isRthBar(b.t))
   }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
@@ -12272,8 +12329,7 @@ export default function StockChart({
     // Without this the CURRENT extended session leaks onto an RTH-only chart via
     // the live push feed (past ext sessions are already filtered out of history).
     if (!showExtendedRef.current && !['D', 'W', 'M'].includes(resolvedTf)) {
-      const mins = etMinutes(Math.floor(data.bar.t / 1000))
-      if (mins < 570 || mins >= 960) return
+      if (!isRthBar(Math.floor(data.bar.t / 1000))) return
     }
 
     // Defensive: skip bars with invalid OHLC. WS sources can occasionally
@@ -12673,6 +12729,23 @@ export default function StockChart({
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
     if (!containerRef.current) return
+    // The geometry of the frame ON SCREEN, measured against the series it was painted from,
+    // BEFORE this pass empties or replaces anything: the newest real bar's offset from the
+    // right edge (bars, net of that series' D/W/M developing-slot reserve) and the zoom width.
+    // A symbol switch that keeps the outgoing view reads it (framing, keep-present off).
+    // Invalidation: overwritten on every pass that finds a painted series; a black frame
+    // (series emptied, prevPaintBarsRef null) leaves the last painted frame's geometry, which
+    // is still the view the member last saw; a chart recreate resets lastBarCountRef → no read.
+    if (prevPaintBarsRef.current && lastBarCountRef.current > 0) {
+      try {
+        const _r = chartRef.current?.timeScale().getVisibleLogicalRange()
+        if (_r && _r.to > _r.from) {
+          // `_r` is a LOGICAL range → measure against the newest candle's LOGICAL index.
+          const _ni = newestLogicalIndex(chartRef.current, candleSeriesRef.current, lastBarCountRef.current)
+          paintedGeomRef.current = { ro: _r.to - _ni - paintedRsvRef.current, width: _r.to - _r.from }
+        }
+      } catch { /* no chart yet */ }
+    }
     // No bars yet for this sym/tf? Clear the existing series so the prior
     // ticker's data doesn't visually persist on screen during transitions.
     // Without this, switching tickers leaves the OLD ticker's candles drawn
@@ -12893,7 +12966,7 @@ export default function StockChart({
     try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
     if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
     const _axisMinWidth = Math.max(
-      compactAxes ? 0 : Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
+      compactAxes ? 0 : Math.ceil((axisFloor ?? 76) * Math.max(1, (cs.textSize ?? 11) / 11)),
       axisWidthRatchetRef.current,
     )
     const chartOpts = {
@@ -13035,6 +13108,9 @@ export default function StockChart({
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
           },
+          // Logical index of the newest REAL candle on the candle series (the framing rail,
+          // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
+          newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
@@ -15644,6 +15720,34 @@ export default function StockChart({
       ipoBadgeRef.current.setPoints(ipoEvent ? [{ time: ipoEvent.date, price: ipoEvent.low }] : [])
     }
 
+    // ⭐ EVERY FRAME THIS PASS SETS GOES THROUGH _setFrame (W-R 2026-11-11). It remembers the
+    // INTENDED range, and the restate below re-applies THAT as an offset from the newest bar.
+    // ⛔ Never a read-back: lightweight-charts applies setVisibleLogicalRange against its axis
+    // as it stands at the next paint, and mid symbol switch reading the range back in the same
+    // pass returns it shifted by the new series' extra tail (real browser, SOFI→NVDA: asked for
+    // the newest bar 4.05 bars from the edge, read back 15.95 PAST it — and the restate then
+    // cemented that until the next timeframe switch). Rail:
+    // tools/intraday_symswitch_framing_harness.py (real lightweight-charts, painted frames).
+    let _framedRange = null
+    const _newestOf = () => candleSeriesRef.current?.data?.()?.length || filteredBars.length
+    // The framing arms compute in CANDLE-index space (filteredBars / the candle series), but
+    // scrollToPosition is LOGICAL: an offset from the axis' base, which a compare/overlay
+    // series moves (interior times; a compare bar newer than the candle's newest). Convert
+    // ONCE here: the newest real candle `a` sits at logical timeToIndex(its time); the base
+    // is read off the time scale (visible to − rightOffset). null → fall back (no answer).
+    const _logicalOffsetOf = (ts, r) => {
+      const d = candleSeriesRef.current?.data?.() || []
+      let a = d.length - 1
+      while (a >= 0 && isWhitespacePoint(d[a])) a--
+      if (a < 0) return null
+      const la = ts.timeToIndex?.(d[a].time, false)
+      const cur = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (typeof la !== 'number' || !Number.isFinite(la) || !cur || typeof rightOffset !== 'number' || !Number.isFinite(rightOffset)) return null
+      const base = cur.to - rightOffset
+      return (r.to - a + la) - base
+    }
+    const _setFrame = (r) => { chart.timeScale().setVisibleLogicalRange(r); _framedRange = r }
     // View handling on initial load / timeframe change / ticker switch.
     // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
     //
@@ -15776,30 +15880,24 @@ export default function StockChart({
         } else if (keepPresentOnSymbolChange) {
           // Reserve the developing intraday bucket's slot so the frame doesn't shift when the
           // fresh fetch's newer buckets land (see _intradayLoadReserve). 0 off-gate / on daily.
-          to = (newBarCount - 1 + _intradayLoadReserve(filteredBars, resolvedTf)) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-          from = to - width
-        } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
-          const barsFromRight = oldBarCount - oldRange.to
-          // Reserve the developing bar's slot so THIS initial switch frame matches the
-          // settling-guard re-assert (which reserves too). Without it the frame lands 1
-          // bar short and the guard slides it +1 when today's bar commits — the cold-daily
-          // "shifts back one on load" bug (keepPresent=false path). Self-cancels to 0 once
-          // today is present; 0 off-gate → byte-identical.
+          ;({ from, to } = pinNewestRange(newBarCount - 1, width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf)))
+        } else if (paintedGeomRef.current) {
+          // Keep the OUTGOING frame's geometry: the newest bar's offset from the right edge
+          // and the zoom width, both MEASURED on the outgoing series before this pass touched
+          // it (see paintedGeomRef) — so "the same view, on the new ticker" holds exactly,
+          // scrolled back or at present. ⚰️ This used to be inferred from the POST-setData
+          // range against the stale old count (`rangeDescribesOldExtent`): LWC has already
+          // re-based that range on the new series, and whenever the two symbols' counts
+          // differed by less than its ±8-bar window the guess was wrong — the newest candle
+          // landed (newCount − oldCount) bars off (W-R invariant rail). The developing-slot
+          // reserve (D/W/M only) is re-applied for THIS series; it was subtracted at capture.
           const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
-          to = newBarCount - barsFromRight + _swRsv
-          from = to - width
-        } else {
-          // Captured range already re-mapped to the NEW series (see
-          // rangeDescribesOldExtent) — bars-from-right vs the stale old count
-          // would throw the view off the data. Keep the remapped range, shifted to
-          // reserve the developing bar's slot (same reason + self-cancel as above).
-          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
-          to = oldRange.to + _swRsv
-          from = oldRange.from + _swRsv
+          to = (newBarCount - 1) + paintedGeomRef.current.ro + _swRsv
+          from = to - paintedGeomRef.current.width
         }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
-            chart.timeScale().setVisibleLogicalRange({ from, to })
+            _setFrame({ from, to })
             didPreserve = true
           } catch {}
         }
@@ -15833,7 +15931,7 @@ export default function StockChart({
             fromIdx = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
           }
           const _padR = frameRightPadFrac > 0 ? Math.round((endIdx - fromIdx) * frameRightPadFrac) : 0
-          chart.timeScale().setVisibleLogicalRange({ from: fromIdx, to: endIdx + _padR })
+          _setFrame({ from: fromIdx, to: endIdx + _padR })
         } else if (entryDate && filteredBars.length > 0) {
           const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
           const exitIdx  = exitDate
@@ -15841,7 +15939,7 @@ export default function StockChart({
             : -1
           const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
           const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
-          chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
+          _setFrame({ from: fromBar, to: toBar })
         } else if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
           // Anchored+reveal handled — nothing else to frame.
         } else {
@@ -15850,9 +15948,8 @@ export default function StockChart({
             // TF switch: keep the same zoom WIDTH and pin the newest candle to the fixed
             // right anchor, so the chart doesn't move — only the timeframe flips.
             const lastIdx = filteredBars.length - 1
-            const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-            const from = to - _pt.width
-            chart.timeScale().setVisibleLogicalRange({ from, to })
+            const { from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf))
+            _setFrame({ from, to })
           } else if (_hLockActive) {
             // A persisted horizontal lock restored on refresh (first load): open at
             // the user's exact position — newest bar at its saved screen fraction.
@@ -15869,7 +15966,7 @@ export default function StockChart({
               )
               _from = _def.from; _to = _def.to
             }
-            if (Number.isFinite(_from) && Number.isFinite(_to)) { try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ } }
+            if (Number.isFinite(_from) && Number.isFinite(_to)) { try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ } }
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
@@ -15881,7 +15978,7 @@ export default function StockChart({
             const { from: _from, to: _to } = computeDefaultLogicalRange(
               filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
             )
-            chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
+            _setFrame({ from: _from, to: _to })
           }
         }
       }
@@ -15918,11 +16015,10 @@ export default function StockChart({
       // newest candle at its default on-screen position (keeping the zoom width) so
       // the view is NEVER left blank.
       if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 0 && from < lastIdx) {
-        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
+        try { _setFrame({ from, to }) } catch {}
       } else if (width > 0 && lastIdx > 0) {
-        const to2 = lastIdx + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-        const from2 = to2 - width
-        try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch {}
+        const { from: from2, to: to2 } = pinNewestRange(lastIdx, width, plotWidthOf(chart, containerRef.current))
+        try { _setFrame({ from: from2, to: to2 }) } catch {}
       }
       }   // ← closes the `if (anchorOwnsFrame() …) {} else {` wrapper above
     }
@@ -15967,14 +16063,13 @@ export default function StockChart({
           // Reserve the developing intraday bucket's slot: the settling re-assert runs on EVERY
           // phased commit (cache → fetch → backfill); reserving keeps `to` invariant as the newer
           // buckets land instead of re-pinning the grown newest and sliding left. 0 off-gate/daily.
-          to = (lastIdx + _intradayLoadReserve(filteredBars, resolvedTf)) + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-          from = to - _pt.width
+          ;({ from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf)))
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
             filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
           ))
         }
-        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
+        try { _setFrame({ from, to }) } catch { /* mid-load */ }
         // The session preview candle is part of SETTLING, not a post-settle live bar.
         // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
         // so keying release on the RTH count alone released the guard one commit too
@@ -16027,9 +16122,8 @@ export default function StockChart({
             // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
             // off the right edge (pos > 1.02). Re-pin it to the standard load position.
             if (w > 0 && (pos < 0.85 || pos > 1.02)) {
-              const to2 = lastIdx + w * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-              const from2 = to2 - w
-              try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
+              const { from: from2, to: to2 } = pinNewestRange(lastIdx, w, plotWidthOf(chart, containerRef.current))
+              try { _setFrame({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
             }
           }
         }
@@ -16046,7 +16140,7 @@ export default function StockChart({
       const _to = filteredBars.length - replayLockedViewRef.current.barsFromRight
       const _from = _to - _lw
       if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < filteredBars.length) {
-        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ }
+        try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ }
       }
     }
 
@@ -16067,9 +16161,8 @@ export default function StockChart({
         const visibleReal = Math.min(fr.to, lastIdx2) - Math.max(fr.from, 0)
         if (visibleReal < 0.5) {
           const w = Math.max(1, fr.to - fr.from)
-          const to2 = lastIdx2 + w * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-          const from2 = to2 - w
-          try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* mid-load */ }
+          const { from: from2, to: to2 } = pinNewestRange(lastIdx2, w, plotWidthOf(chart, containerRef.current))
+          try { _setFrame({ from: from2, to: to2 }) } catch { /* mid-load */ }
         }
       }
     }
@@ -16093,7 +16186,7 @@ export default function StockChart({
         // focus band via focusPriceRangeRef — the "glitches to the left" bug.
         // Re-pin to the settled focus range; the year re-pin below is skipped.
         const r = focusRangeRef.current
-        if (r) { try { chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
+        if (r) { try { _setFrame({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
       } else if (exactPinSigRef.current
                  && exactPinSigRef.current.startsWith(`${sym}_${resolvedTf}|`)
                  && exactPinSigRef.current !== `${sym}_${resolvedTf}|${entryDate}|${exitDate}`) {
@@ -16118,7 +16211,7 @@ export default function StockChart({
           _from = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
         }
         const _padR = frameRightPadFrac > 0 ? Math.round((_e - _from) * frameRightPadFrac) : 0
-        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _e + _padR }) } catch { /* out of range mid-load */ }
+        try { _setFrame({ from: _from, to: _e + _padR }) } catch { /* out of range mid-load */ }
       }
     }
 
@@ -16134,18 +16227,23 @@ export default function StockChart({
     // is the offset LWC already holds, so it changes nothing.
     try {
       const _ts = chart?.timeScale()
-      const _r = _ts?.getVisibleLogicalRange()
+      const _r = _framedRange || _ts?.getVisibleLogicalRange()
       // Against the range BEFORE this pass's setData: on a switch LWC already reports the
       // re-based range after setData, so comparing with that would miss the very frame at fault.
       const _base = _preUpdateRange || oldRange
       if (_r && _base && (_r.from !== _base.from || _r.to !== _base.to)) {
-        const _n = candleSeriesRef.current?.data?.()?.length || filteredBars.length
-        if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+        const _off = _framedRange ? _logicalOffsetOf(_ts, _framedRange) : null
+        if (_off != null) _ts.scrollToPosition(_off, false)
+        else {
+          const _n = _newestOf()
+          if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+        }
       }
     } catch { /* mid-load: the frame above stands */ }
     // Track current bar count + bars so the next ticker switch can right-anchor the
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
+    paintedRsvRef.current = _intradayLoadReserve(filteredBars, resolvedTf)
     prevBarsRef.current = filteredBars
     // ⛔ STAMPED WITH THIS CALLBACK'S OWN `sym`, NOT `symRef.current`. `filteredBars`
     // and `sym` come from the same render, so this is the bars' true owner. The
@@ -16494,10 +16592,7 @@ export default function StockChart({
     if (px == null) return
     // In Regular Hours, don't fold a pre/post print into the frozen RTH close.
     if (!showExtended) {
-      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-      const [h, m] = et.split(':').map(Number)
-      const nowMin = h * 60 + m
-      if (nowMin < 570 || nowMin >= 960) return
+      if (!isRthBar(Math.floor(Date.now() / 1000))) return
     }
     const time = adjustTime(last.t)
     try {
@@ -17802,8 +17897,7 @@ export default function StockChart({
         // accurate, lag-independent session check. (Writer E was the path still
         // seaming post-market onto the daily candle after Writers A/D were gated.)
         if (sessionViewRef.current === 'regular') {
-          const _m = etMinutes(Math.floor(Date.now() / 1000))
-          if (_m < 570 || _m >= 960) return
+          if (!isRthBar(Math.floor(Date.now() / 1000))) return
         }
         const series = candleSeriesRef.current
         const last = lastBarRef.current
@@ -20171,6 +20265,7 @@ export default function StockChart({
   // / barsOverride). Mirrors the existing visible-range subscription pattern.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
+    if (_histPrependOn) return undefined     // native intraday: left windows (effect below), never a depth bump
     if (fetchDepth >= _fullTarget) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
@@ -20203,7 +20298,34 @@ export default function StockChart({
       if (unsub) { try { unsub() } catch { /* ignore */ } }
       if (raf != null) cancelAnimationFrame(raf)
     }
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
+
+  // Native intraday scroll-back: load the next LEFT window while the visible left edge is
+  // still LOOKAHEAD_SCREENS away from the oldest bar, so a member panning at normal speed
+  // reaches bars that are already there. A landed window re-anchors the view (bars-from-
+  // right preserved), which fires this subscription again — a fast fling keeps chaining.
+  useEffect(() => {
+    if (!_histPrependOn) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    let raf = null
+    const onRange = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        let range = null
+        try { range = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+        if (!range) return
+        if (wantsOlder({ fromIndex: range.from, toIndex: range.to, loadedCount: lastBarCountRef.current })) _loadOlder(false)
+      })
+    }
+    let unsub = null
+    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    return () => {
+      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      if (raf != null) cancelAnimationFrame(raf)
+    }
+  }, [_histPrependOn, sym, resolvedTf, _loadOlder, chartReady])
 
   // Proactive deep-history warm (dwell-gated) — makes scroll-back INSTANT.
   // The viewport-first first paint is shallow (FIRST_PAINT_BARS) for an instant
@@ -20221,6 +20343,7 @@ export default function StockChart({
   // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
+    if (_histPrependOn) return undefined     // native intraday deepens by left windows, never a whole re-download
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     // Phase 3' intraday smooth-switch (gated): don't auto-deep-bump an intraday chart on a
@@ -20402,8 +20525,7 @@ export default function StockChart({
       // RTH-only intraday (EXT/RTH toggle off): don't paint a pre/post-market
       // developing bar, matching sessionBars' 9:30–16:00 ET fetch filter.
       if (!showExtendedRef.current) {
-        const _m = etMinutes(candle.t)
-        if (_m < 570 || _m >= 960) return
+        if (!isRthBar(candle.t)) return
       }
       // Sanity bound vs THIS symbol's closes — the shared chokepoint (it was an inline copy
       // that read whatever close the previous symbol left behind).

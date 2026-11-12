@@ -88,7 +88,8 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { scanNeighbors } from '../utils/scanNeighbors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/artifactHistory/ArtifactHistory'
@@ -727,6 +728,9 @@ function CompareSearch({ onPick, baseSym }) {
   useEffect(() => { searchRef.current?.openWith('') }, [])
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
+
+// How long a selection must rest before its OTHER timeframes are warmed (see below).
+const SCAN_DWELL_MS = 600
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
@@ -1689,11 +1693,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // so this matches the on-screen rows under any active column sort; wrap-aware
   // to mirror the nav's end-of-list wrap. memHas-skip inside warmMemFromIDB
   // makes repeat presses ~free (only the new frontier ticker reads IDB).
+  // ⭐ W-L (2026-11-11): …AND THE ROWS AHEAD ARE MADE CURRENT, NOT ONLY PROMOTED. The
+  // promote above is zero-network, so a row whose cache had aged past the chart's paint
+  // rule (the list was opened before the bell, or >10 min ago on 5m) was refused on the
+  // switch and the chart waited on its own request — and ~1.5% of production requests
+  // stall 0.5 s at the edge (keep-alive probe 2026-11-11: p50 71 ms, 0.5-0.6 s tail with
+  // ~5 ms of server time). `prefetchBarsToIDB(priority)` repairs exactly those rows with a
+  // `since=` tail (once per bucket per row, `_repairCooldownOk`) on the CHART's key and
+  // lands them in mem, in scan direction, nearest first, before the member reaches them.
+  // Only the chart's timeframe is touched (the promote used to read 5 timeframes x 12 rows
+  // per press).
+  const _scanPrevRef = useRef({ sym: null, idx: -1 })
   useEffect(() => {
     if (!selectedSym) return
     let flat = []
     const root = pageRef.current
-    if (root) {
+    const nav = navOrderRef.current
+    if (nav?.virtualized && nav.syms?.length) {
+      flat = nav.syms
+    } else if (root) {
       const seen = new Set()
       root.querySelectorAll('[data-watch-sym]').forEach(el => {
         const s = el.getAttribute('data-watch-sym')
@@ -1704,24 +1722,30 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const idx = flat.indexOf(selectedSym)
     if (idx < 0 || flat.length < 2) return
     const len = flat.length
-    const around = new Set()
-    for (let d = 1; d <= 6; d++) {
-      around.add(flat[(idx + d) % len])
-      around.add(flat[(idx - d + len) % len])
-    }
-    around.delete(selectedSym)
-    warmMemFromIDB([...around])
-  }, [selectedSym, visibleSymsFlat])
+    const prev = _scanPrevRef.current
+    _scanPrevRef.current = { sym: selectedSym, idx }
+    // Moving up when the previous row sits just below (wrap-aware); down otherwise.
+    const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
+    const tf = warmTf || 'D'
+    const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
+    warmMemFromIDB(around, [tf])
+    prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
+  }, [selectedSym, visibleSymsFlat, warmTf])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
+  // ⛔ W-L (2026-11-11): ONLY ONCE THE SELECTION RESTS. Fired on every press, a 98-row scan
+  // queued ~390 other-timeframe `warm=1` fetches (harness count) that competed with the rows
+  // the member was about to reach. A member who stops on a ticker gets the warm ~0.6 s
+  // later, when it can no longer delay a scan.
   useEffect(() => {
     if (!selectedSym) return
-    prefetchAllTimeframes(selectedSym)
-    if (!flagged.length) return
+    const t = setTimeout(() => prefetchAllTimeframes(selectedSym), SCAN_DWELL_MS)
+    if (!flagged.length) return () => clearTimeout(t)
     const idx = flagged.indexOf(selectedSym)
-    if (idx < 0) return
+    if (idx < 0) return () => clearTimeout(t)
     const upcoming = flagged.slice(idx + 1, idx + 6)
     prefetchBars(upcoming, warmTf)
+    return () => clearTimeout(t)
   }, [selectedSym, flagged, warmTf])
 
   function toggleList(id) {

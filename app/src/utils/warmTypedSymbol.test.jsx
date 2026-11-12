@@ -12,6 +12,7 @@ const world = vi.hoisted(() => ({ idb: {}, packUsable: false, packBars: {} }))
 vi.mock('./barsIDB', () => ({
   idbGet: vi.fn(async (s, tf) => world.idb[`${s}_${tf}`] || null),
   idbPut: vi.fn(async () => {}),
+  idbPutMonotonic: vi.fn(async () => null),
   mergeDelta: (a, b) => {
     const m = new Map(a.map((x) => [x.t, x])); for (const x of b) m.set(x.t, x)
     return [...m.values()].sort((x, y) => (x.t < y.t ? -1 : 1))
