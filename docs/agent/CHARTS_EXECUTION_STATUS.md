@@ -38,6 +38,12 @@ Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a cor
 
 OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
 
+## Update 2026-11-11: Drawing Boards execution (agent/pl/drawing-boards-exec)
+
+The Agent switches, creates, renames and deletes Drawing Boards through the Boards panel's own store writers (drawingsStore setActiveTracing / createTracing / renameTracing / deleteTracing, via host.drawingBoards), reads the result back and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its drawing count, with no Undo. An unnamed or ambiguous board is asked about. A board request aimed at one chart is answered and not run. Test: `app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx` (real panel, scripted model, jsdom, SIMULATED), plus `app/src/agent/agentDrawingBoards.test.jsx` (runtime). PR doc: `docs/agent/program/PR-exec-drawing-boards.md`.
+
+- VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
+- Counts are not changed here: the summary numbers and tables are recounted at merge (rows C1-167..170 above are the only change).
 ## Update 2026-11-10: Multi Chart grid execution (pl-grid)
 
 Branch `agent/pl/exec-multichart-grid`. PRODUCT change: the grid's own writers reach the Agent through `multiChart.set` (the grid) and `multiChart.cell` (one cell, chart-backed so the deixis / P2-B / hidden-behind-maximized rules apply), over `pages/charts/grid/useGridAgentControl.js`. The menu, the Groups picker and the cells call the same functions (`gridGroupActions.js`, lifted `maxId`, `gridTemplateLayout`). Evidence: vitest, jsdom, scripted model, fixture server; not a real browser and not the real model. PR doc: `docs/agent/program/PR-exec-multichart-grid.md`.
@@ -560,10 +566,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
 | C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "switch to my Earnings board" | pass 6/6 | panel, scripted model |
+| C1-168 | Boards | Create a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: a planned new board called Breakouts | pass 6/6 | panel, scripted model |
+| C1-169 | Boards | Rename a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "rename my Earnings board to Gaps" | pass 6/6 | panel, scripted model |
+| C1-170 | Boards | Delete a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: the card, Dismiss, Apply; "delete my board" asks | pass 6/6 | panel, scripted model |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |

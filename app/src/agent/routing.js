@@ -225,6 +225,16 @@ export const GROUPS = [
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+  // C1-167..170: the four Drawing Boards actions in their OWN group, WORDS-ONLY (as #1027's watchlistShow, #1073's compareGroups), so the
+  // drawings group keeps master's size and routing v2's unrecognised-request fill (at its 55-action budget) is unchanged
+  { id: 'drawingBoards', title: 'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'],
+    // a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings"), the verb governing the board noun within
+    // two words — a bare "board" is the workspace ("remove everything from the board" is not a Drawing Board)
+    words: [/\b(?:switch|change|go|flip|jump|move)\s+(?:back\s+|over\s+)?to\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],

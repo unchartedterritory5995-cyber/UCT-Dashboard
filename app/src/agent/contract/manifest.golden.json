@@ -5585,6 +5585,125 @@
    "shape": null
   },
   {
+   "name": "drawing.setActiveBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Switch the Drawing Board the member draws on (Drawing Boards in the chart toolbar). Boards are named sheets of drawings shared by EVERY chart and symbol: switching changes what every chart shows and draws on. Not a layout and not the workspace.",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's name as the member said it (a name from its boards list, e.g. \"Swing\" or \"Board 2\"). UCT matches it itself; when the member gives no name, or it could be more than one board, clarify with the real names. Never pick one. Boards cannot be switched for one chart only.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.createBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Make a new Drawing Board and switch to it, exactly like \"New board\" in Drawing Boards: new drawings go on it, and the other boards keep theirs. Not a new layout or a blank workspace.",
+   "hints": "target = the ref of the drawingBoards entry; name = the name the member gave, or null for none (UCT shows it as \"Board N\", as the panel does).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.renameBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Rename one Drawing Board (the pencil on its row in Drawing Boards).",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's current name as the member said it (\"Board 2\" for an unnamed one); to = the new name. When they do not say which board and there is more than one, clarify with the real names.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board",
+     "to"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.deleteBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Delete one Drawing Board and every drawing on it, on every symbol (the bin on its row in Drawing Boards). Permanent: it cannot be undone. Never the last board.",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's name exactly as the member said it. If they did not name a board (\"delete my board\", \"delete this board\"), or it could be more than one, clarify with the real names. Never pick one, and never the active board unless they named it. UCT always shows a confirmation card first, so do not ask \"are you sure?\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicator.list",
    "domain": "indicator",
    "target": "indicators",

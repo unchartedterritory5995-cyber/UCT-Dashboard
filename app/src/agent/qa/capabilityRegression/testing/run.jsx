@@ -161,6 +161,12 @@ export function checkExpect(ctx, e, label) {
     if ('name' in e.drafts) expect(open[0]?.name ?? null, `${label}: the draft's name`).toBe(e.drafts.name)
   }
   if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
+  if (e.boards) {
+    // C1-167..170: the member's Drawing Boards as the panel lists them (labels: a name, or "Board N") and the active one
+    const all = drawingsStore.listTracings()
+    if (e.boards.names) expect(all.map(t => drawingsStore.tracingLabel(t)), `${label}: the drawing boards`).toEqual(e.boards.names)
+    if (e.boards.active) expect(drawingsStore.tracingLabel(all.find(t => t.id === drawingsStore.getActiveTracingId())), `${label}: the active drawing board`).toBe(e.boards.active)
+  }
   if (e.templates) {
     const names = (() => { try { return JSON.parse(ctx.st.prefs.chart_templates || '[]').map(t => t.name) } catch { return [] } })()
     for (const n of e.templates.include || []) expect(names, `${label}: a chart template ${n}`).toContain(n)
@@ -247,6 +253,8 @@ export function checkExpect(ctx, e, label) {
   if (e.receipt != null) expect(receiptsNow().length - since.receipts > 0, `${label}: a receipt`).toBe(e.receipt)
   if (e.undoable) expect(receiptsNow().at(-1)?.getAttribute('data-undoable'), `${label}: the receipt is undoable`).toBe('true')
   if (e.proposal != null) expect(proposalsNow().length > 0, `${label}: a proposal waiting`).toBe(e.proposal)
+  // what the waiting CARD itself says (a confirm-risk action's card names what it will do before anything is done)
+  for (const r of e.proposalSays || []) expect(proposalsNow().map(x => x.textContent).join(' '), `${label}: the card says /${r}/`).toMatch(new RegExp(r, 'i'))
   if (e.refusal != null) expect(refusals().length - since.refusals > 0, `${label}: a refusal`).toBe(e.refusal)
 }
 

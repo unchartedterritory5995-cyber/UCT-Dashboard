@@ -12,7 +12,7 @@ import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildLayoutDockSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildDrawingBoardSource, buildLayoutDockSource } from '../../../host'
 import { DOCK_PREF, addPin, removePin, shiftPin } from '../../../../pages/charts/layoutDockPins'
 import { publishListView } from '../../../../pages/watchlist/watchlistViews'
 import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
@@ -235,7 +235,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/auth/preferences' && method === 'GET') {
       const id = drawingsStore.getActiveTracingId?.() ?? 'default'
       const syms = [...new Set((mounted?.h?.charts?.list?.() || []).map(c => c.symbol))]
-      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
+      // (+ the boards list itself, as exportTracings() pushes it: host.drawingBoards.confirm reads the boards back by id and name)
+      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, tracings: drawingsStore.exportTracings().tracings, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
     }
     if (u.startsWith('/api/indicator-alerts')) {
       // the router's own shapes (indicator_alerts.py), as agentIndicatorAlerts.test.jsx's fixture
@@ -323,6 +324,23 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (seed.boards) {
+    // C1-167..170: the member's Drawing Boards in the REAL drawings store (seed.boards: { names, active, drawings }: names by
+    // position, '' = unnamed ("Board N"); `drawings`: { boardIndex: count } horizontal lines on NVDA), written only through
+    // the panel's writers by host.drawingBoards; the server copy is the GET above
+    localStorage.removeItem('uct-chart-tracings')
+    for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)
+    drawingsStore._reset()
+    const ids = [drawingsStore.getActiveTracingId()]
+    drawingsStore.renameTracing(ids[0], seed.boards.names[0] || '')
+    for (const n of seed.boards.names.slice(1)) ids.push(drawingsStore.createTracing({ name: n }))
+    for (const [i, count] of Object.entries(seed.boards.drawings || {})) {
+      drawingsStore.setActiveTracing(ids[i])
+      for (let k = 0; k < count; k++) drawingsStore.addDrawing('NVDA', { type: 'horizontal', points: [{ price: 20 + k }], color: '#fff', lineWidth: 1 })
+    }
+    drawingsStore.setActiveTracing(ids[seed.boards.active || 0])
+    mounted.h.drawingBoards = buildDrawingBoardSource(drawingsStore, { timeoutMs: 3000, everyMs: 20 })
+  }
   if (extra.grid) mounted.h.gridControl = makeGridControl(['NVDA'])
   if (extra.layoutDock) {
     // the Layout Dock's door (pages/charts/LayoutDock.jsx agentRef): the same positional helpers over the

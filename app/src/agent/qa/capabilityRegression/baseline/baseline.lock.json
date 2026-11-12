@@ -4390,6 +4390,86 @@
      "modes": {}
     }
    }
+  },
+  "drawing.setActiveBoard": {
+   "digest": "48dd7e99f9b9ba07",
+   "phrasings": {
+    "switch to my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch to the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw on my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.createBoard": {
+   "digest": "f8f8a31f6fe78acb",
+   "phrasings": {
+    "create a new drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new drawing board named Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.renameBoard": {
+   "digest": "25c50932ca7843f2",
+   "phrasings": {
+    "rename Board 2 to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename my Board 2 drawing board to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call drawing Board 2 Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.deleteBoard": {
+   "digest": "66044a6a393bf91b",
+   "phrasings": {
+    "delete the Breakouts board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete my Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

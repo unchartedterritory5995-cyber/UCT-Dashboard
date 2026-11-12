@@ -860,6 +860,32 @@
    ],
    "fast": false
   },
+  "drawing.createBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "drawing.deleteBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "drawing.duplicate": {
    "domain": "drawing",
    "group": "drawingOps",
@@ -911,6 +937,32 @@
     "charts"
    ],
    "fast": false
+  },
+  "drawing.renameBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "drawing.setActiveBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "drawing.setAlert": {
    "domain": "drawing",

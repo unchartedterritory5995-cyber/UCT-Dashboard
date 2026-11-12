@@ -700,6 +700,55 @@ export function buildDrawingSource(charts, store = drawingsStore) {
   }
 }
 
+/**
+ * ⭐ DRAWING BOARDS (C1-167..170): the member's named drawing sheets. Every chart shares them, so this
+ * covers the whole app, not one chart. It reads the store and writes only through the writers the
+ * Drawing Boards panel uses (components/chart/TracingsPanel.jsx via useTracings): setActiveTracing,
+ * createTracing (then setActiveTracing, as "New board" does), renameTracing, deleteTracing.
+ * `confirm()` polls the server's copy (useTracingsSync pushes exportTracings() into the tracings_doc
+ * preference, debounced 1.5 s) until it holds these boards by id and name and the same active board.
+ * It returns { ok } or { ok: false, reason: 'not-synced' }.
+ */
+export function buildDrawingBoardSource(store = drawingsStore, { fetchFn = (u, o) => fetch(u, o), timeoutMs = 8000, everyMs = 500 } = {}) {
+  const snapshot = () => {
+    const snap = store.getTracingsSnapshot()
+    return {
+      activeId: snap.activeId,
+      boards: snap.tracings.map((t) => {
+        const s = store.tracingStats(t.id)
+        return { id: t.id, name: t.name || '', label: store.tracingLabel(t), active: t.id === snap.activeId, drawings: s.drawings, symbols: s.syms }
+      }),
+    }
+  }
+  const sigOf = (boards, activeId) => JSON.stringify([activeId, (boards || []).map(t => [t.id, t.name || ''])])
+  return {
+    snapshot,
+    setActive: (id) => store.setActiveTracing(id),
+    create: (name) => { const id = store.createTracing({ name }); store.setActiveTracing(id); return id },
+    rename: (id, name) => store.renameTracing(id, name),
+    remove: (id) => store.deleteTracing(id),
+    async confirm() {
+      const t0 = Date.now()
+      for (;;) {
+        const s = store.getTracingsSnapshot()
+        const want = sigOf(s.tracings, s.activeId)
+        try {
+          const r = await fetchFn('/api/auth/preferences', { credentials: 'include', cache: 'no-store' })
+          if (r.ok) {
+            const prefs = await r.json()
+            const raw = prefs?.tracings_doc
+            const env = typeof raw === 'string' ? JSON.parse(raw) : raw
+            const doc = env?.doc ?? null
+            if (doc && sigOf(doc.tracings, doc.activeId) === want) return { ok: true }
+          }
+        } catch { /* keep polling until the deadline */ }
+        if (Date.now() - t0 > timeoutMs) return { ok: false, reason: 'not-synced' }
+        await new Promise(res => setTimeout(res, everyMs))
+      }
+    },
+  }
+}
+
 const drawingSig = (list) => JSON.stringify((Array.isArray(list) ? list : []).map(d => [
   d.id, d.type, d.points, d.color ?? null, d.lineStyle ?? null, d.lineWidth ?? null, !!d.locked, !!d.hidden,
 ]))
@@ -806,6 +855,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
+    drawingBoards: buildDrawingBoardSource(),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(typeof layoutDock === 'function' ? { layoutDock: buildLayoutDockSource(layoutDock) } : {}),
