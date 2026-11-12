@@ -29,7 +29,12 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 /** main.jsx calls this once, before the app renders. */
 export function startBootFetches({ fetchImpl = (typeof fetch === 'function' ? fetch : null), storage = safeStorage() } = {}) {
   if (!fetchImpl || entries.size) return
-  const start = (url) => entries.set(url, { at: now(), p: Promise.resolve().then(() => fetchImpl(url)).catch(() => null) })
+  // A failure is recorded AS a failure ({ failed }), never as an empty answer (TERM-033's idiom). take()
+  // turns it into "no boot answer", and the caller then makes its own request, which reports its own error.
+  const start = (url) => entries.set(url, {
+    at: now(),
+    p: Promise.resolve().then(() => fetchImpl(url)).then((response) => ({ response }), (error) => ({ failed: error })),
+  })
   start(ME_URL)
   let signedInLastTime = false
   try { signedInLastTime = storage?.getItem(SIGNED_IN_HINT) === '1' } catch { /* storage blocked */ }
@@ -40,7 +45,8 @@ function take(url) {
   const e = entries.get(url)
   if (!e) return null
   entries.delete(url)
-  return now() - e.at > BOOT_MAX_AGE_MS ? null : e.p
+  if (now() - e.at > BOOT_MAX_AGE_MS) return null
+  return e.p.then((r) => (r.failed ? null : r.response))
 }
 
 /** AuthContext's first /api/auth/me: the boot request's Response (or null when there is none or it failed). */

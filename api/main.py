@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import time
+_BOOT_T0 = time.monotonic()  # boot timing (`_boot_mark`): before every heavy import below
 from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -24,6 +25,41 @@ _ET = ZoneInfo("America/New_York")
 # cold-start that makes the first chart load slow shows up here as a
 # freshly-reset uptime.
 _APP_BOOT_TS = time.time()
+
+# ── Boot timing (2026-11-11) ──────────────────────────────────────────────────────────────────────
+# Railway cannot run two web pods on one volume, so EVERY deploy is a gap: measured 2026-11-12 05:33 UTC,
+# ~40 s of 502 for members (old pod stopped at :00, new process started at :12, first 200 at :40). The
+# part we control is process start -> serving. `_boot_mark` records where it goes (marks placed between
+# top-level lifespan steps and inside the job-registration block); /api/health carries the summary and
+# one `[boot]` line is logged when the pod starts serving. Observability only: nothing gates on it.
+_BOOT_MARKS: list[tuple[str, float]] = []
+
+
+def _boot_mark(name: str) -> None:
+    _BOOT_MARKS.append((name, time.monotonic() - _BOOT_T0))
+
+
+def _boot_summary() -> dict:
+    marks = list(_BOOT_MARKS)
+    if not marks:
+        return {}
+    by = dict(marks)
+    segs = [(marks[i][0], round(marks[i + 1][1] - marks[i][1], 2)) for i in range(len(marks) - 1)]
+    return {
+        "import_s": round(by.get("lifespan-start", marks[0][1]), 2),
+        "to_serving_s": round(by["ready"], 2) if "ready" in by else None,
+        "slowest": [{"from": n, "s": d} for n, d in sorted(segs, key=lambda x: -x[1])[:5]],
+    }
+
+
+def _boot_log() -> None:
+    try:
+        b = _boot_summary()
+        logging.getLogger("uct.boot").warning(
+            "[boot] serving after %ss (imports %ss); slowest: %s", b.get("to_serving_s"), b.get("import_s"),
+            ", ".join(f"{x['from']} {x['s']}s" for x in b.get("slowest", [])))
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        pass
 
 # Configure logging early -- before any service imports -- so that INFO messages
 # from api.services.* loggers (bar_stream, realtime_stream, etc.) reach stdout.
@@ -4403,6 +4439,7 @@ async def lifespan(app: FastAPI):
     # logging config during startup and rebuilds those loggers, silently
     # discarding a filter added earlier (measured). This does NOT reach
     # Railway's edge, which sees the URL before we do — see the module.
+    _boot_mark("lifespan-start")
     try:
         from api import logging_redaction
         logging_redaction.install()
@@ -4808,6 +4845,7 @@ async def lifespan(app: FastAPI):
     # editing it would strand flow-worker on stale code for a change it runs --
     # measured with `tools/flow_worker_watch_coverage.py`, not assumed. `main.py`
     # is not in that closure.
+    _boot_mark("L4811")
     try:
         from api.services import rollout as _rollout
         _seeded = _rollout.ensure_s7_dark_seeded()
@@ -5210,6 +5248,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
 
+    _boot_mark("L5213")
     try:
         _start_darkpool_prewarm_background()
         logging.getLogger(__name__).info("[startup] darkpool prewarm scheduled (~60s after boot)")
@@ -5617,6 +5656,7 @@ async def lifespan(app: FastAPI):
     # Rail: tests/test_boot_does_not_wait_on_bars_db.py (lifespan reaches `yield`
     # with a writer holding bars.db for the whole boot; the lifespan thread never
     # opens bars.db).
+    _boot_mark("L5620")
     def _bars_boot_bg():
         try:
             from api.services import bars_sqlite as _bars_sqlite
@@ -6081,6 +6121,7 @@ async def lifespan(app: FastAPI):
     # working set. Log RSS + thread count every 60s so the 2.4GB observation
     # (2026-06-15) can be confirmed as a plateau (post pass-2 removal) vs. a
     # climb -- the prerequisite for any further memory work.
+    _boot_mark("L6084")
     def _web_memwatch():
         import time as _mw_time
         while True:
@@ -6482,6 +6523,7 @@ async def lifespan(app: FastAPI):
     # default boot is today's process thread for thread. `shadow` grades a bars.db
     # row against the collector's; `server` (with BREADTH_EOD_SERVER_FROM) writes it.
     # Web pod: breadth_snapshots lives on web's volume.
+    _boot_mark("L6485")
     try:
         from api.services import breadth_eod_source as _breadth_eod
         if _breadth_eod.start_job():
@@ -6853,6 +6895,7 @@ async def lifespan(app: FastAPI):
     from api.services.scheduler_lock import acquire_scheduler_lock
     _scheduler = None
     if acquire_scheduler_lock():
+        _boot_mark("jobs-start")
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
         from apscheduler.triggers.interval import IntervalTrigger
@@ -7160,6 +7203,7 @@ async def lifespan(app: FastAPI):
         # /data/darkpool.db and is the only service serving /api/darkpool/*.
         # Self-gates on DARKPOOL_MASSIVE_INGEST_ENABLED=1 — a deploy alone will
         # not start pulling. Bounded by ticker cap + page cap + wall clock.
+        _boot_mark("J7169")
         try:
             from api.darkpool_massive_ingest import scheduled_run as _dp_ingest_run
             _scheduler.add_job(
@@ -7481,6 +7525,7 @@ async def lifespan(app: FastAPI):
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
         # so a hardcoded list never goes stale again). 5:30 AM ET: before the
         # pre-market tape, outside the deploy blackout. Fail-soft + gated.
+        _boot_mark("J7490")
         if os.environ.get("TICKER_TYPES_SYNC_ENABLED", "1") == "1":
             def _ticker_types_sync():
                 try:
@@ -7854,6 +7899,7 @@ async def lifespan(app: FastAPI):
         # /history/backfill-schedule. Coverage-driven + idempotent, so a pod restart just
         # resumes on the next tick (in-memory chains die on restart; this survives). No-ops
         # unless a floor marker is set. Registered always; gated inside backfill_tick.
+        _boot_mark("J7863")
         try:
             def _breadth_history_backfill_tick():
                 try:
@@ -8167,6 +8213,7 @@ async def lifespan(app: FastAPI):
         # ⛔ 2026-10-22: the 6h job was an IntervalTrigger, whose countdown restarts at
         # every boot -- on a redeploy-heavy day it never fired. register_jobs uses fixed
         # UTC cron slots + a delayed, age-checked one-shot catch-up (see the module).
+        _boot_mark("J8176")
         if os.getenv("AUTHDB_BACKUP_ENABLED") == "1":
             try:
                 from api.services import authdb_backup as _authdb_backup
@@ -8485,6 +8532,7 @@ async def lifespan(app: FastAPI):
         # -- The Desk -> Substack articles poller -------------------------------
         # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
         # gated ON by default; set SUBSTACK_ENABLED=0 to disable.
+        _boot_mark("J8494")
         if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
             from api.services.substack_poller import poll_all as _substack_poll
             _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7", timezone=_ET),
@@ -8890,6 +8938,7 @@ async def lifespan(app: FastAPI):
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
         # via Discord + email + AlertBell. Gated on CATALYST_DIGEST_ENABLED.
+        _boot_mark("J8899")
         if os.environ.get("CATALYST_DIGEST_ENABLED", "0").lower() in ("1", "true", "yes"):
             from api.services.catalyst.digest import send_digest as _cat_digest
             _scheduler.add_job(
@@ -9192,6 +9241,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[alert_remind] failed: {type(e).__name__}: {e}")
 
+        _boot_mark("J9201")
         _scheduler.add_job(
             _alert_remind_job,
             trigger=CronTrigger(minute="*/5", timezone=_ET),
@@ -9512,6 +9562,7 @@ async def lifespan(app: FastAPI):
         # so PER PREDICATE rather than letting a non-intersecting predicate
         # score as LEGACY_ONLY, which would read as "the new lane is missing
         # fires" for a question it was never able to be asked.
+        _boot_mark("J9521")
         if os.environ.get("ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED", "0") == "1":
             def _indicator_condition_dark_sweep_job():
                 try:
@@ -9816,6 +9867,7 @@ async def lifespan(app: FastAPI):
             max_instances=1,
             replace_existing=True,
         )
+        _boot_mark("J9825")
         _scheduler.add_job(
             _run_patterns_leaders_scan,
             trigger=IntervalTrigger(hours=1),
@@ -10117,6 +10169,7 @@ async def lifespan(app: FastAPI):
         # COV-07 / COV-09 (RM-L19): both jobs are ALWAYS registered and check their own
         # flag on every run (ESTIMATE_HISTORY_ENABLED / FILINGS_FEED_ENABLED), so arming
         # either one takes effect without a scheduler change and unset does nothing at all.
+        _boot_mark("J10126")
         try:
             from apscheduler.triggers.interval import IntervalTrigger as _FeedInterval
 
@@ -10421,6 +10474,7 @@ async def lifespan(app: FastAPI):
         # digest row. 600 s for the check, 3600 s for the digest, as the siblings do.
         # Rail: tests/test_notebook_slo.py pins both ids AND both graces (a pager
         # nobody schedules reads as coverage — the desk_session_audit lesson).
+        _boot_mark("J10430")
         try:
             from api.services.journal_two import notebook_slo as _j2_notebook_slo
             _scheduler.add_job(_j2_notebook_slo.scheduled_check,
@@ -10470,6 +10524,7 @@ async def lifespan(app: FastAPI):
     # flow.db boot integrity probe (deploy-survival B4) — runs on EVERY web pod
     # in a daemon thread so a multi-second PRAGMA scan on the ~800MB DB never
     # delays healthcheck readiness. Alerts Discord on corruption.
+    _boot_mark("L10473")
     try:
         import threading as _thr
         def _flow_integrity_probe():
@@ -10535,6 +10590,7 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
+    _boot_mark("ready"); _boot_log()
     yield
     try:
         trade_exchange_news_router.stop_background()
@@ -10832,6 +10888,7 @@ def health():
         "status": "ok",
         "wire_date": wire_date,
         "uptime_seconds": int(time.time() - _APP_BOOT_TS),
+        "boot": _boot_summary(),
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
