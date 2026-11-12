@@ -2,6 +2,8 @@
 
 ## >>> COMPLETE 2026-11-12: every lesson upgraded and verified. Nothing running. <<<
 
+**Polish pass DONE 2026-11-12:** 0 style flags, 5,232 live questions, 9 quote fixes, lost criteria restored; 39 criteria left uncovered on purpose (need owner rulings). Nothing left to run.
+
 All 9 waves plus the pilot are integrated, verified and committed locally (last content commit 568b618f70). 5,215 of 5,215 live
 questions have a simple answer; 0 choice questions have 3 answers. Final report: `docs/study/OVERBUILD_FINAL_REPORT.md`
 (and `StudyReview\plan\Overbuild-FINAL-report.html`). Nothing is pushed. Next: the owner's sample review (Part 4 of the review
