@@ -4520,6 +4520,66 @@
      "modes": {}
     }
    }
+  },
+  "drawing.positionCalculator": {
+   "digest": "ae39380cbdbe0412",
+   "phrasings": {
+    "open the position calculator with entry 50 stop 48 target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "size this trade: entry 50, stop 48, target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a position calculator on the chart, entry 50, stop 48 and target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.saveDefaults": {
+   "digest": "f9f30761c1779e5c",
+   "phrasings": {
+    "make this trendline my default style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this trendline's style as the default for new drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use that line's look as my default drawing style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.favoriteTool": {
+   "digest": "53410fdea7505f5e",
+   "phrasings": {
+    "add the fib tool to my favourites": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "star the fibonacci retracement tool": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the fib tool on my favorites toolbar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
