@@ -135,6 +135,15 @@
   line-height: var(--lh-snug);
 }
 
+.simple {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-lg, var(--text-md));
+  font-weight: 600;
+  line-height: var(--lh-snug);
+}
+.simple .whyLabel { margin-bottom: 2px; font-weight: 400; }
+
 .why { margin: 0; }
 .whySummary {
   min-height: var(--tap-min);

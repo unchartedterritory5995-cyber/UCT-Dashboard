@@ -218,12 +218,27 @@ def build() -> dict:
     per_unit = [audit_unit(u) for u in units]
     total = collections.Counter()
     slots = collections.Counter()
+    up = collections.Counter()
     for u in units:
         for q in live_questions(u):
             total[q.get("format")] += 1
+            up["live"] += 1
+            if q.get("simple"):
+                up["with_simple"] += 1
+            if q.get("deeper"):
+                up["with_deeper"] += 1
+            if q.get("tier"):
+                up["tier_" + q["tier"]] += 1
+            if (q.get("risk") or {}).get("score", 0) >= 4:
+                up["high_risk"] += 1
+            if q.get("depends_on"):
+                up["depends_on_a_decision"] += 1
+            if is_choice(q):
+                up["four_choice" if len(q.get("choices") or []) == 4 else "three_choice"] += 1
             if is_choice(q) and q.get("answer") in q["choices"]:
                 slots[q["choices"].index(q["answer"])] += 1
-    return {"units": per_unit, "formats": dict(total), "answer_slots": dict(slots), "coverage": audit_coverage(units, cards)}
+    return {"units": per_unit, "formats": dict(total), "answer_slots": dict(slots), "coverage": audit_coverage(units, cards),
+            "upgrade": dict(up)}
 
 
 # ── lineage: which version of its card a unit was written from ───────────────────────────────────────────────────────
@@ -319,6 +334,11 @@ def render(rep: dict) -> str:
     s = rep["answer_slots"]
     st = sum(s.values()) or 1
     out.append("right-answer slot over the whole library: " + ", ".join(f"{'ABCD'[k]} {v / st:.0%}" for k, v in sorted(s.items()) if k < 4))
+    up = rep.get("upgrade") or {}
+    out.append(f"upgrade (docs/study/OVERBUILD_PLAN.md): {up.get('with_simple', 0)} of {n} have a simple answer; "
+               f"{up.get('three_choice', 0)} choice questions still have 3 answers ({up.get('four_choice', 0)} have 4); "
+               f"tiers core {up.get('tier_core', 0)} / extended {up.get('tier_extended', 0)} / expert {up.get('tier_expert', 0)}; "
+               f"{up.get('high_risk', 0)} high risk; {up.get('depends_on_a_decision', 0)} rest on an open decision")
     flagged = [u for u in rep["units"] if u["flags"]]
     out.append(f"\nunits with a flag: {len(flagged)} of {len(rep['units'])}")
     for u in flagged:

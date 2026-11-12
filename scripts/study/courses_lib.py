@@ -44,6 +44,19 @@ BANNED_CHOICES = re.compile(r"\b(all of the above|none of the above|both a and b
 OUR_NAME = re.compile(r"\bthe firm('s)?\b", re.I)
 VERIFY_STATUSES = ("pass", "fix", "cut")
 
+# ── the overbuild fields (docs/study/OVERBUILD_PLAN.md): all optional, all additive ──────────────────────────────
+#: A question that carries `simple` is an UPGRADED question: a mcq / scenario then has exactly four choices.
+SIMPLE_MAX_WORDS = 25
+SIMPLE_MIN_WORDS = 4
+SIMPLE_MAX_SENTENCES = 2
+SIMPLE_MAX_AVG_WORD = 5.3       # letters per word; plain trading prose sits near 4.3, jargon-heavy near 6
+SIMPLE_MAX_WORD = 13            # no single word longer than this (a defined term can be asked as a vocabulary question)
+TIERS = ("core", "extended", "expert")
+DECISION_ID = re.compile(r"^D-\d{3}$")
+DEEPER_KEYS = ("example", "counter", "trap")
+DEEPER_MAX_CHARS = 600
+_NUMBER_TOKEN = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
 
 # ── the order a member sees the choices in ────────────────────────────────────────────────────────────────────────
 #: Writers put the right answer first (the README's example does), so the bank must not keep that order: on 2026-11-10
@@ -322,6 +335,81 @@ def support_problems(q: dict, facts: dict, sources: dict) -> list[str]:
     return ["support rule: needs one Tier 1 fact or two Tier 2 facts from two different publishers"]
 
 
+def _numbers_in(text: str) -> set[str]:
+    return {m.rstrip(".").replace(",", "") for m in _NUMBER_TOKEN.findall(str(text or ""))}
+
+
+def simple_problems(q: dict) -> list[str]:
+    """The checks on the plain one-line answer (`simple`). None when the question has none. It must be short, plain,
+    and must not state anything the rest of the question does not already say: its numbers come from the question, the
+    choices, the explanation or the notes on the wrong answers, never from nowhere."""
+    if "simple" not in q:
+        return []
+    s = q.get("simple")
+    if not isinstance(s, str) or not s.strip():
+        return ["simple is empty"]
+    out: list[str] = []
+    n = _words(s)
+    if n > SIMPLE_MAX_WORDS:
+        out.append(f"simple is {n} words (max {SIMPLE_MAX_WORDS})")
+    if n < SIMPLE_MIN_WORDS:
+        out.append(f"simple is {n} words (min {SIMPLE_MIN_WORDS})")
+    if len(_sentences(s)) > SIMPLE_MAX_SENTENCES:
+        out.append(f"simple is more than {SIMPLE_MAX_SENTENCES} sentences")
+    words = re.findall(r"[A-Za-z']+", s)
+    if words:
+        avg = sum(len(w) for w in words) / len(words)
+        if avg > SIMPLE_MAX_AVG_WORD:
+            out.append(f"simple averages {avg:.1f} letters a word (max {SIMPLE_MAX_AVG_WORD}): use plainer words")
+        long_words = [w for w in words if len(w) > SIMPLE_MAX_WORD]
+        if long_words:
+            out.append(f"simple has long words {long_words}: say it plainer")
+    if re.search(r"[;()/]", s):
+        out.append("simple has a semicolon, bracket or slash: one plain sentence, no asides")
+    if s.strip().lower() == (q.get("why") or "").strip().lower():
+        out.append("simple repeats why word for word")
+    if OUR_NAME.search(s):
+        out.append("simple: never 'the firm' (say UCT or we)")
+    allowed = _numbers_in(" ".join([q.get("q") or "", q.get("story") or "", q.get("sentence") or "", q.get("why") or "",
+                                    str(q.get("answer") or ""), " ".join(map(str, q.get("choices") or [])),
+                                    " ".join(str(v) for v in (q.get("wrong") or {}).values())]))
+    stray = sorted(_numbers_in(s) - allowed)
+    if stray:
+        out.append(f"simple states numbers that are nowhere else in the question: {stray}")
+    return out
+
+
+def depth_problems(q: dict, unit: dict) -> list[str]:
+    """tier / batch / risk / depends_on / deeper: the owner-only and depth fields. Optional; checked when present."""
+    out: list[str] = []
+    if "tier" in q and q["tier"] not in TIERS:
+        out.append(f"tier must be one of {TIERS}")
+    if "batch" in q and not (isinstance(q["batch"], str) and q["batch"].strip()):
+        out.append("batch must be a non-empty string")
+    if "risk" in q:
+        r = q["risk"]
+        if not (isinstance(r, dict) and isinstance(r.get("score"), int) and 0 <= r["score"] <= 10
+                and isinstance(r.get("reasons", []), list)):
+            out.append("risk must be {score: 0-10, reasons: [..]}")
+    if "depends_on" in q:
+        d = q["depends_on"]
+        if not (isinstance(d, list) and d and all(isinstance(x, str) and DECISION_ID.match(x) for x in d)):
+            out.append("depends_on must be a non-empty list of decision ids like D-029")
+    if "deeper" in q:
+        dp = q["deeper"]
+        if not isinstance(dp, dict) or not dp or set(dp) - set(DEEPER_KEYS):
+            out.append(f"deeper must be an object with keys from {DEEPER_KEYS}")
+        else:
+            for k, v in dp.items():
+                if not (isinstance(v, str) and v.strip()) or len(v) > DEEPER_MAX_CHARS:
+                    out.append(f"deeper.{k} must be text of at most {DEEPER_MAX_CHARS} characters")
+                elif OUR_NAME.search(v):
+                    out.append(f"deeper.{k}: never 'the firm' (say UCT or we)")
+    if "simple" in q and q.get("format") in ("mcq", "scenario") and len(q.get("choices") or []) != 4:
+        out.append("an upgraded mcq / scenario (one with `simple`) needs exactly 4 choices")
+    return out
+
+
 def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills: set) -> list[str]:
     out: list[str] = []
     fmt = q.get("format")
@@ -338,7 +426,7 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
     if len(text) > MAX_Q_CHARS:
         out.append(f"question is {len(text)} characters (max {MAX_Q_CHARS})")
     if unit.get("track") != "V" and not unit.get("allow_house_words"):
-        for field in ("q", "story", "why", "lesson_line"):
+        for field in ("q", "story", "why", "lesson_line", "simple"):
             m = HOUSE_WORDS.search(q.get(field) or "")
             if m:
                 out.append(f"{field}: untaught house word {m.group(0)!r}")
@@ -418,6 +506,8 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
     for f in q.get("facts") or []:
         if f not in facts:
             out.append(f"cites unknown fact {f!r}")
+    out.extend(simple_problems(q))
+    out.extend(depth_problems(q, unit))
     out.extend(support_problems(q, facts, sources))
     return out
 
@@ -530,7 +620,8 @@ def strict_grounding(it: dict) -> list[str]:
               "quotes": [c.get("quote") for c in (r.get("depth") or {}).get("sources") or []]}
     allowed = study_import.allowed_numbers(corpus)
     out = []
-    texts = [("why", r.get("why") or ""), ("lesson_line", r.get("lesson_line") or "")]
+    texts = [("why", r.get("why") or ""), ("lesson_line", r.get("lesson_line") or ""), ("simple", r.get("simple") or "")]
+    texts += [(f"deeper.{k}", v) for k, v in (r.get("deeper") or {}).items()]
     texts += [(f"wrong[{k}]", v) for k, v in (r.get("wrong") or {}).items()]
     if it.get("type") == "walkthrough":
         texts += [(f"step{i + 1}", s) for i, s in enumerate((it.get("prompt_json") or {}).get("steps") or [])]
@@ -625,6 +716,12 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         }
         if q.get("wrong"):
             reveal["wrong"] = {dedash(k): dedash(v) for k, v in q["wrong"].items()}
+        if q.get("simple"):
+            reveal["simple"] = dedash(q["simple"])            # the one plain line the reveal leads with
+        if q.get("deeper"):
+            reveal["deeper"] = {k: dedash(v) for k, v in q["deeper"].items()}
+        if q.get("tier"):
+            reveal["tier"] = q["tier"]                         # core | extended | expert (owner-only fields stay out)
         chart = q.get("chart") or None
         if chart:
             # a real chart under the question (History Detective, a dated example): the importer resolves the bars from

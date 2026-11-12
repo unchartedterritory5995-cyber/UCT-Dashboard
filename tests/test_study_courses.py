@@ -315,3 +315,83 @@ def test_the_built_bank_never_keeps_the_answer_first():
               and i["answer_json"].get("answer") in i["prompt_json"]["choices"]]
     first = sum(1 for i in choice if i["prompt_json"]["choices"][0] == i["answer_json"]["answer"])
     assert len(choice) > 500 and first / len(choice) < 0.40
+
+
+# ── the overbuild fields (docs/study/OVERBUILD_PLAN.md): simple, deeper, tier, batch, risk, depends_on ──────────────
+# Each rule is proven able to fail on a planted defect, and a clean upgraded question passes (a checker that answers
+# "no" to everything would pass the first half trivially).
+
+def _upgraded() -> dict:
+    d = copy.deepcopy(_unit())
+    q = _first(d, "q01")
+    q.update(simple="The bid is the most a buyer will pay right now.", tier="core", batch="pilot-1",
+             risk={"score": 2, "reasons": ["one stable definition"]}, depends_on=["D-029"],
+             deeper={"example": "A quote shows a bid and an ask side by side.", "trap": "Mixing up the bid and the ask."})
+    return d
+
+
+def test_a_clean_upgraded_question_passes():
+    assert cl.unit_problems(_upgraded()) == []
+
+
+@pytest.mark.parametrize("mutate,expect", [
+    (lambda q: q.update(simple=" ".join(["plain"] * 30)), "simple is 30 words"),
+    (lambda q: q.update(simple="The bid."), "simple is 2 words"),
+    (lambda q: q.update(simple=""), "simple is empty"),
+    (lambda q: q.update(simple="The bid is the most a buyer pays; the ask is the least a seller takes."), "semicolon"),
+    (lambda q: q.update(simple="The bid is what a buyer pays (right now)."), "semicolon, bracket or slash"),
+    (lambda q: q.update(simple="The bid is 42 cents."), "numbers that are nowhere else"),
+    (lambda q: q.update(simple="Counterparty intermediation notwithstanding, quotations facilitate settlement."), "plainer"),
+    (lambda q: q.update(simple="That's the bid."), "simple repeats why word for word"),
+    (lambda q: q.update(simple="The firm's bid is what a buyer will pay."), "never 'the firm'"),
+    (lambda q: q.update(simple="Buyers pay the bid. Sellers take the ask. Nothing else. Really."), "more than 2 sentences"),
+    (lambda q: q.update(tier="beginner"), "tier must be one of"),
+    (lambda q: q.update(batch="  "), "batch must be a non-empty string"),
+    (lambda q: q.update(risk={"score": 11, "reasons": []}), "risk must be"),
+    (lambda q: q.update(depends_on=["D-29"]), "depends_on must be"),
+    (lambda q: q.update(depends_on=[]), "depends_on must be"),
+    (lambda q: q.update(deeper={"story": "x"}), "deeper must be an object"),
+    (lambda q: q.update(deeper={"example": "x" * 601}), "at most 600 characters"),
+    (lambda q: q.update(choices=["The bid", "The ask", "The last"], wrong={"The ask": "That is the seller's price.",
+                                                                            "The last": "That already traded."}),
+     "exactly 4 choices"),
+])
+def test_validator_catches_overbuild_defects(mutate, expect):
+    d = _upgraded()
+    mutate(_first(d, "q01"))
+    probs = cl.unit_problems(d)
+    assert any(expect in p for p in probs), probs
+
+
+def test_a_three_choice_question_without_simple_is_still_allowed():
+    """The 4th answer is required only of an upgraded question; the rest of the library stays valid while it is upgraded."""
+    d = copy.deepcopy(_unit())
+    assert len(_first(d, "q04")["choices"]) == 3 and cl.unit_problems(d) == []
+
+
+def test_simple_deeper_and_tier_reach_the_member_but_the_owner_only_fields_do_not():
+    d = _upgraded()
+    it = next(i for i in cl.build_items(d) if i["_key"] == "q01")
+    r = it["reveal_json"]
+    assert r["simple"] == "The bid is the most a buyer will pay right now." and r["tier"] == "core"
+    assert r["deeper"]["trap"] == "Mixing up the bid and the ask."
+    blob = json.dumps(it)
+    assert "risk" not in it and "depends_on" not in it and "pilot-1" not in blob and "D-029" not in blob
+
+
+def test_the_simple_answer_is_grounded_like_every_other_prose_field():
+    d = _upgraded()
+    it = next(i for i in cl.build_items(d) if i["_key"] == "q01")
+    it["reveal_json"]["simple"] = "The bid is the most a buyer will pay, 99 cents."
+    assert any(p.startswith("simple: number 99") for p in cl.strict_grounding(it))
+
+
+def test_a_number_made_up_in_a_go_deeper_example_is_refused():
+    d = _upgraded()
+    _first(d, "q01")["deeper"]["example"] = "A stock quoted 10.00 bid and 10.05 ask."
+    assert any("deeper.example: number 10.00" in p for p in cl.unit_problems(d))
+
+
+def test_the_importer_checks_simple_for_voice():
+    from api.services import study_import
+    assert "simple" in study_import.REVEAL_PROSE_KEYS

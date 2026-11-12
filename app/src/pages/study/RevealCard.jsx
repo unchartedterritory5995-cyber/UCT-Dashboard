@@ -33,6 +33,8 @@ import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
 
+const DEEPER_LABELS = [['example', 'Example'], ['counter', 'The other side'], ['trap', 'The common trap']]
+
 export const CORRECT_WORD = 'Correct'
 export const WRONG_WORD = 'Not quite'
 
@@ -137,6 +139,11 @@ export default function RevealCard({
   const ref = reveal?.ref || null
   const parts = lessonParts(reveal)
   const lesson = reveal?.lesson || reveal?.mini_lesson || ''
+  // an upgraded course question (docs/study/OVERBUILD_PLAN.md): one plain line first, the full answer one tap away
+  const simple = typeof reveal?.simple === 'string' ? reveal.simple.trim() : ''
+  const deeper = reveal?.deeper && typeof reveal.deeper === 'object'
+    ? DEEPER_LABELS.filter(([k]) => typeof reveal.deeper[k] === 'string' && reveal.deeper[k].trim())
+    : []
   const next = reveal?.what_happened_next || reveal?.outcome_text || reveal?.next || ''
   const prov = reveal?.provenance || {}
   // a course question (docs/study/courses): its cited pages, and why the member's own wrong pick was wrong
@@ -174,6 +181,12 @@ export default function RevealCard({
           {brandWords(wrongWhy)}
         </p>
       )}
+      {simple && (
+        <p className={styles.simple} data-testid="reveal-simple">
+          <span className={styles.whyLabel}>In one line</span>
+          <Emph>{brandWords(simple)}</Emph>
+        </p>
+      )}
       {parts ? (
         <dl className={styles.lessonParts} data-testid="lesson-parts">
           {parts.map((p) => (
@@ -183,6 +196,21 @@ export default function RevealCard({
             </div>
           ))}
         </dl>
+      ) : simple ? (
+        (lesson || deeper.length > 0) && (
+          <details className={styles.why} data-testid="full-answer">
+            <summary className={styles.whySummary}>The full answer</summary>
+            <div className={styles.whyBody}>
+              {lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>}
+              {deeper.map(([k, label]) => (
+                <p key={k} className={styles.whyLine} data-testid={`deeper-${k}`}>
+                  <span className={styles.whyLabel}>{label}</span>
+                  {brandWords(reveal.deeper[k])}
+                </p>
+              ))}
+            </div>
+          </details>
+        )
       ) : (
         lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>
       )}

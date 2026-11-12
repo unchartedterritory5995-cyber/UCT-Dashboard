@@ -221,3 +221,38 @@ describe('RevealCard trade review', () => {
     expect(screen.queryByTestId('wrong-why')).toBeNull()
   })
 })
+
+describe('RevealCard: an upgraded course question (docs/study/OVERBUILD_PLAN.md)', () => {
+  const upgraded = {
+    lesson: 'A lockup agreement bars insiders from selling for a set period after an IPO.',
+    simple: 'When the lockup ends, insiders are allowed to sell, so more shares can hit the market.',
+    deeper: { example: 'A new issue with a 180-day lockup.', trap: 'Treating the expiry as a guaranteed drop.' },
+    answer: { answer: 'More shares free to sell' },
+  }
+
+  it('leads with the one plain line and keeps the full answer one tap away', () => {
+    render(<RevealCard correct reveal={upgraded} item={{ id: 'c1', type: 'recall' }} />)
+    expect(screen.getByTestId('reveal-simple')).toHaveTextContent('When the lockup ends, insiders are allowed to sell')
+    const full = screen.getByTestId('full-answer')
+    expect(full.tagName).toBe('DETAILS')
+    expect(full).not.toHaveAttribute('open')
+    expect(screen.getByText('The full answer')).toBeInTheDocument()
+    expect(full).toHaveTextContent('A lockup agreement bars insiders from selling')
+    expect(screen.getByTestId('deeper-example')).toHaveTextContent('A new issue with a 180-day lockup.')
+    expect(screen.getByTestId('deeper-trap')).toHaveTextContent('Treating the expiry as a guaranteed drop.')
+    expect(screen.queryByTestId('deeper-counter')).not.toBeInTheDocument()
+  })
+
+  it('shows nothing extra for a question without a simple answer (the old reveal is unchanged)', () => {
+    render(<RevealCard correct reveal={{ lesson: 'Plain old lesson.', answer: { answer: 'x' } }} item={{ id: 'c2', type: 'recall' }} />)
+    expect(screen.queryByTestId('reveal-simple')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('full-answer')).not.toBeInTheDocument()
+    expect(screen.getByText('Plain old lesson.')).toBeInTheDocument()
+  })
+
+  it('ignores a blank simple answer and a malformed deeper block', () => {
+    render(<RevealCard correct reveal={{ lesson: 'Just the lesson.', simple: '   ', deeper: 'oops', answer: { answer: 'x' } }} item={{ id: 'c3', type: 'recall' }} />)
+    expect(screen.queryByTestId('reveal-simple')).not.toBeInTheDocument()
+    expect(screen.getByText('Just the lesson.')).toBeInTheDocument()
+  })
+})

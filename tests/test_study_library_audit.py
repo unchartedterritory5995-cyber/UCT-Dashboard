@@ -54,3 +54,13 @@ def test_the_live_library_keeps_its_floors():
     assert max(slots.get(k, 0) for k in range(4)) / four < 0.40       # no slot dominates the whole library
     for u in rep["units"]:
         assert not any(f.startswith("right answer sits") for f in u["flags"]), u["unit"]
+
+
+def test_the_report_counts_the_upgrade(monkeypatch):
+    """The overbuild's progress line: how many questions carry a simple answer, how many choice questions still have 3."""
+    from scripts.study import library_audit as la
+    rep = la.build()
+    up = rep["upgrade"]
+    assert up["live"] == sum(rep["formats"].values())
+    assert up["three_choice"] + up["four_choice"] == sum(rep["formats"].get(f, 0) for f in ("mcq", "scenario"))
+    assert "upgrade (docs/study/OVERBUILD_PLAN.md)" in la.render(rep)
