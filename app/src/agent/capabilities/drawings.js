@@ -43,9 +43,17 @@ import { newDrawingProps } from '../../components/chart/drawingSettingsSchema'
 import { PRICE } from '../../components/chart/drawingPanes'
 import { resolveDateWord, isoDayMs, dayWord } from '../dateWords'
 import { alertLibraryKind, loadAlerts } from './alert'
-import { parseBoundId } from '../../components/chart/drawingAlertAnchors'
+import { boundIdFor, parseBoundId } from '../../components/chart/drawingAlertAnchors'
 import { registerDrawingFamily, hasLineStyle, paneWhy, pointDay } from './drawingFamily'
 
+/** A bound alert id with its plan-local drawing id swapped for the one the store minted. */
+function realBoundId(boundId, added) {
+  const { drawingId, level } = parseBoundId(boundId)
+  const x = added.find(a => a.temp === drawingId)
+  if (!x) return boundId
+  if (!x.id) throw new Error('the drawing the alert follows was not drawn')
+  return boundIdFor(x.id, level)
+}
 const STYLES = Object.keys(LINE_DASH)            // solid, dashed, dotted
 const WIDTHS = [1, 2, 3, 4]
 const TEMP = 'new:'
@@ -108,18 +116,32 @@ export const drawingKind = {
     const d = host?.drawings
     if (!d) return false
     if (patch.deleteAlerts?.length) await alertLibraryKind.commit(host, 'alerts', { deleteCreated: patch.deleteAlerts })
-    if (patch.alerts?.length) {
+    const postAlerts = async () => {
       try { patch.alertsCreated = Object.values((await alertLibraryKind.commit(host, 'alerts', { create: patch.alerts })).created) } catch (e) {
         patch.alertsCreated = Object.values(e?.created || {})
         throw e
       }
     }
+    // An alert on a drawing THIS change draws ("draw a trendline and alert me when it breaks") is bound to the id the store
+    // mints, so it posts after the add, under that id. Every other alert still posts first: a refused alert touches nothing.
+    const onNew = (patch.alerts || []).some(c => (patch.add || []).some(x => x.id === parseBoundId(c.body?.drawing_id).drawingId))
+    if (patch.alerts?.length && !onNew) await postAlerts()
     for (const x of patch.remove || []) d.remove(ref, x.id)
     for (const u of patch.update || []) d.update(ref, u.id, u.set)
     patch.added = []
     for (const x of patch.add || []) {
       const { id: temp, restore, ...body } = x
       patch.added.push({ temp, id: restore ? d.restore(ref, restore) : d.add(ref, body), body: restore || body })
+    }
+    if (onNew) {
+      try {
+        patch.alerts = patch.alerts.map(c => ({ ...c, body: { ...c.body, drawing_id: realBoundId(c.body.drawing_id, patch.added) } }))
+        await postAlerts()
+      } catch (e) {
+        // the drawing is already written: say so, so the runtime takes it back (undoPatch) and "nothing was left changed" stays true
+        e.created = { ...e.created, ...Object.fromEntries(patch.added.map(x => [x.temp, x.id])) }
+        throw e
+      }
     }
     // the ONE drawing this change drew or changed is the one "it" means next (never after a bulk change)
     const touched = [...patch.added.map(x => x.id), ...(patch.update || []).map(u => u.id)]
@@ -175,8 +197,16 @@ const drawingArg = { type: 'string' }
 const byId = (st, id) => st.drawings.find(d => d.id === String(id)) || null
 // The key a drawing's own colour setting writes (ChartDrawingOverlay's style panel): a Price Move's is its label's.
 const colorKeyOf = (d) => (d && d.type === 'advance' ? 'labelColor' : 'color')
+// A step on a drawing the SAME plan adds: `b` has no row for it, so the usual before/after sentence can't be built, but the change
+// is real and the receipt has to carry it ("Drew a trendline … · Hid the new trendline").
+const onNewLine = (b, a, id, verb) => {
+  const n = byId(b, id) ? null : byId(a, id)
+  return n ? `${verb} the new ${objectTypeName(n.type).toLowerCase().replace('fibonacci', 'Fibonacci')}` : null
+}
 const notFound = (id) => `There's no drawing “${id}” on this chart — use an id from the drawings entry.`
 const boundIds = (env) => env?.boundDrawingIds instanceof Set ? env.boundDrawingIds : null
+// an alert set earlier in THIS plan is on the drawing as much as one the server holds, but boundIds cannot know about it yet
+const alertInPlan = (st, id) => (st.alerts || []).some(c => parseBoundId(c.body?.drawing_id).drawingId === String(id))
 
 let registered = false
 export function registerDrawingCapabilities() {
@@ -295,7 +325,8 @@ export function registerDrawingCapabilities() {
     },
     describe(b, a, { drawing }) {
       const o = byId(b, drawing), n = byId(a, drawing)
-      if (!o || !n || same(o, n)) return null
+      if (!o) return onNewLine(b, a, drawing, 'Restyled')
+      if (!n || same(o, n)) return null
       const what = []
       const ck = colorKeyOf(o)
       if (o[ck] !== n[ck]) what.push(`colour ${colorName(n[ck])}`)
@@ -332,7 +363,8 @@ export function registerDrawingCapabilities() {
       if (d.locked) return `That ${objectTypeName(d.type)} is locked — unlock it on the chart first.`
       const bound = boundIds(env)
       if (!bound) return 'I couldn\'t check whether an alert is attached to that drawing, so I left it alone.'
-      if (bound.has(d.id)) return `An alert is attached to that ${objectTypeName(d.type)} — removing it would delete the alert too. Remove it on the chart if that's what you want.`
+      if (bound.has(d.id) || alertInPlan(st, d.id)) return `An alert is attached to that ${objectTypeName(d.type)} — removing it would delete the alert too. Remove it on the chart if that's what you want.`
+      if (d.id.startsWith(TEMP)) return `That ${objectTypeName(d.type)} is only being drawn in this same request, so there is nothing to remove.`
       return null
     },
     apply: (st, { drawing }) => ({ ...st, drawings: st.drawings.filter(d => d.id !== String(drawing)) }),
@@ -358,7 +390,8 @@ export function registerDrawingCapabilities() {
     },
     describe(b, a, { drawing }) {
       const o = byId(b, drawing), n = byId(a, drawing)
-      if (!o || !n || !!o.hidden === !!n.hidden) return null
+      if (!o) return onNewLine(b, a, drawing, n?.hidden ? 'Hid' : 'Showed')
+      if (!n || !!o.hidden === !!n.hidden) return null
       return `${n.hidden ? 'Hid' : 'Showed'} the ${nameOf(o)} on ${a.symbol}`
     },
     noop: (b, a, { visible } = {}) => (visible ? 'That drawing is already showing' : 'That drawing is already hidden'),
@@ -377,7 +410,8 @@ export function registerDrawingCapabilities() {
     },
     describe(b, a, { drawing }) {
       const o = byId(b, drawing), n = byId(a, drawing)
-      if (!o || !n || !!o.locked === !!n.locked) return null
+      if (!o) return onNewLine(b, a, drawing, n?.locked ? 'Locked' : 'Unlocked')
+      if (!n || !!o.locked === !!n.locked) return null
       return `${n.locked ? 'Locked' : 'Unlocked'} the ${nameOf(o)} on ${a.symbol}`
     },
     noop: (b, a, { locked } = {}) => (locked ? 'That drawing is already locked' : 'That drawing is already unlocked'),
@@ -412,7 +446,8 @@ export function registerDrawingCapabilities() {
     },
     describe(b, a, { drawing }, env) {
       const o = byId(b, drawing), n = byId(a, drawing)
-      if (!o || !n || o.points?.[0]?.price === n.points?.[0]?.price) return null
+      if (!o) return onNewLine(b, a, drawing, 'Moved')
+      if (!n || o.points?.[0]?.price === n.points?.[0]?.price) return null
       const alert = boundIds(env)?.has(String(drawing)) ? ' (its alert moves with it)' : ''
       return `Moved the ${objectTypeName(o.type)} on ${a.symbol} from ${money(o.points[0].price)} to ${money(n.points[0].price)}${alert}`
     },
@@ -450,14 +485,14 @@ export function registerDrawingCapabilities() {
       if (!st.drawings.length) return `There are no drawings on ${st.symbol}.`
       const bound = boundIds(env)
       if (!bound) return 'I couldn\'t check which drawings have alerts attached, so I left them all alone.'
-      const go = st.drawings.filter(d => !d.locked && !bound.has(d.id))
+      const go = st.drawings.filter(d => !d.locked && !bound.has(d.id) && !alertInPlan(st, d.id))
       if (!go.length) return `Every drawing on ${st.symbol} is locked or has an alert attached — nothing to clear.`
       if (go.length > CLEAR_MAX) return `${st.symbol} has ${go.length} drawings — more than I clear at once (${CLEAR_MAX}). Clear them on the chart.`
       return null
     },
     apply(st, _a, env) {
       const bound = boundIds(env) || new Set()
-      return { ...st, drawings: st.drawings.filter(d => d.locked || bound.has(d.id)) }
+      return { ...st, drawings: st.drawings.filter(d => d.locked || bound.has(d.id) || alertInPlan(st, d.id)) }
     },
     describe(b, a) {
       const gone = b.drawings.length - a.drawings.length
@@ -468,7 +503,7 @@ export function registerDrawingCapabilities() {
   })
 
   registerDrawingFamily(common, {
-    registerCapability, byId, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT,
+    registerCapability, byId, onNewLine, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT,
     sameBound: (env, id, direction) => (env?.boundAlerts || []).some(a => a.active && a.drawingId === id && a.direction === direction),
   })
 }

@@ -17,7 +17,7 @@
 // carries is decided by nl1/selection.js (a fixed core + bounded additions, under the 60-action limit).
 
 import { buildContext, manifestFor, getCapability, isRef, MANIFEST_VERSION } from '../capabilities'
-import { planOps, collectTargets } from '../executor'
+import { planOps, collectTargets, INTERNAL_ERROR, rethrowUnderTest } from '../executor'
 import { serverServesNl1 } from '../agentClient'
 import { routingNames } from '../routing'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
@@ -172,9 +172,11 @@ export function preflightRefusals(host, ops) {
     const kinds = [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
     const plan = planOps(collectTargets(host, kinds), ops)
     if (plan.ok) return []
+    // a planning crash is UCT's bug, not the model's: never a paid repair turn. Execution says it to the member and records it.
+    if (plan.refusals?.some(r => r.code === INTERNAL_ERROR)) return []
     // eslint-disable-next-line no-control-regex -- control characters are exactly what is stripped
     return [...new Set((plan.refusals || []).map(r => String(r.reason || '').replace(/[\u0000-\u001f<>`]+/g, ' ').trim().slice(0, 200)).filter(Boolean))].slice(0, 5)
-  } catch { return [] }
+  } catch (e) { rethrowUnderTest(e); return [] }
 }
 
 /** A repaired plan never asks for LESS approval than the plan it replaces: a proposal stays a proposal. */

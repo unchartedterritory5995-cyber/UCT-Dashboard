@@ -280,7 +280,7 @@ function fibPlan(d, { levels, bands, reset }) {
 }
 
 export function registerDrawingFamily(common, h) {
-  const { registerCapability, byId, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT, sameBound } = h
+  const { registerCapability, byId, onNewLine, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT, sameBound } = h
 
   // ── one tool, one path ──
   const addPlan = (st, { tool, points, color, style }) => {
@@ -406,7 +406,8 @@ export function registerDrawingFamily(common, h) {
     },
     describe(b, a, args, env) {
       const o = byId(b, args.drawing), n = byId(a, args.drawing)
-      if (!o || !n || same(o.points, n.points)) return null
+      if (!o) return onNewLine(b, a, args.drawing, 'Moved')
+      if (!n || same(o.points, n.points)) return null
       const moved = n.points.flatMap((p, i) => {
         if (same(p, o.points[i])) return []
         const where = p.price == null ? dayWord(pointDay(p)) : p.time == null ? money(p.price) : at({ price: p.price, day: pointDay(p) })
@@ -440,7 +441,8 @@ export function registerDrawingFamily(common, h) {
     },
     describe(b, a, { drawing, set }) {
       const o = byId(b, drawing)
-      const r = o ? propsPlan(o, set) : null
+      if (!o) return onNewLine(b, a, drawing, 'Changed')
+      const r = propsPlan(o, set)
       return r?.says?.length ? `Changed the ${objectTypeName(o.type)} on ${a.symbol}: ${r.says.join(', ')}` : null
     },
     noop: () => 'That drawing is already set like that',
@@ -471,7 +473,8 @@ export function registerDrawingFamily(common, h) {
     },
     describe(b, a, args) {
       const o = byId(b, args.drawing), n = byId(a, args.drawing)
-      if (!o || !n || (same(o.levels, n.levels) && same(o.fills, n.fills))) return null
+      if (!o) return onNewLine(b, a, args.drawing, 'Changed')
+      if (!n || (same(o.levels, n.levels) && same(o.fills, n.fills))) return null
       return `Changed the ${objectTypeName(o.type)} on ${a.symbol}: ${fibPlan(o, args).says.join(', ')}`
     },
     noop: () => 'Those levels are already set like that',
@@ -506,14 +509,15 @@ export function registerDrawingFamily(common, h) {
     name: 'drawing.setAlert',
     risk: 'confirm',
     summary: 'Set an alert that FOLLOWS a drawing (the drawing menu\'s "Set alert…"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line\'s level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.',
-    hints: 'target = the drawings entry; drawing = its id; direction = above ("breaks above", "gets above") or below ("breaks below", "loses"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.',
+    hints: 'target = the drawings entry; drawing = its id; a drawing added earlier in this same plan has no id yet, so use new:1 for the first one added, new:2 for the second ("draw a trendline and alert me when it breaks"); direction = above ("breaks above", "gets above") or below ("breaks below", "loses"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.',
     args: { type: 'object', properties: { drawing: { type: 'string' }, direction: { type: 'string', enum: ['above', 'below'] }, level: { type: ['number', 'null'] } }, required: ['drawing', 'direction', 'level'], additionalProperties: false },
     prepare: prepareBound,
     check(st, args, env) { return alertPlan(st, args, env).why || null },
     apply(st, args, env) { return { ...st, alerts: [...st.alerts, alertPlan(st, args, env).c] } },
     describe(b, a, args, env) {
       if (a.alerts.length <= b.alerts.length) return null
-      const { d, lv, c } = alertPlan(b, args, env)
+      // the AFTER state: a drawing this plan adds has no row in `b` (alertPlan reads only the drawing, tf, symbol and env)
+      const { d, lv, c } = alertPlan(a, args, env)
       const what = lv != null ? `${lv} level of the ${objectTypeName(d.type)}` : objectTypeName(d.type)
       const moves = c.body.alert_type === 'trendline' ? ', and its level moves with the line' : ''
       return `Alert on ${c.sym}: price ${c.direction === 'above' ? 'at or above' : 'at or below'} the ${what} — goes off once, checked while the market is open${moves}. It follows the drawing if you move it. If price is already past it, it goes off at the next check`

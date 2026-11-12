@@ -73,6 +73,19 @@ export function splitMixedOps(opsIn) {
   return { parts }
 }
 
+/** Under test a planning throw must reach the suite. A caller that catches around planOps uses this to pass it on. */
+export const rethrowUnderTest = (e) => { if (import.meta.env?.MODE === 'test') throw e }
+/** A refusal's `code` when a capability threw while planning: useAgent records it as its own outcome kind, so it can be counted. */
+export const INTERNAL_ERROR = 'internal-error'
+/** ⛔ A capability that throws while planning is a bug. In the product the member still gets a sentence: nothing has been
+ *  written yet, and an exception here would leave the request unanswered. Under test it is rethrown, so the suite fails on it
+ *  instead of a refusal hiding it. */
+function unplanned(op, e) {
+  console.error(`planning ${op?.action} threw`, e)
+  rethrowUnderTest(e)
+  return { code: INTERNAL_ERROR, reason: 'I couldn’t work that request out, so I changed nothing. Try asking for it in smaller steps.' }
+}
+
 export function planOps(targets, opsIn, env = {}, ctx = null) {
   const refusals = []
   if (!Array.isArray(opsIn) || opsIn.length === 0) {
@@ -147,14 +160,20 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
       if (bad) { refusals.push({ index, action: op?.action, target: ref, reason: bad }); continue }
       const cap = getCapability(op.action)
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
+      if (cap.query) continue                // a read changes nothing, so there is nothing to plan (it has no check / apply / describe)
       // `trusted`: this op's symbols came from UCT itself (a screen, a saved list) — not model text.
       // `explicit`: the member's own words asked for this op (fast path / a capability's screen) — policy.js
       // `copy`: the member's own words asked for ANOTHER one (a capability's screen) — never the model's
       const oenv = op.trusted || op.explicit || op.copy ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}), ...(op.copy === true ? { copy: true } : {}) } : opEnv
-      const why = cap.check(st, op.args, oenv)
-      if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
-      if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
-      const next = cap.apply(st, op.args, oenv)
+      let why, next, crashed = null
+      try {
+        why = cap.check(st, op.args, oenv)
+        if (!why) {
+          if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
+          next = cap.apply(st, op.args, oenv)
+        }
+      } catch (e) { crashed = unplanned(op, e); why = crashed.reason }
+      if (why) { refusals.push({ index, action: op.action, target: ref, reason: why, ...(crashed ? { code: crashed.code } : {}) }); continue }
       // hotfix 2026-11-03 (live T1: "Already Daily · Already Daily" for two charts that did not exist yet): a NEW target's
       // defaults are only the planner's stand-in — an op that matches them is still carried into its creation
       // (createFlags), so it is never reported as "already" so
@@ -204,10 +223,14 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
     const seen = new Set()
     p.lines = []
     for (const { op } of p.items) {
+      if (getCapability(op.action).query) continue
       const key = `${op.action}:${JSON.stringify(op.args)}`
       if (seen.has(key)) continue
       seen.add(key)
-      const line = getCapability(op.action).describe(p.before, p.after, op.args, p.env)
+      let line
+      try { line = getCapability(op.action).describe(p.before, p.after, op.args, p.env) } catch (e) {
+        return { ok: false, refusals: [{ index: -1, action: op.action, target: p.ref, ...unplanned(op, e) }] }
+      }
       if (line && !p.lines.includes(line)) p.lines.push(line)
     }
     p.patch = kind.patch(p.before, p.after)

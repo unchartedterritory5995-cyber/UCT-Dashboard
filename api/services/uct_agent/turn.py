@@ -1383,6 +1383,8 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
     # names no action, so the model never reads it as an applied change
     "compound-takeback-failed",
+    # a capability threw while planning: UCT's own fixed sentence, nothing was written (executor.js INTERNAL_ERROR)
+    "internal-error",
 })
 
 

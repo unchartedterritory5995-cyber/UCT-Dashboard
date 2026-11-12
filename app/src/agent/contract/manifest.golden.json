@@ -5478,7 +5478,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert…\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
-   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+   "hints": "target = the drawings entry; drawing = its id; a drawing added earlier in this same plan has no id yet, so use new:1 for the first one added, new:2 for the second (\"draw a trendline and alert me when it breaks\"); direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
    "args": {
     "type": "object",
     "properties": {
