@@ -314,3 +314,203 @@ against 49. In both captures TradingView keeps fills whose lines it no longer ho
   15 INCONCLUSIVE** (v1 79 / 31 / 15). Four v1-MATCH captures still diverge under v2:
   - the two linefill counts (cause established above, not this PR's);
   - vw-call-site-history rddt+spy (creation order only).
+
+## Part 3 (review of #1149, CHANGES-REQUIRED): the fixes, still engine 51
+
+### B1: a value fixed before bar 0 is read, so the three false refusals are drawn
+The drawing lane's static enum reader (`staticEnumValue` in `buildObjectProgram`) reads a
+position, size, style or extend whose every input is fixed before bar 0 (C16: an input no knob
+reads holds its default), through:
+
+- (a) `var x = <expr over inputs and literals>`, at the top level or declared once inside a block,
+  and never reassigned (a reassigned `var` is not read as its initializer; rail);
+- (b) a `switch` whose arm keys are named string consts, or the script's own `enum` members
+  (`input.enum(PanelPosition.bottom_right)` handed to `parse_position(PanelPosition p)`);
+- (c) `pos = switch s …` followed by a final `pos` (the review's failing input, now `top_right`);
+- (d) a default assigned, reassigned in the arms (`pos := …`), then `pos`;
+- also: a `var` switch with no subject (`var string tablePosition = switch` / `cond => …`), and a
+  block-local `x = switch s` (seasonality, inside `if barstate.islast`).
+
+A choice that depends on a bar value is not folded: it is carried as that choice (an `if` node,
+evaluated where the op runs; rail). **A name the member can move is never folded**: a declared
+input (`declareInputs`, the member door's knobs; an `input.string` with options is an enum knob
+there) or one handed a value (`inputValues`) is left to the per-bar reader, which reads the knob
+(rail, mutation-proved). An input only a drawing reads gets no knob in the door, so its default is
+its value, which is what the folded word is.
+
+| script | master (`eec65fb779`) | `3793f7b336` (last push) | now |
+|---|---|---|---|
+| delta-imbalance-map | 20 ops; position and 11 cell sizes dropped (drawn at the defaults) | 0 (withheld) | 20, `top_right`, sizes `normal` |
+| crypto-correlation-matrix | 4; position dropped | 0, `pine:no-output` | 4, `top_right` |
+| rsi-multi-timeframe-dashboard | 8; position dropped | 0 | 8, `top_right` |
+| atr-bands (corpus + 2 captures) | 29, drawn `top_right` while the input says Bottom Right | 0 | 29, `bottom_right` |
+| ultimate-opening-range-breakout luxalgo (2 fixtures) | 9; position and 6 sizes dropped | 0 | 9, `top_right`, sizes `small` |
+| advanced-custom-multi-ma | 11; position and 9 sizes dropped | 0 | 11, `bottom_right`, sizes `small` |
+| volume-footprint | 27; both tables at the default position | 16 | 20; tables at the input position (`bottom_right`); 7 cells withheld for integer point sizes (m4) |
+| auto-trendline-dojiemoji (corpus + 2 captures) | 8; extend dropped | 0; extend unreadable (withheld whole) | 8, extend `right` |
+| ichimoku-kinko-hyo | 76; position and 23 sizes dropped (`input.enum`) | 0 | 76, `bottom_right`, sizes `small` |
+| cobra039s-crypto-market-visualizer | 3; position dropped | 0, `pine:no-output` | 3, `bottom_right` |
+| volume-spikes | 2; position dropped | 0 | 2, `bottom_center` |
+| seasonality | 2; position dropped | 0 | 2, `bottom_center` |
+
+Rendered through the member door on 300 synthetic bars (`objectReaderFor` + `evaluateObjects`),
+master vs tip, for every non-capture script whose program changed: 17 scripts reach a drawing. 12
+draw identically. 5 differ, and each moves toward TradingView: three `labeldown` -> `label_down`,
+keltner's named address, and volume-spikes, whose eight per-bar tables at no position become one
+table at `bottom_center` (Pine's tables replace each other by position).
+
+### B2: uncharted-volume-v2's Volume table stays withheld, and why
+- It is made on the LAST bar: `if barstate.islast and not skipAll` / `if show_volume_table` /
+  `var table volTable = table.new(volPos, …)`, and `table.set_position(volTable, volPos)` runs on
+  every pass. So the position is not evaluated on bar 0.
+- `volPos = f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`. Both arms are fixed, and
+  the reader now lifts the choice out of the helper (`hoistEnumChoice`): `top_center` / `top_right`.
+- The condition is the `hasRecentHV` column: `not na(lastHVBarIdx) and (bar_index - lastHVBarIdx)
+  <= volTableLookback`, with `lastHVBarIdx` latched on `isHVEvent`.
+- `isHVEvent` reads `ta.highest(volD[1], …)` inside `if not skipAll and isDaily`, and `skipAll`
+  holds `not hasVolumeData`, `hasVolumeData = ta.cum(nz(v)) > 0`. The block does not run on every
+  bar, so Pine's `ta.highest` there sees only the bars it ran on. The value lane refuses that
+  history by name (C31, `pine:block`: "`priorMaxAllTimeDaily` calls `ta.highest` inside a block
+  that does not run on every bar"), so the column the choice needs is not served on the last bar.
+- Neither serving condition holds, so the table is withheld by name and never drawn at
+  `top_right`. `memberPaneDefinition.test.js` now expects "10 of 18", with that reason written in.
+
+### M3: setters and cell patches withhold, never keep the old value
+`label.set_size(lb, array.get(…))` withholds the label; `table.cell_set_text_size(t, c, r,
+array.get(…))` withholds the table (`contentLost`, by handle). `label.set_size(lb, size.large)` is
+served (control). The same rule withholds the line `line.set_style(l, na)` restyles (the
+`vw-hs1-enum-na` probe, row S01), which master left dashed; the probe's L04 (a matched helper arm)
+is now served `dashed`.
+
+### m4: integer point sizes
+Not served: the canvas and the table renderer size text by the six `size.*` words only. Withheld by
+name (`ENUM_DROPS.points`, `pine:text-size-points`): "the text size of this drawing is an integer
+point size (Pine v6 `text_size` in typographic points), which this chart does not draw yet".
+Detected for a number literal, `input.int` / `input.float` / `input` with a numeric default, or a
+name bound to one. dynamic-S&R 94 -> 81, sector-rotation fixture 10 -> 3, volume-footprint 7 cells,
+stop-loss-clustering 19 -> 17.
+
+### m5: the headline names the withheld drawing
+A script with no plot and no alert condition whose drawing was withheld now says, for example:
+"this script has no plot or alert condition, and the label it draws at line 4 is withheld: the text
+size of this drawing is an integer point size …" (guard `pine:text-size-points`). The corpus metric
+moves one row: linear-regression-channel-breakout-strategy, host guard `pine:no-output` ->
+`pine:enum-unreadable` (its side label's style is a ternary over `slope[1]`; nothing drawn before
+or after).
+
+### R6 and L7: the reader's refusals, pinned; setter names from one table
+- M4: `table.cell(t, text="x", 0, 1)` (positional after named, no duplicate to mask it): refused.
+- M11: `line.set_x1(l, a, b)`: refused, "more arguments than it takes".
+- M9 / L7: the any-name rule is gone from BOTH lanes. A setter's value is placed by Pine's
+  parameter name only, from `SETTER_PINE_PARAMS` (`engine/objectSetterParams.js`), read by the host
+  reader (`placeObjectArgs`) and the runtime lane (`lowerObjectCall`). `box.set_bgcolor(id=b,
+  color=c)`, `box.set_border_width(b, width=3)` and `line.set_x1(l, x=…)` are served;
+  `label.set_text(lb, txt="a")`, `line.set_color(l, colour=c)` and `box.set_bgcolor(b, bgcolor=c)`
+  are refused in both lanes. Rails derive the table's coverage from `SETTER_PROPS` and the runtime
+  `OBJECT_OPS`, and check every setter signature `pine-presentation-spec.md` writes out.
+
+### L8, L9
+- `scriptEngineVersion.js`: the 51 history line now describes named placement, `objectEnums`, the
+  withhold rule (enums and point sizes) and the door readings.
+- The part-2 census note is corrected above: key order, not carried state.
+
+### Census, part 3 (base master `eec65fb779`, tip this branch; sources read from one tree)
+The census now also hashes the canonical (key-sorted) program.
+
+- 169 of 1,605 rows hash differently. **53 differ in JSON key order only** (13 captures, 13
+  corpus, 14 fixtures, 13 sample).
+- 116 rows change the program (84 distinct non-capture scripts, classified per prop):
+  - **a value master dropped (drawn at the default) is now read**: 17 scripts (the B1 table, plus
+    ict-killzones, htf-liquidity-dashboard and smoothed-gaussian-trend-filter);
+  - **a per-bar choice over input comparisons is now folded to its one value**: 60 scripts. In
+    every case the folded word is one of the words the old choice could take (checked
+    mechanically, 0 exceptions); the inputs have no knob, so the choice was already constant;
+  - `labeldown` / `labelup` -> `label_down` / `label_up`: 3; a named cell address: keltner;
+  - the `vw-hs1-enum-na` probe (M3, above); candlestick-patterns-on-backtest (below); tree
+    renumbering only: 1.
+- **Drawings lost against master: 5 scripts, each withheld by name with the evidence above**:
+  stop-loss-clustering 19 -> 17, volume-footprint 27 -> 20, sector-rotation fixture 10 -> 3 and
+  dynamic-S&R 94 -> 81 (integer point sizes, m4); candlestick-patterns-on-backtest 2 -> 0 (its
+  table position comes from `locNsze`, which reads `str.split` and a loop: not readable before bar
+  0, and master drew it at the default). None of the five reaches a drawing through the member
+  door on master either.
+
+### Rails the review fixes moved (each updated with its reason written in)
+- `honestySweep` item 1: a helper over an input only a drawing reads is folded at the default, so
+  the I6b-N2 shape (no default arm, uncovered options, default "A") is now drawn `dashed`, as
+  TradingView does (master drew it solid, the last push withheld it); the covered and default-arm
+  cases pin the word instead of the per-bar `if` over a constant. The `na` cases (default on an
+  uncovered option, two subjects, a named argument) are still withheld.
+- `switchValueForms`: same reading; its runtime-lane scripts carry a `plot`, because a drawing with
+  every word read before bar 0 has no per-bar expression left and the object lane needs one output.
+- `c45NamedInputDefaults`: atr-bands' table is drawn at `bottom_right` (was withheld).
+- `tableCellSetters`: an unreadable `cell_set_text_formatting` withholds its table (M3).
+- `capRound4`, `f4SpyDrawings`: back to master's text; auto-trendline's `extend` is read, so its
+  lines are withheld only for the lost removal (`pine:object-removal-lost`).
+- `pineProbeReplay`: artemis 731 -> 644 and htf-liquidity 921 -> 836 Resolvers (per-bar choices no
+  longer resolved); plot outputs byte-identical (census `outHash`).
+- `runtimeDocumentRoundTrip`: fixture re-written with `RF_WRITE_FIXTURE=1`; inside-bar-range's line
+  style is the folded `solid` (its input's default) instead of an `if` chain.
+- `tools/corpus_metric.json`: the one m5 row above.
+
+### Objects v2, part 3 (152 captures)
+| | MATCH | DIVERGE | INCONCLUSIVE |
+|---|---|---|---|
+| master `eec65fb779` | 69 | 41 | 15 |
+| last push `3793f7b336` | 75 | 35 | 15 |
+| this head | 75 | 35 | 15 |
+
+- Against master: the six named captures DIVERGE -> MATCH, plus htf-liquidity-rddt's lines family.
+- Against the last push: no capture and no family changes verdict.
+- **0 captures and 0 families move away from TradingView.** v1 unchanged: 79 / 31 / 15.
+
+### Mutants, part 3 (`engine51ReviewFixes.test.js`, 31 rails; restore from the copy, hash == HEAD blob, all true)
+| id | mutant | result |
+|---|---|---|
+| C0 | none | 31/31 green |
+| R1 | the static reader off | RED 10 |
+| R2 | switch arm keys read as literals only | RED 3 |
+| R3 | a helper whose body is a switch not followed | RED 4 |
+| R4 | an un-reassigned top-level `var` not read | RED 1 |
+| R5 | a hung `var` switch not read | RED 2 |
+| R6 | a block `var` not read | RED 1 |
+| R7 | a named input default not followed | RED 1 |
+| R8 | the per-bar choice not lifted out of a helper | RED 1 |
+| R9 | a setter's unreadable size keeps the object | RED 1 |
+| R10 | a cell patch's unreadable size keeps the table | RED 1 |
+| R11 | point sizes not detected | RED 4 |
+| R12 | the no-output headline without the withheld drawing | RED 1 |
+| R13 | positional-after-named not refused (M4) | RED 1 |
+| R14 | too many arguments not refused (M11) | RED 1 |
+| R15 | host: the one-property any-name rule restored (M9) | RED 1 |
+| R16 | runtime: the same | RED 1 |
+| R17 | a wrong Pine name in the table (`box.set_bgcolor` -> `bgcolor`) | RED 3 |
+| R18 | host: a setter's property name accepted as its parameter (L7) | RED 1 |
+| R19, R20 | enum members not values / `input.enum` default not read | RED 2, 2 |
+| R22 | an enum-typed parameter read as two parameters | RED 1 |
+| R23 | `true` (the parser's 1) not read as a boolean | RED 1 |
+| R24 | a block-local `x = switch` not read | RED 1 |
+| R25 | enum members not read off the folded header | RED 2 |
+| R26 | a declared knob folded at its default | RED 1 |
+| R4b | `neverReassigned` always true | **survives** |
+
+- R4b survives every shape tried (a reassigned top-level `var`, a reassigned `var` switch, a block
+  `var` reassigned in a nested block): the value lane rebinds a reassigned name, so the reader
+  meets a different binding (or the scope's own) before this check. It stays as a second guard on
+  a mutable name, recorded as not provable by any input found.
+- A top-level `input.enum` map added during the work was never load-bearing (mutant survived; the
+  binding is an expression the reader already follows), so it was deleted rather than kept.
+- `engine51ObjectFixes` (14 rails): C0 green; N1-N8 RED (7, 2, 1, 1, 3, 1, 2, 1). N6 (the text
+  reader's `objectLane` door) had become redundant for its old rail once the static reader read
+  ict-killzones' size first; a new rail (the same helper on `timeframe.period`) proves it again.
+- `cellPositionalOrder`: M1-M4 RED (4, 1, 1, 4).
+
+### Runs, part 3
+- hostParity: `--check` HP-1 GREEN 166/166; `--write` moved no digest; `--mutation-control` HP-4
+  GREEN (35 red).
+- `service_smoke.json` re-recorded against a local engine-51 service: identical (digest
+  `cf5a5f024e30`), not re-committed. Plain smoke PASS.
+- Heavy run (`ast`, `runtime/__tests__`, `__tests__`, and now `builder`): ONE heavy-lock run on `5086e201af`:
+  1,123 files, **19,521 passed, 2 failed, 199 skipped**. The 2 are the master reds `rsRatingDef` /
+  `rsVsEmaDef` (#1136), red on master `eec65fb779` too (checked), not touched here.
+
