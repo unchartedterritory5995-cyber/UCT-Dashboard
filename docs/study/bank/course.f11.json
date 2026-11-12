@@ -13,7 +13,7 @@
     "Held one to five days",
     "Opened in the first hour",
     "Bought and sold the same day",
-    "Any trade in a margin account"
+    "Any margin account trade"
    ],
    "kind": "mcq",
    "q": "What makes a trade a day trade?",
@@ -61,7 +61,7 @@
     "summary": "A day trade is buying and then selling, or selling and then buying, the same security on the same day. Day trading is buying and selling, or shorting and buying back, the same security on one day. In day trading, every position opens and closes the same day. A stock held overnight and sold the next day, before any new buy of it, is not a day trade. Intraday traders try to profit from small price moves during the day, often in volatile stocks and often on margin."
    },
    "facts": {
-    "given": "What makes a trade a day trade? Bought and sold the same day Held one to five days Opened in the first hour Any trade in a margin account"
+    "given": "What makes a trade a day trade? Bought and sold the same day Held one to five days Opened in the first hour Any margin account trade"
    },
    "lesson_line": "In and out the same day: that's a day trade.",
    "simple": "A day trade means you buy and sell the same stock on the same day, so the day decides it.",
@@ -69,7 +69,7 @@
    "unit": "F11.01",
    "why": "Bought and sold the same day. A day trade is a buy and a sell of the same stock on one day. Selling short and buying back that day counts too. How long you held it within the day doesn't matter.",
    "wrong": {
-    "Any trade in a margin account": "Many day traders trade on margin, but that isn't the test. A stock held for weeks in a margin account is still a swing or position trade.",
+    "Any margin account trade": "Many day traders trade on margin, but that isn't the test. A stock held for weeks in a margin account is still a swing or position trade.",
     "Held one to five days": "That's a short swing trade. Hold it overnight and it isn't a day trade.",
     "Opened in the first hour": "When you buy doesn't decide it. Whether you sell the same day does."
    }
@@ -795,7 +795,7 @@
    "choices": [
     "The day trader",
     "The swing trader",
-    "Every trader equally",
+    "Each one equally",
     "The position trader"
    ],
    "kind": "mcq",
@@ -854,7 +854,7 @@
     "summary": "Position traders hold for weeks or months and weigh fundamentals, valuation, fund flows and the economy more than swing traders do. Position trading holds for weeks or months and leans more on fundamentals; swing trading sits between it and day trading. Day traders pay little attention to fundamentals, which rarely change within one day. Many swing traders also watch fundamentals and the bigger trend so they don't trade against the market. Our rule C35: UCT swing trades, days to a few weeks, and a winner can be held longer while it keeps working. Our rule D40: prefer stocks with growing sales and earnings, with the chart first."
    },
    "facts": {
-    "given": "Which trader usually puts the most weight on business fundamentals and valuation? The position trader The swing trader The day trader Every trader equally"
+    "given": "Which trader usually puts the most weight on business fundamentals and valuation? The position trader The swing trader The day trader Each one equally"
    },
    "lesson_line": "The longer you hold, the more the business behind the chart matters.",
    "simple": "The position trader, because over a hold of months the business behind the stock matters more than any one day.",
@@ -862,7 +862,7 @@
    "unit": "F11.01",
    "why": "The position trader. Schwab says longer holds lead position traders to weigh fundamentals, valuation, money flows and the economy more than swing traders do. Investopedia says position trading is driven more by fundamentals. Day traders pay fundamentals little attention. It is a matter of weight: many swing traders still track fundamentals.",
    "wrong": {
-    "Every trader equally": "Not equally. Schwab says position traders weigh fundamentals more than swing traders. Day traders pay them little attention.",
+    "Each one equally": "Not equally. Schwab says position traders weigh fundamentals more than swing traders. Day traders pay them little attention.",
     "The day trader": "Fundamentals rarely change inside one day, so day traders pay them little attention.",
     "The swing trader": "Swing traders lean on the chart. Many track fundamentals too, with less weight than someone holding for months."
    }
@@ -1338,7 +1338,7 @@
   "prompt_json": {
    "choices": [
     "Right, save up to $25,000 first",
-    "Your broker can't keep the old rule",
+    "Your broker can't keep that rule",
     "FINRA kept it; ask your broker",
     "FINRA replaced it; ask your broker"
    ],
@@ -1399,7 +1399,7 @@
     "summary": "FINRA's new intraday margin standards replace the old day trading rules, including the pattern day trader count and its $25,000 minimum. The new rules took effect June 4, 2026, with a transition to October 20, 2027 for brokers that need more time. During the transition, your broker may still run the old day trading rules or may already use the new ones. To trade on margin you need at least $2,000 of equity in the account. Your broker can require more equity than the FINRA minimum. The old $25,000 day trading minimum is gone since June 2026; trading on margin still needs $2,000 of equity."
    },
    "facts": {
-    "given": "What's the accurate answer? It's November 2026. You have $12,000 in a margin account. A friend says you can't day trade with under $25,000. FINRA replaced it; ask your broker Right, save up to $25,000 first FINRA kept it; ask your broker Your broker can't keep the old rule"
+    "given": "What's the accurate answer? It's November 2026. You have $12,000 in a margin account. A friend says you can't day trade with under $25,000. FINRA replaced it; ask your broker Right, save up to $25,000 first FINRA kept it; ask your broker Your broker can't keep that rule"
    },
    "lesson_line": "Account rules change. Read the current rule and ask your broker before you day trade.",
    "simple": "FINRA dropped the $25,000 rule, but your broker may still use it for a while, so ask them.",
@@ -1409,7 +1409,7 @@
    "wrong": {
     "FINRA kept it; ask your broker": "FINRA didn't keep it. Its new intraday margin standards replace the $25,000 pattern day trader minimum.",
     "Right, save up to $25,000 first": "That was the old pattern day trader minimum. FINRA replaced it, though your broker may run the old rule until it switches.",
-    "Your broker can't keep the old rule": "It can, for now. Brokers that need more time may run the old rules until October 20, 2027."
+    "Your broker can't keep that rule": "It can, for now. Brokers that need more time may run the old rules until October 20, 2027."
    }
   },
   "review_status": "draft",
@@ -8363,8 +8363,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The regular trading session ends",
-    "Market orders stop being accepted",
+    "The regular session ends",
+    "Market orders stop being taken",
     "Closing imbalance info goes out",
     "After-hours trading begins"
    ],
@@ -8456,7 +8456,7 @@
     "summary": "On NYSE the regular session runs 9:30 a.m. to 4:00 p.m. ET: an opening auction at 9:30, a closing imbalance period from 3:50, and the closing auction at 4:00. NYSE's current timeline: at 3:50 p.m. market-on-close and limit-on-close entry cuts off, and imbalance publication begins, updated every second until the auction. Nasdaq starts publishing closing imbalance information at 3:50 p.m. Nasdaq's imbalance is the on-close shares that would be left unmatched at the current reference price. At the 3:50 p.m. cutoff, NYSE publishes any significant imbalance in its on-close orders. NYSE's September 2026 memo: after 3:50 p.m., new market-on-close and limit-on-close orders are accepted only on the side opposite the significant imbalance. After 3:50 p.m., NYSE accepts a new on-close order only if it is on the opposite side of a published significant imbalance. At 3:50 p.m., the pace of trades jumps by 50% to 75%. Regular orders on Nasdaq can trade from 9:30 a.m. to 4:00 p.m. Those regular-hours orders include market orders. On Nasdaq, a market-on-close order must arrive before 3:55 p.m."
    },
    "facts": {
-    "given": "What starts at 3:50 p.m. on both NYSE and Nasdaq? Closing imbalance info goes out The regular trading session ends After-hours trading begins Market orders stop being accepted"
+    "given": "What starts at 3:50 p.m. on both NYSE and Nasdaq? Closing imbalance info goes out The regular session ends After-hours trading begins Market orders stop being taken"
    },
    "lesson_line": "From 3:50 p.m. the exchanges show which side is heavy into the close. The last ten minutes get busy.",
    "simple": "At 3:50 p.m. both exchanges start showing the closing imbalance, the shares left without a match.",
@@ -8465,8 +8465,8 @@
    "why": "Closing imbalance info goes out. From 3:50 p.m., NYSE and Nasdaq publish the on-close shares that would be left unmatched. NYSE also stops taking new market-on-close and limit-on-close orders then, except on the side that offsets a significant imbalance. Regular orders, market orders included, keep working until 4:00 p.m. Nasdaq takes market-on-close orders until 3:55 p.m.",
    "wrong": {
     "After-hours trading begins": "The regular session runs to 4:00 p.m. After-hours trading comes after that.",
-    "Market orders stop being accepted": "Regular orders, market orders included, keep working until 4:00 p.m. The 3:50 changes are about on-close orders, and Nasdaq takes market-on-close orders until 3:55.",
-    "The regular trading session ends": "That's 4:00 p.m., when the closing auction runs. Regular trading goes on until then."
+    "Market orders stop being taken": "Regular orders, market orders included, keep working until 4:00 p.m. The 3:50 changes are about on-close orders, and Nasdaq takes market-on-close orders until 3:55.",
+    "The regular session ends": "That's 4:00 p.m., when the closing auction runs. Regular trading goes on until then."
    }
   },
   "review_status": "draft",

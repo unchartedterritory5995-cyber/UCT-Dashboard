@@ -2264,8 +2264,8 @@
    "q": "It opens at the day's high, closes at the day's low and has no shadows. Which word is this?",
    "choices": [
     "Black marubozu",
-    "White marubozu",
-    "Gravestone doji",
+    "Bull marubozu",
+    "Gravestone",
     "Shooting star"
    ],
    "answer": "Black marubozu",
@@ -2281,8 +2281,8 @@
     "f90"
    ],
    "wrong": {
-    "White marubozu": "A white marubozu closes above its open. This one closed below it.",
-    "Gravestone doji": "A gravestone has almost no body and a long upper shadow. This is all body, no shadows.",
+    "Bull marubozu": "A bull marubozu closes above its open. This one closed below it.",
+    "Gravestone": "A gravestone has almost no body and a long upper shadow. This is all body, no shadows.",
     "Shooting star": "A shooting star has a small body and a long upper shadow. This one has no shadows."
    },
    "simple": "It's a black marubozu, because it opened at the high and closed at the low, leaving all body and no shadows.",
@@ -2449,9 +2449,9 @@
    "q": "Which hammer deserves more of your attention?",
    "choices": [
     "The one sitting on a support level",
-    "The one in the middle of its range",
+    "The one in the middle of a range",
     "Both equal: the shape is the same",
-    "Neither: hammers need a prior rally"
+    "Neither: hammers need a rally"
    ],
    "answer": "The one sitting on a support level",
    "why": "The one sitting on a support level. A prior low where buyers stepped in is support from earlier price action. Both hammers came after a pullback, so both qualify by shape and trend. ChartSchool says to look for bullish reversals at support levels. Investopedia adds that a hammer is especially reliable at established support. Neither one is a buy yet.",
@@ -2465,8 +2465,8 @@
     "f49"
    ],
    "wrong": {
-    "The one in the middle of its range": "In the middle of the range there's no level behind it. ChartSchool says to look for reversals at support.",
-    "Neither: hammers need a prior rally": "It's the reverse. ChartSchool says the hammer forms after a decline. The same shape during an advance is called a hanging man.",
+    "The one in the middle of a range": "In the middle of the range there's no level behind it. ChartSchool says to look for reversals at support.",
+    "Neither: hammers need a rally": "It's the reverse. ChartSchool says the hammer forms after a decline. The same shape during an advance is called a hanging man.",
     "Both equal: the shape is the same": "Same shape, different location. Where a candle prints changes its weight. ChartSchool says to look for reversals at support."
    },
    "simple": "The hammer on support deserves more attention, because the prior low gives it a level and the other has none.",
@@ -2600,9 +2600,9 @@
    "q": "What pattern do the two days make?",
    "choices": [
     "Bearish engulfing",
-    "Bullish engulfing",
+    "Bull engulfing",
     "Bearish harami",
-    "Three black crows"
+    "Black crows"
    ],
    "answer": "Bearish engulfing",
    "why": "Bearish engulfing. Day 2's black body runs from $41.40 down to $39.60. That covers Day 1's whole body, $40.00 to $41.00, and closes below Day 1's open. It came after a two-week rally, where the pattern matters more.",
@@ -2620,8 +2620,8 @@
    ],
    "wrong": {
     "Bearish harami": "A harami's second body sits inside the first. Here the second body is the bigger one.",
-    "Three black crows": "Three black crows takes three long black bodies in a row. Only two days are given here.",
-    "Bullish engulfing": "A bullish engulfing has a white body covering a prior black body. Here Day 2 is the black one."
+    "Black crows": "Three black crows takes three long black bodies in a row. Only two days are given here.",
+    "Bull engulfing": "A bullish engulfing has a white body covering a prior black body. Here Day 2 is the black one."
    },
    "simple": "It's a bearish engulfing, because Day 2's down body covers all of Day 1's up body and closes below its open.",
    "deeper": {
@@ -3225,9 +3225,9 @@
    "q": "What are three white soldiers?",
    "choices": [
     "Three long white candles in a row",
-    "Three small candles inside a big one",
-    "Three long black candles in a row",
-    "Three white candles, each gapping up"
+    "Three small candles in a big one",
+    "Three long black ones in a row",
+    "Three white candles gapping up"
    ],
    "answer": "Three long white candles in a row",
    "why": "Three long white candles in a row. Each one opens within the prior candle's real body. ChartSchool adds that each close should be near the day's high, and Investopedia that it tops the prior candle's high. So the soldiers do not gap up at the open. The mirror pattern, three long black candles, is three black crows.",
@@ -3239,9 +3239,9 @@
     "f60"
    ],
    "wrong": {
-    "Three small candles inside a big one": "That's the middle of a rising three methods.",
-    "Three long black candles in a row": "That's three black crows.",
-    "Three white candles, each gapping up": "Each soldier opens inside the prior candle's body, not above it. A gap up at each open breaks that rule."
+    "Three small candles in a big one": "That's the middle of a rising three methods.",
+    "Three long black ones in a row": "That's three black crows.",
+    "Three white candles gapping up": "Each soldier opens inside the prior candle's body, not above it. A gap up at each open breaks that rule."
    },
    "simple": "Three white soldiers are three long white candles in a row, each opening inside the body before it.",
    "tier": "core",
@@ -3870,7 +3870,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Open=high, close=low: black marubozu (f39 + f119). Clean."
+   "notes": "Open=high, close=low: black marubozu (f39 + f119). Clean.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",
@@ -3900,7 +3901,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (f77 ChartSchool + f121 Investopedia). But the lesson_line says a hammer away from a level 'is just a bar', which overreaches: no source says it is meaningless, and the deeper trap itself says both candles are hammers and location changes the weight, not the name."
+   "notes": "Key is right (f77 ChartSchool + f121 Investopedia). But the lesson_line says a hammer away from a level 'is just a bar', which overreaches: no source says it is meaningless, and the deeper trap itself says both candles are hammers and location changes the weight, not the name.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -3924,7 +3926,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Day 2 black body $41.40 to $39.60 covers $40.00 to $41.00 after a rally: bearish engulfing (f82, f83, f158). Dark cloud cover not offered; harami and crows ruled out. No break."
+   "notes": "Day 2 black body $41.40 to $39.60 covers $40.00 to $41.00 after a rally: bearish engulfing (f82, f83, f158). Dark cloud cover not offered; harami and crows ruled out. No break.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -4027,7 +4030,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",

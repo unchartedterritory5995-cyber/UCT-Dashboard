@@ -1508,9 +1508,9 @@
    "q": "Which pullback is orderly by our card?",
    "choices": [
     "Inside 1.6 ATR, small red bars",
-    "One 5% red bar on heavy volume",
-    "A 3 ATR range with two gap days",
-    "Any pullback lasting three closes"
+    "One 5% red bar, heavy volume",
+    "A 3 ATR range, two gap days",
+    "Any pullback of three closes"
    ],
    "answer": "Inside 1.6 ATR, small red bars",
    "why": "Inside about 1.6 ATR with small red bars. Our card's orderly test has three parts. The whole pullback sits inside about 1.6 ATR. No single red body is over about 3.5% of price. No down day comes on volume above its 50-day average. Scot1and: tight ranges before the trigger are ideal.",
@@ -1522,9 +1522,9 @@
     "v01"
    ],
    "wrong": {
-    "One 5% red bar on heavy volume": "A red body over 3.5% on above-average volume breaks the orderly test twice.",
-    "A 3 ATR range with two gap days": "Three ATR is far past the card's about 1.6, so the range alone fails it.",
-    "Any pullback lasting three closes": "Three closes is the minimum under the line, not the orderly test. Range, red bodies and volume decide."
+    "One 5% red bar, heavy volume": "A red body over 3.5% on above-average volume breaks the orderly test twice.",
+    "A 3 ATR range, two gap days": "Three ATR is far past the card's about 1.6, so the range alone fails it.",
+    "Any pullback of three closes": "Three closes is the minimum under the line, not the orderly test. Range, red bodies and volume decide."
    },
    "house": true,
    "simple": "An orderly pullback is small and quiet, with a narrow range, small red bars and no heavy selling.",
@@ -1891,9 +1891,9 @@
    "q": "Buy at the close, or pass?",
    "choices": [
     "Pass; a gap and a weak close",
-    "Buy; the close is over the line",
-    "Buy; a 3% gap shows strength",
-    "Pass; four closes is too long"
+    "Buy; close is over the line",
+    "Buy; 3% gap shows strength",
+    "Pass; four closes, too long"
    ],
    "answer": "Pass; a gap and a weak close",
    "why": "Pass. A decisive trigger opens less than 2% over the prior close and closes in the top 30% of its range. This day gapped 3% and closed at 0.54, so it fails both. Buying a trigger day that gaps up 2% or more is a named mistake.",
@@ -1905,9 +1905,9 @@
     "d20"
    ],
    "wrong": {
-    "Buy; the close is over the line": "Over the line is one test. The gap and the mid-range close fail the other two.",
-    "Pass; four closes is too long": "Three closes is the minimum, and this pullback is four tight closes. The gap and the mid-range close are the problem.",
-    "Buy; a 3% gap shows strength": "A gap up on the trigger day is a chase. Buying a trigger day that gaps up 2% or more is a named mistake."
+    "Buy; close is over the line": "Over the line is one test. The gap and the mid-range close fail the other two.",
+    "Buy; 3% gap shows strength": "A gap up on the trigger day is a chase. Buying a trigger day that gaps up 2% or more is a named mistake.",
+    "Pass; four closes, too long": "Three closes is the minimum, and this pullback is four tight closes. The gap and the mid-range close are the problem."
    },
    "house": true,
    "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line at 0.54 of its range, the middle of the bar.",
@@ -2223,9 +2223,9 @@
    "q": "The last third of a Slingshot winner trails which line?",
    "choices": [
     "10-day if fast, 21-day if steadier",
-    "The 4-day line, on a close below it",
-    "21-day if fast, 50-day if steadier",
-    "No trail; sell all that is left at 5R"
+    "The 4-day line, close below it",
+    "21-day if fast, 50-day if steady",
+    "No trail; sell the rest at 5R"
    ],
    "answer": "10-day if fast, 21-day if steadier",
    "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail starts after both trims and rides the last third. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
@@ -2237,9 +2237,9 @@
     "v01"
    ],
    "wrong": {
-    "The 4-day line, on a close below it": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
-    "21-day if fast, 50-day if steadier": "Our fast movers use the 10-day, and our steadier ones the 21-day. The 50-day is not our trail.",
-    "No trail; sell all that is left at 5R": "5R is the second third, not the exit. The last third rides the trail."
+    "The 4-day line, close below it": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
+    "21-day if fast, 50-day if steady": "Our fast movers use the 10-day, and our steadier ones the 21-day. The 50-day is not our trail.",
+    "No trail; sell the rest at 5R": "5R is the second third, not the exit. The last third rides the trail."
    },
    "house": true,
    "simple": "Trail the last third on the 10-day average for fast movers or the 21-day for steadier ones, selling on a close below it.",
@@ -3682,7 +3682,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c06 verbatim: 1.6 ATR, 3.5%, 50-day average volume. Wrong notes match the card. Key is the shortest choice."
+   "notes": "c06 verbatim: 1.6 ATR, 3.5%, 50-day average volume. Wrong notes match the card. Key is the shortest choice.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "cut",
@@ -3749,7 +3750,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass is right: the 3% open fails the under-2% open test and 0.54 fails the top-30% close (c04, c19). Four closes is inside the card's range. Numbers come from the story and c04. Overlaps q16/q39 by teaching the same rule, but no stem gives another key away."
+   "notes": "Pass is right: the 3% open fails the under-2% open test and 0.54 fails the top-30% close (c04, c19). Four closes is inside the card's range. Numbers come from the story and c04. Overlaps q16/q39 by teaching the same rule, but no stem gives another key away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "pass",
@@ -3804,7 +3806,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is h21/c40; Scot1and's 4-day trail is a named distractor (o07); key not longest."
+   "notes": "Key is h21/c40; Scot1and's 4-day trail is a named distractor (o07); key not longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",

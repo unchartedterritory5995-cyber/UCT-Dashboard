@@ -6643,8 +6643,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Right at the 9:30 a.m. opening bell",
-    "In the final hour of the trading day",
+    "Right at the 9:30 opening bell",
+    "In the final hour of trading",
     "In the middle of the trading day",
     "Before the open or after the close"
    ],
@@ -6680,7 +6680,7 @@
     "summary": "Most companies release earnings before the open or after the close, not during regular trading. The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. News released outside regular hours can move the stock sharply in extended-hours trading."
    },
    "facts": {
-    "given": "When do most companies release their earnings? Before the open or after the close In the middle of the trading day In the final hour of the trading day Right at the 9:30 a.m. opening bell"
+    "given": "When do most companies release their earnings? Before the open or after the close In the middle of the trading day In the final hour of trading Right at the 9:30 opening bell"
    },
    "lesson_line": "Most results land while regular trading is shut. Know which side of the session yours falls on.",
    "simple": "Most companies report before the open or after the close, so the news lands while regular trading is shut.",
@@ -6688,9 +6688,9 @@
    "unit": "F5.04",
    "why": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. The stock can still move sharply in extended hours.",
    "wrong": {
-    "In the final hour of the trading day": "Results usually come after the close, not in the final hour.",
+    "In the final hour of trading": "Results usually come after the close, not in the final hour.",
     "In the middle of the trading day": "FINRA says companies usually release results before the open or after the close, not mid-session.",
-    "Right at the 9:30 a.m. opening bell": "Morning results usually come out before the open, while regular trading is still shut, not at the bell."
+    "Right at the 9:30 opening bell": "Morning results usually come out before the open, while regular trading is still shut, not at the bell."
    }
   },
   "review_status": "draft",
@@ -11193,9 +11193,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "About 25x your normal risk",
+    "About 25x your risk",
     "About 2x your normal risk",
-    "About 8x your normal risk",
+    "About 8x your risk",
     "About the same as normal"
    ],
    "kind": "mcq",
@@ -11248,7 +11248,7 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "If it gaps down the full expected move, how does the hit compare with your normal risk? A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade. About 2x your normal risk About the same as normal About 8x your normal risk About 25x your normal risk"
+    "given": "If it gaps down the full expected move, how does the hit compare with your normal risk? A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade. About 2x your normal risk About the same as normal About 8x your risk About 25x your risk"
    },
    "lesson_line": "Check the expected move against your size. One gap can cost more than your normal risk.",
    "simple": "About 2x, because 8% off a position worth 25% of the account is 2%, double your 1% risk.",
@@ -11256,8 +11256,8 @@
    "unit": "F5.06",
    "why": "About 2x your normal risk. 8% off a position worth 25% of the account is 2% of the account. That's double the 1% you normally risk. On a gap, your stop doesn't set the loss. So check the expected move against your size before the report. The expected move is no cap either. A bigger gap costs more.",
    "wrong": {
-    "About 25x your normal risk": "That reads the position's size as the loss. Only the 8% drop on that 25% hits the account.",
-    "About 8x your normal risk": "That's the stock's move. The account feels it only on the 25% you hold.",
+    "About 25x your risk": "That reads the position's size as the loss. Only the 8% drop on that 25% hits the account.",
+    "About 8x your risk": "That's the stock's move. The account feels it only on the 25% you hold.",
     "About the same as normal": "Your stop doesn't set the loss here. The gap does, and 8% of a 25% position is 2% of the account."
    }
   },
@@ -13004,10 +13004,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Earnings gap that fills before the close",
+    "Earnings gap that fills by the close",
     "Earnings gap, big volume, strong close",
     "Gap down that recovers by noon",
-    "Small earnings gap on very light volume"
+    "Small earnings gap on light volume"
    ],
    "kind": "mcq",
    "q": "What does a Power Earnings Gap look like on day one?",
@@ -13062,7 +13062,7 @@
     "summary": "A Power Earnings Gap is a gap up on strong earnings that closes strong, best near the high. This manager wants gap-day volume at least 3-5x the daily average. The big move comes on report day, or the next session if the report came while the market was closed. Bulkowski wants report-day volume above the 30-day average. Closing near the high shows demand did not just flare at the open and fade. An earnings gap that reverses and closes weak or red is not the setup."
    },
    "facts": {
-    "given": "What does a Power Earnings Gap look like on day one? Earnings gap, big volume, strong close Earnings gap that fills before the close Small earnings gap on very light volume Gap down that recovers by noon"
+    "given": "What does a Power Earnings Gap look like on day one? Earnings gap, big volume, strong close Earnings gap that fills by the close Small earnings gap on light volume Gap down that recovers by noon"
    },
    "lesson_line": "Three marks on day one: the earnings gap, the volume behind it, and where it closes.",
    "simple": "It gaps up on strong earnings, trades heavy volume, and closes strong, best near the day's high.",
@@ -13070,9 +13070,9 @@
    "unit": "F5.07",
    "why": "Earnings gap, big volume, strong close. One manager who trades it describes a gap up on strong earnings that closes strong, best near the highs. The volume bar differs by author: that manager wants at least 3-5x the daily average, Bulkowski above the 30-day average. A gap that reverses to close weak or red is not the setup.",
    "wrong": {
-    "Earnings gap that fills before the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
+    "Earnings gap that fills by the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
     "Gap down that recovers by noon": "Wrong direction. This setup is a gap up on strong earnings.",
-    "Small earnings gap on very light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap."
+    "Small earnings gap on light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap."
    }
   },
   "review_status": "draft",
@@ -13506,10 +13506,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Rules bar buying in the first hour",
-    "A filled gap is a much safer entry",
+    "Rules bar buys in the first hour",
+    "A filled gap is a safer entry",
     "The open can fade; wait for proof",
-    "The open is usually the day's low"
+    "The open's usually the day's low"
    ],
    "kind": "mcq",
    "q": "Why might you wait before buying an earnings gap right at the open?",
@@ -13550,7 +13550,7 @@
     "summary": "StockCharts' gap method waits an hour after the open for the range to form. Bulkowski waits for a close above the report-day high, because sellers may push the stock down instead. Without enough buying, a gap up stalls or falls below its opening price. Waiting for a strong gap to fill before buying can mean missing the move."
    },
    "facts": {
-    "given": "Why might you wait before buying an earnings gap right at the open? The open can fade; wait for proof A filled gap is a much safer entry The open is usually the day's low Rules bar buying in the first hour"
+    "given": "Why might you wait before buying an earnings gap right at the open? The open can fade; wait for proof A filled gap is a safer entry The open's usually the day's low Rules bar buys in the first hour"
    },
    "lesson_line": "Let the gap show you it holds before you pay up for it.",
    "simple": "Waiting lets the gap show it can hold, because a gap up without enough buying can drop below its open.",
@@ -13558,9 +13558,9 @@
    "unit": "F5.07",
    "why": "The open can fade, so wait for proof. A gap up without enough buying can level off or drop below its opening price. One StockCharts gap method lets the first hour set the range. Bulkowski waits for a close above the report-day high, because sellers may push price down instead. These are published methods, not a market rule. Waiting for a full fill instead can mean missing the move.",
    "wrong": {
-    "A filled gap is a much safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
-    "Rules bar buying in the first hour": "No rule bars it. Waiting an hour is one gap method's choice, so the day's range can form first.",
-    "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price."
+    "A filled gap is a safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
+    "Rules bar buys in the first hour": "No rule bars it. Waiting an hour is one gap method's choice, so the day's range can form first.",
+    "The open's usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price."
    }
   },
   "review_status": "draft",
@@ -14841,10 +14841,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A miss: below the consensus",
-    "In line: near the consensus",
+    "Miss: below the consensus",
+    "In line: near consensus",
     "A beat: above the consensus",
-    "A miss: below last year's EPS"
+    "A miss: below last year"
    ],
    "kind": "mcq",
    "q": "Netflix, first quarter 2022: EPS of $3.53. The Refinitiv consensus was $2.89. How does EPS read?",
@@ -14885,7 +14885,7 @@
     "summary": "Netflix's first-quarter 2022 EPS was $3.53, and it included a $162 million non-cash currency gain. Netflix earned $3.53 a share against a $2.89 Refinitiv consensus. Variety reports the same Refinitiv consensus: $2.89 EPS on $7.93 billion revenue. Actual above the consensus is a beat, below is a miss, equal is in line, for earnings and for revenue."
    },
    "facts": {
-    "given": "Netflix, first quarter 2022: EPS of $3.53. The Refinitiv consensus was $2.89. How does EPS read? A beat: above the consensus A miss: below the consensus In line: near the consensus A miss: below last year's EPS"
+    "given": "Netflix, first quarter 2022: EPS of $3.53. The Refinitiv consensus was $2.89. How does EPS read? A beat: above the consensus Miss: below the consensus In line: near consensus A miss: below last year"
    },
    "lesson_line": "Actual against the consensus. Above is a beat, below is a miss, equal is in line.",
    "simple": "It is a beat, because $3.53 is above the $2.89 that analysts expected.",
@@ -14893,9 +14893,9 @@
    "unit": "F5.08",
    "why": "A beat. Actual above the estimate is a beat, below is a miss, and equal is in line. $3.53 is above the $2.89 Refinitiv consensus. Last year's $3.75 does not enter it: beat and miss compare with the estimate. The $3.53 included a $162 million non-cash currency gain, so take care with the size of the beat.",
    "wrong": {
-    "A miss: below last year's EPS": "Netflix did earn $3.75 a year earlier. But beat and miss compare with the estimate, not with last year.",
-    "A miss: below the consensus": "$3.53 is above $2.89, not below it. Below the consensus would be a miss.",
-    "In line: near the consensus": "In line means equal to the estimate, not near it. $3.53 and $2.89 are far apart."
+    "A miss: below last year": "Netflix did earn $3.75 a year earlier. But beat and miss compare with the estimate, not with last year.",
+    "In line: near consensus": "In line means equal to the estimate, not near it. $3.53 and $2.89 are far apart.",
+    "Miss: below the consensus": "$3.53 is above $2.89, not below it. Below the consensus would be a miss."
    }
   },
   "review_status": "draft",

@@ -1007,9 +1007,9 @@
    "q": "What starts at 3:50 p.m. on both NYSE and Nasdaq?",
    "choices": [
     "Closing imbalance info goes out",
-    "The regular trading session ends",
+    "The regular session ends",
     "After-hours trading begins",
-    "Market orders stop being accepted"
+    "Market orders stop being taken"
    ],
    "answer": "Closing imbalance info goes out",
    "why": "Closing imbalance info goes out. From 3:50 p.m., NYSE and Nasdaq publish the on-close shares that would be left unmatched. NYSE also stops taking new market-on-close and limit-on-close orders then, except on the side that offsets a significant imbalance. Regular orders, market orders included, keep working until 4:00 p.m. Nasdaq takes market-on-close orders until 3:55 p.m.",
@@ -1029,8 +1029,8 @@
    ],
    "wrong": {
     "After-hours trading begins": "The regular session runs to 4:00 p.m. After-hours trading comes after that.",
-    "Market orders stop being accepted": "Regular orders, market orders included, keep working until 4:00 p.m. The 3:50 changes are about on-close orders, and Nasdaq takes market-on-close orders until 3:55.",
-    "The regular trading session ends": "That's 4:00 p.m., when the closing auction runs. Regular trading goes on until then."
+    "Market orders stop being taken": "Regular orders, market orders included, keep working until 4:00 p.m. The 3:50 changes are about on-close orders, and Nasdaq takes market-on-close orders until 3:55.",
+    "The regular session ends": "That's 4:00 p.m., when the closing auction runs. Regular trading goes on until then."
    },
    "simple": "At 3:50 p.m. both exchanges start showing the closing imbalance, the shares left without a match.",
    "tier": "core",
@@ -1624,7 +1624,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",

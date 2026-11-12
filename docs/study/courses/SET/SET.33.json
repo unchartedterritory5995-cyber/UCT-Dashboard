@@ -1204,13 +1204,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h25 verbatim: a stock that opens above a trim level gets that trim at the open. 5.6R is past 5R; 4.2R and the third sold at 3R are in the story. c39 supports 'often gap through'. Key is not the longest."
+   "notes": "h25 verbatim: a stock that opens above a trim level gets that trim at the open. 5.6R is past 5R; 4.2R and the third sold at 3R are in the story. c39 supports 'often gap through'. Key is not the longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h06, h07, h02 verbatim; gap open 65.70 is under the 66.05 stop and the loss is about 1.45R, so the ceiling is not hit. Key 29, longest wrong 32. The h18 broker stop versus B20 conflict is already an owner flag; the rulebook speaks, so the key follows B20."
+   "notes": "h06, h07, h02 verbatim; gap open 65.70 is under the 66.05 stop and the loss is about 1.45R, so the ceiling is not hit. Key 29, longest wrong 32. The h18 broker stop versus B20 conflict is already an owner flag; the rulebook speaks, so the key follows B20.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "pass",
@@ -1300,7 +1302,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c19, c18, c17, c22 verbatim: a 14:00 turn is a pivot, not a Go Signal; still under yesterday's close rules out red to green; ORB is the morning high. Key is the shortest choice. The 30-minute echo is incidental because the clock and the line decide it."
+   "notes": "c19, c18, c17, c22 verbatim: a 14:00 turn is a pivot, not a Go Signal; still under yesterday's close rules out red to green; ORB is the morning high. Key is the shortest choice. The 30-minute echo is incidental because the clock and the line decide it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -1336,7 +1339,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key B is right on the card's a_plus rows (c13 string, c29 shake). Problems: (1) the story never says B's 6 reds are clean, yet the why and simple lean on 'a clean string'; (2) the simple line garbles the cue ('a clean string ... that undercuts and closes back above': the candle undercuts, not the string); (3) the trap and the 'Equal' note use D38 (grades set the size) but h35 is not cited, while c04 (stop skip) is cited and unused; (4) the 'fewer reds, less risk' note asserts 'Fewer reds do not mean less risk' with no quote behind it. Fixed: story says 'a clean string of 6 reds', why and simpl"
+   "notes": "Key B is right on the card's a_plus rows (c13 string, c29 shake). Problems: (1) the story never says B's 6 reds are clean, yet the why and simple lean on 'a clean string'; (2) the simple line garbles the cue ('a clean string ... that undercuts and closes back above': the candle undercuts, not the string); (3) the trap and the 'Equal' note use D38 (grades set the size) but h35 is not cited, while c04 (stop skip) is cited and unused; (4) the 'fewer reds, less risk' note asserts 'Fewer reds do not mean less risk' with no quote behind it. Fixed: story says 'a clean string of 6 reds', why and simpl",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q53": {
    "status": "cut",
@@ -1372,7 +1376,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d03, F62 (h24), D41 (h18) verbatim. 0.76% re-derived: 1.82/238.91. 'Both stop choices agree' holds because the pivot candle is the day's low (d03). The 230.00 in the last decoy is a hypothetical price, not a claim."
+   "notes": "d03, F62 (h24), D41 (h18) verbatim. 0.76% re-derived: 1.82/238.91. 'Both stop choices agree' holds because the pivot candle is the day's low (d03). The 230.00 in the last decoy is a hypothetical price, not a claim.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -2437,9 +2442,9 @@
    "q": "Where is the 5R trim taken?",
    "choices": [
     "At the open; 5R is already past",
-    "At 5R exactly, on a limit order",
+    "At 5R exactly, by limit order",
     "At the close, if it holds up",
-    "Nowhere; let the whole thing run"
+    "Nowhere; let the trade run"
    ],
    "answer": "At the open; 5R is already past",
    "why": "At the open. If a stock opens above a trim level, take that trim at the open. It finished at 4.2R and gapped open at 5.6R, so the 5R level is already behind it. Pivot winners often gap through a trim level.",
@@ -2450,9 +2455,9 @@
     "h20"
    ],
    "wrong": {
-    "At 5R exactly, on a limit order": "5R is already behind you. The rule is to take the trim at the open, not to aim at a level the stock has passed.",
+    "At 5R exactly, by limit order": "5R is already behind you. The rule is to take the trim at the open, not to aim at a level the stock has passed.",
     "At the close, if it holds up": "The rule says take it at the open. Waiting leaves the gain open to the rest of the day.",
-    "Nowhere; let the whole thing run": "The second third comes off at 5R. Only the last third runs on the trail."
+    "Nowhere; let the trade run": "The second third comes off at 5R. Only the last third runs on the trail."
    },
    "house": true,
    "simple": "Take the trim at the open, because the stock opened past the 5R level.",
@@ -2475,9 +2480,9 @@
    "q": "What sets the stop now?",
    "choices": [
     "The first 30-minute bar's low",
-    "The low of a new pivot candle",
-    "Sell the position at the open",
-    "The low of the prior trading day"
+    "The low of a pivot candle",
+    "Sell the position at open",
+    "The low of the prior session"
    ],
    "answer": "The first 30-minute bar's low",
    "why": "The first 30-minute bar's low. After a gap against the stop, the first 30 minutes of the gap-down day decide. The low of that first bar is the new stop. The ceiling: if the loss runs past 2R in that time, get out. This is the gap rule, not a new pivot, and the one exception to a stop that only moves up.",
@@ -2490,9 +2495,9 @@
     "h02"
    ],
    "wrong": {
-    "The low of a new pivot candle": "That is the entry timer. The gap rule uses the first 30-minute bar's low.",
-    "Sell the position at the open": "The gap rule gives the first 30 minutes to decide, under a 2R ceiling.",
-    "The low of the prior trading day": "That is one default for a fresh entry's stop. After a gap through the stop, the first 30-minute bar's low sets it."
+    "The low of a pivot candle": "That is the entry timer. The gap rule uses the first 30-minute bar's low.",
+    "Sell the position at open": "The gap rule gives the first 30 minutes to decide, under a 2R ceiling.",
+    "The low of the prior session": "That is one default for a fresh entry's stop. After a gap through the stop, the first 30-minute bar's low sets it."
    },
    "house": true,
    "simple": "The first 30-minute bar's low becomes the new stop, and if the loss runs past 2R you sell.",
@@ -3038,9 +3043,9 @@
    "q": "Which trade is this turn?",
    "choices": [
     "A 30-minute pivot",
-    "An hourly Go Signal",
-    "A red to green buy",
-    "An opening range buy"
+    "A Go Signal",
+    "Red to green buy",
+    "Open range buy"
    ],
    "answer": "A 30-minute pivot",
    "why": "A 30-minute pivot. A pivot can form at any 30-minute candle, and its line is the pivot candle's high, not the prior close. A Go Signal is an hourly close back over the prior day's close by the end of the second hourly candle. A 14:00 turn is a pivot.",
@@ -3052,9 +3057,9 @@
     "c22"
    ],
    "wrong": {
-    "An hourly Go Signal": "A Go Signal needs an hourly close back over yesterday's close early in the day. This turn is at 14:00 and reclaims nothing.",
-    "A red to green buy": "It is still under yesterday's close. No red to green has happened.",
-    "An opening range buy": "An opening range buy takes the first trade through the 9:30 to 10:00 high. This turn comes at 14:00, far from that line."
+    "A Go Signal": "A Go Signal needs an hourly close back over yesterday's close early in the day. This turn is at 14:00 and reclaims nothing.",
+    "Red to green buy": "It is still under yesterday's close. No red to green has happened.",
+    "Open range buy": "An opening range buy takes the first trade through the 9:30 to 10:00 high. This turn comes at 14:00, far from that line."
    },
    "house": true,
    "simple": "It is a 30-minute pivot, because a turn candle can form at 14:00 and the buy line is its high.",
@@ -3298,9 +3303,9 @@
    "q": "Which grades higher on our card?",
    "choices": [
     "Pivot B; it has the A+ cues",
-    "Pivot A; two reds are enough",
-    "Equal; both are good pivots",
-    "Pivot A; fewer reds, less risk"
+    "Pivot A; two reds will do",
+    "Equal; both are good",
+    "Pivot A; fewer reds, safer"
    ],
    "answer": "Pivot B; it has the A+ cues",
    "why": "Pivot B. On our card a clean red string of 3 or more is an A+ cue. So is a shake: the low undercuts the average and the candle closes back above it. Two small reds fall short of that string. Our LITE trade was a 20-day EMA shake.",
@@ -3313,9 +3318,9 @@
     "h35"
    ],
    "wrong": {
-    "Equal; both are good pivots": "Both may trigger. The grade, and so the size, differs.",
-    "Pivot A; two reds are enough": "Two small reds fall short of the 3-or-more string. The longer string grades higher.",
-    "Pivot A; fewer reds, less risk": "Fewer reds is not a cue on the card. A clean string of 3 or more is the A+ cue."
+    "Pivot A; two reds will do": "Two small reds fall short of the 3-or-more string. The longer string grades higher.",
+    "Equal; both are good": "Both may trigger. The grade, and so the size, differs.",
+    "Pivot A; fewer reds, safer": "Fewer reds is not a cue on the card. A clean string of 3 or more is the A+ cue."
    },
    "house": true,
    "simple": "Pivot B grades higher on the card: a clean string of 3 or more reds and a shake of the average are both A+ cues.",
@@ -3553,9 +3558,9 @@
    "q": "Which plan fits our rules?",
    "choices": [
     "Over the high; stop under the low",
-    "Over the high; stop 3% under the buy",
-    "Over the high; a stop in your head",
-    "At the 10-day EMA; stop at 230.00"
+    "Over the high; stop 3% under buy",
+    "Over the high; stop in your head",
+    "At the 10-day EMA; stop 230.00"
    ],
    "answer": "Over the high; stop under the low",
    "why": "Buy over the pivot high at market, with the stop a few cents under 237.12. Here the pivot candle is also the day's low, so both stop choices agree. PSX bought 238.91 with the stop at 237.09, 0.76% away. Every position has a real stop order with the broker.",
@@ -3571,9 +3576,9 @@
     "d27"
    ],
    "wrong": {
-    "Over the high; stop 3% under the buy": "The stop sits a few cents under the low, not 3% away. Stop first, from the chart; the size comes after.",
-    "Over the high; a stop in your head": "Every position has a real stop order with the broker, not a stop kept in your head.",
-    "At the 10-day EMA; stop at 230.00": "That buys the average before any turn, with a stop nowhere near a low. The buy waits for the trade through the pivot high."
+    "Over the high; stop 3% under buy": "The stop sits a few cents under the low, not 3% away. Stop first, from the chart; the size comes after.",
+    "Over the high; stop in your head": "Every position has a real stop order with the broker, not a stop kept in your head.",
+    "At the 10-day EMA; stop 230.00": "That buys the average before any turn, with a stop nowhere near a low. The buy waits for the trade through the pivot high."
    },
    "house": true,
    "simple": "Buy over the pivot high at market and put the stop a few cents under 237.12, the low.",

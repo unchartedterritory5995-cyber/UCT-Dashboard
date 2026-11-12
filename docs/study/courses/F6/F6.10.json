@@ -879,9 +879,9 @@
    "q": "Before you buy, how do you know exactly when your option expires?",
    "choices": [
     "Read the date on the contract",
-    "Go by the month's third Friday",
+    "Go by the third Friday",
     "Go by the coming Friday",
-    "Add 30 days to the day you buy"
+    "Add 30 days to your buy date"
    ],
    "answer": "Read the date on the contract",
    "why": "Read the date on the contract. OIC says to check the explicit calendar day of expiration in any contract you trade. The option symbol includes the date. Don't assume a pattern. Monthlies use the third Friday and most weeklies a Friday. Daily and midweek series add other weekdays.",
@@ -893,9 +893,9 @@
     "f1"
    ],
    "wrong": {
-    "Go by the month's third Friday": "That's only the standard monthly. Weeklies and other expiries land on other dates.",
+    "Go by the third Friday": "That's only the standard monthly. Weeklies and other expiries land on other dates.",
     "Go by the coming Friday": "Many contracts expire weeks or months out, and some on other weekdays.",
-    "Add 30 days to the day you buy": "Options don't run a set term from your buy. Each contract has a fixed expiry date, and the symbol includes it."
+    "Add 30 days to your buy date": "Options don't run a set term from your buy. Each contract has a fixed expiry date, and the symbol includes it."
    },
    "simple": "Read the expiry date printed on the contract, because expiries fall on many different days.",
    "tier": "core",
@@ -915,9 +915,9 @@
    "q": "A company reports earnings on April 28. You see April 17 and May 15 expiries. Which expiries carry the report in their price?",
    "choices": [
     "Only the May 15 expiry",
-    "Only the April 17 expiry",
-    "Every expiry on the stock",
-    "None until it comes out"
+    "Only the April 17 one",
+    "Every expiry listed",
+    "None until the report"
    ],
    "answer": "Only the May 15 expiry",
    "why": "Only the May 15 expiry. An expiry carries the report only if it is still open when the report lands. The April 17 options expire before the April 28 report, so they can't carry it. Implied volatility tends to rise ahead of expected news and is usually high into earnings. Fidelity says a report inside an expiry can explain why that month's implied volatility is much higher. Check the calendar before you pick.",
@@ -931,9 +931,9 @@
     "f48"
    ],
    "wrong": {
-    "Only the April 17 expiry": "It expires before the April 28 report. The report can't move an option that's already gone.",
-    "Every expiry on the stock": "The April 17 options expire before the report, so they can't carry it. Only expiries still open on April 28 do.",
-    "None until it comes out": "Options price the report ahead of time. Implied volatility is usually high going into earnings, so the May price carries it."
+    "Only the April 17 one": "It expires before the April 28 report. The report can't move an option that's already gone.",
+    "Every expiry listed": "The April 17 options expire before the report, so they can't carry it. Only expiries still open on April 28 do.",
+    "None until the report": "Options price the report ahead of time. Implied volatility is usually high going into earnings, so the May price carries it."
    },
    "simple": "The May 15 options, because they are still open when the April 28 report comes out.",
    "tier": "core",
@@ -1261,7 +1261,7 @@
    "choices": [
     "45 days, and sell before the report",
     "17 days, it ends before the report",
-    "45 days, and hold through the report",
+    "45 days, and hold past the report",
     "A LEAPS, to ride out the report"
    ],
    "answer": "45 days, and sell before the report",
@@ -1280,7 +1280,7 @@
    ],
    "wrong": {
     "17 days, it ends before the report": "It barely outlasts your 2 weeks, so you'd hold it through the fastest decay.",
-    "45 days, and hold through the report": "Your plan ends in 2 weeks, before the report. Our rule holds through a report only when the trade is up 5R.",
+    "45 days, and hold past the report": "Your plan ends in 2 weeks, before the report. Our rule holds through a report only when the trade is up 5R.",
     "A LEAPS, to ride out the report": "More time doesn't shield you from the report. Implied volatility can collapse right after it, and the stock can gap either way."
    },
    "simple": "Buy the 45-day call and sell before the report, so the plan has room and you skip the earnings risk.",
@@ -1406,9 +1406,9 @@
    "q": "On an option trade, what does our rule treat as the stop?",
    "choices": [
     "The full premium you paid",
-    "Half the premium you paid",
-    "The stock's low of the day",
-    "A close below the break-even"
+    "Half the premium paid",
+    "The stock's day low",
+    "A close below break-even"
    ],
    "answer": "The full premium you paid",
    "simple": "The full premium, because our rule makes the premium you paid the stop on an option.",
@@ -1421,9 +1421,9 @@
     "h04"
    ],
    "wrong": {
-    "Half the premium you paid": "Our rule doesn't cut at half. The premium paid is the stop, so all of it is at risk.",
-    "The stock's low of the day": "That's near our share stop, a few cents under the day's low or the prior day's low. On an option, the premium paid is the stop.",
-    "A close below the break-even": "Our rule names no exit like that. The premium paid is the stop, so all of it is at risk."
+    "Half the premium paid": "Our rule doesn't cut at half. The premium paid is the stop, so all of it is at risk.",
+    "The stock's day low": "That's near our share stop, a few cents under the day's low or the prior day's low. On an option, the premium paid is the stop.",
+    "A close below break-even": "Our rule names no exit like that. The premium paid is the stop, so all of it is at risk."
    },
    "tier": "core",
    "risk": {
@@ -1526,13 +1526,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f3 (OIC) keys reading the contract date; f47/f2/f1 back the other weekdays. Parallel choice forms, key not longest. Stem does not answer q12."
+   "notes": "f3 (OIC) keys reading the contract date; f47/f2/f1 back the other weekdays. Parallel choice forms, key not longest. Stem does not answer q12.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows from the dates in the stem; f40/f48/f51 back the IV note. No banned forms, lengths 22/24/25/23."
+   "notes": "Key follows from the dates in the stem; f40/f48/f51 back the IV note. No banned forms, lengths 22/24/25/23.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q12": {
    "status": "pass",
@@ -1586,7 +1588,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key fits B22 (h01) since the plan ends before the report and no 5R is given; R now taught from f53 and tied to B25 (h02). 17-day wrong by f8. Lengths 35/34/36/31."
+   "notes": "Key fits B22 (h01) since the plan ends before the report and no 5R is given; R now taught from f53 and tied to B25 (h02). 17-day wrong by f8. Lengths 35/34/36/31.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -1604,7 +1607,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: B25 (h02) 'The premium paid is the stop.' But the why and the 'low of the day' note state the share stop as only 'a few cents under the day's low', while A3 (h04) says 'under the day's low or the prior day's low'. Half the house rule taught as the whole. Fixed both to say the full rule. Choices, key and other notes unchanged. Mild overlap: the key hints q19 (whole premium at risk) but does not answer it."
+   "notes": "Key right: B25 (h02) 'The premium paid is the stop.' But the why and the 'low of the day' note state the share stop as only 'a few cents under the day's low', while A3 (h04) says 'under the day's low or the prior day's low'. Half the house rule taught as the whole. Fixed both to say the full rule. Choices, key and other notes unchanged. Mild overlap: the key hints q19 (whole premium at risk) but does not answer it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

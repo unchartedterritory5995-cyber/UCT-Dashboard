@@ -1104,9 +1104,9 @@
    "q": "Where is your call most likely now?",
    "choices": [
     "Down a lot from your cost",
-    "About flat, like the stock",
-    "Down only a little so far",
-    "Already down to zero value"
+    "Flat, like the stock",
+    "Down only a little",
+    "Already down to zero"
    ],
    "answer": "Down a lot from your cost",
    "why": "Down a lot. An at-the-money call is the most exposed to a stock that does not move. Time decay also speeds up in an option's last several weeks, and these two weeks fall inside that stretch. The shares lose nothing to a stall. The call does, so two weeks of chop costs a large part of its premium. It is not worthless yet, because it still has time left before expiry.",
@@ -1120,9 +1120,9 @@
     "f14"
    ],
    "wrong": {
-    "About flat, like the stock": "The shares lose nothing to time. The call's time value melts every day the stock sits still.",
-    "Down only a little so far": "Decay speeds up in an option's final weeks. Two weeks of it takes a big bite out of an at-the-money call.",
-    "Already down to zero value": "Not yet. Expiry hasn't come, and an option runs out of time value at expiry."
+    "Flat, like the stock": "The shares lose nothing to time. The call's time value melts every day the stock sits still.",
+    "Down only a little": "Decay speeds up in an option's final weeks. Two weeks of it takes a big bite out of an at-the-money call.",
+    "Already down to zero": "Not yet. Expiry hasn't come, and an option runs out of time value at expiry."
    },
    "simple": "It is most likely down a lot, because in its last weeks an at-the-money call bleeds time value fast when the stock stalls.",
    "deeper": {
@@ -1544,7 +1544,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (own answer first: ATM call, three weeks to one week left, stock flat, loses heavily; f8, f24 Tier 1, f9). Two small breaks fixed. (1) The 'Already down to zero value' note says time value is lost 'only at expiry', an absolute the lesson itself contradicts (f36: deep in-the-money options carry very little time value before expiry); reworded to f14's own claim. (2) The simple line said an ATM call bleeds 'fast' whenever the stock stalls, dropping the near-expiry condition the why depends on (decay is slow early, f2); it now names the last weeks. Story, question, choices, key, why, "
+   "notes": "Key is right (own answer first: ATM call, three weeks to one week left, stock flat, loses heavily; f8, f24 Tier 1, f9). Two small breaks fixed. (1) The 'Already down to zero value' note says time value is lost 'only at expiry', an absolute the lesson itself contradicts (f36: deep in-the-money options carry very little time value before expiry); reworded to f14's own claim. (2) The simple line said an ATM call bleeds 'fast' whenever the stock stalls, dropping the near-expiry condition the why depends on (decay is slow early, f2); it now names the last weeks. Story, question, choices, key, why, ",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "cut",

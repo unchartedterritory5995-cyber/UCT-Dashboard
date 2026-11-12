@@ -1251,9 +1251,9 @@
    "q": "The market reading is Orange. By our guide, which Holy Grails do you buy?",
    "choices": [
     "Only A+ grade setups",
-    "Any setup at full size",
-    "None, Orange means cash",
-    "Any setup at half size"
+    "Any full-size setup",
+    "None, move to cash",
+    "Any half-size setup"
    ],
    "answer": "Only A+ grade setups",
    "why": "Only A+ setups. Our market reading is a guide, and in Orange the guide is only A+ setups. Green is full risk per grade. Yellow is smaller and fewer. Red is mostly cash and shorts. A B setup in Orange waits for a better market.",
@@ -1263,9 +1263,9 @@
     "c27"
    ],
    "wrong": {
-    "Any setup at full size": "That is Green. Orange narrows you to A+.",
-    "None, Orange means cash": "Red is mostly cash. Orange still allows the best setups.",
-    "Any setup at half size": "Our Orange guide names the grade, not a size: only A+ setups. A B setup waits."
+    "Any full-size setup": "That is Green. Orange narrows you to A+.",
+    "None, move to cash": "Red is mostly cash. Orange still allows the best setups.",
+    "Any half-size setup": "Our Orange guide names the grade, not a size: only A+ setups. A B setup waits."
    },
    "house": true,
    "simple": "Only A+ setups, because in an Orange market our guide narrows the buys to the very best setups.",
@@ -1677,8 +1677,8 @@
    "choices": [
     "A third, at 3R",
     "Half, at 3R",
-    "A quarter, at 3R",
-    "All of it, at 3R"
+    "A quarter",
+    "All, at 3R"
    ],
    "answer": "A third, at 3R",
    "why": "A third, at 3R. That is the hard rule for the first trim. The next third comes off at 5R, and the last third rides the trail. Ideally the first trim lands anywhere from 3R to 6R, but the rule you plan with is a third at 3R.",
@@ -1689,8 +1689,8 @@
    ],
    "wrong": {
     "Half, at 3R": "Too much. The plan sells in thirds, so the first trim is a third.",
-    "A quarter, at 3R": "The plan sells in thirds, not quarters.",
-    "All of it, at 3R": "That ends the trade at 3R. Another third comes off at 5R, and the last third rides the trail."
+    "A quarter": "The plan sells in thirds, not quarters.",
+    "All, at 3R": "That ends the trade at 3R. Another third comes off at 5R, and the last third rides the trail."
    },
    "house": true,
    "simple": "You sell a third at 3R, because our plan sells in thirds: 3R, then 5R, then the trail.",
@@ -3616,7 +3616,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'only A+' from h26/c27 (F65) first; matches. Stem scoped 'by our guide' fits A10/F65. Half-size note rests on F65 naming the grade. Choices 20-23 chars, no tell."
+   "notes": "Derived 'only A+' from h26/c27 (F65) first; matches. Stem scoped 'by our guide' fits A10/F65. Half-size note rests on F65 naming the grade. Choices 20-23 chars, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -3689,7 +3690,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h05 hard rule and h20 thirds; matches B19/E51."
+   "notes": "Key from h05 hard rule and h20 thirds; matches B19/E51.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

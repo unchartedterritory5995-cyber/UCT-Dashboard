@@ -1448,9 +1448,9 @@
    "q": "What does the bottom line mean on an income statement?",
    "choices": [
     "Net income, after all expenses",
-    "Sales, before any costs come out",
-    "Profit before interest and taxes",
-    "Cash on hand at the period's end"
+    "Sales, before costs come out",
+    "Profit before interest, taxes",
+    "Cash on hand at period's end"
    ],
    "answer": "Net income, after all expenses",
    "why": "Net income, after all expenses. It is the last line of the income statement. Income tax is the final item taken out, and what remains is the net profit or net loss. It is not operating income, which comes before interest and taxes. It is not cash either: cash sits on the balance sheet, on one date.",
@@ -1463,9 +1463,9 @@
     "f4"
    ],
    "wrong": {
-    "Profit before interest and taxes": "That's operating income. Interest and taxes still come out after it.",
-    "Sales, before any costs come out": "That's revenue, the top line. The bottom line comes after every cost.",
-    "Cash on hand at the period's end": "Cash sits on the balance sheet, on one date. The bottom line is net income, earned over a period."
+    "Profit before interest, taxes": "That's operating income. Interest and taxes still come out after it.",
+    "Sales, before costs come out": "That's revenue, the top line. The bottom line comes after every cost.",
+    "Cash on hand at period's end": "Cash sits on the balance sheet, on one date. The bottom line is net income, earned over a period."
    },
    "simple": "The bottom line is net income, the profit or loss left after every expense, taxes included.",
    "tier": "core",
@@ -1734,7 +1734,7 @@
    "q": "On an income statement, which line is the direct expense of producing the products?",
    "choices": [
     "Cost of goods sold",
-    "Operating expenses",
+    "Operating expense",
     "Interest expense",
     "Total expenses"
    ],
@@ -1750,7 +1750,7 @@
     "f20"
    ],
    "wrong": {
-    "Operating expenses": "Those are overhead costs of running the business. They can't be tied directly to making the product.",
+    "Operating expense": "Those are overhead costs of running the business. They can't be tied directly to making the product.",
     "Interest expense": "That's what the company owes its lenders on borrowed money.",
     "Total expenses": "That total takes in overhead too. Only cost of goods sold is the direct cost of production."
    },
@@ -2114,7 +2114,7 @@
    "q": "What do you call that $0.80?",
    "choices": [
     "The consensus estimate",
-    "The company's guidance",
+    "Company guidance",
     "The whisper number",
     "The trailing EPS"
    ],
@@ -2130,7 +2130,7 @@
     "f97"
    ],
    "wrong": {
-    "The company's guidance": "Guidance comes from management, and this company gave none.",
+    "Company guidance": "Guidance comes from management, and this company gave none.",
     "The whisper number": "A whisper is unofficial. This is the published average of the analysts.",
     "The trailing EPS": "Trailing EPS is what the company already earned over the past 12 months. This is a forecast."
    },
@@ -2570,7 +2570,7 @@
    "choices": [
     "The earnings call",
     "The 10-Q filing",
-    "The investor deck",
+    "The slide deck",
     "The 8-K"
    ],
    "answer": "The earnings call",
@@ -2586,7 +2586,7 @@
    ],
    "wrong": {
     "The 10-Q filing": "The 10-Q is a written quarterly report filed with the SEC.",
-    "The investor deck": "A deck is a set of slides. FINRA calls them marketing documents.",
+    "The slide deck": "A deck is a set of slides. FINRA calls them marketing documents.",
     "The 8-K": "The 8-K is a filed form. It carries the press release text."
    },
    "simple": "On the earnings call, the managers talk through the quarter live and take questions from analysts.",
@@ -2609,9 +2609,9 @@
    "q": "On an earnings calendar, what does BMO mean?",
    "choices": [
     "Before market open",
-    "After market close",
-    "During market hours",
-    "Buy at market open"
+    "After the close",
+    "In market hours",
+    "Buy at the open"
    ],
    "answer": "Before market open",
    "why": "Before market open. On an earnings calendar, BMO marks a company that releases results before trading begins for the day. The regular session starts at 9:30 a.m. ET, so the news is out before the first regular trade. AMC means after market close, and some calendars also mark reports during market hours. BMO is a timing label, not a trade instruction.",
@@ -2623,9 +2623,9 @@
     "f31"
    ],
    "wrong": {
-    "After market close": "That's AMC.",
-    "During market hours": "Some companies do report during the session. That's its own label, not BMO.",
-    "Buy at market open": "BMO is a timing label on an earnings calendar, not an order. It marks results due before trading begins."
+    "After the close": "That's AMC.",
+    "In market hours": "Some companies do report during the session. That's its own label, not BMO.",
+    "Buy at the open": "BMO is a timing label on an earnings calendar, not an order. It marks results due before trading begins."
    },
    "simple": "BMO means the company puts out its results before the regular session opens that morning.",
    "tier": "core",
@@ -2964,8 +2964,8 @@
    "q": "On a stock's stats page, what does TTM mean?",
    "choices": [
     "The last 12 months of results",
-    "The next 12 months, estimated",
-    "The last full fiscal year only",
+    "Next 12 months, estimated",
+    "The last fiscal year only",
     "This quarter, annualized"
    ],
    "answer": "The last 12 months of results",
@@ -2978,9 +2978,9 @@
     "f60"
    ],
    "wrong": {
-    "The next 12 months, estimated": "That's a forward number, built on estimates.",
+    "Next 12 months, estimated": "That's a forward number, built on estimates.",
     "This quarter, annualized": "Annualizing multiplies one quarter out. TTM adds up 12 months of reported results.",
-    "The last full fiscal year only": "A fiscal year is one fixed 12-month period. TTM is the most recent 12 months, whatever the fiscal calendar."
+    "The last fiscal year only": "A fiscal year is one fixed 12-month period. TTM is the most recent 12 months, whatever the fiscal calendar."
    },
    "simple": "TTM means the last twelve months of reported results, added up as one year.",
    "tier": "core",
@@ -3297,9 +3297,9 @@
    "q": "What does float mean for a stock?",
    "choices": [
     "Shares open to public trading",
-    "All shares, insiders included",
+    "All shares, with insiders",
     "Shares sold short right now",
-    "Shares the company bought back"
+    "Shares bought back"
    ],
    "answer": "Shares open to public trading",
    "why": "Shares open to public trading. Nasdaq defines float as the outstanding shares available for the public to trade, excluding insiders. Investopedia subtracts closely held and restricted shares from shares outstanding. Short selling does not change the float, and a buyback lowers shares outstanding.",
@@ -3312,9 +3312,9 @@
     "f130"
    ],
    "wrong": {
-    "All shares, insiders included": "That's shares outstanding. The float takes out insiders' and restricted shares.",
+    "All shares, with insiders": "That's shares outstanding. The float takes out insiders' and restricted shares.",
     "Shares sold short right now": "Short selling doesn't change the float. It just moves shares between holders.",
-    "Shares the company bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float."
+    "Shares bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float."
    },
    "simple": "Float is the shares the public can actually trade, which leaves out the shares held by insiders.",
    "tier": "core",
@@ -3833,7 +3833,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key agrees with f21/f9. Cash distractor is a real profit-vs-cash confusion (f4). Key is the shortest choice. Why no longer gives q04's answer."
+   "notes": "Key agrees with f21/f9. Cash distractor is a real profit-vs-cash confusion (f4). Key is the shortest choice. Why no longer gives q04's answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -3881,7 +3882,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f17 SEC building blocks, f6). Distractor notes grounded (f19/f7 overhead, f20 interest). Key and 'Operating expenses' both 18 chars. Why mentions gross profit (q08's key) only as reveal reinforcement; q08 plays first."
+   "notes": "Key right (f17 SEC building blocks, f6). Distractor notes grounded (f19/f7 overhead, f20 interest). Key and 'Operating expenses' both 18 chars. Why mentions gross profit (q08's key) only as reveal reinforcement; q08 plays first.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q12": {
    "status": "pass",
@@ -3941,7 +3943,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",
@@ -4007,13 +4010,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -4067,7 +4072,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f101, f55). q38's distractor note names TTM at rung 1; accepted as teaching, not a stem giveaway."
+   "notes": "Key right (f101, f55). q38's distractor note names TTM at rung 1; accepted as teaching, not a stem giveaway.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q43": {
    "status": "pass",
@@ -4121,7 +4127,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "pass",

@@ -1221,9 +1221,9 @@
    "q": "Where does the best pole usually start?",
    "choices": [
     "A quiet base, then a real change",
-    "A crash low, then a sharp rebound",
-    "A third leg in a run already huge",
-    "A slow slide to lower lows all year"
+    "A crash low, then a rebound",
+    "A third leg in a huge run",
+    "A slow slide to lower lows"
    ],
    "answer": "A quiet base, then a real change",
    "why": "A quiet base, then a real change. Kuhn: the stock first sits in a well-contained base for months or years. Then an important news event usually lifts it out of dormancy. Bulkowski: poles springing from flat bases work better, and V shapes should be avoided. Our card grades a real change like earnings or a contract best.",
@@ -1240,9 +1240,9 @@
     "c12"
    ],
    "wrong": {
-    "A crash low, then a sharp rebound": "That is the V Bulkowski says to avoid: price drops hard into the start of the pole.",
-    "A third leg in a run already huge": "Late legs break down. Our card wants the first or second big leg, and Bonde says a tight flag late in the move breaks down.",
-    "A slow slide to lower lows all year": "Kuhn describes a well-contained base first, not a slide."
+    "A crash low, then a rebound": "That is the V Bulkowski says to avoid: price drops hard into the start of the pole.",
+    "A third leg in a huge run": "Late legs break down. Our card wants the first or second big leg, and Bonde says a tight flag late in the move breaks down.",
+    "A slow slide to lower lows": "Kuhn describes a well-contained base first, not a slide."
    },
    "simple": "A quiet base, then a real change, because a sleeper that wakes up for a reason starts a real pole.",
    "deeper": {
@@ -3697,14 +3697,14 @@
    "story": "A leader rose 110% over 14 weeks, off a quiet base, after an earnings beat. Since then it has rested tight just under the high.",
    "choices": [
     "The time test: too many weeks",
-    "The size test: too small a gain",
-    "The base test: not a quiet base",
-    "The cause test: no real change"
+    "The size test: too small",
+    "The base test: not quiet",
+    "The cause test: no change"
    ],
    "wrong": {
-    "The size test: too small a gain": "A rise of 110% is a double and clears the size test.",
-    "The base test: not a quiet base": "The story says it rose off a quiet base, so that test passes.",
-    "The cause test: no real change": "An earnings beat is a real change, so that test passes."
+    "The size test: too small": "A rise of 110% is a double and clears the size test.",
+    "The base test: not quiet": "The story says it rose off a quiet base, so that test passes.",
+    "The cause test: no change": "An earnings beat is a real change, so that test passes."
    },
    "answer": "The time test: too many weeks",
    "why": "The time test. Our card wants the rise done in 40 sessions or fewer, about 8 weeks. This pole took 14 weeks, far past that, so it is no pole even though it rose 110%. IBD describes four to eight weeks, and Bulkowski 2 months or less. The size, the quiet base and the earnings beat all pass.",
@@ -4161,7 +4161,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right; Kuhn g01 and Bulkowski b10/b11 verified on the live pages. The crash-choice explanation adds an unsupported claim ('A rebound off a crash is not a fresh pole'), not in any quote. Trimmed to what b10 says."
+   "notes": "Key right; Kuhn g01 and Bulkowski b10/b11 verified on the live pages. The crash-choice explanation adds an unsupported claim ('A rebound off a crash is not a fresh pole'), not in any quote. Trimmed to what b10 says.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -4546,7 +4547,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "upgraded wave2; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "pass",

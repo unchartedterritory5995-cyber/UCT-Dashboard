@@ -791,8 +791,8 @@
    "choices": [
     "Before the open or after the close",
     "In the middle of the trading day",
-    "In the final hour of the trading day",
-    "Right at the 9:30 a.m. opening bell"
+    "In the final hour of trading",
+    "Right at the 9:30 opening bell"
    ],
    "answer": "Before the open or after the close",
    "why": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. The stock can still move sharply in extended hours.",
@@ -804,8 +804,8 @@
    ],
    "wrong": {
     "In the middle of the trading day": "FINRA says companies usually release results before the open or after the close, not mid-session.",
-    "In the final hour of the trading day": "Results usually come after the close, not in the final hour.",
-    "Right at the 9:30 a.m. opening bell": "Morning results usually come out before the open, while regular trading is still shut, not at the bell."
+    "In the final hour of trading": "Results usually come after the close, not in the final hour.",
+    "Right at the 9:30 opening bell": "Morning results usually come out before the open, while regular trading is still shut, not at the bell."
    },
    "simple": "Most companies report before the open or after the close, so the news lands while regular trading is shut.",
    "tier": "core",
@@ -1559,7 +1559,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: before the open or after the close (f7, FINRA, re-fetched on syndication.finra.org/node/846 2026-11-12, quote present word for word). Key matches. Choices 32-36 chars, key 34 and not the longest; only tell is that the key is the one two-part choice, which is the real answer shape. No second defensible answer: the bell, mid-day and final-hour choices are all inside regular hours. Why numbers 9:30/4:00 ET from f17; 'can still move sharply in extended hours' from f18. Wrong notes keep 'usually' (f7). Simple matches the why and does not overreach. Does not give away q07, q09 or q12 ("
+   "notes": "Decided cold: before the open or after the close (f7, FINRA, re-fetched on syndication.finra.org/node/846 2026-11-12, quote present word for word). Key matches. Choices 32-36 chars, key 34 and not the longest; only tell is that the key is the one two-part choice, which is the real answer shape. No second defensible answer: the bell, mid-day and final-hour choices are all inside regular hours. Why numbers 9:30/4:00 ET from f17; 'can still move sharply in extended hours' from f18. Wrong notes keep 'usually' (f7). Simple matches the why and does not overreach. Does not give away q07, q09 or q12 (",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",

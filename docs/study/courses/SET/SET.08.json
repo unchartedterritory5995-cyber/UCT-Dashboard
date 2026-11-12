@@ -1236,9 +1236,9 @@
    "q": "While a flag forms, what does volume usually do?",
    "choices": [
     "It shrinks through the pause",
-    "It stays as heavy as the pole's",
-    "It grows as more buyers pile in",
-    "It equals the breakout's volume"
+    "It stays at pole volume",
+    "It grows as buyers pile in",
+    "It equals breakout volume"
    ],
    "answer": "It shrinks through the pause",
    "why": "It shrinks. Zanger: volume generally contracts during the pause, with an increase on the breakout. Bulkowski: the volume trend is down in 74% of flags that break up. That makes it the usual case, not a law.",
@@ -1250,9 +1250,9 @@
     "d10"
    ],
    "wrong": {
-    "It stays as heavy as the pole's": "Zanger: volume contracts during the pause. A rest as loud as the pole is not a quiet rest.",
-    "It grows as more buyers pile in": "Zanger: volume contracts in the pause, it does not grow. Rising volume belongs to the breakout.",
-    "It equals the breakout's volume": "Zanger: volume contracts in the pause and increases on the breakout. The two stages differ."
+    "It stays at pole volume": "Zanger: volume contracts during the pause. A rest as loud as the pole is not a quiet rest.",
+    "It grows as buyers pile in": "Zanger: volume contracts in the pause, it does not grow. Rising volume belongs to the breakout.",
+    "It equals breakout volume": "Zanger: volume contracts in the pause and increases on the breakout. The two stages differ."
    },
    "simple": "Volume usually shrinks while a flag forms, then picks up on the breakout.",
    "deeper": {
@@ -1539,9 +1539,9 @@
    "q": "By our hard rule, where does the first third come off a flag trade?",
    "choices": [
     "At 3R, three times the risk",
-    "After 3 to 5 days in the trade",
-    "At the pole's measured move",
-    "Never; let the whole trade run"
+    "After 3 to 5 days held",
+    "At the measured move",
+    "Never; let the trade run"
    ],
    "answer": "At 3R, three times the risk",
    "why": "At 3R. The hard rule is a third off at 3R. The rulebook calls the first trim ideal anywhere from 3R to 6R, but 3R is the rule. Kullamagi sells a third to a half after 3 to 5 days. That is his rule, not ours.",
@@ -1553,9 +1553,9 @@
     "k7"
    ],
    "wrong": {
-    "After 3 to 5 days in the trade": "That is Kullamagi's rule. Ours counts in R, not days.",
-    "At the pole's measured move": "Our trim is set in R, not by a measured move.",
-    "Never; let the whole trade run": "Our plan trims in stages and trails the last third. It does not let the whole trade run."
+    "After 3 to 5 days held": "That is Kullamagi's rule. Ours counts in R, not days.",
+    "Never; let the trade run": "Our plan trims in stages and trails the last third. It does not let the whole trade run.",
+    "At the measured move": "Our trim is set in R, not by a measured move."
    },
    "house": true,
    "simple": "We sell the first third at 3R, which is three times our risk, not after a set number of days.",
@@ -2072,9 +2072,9 @@
    "q": "Buy the break today?",
    "choices": [
     "No; a report inside 3 sessions",
-    "Yes; the flag is perfect, buy it",
-    "Yes; but sell before the report",
-    "No; a 40% pole leaves it extended"
+    "Yes; the flag is perfect",
+    "Yes; sell before the report",
+    "No; a 40% pole is extended"
    ],
    "answer": "No; a report inside 3 sessions",
    "why": "No. We take no new buy in the 3 sessions before an earnings report, and this report is two sessions away. A perfect flag now is one to watch, not buy.",
@@ -2085,9 +2085,9 @@
     "h13"
    ],
    "wrong": {
-    "Yes; the flag is perfect, buy it": "A perfect shape does not lift the blackout. The report is two sessions away, inside the 3.",
-    "Yes; but sell before the report": "Buying inside the blackout and selling before the report still breaks the rule. No new buy in the 3 sessions before a report.",
-    "No; a 40% pole leaves it extended": "Stretch is measured against the 10-day average, not the pole's size. We skip a long more than 10% above it."
+    "Yes; the flag is perfect": "A perfect shape does not lift the blackout. The report is two sessions away, inside the 3.",
+    "Yes; sell before the report": "Buying inside the blackout and selling before the report still breaks the rule. No new buy in the 3 sessions before a report.",
+    "No; a 40% pole is extended": "Stretch is measured against the 10-day average, not the pole's size. We skip a long more than 10% above it."
    },
    "house": true,
    "story": "A tight four-day flag after a 40% pole. Today it trades over the prior day's high. The company reports in two sessions.",
@@ -2298,9 +2298,9 @@
    "q": "What do you do?",
    "choices": [
     "Take fewer shares than planned",
-    "Tighten the stop to fit full size",
-    "Buy full size; risk a bit more",
-    "Buy a starter now, the rest later"
+    "Tighten the stop; full size",
+    "Buy full size; risk more",
+    "Buy a starter, the rest later"
    ],
    "answer": "Take fewer shares than planned",
    "why": "Take fewer shares. Stop first, and the size comes from the stop. Here the honest stop sits 4.6% away, so it buys fewer shares. If it still does not fit the risk, skip the trade or wait for a tighter spot.",
@@ -2314,10 +2314,9 @@
     "h12"
    ],
    "wrong": {
-    "Take fewer shares than planned": "Fewer shares is what a wider stop costs. That is the rule working, not breaking.",
-    "Tighten the stop to fit full size": "The honest stop is where the idea fails. Stop first; the size comes from the stop.",
-    "Buy full size; risk a bit more": "Shares = account times risk percent, divided by entry minus stop. A wider stop means fewer shares, not more risk.",
-    "Buy a starter now, the rest later": "No starter, no adding. The full size at one price with one stop."
+    "Tighten the stop; full size": "The honest stop is where the idea fails. Stop first; the size comes from the stop.",
+    "Buy full size; risk more": "Shares = account times risk percent, divided by entry minus stop. A wider stop means fewer shares, not more risk.",
+    "Buy a starter, the rest later": "No starter, no adding. The full size at one price with one stop."
    },
    "house": true,
    "story": "You plan to buy the break at 48.60. The honest stop, a few cents under the day's low, sits 4.6% away. You wanted full size.",
@@ -2732,9 +2731,9 @@
    "q": "What is the stop now?",
    "choices": [
     "First 30-minute low; out past 2R",
-    "Still 61.65, so sell at the open",
+    "Still 61.65; sell at the open",
     "No stop at all; wait for close",
-    "Buy more at the open to lower cost"
+    "Buy more at open to lower cost"
    ],
    "answer": "First 30-minute low; out past 2R",
    "why": "The first 30-minute low of the gap-down day is the new stop. The first 30 minutes decide, so you do not sell blind at the open. The ceiling: if they take the loss past 2R, get out. This is the one exception to a stop that only moves up.",
@@ -2748,9 +2747,9 @@
     "h02"
    ],
    "wrong": {
-    "Still 61.65, so sell at the open": "The stop was gapped over. The gap rule is the one exception: the first 30-minute low is the new stop.",
+    "Still 61.65; sell at the open": "The stop was gapped over. The gap rule is the one exception: the first 30-minute low is the new stop.",
     "No stop at all; wait for close": "The close is hours away. The first 30 minutes decide, and past 2R you are out.",
-    "Buy more at the open to lower cost": "No adds and no averaging down. The full size goes in at one price with one stop, and a gap loss is not a reason to buy more."
+    "Buy more at open to lower cost": "No adds and no averaging down. The full size goes in at one price with one stop, and a gap loss is not a reason to buy more."
    },
    "house": true,
    "story": "Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news.",
@@ -4042,8 +4041,8 @@
    "choices": [
     "Hold the position as planned",
     "Sell half now to be safe",
-    "Widen the stop to give it room",
-    "Move the stop up to your entry"
+    "Widen the stop for room",
+    "Move the stop up to entry"
    ],
    "answer": "Hold the position as planned",
    "why": "Hold. After the entry, the stop is the exit, with the time stop. Your stop has not traded, and a post on your feed is not an exit. The stop only moves up. The time stop sells a trade still under 1R after 10 trading days.",
@@ -4056,8 +4055,8 @@
    ],
    "wrong": {
     "Sell half now to be safe": "A post is not an exit. The stop is, along with the time stop after 10 trading days under 1R.",
-    "Widen the stop to give it room": "The stop only moves up, never down or wider.",
-    "Move the stop up to your entry": "Breakeven comes between 2R and 5R, at the first trim. The stock is below your entry now, so that stop would hit at once."
+    "Widen the stop for room": "The stop only moves up, never down or wider.",
+    "Move the stop up to entry": "Breakeven comes between 2R and 5R, at the first trim. The stock is below your entry now, so that stop would hit at once."
    },
    "house": true,
    "simple": "The stop is the exit, so you hold until it trades or the time stop sells the trade.",
@@ -4160,7 +4159,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Zanger and Bulkowski back 'shrinks'; stem says usually. Choices even length, no tell. Examples d07/d10 ground the deeper."
+   "notes": "Zanger and Bulkowski back 'shrinks'; stem says usually. Choices even length, no tell. Examples d07/d10 ground the deeper.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -4215,7 +4215,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner B19 hard rule is a third at 3R; stem says hard rule. Kullamagi 3-5 days correctly labeled not ours. h05 quote verified in sizing_rule.md."
+   "notes": "Owner B19 hard rule is a third at 3R; stem says hard rule. Kullamagi 3-5 days correctly labeled not ours. h05 quote verified in sizing_rule.md.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -4299,7 +4300,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c39 and h08. The why no longer gives away q20's rule line. B22 'days' versus 'sessions' is an open owner flag."
+   "notes": "c39 and h08. The why no longer gives away q20's rule line. B22 'days' versus 'sessions' is an open owner flag.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "pass",
@@ -4335,7 +4337,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer is right (A3, A5). Defect: wrong{} has an entry for the correct answer 'Take fewer shares than planned' (4 entries for 3 wrong choices); the explanation would show against the key. Remove it."
+   "notes": "Answer is right (A3, A5). Defect: wrong{} has an entry for the correct answer 'Take fewer shares than planned' (4 entries for 3 wrong choices); the explanation would show against the key. Remove it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -4401,7 +4404,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Open 61.10 is 1.48R below the 62.80 fill (R = 1.15), under the 2R ceiling; key follows B20/h06/h07. Wrong notes grounded in A4, A5, B20."
+   "notes": "Open 61.10 is 1.48R below the 62.80 fill (R = 1.15), under the 2R ceiling; key follows B20/h06/h07. Wrong notes grounded in A4, A5, B20.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -4603,7 +4607,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A4/c46: the stop is the exit; half an R down is above the stop; breakeven only at the first trim; time stop is 10 days (c42). A feed post is not an exit (F66)."
+   "notes": "A4/c46: the stop is the exit; half an R down is above the stop; breakeven only at the first trim; time stop is 10 days (c42). A feed post is not an exit (F66).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q79": {
    "status": "pass",

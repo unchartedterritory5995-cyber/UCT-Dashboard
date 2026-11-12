@@ -599,8 +599,8 @@
    "choices": [
     "Ideas, how he traded them, prep",
     "Win rate, P&L and trade count",
-    "Entry price, exit price, profit",
-    "The market, the sector, the stock"
+    "Entry and exit prices, profit",
+    "The market, sector, stock"
    ],
    "answer": "Ideas, how he traded them, prep",
    "why": "His ideas, how he traded them, and his preparation. Steenbarger says he gets at least three grades every day. He grades an idea apart from how he traded it. The trading grade covers the entry, the size, the management and the exit. Preparation is his morning work before the open: reviewing the markets and the day before. None of the three grades is the day's profit.",
@@ -617,8 +617,8 @@
    ],
    "wrong": {
     "Win rate, P&L and trade count": "Those are results and activity. His grades score the quality of his own work, not what the market paid him.",
-    "Entry price, exit price, profit": "Entry and exit sit inside one grade, how he traded the idea. Profit isn't one of his grades.",
-    "The market, the sector, the stock": "That's a way to pick trades from the top down. His grades score his own work after the day."
+    "Entry and exit prices, profit": "Entry and exit sit inside one grade, how he traded the idea. Profit isn't one of his grades.",
+    "The market, sector, stock": "That's a way to pick trades from the top down. His grades score his own work after the day."
    },
    "simple": "He grades his ideas, how he traded them, and his prep, judging each one apart from the others.",
    "tier": "core",
@@ -1348,9 +1348,9 @@
    "q": "Where should your work go?",
    "choices": [
     "Acting on the ideas you find",
-    "Finding better ideas to trade",
-    "More time on your morning prep",
-    "Taking more trades of any kind"
+    "Finding better trade ideas",
+    "More time on morning prep",
+    "Taking trades of any kind"
    ],
    "answer": "Acting on the ideas you find",
    "why": "Acting on the ideas you find. Separate grades show where the leak is, and here it is at the click. SMB tells of probably their highest-P&L trader: terrific at ideas, trouble pulling the trigger. The work was giving him more confidence to make those trades. Like a tennis player working on one part of the game, work on the weak part.",
@@ -1361,9 +1361,9 @@
     "f18"
    ],
    "wrong": {
-    "Taking more trades of any kind": "More random trades would drag your idea grade down. Take the good ones you already find.",
-    "Finding better ideas to trade": "Your ideas already grade high and often work. Better ones won't help if you don't take them.",
-    "More time on your morning prep": "Nothing points to prep. The leak is at the click."
+    "Taking trades of any kind": "More random trades would drag your idea grade down. Take the good ones you already find.",
+    "Finding better trade ideas": "Your ideas already grade high and often work. Better ones won't help if you don't take them.",
+    "More time on morning prep": "Nothing points to prep. The leak is at the click."
    },
    "simple": "Work on acting on the ideas you find, because they already grade well and the leak is in taking them.",
    "deeper": {
@@ -1456,7 +1456,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from f07: ideas, trading them, prep. Key matches. Choices 29-33 chars, no tell. Why no longer names exercise, so it does not answer q06. Every sentence grounded (f03, f04, f05, f06, f07)."
+   "notes": "Solved cold from f07: ideas, trading them, prep. Key matches. Choices 29-33 chars, no tell. Why no longer names exercise, so it does not answer q06. Every sentence grounded (f03, f04, f05, f06, f07).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1590,7 +1591,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Leak is at the click (f11, f63, f18). Key no longer echoes 'often late'; choices 28-30, key shortest-but-one. Consistent with D44 (no forcing trades), which the 'any kind' wrong note respects."
+   "notes": "Leak is at the click (f11, f63, f18). Key no longer echoes 'often late'; choices 28-30, key shortest-but-one. Consistent with D44 (no forcing trades), which the 'any kind' wrong note respects.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",

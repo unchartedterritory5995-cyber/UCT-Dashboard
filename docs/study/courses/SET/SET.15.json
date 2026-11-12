@@ -2318,10 +2318,10 @@
    "criterion": "xbk.time_stop",
    "q": "What is the plan?",
    "choices": [
-    "Add more while it is quiet",
+    "Add more; it is quiet",
     "Sell it and free the money",
-    "Hold; the hold day was clean",
-    "Move the stop to breakeven"
+    "Hold; the hold was clean",
+    "Move the stop to entry"
    ],
    "answer": "Sell it and free the money",
    "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money. This one is up only 0.6R at the close of day 10, so the time stop applies. The clean hold day does not matter, we never add, and breakeven starts at 2R.",
@@ -2332,9 +2332,9 @@
     "x17"
    ],
    "wrong": {
-    "Hold; the hold day was clean": "The time stop sells a trade still under 1R after 10 trading days, whatever the hold day looked like.",
-    "Add more while it is quiet": "Our plan is one price with one stop, with no add.",
-    "Move the stop to breakeven": "Breakeven starts at 2R, and this trade is at 0.6R. Even then, the time stop still sells a trade under 1R after 10 days."
+    "Hold; the hold was clean": "The time stop sells a trade still under 1R after 10 trading days, whatever the hold day looked like.",
+    "Move the stop to entry": "Breakeven starts at 2R, and this trade is at 0.6R. Even then, the time stop still sells a trade under 1R after 10 days.",
+    "Add more; it is quiet": "Our plan is one price with one stop, with no add."
    },
    "house": true,
    "story": "You bought a crossback and it has drifted sideways. Day 10 just closed, and the trade is up only 0.6R.",
@@ -2572,9 +2572,9 @@
    "q": "What warning did it carry?",
    "choices": [
     "It came late in its own run",
-    "The 9 had crossed under the 20",
-    "The hold day had thin volume",
-    "It came too soon after the pop"
+    "The 9 crossed under the 20",
+    "The hold had thin volume",
+    "It came soon after the pop"
    ],
    "answer": "It came late in its own run",
    "why": "It came late in its own run. This crossback came sixteen sessions after the pop, late in the stock's own advance. The card marks late crossbacks as ones that fail most. It is a warning, not a gate. The stop still decides.",
@@ -2585,9 +2585,9 @@
     "x22"
    ],
    "wrong": {
-    "The hold day had thin volume": "Nothing in the story says so.",
-    "The 9 had crossed under the 20": "Nothing in the story says so.",
-    "It came too soon after the pop": "Sixteen sessions is a long wait, not a short one."
+    "The hold had thin volume": "Nothing in the story says so.",
+    "The 9 crossed under the 20": "Nothing in the story says so.",
+    "It came soon after the pop": "Sixteen sessions is a long wait, not a short one."
    },
    "house": true,
    "story": "LLY gave a crossback sixteen sessions after its pop, after a long advance. The next day it hit the stop.",
@@ -2963,9 +2963,9 @@
    "q": "How does that history affect the grade?",
    "choices": [
     "It lowers the grade, a warning",
-    "It raises the grade; a win is due",
-    "It matters only in a weak market",
-    "It bars the stock from our list"
+    "It raises it; a win is due",
+    "It matters in a weak market",
+    "It bars it from our list"
    ],
    "answer": "It lowers the grade, a warning",
    "why": "It lowers the grade. Repeated failed crossbacks on a stock's own chart are a cue to grade lower. The history is a warning, not a forecast.",
@@ -2974,9 +2974,9 @@
     "x32"
    ],
    "wrong": {
-    "It raises the grade; a win is due": "Past failures are a warning, not a reason to expect a win.",
-    "It matters only in a weak market": "The stock's own failed crossbacks are a cue by themselves, whatever the market does.",
-    "It bars the stock from our list": "It is a cue that lowers the grade, not a ban on the stock."
+    "It raises it; a win is due": "Past failures are a warning, not a reason to expect a win.",
+    "It matters in a weak market": "The stock's own failed crossbacks are a cue by themselves, whatever the market does.",
+    "It bars it from our list": "It is a cue that lowers the grade, not a ban on the stock."
    },
    "house": true,
    "story": "A clean crossback sets up in a stock whose last three crossbacks all failed.",
@@ -4199,7 +4199,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -4237,7 +4238,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -4298,7 +4300,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",

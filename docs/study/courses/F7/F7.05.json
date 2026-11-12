@@ -1920,9 +1920,9 @@
    "q": "Under our rules, which of these decides when the account trades?",
    "choices": [
     "The app's own market reading",
-    "Your setup's grade, A+ to B-",
-    "The A/D line's six-week slide",
-    "New lows outnumbering new highs"
+    "Your setup's grade",
+    "The A/D line's six-week dip",
+    "More new lows than highs"
    ],
    "answer": "The app's own market reading",
    "why": "The app's own market reading. Our rule: a market filter decides when the account trades, and it is the app's market reading. The setup's grade sets the size. The breadth here is a real warning: fewer stocks are carrying the index.",
@@ -1937,9 +1937,9 @@
     "f97"
    ],
    "wrong": {
-    "Your setup's grade, A+ to B-": "Our rule: the grade sets the size. A and B are normal size, A+ sized up, B- or lower sized down.",
-    "The A/D line's six-week slide": "It's a warning that fewer stocks are carrying the index. A divergence is a condition, not a signal, and it is not our filter.",
-    "New lows outnumbering new highs": "More new lows than new highs favors the bears. It's a warning to note, but our filter is the app's market reading."
+    "Your setup's grade": "Our rule: the grade sets the size. A and B are normal size, A+ sized up, B- or lower sized down.",
+    "The A/D line's six-week dip": "It's a warning that fewer stocks are carrying the index. A divergence is a condition, not a signal, and it is not our filter.",
+    "More new lows than highs": "More new lows than new highs favors the bears. It's a warning to note, but our filter is the app's market reading."
    },
    "deeper": {
     "trap": "The trap is letting one breadth gauge become the filter. A sliding A/D line and more new lows than highs are real warnings. Our rule gives the call on when to trade to the app's market reading."
@@ -2147,7 +2147,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right on h01 (B18) and h02 (D38), both verbatim in sizing_rule.md section 9. But the stem 'what decides whether you take the trade?' says more than B18: whether a trade is taken also turns on other section 9 rules (B26 200-day line, B22 earnings, A3 the stop must fit, C28 chasing). B18 says the market reading decides when the account trades. Stem now uses B18's own words and 'which of these'. All other fields unchanged."
+   "notes": "Key right on h01 (B18) and h02 (D38), both verbatim in sizing_rule.md section 9. But the stem 'what decides whether you take the trade?' says more than B18: whether a trade is taken also turns on other section 9 rules (B26 200-day line, B22 earnings, A3 the stop must fit, C28 chasing). B18 says the market reading decides when the account trades. Stem now uses B18's own words and 'which of these'. All other fields unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

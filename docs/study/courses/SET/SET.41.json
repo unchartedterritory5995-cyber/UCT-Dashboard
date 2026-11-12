@@ -1129,9 +1129,9 @@
    "q": "Two highs fix a falling line. How far apart should they be?",
    "choices": [
     "At least 5 sessions",
-    "Any two highs will do",
-    "At least 20 sessions",
-    "At least 3 sessions"
+    "Any two highs work",
+    "At least 20 days",
+    "3 sessions or more"
    ],
    "answer": "At least 5 sessions",
    "why": "At least 5 sessions. That is our working rule, a proposal on the card. The Insider says that if the points of contact are too close, the move might be nothing more than noise. Highs side by side do not make a line you can trust.",
@@ -1141,9 +1141,9 @@
     "x05"
    ],
    "wrong": {
-    "At least 3 sessions": "Our card asks for at least 5 sessions, so 3 falls short of our rule.",
-    "At least 20 sessions": "Our card's floor is 5 sessions, not 20.",
-    "Any two highs will do": "Highs side by side may be nothing more than noise. Our card asks for at least 5 sessions."
+    "Any two highs work": "Highs side by side may be nothing more than noise. Our card asks for at least 5 sessions.",
+    "At least 20 days": "Our card's floor is 5 sessions, not 20.",
+    "3 sessions or more": "Our card asks for at least 5 sessions, so 3 falls short of our rule."
    },
    "house": true,
    "simple": "Space the two highs at least 5 sessions apart, because touches too close together may just be noise.",
@@ -2390,9 +2390,9 @@
    "story": "You are up 2.5R after three days of a vertical, wide-range climb.",
    "choices": [
     "Sell a big part into strength",
-    "Add more; it is going parabolic",
-    "Hold it all; let the trail work",
-    "Raise the stop to breakeven only"
+    "Add more; it goes parabolic",
+    "Hold it all; the trail works",
+    "Raise the stop to breakeven"
    ],
    "answer": "Sell a big part into strength",
    "why": "Sell a big part into it. Our rule: a climax run on your own long is for selling a big part into. How much is a judgment call. Adding is never allowed: a break is a first entry, never an add.",
@@ -2404,9 +2404,9 @@
     "c29"
    ],
    "wrong": {
-    "Raise the stop to breakeven only": "A breakeven stop protects the cost, not the gain. A climax run is the time to sell a big part.",
-    "Add more; it is going parabolic": "A break is never an add. A climax run on your own long is for selling into.",
-    "Hold it all; let the trail work": "Our rule for a climax run is to sell a big part into it, not to leave it all to the trail."
+    "Add more; it goes parabolic": "A break is never an add. A climax run on your own long is for selling into.",
+    "Hold it all; the trail works": "Our rule for a climax run is to sell a big part into it, not to leave it all to the trail.",
+    "Raise the stop to breakeven": "A breakeven stop protects the cost, not the gain. A climax run is the time to sell a big part."
    },
    "house": true,
    "simple": "Sell a big part into strength, because a fast vertical climb on your own stock is for selling into.",
@@ -2798,9 +2798,9 @@
    "story": "A stock trades through its falling line at 30.00 and the prior day's high. You fill at 30.06. The day's low so far is 29.40.",
    "choices": [
     "Stop under 29.40; a third at 3R",
-    "Stop on the line; a third at 3R",
-    "Stop under 29.40; all out at 3R",
-    "Stop on the line; all out at 3R"
+    "Stop on the line; third at 3R",
+    "Stop under 29.40; all at 3R",
+    "Stop on the line; all at 3R"
    ],
    "answer": "Stop under 29.40; a third at 3R",
    "why": "Stop a few cents under 29.40, a third off at 3R. The stop goes a few cents under the trigger day's low as it stands at entry, not on the line. A third comes off at 3R, a third at 5R, and the rest trails.",
@@ -2814,9 +2814,9 @@
     "h20"
    ],
    "wrong": {
-    "Stop on the line; a third at 3R": "30.00 is the line's value, not the stop. The stop goes a few cents under the trigger day's low.",
-    "Stop under 29.40; all out at 3R": "The stop is right, but only a third comes off at 3R. Another third goes at 5R, and the rest trails.",
-    "Stop on the line; all out at 3R": "Both parts miss. The stop sits under the day's low, not on the line, and only a third comes off at 3R."
+    "Stop on the line; third at 3R": "30.00 is the line's value, not the stop. The stop goes a few cents under the trigger day's low.",
+    "Stop under 29.40; all at 3R": "The stop is right, but only a third comes off at 3R. Another third goes at 5R, and the rest trails.",
+    "Stop on the line; all at 3R": "Both parts miss. The stop sits under the day's low, not on the line, and only a third comes off at 3R."
    },
    "house": true,
    "simple": "Put the stop a few cents under the day's low of 29.40, not on the line, and sell a third at 3R.",
@@ -3330,7 +3330,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5 sessions from c03 (proposed, D-068 flag stands); x05 supports the noise line. Choice lengths 19-21. '20 sessions' is wrong as a floor, and its note says so."
+   "notes": "5 sessions from c03 (proposed, D-068 flag stands); x05 supports the noise line. Choice lengths 19-21. '20 sessions' is wrong as a floor, and its note says so.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "cut",
@@ -3548,7 +3549,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34/c25 key; three vertical wide-range days fits the rulebook's parabolic burst (three up days, range expansion). 2.5R is before the 3R trim, so the climax rule decides. c29 grounds 'never an add'. Lengths 29-32."
+   "notes": "C34/c25 key; three vertical wide-range days fits the rulebook's parabolic burst (three up days, range expansion). 2.5R is before the 3R trim, so the climax rule decides. c29 grounds 'never an add'. Lengths 29-32.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -3609,7 +3611,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c15, h24, h01, c20, h20); 2x2 choices, no tell. lesson_line contradicts the item: 'Write it before the open' while the stop depends on the day's low so far, which is only known during the day. lesson_line only."
+   "notes": "Key right (c15, h24, h01, c20, h20); 2x2 choices, no tell. lesson_line contradicts the item: 'Write it before the open' while the stop depends on the day's low so far, which is only known during the day. lesson_line only.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",

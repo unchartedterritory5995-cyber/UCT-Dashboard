@@ -53,6 +53,10 @@ Finished 2026-11-12. Every lesson in the Study library is upgraded and verified.
   is your call by your rulebook, and it gave away another question's answer).
 - **Source quotes:** the library-wide re-check found 9 quotes that did not match their source word for word; all 9 fixed.
   Every polished lesson re-checks with 0 missing quotes.
+- **Answer-length give-away fixed.** Before your review I found the right answer was the longest choice only 2% of the
+  time, so "never pick the longest" would have beaten the quiz. Two writer + checker passes (pass 2 only trims wrong
+  answers) plus my own checks for odd-one-out wording: the right answer now sits shortest/2nd/3rd/longest
+  825/821/815/786 times. No answer key changed.
 - **Still uncovered on purpose: 39 criteria on 15 setup cards**, mostly short-side rules (bear gap, short ORB, parabolic
   short), numbers you hold, and rules waiting on your ruling. These need your call before anyone writes questions on them.
 - Library now: **5,232 live questions**, all with a plain one-line answer, 0 with three answers, answer slots A25/B25/C25/D24.

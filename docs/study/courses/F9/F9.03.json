@@ -713,9 +713,9 @@
    "q": "What does a trading system's expectancy tell you?",
    "choices": [
     "Its average per trade, in R",
-    "How often it wins, in percent",
+    "How often it wins, in %",
     "Its average winner, in R",
-    "Its best single trade, in R"
+    "Its best trade, in R"
    ],
    "answer": "Its average per trade, in R",
    "why": "Its average result per trade, in R. Expectancy is the mean R-multiple across every trade, winners and losers together. Add up the R and divide by the number of trades. It isn't the win rate, the average winner or the best trade.",
@@ -726,9 +726,9 @@
     "f33"
    ],
    "wrong": {
-    "How often it wins, in percent": "That's the win rate. It says nothing about how big the wins and losses are.",
+    "How often it wins, in %": "That's the win rate. It says nothing about how big the wins and losses are.",
     "Its average winner, in R": "That leaves the losers out. Expectancy averages every trade.",
-    "Its best single trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
+    "Its best trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
    },
    "simple": "Expectancy is the average result per trade in R, counting every winner and every loser.",
    "tier": "core",
@@ -1218,9 +1218,9 @@
    "q": "System A wins 60% at +1R and loses 40% at -1R. System B wins 40% at +2.5R and loses 60% at -1R. Which makes more per trade?",
    "choices": [
     "B, at +0.4R a trade",
-    "A, it wins more often",
-    "They come out the same",
-    "A, at +0.6R a trade"
+    "A, it wins more",
+    "They come out even",
+    "A, +0.6R a trade"
    ],
    "answer": "B, at +0.4R a trade",
    "calc": {
@@ -1239,9 +1239,9 @@
     "f28"
    ],
    "wrong": {
-    "A, it wins more often": "Winning more often isn't the test. A's winners are only as big as its losers, so it averages less than B.",
-    "They come out the same": "Run the formula on both. B's bigger winners outweigh its lower win rate.",
-    "A, at +0.6R a trade": "That counts A's winners and forgets its losers. Once A's 40% of 1R losses come off, A makes less than B."
+    "A, it wins more": "Winning more often isn't the test. A's winners are only as big as its losers, so it averages less than B.",
+    "They come out even": "Run the formula on both. B's bigger winners outweigh its lower win rate.",
+    "A, +0.6R a trade": "That counts A's winners and forgets its losers. Once A's 40% of 1R losses come off, A makes less than B."
    },
    "simple": "B makes more, about +0.4R a trade, because its big winners more than pay for losing more often.",
    "tier": "extended",
@@ -1727,7 +1727,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1818,7 +1819,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",

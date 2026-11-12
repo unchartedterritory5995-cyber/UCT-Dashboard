@@ -1079,10 +1079,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Neither: only price matters",
+    "Neither: only price counts",
     "A, with 3x volume behind it",
-    "B, with half its usual volume",
-    "Neither: A is a blow-off top"
+    "B, with half its volume",
+    "Neither: A is a blow-off"
    ],
    "kind": "mcq",
    "q": "Which breakout shows more conviction?",
@@ -1131,7 +1131,7 @@
     "summary": "High-volume breakouts show conviction; low-volume breakouts fail more often. Schwab: a breakout on above-average volume counts for more; on low volume, enthusiasm may be lacking. ChartSchool: a good breakout comes with expanding volume, especially to the upside. Fidelity: rising volume confirms a move; low volume suggests weak momentum. A blow-off top is a steep run on rising volume followed by a steep drop."
    },
    "facts": {
-    "given": "Which breakout shows more conviction? Two stocks clear resistance today. Stock A trades 3 times its average volume. Stock B trades about half its average volume. A, with 3x volume behind it B, with half its usual volume Neither: only price matters Neither: A is a blow-off top"
+    "given": "Which breakout shows more conviction? Two stocks clear resistance today. Stock A trades 3 times its average volume. Stock B trades about half its average volume. A, with 3x volume behind it B, with half its volume Neither: only price counts Neither: A is a blow-off"
    },
    "lesson_line": "A breakout on thin volume is a question, not an answer. I want volume to show up.",
    "simple": "Stock A, because heavy volume on a breakout shows real interest, while light volume breakouts fail more often.",
@@ -1139,9 +1139,9 @@
    "unit": "V.02",
    "why": "A. A breakout on high or above-average volume shows conviction, so price is more likely to keep going. Investopedia says breakouts on low relative volume are more prone to failure. Schwab adds that low volume suggests enthusiasm for the move may be lacking. Volume guarantees nothing. It shows how much interest stands behind the move.",
    "wrong": {
-    "B, with half its usual volume": "Light volume says few people cared about the level. Investopedia notes low-volume breakouts are more prone to failure.",
-    "Neither: A is a blow-off top": "A blow-off top is a steep, rapid run that ends in a steep drop. A is just clearing resistance, where high volume shows conviction.",
-    "Neither: only price matters": "Price says where. Volume says how many showed up. Schwab and Investopedia both weigh it."
+    "B, with half its volume": "Light volume says few people cared about the level. Investopedia notes low-volume breakouts are more prone to failure.",
+    "Neither: A is a blow-off": "A blow-off top is a steep, rapid run that ends in a steep drop. A is just clearing resistance, where high volume shows conviction.",
+    "Neither: only price counts": "Price says where. Volume says how many showed up. Schwab and Investopedia both weigh it."
    }
   },
   "review_status": "draft",
@@ -7228,9 +7228,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gravestone doji",
+    "Gravestone",
     "Black marubozu",
-    "White marubozu",
+    "Bull marubozu",
     "Shooting star"
    ],
    "kind": "mcq",
@@ -7293,7 +7293,7 @@
     "summary": "A black marubozu opens at the high and closes at the low. A bearish marubozu opens at the high and closes at the low. A marubozu has no shadow at the open, the close or both; the name means close-cropped in Japanese. A white marubozu opens at the low and closes at the high. A marubozu has no shadows; the open and close are the high and low. A gravestone doji has open, low and close equal and a long upper shadow, so it looks like an upside-down T. A shooting star is one candle: small body, long upper shadow, little or no lower shadow."
    },
    "facts": {
-    "given": "It opens at the day's high, closes at the day's low and has no shadows. Which word is this? Black marubozu White marubozu Gravestone doji Shooting star"
+    "given": "It opens at the day's high, closes at the day's low and has no shadows. Which word is this? Black marubozu Bull marubozu Gravestone Shooting star"
    },
    "lesson_line": "A black marubozu is all body: it opens at the high and closes at the low.",
    "simple": "It's a black marubozu, because it opened at the high and closed at the low, leaving all body and no shadows.",
@@ -7301,9 +7301,9 @@
    "unit": "V.03",
    "why": "Black marubozu. The open equals the high and the close equals the low. So the body fills the whole range, and no shadow sticks out.",
    "wrong": {
-    "Gravestone doji": "A gravestone has almost no body and a long upper shadow. This is all body, no shadows.",
-    "Shooting star": "A shooting star has a small body and a long upper shadow. This one has no shadows.",
-    "White marubozu": "A white marubozu closes above its open. This one closed below it."
+    "Bull marubozu": "A bull marubozu closes above its open. This one closed below it.",
+    "Gravestone": "A gravestone has almost no body and a long upper shadow. This is all body, no shadows.",
+    "Shooting star": "A shooting star has a small body and a long upper shadow. This one has no shadows."
    }
   },
   "review_status": "draft",
@@ -7716,8 +7716,8 @@
    "choices": [
     "Both equal: the shape is the same",
     "The one sitting on a support level",
-    "The one in the middle of its range",
-    "Neither: hammers need a prior rally"
+    "The one in the middle of a range",
+    "Neither: hammers need a rally"
    ],
    "kind": "mcq",
    "q": "Which hammer deserves more of your attention?",
@@ -7776,7 +7776,7 @@
     "summary": "Bullish reversals carry more weight at support levels. Hammers carry the most weight after a real downtrend and at established support. A long-legged doji is more likely to mean something near major support or resistance. The hammer forms after a decline. The hammer shape during an advance is called a hanging man. A hammer needs bullish confirmation; its low shows sellers are still there."
    },
    "facts": {
-    "given": "Which hammer deserves more of your attention? Two stocks print the same clean hammer after a pullback. One sits right on a prior low where buyers stepped in before. The other is in the middle of its range. The one sitting on a support level The one in the middle of its range Both equal: the shape is the same Neither: hammers need a prior rally"
+    "given": "Which hammer deserves more of your attention? Two stocks print the same clean hammer after a pullback. One sits right on a prior low where buyers stepped in before. The other is in the middle of its range. The one sitting on a support level The one in the middle of a range Both equal: the shape is the same Neither: hammers need a rally"
    },
    "lesson_line": "A hammer at support carries more weight. Location changes the weight, not the name.",
    "simple": "The hammer on support deserves more attention, because the prior low gives it a level and the other has none.",
@@ -7785,8 +7785,8 @@
    "why": "The one sitting on a support level. A prior low where buyers stepped in is support from earlier price action. Both hammers came after a pullback, so both qualify by shape and trend. ChartSchool says to look for bullish reversals at support levels. Investopedia adds that a hammer is especially reliable at established support. Neither one is a buy yet.",
    "wrong": {
     "Both equal: the shape is the same": "Same shape, different location. Where a candle prints changes its weight. ChartSchool says to look for reversals at support.",
-    "Neither: hammers need a prior rally": "It's the reverse. ChartSchool says the hammer forms after a decline. The same shape during an advance is called a hanging man.",
-    "The one in the middle of its range": "In the middle of the range there's no level behind it. ChartSchool says to look for reversals at support."
+    "Neither: hammers need a rally": "It's the reverse. ChartSchool says the hammer forms after a decline. The same shape during an advance is called a hanging man.",
+    "The one in the middle of a range": "In the middle of the range there's no level behind it. ChartSchool says to look for reversals at support."
    }
   },
   "review_status": "draft",
@@ -8095,9 +8095,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bullish engulfing",
+    "Bull engulfing",
     "Bearish harami",
-    "Three black crows",
+    "Black crows",
     "Bearish engulfing"
    ],
    "kind": "mcq",
@@ -8178,7 +8178,7 @@
     "summary": "In a bearish engulfing the black body must cover the white body. In a bearish engulfing, price closes below the prior candle's open. Bearish engulfing: an up candle in an uptrend, then a down candle whose body fully covers it. For engulfing, the body matters, not the wicks. A bearish engulfing matters more after a price advance. In a harami the second body sits completely inside the large first body. Three black crows: three long black bodies in a row, each closing at or near its low and opening inside the prior body. In a bullish engulfing the white body must cover the black body; covering the shadows too is ideal, not required. In a bullish engulfing, a larger white body fully covers the prior black body."
    },
    "facts": {
-    "given": "What pattern do the two days make? A stock has rallied for two weeks. Day 1 opens at $40.00 and closes at $41.00. Day 2 opens at $41.40 and closes at $39.60. Bearish engulfing Bullish engulfing Bearish harami Three black crows"
+    "given": "What pattern do the two days make? A stock has rallied for two weeks. Day 1 opens at $40.00 and closes at $41.00. Day 2 opens at $41.40 and closes at $39.60. Bearish engulfing Bull engulfing Bearish harami Black crows"
    },
    "lesson_line": "A black body that covers the whole white body before it is a bearish engulfing. Judge the bodies, not the shadows.",
    "simple": "It's a bearish engulfing, because Day 2's down body covers all of Day 1's up body and closes below its open.",
@@ -8187,8 +8187,8 @@
    "why": "Bearish engulfing. Day 2's black body runs from $41.40 down to $39.60. That covers Day 1's whole body, $40.00 to $41.00, and closes below Day 1's open. It came after a two-week rally, where the pattern matters more.",
    "wrong": {
     "Bearish harami": "A harami's second body sits inside the first. Here the second body is the bigger one.",
-    "Bullish engulfing": "A bullish engulfing has a white body covering a prior black body. Here Day 2 is the black one.",
-    "Three black crows": "Three black crows takes three long black bodies in a row. Only two days are given here."
+    "Black crows": "Three black crows takes three long black bodies in a row. Only two days are given here.",
+    "Bull engulfing": "A bullish engulfing has a white body covering a prior black body. Here Day 2 is the black one."
    }
   },
   "review_status": "draft",
@@ -9626,10 +9626,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Three small candles inside a big one",
+    "Three small candles in a big one",
     "Three long white candles in a row",
-    "Three long black candles in a row",
-    "Three white candles, each gapping up"
+    "Three long black ones in a row",
+    "Three white candles gapping up"
    ],
    "kind": "mcq",
    "q": "What are three white soldiers?",
@@ -9670,7 +9670,7 @@
     "summary": "Three white soldiers: three long white bodies in a row, each opening inside the prior body and closing near its high. Three white soldiers are three long-bodied up candles in a row, each opening inside the prior body. Three black crows: three long black bodies in a row, each closing at or near its low and opening inside the prior body. Rising three methods: a long white body, three small days inside its range, then a fifth day closing at a new high."
    },
    "facts": {
-    "given": "What are three white soldiers? Three long white candles in a row Three small candles inside a big one Three long black candles in a row Three white candles, each gapping up"
+    "given": "What are three white soldiers? Three long white candles in a row Three small candles in a big one Three long black ones in a row Three white candles gapping up"
    },
    "lesson_line": "Soldiers march up, crows fly down. Both are three long bodies in a row.",
    "simple": "Three white soldiers are three long white candles in a row, each opening inside the body before it.",
@@ -9678,9 +9678,9 @@
    "unit": "V.03",
    "why": "Three long white candles in a row. Each one opens within the prior candle's real body. ChartSchool adds that each close should be near the day's high, and Investopedia that it tops the prior candle's high. So the soldiers do not gap up at the open. The mirror pattern, three long black candles, is three black crows.",
    "wrong": {
-    "Three long black candles in a row": "That's three black crows.",
-    "Three small candles inside a big one": "That's the middle of a rising three methods.",
-    "Three white candles, each gapping up": "Each soldier opens inside the prior candle's body, not above it. A gap up at each open breaks that rule."
+    "Three long black ones in a row": "That's three black crows.",
+    "Three small candles in a big one": "That's the middle of a rising three methods.",
+    "Three white candles gapping up": "Each soldier opens inside the prior candle's body, not above it. A gap up at each open breaks that rule."
    }
   },
   "review_status": "draft",
@@ -13171,9 +13171,9 @@
   "prompt_json": {
    "choices": [
     "No, it sank into the lower half",
-    "Yes, any dip after a cup counts",
-    "No, a handle can only go sideways",
-    "Yes, a deep handle shakes out more"
+    "Yes, any dip after a cup works",
+    "No, a handle can only go flat",
+    "Yes, a deep handle shakes out"
    ],
    "kind": "mcq",
    "q": "Does that pullback count as a proper handle?",
@@ -13218,7 +13218,7 @@
     "summary": "Bulkowski: the handle lasts at least a week and forms in the upper half of the cup. Investopedia: avoid overly deep handles; the handle should form in the top half of the cup. The handle is the last pullback before the breakout and usually gives back no more than a third of the cup's advance. Investopedia: a U-shaped cup followed by a handle that slopes down."
    },
    "facts": {
-    "given": "Does that pullback count as a proper handle? A stock builds a cup from $50 down to $35 and back up to $49. Then it pulls back to $38 over two weeks. No, it sank into the lower half Yes, any dip after a cup counts Yes, a deep handle shakes out more No, a handle can only go sideways"
+    "given": "Does that pullback count as a proper handle? A stock builds a cup from $50 down to $35 and back up to $49. Then it pulls back to $38 over two weeks. No, it sank into the lower half Yes, any dip after a cup works Yes, a deep handle shakes out No, a handle can only go flat"
    },
    "lesson_line": "A handle that sinks into the bottom of the cup isn't a handle.",
    "simple": "No, because the dip fell to $38, deep in the lower half of the cup, and a handle should stay up high.",
@@ -13226,9 +13226,9 @@
    "unit": "V.04",
    "why": "No. The cup runs from a $35 low to $49 on its right side, so $38 sits in its lower half. Bulkowski says the handle forms in the upper half of the cup. Investopedia says to avoid overly deep handles for that reason. A handle may slope down, as Investopedia's own description shows. The fault here is depth, not slope.",
    "wrong": {
-    "No, a handle can only go sideways": "Handles can drift lower. The problem is how deep this one went.",
-    "Yes, a deep handle shakes out more": "Depth isn't a virtue here. Overly deep handles are the ones to avoid.",
-    "Yes, any dip after a cup counts": "Where the dip ends matters. The handle should stay in the cup's upper half."
+    "No, a handle can only go flat": "Handles can drift lower. The problem is how deep this one went.",
+    "Yes, a deep handle shakes out": "Depth isn't a virtue here. Overly deep handles are the ones to avoid.",
+    "Yes, any dip after a cup works": "Where the dip ends matters. The handle should stay in the cup's upper half."
    }
   },
   "review_status": "draft",
@@ -13767,10 +13767,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Neutral until it reaches the apex",
-    "Bullish, because prices are rising",
+    "Neutral until it hits the apex",
+    "Bullish, as prices are rising",
     "Bearish, though prices are rising",
-    "Bullish, the same as a falling wedge"
+    "Bullish, like a falling wedge"
    ],
    "kind": "mcq",
    "q": "What bias do textbooks give the rising wedge?",
@@ -13825,7 +13825,7 @@
     "summary": "StockCharts: the rising wedge is bearish; it narrows as prices rise. Its bearish bias comes from upside momentum fading on each new high. Investopedia: a rising wedge is usually bearish. Unlike the neutral symmetrical triangle, the rising wedge slopes up and carries a bearish bias. StockCharts: the falling wedge is bullish; it narrows as prices fall. Investopedia: a falling wedge is seen as bullish."
    },
    "facts": {
-    "given": "What bias do textbooks give the rising wedge? Bearish, though prices are rising Bullish, because prices are rising Neutral until it reaches the apex Bullish, the same as a falling wedge"
+    "given": "What bias do textbooks give the rising wedge? Bearish, though prices are rising Bullish, as prices are rising Neutral until it hits the apex Bullish, like a falling wedge"
    },
    "lesson_line": "Rising wedge: higher prices, weaker pushes. Textbooks lean bearish.",
    "simple": "Textbooks call the rising wedge bearish, because each push higher has less force even though price is rising.",
@@ -13833,9 +13833,9 @@
    "unit": "V.04",
    "why": "Bearish, though prices are rising. StockCharts calls the rising wedge bearish: the loss of upside momentum on each new high gives it that bias. Investopedia says it is usually bearish. The falling wedge is the bullish one.",
    "wrong": {
-    "Bullish, because prices are rising": "Rising prices are the trap. The squeeze shows upside momentum fading.",
-    "Bullish, the same as a falling wedge": "That mixes up the two wedges. The falling wedge is the bullish one. StockCharts calls the rising wedge bearish.",
-    "Neutral until it reaches the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one."
+    "Bullish, as prices are rising": "Rising prices are the trap. The squeeze shows upside momentum fading.",
+    "Bullish, like a falling wedge": "That mixes up the two wedges. The falling wedge is the bullish one. StockCharts calls the rising wedge bearish.",
+    "Neutral until it hits the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one."
    }
   },
   "review_status": "draft",
@@ -16729,7 +16729,7 @@
     "The setup's entry price",
     "The setup's stop price",
     "The news that moved it",
-    "The first profit target"
+    "The first target"
    ],
    "kind": "mcq",
    "q": "In our setup plans, what is a setup's trigger?",
@@ -16770,7 +16770,7 @@
     "summary": "Each of our setup detectors returns its own trigger, which is the entry, and its own stop. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. R is your initial risk per share."
    },
    "facts": {
-    "given": "In our setup plans, what is a setup's trigger? The setup's entry price The setup's stop price The first profit target The news that moved it"
+    "given": "In our setup plans, what is a setup's trigger? The setup's entry price The setup's stop price The first target The news that moved it"
    },
    "lesson_line": "Trigger means entry. Every setup hands you one, plus a stop.",
    "simple": "The trigger is the entry price, the spot where you get in, and each setup gives you one along with a stop.",
@@ -16778,7 +16778,7 @@
    "unit": "V.05",
    "why": "The setup's entry price. In our plans, trigger means entry. Each setup's detector returns its own trigger and its own stop for the candle it fires on. The trigger is a price on the chart. It is not the stop, not a profit target, and not the news behind the move. The trims come later, at 3R and 5R, measured off your entry-to-stop risk.",
    "wrong": {
-    "The first profit target": "Trims come later: a third at 3R and a third at 5R, measured off your entry-to-stop risk.",
+    "The first target": "Trims come later: a third at 3R and a third at 5R, measured off your entry-to-stop risk.",
     "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart.",
     "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in."
    }
@@ -19014,10 +19014,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Under the Kicker's low",
+    "Under the setup's low",
     "Just under the $33 low",
-    "Just under the $31 low",
-    "At today's closing price"
+    "Just under a $31 low",
+    "At today's close"
    ],
    "kind": "mcq",
    "q": "Trailing under each higher low, where does the stop go now?",
@@ -19052,7 +19052,7 @@
     "summary": "Our Kicker plan trails the stop under each higher low, or under the 10-day average. An uptrend is a run of higher swing lows and higher swing highs; it is intact while they keep coming. A break of the low a healthy pullback just made is a strong exit signal, so a stop can go there."
    },
    "facts": {
-    "given": "Trailing under each higher low, where does the stop go now? You're long a Kicker. It pulled back to $31 and rallied. Now it has pulled back again, held $33, and turned up. Just under the $33 low Just under the $31 low Under the Kicker's low At today's closing price"
+    "given": "Trailing under each higher low, where does the stop go now? You're long a Kicker. It pulled back to $31 and rallied. Now it has pulled back again, held $33, and turned up. Just under the $33 low Just under a $31 low Under the setup's low At today's close"
    },
    "lesson_line": "Each new higher low pulls the stop up behind it.",
    "simple": "Just under $33, because that is the newest higher low and the stop moves up under each one.",
@@ -19060,9 +19060,9 @@
    "unit": "V.05",
    "why": "Just under $33. This pullback held above the last one at $31, so $33 is the new higher low. Our Kicker plan trails the stop under each higher low, so it moves up under $33. An uptrend is a run of higher lows and higher highs, and a break of $33 would end that run. The stop never goes back down to $31.",
    "wrong": {
-    "At today's closing price": "The plan trails under the low, not at the close.",
-    "Just under the $31 low": "That was the last higher low. $33 has replaced it.",
-    "Under the Kicker's low": "That's where the stop started. Trailing means it has moved up since."
+    "At today's close": "The plan trails under the low, not at the close.",
+    "Just under a $31 low": "That was the last higher low. $33 has replaced it.",
+    "Under the setup's low": "That's where the stop started. Trailing means it has moved up since."
    }
   },
   "review_status": "draft",
@@ -19763,10 +19763,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At 4R: from the $57 stop",
-    "At 9R: nine dollars up",
+    "At 4R: from the stop",
+    "At 9R: nine dollars",
     "At 3R: the first trim",
-    "At 5R: the second trim"
+    "At 5R: second trim"
    ],
    "kind": "mcq",
    "q": "Counting in R, where is it on our plan?",
@@ -19828,7 +19828,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Counting in R, where is it on our plan? You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going. At 3R: the first trim At 5R: the second trim At 9R: nine dollars up At 4R: from the $57 stop"
+    "given": "Counting in R, where is it on our plan? You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going. At 3R: the first trim At 5R: second trim At 9R: nine dollars At 4R: from the stop"
    },
    "lesson_line": "Count in R: the gain divided by your entry-to-stop risk.",
    "simple": "At 3R, because the gain from $60 to $69 is three times your risk from $60 to $57, the first trim.",
@@ -19836,9 +19836,9 @@
    "unit": "V.05",
    "why": "At 3R: the first trim. Your risk is the gap from the $60 entry down to the $57 stop. The gain to $69 is three times that risk. At 3R our plan sells the first third. R counts from the entry, not from the stop, and it is never the dollar gain itself.",
    "wrong": {
-    "At 4R: from the $57 stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk.",
-    "At 5R: the second trim": "5R needs five times the risk. This is three.",
-    "At 9R: nine dollars up": "That's dollars, not R. Divide the gain by your risk per share."
+    "At 4R: from the stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk.",
+    "At 5R: second trim": "5R needs five times the risk. This is three.",
+    "At 9R: nine dollars": "That's dollars, not R. Divide the gain by your risk per share."
    }
   },
   "review_status": "draft",
@@ -20259,10 +20259,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gap downs fill, so it will bounce",
-    "The volume was too light to trust",
+    "Gap downs fill, so it bounces",
+    "Volume was too light to trust",
     "The honest stop is far too wide",
-    "It closed at the low, so it's done"
+    "It closed low, so it's done"
    ],
    "kind": "mcq",
    "q": "Why does our lesson study this fall instead of shorting it?",
@@ -20307,7 +20307,7 @@
     "summary": "On VRNS, a gap that opened 37% down and closed at the low, the obvious stop (the gap day's high) sat 25% over the close, so no trade was invented. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. The size comes from the stop, and when the honest stop does not fit the risk, we skip the trade. We do short: our shorts are our long setups reversed, for almost every setup."
    },
    "facts": {
-    "given": "Why does our lesson study this fall instead of shorting it? VRNS opened 37% down on a gap and closed at the low. A short's obvious stop, the gap day's high, sat 25% over the close. The honest stop is far too wide Gap downs fill, so it will bounce It closed at the low, so it's done The volume was too light to trust"
+    "given": "Why does our lesson study this fall instead of shorting it? VRNS opened 37% down on a gap and closed at the low. A short's obvious stop, the gap day's high, sat 25% over the close. The honest stop is far too wide Gap downs fill, so it bounces It closed low, so it's done Volume was too light to trust"
    },
    "lesson_line": "When the honest stop doesn't fit the risk, there's no trade. Study it instead.",
    "simple": "The honest stop was 25% away, far too wide for a trade, so the lesson studies the fall instead.",
@@ -20315,9 +20315,9 @@
    "unit": "V.05",
    "why": "The honest stop is far too wide. The Bear gap's obvious stop, the gap day's high, sat 25% over the close, so no trade was invented. Our rule: the size comes from the stop, and if the honest stop does not fit the risk, skip the trade. The lesson shows the line a close must stay under and measures the fall. We do short; this stop just did not fit.",
    "wrong": {
-    "Gap downs fill, so it will bounce": "Whether the gap fills isn't the reason. The lesson skips the trade because the stop is 25% away.",
-    "It closed at the low, so it's done": "That isn't the reason. The lesson still measures the fall. The problem is the 25% stop.",
-    "The volume was too light to trust": "The story says nothing about volume. The lesson skips the trade because its stop sat 25% away."
+    "Gap downs fill, so it bounces": "Whether the gap fills isn't the reason. The lesson skips the trade because the stop is 25% away.",
+    "It closed low, so it's done": "That isn't the reason. The lesson still measures the fall. The problem is the 25% stop.",
+    "Volume was too light to trust": "The story says nothing about volume. The lesson skips the trade because its stop sat 25% away."
    }
   },
   "review_status": "draft",
@@ -20574,10 +20574,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Entry $72 close, stop 3.5% under",
+    "Entry $72 close, 3.5% under",
     "Entry $72 close, stop $68 low",
-    "Next day's open, stop $68 low",
-    "Next day's open, stop 3.5% under"
+    "Next open, stop $68 low",
+    "Next open, stop 3.5% under"
    ],
    "kind": "mcq",
    "q": "Which levels set our High Volume Edge entry and stop?",
@@ -20615,7 +20615,7 @@
     "summary": "The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer. Our rulebook puts the stop a few cents under the day's low, not exactly on it."
    },
    "facts": {
-    "given": "Which levels set our High Volume Edge entry and stop? A stock closes up at $72 on its heaviest volume in a year. That day's low was $68. Entry $72 close, stop $68 low Next day's open, stop 3.5% under Entry $72 close, stop 3.5% under Next day's open, stop $68 low"
+    "given": "Which levels set our High Volume Edge entry and stop? A stock closes up at $72 on its heaviest volume in a year. That day's low was $68. Entry $72 close, stop $68 low Next open, stop 3.5% under Entry $72 close, 3.5% under Next open, stop $68 low"
    },
    "lesson_line": "High Volume Edge: buy the high-volume close, stop at the edge bar's low.",
    "simple": "Buy the $72 high-volume close, and let the $68 low set the stop, because the bar closed up.",
@@ -20623,9 +20623,9 @@
    "unit": "V.05",
    "why": "Entry $72, stop $68. Our High Volume Edge buys the high-volume close, $72. The bar closed up, so the edge bar's low, $68, sets the stop. Our rulebook puts the order a few cents under that low, not exactly on it.",
    "wrong": {
-    "Entry $72 close, stop 3.5% under": "The entry is right, but the 3.5% stop is part of the Kicker's rule. Here the edge bar's low sets the stop.",
-    "Next day's open, stop $68 low": "The stop is right, but our entry is the high-volume close itself, $72, not the next day's open.",
-    "Next day's open, stop 3.5% under": "Our entry is the high-volume close itself, and the 3.5% stop is part of the Kicker's rule."
+    "Entry $72 close, 3.5% under": "The entry is right, but the 3.5% stop is part of the Kicker's rule. Here the edge bar's low sets the stop.",
+    "Next open, stop $68 low": "The stop is right, but our entry is the high-volume close itself, $72, not the next day's open.",
+    "Next open, stop 3.5% under": "Our entry is the high-volume close itself, and the 3.5% stop is part of the Kicker's rule."
    }
   },
   "review_status": "draft",
@@ -22019,7 +22019,7 @@
   "prompt_json": {
    "choices": [
     "It trails after the second trim",
-    "It sells at a flat percent gain",
+    "It sells at a set percent gain",
     "It sells at a 2R profit target",
     "It sells with the second trim"
    ],
@@ -22055,7 +22055,7 @@
     "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. Our default trail sells on a close below the 10-day average for fast movers or the 21-day for steadier ones."
    },
    "facts": {
-    "given": "Our plan sells in thirds. What happens to the last third? It trails after the second trim It sells with the second trim It sells at a flat percent gain It sells at a 2R profit target"
+    "given": "Our plan sells in thirds. What happens to the last third? It trails after the second trim It sells with the second trim It sells at a set percent gain It sells at a 2R profit target"
    },
    "lesson_line": "A third at 3R, a third at 5R, then trail the last third.",
    "simple": "The last third trails, because we sell a third at 3R, a third at 5R, then trail what is left.",
@@ -22064,7 +22064,7 @@
    "why": "It trails after the second trim. Our rulebook sells a third at 3R, the hard rule, then another third at 5R. The last third then trails. Our default trail sells on a close below the 10-day average for fast movers, or the 21-day for steadier ones. The levels are adjustable.",
    "wrong": {
     "It sells at a 2R profit target": "Our plan has no 2R target. The thirds come off at 3R and 5R, and the last third trails.",
-    "It sells at a flat percent gain": "Our plan does not sell the last third at a flat percent. It trails.",
+    "It sells at a set percent gain": "Our plan does not sell the last third at a set percent. It trails.",
     "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails."
    }
   },
@@ -22539,8 +22539,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A $500 profit",
-    "A $4.01 profit",
+    "$500 profit",
+    "A $4.01 gain",
     "A $99 loss",
     "A $401 profit"
    ],
@@ -22590,7 +22590,7 @@
      "fn": "arith",
      "result": 401.0
     },
-    "given": "Your win rate is 1%. What is the net result? Over 100 trades, 99 lose $1 each. One trade makes $500. A $401 profit A $99 loss A $500 profit A $4.01 profit"
+    "given": "Your win rate is 1%. What is the net result? Over 100 trades, 99 lose $1 each. One trade makes $500. A $401 profit A $99 loss $500 profit A $4.01 gain"
    },
    "lesson_line": "A low win rate can pay and a high one can lose. Check the sizes.",
    "simple": "You net a $401 profit, because the one $500 winner is bigger than the 99 losses of $1.",
@@ -22598,8 +22598,8 @@
    "unit": "V.06",
    "why": "A $401 profit. The 99 losers cost $1 each, $99 in all. The one winner made $500, and $500 less $99 is $401. This is Tharp's own example: 99% of the trades lost and the method still made money. Win rate counts how often you win, never how much.",
    "wrong": {
-    "A $4.01 profit": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net result.",
-    "A $500 profit": "That forgets the 99 small losses.",
+    "$500 profit": "That forgets the 99 small losses.",
+    "A $4.01 gain": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net result.",
     "A $99 loss": "That counts the losers and forgets the one big winner."
    }
   },
@@ -24412,9 +24412,9 @@
   "prompt_json": {
    "choices": [
     "Your single largest position",
-    "Your account's drawdown this month",
+    "Your account's monthly drawdown",
     "Total open risk across your trades",
-    "How fast your best stock is rising"
+    "How fast your best stock rises"
    ],
    "kind": "mcq",
    "q": "What is portfolio heat?",
@@ -24455,7 +24455,7 @@
     "summary": "Portfolio heat is your total open risk. Seykota and Druz call the total bet across positions the heat of the portfolio. Elder adds up the risk on all open positions. Our total open risk is a guide that varies, not a hard cap."
    },
    "facts": {
-    "given": "What is portfolio heat? Total open risk across your trades How fast your best stock is rising Your single largest position Your account's drawdown this month"
+    "given": "What is portfolio heat? Total open risk across your trades How fast your best stock rises Your single largest position Your account's monthly drawdown"
    },
    "lesson_line": "Portfolio heat is what you lose if every stop hits at once.",
    "simple": "Portfolio heat is the total you would lose if every one of your open stops were hit at once.",
@@ -24463,8 +24463,8 @@
    "unit": "V.06",
    "why": "Total open risk across your trades. Tharp: the total open risk in your portfolio at any given time. Seykota and Druz named it the heat of the portfolio. Elder's rule adds up the risk on all open positions the same way. Our rulebook treats total open risk as a guide that varies, not a hard cap.",
    "wrong": {
-    "How fast your best stock is rising": "Heat here means risk, not momentum.",
-    "Your account's drawdown this month": "That's a loss already taken. Heat is risk still open.",
+    "How fast your best stock rises": "Heat here means risk, not momentum.",
+    "Your account's monthly drawdown": "That's a loss already taken. Heat is risk still open.",
     "Your single largest position": "That's one position's size. Heat adds up the risk on all of them."
    }
   },
@@ -24620,9 +24620,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "All the money in the five stocks",
-    "About 1%, only one stop will hit",
-    "About 0.2%, the 1% split five ways",
+    "All the money in the stocks",
+    "About 1%, one stop will hit",
+    "About 0.2%, 1% split five ways",
     "About 5%, if all five stops hit"
    ],
    "kind": "mcq",
@@ -24677,7 +24677,7 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "If chips have a bad day, how much of the account is at risk? You hold five chip stocks. Each one risks 1% of the account to its stop. About 5%, if all five stops hit About 1%, only one stop will hit All the money in the five stocks About 0.2%, the 1% split five ways"
+    "given": "If chips have a bad day, how much of the account is at risk? You hold five chip stocks. Each one risks 1% of the account to its stop. About 5%, if all five stops hit About 1%, one stop will hit All the money in the stocks About 0.2%, 1% split five ways"
    },
    "lesson_line": "Stocks in one industry tend to fall together, so their stops can hit together.",
    "simple": "About 5% is at risk, because chip stocks tend to fall together, so all five stops can hit at once.",
@@ -24685,9 +24685,9 @@
    "unit": "V.06",
    "why": "About 5%, if all five stops hit. FINRA: same-industry holdings tend to be highly correlated. What happens to one is likely to happen to the others. Heat adds the risks: five trades at 1% each is 5%.",
    "wrong": {
-    "About 0.2%, the 1% split five ways": "Each stock risks its own 1%. Heat adds the risks up; it does not split them.",
-    "About 1%, only one stop will hit": "Stocks in one industry tend to move together. When one falls hard, the others likely fall too.",
-    "All the money in the five stocks": "That's what you invested. Tharp: the amount risked is not the amount invested. Each stop is set to cost 1%."
+    "About 0.2%, 1% split five ways": "Each stock risks its own 1%. Heat adds the risks up; it does not split them.",
+    "About 1%, one stop will hit": "Stocks in one industry tend to move together. When one falls hard, the others likely fall too.",
+    "All the money in the stocks": "That's what you invested. Tharp: the amount risked is not the amount invested. Each stop is set to cost 1%."
    }
   },
   "review_status": "draft",
@@ -25559,10 +25559,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A, its ATR is bigger",
+    "A, ATR is bigger",
     "B, about 7.5% a day",
-    "B, about 1.5% a day",
-    "They're about the same"
+    "B, 1.5% a day",
+    "About the same"
    ],
    "kind": "mcq",
    "q": "Which one moves more for its price?",
@@ -25609,7 +25609,7 @@
      "fn": "arith",
      "result": 7.5
     },
-    "given": "Which one moves more for its price? Stock A trades at $300 with a daily ATR of $6. Stock B trades at $20 with a daily ATR of $1.50. B, about 7.5% a day A, its ATR is bigger They're about the same B, about 1.5% a day"
+    "given": "Which one moves more for its price? Stock A trades at $300 with a daily ATR of $6. Stock B trades at $20 with a daily ATR of $1.50. B, about 7.5% a day A, ATR is bigger About the same B, 1.5% a day"
    },
    "lesson_line": "Compare ATR as a percent of price. Dollars alone mislead.",
    "simple": "Stock B moves more for its price, because its $1.50 range is 7.5% of $20, far more than A's share of $300.",
@@ -25617,9 +25617,9 @@
    "unit": "V.06",
    "why": "B, about 7.5% a day. ATR is in dollars, so a high-priced stock shows a bigger number. StockCharts: ATR is not shown as a percent of the close, so raw ATRs can't be compared across price levels. B's $1.50 is 7.5% of $20. A's $6 is a much smaller share of $300.",
    "wrong": {
-    "A, its ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
-    "B, about 1.5% a day": "That reads the $1.50 ATR as a percent. ATR is in dollars, and $1.50 on a $20 stock is 7.5%.",
-    "They're about the same": "For its price, B moves several times as much as A."
+    "A, ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
+    "About the same": "For its price, B moves several times as much as A.",
+    "B, 1.5% a day": "That reads the $1.50 ATR as a percent. ATR is in dollars, and $1.50 on a $20 stock is 7.5%."
    }
   },
   "review_status": "draft",
@@ -27492,10 +27492,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A buy limit at $32",
-    "A sell limit at $32",
+    "Buy limit at $32",
+    "A sell limit $32",
     "A buy stop at $32",
-    "A sell stop at $32"
+    "Sell stop at $32"
    ],
    "kind": "mcq",
    "q": "Which order does that?",
@@ -27579,7 +27579,7 @@
     "summary": "A buy stop sits above the current price; investors generally use it to limit a loss or protect a profit on a short. On a short, a buy stop limits the loss if price rises. On a short, a buy stop sends a market buy if price rises to the stop. Buy stops must be entered above the current price. The stop price is a trigger, not a promised fill price. A gap can carry a stop's fill far past the stop price. A buy limit fills at the limit or lower; a sell limit fills at the limit or higher. A marketable limit order is a buy limit at or above the best ask, or a sell limit at or below the best bid. A sell stop sits below the current price; it limits a loss or protects a profit on shares you own. A short sale sells stock you don't own, delivered with borrowed shares."
    },
    "facts": {
-    "given": "Which order does that? You sold a stock short at $30. You want out automatically if it rises to $32. A buy stop at $32 A sell stop at $32 A buy limit at $32 A sell limit at $32"
+    "given": "Which order does that? You sold a stock short at $30. You want out automatically if it rises to $32. A buy stop at $32 Sell stop at $32 Buy limit at $32 A sell limit $32"
    },
    "lesson_line": "Short a stock and your stop is a buy stop above. Set it when you enter.",
    "simple": "Use a buy stop at $32, because you close a short by buying and a buy stop fires on a rise.",
@@ -27587,9 +27587,9 @@
    "unit": "V.07",
    "why": "A buy stop at $32. You're short, so getting out means buying. A buy stop sits above the current price. If the stock rises to it, it becomes a market buy and closes the short. The stop price is a trigger, not a promised price. In a fast move or a gap up, the fill can come in above $32.",
    "wrong": {
-    "A buy limit at $32": "A buy limit fills at $32 or lower. The stock is below $32 now, so it could buy at once instead of waiting for a rise.",
-    "A sell limit at $32": "You own no shares, so selling at $32 is another short sale. It adds to the short instead of closing it.",
-    "A sell stop at $32": "A sell stop sells, and it sits below the price. You're short, so getting out means buying."
+    "A sell limit $32": "You own no shares, so selling at $32 is another short sale. It adds to the short instead of closing it.",
+    "Buy limit at $32": "A buy limit fills at $32 or lower. The stock is below $32 now, so it could buy at once instead of waiting for a rise.",
+    "Sell stop at $32": "A sell stop sells, and it sits below the price. You're short, so getting out means buying."
    }
   },
   "review_status": "draft",
@@ -28727,10 +28727,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A bracket order on the $20 buy limit",
+    "A bracket on the $20 buy limit",
     "OCO of buy limit $20, stop $22.50",
-    "Buy limit $20 and buy stop $22.50",
-    "One buy stop-limit, $20 to $22.50"
+    "Buy limit $20, buy stop $22.50",
+    "One stop-limit, $20 to $22.50"
    ],
    "kind": "mcq",
    "q": "How should the two entries be set up?",
@@ -28804,7 +28804,7 @@
     "summary": "An OCO pairs two orders so one executing cancels the other. OCO orders are common in pullback and breakout trading, to be ready for either move. OCO: two live orders; when either executes, the other cancels. A buy limit fills at the limit or lower; a sell limit fills at the limit or higher. A buy stop sits above the current price; investors generally use it to limit a loss or protect a profit on a short. Buy stops must be entered above the current price. A bracket places a linked take-profit and stop as soon as the position opens. Our rule E57: we enter with market orders, and the stop still sits with the broker."
    },
    "facts": {
-    "given": "How should the two entries be set up? A stock trades at $21. A trader will buy a pullback to $20 or a breakout over $22.50, whichever comes first. They want only one position. OCO of buy limit $20, stop $22.50 Buy limit $20 and buy stop $22.50 A bracket order on the $20 buy limit One buy stop-limit, $20 to $22.50"
+    "given": "How should the two entries be set up? A stock trades at $21. A trader will buy a pullback to $20 or a breakout over $22.50, whichever comes first. They want only one position. OCO of buy limit $20, stop $22.50 Buy limit $20, buy stop $22.50 A bracket on the $20 buy limit One stop-limit, $20 to $22.50"
    },
    "lesson_line": "An OCO links two orders so only one of them can fill.",
    "simple": "An OCO, because it links the two entries so when one fills the other cancels, leaving one position.",
@@ -28812,9 +28812,9 @@
    "unit": "V.07",
    "why": "An OCO with a buy limit at $20 and a buy stop at $22.50. Whichever fills first cancels the other, so both can't fill. The buy limit fills at $20 or lower. The buy stop sits above the price and triggers on a rise to $22.50.",
    "wrong": {
-    "A bracket order on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel the breakout entry.",
-    "Buy limit $20 and buy stop $22.50": "Separate orders can both fill. A pop to $22.50, then a drop to $20, doubles the position.",
-    "One buy stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
+    "A bracket on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel the breakout entry.",
+    "Buy limit $20, buy stop $22.50": "Separate orders can both fill. A pop to $22.50, then a drop to $20, doubles the position.",
+    "One stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
    }
   },
   "review_status": "draft",
@@ -28835,10 +28835,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "When the finished trade settles",
-    "The price that will trigger it",
+    "When the trade settles",
+    "The price that triggers it",
     "How long the order stays live",
-    "How many shares are able to fill"
+    "How many shares can fill"
    ],
    "kind": "mcq",
    "q": "On an order ticket, what does the time in force set?",
@@ -28907,7 +28907,7 @@
     "summary": "Time in force is the time frame an order must happen within. The time-in-force choice sets an order's time limit. Time in force (TIF) is a setting you pick on the ticket. A day order cancels at the close; a GTC order stays active past it. How long a GTC order can stay open varies by broker. Orders can carry time limits and other conditions. FINRA calls the stop price the trigger price. AON: the whole order or nothing."
    },
    "facts": {
-    "given": "On an order ticket, what does the time in force set? How long the order stays live The price that will trigger it How many shares are able to fill When the finished trade settles"
+    "given": "On an order ticket, what does the time in force set? How long the order stays live The price that triggers it How many shares can fill When the trade settles"
    },
    "lesson_line": "Every order has a clock. Check it before you send.",
    "simple": "Time in force sets how long your order stays live, like today only or until you cancel it.",
@@ -28915,9 +28915,9 @@
    "unit": "V.07",
    "why": "How long the order stays live. Time in force is the time frame an order must happen within, and you pick it on the ticket. A day order cancels at the close if it hasn't filled. A good 'til canceled order stays active until it fills or you cancel it, within your broker's time limit.",
    "wrong": {
-    "How many shares are able to fill": "That's the quantity, plus size conditions like all-or-none.",
-    "The price that will trigger it": "That's the stop price, its own field on a stop order. Time in force is about how long the order lives.",
-    "When the finished trade settles": "Time in force is the time frame the order itself must happen within. It sets nothing about settlement."
+    "How many shares can fill": "That's the quantity, plus size conditions like all-or-none.",
+    "The price that triggers it": "That's the stop price, its own field on a stop order. Time in force is about how long the order lives.",
+    "When the trade settles": "Time in force is the time frame the order itself must happen within. It sets nothing about settlement."
    }
   },
   "review_status": "draft",
@@ -29562,7 +29562,7 @@
   "prompt_json": {
    "choices": [
     "Shares left after a cancel",
-    "An order still waiting to trade",
+    "An order waiting to trade",
     "An executed order, or its price",
     "The total shares traded today"
    ],
@@ -29584,7 +29584,7 @@
     "summary": "A fill is an executed order, or the price it executed at."
    },
    "facts": {
-    "given": "On your order screen, what does a fill mean? An executed order, or its price An order still waiting to trade Shares left after a cancel The total shares traded today"
+    "given": "On your order screen, what does a fill mean? An executed order, or its price An order waiting to trade Shares left after a cancel The total shares traded today"
    },
    "lesson_line": "A fill is a done trade. Until then, it's just an order.",
    "simple": "A fill is an order that traded, or the price it traded at.",
@@ -29592,7 +29592,7 @@
    "unit": "V.07",
    "why": "An executed order, or the price it executed at. Nasdaq's glossary gives both meanings. Filled means the order traded. An order still waiting to trade is not a fill.",
    "wrong": {
-    "An order still waiting to trade": "That's a working order. Nothing has traded yet.",
+    "An order waiting to trade": "That's a working order. Nothing has traded yet.",
     "Shares left after a cancel": "Those didn't fill. A fill is what did trade.",
     "The total shares traded today": "That's the day's volume, for everyone. A fill is your own order."
    }
@@ -29986,10 +29986,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The gap between the bid and the ask",
+    "The gap between bid and ask",
     "The day's high minus the day's low",
     "Your fill vs. the price you expected",
-    "A price gap between two trading days"
+    "A price gap between trading days"
    ],
    "kind": "mcq",
    "q": "What is slippage on a trade?",
@@ -30030,7 +30030,7 @@
     "summary": "Slippage is the gap between the price you expected and the price you got. Slippage is the gap between the cost you expected and the cost you got, usually from changes in price, spread or commission. Slippage can go for you, against you, or be zero. A gap can carry a stop's fill far past the stop price."
    },
    "facts": {
-    "given": "What is slippage on a trade? Your fill vs. the price you expected The gap between the bid and the ask The day's high minus the day's low A price gap between two trading days"
+    "given": "What is slippage on a trade? Your fill vs. the price you expected The gap between bid and ask The day's high minus the day's low A price gap between trading days"
    },
    "lesson_line": "Slippage measures your fill against the price you expected.",
    "simple": "Slippage is the gap between the price you expected and the price you actually got.",
@@ -30038,9 +30038,9 @@
    "unit": "V.07",
    "why": "Your fill versus the price you expected. Investopedia defines slippage as the difference between a trade's expected price and its executed price. Nasdaq frames it as expected versus actual cost.",
    "wrong": {
-    "A price gap between two trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage.",
+    "A price gap between trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage.",
     "The day's high minus the day's low": "That's the day's range. It isn't about your order at all.",
-    "The gap between the bid and the ask": "That's the spread. Slippage is the gap between your expected price and your fill."
+    "The gap between bid and ask": "That's the spread. Slippage is the gap between your expected price and your fill."
    }
   },
   "review_status": "draft",
@@ -30659,9 +30659,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It can't trade until the next open",
-    "Shorting it is banned by federal law",
-    "It's too expensive to buy outright",
+    "It can't trade until the open",
+    "Shorting it is banned by law",
+    "It's too costly to buy outright",
     "Few shares free to lend for shorts"
    ],
    "kind": "mcq",
@@ -30710,7 +30710,7 @@
     "summary": "Hard-to-borrow stocks are hard to get for short sales. Hard-to-borrow stocks can carry higher loan fees. Borrow costs run from nothing on liquid shares to very high yearly rates on scarce ones. A short order in a hard-to-borrow stock may be refused. Brokers update their hard-to-borrow lists every day."
    },
    "facts": {
-    "given": "Your platform flags a stock as hard to borrow. What does that tell you? Few shares free to lend for shorts Shorting it is banned by federal law It can't trade until the next open It's too expensive to buy outright"
+    "given": "Your platform flags a stock as hard to borrow. What does that tell you? Few shares free to lend for shorts Shorting it is banned by law It can't trade until the open It's too costly to buy outright"
    },
    "lesson_line": "Hard to borrow can mean a higher fee to short, or a short order refused.",
    "simple": "It means few shares are free to lend for shorting, so the fee can be high or the short refused.",
@@ -30718,9 +30718,9 @@
    "unit": "V.07",
    "why": "Few shares are free to lend. A hard-to-borrow list names stocks that are hard to obtain for short sales. They may carry higher loan fees, and a short order may be refused. Brokers update these lists daily.",
    "wrong": {
-    "It can't trade until the next open": "Borrow has nothing to do with trading hours.",
-    "It's too expensive to buy outright": "Buying doesn't need a borrow. The flag is about shorting.",
-    "Shorting it is banned by federal law": "It's about the broker's supply of shares to lend, not a law. A short may still go through, at a higher fee."
+    "It can't trade until the open": "Borrow has nothing to do with trading hours.",
+    "It's too costly to buy outright": "Buying doesn't need a borrow. The flag is about shorting.",
+    "Shorting it is banned by law": "It's about the broker's supply of shares to lend, not a law. A short may still go through, at a higher fee."
    }
   },
   "review_status": "draft",
@@ -31144,10 +31144,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Short sellers piling in sink the price",
-    "A broker forcing longs to sell shares",
+    "Shorts piling in sink the price",
+    "A broker forcing longs to sell",
     "Short covering lifts the price fast",
-    "A stock stuck in a tight price range"
+    "A stock stuck in a tight range"
    ],
    "kind": "mcq",
    "q": "What is a short squeeze?",
@@ -31188,7 +31188,7 @@
     "summary": "A short squeeze is pressure on shorts to cover, from a sharp rise or a hard borrow. Shorts rushing to cover push the price up more, which can squeeze harder. Shorts exit by buying, so many exiting at once pushes price up. Shorts buying back to cover can drive the stock sharply higher."
    },
    "facts": {
-    "given": "What is a short squeeze? Short covering lifts the price fast Short sellers piling in sink the price A stock stuck in a tight price range A broker forcing longs to sell shares"
+    "given": "What is a short squeeze? Short covering lifts the price fast Shorts piling in sink the price A stock stuck in a tight range A broker forcing longs to sell"
    },
    "lesson_line": "In a squeeze, the shorts become the buyers.",
    "simple": "A short squeeze is when shorts rush to buy back shares, and their buying pushes the price up even faster.",
@@ -31196,9 +31196,9 @@
    "unit": "V.07",
    "why": "Short covering lifts the price fast. The SEC defines a short squeeze as pressure on short sellers to cover. A sharp price rise or a hard borrow causes it. Their buying adds upward pressure, which can squeeze them harder. It is a rise driven by shorts buying back, not a drop.",
    "wrong": {
-    "A broker forcing longs to sell shares": "That describes forced selling by owners. A squeeze is pressure on short sellers to buy back.",
-    "A stock stuck in a tight price range": "That's a tight range. Nobody is being forced to buy.",
-    "Short sellers piling in sink the price": "That's the reverse. In a squeeze the short sellers are under pressure, and their buying back lifts the price."
+    "A broker forcing longs to sell": "That describes forced selling by owners. A squeeze is pressure on short sellers to buy back.",
+    "A stock stuck in a tight range": "That's a tight range. Nobody is being forced to buy.",
+    "Shorts piling in sink the price": "That's the reverse. In a squeeze the short sellers are under pressure, and their buying back lifts the price."
    }
   },
   "review_status": "draft",
@@ -31397,7 +31397,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Shares the company itself bought back",
+    "Shares the company bought back",
     "The yearly fee to borrow a stock",
     "Shares sold short in a single day",
     "Total open short positions in a stock"
@@ -31441,7 +31441,7 @@
     "summary": "Short interest is the total of open short positions. Short interest is a snapshot of open short positions on a set date. Short sale volume is not the same thing as short interest. The fee on borrowed shares can change, sometimes a lot and without warning."
    },
    "facts": {
-    "given": "What does short interest measure? Total open short positions in a stock Shares sold short in a single day The yearly fee to borrow a stock Shares the company itself bought back"
+    "given": "What does short interest measure? Total open short positions in a stock Shares sold short in a single day The yearly fee to borrow a stock Shares the company bought back"
    },
    "lesson_line": "Short interest counts positions still open. Daily short volume is a different number.",
    "simple": "Short interest is the total number of short positions still open in a stock, counted on a set date.",
@@ -31450,7 +31450,7 @@
    "why": "Total open short positions in a stock. The SEC calls short interest the aggregate number of open short positions. FINRA says it is a snapshot on a given settlement date, and that short sale volume is not the same thing.",
    "wrong": {
     "Shares sold short in a single day": "That's short sale volume. FINRA says it is not the same as short interest.",
-    "Shares the company itself bought back": "That's a buyback. It has nothing to do with shorts.",
+    "Shares the company bought back": "That's a buyback. It has nothing to do with shorts.",
     "The yearly fee to borrow a stock": "That's the borrow fee, the interest on the stock loan."
    }
   },
@@ -38053,9 +38053,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sales, before any costs come out",
-    "Profit before interest and taxes",
-    "Cash on hand at the period's end",
+    "Sales, before costs come out",
+    "Profit before interest, taxes",
+    "Cash on hand at period's end",
     "Net income, after all expenses"
    ],
    "kind": "mcq",
@@ -38104,7 +38104,7 @@
     "summary": "Net income or net loss is the bottom line. After interest and taxes comes the bottom line: net income, also called net earnings or net profit. Gross profit minus operating expenses is operating income, before interest and taxes. The top of the income statement is the money brought in from sales. A balance sheet is a snapshot on one date; an income statement covers a period."
    },
    "facts": {
-    "given": "What does the bottom line mean on an income statement? Net income, after all expenses Sales, before any costs come out Profit before interest and taxes Cash on hand at the period's end"
+    "given": "What does the bottom line mean on an income statement? Net income, after all expenses Sales, before costs come out Profit before interest, taxes Cash on hand at period's end"
    },
    "lesson_line": "Bottom line means net income. It's what's left after every expense, taxes included.",
    "simple": "The bottom line is net income, the profit or loss left after every expense, taxes included.",
@@ -38112,9 +38112,9 @@
    "unit": "V.09",
    "why": "Net income, after all expenses. It is the last line of the income statement. Income tax is the final item taken out, and what remains is the net profit or net loss. It is not operating income, which comes before interest and taxes. It is not cash either: cash sits on the balance sheet, on one date.",
    "wrong": {
-    "Cash on hand at the period's end": "Cash sits on the balance sheet, on one date. The bottom line is net income, earned over a period.",
-    "Profit before interest and taxes": "That's operating income. Interest and taxes still come out after it.",
-    "Sales, before any costs come out": "That's revenue, the top line. The bottom line comes after every cost."
+    "Cash on hand at period's end": "Cash sits on the balance sheet, on one date. The bottom line is net income, earned over a period.",
+    "Profit before interest, taxes": "That's operating income. Interest and taxes still come out after it.",
+    "Sales, before costs come out": "That's revenue, the top line. The bottom line comes after every cost."
    }
   },
   "review_status": "draft",
@@ -38681,7 +38681,7 @@
    "choices": [
     "Cost of goods sold",
     "Total expenses",
-    "Operating expenses",
+    "Operating expense",
     "Interest expense"
    ],
    "kind": "mcq",
@@ -38737,7 +38737,7 @@
     "summary": "Cost of goods sold is the direct cost of producing what the company sells. Cost of sales is what the company spent to produce what it sold in the period. Revenue minus cost of sales is gross profit (the SEC notes the dollar figure is sometimes called gross margin). Operating expenses are the overhead of running the business, not the cost of producing the product. Operating expenses are costs not tied directly to making the product. Interest expense is what the company owes its lenders for the period."
    },
    "facts": {
-    "given": "On an income statement, which line is the direct expense of producing the products? Cost of goods sold Operating expenses Interest expense Total expenses"
+    "given": "On an income statement, which line is the direct expense of producing the products? Cost of goods sold Operating expense Interest expense Total expenses"
    },
    "lesson_line": "Cost of goods sold comes out of revenue first. What's left is gross profit.",
    "simple": "Cost of goods sold is the line for the direct cost of making what was sold, before any overhead.",
@@ -38746,7 +38746,7 @@
    "why": "Cost of goods sold. It is the direct cost of producing the products sold or the services provided in the period. The SEC's guide calls the same line cost of sales. It comes out of revenue first, and what is left is gross profit. Operating expenses are overhead that can't be tied directly to production, and interest expense is what is owed to lenders.",
    "wrong": {
     "Interest expense": "That's what the company owes its lenders on borrowed money.",
-    "Operating expenses": "Those are overhead costs of running the business. They can't be tied directly to making the product.",
+    "Operating expense": "Those are overhead costs of running the business. They can't be tied directly to making the product.",
     "Total expenses": "That total takes in overhead too. Only cost of goods sold is the direct cost of production."
    }
   },
@@ -39536,7 +39536,7 @@
     "The consensus estimate",
     "The trailing EPS",
     "The whisper number",
-    "The company's guidance"
+    "Company guidance"
    ],
    "kind": "mcq",
    "q": "What do you call that $0.80?",
@@ -39592,7 +39592,7 @@
     "summary": "The consensus estimate is the average of the analysts covering the stock. The consensus Fidelity shows is the mean of analysts' forecasts. The consensus is the mean of the analysts' forecasts. Guidance is management's own hint at what's coming, often for the next quarter. The whisper number is the unofficial consensus. Trailing P/E uses the past 12 months of EPS; forward P/E uses estimates for the next 12 months."
    },
    "facts": {
-    "given": "What do you call that $0.80? Twelve analysts cover a stock. Their EPS estimates for the quarter average $0.80. The company has given no forecast. The consensus estimate The company's guidance The whisper number The trailing EPS"
+    "given": "What do you call that $0.80? Twelve analysts cover a stock. Their EPS estimates for the quarter average $0.80. The company has given no forecast. The consensus estimate Company guidance The whisper number The trailing EPS"
    },
    "lesson_line": "Consensus comes from analysts. Guidance comes from the company. Keep the two straight.",
    "simple": "An average of the analysts' estimates is the consensus estimate, and it is not guidance since the company gave no forecast.",
@@ -39600,7 +39600,7 @@
    "unit": "V.09",
    "why": "The consensus estimate. It is the average of the forecasts from the analysts covering the stock, and Fidelity's research pages show it as their mean. Guidance would come from management, and this company gave none. A whisper number is unofficial. Trailing EPS is what was already earned over the past 12 months, not a forecast.",
    "wrong": {
-    "The company's guidance": "Guidance comes from management, and this company gave none.",
+    "Company guidance": "Guidance comes from management, and this company gave none.",
     "The trailing EPS": "Trailing EPS is what the company already earned over the past 12 months. This is a forecast.",
     "The whisper number": "A whisper is unofficial. This is the published average of the analysts."
    }
@@ -40505,7 +40505,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The investor deck",
+    "The slide deck",
     "The 8-K",
     "The earnings call",
     "The 10-Q filing"
@@ -40563,7 +40563,7 @@
     "summary": "On the earnings call, management explains the quarter, takes analysts' questions and may give guidance. Some companies give guidance only on the earnings call. NVIDIA held its earnings call at 5 p.m. ET on report day. The 10-Q is the quarterly report, with unaudited financial statements. Investor presentation decks are marketing documents and tend to be more optimistic than filings. An earnings press release has to be filed on Form 8-K with its full text."
    },
    "facts": {
-    "given": "After the release, management takes analysts' questions live. What is that event? The earnings call The 10-Q filing The investor deck The 8-K"
+    "given": "After the release, management takes analysts' questions live. What is that event? The earnings call The 10-Q filing The slide deck The 8-K"
    },
    "lesson_line": "Listen for guidance on the call. Some companies save their outlook for it.",
    "simple": "On the earnings call, the managers talk through the quarter live and take questions from analysts.",
@@ -40573,7 +40573,7 @@
    "wrong": {
     "The 10-Q filing": "The 10-Q is a written quarterly report filed with the SEC.",
     "The 8-K": "The 8-K is a filed form. It carries the press release text.",
-    "The investor deck": "A deck is a set of slides. FINRA calls them marketing documents."
+    "The slide deck": "A deck is a set of slides. FINRA calls them marketing documents."
    }
   },
   "review_status": "draft",
@@ -40594,9 +40594,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "During market hours",
-    "After market close",
-    "Buy at market open",
+    "In market hours",
+    "After the close",
+    "Buy at the open",
     "Before market open"
    ],
    "kind": "mcq",
@@ -40638,7 +40638,7 @@
     "summary": "Earnings calendars mark report times as BMO (before market open), AMC (after market close) or during market hours. BMO means results before the day's trading begins; AMC means results after the close. The regular session runs 9:30 a.m. to 4:00 p.m. ET (SEC bulletin, as of 2026-11-09). Companies usually report before the open or after the close."
    },
    "facts": {
-    "given": "On an earnings calendar, what does BMO mean? Before market open After market close During market hours Buy at market open"
+    "given": "On an earnings calendar, what does BMO mean? Before market open After the close In market hours Buy at the open"
    },
    "lesson_line": "BMO means the news is out before the bell. Have your plan set the night before.",
    "simple": "BMO means the company puts out its results before the regular session opens that morning.",
@@ -40646,9 +40646,9 @@
    "unit": "V.09",
    "why": "Before market open. On an earnings calendar, BMO marks a company that releases results before trading begins for the day. The regular session starts at 9:30 a.m. ET, so the news is out before the first regular trade. AMC means after market close, and some calendars also mark reports during market hours. BMO is a timing label, not a trade instruction.",
    "wrong": {
-    "After market close": "That's AMC.",
-    "Buy at market open": "BMO is a timing label on an earnings calendar, not an order. It marks results due before trading begins.",
-    "During market hours": "Some companies do report during the session. That's its own label, not BMO."
+    "After the close": "That's AMC.",
+    "Buy at the open": "BMO is a timing label on an earnings calendar, not an order. It marks results due before trading begins.",
+    "In market hours": "Some companies do report during the session. That's its own label, not BMO."
    }
   },
   "review_status": "draft",
@@ -41386,10 +41386,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The last full fiscal year only",
+    "The last fiscal year only",
     "This quarter, annualized",
     "The last 12 months of results",
-    "The next 12 months, estimated"
+    "Next 12 months, estimated"
    ],
    "kind": "mcq",
    "q": "On a stock's stats page, what does TTM mean?",
@@ -41430,7 +41430,7 @@
     "summary": "TTM means trailing 12 months. Trailing P/E uses the last 12 months of earnings; forward (prospective) P/E uses the consensus forecast for the next 12 months. Trailing P/E uses the past 12 months of EPS; forward P/E uses estimates for the next 12 months. A fiscal year is any 12-month accounting period."
    },
    "facts": {
-    "given": "On a stock's stats page, what does TTM mean? The last 12 months of results The next 12 months, estimated The last full fiscal year only This quarter, annualized"
+    "given": "On a stock's stats page, what does TTM mean? The last 12 months of results Next 12 months, estimated The last fiscal year only This quarter, annualized"
    },
    "lesson_line": "TTM is the freshest full year of results. It doesn't wait for the fiscal year to end.",
    "simple": "TTM means the last twelve months of reported results, added up as one year.",
@@ -41438,8 +41438,8 @@
    "unit": "V.09",
    "why": "The last 12 months of results. TTM stands for trailing 12 months: the most recent 12 months of reported numbers. A trailing P/E uses this window. It is not a forecast, not one fixed fiscal year, and not one quarter multiplied out.",
    "wrong": {
-    "The last full fiscal year only": "A fiscal year is one fixed 12-month period. TTM is the most recent 12 months, whatever the fiscal calendar.",
-    "The next 12 months, estimated": "That's a forward number, built on estimates.",
+    "Next 12 months, estimated": "That's a forward number, built on estimates.",
+    "The last fiscal year only": "A fiscal year is one fixed 12-month period. TTM is the most recent 12 months, whatever the fiscal calendar.",
     "This quarter, annualized": "Annualizing multiplies one quarter out. TTM adds up 12 months of reported results."
    }
   },
@@ -42099,8 +42099,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Shares the company bought back",
-    "All shares, insiders included",
+    "Shares bought back",
+    "All shares, with insiders",
     "Shares sold short right now",
     "Shares open to public trading"
    ],
@@ -42150,7 +42150,7 @@
     "summary": "Float is the shares available for the public to trade, leaving out insiders. Public float is the value of the shares held by public investors, leaving out officers, large stakeholders and governments. Float is outstanding shares minus closely held and restricted shares. Short selling doesn't change the float. Buybacks reduce shares outstanding."
    },
    "facts": {
-    "given": "What does float mean for a stock? Shares open to public trading All shares, insiders included Shares sold short right now Shares the company bought back"
+    "given": "What does float mean for a stock? Shares open to public trading All shares, with insiders Shares sold short right now Shares bought back"
    },
    "lesson_line": "Float is the supply that actually trades. Shares outstanding can be far bigger.",
    "simple": "Float is the shares the public can actually trade, which leaves out the shares held by insiders.",
@@ -42158,9 +42158,9 @@
    "unit": "V.09",
    "why": "Shares open to public trading. Nasdaq defines float as the outstanding shares available for the public to trade, excluding insiders. Investopedia subtracts closely held and restricted shares from shares outstanding. Short selling does not change the float, and a buyback lowers shares outstanding.",
    "wrong": {
-    "All shares, insiders included": "That's shares outstanding. The float takes out insiders' and restricted shares.",
-    "Shares sold short right now": "Short selling doesn't change the float. It just moves shares between holders.",
-    "Shares the company bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float."
+    "All shares, with insiders": "That's shares outstanding. The float takes out insiders' and restricted shares.",
+    "Shares bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float.",
+    "Shares sold short right now": "Short selling doesn't change the float. It just moves shares between holders."
    }
   },
   "review_status": "draft",
@@ -44387,7 +44387,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The value of all goods and services made",
+    "The value of goods and services made",
     "Prices people pay for goods and services",
     "Prices producers get for their output",
     "What urban consumers pay, per BLS"
@@ -44445,7 +44445,7 @@
     "summary": "BEA's PCE price index measures prices paid by people living in the U.S. BEA releases the PCE price index monthly in the Personal Income and Outlays report. The Fed's goal is 2 percent inflation a year, measured by the annual change in the PCE price index. PPI tracks the selling prices domestic producers receive. GDP is the value of final goods and services produced in the U.S. CPI covers urban consumers (CPI-U) and urban wage earners (CPI-W)."
    },
    "facts": {
-    "given": "What does the PCE price index track? Prices people pay for goods and services Prices producers get for their output The value of all goods and services made What urban consumers pay, per BLS"
+    "given": "What does the PCE price index track? Prices people pay for goods and services Prices producers get for their output The value of goods and services made What urban consumers pay, per BLS"
    },
    "lesson_line": "PCE is BEA's consumer price gauge, and the one the Fed's 2% goal is written in.",
    "simple": "PCE tracks what people across the country pay for goods and services, and the Fed's 2% goal uses it.",
@@ -44454,7 +44454,7 @@
    "why": "Prices people pay for goods and services. BEA's PCE price index measures the prices that people living in the United States, or those buying for them, pay. BEA releases it monthly in the Personal Income and Outlays report. The Fed's 2 percent inflation goal is measured with it.",
    "wrong": {
     "Prices producers get for their output": "That's the Producer Price Index from BLS, the seller's side.",
-    "The value of all goods and services made": "That's GDP, a measure of output, not prices.",
+    "The value of goods and services made": "That's GDP, a measure of output, not prices.",
     "What urban consumers pay, per BLS": "That describes CPI, which BLS builds for urban consumers. PCE is BEA's index of prices paid by people living in the U.S."
    }
   },
@@ -44476,7 +44476,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Jobs lost this month, as a share of jobs",
+    "Jobs lost monthly, as a share of jobs",
     "Unemployed as a share of all adults",
     "People on jobless benefits, as a share",
     "Unemployed as a share of the labor force"
@@ -44534,7 +44534,7 @@
     "summary": "BLS defines the unemployment rate as the number unemployed as a percentage of the labor force. The unemployment rate is the unemployed as a share of the labor force. People with no job who aren't looking are not in the labor force. Being counted as unemployed has nothing to do with getting benefits. Unemployed means no job, looked for work in the past 4 weeks, and available. People on temporary layoff expecting recall count as unemployed even without a job search."
    },
    "facts": {
-    "given": "How does BLS define the unemployment rate? Unemployed as a share of the labor force Unemployed as a share of all adults People on jobless benefits, as a share Jobs lost this month, as a share of jobs"
+    "given": "How does BLS define the unemployment rate? Unemployed as a share of the labor force Unemployed as a share of all adults People on jobless benefits, as a share Jobs lost monthly, as a share of jobs"
    },
    "lesson_line": "Jobless and not looking usually means out of the labor force, and out of the rate.",
    "simple": "It is the jobless people who are looking for work, as a share of all who are working or looking.",
@@ -44542,7 +44542,7 @@
    "unit": "V.10",
    "why": "Unemployed as a share of the labor force. The labor force is the employed plus the unemployed. Unemployed means no job, looked for work in the prior 4 weeks, and available now. Most jobless people who are not looking sit outside the labor force, so they are not in the rate. Getting benefits plays no part.",
    "wrong": {
-    "Jobs lost this month, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey.",
+    "Jobs lost monthly, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey.",
     "People on jobless benefits, as a share": "BLS classifies people by survey answers. Getting benefits has nothing to do with it.",
     "Unemployed as a share of all adults": "That would count retirees and students. The labor force only includes people working or looking."
    }
@@ -46741,9 +46741,9 @@
   "prompt_json": {
    "choices": [
     "A Treasury bond",
-    "A Treasury bill",
+    "A T-bill",
     "A Treasury FRN",
-    "A Treasury note"
+    "A T-note"
    ],
    "kind": "mcq",
    "q": "A Treasury security matures in 20 years. What type is it?",
@@ -46791,7 +46791,7 @@
     "summary": "Treasury bonds mature in 20 or 30 years. Treasury notes mature in 2, 3, 5, 7 or 10 years. Treasury bills mature in a year or less. Treasury floating rate notes (FRNs) mature in two years. TreasuryDirect names FRNs Floating Rate Notes (section heading, re-fetched 2026-11-12)."
    },
    "facts": {
-    "given": "A Treasury security matures in 20 years. What type is it? A Treasury bond A Treasury note A Treasury bill A Treasury FRN"
+    "given": "A Treasury security matures in 20 years. What type is it? A Treasury bond A T-note A T-bill A Treasury FRN"
    },
    "lesson_line": "Bills are short, notes run up to 10 years, bonds are the long end at 20 or 30.",
    "simple": "It is a Treasury bond, since bonds run 20 or 30 years and notes stop at 10.",
@@ -46799,10 +46799,9 @@
    "unit": "V.10",
    "why": "A Treasury bond. Bonds mature in 20 or 30 years. Notes mature in 2, 3, 5, 7 or 10 years, so no note runs 20 years. Bills mature in a year or less. Floating rate notes, or FRNs, mature in two years.",
    "wrong": {
-    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 20-year security can't be one.",
-    "A Treasury bill": "Bills are short-term, a year or less.",
-    "A Treasury bond": "Treasury bonds are the 20- and 30-year.",
-    "A Treasury note": "Notes stop at 10 years. A 20-year Treasury is a bond."
+    "A T-bill": "Bills are short-term, a year or less.",
+    "A T-note": "Notes stop at 10 years. A 20-year Treasury is a bond.",
+    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 20-year security can't be one."
    }
   },
   "review_status": "draft",
@@ -46824,8 +46823,8 @@
   "prompt_json": {
    "choices": [
     "Unemployed, on layoff",
-    "Employed, between jobs",
-    "Unemployed; wants work",
+    "Employed between jobs",
+    "Jobless; wants work",
     "Not in the labor force"
    ],
    "kind": "mcq",
@@ -46871,7 +46870,7 @@
     "summary": "Unemployed means no job, looked for work in the past 4 weeks, and available. People who want a job but didn't look in the past 4 weeks aren't counted as unemployed. People with no job who aren't looking are not in the labor force. People on temporary layoff expecting recall count as unemployed even without a job search."
    },
    "facts": {
-    "given": "How does BLS classify Dana? Dana's job ended for good in the spring. She'd like work but hasn't looked in two months. BLS surveys her household. Not in the labor force Unemployed; wants work Employed, between jobs Unemployed, on layoff"
+    "given": "How does BLS classify Dana? Dana's job ended for good in the spring. She'd like work but hasn't looked in two months. BLS surveys her household. Not in the labor force Jobless; wants work Employed between jobs Unemployed, on layoff"
    },
    "lesson_line": "Wanting work isn't enough. BLS asks if you looked for work in the prior 4 weeks.",
    "simple": "She is not in the labor force, because she has not looked for work in the last 4 weeks.",
@@ -46879,9 +46878,9 @@
    "unit": "V.10",
    "why": "Not in the labor force. To count as unemployed, a person must have no job, have looked for work in the prior 4 weeks, and be available. Dana hasn't looked in two months. Wanting a job isn't enough. The one exception, a temporary layoff with a recall expected, doesn't fit: her job ended for good.",
    "wrong": {
-    "Employed, between jobs": "She has no job, so she isn't employed.",
-    "Unemployed, on layoff": "The layoff exception covers workers expecting a recall. Dana's job ended for good, so it doesn't apply.",
-    "Unemployed; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test."
+    "Employed between jobs": "She has no job, so she isn't employed.",
+    "Jobless; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
+    "Unemployed, on layoff": "The layoff exception covers workers expecting a recall. Dana's job ended for good, so it doesn't apply."
    }
   },
   "review_status": "draft",
@@ -48271,8 +48270,8 @@
    "choices": [
     "Up by 10 basis points",
     "Up by 100 basis points",
-    "Up 1% in the headline",
-    "Up 10% in the headline"
+    "Up 1% in a headline",
+    "Up 10% in a headline"
    ],
    "kind": "mcq",
    "q": "Which way of saying it is right and can't be misread?",
@@ -48317,7 +48316,7 @@
     "summary": "A 10% rate that 'rises 10%' could be read as 11% or 20%. A 100 bp rise takes a 10% rate to 11%, with no ambiguity. A basis point is a hundredth of a percentage point. A basis point is 0.01 of a percentage point; 8% is 800 basis points."
    },
    "facts": {
-    "given": "Which way of saying it is right and can't be misread? A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%. Up by 100 basis points Up 10% in the headline Up 1% in the headline Up by 10 basis points"
+    "given": "Which way of saying it is right and can't be misread? A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%. Up by 100 basis points Up 10% in a headline Up 1% in a headline Up by 10 basis points"
    },
    "lesson_line": "Say rate moves in basis points or percentage points, never in percent.",
    "simple": "Saying 100 basis points can't be misread, while 10% or 1% leaves readers guessing what was meant.",
@@ -48325,8 +48324,8 @@
    "unit": "V.10",
    "why": "Up by 100 basis points. A rate that rises 10% could be read as 11% or 20%. A 100 basis point move takes a 10% rate to 11%, with no ambiguity. One basis point is a hundredth of a percentage point.",
    "wrong": {
-    "Up 1% in the headline": "One percent of what? Read as a share of the old rate, it would barely be a change.",
-    "Up 10% in the headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
+    "Up 1% in a headline": "One percent of what? Read as a share of the old rate, it would barely be a change.",
+    "Up 10% in a headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
     "Up by 10 basis points": "That's too small. Ten basis points is a tenth of a percentage point. A move from 10% to 11% is 100 basis points."
    }
   },
@@ -54450,8 +54449,8 @@
    "choices": [
     "Holding a losing trade too long",
     "Making bad decisions out of anger",
-    "Feeling too sure after a few wins",
-    "Buying in fear of missing a move"
+    "Feeling too sure after wins",
+    "Buying in fear of missing out"
    ],
    "kind": "mcq",
    "q": "In trading, what does it mean to be on tilt?",
@@ -54499,7 +54498,7 @@
     "summary": "Tilt is anger hurting your performance. Tilting is out-of-control decision-making driven by negative emotions. 'Winner's tilt' isn't tilt; that's overconfidence or fear. The disposition effect is holding losers too long and selling winners too soon. The SEC's advice: stick with your plan and don't decide out of FOMO."
    },
    "facts": {
-    "given": "In trading, what does it mean to be on tilt? Making bad decisions out of anger Feeling too sure after a few wins Holding a losing trade too long Buying in fear of missing a move"
+    "given": "In trading, what does it mean to be on tilt? Making bad decisions out of anger Feeling too sure after wins Holding a losing trade too long Buying in fear of missing out"
    },
    "lesson_line": "Tilt is anger placing your trades. Spot it early and step away.",
    "simple": "Being on tilt means anger is making your trading choices, which leads to bad, out of control decisions.",
@@ -54507,8 +54506,8 @@
    "unit": "V.12",
    "why": "Making bad decisions out of anger. Jared Tendler calls tilt a problem with anger in performance. A poker study defines tilting as out-of-control decisions driven by negative emotions. Tendler keeps the word narrow. Fear of missing a move is FOMO, and holding a loser too long is the disposition effect.",
    "wrong": {
-    "Buying in fear of missing a move": "That's FOMO, the fear of missing out. Tendler calls tilt a problem with anger in performance.",
-    "Feeling too sure after a few wins": "That's overconfidence. Tendler says no one gets angry about winning.",
+    "Buying in fear of missing out": "That's FOMO, the fear of missing out. Tendler calls tilt a problem with anger in performance.",
+    "Feeling too sure after wins": "That's overconfidence. Tendler says no one gets angry about winning.",
     "Holding a losing trade too long": "That's the disposition effect. Tilt is about anger driving your decisions."
    }
   },
@@ -56243,7 +56242,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gambler's fallacy",
+    "Gambling fallacy",
     "Herd mentality",
     "Confirmation bias",
     "Anchoring"
@@ -56281,7 +56280,7 @@
     "summary": "Seeking out sources that agree with you is confirmation bias. Following only the voices that agree with you is Schwab's example of confirmation bias. Confirmation bias is focusing on information that supports what you already think."
    },
    "facts": {
-    "given": "Which word names this? You own a stock. You follow five accounts that love it. You mute the one account that keeps posting the bear case. Confirmation bias Herd mentality Anchoring Gambler's fallacy"
+    "given": "Which word names this? You own a stock. You follow five accounts that love it. You mute the one account that keeps posting the bear case. Confirmation bias Herd mentality Anchoring Gambling fallacy"
    },
    "lesson_line": "Keep one smart bear in your feed. Muting them doesn't make the risk go away.",
    "simple": "Confirmation bias, because you keep the voices that agree with you and mute the one that doesn't.",
@@ -56290,7 +56289,7 @@
    "why": "Confirmation bias. Schwab defines it as the tendency to seek information that supports what we already believe. Its own example is seeking more from influencers who think like you do. Muting the bear does the same job from the other side. The OSC calls it focusing on information that supports your preconceptions.",
    "wrong": {
     "Anchoring": "Anchoring is leaning on a first number. This is about filtering opinions.",
-    "Gambler's fallacy": "The gambler's fallacy expects a streak to reverse. Nothing here is about a streak.",
+    "Gambling fallacy": "The gambler's fallacy expects a streak to reverse. Nothing here is about a streak.",
     "Herd mentality": "Herding is copying what others do. Here you're choosing which opinions you hear."
    }
   },
@@ -59253,9 +59252,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Your review of trades after the close",
+    "Your trade review after the close",
     "The same prep steps before each open",
-    "Trading in the hours before the open",
+    "Trading before the open",
     "Your rules for how much to buy"
    ],
    "kind": "mcq",
@@ -59297,7 +59296,7 @@
     "summary": "A pre-open step: check economic data released before the open. A pre-open step: review the major index charts to know what kind of market you're in. Preparing for several possible scenarios means fewer surprises. A routine won't stop all losses, but it helps prevent mistakes like chasing unfamiliar stocks."
    },
    "facts": {
-    "given": "What is a pre-market routine? The same prep steps before each open Trading in the hours before the open Your review of trades after the close Your rules for how much to buy"
+    "given": "What is a pre-market routine? The same prep steps before each open Trading before the open Your trade review after the close Your rules for how much to buy"
    },
    "lesson_line": "Same steps, same order, every morning. Then you're ready when the bell rings.",
    "simple": "A pre-market routine is the same prep you do before each open, like checking economic data and the index charts.",
@@ -59305,9 +59304,9 @@
    "unit": "V.13",
    "why": "The same prep steps before each open. Schwab's veteran traders check any economic data out before the open. They also review the major index charts to know what sort of market they're in. A routine can't stop every loss, but it helps prevent mistakes like chasing unfamiliar names. It is prep, not pre-market trading, and it comes before the open, not after the close.",
    "wrong": {
-    "Trading in the hours before the open": "That's pre-market trading, a session. The routine is your prep, not your trades.",
-    "Your review of trades after the close": "That's a review. The routine comes before the open.",
-    "Your rules for how much to buy": "That's position sizing, part of your plan."
+    "Trading before the open": "That's pre-market trading, a session. The routine is your prep, not your trades.",
+    "Your rules for how much to buy": "That's position sizing, part of your plan.",
+    "Your trade review after the close": "That's a review. The routine comes before the open."
    }
   },
   "review_status": "draft",
@@ -59447,10 +59446,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Better odds that the stock goes up",
+    "Better odds the stock goes up",
     "Fewer surprises, calmer decisions",
     "Knowing which case will happen",
-    "No need to set a stop on the trade"
+    "No need for a stop on the trade"
    ],
    "kind": "mcq",
    "q": "What does this prep mainly give you?",
@@ -59492,7 +59491,7 @@
     "summary": "Preparing for several possible scenarios means fewer surprises. It's hard to overreact to situations you have anticipated and prepared for. A trade plan helps you keep a cool head when markets move. A good trade is not always a profitable one."
    },
    "facts": {
-    "given": "What does this prep mainly give you? Before the open you write three cases for your stock: gap up and hold, gap up and fade, gap down. For each one you note what you'll do. Fewer surprises, calmer decisions Better odds that the stock goes up No need to set a stop on the trade Knowing which case will happen"
+    "given": "What does this prep mainly give you? Before the open you write three cases for your stock: gap up and hold, gap up and fade, gap down. For each one you note what you'll do. Fewer surprises, calmer decisions Better odds the stock goes up No need for a stop on the trade Knowing which case will happen"
    },
    "lesson_line": "Decide your moves while it's quiet. Then you're only executing when it's loud.",
    "simple": "It gives you fewer surprises and calmer choices, because you already decided what to do in each case.",
@@ -59500,9 +59499,9 @@
    "unit": "V.13",
    "why": "Fewer surprises, calmer decisions. Steenbarger: anticipating several possible scenarios, and how you'd respond to each, helps ensure you won't be surprised. He adds that it is very difficult to overreact to situations you've anticipated and prepared for. Schwab says a plan helps you keep a cool head when markets move. The prep changes how you act, not what the stock does.",
    "wrong": {
-    "Better odds that the stock goes up": "Prep changes how you act, not what the stock does.",
+    "Better odds the stock goes up": "Prep changes how you act, not what the stock does.",
     "Knowing which case will happen": "Nobody knows that. Steenbarger: even the best planning is fallible. You write several cases because you can't know which one comes.",
-    "No need to set a stop on the trade": "Every case still needs its exit. The gap down case is exactly why you have one."
+    "No need for a stop on the trade": "Every case still needs its exit. The gap down case is exactly why you have one."
    }
   },
   "review_status": "draft",
@@ -62438,8 +62437,8 @@
    "choices": [
     "Its rules are bent to fit old data",
     "It covers too many years of data",
-    "It needs a tighter stop to be safe",
-    "It wasn't tested on enough settings"
+    "It needs tighter stops to be safe",
+    "It didn't test enough settings"
    ],
    "kind": "mcq",
    "q": "What's the main problem with this backtest?",
@@ -62470,7 +62469,7 @@
     "summary": "The future may not mirror the past; don't curve-fit historical tests. Past performance doesn't guarantee future performance."
    },
    "facts": {
-    "given": "What's the main problem with this backtest? You keep tweaking a strategy's settings until its backtest shows almost no losing years. Its rules are bent to fit old data It covers too many years of data It wasn't tested on enough settings It needs a tighter stop to be safe"
+    "given": "What's the main problem with this backtest? You keep tweaking a strategy's settings until its backtest shows almost no losing years. Its rules are bent to fit old data It covers too many years of data It didn't test enough settings It needs tighter stops to be safe"
    },
    "lesson_line": "Tune a test until it's perfect and you've tuned it to old data.",
    "simple": "The problem is that the rules fit old data, not the future, because you tuned them to that data.",
@@ -62479,8 +62478,8 @@
    "why": "Its rules are bent to fit old data. Each tweak you kept made the past look better, so almost no losing years is what you tuned for. Steenbarger warns that care must be taken not to curve-fit historical tests. StockCharts reminds us past results don't guarantee future ones.",
    "wrong": {
     "It covers too many years of data": "More years give the test more trades to judge. The trouble is the tuning, not the amount of data.",
-    "It needs a tighter stop to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data.",
-    "It wasn't tested on enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests."
+    "It didn't test enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests.",
+    "It needs tighter stops to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data."
    }
   },
   "review_status": "draft",

@@ -918,9 +918,9 @@
    "q": "Which order puts that stop in the market?",
    "choices": [
     "A sell stop at $47.80",
-    "A sell limit at $47.80",
+    "Sell limit at $47.80",
     "A buy stop at $47.80",
-    "A buy limit at $47.80"
+    "Buy limit at $47.80"
    ],
    "answer": "A sell stop at $47.80",
    "why": "A sell stop at $47.80. It sits below the current price and waits. If the price falls to $47.80, it becomes a market sell. A sell limit at $47.80 would sell right away, since the stock is above it. We set the stop a few cents under the day's low, not exactly on it.",
@@ -934,9 +934,9 @@
     "h08"
    ],
    "wrong": {
-    "A sell limit at $47.80": "A sell limit fills at $47.80 or higher. With the stock at $49.60, it would sell right away.",
+    "Sell limit at $47.80": "A sell limit fills at $47.80 or higher. With the stock at $49.60, it would sell right away.",
     "A buy stop at $47.80": "A buy stop buys, and it goes above the price. You own the stock, so you need a sell order.",
-    "A buy limit at $47.80": "That buys more shares if it dips to $47.80, the reverse of an exit. We never add to a trade, and a stop must sell."
+    "Buy limit at $47.80": "That buys more shares if it dips to $47.80, the reverse of an exit. We never add to a trade, and a stop must sell."
    },
    "simple": "A sell stop at $47.80, because it waits below the price and sells only if the stock falls to it.",
    "tier": "core",
@@ -1469,8 +1469,8 @@
    "choices": [
     "10%, beyond its usual swing",
     "5%, about one typical day",
-    "2%, to keep nearly every cent",
-    "30%, so no dip ever trips it"
+    "2%, keep nearly every cent",
+    "30%, no dip ever trips it"
    ],
    "answer": "10%, beyond its usual swing",
    "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so a 2% or 5% trail gets hit by a normal down day. 10% clears that and still keeps most of the 60% gain if the trend breaks. Too loose gives back most of the win.",
@@ -1484,8 +1484,8 @@
     "h09"
    ],
    "wrong": {
-    "2%, to keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
-    "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
+    "2%, keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
+    "30%, no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
     "5%, about one typical day": "A typical day moves 4% to 6%, so a 6% down day goes right through a 5% trail. Normal noise would shake the trade out."
    },
    "simple": "10%, because it sits wider than a typical 4% to 6% day but still keeps most of the gain.",
@@ -1628,7 +1628,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1714,7 +1715,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 10% is right (f50, f51, f17 verified live on Investopedia and the SEC bulletin). TELL: 10% appears in two choices, so a test-wise reader narrows to those two and then drops 'set from the entry' because a trail by definition follows the price. Replaced that distractor with a 5% trail that sits inside the 4% to 6% daily move, a real too-tight misreading. All numbers come from the question; 10% off a 1.6x high keeps 44 of 60 points (most), 30% keeps 12 (gives back most). Deeper unchanged."
+   "notes": "Key 10% is right (f50, f51, f17 verified live on Investopedia and the SEC bulletin). TELL: 10% appears in two choices, so a test-wise reader narrows to those two and then drops 'set from the entry' because a trail by definition follows the price. Replaced that distractor with a 5% trail that sits inside the 4% to 6% daily move, a real too-tight misreading. All numbers come from the question; 10% off a 1.6x high keeps 44 of 60 points (most), 30% keeps 12 (gives back most). Deeper unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",

@@ -10286,8 +10286,8 @@
   "prompt_json": {
    "choices": [
     "The flawed logic you laid out",
-    "The emotion, by pushing it down",
-    "The entry rules for that setup",
+    "The emotion, by pushing down",
+    "The setup's entry rules",
     "The exit on the losing trade"
    ],
    "kind": "mcq",
@@ -10336,7 +10336,7 @@
     "summary": "Step 4: come up with a correction to that flawed logic. Steps 3 to 5: show the logic is flawed, correct it, and explain why the correction is correct. Step 3: explain why the logic from step 2 is flawed. The book says these recurring mistakes often persist after technical fixes. Controlling an emotion is different from correcting the problem behind it."
    },
    "facts": {
-    "given": "What does step 4 of the hand history work on? The flawed logic you laid out The entry rules for that setup The emotion, by pushing it down The exit on the losing trade"
+    "given": "What does step 4 of the hand history work on? The flawed logic you laid out The setup's entry rules The emotion, by pushing down The exit on the losing trade"
    },
    "lesson_line": "Correct the thinking, not just the trade.",
    "simple": "You correct the flawed logic you laid out in step 2, not your trade rules and not the feeling itself.",
@@ -10344,9 +10344,9 @@
    "unit": "F8.06",
    "why": "The flawed logic you laid out. Step 4 asks for a correction to that flawed logic: the step 2 logic that step 3 showed is broken. It is not a new entry or exit rule. Tendler's book says recurring mistakes often persist after technical fixes. It is not pushing the emotion down either: controlling an emotion is different from correcting the problem.",
    "wrong": {
-    "The emotion, by pushing it down": "Controlling an emotion and correcting the problem are different things. Pushing it down corrects nothing.",
-    "The entry rules for that setup": "Technical fixes are a different job. Tendler's book says recurring mistakes often persist after them; step 4 targets the thinking.",
-    "The exit on the losing trade": "That's a trade review. Worth doing, but step 4 targets the thinking that drove the mistake."
+    "The emotion, by pushing down": "Controlling an emotion and correcting the problem are different things. Pushing it down corrects nothing.",
+    "The exit on the losing trade": "That's a trade review. Worth doing, but step 4 targets the thinking that drove the mistake.",
+    "The setup's entry rules": "Technical fixes are a different job. Tendler's book says recurring mistakes often persist after them; step 4 targets the thinking."
    }
   },
   "review_status": "draft",
@@ -11943,9 +11943,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Set a profit goal for the day",
-    "Scan chat rooms for the hot tips",
-    "Wait and decide once it opens",
+    "Set a profit goal for today",
+    "Scan chat rooms for hot tips",
+    "Wait and decide at the open",
     "Entry, stop and size per name"
    ],
    "kind": "mcq",
@@ -12001,7 +12001,7 @@
     "summary": "The strategic part of the warm-up: overnight action, screens, levels and today's names. In an SMB trader's morning routine that Steenbarger published, every idea needs an entry, stop, target and risk amount. Set your levels in advance for every stock you plan to trade. Our rule: every planned buy has its entry, stop and size written down before the open. Our rule: never trade an alert, a post or a video without your own entry, stop and size. Judge yourself on the process that makes money over time, not on one day's result."
    },
    "facts": {
-    "given": "Which job belongs in your warm-up before the open? Entry, stop and size per name Scan chat rooms for the hot tips Wait and decide once it opens Set a profit goal for the day"
+    "given": "Which job belongs in your warm-up before the open? Entry, stop and size per name Scan chat rooms for hot tips Wait and decide at the open Set a profit goal for today"
    },
    "lesson_line": "Every name on today's list gets its levels before the bell.",
    "simple": "Write down each stock's entry, stop and size before the open, so you trade a plan, not a guess.",
@@ -12009,9 +12009,9 @@
    "unit": "F8.07",
    "why": "Entry, stop and size per name. Our rule: every planned buy has its entry, stop and size written down before the market opens. An SMB trader's morning plan, shared by Steenbarger, needs an entry, stop, target and risk amount for every idea. Tendler's warm-up covers the levels and the names you're watching that day. Investopedia: have set levels in mind for every stock you plan to trade. This does not mean you must buy every name. It means no buy happens without a plan.",
    "wrong": {
-    "Scan chat rooms for the hot tips": "A hot tip is someone else's idea, not your plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size.",
-    "Set a profit goal for the day": "A dollar goal is a result, not a plan. Steenbarger: focus on the processes that generate profits over time.",
-    "Wait and decide once it opens": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade."
+    "Scan chat rooms for hot tips": "A hot tip is someone else's idea, not your plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size.",
+    "Set a profit goal for today": "A dollar goal is a result, not a plan. Steenbarger: focus on the processes that generate profits over time.",
+    "Wait and decide at the open": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade."
    }
   },
   "review_status": "draft",
@@ -13325,9 +13325,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Keep trading, tighten every stop",
+    "Keep trading, tighten stops",
     "Jump back in to make it back",
-    "Do the warm-up, then trade again",
+    "Do the warm-up, trade again",
     "Step away, no new trades today"
    ],
    "kind": "mcq",
@@ -13373,7 +13373,7 @@
     "summary": "Our rule: tired, sick, angry or distracted means no new trades that day. Tired, your emotions grow and your ability to handle them shrinks. Don't trade more to win back a loss. Skip the warm-up and you start dull, at risk of mistakes and missed chances."
    },
    "facts": {
-    "given": "What's the right call? You slept badly and feel tired. You skipped your warm-up. Ten minutes after the open, your first trade is a loss. You want right back in. Step away, no new trades today Jump back in to make it back Keep trading, tighten every stop Do the warm-up, then trade again"
+    "given": "What's the right call? You slept badly and feel tired. You skipped your warm-up. Ten minutes after the open, your first trade is a loss. You want right back in. Step away, no new trades today Jump back in to make it back Keep trading, tighten stops Do the warm-up, trade again"
    },
    "lesson_line": "Tired, sick, angry or distracted: no new trades that day. A late warm-up doesn't change that.",
    "simple": "Stop for the day, because you feel tired, and a tired trader takes no new trades that day under our rule.",
@@ -13381,9 +13381,9 @@
    "unit": "F8.07",
    "why": "Step away, no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. You were tired before the first loss, so the rule already applied. Tendler explains why: when you're tired, your emotions get bigger while your ability to deal with them shrinks. The urge to get right back in is revenge trading. Investopedia: don't try to make up for a losing trade by trading more. The rule covers that day only.",
    "wrong": {
-    "Do the warm-up, then trade again": "A late warm-up doesn't lift the rule. You feel tired, and our rule says tired means no new trades that day.",
+    "Do the warm-up, trade again": "A late warm-up doesn't lift the rule. You feel tired, and our rule says tired means no new trades that day.",
     "Jump back in to make it back": "That's revenge trading. Investopedia: don't try to make up for a losing trade by trading more.",
-    "Keep trading, tighten every stop": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop. Tired means no new trades that day."
+    "Keep trading, tighten stops": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop. Tired means no new trades that day."
    }
   },
   "review_status": "draft",

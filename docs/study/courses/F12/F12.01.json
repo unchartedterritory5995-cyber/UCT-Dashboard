@@ -973,9 +973,9 @@
    "q": "Which line was missing from your plan?",
    "choices": [
     "A time limit to make it work",
-    "A second, higher profit target",
+    "A second, higher target",
     "A tighter stop on the trade",
-    "A rule for adding more shares"
+    "A rule for adding shares"
    ],
    "answer": "A time limit to make it work",
    "why": "A time limit to make it work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period. Our rule is a time stop: a trade still under 1R after 10 trading days is sold. R is the risk you took on the trade, set by your first stop. Selling frees the money for a stock that is moving. A trade stuck sideways this long would have been sold months ago.",
@@ -988,9 +988,9 @@
     "f49"
    ],
    "wrong": {
-    "A second, higher profit target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
+    "A second, higher target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
     "A tighter stop on the trade": "That changes where you're wrong on price. This trade's problem is time.",
-    "A rule for adding more shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot."
+    "A rule for adding shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot."
    },
    "skill": "process.plan",
    "simple": "A time limit, because a stock can drift sideways for months without ever touching your stop or your target.",
@@ -1180,9 +1180,9 @@
    "q": "What do you do tomorrow?",
    "choices": [
     "No trades until a new plan is made",
-    "Trade on feel until a new idea comes",
+    "Trade on feel until an idea comes",
     "Keep using the old rules for now",
-    "Trade a smaller size with no rules"
+    "Trade smaller with no rules"
    ],
    "answer": "No trades until a new plan is made",
    "why": "No trades until a new plan is made. Investopedia says a plan that doesn't work should be scrapped, and no trades placed until a new one is created. Fidelity agrees: if you change your plan, devise a replacement to guide your trading. A smaller size or the old rules still mean trading without a plan that works.",
@@ -1192,9 +1192,9 @@
     "f37"
    ],
    "wrong": {
-    "Trade on feel until a new idea comes": "That's trading with no plan at all, the very thing a plan is there to stop.",
+    "Trade on feel until an idea comes": "That's trading with no plan at all, the very thing a plan is there to stop.",
     "Keep using the old rules for now": "You've just decided they don't work. Trading them anyway means knowingly using a broken plan.",
-    "Trade a smaller size with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
+    "Trade smaller with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
    },
    "skill": "process.plan",
    "simple": "Don't trade until a new plan is made, because trading with no plan is what a plan is there to stop.",
@@ -1404,7 +1404,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Time limit re-derived from f07, f40, f41; why teaches C33 via h6 and defines R via f49. 'Sold months ago' holds: a trade sideways since entry sits under 1R, and 10 trading days falls months before four months. Choices balanced (27-30)."
+   "notes": "Time limit re-derived from f07, f40, f41; why teaches C33 via h6 and defines R via f49. 'Sold months ago' holds: a trade sideways since entry sits under 1R, and 10 trading days falls months before four months. Choices balanced (27-30).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1436,7 +1437,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "cut",

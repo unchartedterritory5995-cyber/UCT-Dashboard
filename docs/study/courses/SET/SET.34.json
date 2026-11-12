@@ -727,7 +727,7 @@
    "q": "On a Go Signal, red to green is measured against which price?",
    "choices": [
     "The prior day's close",
-    "The candle's own open",
+    "The candle's open",
     "The low of the flag",
     "The day's VWAP line"
    ],
@@ -740,7 +740,7 @@
     "g07"
    ],
    "wrong": {
-    "The candle's own open": "A candle that merely closes above its own open is green, not a Go Signal. The line is the prior close.",
+    "The candle's open": "A candle that merely closes above its own open is green, not a Go Signal. The line is the prior close.",
     "The low of the flag": "The card says it is not measured against a flag low.",
     "The day's VWAP line": "The card names only the prior day's close as the line."
    },
@@ -1624,8 +1624,8 @@
    "q": "What do you do?",
    "choices": [
     "Sell it all and take the loss",
-    "Set the stop at 118.83 and hold",
-    "Keep the 123.39 stop and wait",
+    "Set the stop at 118.83, hold",
+    "Keep the 123.39 stop, wait",
     "Buy more at the lower price"
    ],
    "answer": "Sell it all and take the loss",
@@ -1639,8 +1639,8 @@
     "h03b"
    ],
    "wrong": {
-    "Set the stop at 118.83 and hold": "The first 30-minute low is the new stop, but only up to a ceiling. Past 2R, you are out.",
-    "Keep the 123.39 stop and wait": "The stock is already through it. The gap rule hands the stop to the first 30 minutes.",
+    "Set the stop at 118.83, hold": "The first 30-minute low is the new stop, but only up to a ceiling. Past 2R, you are out.",
+    "Keep the 123.39 stop, wait": "The stock is already through it. The gap rule hands the stop to the first 30 minutes.",
     "Buy more at the lower price": "The full size goes in at one price with one stop. A second buy breaks that."
    },
    "house": true,
@@ -2395,7 +2395,7 @@
    "choices": [
     "The 20-day EMA trend",
     "The 50-day SMA line",
-    "The 200-day SMA line",
+    "The 200-day SMA",
     "The reclaim window"
    ],
    "answer": "The 20-day EMA trend",
@@ -2409,7 +2409,7 @@
    ],
    "wrong": {
     "The 50-day SMA line": "The story has it above its 50-day, so that check passes.",
-    "The 200-day SMA line": "The story has it above its 200-day, so that check passes.",
+    "The 200-day SMA": "The story has it above its 200-day, so that check passes.",
     "The reclaim window": "A first-hour reclaim is inside the two-candle window."
    },
    "house": true,
@@ -2934,9 +2934,9 @@
    "q": "Which one helps a Go Signal instead of blocking it?",
    "choices": [
     "A rising 20-day EMA line",
-    "A report in two sessions",
-    "A gap up, green all morning",
-    "A close under the 200-day"
+    "A report in two days",
+    "A gap up, green all day",
+    "Close under the 200-day"
    ],
    "answer": "A rising 20-day EMA line",
    "why": "A rising 20-day EMA. That is a point in its favor: the card wants it higher than it was 5 sessions ago. The other three are passes. A report in two sessions falls inside the 3-session no-buy window. A gap up that stays green all morning never trades under the prior close, so it is not a Go Signal. A stock under its 200-day gets no long.",
@@ -2949,9 +2949,9 @@
     "h08"
    ],
    "wrong": {
-    "A report in two sessions": "No new buy in the 3 sessions before an earnings report.",
-    "A close under the 200-day": "No longs below the 200-day simple moving average.",
-    "A gap up, green all morning": "A gap up that never trades under the prior close is not a Go Signal."
+    "A report in two days": "No new buy in the 3 sessions before an earnings report.",
+    "A gap up, green all day": "A gap up that never trades under the prior close is not a Go Signal.",
+    "Close under the 200-day": "No longs below the 200-day simple moving average."
    },
    "house": true,
    "simple": "A rising 20-day EMA helps the trade, while the other three each rule it out.",
@@ -3479,7 +3479,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g01 (prior close; not own open, not flag low). Calc-free. Choices even length, no silly choice."
+   "notes": "Key from g01 (prior close; not own open, not flag low). Calc-free. Choices even length, no silly choice.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3648,7 +3649,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. R=3.42 checks; 118.83 and 119.40 are both past 2R (6.84 under 126.81 is 119.97). Key matches B20 ceiling."
+   "notes": "Pass. R=3.42 checks; 118.83 and 119.40 are both past 2R (6.84 under 126.81 is 119.97). Key matches B20 ceiling.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q30": {
    "status": "pass",
@@ -3768,7 +3770,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.10 to 51.40 is lower, so the g13 check fails; other checks pass in the story. Rests on a proposed card line (g13)."
+   "notes": "52.10 to 51.40 is lower, so the g13 check fails; other checks pass in the story. Rests on a proposed card line (g13).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -3853,7 +3856,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (g13 rising 20-day EMA is wanted; g15/h08 report window, g03 gap up, h10 B26 block the rest). Break: a tell, the key is the only choice that sounds good ('rising') while every distractor reads as bad ('never dipped', 'close under'), so a guesser gets it at an expert rung. Gap-up distractor reworded to sound strong but stay clearly blocked (green all morning = never under the prior close inside the window, g03); why, wrong note and deeper follow."
+   "notes": "Key right (g13 rising 20-day EMA is wanted; g15/h08 report window, g03 gap up, h10 B26 block the rest). Break: a tell, the key is the only choice that sounds good ('rising') while every distractor reads as bad ('never dipped', 'close under'), so a guesser gets it at an expert rung. Gap-up distractor reworded to sound strong but stay clearly blocked (green all morning = never under the prior close inside the window, g03); why, wrong note and deeper follow.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",

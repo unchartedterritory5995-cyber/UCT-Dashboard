@@ -689,8 +689,8 @@
    "q": "What does step 4 of the hand history work on?",
    "choices": [
     "The flawed logic you laid out",
-    "The entry rules for that setup",
-    "The emotion, by pushing it down",
+    "The setup's entry rules",
+    "The emotion, by pushing down",
     "The exit on the losing trade"
    ],
    "answer": "The flawed logic you laid out",
@@ -704,8 +704,8 @@
     "t01"
    ],
    "wrong": {
-    "The entry rules for that setup": "Technical fixes are a different job. Tendler's book says recurring mistakes often persist after them; step 4 targets the thinking.",
-    "The emotion, by pushing it down": "Controlling an emotion and correcting the problem are different things. Pushing it down corrects nothing.",
+    "The setup's entry rules": "Technical fixes are a different job. Tendler's book says recurring mistakes often persist after them; step 4 targets the thinking.",
+    "The emotion, by pushing down": "Controlling an emotion and correcting the problem are different things. Pushing it down corrects nothing.",
     "The exit on the losing trade": "That's a trade review. Worth doing, but step 4 targets the thinking that drove the mistake."
    },
    "simple": "You correct the flawed logic you laid out in step 2, not your trade rules and not the feeling itself.",
@@ -1296,7 +1296,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer from f08/g05 (step 4: a correction to that flawed logic) matches the key. Choices 28-31 chars, key not longest, no lone absolute or hedge. Entry-rules note rests on b02, push-down note on t01. Stem no longer names the step 4 label. The why says 'a correction', which is what q10 blanks, but q01's why and w2 already say step 4 is the correction, so q10 is deliberate recall, not a new leak."
+   "notes": "Cold answer from f08/g05 (step 4: a correction to that flawed logic) matches the key. Choices 28-31 chars, key not longest, no lone absolute or hedge. Entry-rules note rests on b02, push-down note on t01. Stem no longer names the step 4 label. The why says 'a correction', which is what q10 blanks, but q01's why and w2 already say step 4 is the correction, so q10 is deliberate recall, not a new leak.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",

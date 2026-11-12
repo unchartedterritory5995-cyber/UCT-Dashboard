@@ -1023,8 +1023,8 @@
    "choices": [
     "RS 90, above 200-day, rising 20-day",
     "RS 90, but under the 200-day line",
-    "RS 60, above 200-day, rising 20-day",
-    "RS 90, above 200-day, 20-day falling"
+    "RS 60, over 200-day, rising 20-day",
+    "RS 90, above 200-day, 20-day down"
    ],
    "answer": "RS 90, above 200-day, rising 20-day",
    "why": "RS 90, above the 200-day, with a rising 20-day EMA. A leader has an RS rating of 80 or more. The prior close has to sit above the 200-day simple moving average. The 20-day EMA has to be rising: above its value 5 sessions ago. All three must hold. Miss one and there is no setup under the trigger.",
@@ -1038,8 +1038,8 @@
    ],
    "wrong": {
     "RS 90, but under the 200-day line": "No longs below the 200-day. The prior close has to be above it.",
-    "RS 60, above 200-day, rising 20-day": "RS 60 is a laggard. A leader is RS 80 or more.",
-    "RS 90, above 200-day, 20-day falling": "The 20-day EMA has to be rising, above its value 5 sessions ago. A falling one fails."
+    "RS 60, over 200-day, rising 20-day": "RS 60 is a laggard. A leader is RS 80 or more.",
+    "RS 90, above 200-day, 20-day down": "The 20-day EMA has to be rising, above its value 5 sessions ago. A falling one fails."
    },
    "house": true,
    "simple": "The RS 90 stock above the 200-day with a rising 20-day, because it is the only one that passes every test.",
@@ -1599,9 +1599,9 @@
    "q": "What do you do?",
    "choices": [
     "Skip it; more than 4% over",
-    "Buy at market; it is running",
-    "Buy and give it a wider stop",
-    "Skip it; 10:40 is too late"
+    "Buy now; it is running",
+    "Buy and widen the stop",
+    "Skip it; it is past 10:40"
    ],
    "answer": "Skip it; more than 4% over",
    "why": "Skip it. Our rule: never buy more than 4% above the buy point. Here the buy point is the 50.00 prior close, and 52.30 is past that. Chasing costs size, not risk. The stop stays under the line, so the distance grows and the shares shrink.",
@@ -1614,9 +1614,9 @@
     "cTiming"
    ],
    "wrong": {
-    "Buy at market; it is running": "52.30 is more than 4% above the 50.00 prior close. That is a chase.",
-    "Buy and give it a wider stop": "A stop wider than the dip's low, set to give it room, is a named mistake. And it is still a chase.",
-    "Skip it; 10:40 is too late": "There is no time-of-day rule. The reason to skip is the price: more than 4% over the prior close."
+    "Buy now; it is running": "52.30 is more than 4% above the 50.00 prior close. That is a chase.",
+    "Buy and widen the stop": "A stop wider than the dip's low, set to give it room, is a named mistake. And it is still a chase.",
+    "Skip it; it is past 10:40": "There is no time-of-day rule. The reason to skip is the price: more than 4% over the prior close."
    },
    "story": "The prior close was 50.00. You look at 10:40 and the stock is at 52.30, green and running.",
    "house": true,
@@ -2052,9 +2052,9 @@
    "q": "Is light volume a no-trade?",
    "choices": [
     "No, volume is a cue, not a gate",
-    "Yes, 0.6x is too light to trust",
-    "Yes, wait until volume picks up",
-    "No, light volume is the best sign"
+    "Yes, 0.6x is too thin to trust",
+    "Yes, wait until volume rises",
+    "No, light volume is ideal"
    ],
    "answer": "No, volume is a cue, not a gate",
    "why": "No. Our card has no hard volume rule. Higher volume on the reclaim and a wider range are a plus, graded. Light volume lowers the grade but does not cancel the trade. In our data, ANF crossed on 0.6x volume and still reached 3R in 2 days.",
@@ -2065,9 +2065,9 @@
     "dAN1"
    ],
    "wrong": {
-    "Yes, 0.6x is too light to trust": "There is no hard volume rule. In our data, ANF crossed on 0.6x volume and still reached 3R in 2 days.",
-    "Yes, wait until volume picks up": "Our card has no hard volume rule. The trigger is the cross; volume only grades it.",
-    "No, light volume is the best sign": "Higher volume on the reclaim is the plus. Light volume is a small minus, not a gate."
+    "Yes, 0.6x is too thin to trust": "There is no hard volume rule. In our data, ANF crossed on 0.6x volume and still reached 3R in 2 days.",
+    "Yes, wait until volume rises": "Our card has no hard volume rule. The trigger is the cross; volume only grades it.",
+    "No, light volume is ideal": "Higher volume on the reclaim is the plus. Light volume is a small minus, not a gate."
    },
    "story": "A leader flagged on its 20-day EMA, gapped down and crossed the prior close in the first hour. Volume is 0.6x of average.",
    "house": true,
@@ -2325,9 +2325,9 @@
    "q": "Can a Kicker be a red-to-green entry?",
    "choices": [
     "No, it never starts under the line",
-    "Yes, it is the cleanest of them all",
+    "Yes, it is the cleanest of all",
     "Yes, if it gaps up on huge volume",
-    "No, its line would be today's open"
+    "No, its line is today's open"
    ],
    "answer": "No, it never starts under the line",
    "why": "No. A Kicker opens above the prior close and never trades back to it, so it cannot go red to green. Red to green needs a start under the prior close. The line is always the prior close, never the day's open.",
@@ -2337,9 +2337,9 @@
     "cLine"
    ],
    "wrong": {
-    "Yes, it is the cleanest of them all": "A Kicker is never red at the open, so it cannot cross the line from below.",
+    "Yes, it is the cleanest of all": "A Kicker is never red at the open, so it cannot cross the line from below.",
     "Yes, if it gaps up on huge volume": "Volume changes nothing. A Kicker still opens above the prior close and never starts under the line.",
-    "No, its line would be today's open": "The line is always the prior close, never the open. A Kicker never trades back to the prior close."
+    "No, its line is today's open": "The line is always the prior close, never the open. A Kicker never trades back to the prior close."
    },
    "story": "A Kicker gaps up and trades through the prior day's high at the open. Someone calls it the cleanest red to green.",
    "house": true,
@@ -2366,9 +2366,9 @@
    "q": "Buy it on the green tick?",
    "choices": [
     "Pass; it is a big news gap down",
-    "Buy; it crossed the prior close",
-    "Buy; leaders bounce after big gaps",
-    "Pass; wait for it to close green"
+    "Buy; it passed the prior close",
+    "Buy; leaders bounce after gaps",
+    "Pass; wait for a green close"
    ],
    "answer": "Pass; it is a big news gap down",
    "why": "Pass. Buying a big news gap down because it ticked green is a named mistake on our card. The cross is only a trigger, riding on a setup that already qualifies. A fraud probe and a guidance cut are news, not a pullback into support. QuantRocket's test points the same way: stocks tend to keep dropping after large down gaps.",
@@ -2381,9 +2381,9 @@
     "cSetup"
    ],
    "wrong": {
-    "Buy; it crossed the prior close": "The cross is only a trigger, and it needs a setup under it. A news gap down is not a pullback.",
-    "Buy; leaders bounce after big gaps": "QuantRocket's test found the reverse: stocks tend to keep dropping after large down gaps.",
-    "Pass; wait for it to close green": "A green close is not our trigger. The reason to pass is the news gap, a named mistake on our card."
+    "Buy; it passed the prior close": "The cross is only a trigger, and it needs a setup under it. A news gap down is not a pullback.",
+    "Buy; leaders bounce after gaps": "QuantRocket's test found the reverse: stocks tend to keep dropping after large down gaps.",
+    "Pass; wait for a green close": "A green close is not our trigger. The reason to pass is the news gap, a named mistake on our card."
    },
    "story": "A leader gaps down hard on a fraud probe and a guidance cut. At 10:40 it ticks back over the prior close.",
    "house": true,
@@ -2499,8 +2499,8 @@
    "choices": [
     "Pass; a report is 3 sessions away",
     "Take it; the setup is clean",
-    "Take it and sell before the report",
-    "Pass; no buys in an earnings month"
+    "Take it, sell before the report",
+    "Pass; no buys in a report month"
    ],
    "answer": "Pass; a report is 3 sessions away",
    "why": "Pass. Our rulebook says no new buys in the 3 days before an earnings report, and this report is 3 sessions away. A clean setup does not lift that, and a plan to sell before the report does not either. The window is only the days before a report. A post-earnings flag is after the report, which is fine.",
@@ -2513,8 +2513,8 @@
    ],
    "wrong": {
     "Take it; the setup is clean": "A clean setup does not lift the earnings window.",
-    "Take it and sell before the report": "A plan to sell later does not lift the rule. No new buys in the 3 days before a report.",
-    "Pass; no buys in an earnings month": "The rule covers only the 3 days before a report. A buy after a report, in a post-earnings flag, is fine."
+    "Take it, sell before the report": "A plan to sell later does not lift the rule. No new buys in the 3 days before a report.",
+    "Pass; no buys in a report month": "The rule covers only the 3 days before a report. A buy after a report, in a post-earnings flag, is fine."
    },
    "story": "A leader gaps down onto its 50-day and crosses in the first hour. Its report is due 3 sessions from now.",
    "house": true,
@@ -3090,9 +3090,9 @@
    "story": "A leader pulls back to its 20-day EMA, gaps down and crosses the prior close. It trades at 8.40 a share and averages $30 million a day.",
    "choices": [
     "No; price must be at least $10",
-    "Yes, $30 million a day is plenty",
-    "No; it needs $50 million a day",
-    "Yes, leaders skip the price floor"
+    "Yes, $30 million is plenty",
+    "No; it needs $50 million",
+    "Yes, leaders skip the floor"
    ],
    "answer": "No; price must be at least $10",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one averages $30 million a day, which passes, but at 8.40 a share it fails on price. Both checks must pass, and leaders get no exception.",
@@ -3102,9 +3102,9 @@
     "cLiq"
    ],
    "wrong": {
-    "Yes, $30 million a day is plenty": "The dollar volume passes, but the price does not. Both checks must pass.",
-    "No; it needs $50 million a day": "The floor is $20 million a day, not $50 million. It fails on price.",
-    "Yes, leaders skip the price floor": "Leaders get no exception. Price must be $10 or more."
+    "Yes, $30 million is plenty": "The dollar volume passes, but the price does not. Both checks must pass.",
+    "No; it needs $50 million": "The floor is $20 million a day, not $50 million. It fails on price.",
+    "Yes, leaders skip the floor": "Leaders get no exception. Price must be $10 or more."
    },
    "house": true,
    "simple": "No, because at 8.40 a share it is under our $10 price floor, even with $30 million a day.",
@@ -3276,9 +3276,9 @@
    "story": "You bought the red to green at 96.36 with the stop at 94.67. The stock hits 3R and you sell a third.",
    "choices": [
     "Up to your fill price, breakeven",
-    "Stay put under the dip's day low",
-    "Up to the 3R price where you sold",
-    "Just under the 10-day average line"
+    "Stay put under the dip's low",
+    "Up to the 3R price you sold at",
+    "Just under the 10-day average"
    ],
    "answer": "Up to your fill price, breakeven",
    "why": "Up to your fill price, 96.36, which is breakeven. Our rule moves the stop to breakeven between 2R and 5R, at the first trim by default. The first trim is a third at 3R, so the stop goes to the fill now. It does not jump to the 3R price, and the 10-day trail is only for the last third.",
@@ -3289,9 +3289,9 @@
     "cTrail"
    ],
    "wrong": {
-    "Stay put under the dip's day low": "At the first trim the stop moves up to breakeven by default.",
-    "Up to the 3R price where you sold": "That locks in a profit target as a stop. Breakeven is the fill price.",
-    "Just under the 10-day average line": "The 10-day is the trail for the last third, not the breakeven move."
+    "Stay put under the dip's low": "At the first trim the stop moves up to breakeven by default.",
+    "Up to the 3R price you sold at": "That locks in a profit target as a stop. Breakeven is the fill price.",
+    "Just under the 10-day average": "The 10-day is the trail for the last third, not the breakeven move."
    },
    "house": true,
    "simple": "Up to your fill price of 96.36, because the stop moves to breakeven at the first trim.",
@@ -3632,7 +3632,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer matches (cLeader, cAbove, cEma, h10). Lengths 34-36. The wrong note 'A falling one fails' rests on the rising-EMA gate, which the card also lists as a B-minus row (gE). The owner flag on q08/q56/q58/q59 covers it; not changed here."
+   "notes": "Own answer matches (cLeader, cAbove, cEma, h10). Lengths 34-36. The wrong note 'A falling one fails' rests on the rising-EMA gate, which the card also lists as a B-minus row (gE). The owner flag on q08/q56/q58/q59 covers it; not changed here.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -3734,7 +3735,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: skip, 52.30 is past 4% over 50.00 (cChase, h11). Two Skip and two Buy, lengths 26-28. The time-of-day skip is a real misunderstanding (cTiming). h12 grounds the chase-costs-size line."
+   "notes": "Own answer: skip, 52.30 is past 4% over 50.00 (cChase, h11). Two Skip and two Buy, lengths 26-28. The time-of-day skip is a real misunderstanding (cTiming). h12 grounds the chase-costs-size line.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "cut",
@@ -3819,7 +3821,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no, volume grades, it does not gate (cVol). Two Yes and two No, lengths 31-33. ANF example numbers match dAN and dAN1."
+   "notes": "Own answer: no, volume grades, it does not gate (cVol). Two Yes and two No, lengths 31-33. ANF example numbers match dAN and dAN1.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",
@@ -3862,13 +3865,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: pass, a big news gap down that ticked green is a named mistake (mBig). Two Pass and two Buy, lengths 31-34. No gap number (D-133). The QuantRocket note matches qr1. The trap is grounded on cRole and cSetup."
+   "notes": "Own answer: pass, a big news gap down that ticked green is a named mistake (mBig). Two Pass and two Buy, lengths 31-34. No gap number (D-133). The QuantRocket note matches qr1. The trap is grounded on cRole and cSetup.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -3886,7 +3891,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wrong note now uses the rulebook's 3 days (h08). Key right (dWW, B22)."
+   "notes": "Wrong note now uses the rulebook's 3 days (h08). Key right (dWW, B22).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -3988,7 +3994,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "pass",
@@ -4018,7 +4025,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Lesson_line no longer promises risk-free; key on cBE/h05 (B19)."
+   "notes": "Lesson_line no longer promises risk-free; key on cBE/h05 (B19).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q70": {
    "status": "pass",

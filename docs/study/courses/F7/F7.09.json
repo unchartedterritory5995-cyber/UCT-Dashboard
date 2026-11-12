@@ -1487,9 +1487,9 @@
    "q": "This week the market and a sector fund both fall. The sector's ratio line against the S&P 500 rises. What does that tell you?",
    "choices": [
     "It's falling less than the market",
-    "It's falling more than the market",
-    "Nothing useful, since both are down",
-    "The sector's price is now going up"
+    "It's down more than the market",
+    "Nothing useful, both are down",
+    "The sector's price is going up"
    ],
    "answer": "It's falling less than the market",
    "why": "It's falling less than the market. The ratio rises when the sector gains more than the S&P 500, or falls less. Both fell, so the sector fell less. That is relative strength in a decline. Names that hold up best in a decline are often, not always, the leaders when the market turns.",
@@ -1502,9 +1502,9 @@
     "f77"
    ],
    "wrong": {
-    "It's falling more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
-    "Nothing useful, since both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing.",
-    "The sector's price is now going up": "No. The fund fell this week. The ratio can rise while both prices fall, as long as the sector falls less."
+    "It's down more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
+    "Nothing useful, both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing.",
+    "The sector's price is going up": "No. The fund fell this week. The ratio can rise while both prices fall, as long as the sector falls less."
    },
    "simple": "It is falling less than the market, because the line rises when the sector holds up better.",
    "tier": "extended",
@@ -1985,7 +1985,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",

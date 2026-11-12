@@ -793,8 +793,8 @@
    "choices": [
     "Volatility Contraction Pattern",
     "Velocity Confirmation Pattern",
-    "Volume Compression Pivot Pattern",
-    "Volatility Continuation Pattern"
+    "Volume Compression Pattern",
+    "Volatile Continuation Pattern"
    ],
    "answer": "Volatility Contraction Pattern",
    "why": "Volatility Contraction Pattern. The name is about price swings that contract. A sideways wiggle whose contractions do not shrink is not a VCP.",
@@ -804,9 +804,9 @@
     "c27"
    ],
    "wrong": {
-    "Volume Compression Pivot Pattern": "Volume matters, but the name is about the size of the price swings.",
+    "Volume Compression Pattern": "Volume matters, but the name is about the size of the price swings.",
     "Velocity Confirmation Pattern": "That is not the name. A VCP is named for price swings that contract.",
-    "Volatility Continuation Pattern": "The name says contraction, not continuation. It is named for swings that shrink."
+    "Volatile Continuation Pattern": "The name says contraction, not continuation. It is named for swings that shrink."
    },
    "house": true,
    "simple": "The name is Volatility Contraction Pattern, as the price swings in the base contract more and more.",
@@ -877,9 +877,9 @@
    "q": "What is the pivot of a VCP?",
    "choices": [
     "The low of the first pullback",
-    "The last close before the breakout",
+    "The close before the breakout",
     "The high of the final contraction",
-    "The highest price of the whole base"
+    "The highest price in the base"
    ],
    "answer": "The high of the final contraction",
    "why": "The high of the final contraction. ChartMill: the pivot is the top of the final contraction, not the highest price of the entire base, but the level the final tight consolidation keeps running into. Our rule agrees: it may sit below the base's left-side high.",
@@ -889,9 +889,9 @@
     "cm0"
    ],
    "wrong": {
-    "The highest price of the whole base": "The pivot may sit below the base's high. The last swing's high is the level to clear.",
+    "The highest price in the base": "The pivot may sit below the base's high. The last swing's high is the level to clear.",
     "The low of the first pullback": "That is the bottom of the deepest swing, far from the breakout level.",
-    "The last close before the breakout": "The pivot is a price level set by the base, the high of the final contraction, not one day's close."
+    "The close before the breakout": "The pivot is a price level set by the base, the high of the final contraction, not one day's close."
    },
    "house": true,
    "simple": "The pivot is the high of the final, tightest swing, not the highest price in the whole base.",
@@ -2074,9 +2074,9 @@
    "q": "Which base grades higher on its contractions?",
    "choices": [
     "Base A grades higher",
-    "Base B grades higher",
+    "Base B rates higher",
     "Both grade the same",
-    "Neither; both grade B-"
+    "Neither; both B-"
    ],
    "answer": "Base A grades higher",
    "why": "Base A. Three or four clean contractions, each about half the last, is the A+ picture on the card. Base A has four, from 24% down to 3%, each half the last. Base B has two, so it grades lower.",
@@ -2086,9 +2086,9 @@
     "d02"
    ],
    "wrong": {
-    "Base B grades higher": "Fewer, looser steps are the lower-grade picture. Two contractions is B- on the card.",
+    "Base B rates higher": "Fewer, looser steps are the lower-grade picture. Two contractions is B- on the card.",
     "Both grade the same": "Both shrink, but only a clean run of three or four halves is the A+ picture.",
-    "Neither; both grade B-": "Base A has four clean contractions, each about half the last. That is the A+ picture."
+    "Neither; both B-": "Base A has four clean contractions, each about half the last. That is the A+ picture."
    },
    "house": true,
    "story": "Base A has four contractions: 24%, 12%, 6% and 3%. Base B has two contractions: 24% and 17%.",
@@ -2794,10 +2794,10 @@
    "criterion": "vcp.inv_trend",
    "q": "What happens to the setup?",
    "choices": [
-    "It is fine; one close is just noise",
-    "It is fine; the base is still tight",
+    "It is fine; one close is noise",
+    "It is fine; the base is tight",
     "It is off; the trend test failed",
-    "It is off, but only on heavy volume"
+    "It is off, only on heavy volume"
    ],
    "answer": "It is off; the trend test failed",
    "why": "It is off. A close under the 200-day ends the setup before the buy. We take no longs below the 200-day simple moving average, unless it is a parabolic long. A tight base does not outrank the trend check.",
@@ -2808,9 +2808,9 @@
     "c23"
    ],
    "wrong": {
-    "It is fine; the base is still tight": "The trend check outranks the box.",
-    "It is fine; one close is just noise": "A close under the 200-day ends it before the buy.",
-    "It is off, but only on heavy volume": "The rule names the close under the 200-day, not volume. It ends the setup before the buy."
+    "It is fine; the base is tight": "The trend check outranks the box.",
+    "It is fine; one close is noise": "A close under the 200-day ends it before the buy.",
+    "It is off, only on heavy volume": "The rule names the close under the 200-day, not volume. It ends the setup before the buy."
    },
    "house": true,
    "story": "A base is forming nicely. Then the stock closes below its 200-day average.",
@@ -3559,9 +3559,9 @@
    "q": "What does the plan do at 5R?",
    "choices": [
     "Sell 400 more; trail the rest",
-    "Sell the 800 left to lock it in",
-    "Sell 600 more; trail the rest",
-    "Sell nothing; trail all 800 left"
+    "Sell the 800 left to lock in",
+    "Sell 600 more; run the rest",
+    "Sell nothing; trail all 800"
    ],
    "answer": "Sell 400 more; trail the rest",
    "why": "Sell 400 more. After the first third at 3R, the plan takes another third of the 1,200 at 5R and then trails the last third. The trail is the 10-day average for fast movers or the 21-day for steadier ones. We sell on a close below it. The plan is adjustable, but this is the default.",
@@ -3571,9 +3571,9 @@
     "h21"
    ],
    "wrong": {
-    "Sell the 800 left to lock it in": "The plan sells in thirds and trails the last one.",
-    "Sell 600 more; trail the rest": "The plan sells a third of the 1,200, which is 400, not 600. The second third comes off at 5R.",
-    "Sell nothing; trail all 800 left": "The second third comes off at 5R. Only the last third rides the trail."
+    "Sell the 800 left to lock in": "The plan sells in thirds and trails the last one.",
+    "Sell 600 more; run the rest": "The plan sells a third of the 1,200, which is 400, not 600. The second third comes off at 5R.",
+    "Sell nothing; trail all 800": "The second third comes off at 5R. Only the last third rides the trail."
    },
    "house": true,
    "story": "You bought 1,200 shares and sold 400 at 3R. Price now touches 5R and the stop is at breakeven.",
@@ -3784,7 +3784,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cm5 quote verified verbatim in the ChartMill PDF (pdftotext). Name key grounded."
+   "notes": "cm5 quote verified verbatim in the ChartMill PDF (pdftotext). Name key grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3802,7 +3803,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "cut",
@@ -4007,7 +4009,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -4128,7 +4131,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -4256,7 +4260,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q80": {
    "status": "pass",

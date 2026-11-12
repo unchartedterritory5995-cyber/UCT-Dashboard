@@ -896,9 +896,9 @@
    "q": "Which quote would you buy 2,000 shares into?",
    "choices": [
     "50.00 / 50.02, sizes 3,000 / 2,500",
-    "49.70 / 50.30, sizes 2,000 / 2,500",
+    "49.70 / 50.30, 2,000 / 2,500",
     "50.01 / 50.02, sizes 100 / 100",
-    "49.95 / 50.05, sizes 1,500 / 1,800"
+    "49.95 / 50.05, 1,500 / 1,800"
    ],
    "answer": "50.00 / 50.02, sizes 3,000 / 2,500",
    "why": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it.",
@@ -911,9 +911,9 @@
     "f34"
    ],
    "wrong": {
-    "49.70 / 50.30, sizes 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "49.70 / 50.30, 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
     "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices.",
-    "49.95 / 50.05, sizes 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher."
+    "49.95 / 50.05, 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher."
    },
    "simple": "Pick the tight quote with 2,500 shares at the ask, because it is cheap to cross and covers your 2,000 shares.",
    "deeper": {
@@ -1269,7 +1269,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Before reading the key, picked 50.00 / 50.02 with 2,500 at the ask: the only quote that is both tight and covers 2,000 shares. It matches. Key length ties with two other choices (34), so no longest tell. The why names quotes only by their printed prices. Every wrong note is grounded (f26, f10, f28, f29). It fits E57 (market entries) and B23 ($10 or more)."
+   "notes": "Before reading the key, picked 50.00 / 50.02 with 2,500 at the ask: the only quote that is both tight and covers 2,000 shares. It matches. Key length ties with two other choices (34), so no longest tell. The why names quotes only by their printed prices. Every wrong note is grounded (f26, f10, f28, f29). It fits E57 (market entries) and B23 ($10 or more).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",

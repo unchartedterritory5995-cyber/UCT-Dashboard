@@ -683,7 +683,7 @@
    "choices": [
     "The setup's entry price",
     "The setup's stop price",
-    "The first profit target",
+    "The first target",
     "The news that moved it"
    ],
    "answer": "The setup's entry price",
@@ -697,7 +697,7 @@
    ],
    "wrong": {
     "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in.",
-    "The first profit target": "Trims come later: a third at 3R and a third at 5R, measured off your entry-to-stop risk.",
+    "The first target": "Trims come later: a third at 3R and a third at 5R, measured off your entry-to-stop risk.",
     "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart."
    },
    "simple": "The trigger is the entry price, the spot where you get in, and each setup gives you one along with a stop.",
@@ -1787,9 +1787,9 @@
    "q": "Trailing under each higher low, where does the stop go now?",
    "choices": [
     "Just under the $33 low",
-    "Just under the $31 low",
-    "Under the Kicker's low",
-    "At today's closing price"
+    "Just under a $31 low",
+    "Under the setup's low",
+    "At today's close"
    ],
    "answer": "Just under the $33 low",
    "why": "Just under $33. This pullback held above the last one at $31, so $33 is the new higher low. Our Kicker plan trails the stop under each higher low, so it moves up under $33. An uptrend is a run of higher lows and higher highs, and a break of $33 would end that run. The stop never goes back down to $31.",
@@ -1800,9 +1800,9 @@
     "t18"
    ],
    "wrong": {
-    "Just under the $31 low": "That was the last higher low. $33 has replaced it.",
-    "Under the Kicker's low": "That's where the stop started. Trailing means it has moved up since.",
-    "At today's closing price": "The plan trails under the low, not at the close."
+    "Under the setup's low": "That's where the stop started. Trailing means it has moved up since.",
+    "At today's close": "The plan trails under the low, not at the close.",
+    "Just under a $31 low": "That was the last higher low. $33 has replaced it."
    },
    "simple": "Just under $33, because that is the newest higher low and the stop moves up under each one.",
    "tier": "extended",
@@ -2197,9 +2197,9 @@
    "q": "Counting in R, where is it on our plan?",
    "choices": [
     "At 3R: the first trim",
-    "At 5R: the second trim",
-    "At 9R: nine dollars up",
-    "At 4R: from the $57 stop"
+    "At 5R: second trim",
+    "At 9R: nine dollars",
+    "At 4R: from the stop"
    ],
    "answer": "At 3R: the first trim",
    "calc": {
@@ -2221,9 +2221,9 @@
     "p01"
    ],
    "wrong": {
-    "At 5R: the second trim": "5R needs five times the risk. This is three.",
-    "At 9R: nine dollars up": "That's dollars, not R. Divide the gain by your risk per share.",
-    "At 4R: from the $57 stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk."
+    "At 5R: second trim": "5R needs five times the risk. This is three.",
+    "At 9R: nine dollars": "That's dollars, not R. Divide the gain by your risk per share.",
+    "At 4R: from the stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk."
    },
    "simple": "At 3R, because the gain from $60 to $69 is three times your risk from $60 to $57, the first trim.",
    "deeper": {
@@ -2495,9 +2495,9 @@
    "q": "Why does our lesson study this fall instead of shorting it?",
    "choices": [
     "The honest stop is far too wide",
-    "Gap downs fill, so it will bounce",
-    "It closed at the low, so it's done",
-    "The volume was too light to trust"
+    "Gap downs fill, so it bounces",
+    "It closed low, so it's done",
+    "Volume was too light to trust"
    ],
    "answer": "The honest stop is far too wide",
    "why": "The honest stop is far too wide. The Bear gap's obvious stop, the gap day's high, sat 25% over the close, so no trade was invented. Our rule: the size comes from the stop, and if the honest stop does not fit the risk, skip the trade. The lesson shows the line a close must stay under and measures the fall. We do short; this stop just did not fit.",
@@ -2509,9 +2509,9 @@
     "h25"
    ],
    "wrong": {
-    "Gap downs fill, so it will bounce": "Whether the gap fills isn't the reason. The lesson skips the trade because the stop is 25% away.",
-    "It closed at the low, so it's done": "That isn't the reason. The lesson still measures the fall. The problem is the 25% stop.",
-    "The volume was too light to trust": "The story says nothing about volume. The lesson skips the trade because its stop sat 25% away."
+    "Gap downs fill, so it bounces": "Whether the gap fills isn't the reason. The lesson skips the trade because the stop is 25% away.",
+    "It closed low, so it's done": "That isn't the reason. The lesson still measures the fall. The problem is the 25% stop.",
+    "Volume was too light to trust": "The story says nothing about volume. The lesson skips the trade because its stop sat 25% away."
    },
    "simple": "The honest stop was 25% away, far too wide for a trade, so the lesson studies the fall instead.",
    "deeper": {
@@ -2666,9 +2666,9 @@
    "q": "Which levels set our High Volume Edge entry and stop?",
    "choices": [
     "Entry $72 close, stop $68 low",
-    "Next day's open, stop 3.5% under",
-    "Entry $72 close, stop 3.5% under",
-    "Next day's open, stop $68 low"
+    "Next open, stop 3.5% under",
+    "Entry $72 close, 3.5% under",
+    "Next open, stop $68 low"
    ],
    "answer": "Entry $72 close, stop $68 low",
    "why": "Entry $72, stop $68. Our High Volume Edge buys the high-volume close, $72. The bar closed up, so the edge bar's low, $68, sets the stop. Our rulebook puts the order a few cents under that low, not exactly on it.",
@@ -2679,9 +2679,9 @@
     "h62"
    ],
    "wrong": {
-    "Next day's open, stop 3.5% under": "Our entry is the high-volume close itself, and the 3.5% stop is part of the Kicker's rule.",
-    "Entry $72 close, stop 3.5% under": "The entry is right, but the 3.5% stop is part of the Kicker's rule. Here the edge bar's low sets the stop.",
-    "Next day's open, stop $68 low": "The stop is right, but our entry is the high-volume close itself, $72, not the next day's open."
+    "Next open, stop 3.5% under": "Our entry is the high-volume close itself, and the 3.5% stop is part of the Kicker's rule.",
+    "Entry $72 close, 3.5% under": "The entry is right, but the 3.5% stop is part of the Kicker's rule. Here the edge bar's low sets the stop.",
+    "Next open, stop $68 low": "The stop is right, but our entry is the high-volume close itself, $72, not the next day's open."
    },
    "simple": "Buy the $72 high-volume close, and let the $68 low set the stop, because the bar closed up.",
    "deeper": {
@@ -3016,7 +3016,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h01 ('returns its own trigger (the entry)'). Trims at 3R/5R from h02/h03, R from r01. No tell; choices 22-23 chars."
+   "notes": "Key from h01 ('returns its own trigger (the entry)'). Trims at 3R/5R from h02/h03, R from r01. No tell; choices 22-23 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3202,7 +3203,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h08 trail under each higher low; $33 replaced $31. t19 and t18 support the 'break ends the run' line, and rulebook A4 supports 'never back down'. Choices 22-24 characters."
+   "notes": "h08 trail under each higher low; $33 replaced $31. t19 and t18 support the 'break ends the run' line, and rulebook A4 supports 'never back down'. Choices 22-24 characters.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3268,7 +3270,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (69-60)/(60-57) = 3; 3R is the first trim (h02, B19). The 4R distractor ((69-57)/3) and 9R (dollars) are real mistakes. Consistent with the rulebook."
+   "notes": "Calc (69-60)/(60-57) = 3; 3R is the first trim (h02, B19). The 4R distractor ((69-57)/3) and 9R (dollars) are real mistakes. Consistent with the rulebook.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -3310,7 +3313,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h23 and h27. No 'app defines no trade' choice, so no second answer. The volume distractor is fair (the story gives no volume). Longest choice is a distractor."
+   "notes": "Key from h23 and h27. No 'app defines no trade' choice, so no second answer. The volume distractor is fair (the story gives no volume). Longest choice is a distractor.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -3334,7 +3338,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h17: entry at the high-volume close, stop at the edge bar's low on an up close (the story says 'closes up'). The why notes F62's few cents. The answer is not the longest. It overlaps q07 on the entry half only, which the rung ladder intends."
+   "notes": "h17: entry at the high-volume close, stop at the edge bar's low on an up close (the story says 'closes up'). The why notes F62's few cents. The answer is not the longest. It overlaps q07 on the entry half only, which the rung ladder intends.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",

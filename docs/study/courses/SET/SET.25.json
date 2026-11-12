@@ -817,9 +817,9 @@
    "q": "What makes an Oops a Super Oops?",
    "choices": [
     "It closes over the prior high",
-    "It trades over the prior high",
-    "It opens over the prior close",
-    "It closes over the prior close"
+    "It trades over a prior high",
+    "It opens over the last close",
+    "Closes over the prior close"
    ],
    "answer": "It closes over the prior high",
    "why": "It closes over the prior high. A Super Oops is any Oops that closes over the prior high, so the whole prior day is engulfed. A trade over that high that closes back under it does not count.",
@@ -830,9 +830,9 @@
     "o_main"
    ],
    "wrong": {
-    "It trades over the prior high": "The Super Oops is a close over the prior high, not a trade over it.",
-    "It opens over the prior close": "The Oops opens under the prior close.",
-    "It closes over the prior close": "Every Oops closes over the prior close. The Super mark needs a close over the prior high."
+    "It trades over a prior high": "The Super Oops is a close over the prior high, not a trade over it.",
+    "It opens over the last close": "The Oops opens under the prior close.",
+    "Closes over the prior close": "Every Oops closes over the prior close. The Super mark needs a close over the prior high."
    },
    "house": true,
    "simple": "A Super Oops is an Oops that closes over the prior high, not one that only trades over it.",
@@ -1123,9 +1123,9 @@
    "q": "How big should the Oops day be?",
    "choices": [
     "Under 3 ATR, a technical candle",
-    "At least 3 ATR, to show real force",
-    "A news-sized bar; bigger is better",
-    "Size does not matter for an Oops"
+    "At least 3 ATR, to show force",
+    "A news bar; bigger is better",
+    "Size does not matter for Oops"
    ],
    "answer": "Under 3 ATR, a technical candle",
    "why": "Under 3 ATR, a technical candle. The rule asks for a technical Oops day, not a news day, with the day's range under 3 ATR. That is a ceiling, not a floor. A dramatic, news-sized Oops day is a named mistake.",
@@ -1135,9 +1135,9 @@
     "m_size"
    ],
    "wrong": {
-    "At least 3 ATR, to show real force": "The rule is a ceiling of 3 ATR, not a floor.",
-    "A news-sized bar; bigger is better": "A dramatic, news-sized Oops day is a named mistake.",
-    "Size does not matter for an Oops": "Size matters. The rule keeps the day's range under 3 ATR."
+    "At least 3 ATR, to show force": "The rule is a ceiling of 3 ATR, not a floor.",
+    "A news bar; bigger is better": "A dramatic, news-sized Oops day is a named mistake.",
+    "Size does not matter for Oops": "Size matters. The rule keeps the day's range under 3 ATR."
    },
    "house": true,
    "simple": "Keep the Oops day's range under 3 ATR, so it is a normal candle and not a big news bar.",
@@ -1700,9 +1700,9 @@
    "q": "A big red bar, a drop of over 4%, came three days before. What does it do to the Oops?",
    "choices": [
     "It removes it from our list",
-    "Nothing, it is old history now",
-    "It only counts if it was a gap",
-    "It raises the grade a little"
+    "Nothing, it is old history",
+    "It counts if it was a gap",
+    "It raises the grade a bit"
    ],
    "answer": "It removes it from our list",
    "why": "It removes it from our list. The pullback should be orderly. No bar in the 5 sessions before may drop over 4% or have a range over 2.5 ATR. A drop of over 4% three days earlier breaks that. Buying after one is a named mistake.",
@@ -1712,9 +1712,9 @@
     "o_ord2"
    ],
    "wrong": {
-    "Nothing, it is old history now": "Three days is inside the 5 sessions the rule looks back over.",
-    "It only counts if it was a gap": "The rule counts a drop over 4% or a range over 2.5 ATR, gap or not.",
-    "It raises the grade a little": "A big red bar in the days before does not help. The card puts the stock off the list."
+    "Nothing, it is old history": "Three days is inside the 5 sessions the rule looks back over.",
+    "It counts if it was a gap": "The rule counts a drop over 4% or a range over 2.5 ATR, gap or not.",
+    "It raises the grade a bit": "A big red bar in the days before does not help. The card puts the stock off the list."
    },
    "house": true,
    "simple": "A drop of over 4% in the five sessions before breaks the orderly pullback, so the stock comes off the list.",
@@ -1782,9 +1782,9 @@
    "q": "What do you do?",
    "choices": [
     "Nothing; the stop is the plan",
-    "Wish you had used a wider stop",
-    "Skip the stop and hold next time",
-    "Decide the setup no longer works"
+    "Wish you had a wider stop",
+    "Skip the stop and hold",
+    "Decide the setup is broken"
    ],
    "story": "You bought at 67.48 with the stop at 66.70. The next day it opens at 68.48, then sells straight through your stop to 66.63.",
    "answer": "Nothing; the stop is the plan",
@@ -1799,9 +1799,9 @@
     "h02"
    ],
    "wrong": {
-    "Wish you had used a wider stop": "A wider stop is a bigger loss. The stop did its job.",
-    "Skip the stop and hold next time": "The stop is the exit, and every position has a real stop order with the broker.",
-    "Decide the setup no longer works": "One stop-out is not a verdict. A good example can have a horrible result, and the stop is the whole plan."
+    "Wish you had a wider stop": "A wider stop is a bigger loss. The stop did its job.",
+    "Skip the stop and hold": "The stop is the exit, and every position has a real stop order with the broker.",
+    "Decide the setup is broken": "One stop-out is not a verdict. A good example can have a horrible result, and the stop is the whole plan."
    },
    "house": true,
    "simple": "Do nothing. The stop did its job, and a perfect-looking Oops can still fail with no warning.",
@@ -3360,7 +3360,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "upgraded wave3; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -3421,7 +3422,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3 ATR ceiling is in o_size; 'news-sized' is m_size. Choices balanced (31-34). No invented numbers. Threshold still proposed (owner flag)."
+   "notes": "3 ATR ceiling is in o_size; 'news-sized' is m_size. Choices balanced (31-34). No invented numbers. Threshold still proposed (owner flag).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -3516,7 +3518,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Drop over 4% inside the 5 sessions is o_ord2; 'off the list' is m_bar. Three days is inside the window. Distractors are weak but not defensible."
+   "notes": "Drop over 4% inside the 5 sessions is o_ord2; 'off the list' is m_bar. Three days is inside the window. Distractors are weak but not defensible.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -3528,7 +3531,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy 67.48 and stop 66.70 are in dADBE14; 68.48 and 66.63 are real (dossier row 03-13) and given in the question. 1.16% is in the quote. q42 no longer answers it. Stop-first lesson matches h02/h18."
+   "notes": "Buy 67.48 and stop 66.70 are in dADBE14; 68.48 and 66.63 are real (dossier row 03-13) and given in the question. 1.16% is in the quote. q42 no longer answers it. Stop-first lesson matches h02/h18.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",

@@ -944,9 +944,9 @@
    "q": "How do we place a U&R entry order?",
    "choices": [
     "A market order on the reclaim",
-    "A limit order below the undercut",
-    "A stop order at last week's high",
-    "A limit order at the 50-day line"
+    "A limit below the undercut",
+    "A stop at last week's high",
+    "A limit order at the 50-day"
    ],
    "answer": "A market order on the reclaim",
    "why": "A market order on the reclaim. Entries are market orders. A limit order below the undercut would buy the undercut itself, and we never buy that.",
@@ -956,9 +956,9 @@
     "c03"
    ],
    "wrong": {
-    "A stop order at last week's high": "That is a later, higher entry. The U&R buys as price trades back over the level.",
-    "A limit order at the 50-day line": "A limit at an average can sit unfilled while the stock leaves. Entries are market orders.",
-    "A limit order below the undercut": "That waits for the break to get worse. It buys the undercut, not the reclaim."
+    "A limit below the undercut": "That waits for the break to get worse. It buys the undercut, not the reclaim.",
+    "A stop at last week's high": "That is a later, higher entry. The U&R buys as price trades back over the level.",
+    "A limit order at the 50-day": "A limit at an average can sit unfilled while the stock leaves. Entries are market orders."
    },
    "house": true,
    "simple": "Use a market order the moment price trades back over the level.",
@@ -3180,7 +3180,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key E57 (h22) plus c03; distractors clearly wrong; no tell."
+   "notes": "Key E57 (h22) plus c03; distractors clearly wrong; no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",

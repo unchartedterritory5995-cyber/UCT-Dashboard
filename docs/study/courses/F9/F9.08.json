@@ -1248,9 +1248,9 @@
    "q": "What do our rules let you risk on it?",
    "choices": [
     "0.5% to 1%, the B range",
-    "2%, the absolute ceiling",
-    "1.5%, earned by the streak",
-    "0.25% to 0.5%, the B range"
+    "2%, the ceiling",
+    "1.5%, earned by streak",
+    "0.25% to 0.5%, B range"
    ],
    "answer": "0.5% to 1%, the B range",
    "why": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the top of the A+ range, and 0.25% to 0.5% is for B- or lower. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not.",
@@ -1262,9 +1262,9 @@
     "h23"
    ],
    "wrong": {
-    "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
-    "0.25% to 0.5%, the B range": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
-    "1.5%, earned by the streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules."
+    "2%, the ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
+    "0.25% to 0.5%, B range": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
+    "1.5%, earned by streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules."
    },
    "simple": "You may risk 0.5% to 1%, because a B setup gets that range and a winning streak never raises it.",
    "deeper": {
@@ -1506,7 +1506,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 0.5% to 1% is right (E49 h08, D45 h20). Three repairs: (1) the choice '0.25% to 0.5%, sized down' hands q04 its key (B- or lower is 'sized down', h07), so both ranges now carry the same label and the member must know which is the B range; (2) '1.5%, sized up for the streak' ties 1.5% to A+ via h07's 'A+ sized up', a hint for q03, so it reads 'earned by the streak'; (3) the story names no market reading, and in Orange a B is not taken at all (h23), so the story now says Green, as q04 does, and the question asks what the rules let you risk on it. All numbers from h08, h19; Green from h23."
+   "notes": "Key 0.5% to 1% is right (E49 h08, D45 h20). Three repairs: (1) the choice '0.25% to 0.5%, sized down' hands q04 its key (B- or lower is 'sized down', h07), so both ranges now carry the same label and the member must know which is the B range; (2) '1.5%, sized up for the streak' ties 1.5% to A+ via h07's 'A+ sized up', a hint for q03, so it reads 'earned by the streak'; (3) the story names no market reading, and in Orange a B is not taken at all (h23), so the story now says Green, as q04 does, and the question asks what the rules let you risk on it. All numbers from h08, h19; Green from h23.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",

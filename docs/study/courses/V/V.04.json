@@ -2667,9 +2667,9 @@
    "q": "Does that pullback count as a proper handle?",
    "choices": [
     "No, it sank into the lower half",
-    "Yes, any dip after a cup counts",
-    "Yes, a deep handle shakes out more",
-    "No, a handle can only go sideways"
+    "Yes, any dip after a cup works",
+    "Yes, a deep handle shakes out",
+    "No, a handle can only go flat"
    ],
    "answer": "No, it sank into the lower half",
    "why": "No. The cup runs from a $35 low to $49 on its right side, so $38 sits in its lower half. Bulkowski says the handle forms in the upper half of the cup. Investopedia says to avoid overly deep handles for that reason. A handle may slope down, as Investopedia's own description shows. The fault here is depth, not slope.",
@@ -2681,9 +2681,9 @@
     "f34"
    ],
    "wrong": {
-    "Yes, any dip after a cup counts": "Where the dip ends matters. The handle should stay in the cup's upper half.",
-    "Yes, a deep handle shakes out more": "Depth isn't a virtue here. Overly deep handles are the ones to avoid.",
-    "No, a handle can only go sideways": "Handles can drift lower. The problem is how deep this one went."
+    "Yes, any dip after a cup works": "Where the dip ends matters. The handle should stay in the cup's upper half.",
+    "Yes, a deep handle shakes out": "Depth isn't a virtue here. Overly deep handles are the ones to avoid.",
+    "No, a handle can only go flat": "Handles can drift lower. The problem is how deep this one went."
    },
    "simple": "No, because the dip fell to $38, deep in the lower half of the cup, and a handle should stay up high.",
    "deeper": {
@@ -2941,9 +2941,9 @@
    "q": "What bias do textbooks give the rising wedge?",
    "choices": [
     "Bearish, though prices are rising",
-    "Bullish, because prices are rising",
-    "Neutral until it reaches the apex",
-    "Bullish, the same as a falling wedge"
+    "Bullish, as prices are rising",
+    "Neutral until it hits the apex",
+    "Bullish, like a falling wedge"
    ],
    "answer": "Bearish, though prices are rising",
    "why": "Bearish, though prices are rising. StockCharts calls the rising wedge bearish: the loss of upside momentum on each new high gives it that bias. Investopedia says it is usually bearish. The falling wedge is the bullish one.",
@@ -2957,9 +2957,9 @@
     "f78"
    ],
    "wrong": {
-    "Bullish, because prices are rising": "Rising prices are the trap. The squeeze shows upside momentum fading.",
-    "Neutral until it reaches the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one.",
-    "Bullish, the same as a falling wedge": "That mixes up the two wedges. The falling wedge is the bullish one. StockCharts calls the rising wedge bearish."
+    "Bullish, as prices are rising": "Rising prices are the trap. The squeeze shows upside momentum fading.",
+    "Neutral until it hits the apex": "No bias is the symmetrical triangle's reading. The rising wedge carries a bearish one.",
+    "Bullish, like a falling wedge": "That mixes up the two wedges. The falling wedge is the bullish one. StockCharts calls the rising wedge bearish."
    },
    "simple": "Textbooks call the rising wedge bearish, because each push higher has less force even though price is rising.",
    "tier": "core",
@@ -4355,7 +4355,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -4403,7 +4404,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bearish is right (f72, f73 StockCharts; f77 Investopedia). Notes grounded (f74, f75, f78). The q35 60% figure stays out; 'usually' and 'lean' keep it a lean without answering q35."
+   "notes": "Bearish is right (f72, f73 StockCharts; f77 Investopedia). Notes grounded (f74, f75, f78). The q35 60% figure stays out; 'usually' and 'lean' keep it a lean without answering q35.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",

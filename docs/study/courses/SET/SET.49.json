@@ -1910,9 +1910,9 @@
    "q": "Is this a panic flush?",
    "choices": [
     "No; it is an earnings reaction",
-    "Yes; earnings fear is still panic",
-    "Yes; a 20% fall is deep enough",
-    "No; it fell too slowly to count"
+    "Yes; earnings fear is panic",
+    "Yes; 20% is deep enough",
+    "No; it fell too slowly"
    ],
    "story": "A leader drops 20% in two days right after it reports earnings.",
    "answer": "No; it is an earnings reaction",
@@ -1925,9 +1925,9 @@
    ],
    "house": true,
    "wrong": {
-    "No; it fell too slowly to count": "Speed is not the test here. The report inside the flush window sets it apart.",
-    "Yes; earnings fear is still panic": "The card keeps them apart. An earnings reaction is not a panic flush.",
-    "Yes; a 20% fall is deep enough": "20% clears the 15% stretch, but that is one test. The report inside the window rules it out."
+    "No; it fell too slowly": "Speed is not the test here. The report inside the flush window sets it apart.",
+    "Yes; earnings fear is panic": "The card keeps them apart. An earnings reaction is not a panic flush.",
+    "Yes; 20% is deep enough": "20% clears the 15% stretch, but that is one test. The report inside the window rules it out."
    },
    "simple": "No. A drop right after earnings is a reaction to news, and we keep that apart from a panic flush.",
    "tier": "core",
@@ -2999,9 +2999,9 @@
    "q": "Capitulation, or something else?",
    "choices": [
     "A moving-average pullback",
-    "A capitulation at the 20 EMA",
-    "A parabolic long off a drop",
-    "An Oops Reversal off the EMA"
+    "A capitulation low",
+    "A parabolic long",
+    "An Oops off the EMA"
    ],
    "story": "A leader drifts six sessions on light volume, with no gaps, to its rising 20 EMA and bounces.",
    "answer": "A moving-average pullback",
@@ -3015,9 +3015,9 @@
    ],
    "house": true,
    "wrong": {
-    "A capitulation at the 20 EMA": "A capitulation falls through the short averages on heavy volume. This one held the 20 EMA.",
-    "A parabolic long off a drop": "A parabolic long needs a burst down. This was a quiet drift.",
-    "An Oops Reversal off the EMA": "An Oops gaps under the prior day's low. This stock drifted with no gaps."
+    "A capitulation low": "A capitulation falls through the short averages on heavy volume. This one held the 20 EMA.",
+    "A parabolic long": "A parabolic long needs a burst down. This was a quiet drift.",
+    "An Oops off the EMA": "An Oops gaps under the prior day's low. This stock drifted with no gaps."
    },
    "simple": "A pullback. A quiet drift on light volume to a rising average is not a panic flush.",
    "deeper": {
@@ -3748,9 +3748,9 @@
    "story": "You bought the reclaim with the stop a few cents under the low of your entry session. Next morning the stock opens above that low, then trades through your stop.",
    "choices": [
     "The stop is the exit; you are out",
-    "Wait for a close under the low first",
-    "Move the stop lower to give it room",
-    "Hold; the gap rule gives a new stop"
+    "Wait for a close under the low",
+    "Move the stop lower to give room",
+    "Hold; the gap rule sets the stop"
    ],
    "answer": "The stop is the exit; you are out",
    "why": "You are out. After the entry, a trade below the low of the entry session is the stop and the exit. It does not wait for a close. The stop only moves up, never down or wider. The one exception is a gap against the stop, and this stock opened above the low.",
@@ -3763,9 +3763,9 @@
     "h07"
    ],
    "wrong": {
-    "Wait for a close under the low first": "A close is not the test. The stop is the exit once price trades through it.",
-    "Move the stop lower to give it room": "The stop only moves up, never down or wider.",
-    "Hold; the gap rule gives a new stop": "It opened above the low, so there was no gap. The gap rule is the one exception, and it does not apply."
+    "Wait for a close under the low": "A close is not the test. The stop is the exit once price trades through it.",
+    "Move the stop lower to give room": "The stop only moves up, never down or wider.",
+    "Hold; the gap rule sets the stop": "It opened above the low, so there was no gap. The gap rule is the one exception, and it does not apply."
    },
    "house": true,
    "simple": "You are out. The stop is the exit, and it does not wait for a close.",
@@ -4316,7 +4316,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Six sessions, light volume, rising 20 EMA, no gaps fits the card's moving-average pullback (c50); 'no gaps' rules out the Oops (c41)."
+   "notes": "Six sessions, light volume, rising 20 EMA, no gaps fits the card's moving-average pullback (c50); 'no gaps' rules out the Oops (c41).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",
@@ -4365,7 +4366,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c17). Distractor 'Yes; 20% clears the 15% bar' states the stock stretch bar, which hands over q07's key (15%). Reworded without the bar; wrong note keeps it for after the answer."
+   "notes": "Key right (c17). Distractor 'Yes; 20% clears the 15% bar' states the stock stretch bar, which hands over q07's key (15%). Reworded without the bar; wrong note keeps it for after the answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -4509,7 +4511,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c48 and h02; the gap exception (h06) is correctly excluded because it opened above the low. k02 is not load-bearing."
+   "notes": "Key from c48 and h02; the gap exception (h06) is correctly excluded because it opened above the low. k02 is not load-bearing.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q74": {
    "status": "pass",

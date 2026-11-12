@@ -1928,8 +1928,8 @@
    "choices": [
     "A climax; not our HVE",
     "A start; plan day 2",
-    "A start; buy the close",
-    "A climax; trade day 2"
+    "A start; buy close",
+    "A climax; play day 2"
    ],
    "answer": "A climax; not our HVE",
    "why": "A climax. The card rules out a record day on the third to fifth day of a straight-up burst. It also rules out a day after a run of 60% or more in the prior 60 sessions. This is the fourth straight up day, each gapping higher, so it is a climax and not a start. There is no day 2 to plan.",
@@ -1940,8 +1940,8 @@
    ],
    "wrong": {
     "A start; plan day 2": "Not on the third to fifth day of a straight-up burst. This is the fourth.",
-    "A start; buy the close": "The close is the level, not the buy, and this day is a climax.",
-    "A climax; trade day 2": "A climax day is no HVE, so there is no day 2 to plan."
+    "A start; buy close": "The close is the level, not the buy, and this day is a climax.",
+    "A climax; play day 2": "A climax day is no HVE, so there is no day 2 to plan."
    },
    "house": true,
    "simple": "A record on the fourth straight up day is a climax, so it is not our setup.",
@@ -1993,9 +1993,9 @@
    "story": "Your High Volume Edge long closed at 2.7R. The next morning it gaps open at 3.5R.",
    "choices": [
     "Sell a third at the open",
-    "Wait and see how it closes",
+    "Wait and see the close",
     "Sell the whole position",
-    "Move the stop up and hold"
+    "Raise the stop and hold"
    ],
    "answer": "Sell a third at the open",
    "why": "Sell a third at the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. The hard rule for the first trim is a third at 3R, and this stock opens at 3.5R. Another third comes at 5R, then trail the last third.",
@@ -2007,9 +2007,9 @@
     "c21"
    ],
    "wrong": {
-    "Move the stop up and hold": "Breakeven comes with the first trim, but the trim itself is still due at the open.",
-    "Wait and see how it closes": "The trim level is already passed. The rule is to take the trim at the open.",
-    "Sell the whole position": "The first trim is a third at 3R. Another third comes at 5R, then trail the last third."
+    "Wait and see the close": "The trim level is already passed. The rule is to take the trim at the open.",
+    "Sell the whole position": "The first trim is a third at 3R. Another third comes at 5R, then trail the last third.",
+    "Raise the stop and hold": "Breakeven comes with the first trim, but the trim itself is still due at the open."
    },
    "house": true,
    "simple": "Sell a third right at the open, because the stock has opened past the 3R trim level.",
@@ -2109,8 +2109,8 @@
    "story": "Six sessions after your day-2 buy the stock closes under the HVC. Your stop under the day-2 low has not traded.",
    "choices": [
     "Hold; the stop is the exit",
-    "Hold; exit on a second close",
-    "Sell now; the level failed",
+    "Hold; out on second close",
+    "Sell now; the level broke",
     "Widen the stop for room"
    ],
    "answer": "Hold; the stop is the exit",
@@ -2122,9 +2122,9 @@
     "c19"
    ],
    "wrong": {
-    "Widen the stop for room": "The stop only moves up, never wider.",
-    "Hold; exit on a second close": "The stop is the exit. Trading or closing under the HVC is not an invalidation of the level.",
-    "Sell now; the level failed": "A close under the HVC is not an invalidation of the level. The stop is the exit."
+    "Hold; out on second close": "The stop is the exit. Trading or closing under the HVC is not an invalidation of the level.",
+    "Sell now; the level broke": "A close under the HVC is not an invalidation of the level. The stop is the exit.",
+    "Widen the stop for room": "The stop only moves up, never wider."
    },
    "house": true,
    "simple": "Hold. A close under the HVC does not end the trade, only the stop does.",
@@ -2868,9 +2868,9 @@
    "story": "Up 100% on 62 times its 50-day average volume, 10 times the old record. But it closes at 0.26 of the day's range.",
    "choices": [
     "A weak sign; it closed too low",
-    "A strong sign; the volume is huge",
-    "A strong sign; the move is huge",
-    "A weak sign; the day ended down"
+    "A strong sign; volume is huge",
+    "A strong sign; move is huge",
+    "A weak sign; it ended down"
    ],
    "answer": "A weak sign; it closed too low",
    "why": "A weak sign. The card wants the close in the upper half of the day's range, 0.7 or more preferred. That is a grade cue, not a hard line. A close in the lower half of a huge range counts against the day. MBX was up 100% on 62x its average volume but closed at 0.26 of its range. Its day-2 reclaim never saw a cent of profit.",
@@ -2884,9 +2884,9 @@
     "g02"
    ],
    "wrong": {
-    "A strong sign; the volume is huge": "Volume is not the whole picture. The close tells who won the day.",
-    "A strong sign; the move is huge": "The move is big, the close is weak. The card wants the close in the upper half of the range.",
-    "A weak sign; the day ended down": "It closed up 100% on the day. The weak part is where in the range it closed."
+    "A strong sign; volume is huge": "Volume is not the whole picture. The close tells who won the day.",
+    "A strong sign; move is huge": "The move is big, the close is weak. The card wants the close in the upper half of the range.",
+    "A weak sign; it ended down": "It closed up 100% on the day. The weak part is where in the range it closed."
    },
    "house": true,
    "simple": "A close low in the day's range is a weak sign, even on huge volume.",
@@ -3628,7 +3628,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Fourth day of a burst is c10 climax; no 60% run needed. Balanced 2/2."
+   "notes": "Fourth day of a burst is c10 climax; no 60% run needed. Balanced 2/2.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3640,7 +3641,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h25 trim at the open; 3.5R is past the 3R trim. Key does not repeat the stem now."
+   "notes": "h25 trim at the open; 3.5R is past the 3R trim. Key does not repeat the stem now.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -3659,7 +3661,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c24 and h02; stop-under-day-2-low has not traded, so hold."
+   "notes": "c24 and h02; stop-under-day-2-low has not traded, so hold.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -3768,7 +3771,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c27/c40/d29/d30/d31 (MBX 0.26, 62x, 10x, +100%; repo quotes verified). It is a grade cue and the why says so. Note: fact g02's stored quote has a corrupted apostrophe (U+FFFD for I'll); the page has U+2019. Fix that fact quote in the file; q55's text does not use it."
+   "notes": "Key matches c27/c40/d29/d30/d31 (MBX 0.26, 62x, 10x, +100%; repo quotes verified). It is a grade cue and the why says so. Note: fact g02's stored quote has a corrupted apostrophe (U+FFFD for I'll); the page has U+2019. Fix that fact quote in the file; q55's text does not use it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",

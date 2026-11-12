@@ -2576,9 +2576,9 @@
    "q": "Which breakout shows more conviction?",
    "choices": [
     "A, with 3x volume behind it",
-    "B, with half its usual volume",
-    "Neither: only price matters",
-    "Neither: A is a blow-off top"
+    "B, with half its volume",
+    "Neither: only price counts",
+    "Neither: A is a blow-off"
    ],
    "answer": "A, with 3x volume behind it",
    "why": "A. A breakout on high or above-average volume shows conviction, so price is more likely to keep going. Investopedia says breakouts on low relative volume are more prone to failure. Schwab adds that low volume suggests enthusiasm for the move may be lacking. Volume guarantees nothing. It shows how much interest stands behind the move.",
@@ -2591,9 +2591,9 @@
     "f137"
    ],
    "wrong": {
-    "Neither: only price matters": "Price says where. Volume says how many showed up. Schwab and Investopedia both weigh it.",
-    "B, with half its usual volume": "Light volume says few people cared about the level. Investopedia notes low-volume breakouts are more prone to failure.",
-    "Neither: A is a blow-off top": "A blow-off top is a steep, rapid run that ends in a steep drop. A is just clearing resistance, where high volume shows conviction."
+    "Neither: only price counts": "Price says where. Volume says how many showed up. Schwab and Investopedia both weigh it.",
+    "B, with half its volume": "Light volume says few people cared about the level. Investopedia notes low-volume breakouts are more prone to failure.",
+    "Neither: A is a blow-off": "A blow-off top is a steep, rapid run that ends in a steep drop. A is just clearing resistance, where high volume shows conviction."
    },
    "simple": "Stock A, because heavy volume on a breakout shows real interest, while light volume breakouts fail more often.",
    "tier": "extended",
@@ -4476,7 +4476,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer A (f54, f64, f217). Choices 27 to 29 characters, no tell. Blow-off note rests on f137; does not give q40's verdict. All notes grounded."
+   "notes": "Cold answer A (f54, f64, f217). Choices 27 to 29 characters, no tell. Blow-off note rests on f137; does not give q40's verdict. All notes grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",

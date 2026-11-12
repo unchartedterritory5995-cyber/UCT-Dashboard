@@ -985,10 +985,10 @@
    "criterion": "tb.depth",
    "q": "What is the deepest undercut a 2B allows under the broken low?",
    "choices": [
-    "2% under the broken low",
+    "2% under the low",
     "3% under the broken low",
-    "4% under the broken low",
-    "6% under the broken low"
+    "4% under a broken low",
+    "6% under a broken low"
    ],
    "answer": "3% under the broken low",
    "why": "3%. The lowest low of the undercut is no more than 3% under the prior low. So the stop fits our usual line of about 3% from the buy. A deeper undercut at full size is a named mistake. The stop is far wider than it looks.",
@@ -1001,9 +1001,9 @@
     "dDELL"
    ],
    "wrong": {
-    "2% under the broken low": "Too tight. A 2B may go up to 3% under the low.",
-    "4% under the broken low": "4% is the chase limit above the low, not the depth limit under it.",
-    "6% under the broken low": "Twice the line. The stop would be far wider than it looks."
+    "2% under the low": "Too tight. A 2B may go up to 3% under the low.",
+    "4% under a broken low": "4% is the chase limit above the low, not the depth limit under it.",
+    "6% under a broken low": "Twice the line. The stop would be far wider than it looks."
    },
    "house": true,
    "simple": "3%. A shallow undercut keeps the stop close, and our stop usually sits within about 3% of the buy.",
@@ -2394,8 +2394,8 @@
    "q": "2B or Oops?",
    "choices": [
     "A 2B, it broke an older swing low",
-    "An Oops, it reclaimed a prior close",
-    "A Remount, it was slow to reclaim",
+    "An Oops, it retook a prior close",
+    "A Remount, it reclaimed late",
     "A spring, it closed back inside"
    ],
    "story": "On Tuesday the stock breaks a swing low made twelve sessions ago. It closes back above that low on Wednesday.",
@@ -2410,8 +2410,8 @@
     "l_spring"
    ],
    "wrong": {
-    "An Oops, it reclaimed a prior close": "An Oops breaks yesterday's low and reclaims the prior close the same day.",
-    "A Remount, it was slow to reclaim": "A Remount follows five or more closes under the level.",
+    "An Oops, it retook a prior close": "An Oops breaks yesterday's low and reclaims the prior close the same day.",
+    "A Remount, it reclaimed late": "A Remount follows five or more closes under the level.",
     "A spring, it closed back inside": "A spring's level is the floor of a sideways range of 15 sessions or more, not a single swing low."
    },
    "house": true,
@@ -2437,9 +2437,9 @@
    "q": "2B or Oops?",
    "choices": [
     "A 2B, the low is not yesterday's",
-    "An Oops, it reclaimed the same day",
+    "An Oops, reclaimed the same day",
     "A Remount, it retook an old low",
-    "A breakdown, it dipped under a low"
+    "A breakdown, it broke a low"
    ],
    "story": "The stock opens above yesterday's close. It dips under a swing low made thirteen sessions ago and closes back above it the same day.",
    "answer": "A 2B, the low is not yesterday's",
@@ -2452,9 +2452,9 @@
     "t_inv"
    ],
    "wrong": {
-    "An Oops, it reclaimed the same day": "An Oops opens under the prior close. This one opened above it.",
+    "An Oops, reclaimed the same day": "An Oops opens under the prior close. This one opened above it.",
     "A Remount, it retook an old low": "A Remount needs five or more closes under the level.",
-    "A breakdown, it dipped under a low": "It closed back above the low the same day. A breakdown has no close back above within 3 sessions."
+    "A breakdown, it broke a low": "It closed back above the low the same day. A breakdown has no close back above within 3 sessions."
    },
    "house": true,
    "simple": "A 2B. It opened above yesterday's close and broke an older swing low, so it is not an Oops.",
@@ -3161,9 +3161,9 @@
    "q": "What do you do with the last third?",
    "choices": [
     "Sell it; the trail is broken",
-    "Hold; it is above the 50-day",
-    "Add back the thirds you sold",
-    "Move the stop down to give room"
+    "Hold; it is over the 50-day",
+    "Add back the thirds sold",
+    "Move the stop down for room"
    ],
    "story": "You sold a third at 3R and a third at 5R. The steadier stock now closes under its 21-day average.",
    "answer": "Sell it; the trail is broken",
@@ -3175,9 +3175,9 @@
     "h02"
    ],
    "wrong": {
-    "Add back the thirds you sold": "The plan sells in thirds and trails the last one. A close under the trail is the exit.",
-    "Move the stop down to give room": "A stop only moves up, never down or wider.",
-    "Hold; it is above the 50-day": "The 50-day is not the trail for a steadier name. The 21-day is."
+    "Hold; it is over the 50-day": "The 50-day is not the trail for a steadier name. The 21-day is.",
+    "Add back the thirds sold": "The plan sells in thirds and trails the last one. A close under the trail is the exit.",
+    "Move the stop down for room": "A stop only moves up, never down or wider."
    },
    "house": true,
    "simple": "Sell it. The last third trails the 21-day average, and a close below it is the sell signal.",
@@ -3539,7 +3539,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3% from t_depth. The 4% decoy is the chase limit (t_chase). Ladder is not extreme."
+   "notes": "3% from t_depth. The 4% decoy is the chase limit (t_chase). Ladder is not extreme.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -3776,13 +3777,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Twelve-session low, next-day close back above: 2B per l_oops and l_oops2. Remount and spring decoys excluded by l_remount and l_spring."
+   "notes": "Twelve-session low, next-day close back above: 2B per l_oops and l_oops2. Remount and spring decoys excluded by l_remount and l_spring.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Open above prior close and a thirteen-session low: not an Oops, so 2B. Same lesson as q47 but with a different tell (the open)."
+   "notes": "Open above prior close and a thirteen-session low: not an Oops, so 2B. Same lesson as q47 but with a different tell (the open).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -3884,7 +3887,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20, h21 and h02 support key and wrong notes. Minor lone-exit pattern like q38; acceptable."
+   "notes": "h20, h21 and h02 support key and wrong notes. Minor lone-exit pattern like q38; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q66": {
    "status": "pass",

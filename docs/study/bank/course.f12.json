@@ -955,9 +955,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "A rule for adding more shares",
+    "A rule for adding shares",
     "A time limit to make it work",
-    "A second, higher profit target",
+    "A second, higher target",
     "A tighter stop on the trade"
    ],
    "kind": "mcq",
@@ -1010,7 +1010,7 @@
     "summary": "A plan asks how long the trade should take and what could go wrong. A time exit sets the longest you'll hold a position. A time exit helps when a stock goes sideways for a long time without hitting the stop. Our time stop: a trade still under 1R after 10 trading days is sold, so the money can work elsewhere. R is the risk you took on a trade, set by your first stop."
    },
    "facts": {
-    "given": "Which line was missing from your plan? Four months ago you bought a breakout. It never hit your stop or your target. It has gone sideways the whole time, with your money stuck in it. A time limit to make it work A second, higher profit target A tighter stop on the trade A rule for adding more shares"
+    "given": "Which line was missing from your plan? Four months ago you bought a breakout. It never hit your stop or your target. It has gone sideways the whole time, with your money stuck in it. A time limit to make it work A second, higher target A tighter stop on the trade A rule for adding shares"
    },
    "lesson_line": "Know how long you'll give a trade, not just where its stop and target sit.",
    "simple": "A time limit, because a stock can drift sideways for months without ever touching your stop or your target.",
@@ -1018,8 +1018,8 @@
    "unit": "F12.01",
    "why": "A time limit to make it work. Schwab's plan asks how long you expect the trade to last. Fidelity says a time exit can work when a stock moves sideways for an extended period. Our rule is a time stop: a trade still under 1R after 10 trading days is sold. R is the risk you took on the trade, set by your first stop. Selling frees the money for a stock that is moving. A trade stuck sideways this long would have been sold months ago.",
    "wrong": {
-    "A rule for adding more shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot.",
-    "A second, higher profit target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
+    "A rule for adding shares": "Adding to a stock that's going nowhere just puts more money in the same stuck spot.",
+    "A second, higher target": "It never reached the first one. More upside on paper doesn't fix a stock that isn't moving.",
     "A tighter stop on the trade": "That changes where you're wrong on price. This trade's problem is time."
    }
   },
@@ -1351,8 +1351,8 @@
    "choices": [
     "Keep using the old rules for now",
     "No trades until a new plan is made",
-    "Trade on feel until a new idea comes",
-    "Trade a smaller size with no rules"
+    "Trade on feel until an idea comes",
+    "Trade smaller with no rules"
    ],
    "kind": "mcq",
    "q": "What do you do tomorrow?",
@@ -1383,7 +1383,7 @@
     "summary": "Scrap a plan that doesn't work, and place no trades until a new one is written. If you drop or change the plan, put a new plan in its place."
    },
    "facts": {
-    "given": "What do you do tomorrow? After a careful review of your trades, you decide your plan's rules don't work. The market opens tomorrow. No trades until a new plan is made Trade on feel until a new idea comes Keep using the old rules for now Trade a smaller size with no rules"
+    "given": "What do you do tomorrow? After a careful review of your trades, you decide your plan's rules don't work. The market opens tomorrow. No trades until a new plan is made Trade on feel until an idea comes Keep using the old rules for now Trade smaller with no rules"
    },
    "lesson_line": "Scrap a broken plan, but never trade without one.",
    "simple": "Don't trade until a new plan is made, because trading with no plan is what a plan is there to stop.",
@@ -1392,8 +1392,8 @@
    "why": "No trades until a new plan is made. Investopedia says a plan that doesn't work should be scrapped, and no trades placed until a new one is created. Fidelity agrees: if you change your plan, devise a replacement to guide your trading. A smaller size or the old rules still mean trading without a plan that works.",
    "wrong": {
     "Keep using the old rules for now": "You've just decided they don't work. Trading them anyway means knowingly using a broken plan.",
-    "Trade a smaller size with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan.",
-    "Trade on feel until a new idea comes": "That's trading with no plan at all, the very thing a plan is there to stop."
+    "Trade on feel until an idea comes": "That's trading with no plan at all, the very thing a plan is there to stop.",
+    "Trade smaller with no rules": "Smaller size cuts the damage, but trading without rules is still trading with no plan."
    }
   },
   "review_status": "draft",
@@ -5709,8 +5709,8 @@
   "prompt_json": {
    "choices": [
     "Ideas, how he traded them, prep",
-    "The market, the sector, the stock",
-    "Entry price, exit price, profit",
+    "The market, sector, stock",
+    "Entry and exit prices, profit",
     "Win rate, P&L and trade count"
    ],
    "kind": "mcq",
@@ -5780,7 +5780,7 @@
     "summary": "Steenbarger gives himself at least three grades a day: the quality of his ideas, how he traded them, and his preparation. Steenbarger grades how he traded an idea separately from the idea itself. The trading grade asks if the entry gave good reward for the risk or chased into poor reward for the risk, and how the position was sized. The trading grade also covers how you managed the position and how you exited. Steenbarger's preparation covers his morning before the open: exercise, reviewing the markets and reviewing the previous day's trading. Steenbarger reviews the different parts of trading separately. One separate review: how well you developed sound ideas. Another: how well you entered and got good reward for the risk you took."
    },
    "facts": {
-    "given": "Brett Steenbarger gives himself at least three grades every trading day. What does he grade? Ideas, how he traded them, prep Win rate, P&L and trade count Entry price, exit price, profit The market, the sector, the stock"
+    "given": "Brett Steenbarger gives himself at least three grades every trading day. What does he grade? Ideas, how he traded them, prep Win rate, P&L and trade count Entry and exit prices, profit The market, sector, stock"
    },
    "lesson_line": "Three grades: the idea, how you traded it, and how ready you were.",
    "simple": "He grades his ideas, how he traded them, and his prep, judging each one apart from the others.",
@@ -5788,8 +5788,8 @@
    "unit": "F12.04",
    "why": "His ideas, how he traded them, and his preparation. Steenbarger says he gets at least three grades every day. He grades an idea apart from how he traded it. The trading grade covers the entry, the size, the management and the exit. Preparation is his morning work before the open: reviewing the markets and the day before. None of the three grades is the day's profit.",
    "wrong": {
-    "Entry price, exit price, profit": "Entry and exit sit inside one grade, how he traded the idea. Profit isn't one of his grades.",
-    "The market, the sector, the stock": "That's a way to pick trades from the top down. His grades score his own work after the day.",
+    "Entry and exit prices, profit": "Entry and exit sit inside one grade, how he traded the idea. Profit isn't one of his grades.",
+    "The market, sector, stock": "That's a way to pick trades from the top down. His grades score his own work after the day.",
     "Win rate, P&L and trade count": "Those are results and activity. His grades score the quality of his own work, not what the market paid him."
    }
   },
@@ -7393,10 +7393,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "More time on your morning prep",
+    "More time on morning prep",
     "Acting on the ideas you find",
-    "Finding better ideas to trade",
-    "Taking more trades of any kind"
+    "Finding better trade ideas",
+    "Taking trades of any kind"
    ],
    "kind": "mcq",
    "q": "Where should your work go?",
@@ -7434,7 +7434,7 @@
     "summary": "SMB's example: probably their highest-P&L trader had terrific ideas, and his problem was pulling the trigger on them. SMB's aim with that trader: more confidence to make the trades his ideas called for. Like a tennis player working on separate parts of the game, you review and work on separate parts of trading."
    },
    "facts": {
-    "given": "Where should your work go? Your reviews show the same thing for weeks. Your idea grades are high, and those ideas often work. But you hesitate, and take few of them, often late. Acting on the ideas you find Finding better ideas to trade More time on your morning prep Taking more trades of any kind"
+    "given": "Where should your work go? Your reviews show the same thing for weeks. Your idea grades are high, and those ideas often work. But you hesitate, and take few of them, often late. Acting on the ideas you find Finding better trade ideas More time on morning prep Taking trades of any kind"
    },
    "lesson_line": "Separate grades show you where the leak is. Fix that part, not everything.",
    "simple": "Work on acting on the ideas you find, because they already grade well and the leak is in taking them.",
@@ -7442,9 +7442,9 @@
    "unit": "F12.04",
    "why": "Acting on the ideas you find. Separate grades show where the leak is, and here it is at the click. SMB tells of probably their highest-P&L trader: terrific at ideas, trouble pulling the trigger. The work was giving him more confidence to make those trades. Like a tennis player working on one part of the game, work on the weak part.",
    "wrong": {
-    "Finding better ideas to trade": "Your ideas already grade high and often work. Better ones won't help if you don't take them.",
-    "More time on your morning prep": "Nothing points to prep. The leak is at the click.",
-    "Taking more trades of any kind": "More random trades would drag your idea grade down. Take the good ones you already find."
+    "Finding better trade ideas": "Your ideas already grade high and often work. Better ones won't help if you don't take them.",
+    "More time on morning prep": "Nothing points to prep. The leak is at the click.",
+    "Taking trades of any kind": "More random trades would drag your idea grade down. Take the good ones you already find."
    }
   },
   "review_status": "draft",
@@ -8108,7 +8108,7 @@
     "Total dollar P&L and trade count",
     "Count, win rate, average win and loss",
     "Win rate and number of trades only",
-    "The best and worst trades of the month"
+    "The month's best and worst trades"
    ],
    "kind": "mcq",
    "q": "Which numbers belong in each setup's monthly stats?",
@@ -8170,7 +8170,7 @@
     "summary": "The monthly numbers include the share of winners and the average win against the average loss. Win rate is the share of closed trades that make money. A high win rate can still lose money when the losses are big next to the wins. Expectancy is the average R per trade: what a system makes per dollar risked. Think of every profit and loss as a multiple of the risk you took at entry, R. As a rough rule, a sample needs more than thirty results before it means much. UCT's rule: each month, review the win rate, the average win and loss in R, the expectancy and other statistics."
    },
    "facts": {
-    "given": "Which numbers belong in each setup's monthly stats? Count, win rate, average win and loss Win rate and number of trades only Total dollar P&L and trade count The best and worst trades of the month"
+    "given": "Which numbers belong in each setup's monthly stats? Count, win rate, average win and loss Win rate and number of trades only Total dollar P&L and trade count The month's best and worst trades"
    },
    "lesson_line": "Win rate is half the story. How big the wins and losses run is the other half.",
    "simple": "Count, win rate and average win and loss, because together they show what the setup has paid per trade.",
@@ -8178,7 +8178,7 @@
    "unit": "F12.05",
    "why": "Count, win rate, average win and loss. The money manager Steenbarger quotes tracks the share of winners and the average win against the average loss. Together with the count, they give the average R the setup has paid, which Tharp calls expectancy. The count tells you how far to trust the rest: Tharp wants more than thirty results. A high win rate can still lose money when the losses are big next to the wins. UCT's own monthly review checks win rate, average win and loss in R, and expectancy.",
    "wrong": {
-    "The best and worst trades of the month": "Two extremes say little about the rest. The monthly numbers are the share of winners and the average win and loss.",
+    "The month's best and worst trades": "Two extremes say little about the rest. The monthly numbers are the share of winners and the average win and loss.",
     "Total dollar P&L and trade count": "Dollars mix big trades with small ones, and it leaves out the win rate. Our monthly review reads the win rate, and wins and losses in R.",
     "Win rate and number of trades only": "That leaves out how big the wins and losses are. Even with a high win rate, a poor risk/reward can lose."
    }
@@ -8586,7 +8586,7 @@
    "choices": [
     "Check if you kept last week's goal",
     "Add up the week's profit and loss",
-    "Start a clean page for the new week",
+    "Start a clean page for next week",
     "Set new goals for the coming week"
    ],
    "kind": "mcq",
@@ -8657,7 +8657,7 @@
     "summary": "A review you never come back to is a throwaway; after the next week, go back to its goals. Missed the goal: adjust the plan. Hit it: write down what worked so you keep doing it. Goals you never check are goals nobody holds you to. The better trader sets specific goals for the coming week and checks progress on them every day. Write each day's conclusions down so you can come back to them later. At the end of each day, knowing why and how you traded matters more than the P&L total. When a review sets lots of goals, Steenbarger often hears nothing more about them until the next review. UCT's rule: journal every trade the same day, and review the week every weekend, ideally."
    },
    "facts": {
-    "given": "What does your review do first? Last Sunday you set one goal: no new trades in the first 15 minutes. Now it's Sunday again. Check if you kept last week's goal Set new goals for the coming week Add up the week's profit and loss Start a clean page for the new week"
+    "given": "What does your review do first? Last Sunday you set one goal: no new trades in the first 15 minutes. Now it's Sunday again. Check if you kept last week's goal Set new goals for the coming week Add up the week's profit and loss Start a clean page for next week"
    },
    "lesson_line": "Every review opens with last week's goal. A goal nobody checks was only a wish.",
    "simple": "Check last week's goal first, because a goal nobody comes back to is only a wish.",
@@ -8667,7 +8667,7 @@
    "wrong": {
     "Add up the week's profit and loss": "The P&L is the score. CME puts the why and how of your trading ahead of the total.",
     "Set new goals for the coming week": "New goals on top of an unchecked one is how goals pile up and fade. Check the old one first.",
-    "Start a clean page for the new week": "A clean page leaves last week's goal unchecked. Steenbarger calls a review you never return to a throwaway."
+    "Start a clean page for next week": "A clean page leaves last week's goal unchecked. Steenbarger calls a review you never return to a throwaway."
    }
   },
   "review_status": "draft",

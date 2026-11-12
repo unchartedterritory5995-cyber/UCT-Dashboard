@@ -1710,8 +1710,8 @@
    "q": "News Failure or Oops Reversal?",
    "choices": [
     "Oops Reversal; there is no catalyst",
-    "News Failure; it reclaimed the close",
-    "News Failure; it opened under the low",
+    "News Failure; reclaimed the close",
+    "News Failure; opened under the low",
     "Neither; an Oops needs news too"
    ],
    "answer": "Oops Reversal; there is no catalyst",
@@ -1721,8 +1721,8 @@
     "l3"
    ],
    "wrong": {
-    "News Failure; it reclaimed the close": "A News Failure needs a dated catalyst behind the gap. Here there is no news.",
-    "News Failure; it opened under the low": "Opening under the prior low is the Oops part. A News Failure needs a dated catalyst behind the gap.",
+    "News Failure; reclaimed the close": "A News Failure needs a dated catalyst behind the gap. Here there is no news.",
+    "News Failure; opened under the low": "Opening under the prior low is the Oops part. A News Failure needs a dated catalyst behind the gap.",
     "Neither; an Oops needs news too": "An Oops needs no news. It needs an open under the prior low and a reclaim of the prior close."
    },
    "house": true,
@@ -2341,8 +2341,8 @@
    "choices": [
     "A dip to buy more at the new low",
     "The turn was not picked; stop hit",
-    "Hold until the close, then decide",
-    "A shakeout; widen the stop a little"
+    "Hold to the close, then decide",
+    "A shakeout; widen the stop"
    ],
    "answer": "The turn was not picked; stop hit",
    "why": "The turn was not picked, and the stop is hit. Price taking out the news day's low is the stop: a new extreme means the turn was not picked. The stop is a real order with the broker, hit intraday, so you are already out. It never moves down or wider. The one exception is a gap through the stop: then the first 30-minute low is the new stop.",
@@ -2357,8 +2357,8 @@
    ],
    "wrong": {
     "A dip to buy more at the new low": "No adds. A new low means the turn was not picked.",
-    "Hold until the close, then decide": "The stop is a real order with the broker and it has been hit.",
-    "A shakeout; widen the stop a little": "The stop only moves in the trade's favor, never wider. A new low is the exit, not a shakeout."
+    "Hold to the close, then decide": "The stop is a real order with the broker and it has been hit.",
+    "A shakeout; widen the stop": "The stop only moves in the trade's favor, never wider. A new low is the exit, not a shakeout."
    },
    "house": true,
    "story": "You hold a News Failure long. Price falls through the news day's low.",
@@ -2924,10 +2924,10 @@
    "criterion": "nf.above_200",
    "q": "Hidden ticker, a news day that gapped down and closed green. Take the long or pass?",
    "choices": [
-    "Take it; the reversal looks strong",
-    "Take it; the gap was large enough",
+    "Take it; the reversal is strong",
+    "Take it; the gap was big enough",
     "Pass; it closed under the 200-day",
-    "Pass; it needs a close at the high"
+    "Pass; it needs a high close"
    ],
    "answer": "Pass; it closed under the 200-day",
    "why": "Pass. It closed at 282.76, under the 200-day at 288.05. No longs below the 200-day simple moving average, unless it is a parabolic long. The reversal can look strong and the gap can be big enough. The 200-day still fails it: a reversal under the line is the wrong side of the average.",
@@ -2940,9 +2940,9 @@
     "n2"
    ],
    "wrong": {
-    "Take it; the reversal looks strong": "A strong reversal under the 200-day is the wrong side of the line.",
-    "Take it; the gap was large enough": "A large gap does not lift the 200-day rule.",
-    "Pass; it needs a close at the high": "A close in the top of the range grades a long up; it is not a gate. The 200-day is what fails."
+    "Take it; the reversal is strong": "A strong reversal under the 200-day is the wrong side of the line.",
+    "Take it; the gap was big enough": "A large gap does not lift the 200-day rule.",
+    "Pass; it needs a high close": "A close in the top of the range grades a long up; it is not a gate. The 200-day is what fails."
    },
    "house": true,
    "chart": {
@@ -3364,9 +3364,9 @@
    "q": "Your News Failure short also qualifies as a parabolic short. Where is the cover target?",
    "choices": [
     "At the daily 9 EMA",
-    "At the daily 21 EMA",
+    "The daily 21 EMA",
     "At the 50-day SMA",
-    "At the 200-day SMA"
+    "At the 200-day"
    ],
    "answer": "At the daily 9 EMA",
    "why": "At the daily 9 EMA. If the short also qualifies as a parabolic short, it uses Bracco's 9 EMA target instead of the trims. Our rule says the same: a parabolic short's target is the 9-day average. The 21-day is a trail for steadier movers, not this target.",
@@ -3379,9 +3379,9 @@
     "n24"
    ],
    "wrong": {
-    "At the daily 21 EMA": "The 21-day is a trail for a steadier mover. Bracco's parabolic target is the 9 EMA.",
+    "The daily 21 EMA": "The 21-day is a trail for a steadier mover. Bracco's parabolic target is the 9 EMA.",
     "At the 50-day SMA": "The 50-day is not the target. Bracco's target for a parabolic short is the 9 EMA.",
-    "At the 200-day SMA": "The 200-day is the line for the side rule, not the cover target."
+    "At the 200-day": "The 200-day is the line for the side rule, not the cover target."
    },
    "house": true,
    "simple": "Cover at the daily 9 EMA, because a parabolic short uses that average as its target instead of the usual trims.",
@@ -3406,9 +3406,9 @@
    "q": "In our rulebook, what makes a move parabolic?",
    "choices": [
     "A 3-5 day burst, a final leg",
-    "One big gap on twice the volume",
-    "A slow climb over many months",
-    "A close far above the 200-day"
+    "One big gap on twice volume",
+    "A slow climb over months",
+    "A close far above 200-day"
    ],
    "answer": "A 3-5 day burst, a final leg",
    "why": "A 3-5 day burst. Our rulebook defines parabolic as a 3-5 day final leg. Its boxes include three straight up days and a gap up on the climax day. The more boxes checked, the stronger. For a long it is the mirror image, a burst down.",
@@ -3421,9 +3421,9 @@
     "n1"
    ],
    "wrong": {
-    "One big gap on twice the volume": "That is the news stand-in, one day. Parabolic is a 3-5 day final leg.",
-    "A slow climb over many months": "Parabolic is fast: a 3-5 day final leg, with three straight up days.",
-    "A close far above the 200-day": "Parabolic is counted in boxes over a 3-5 day final leg, like two straight overnight gap ups."
+    "One big gap on twice volume": "That is the news stand-in, one day. Parabolic is a 3-5 day final leg.",
+    "A slow climb over months": "Parabolic is fast: a 3-5 day final leg, with three straight up days.",
+    "A close far above 200-day": "Parabolic is counted in boxes over a 3-5 day final leg, like two straight overnight gap ups."
    },
    "house": true,
    "tier": "extended",
@@ -3614,7 +3614,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from l3; all choices in frame; no second answer offered (Red to Green is not a choice)."
+   "notes": "Key from l3; all choices in frame; no second answer offered (Red to Green is not a choice).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "cut",
@@ -3717,7 +3718,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "cut",
@@ -3801,7 +3803,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (dTSLAn, n3, hB26); grade-up note from n2. Two notes for the integrator: (1) the item can only be read if the chart draws the 200-day (already flagged); (2) q32 uses the same TSLA day with the same 282.76 vs 288.05 numbers and the same verdict, so the pair overlap; q58 adds the chart-reading skill, kept, but the owner may want one of the two."
+   "notes": "Key right (dTSLAn, n3, hB26); grade-up note from n2. Two notes for the integrator: (1) the item can only be read if the chart draws the 200-day (already flagged); (2) q32 uses the same TSLA day with the same 282.76 vs 288.05 numbers and the same verdict, so the pair overlap; q58 adds the chart-reading skill, kept, but the owner may want one of the two.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -3898,13 +3901,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (hB26p: a 3-5 day final leg, boxes, more boxes stronger; hB26m mirror for longs). Leak: the stem 'Our 200-day rule has a parabolic exception' answers q05 (TF: a long must be above the 200-day unless it is a parabolic long). Stem reworded to drop the 200-day exception."
+   "notes": "Key right (hB26p: a 3-5 day final leg, boxes, more boxes stronger; hB26m mirror for longs). Leak: the stem 'Our 200-day rule has a parabolic exception' answers q05 (TF: a long must be above the 200-day unless it is a parabolic long). Stem reworded to drop the 200-day exception.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

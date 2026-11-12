@@ -1000,7 +1000,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h26, c33 verbatim. Orange = A+ only. The mirror \"Only the B\" is mildly silly but closes the odd-one-out tell; acceptable."
+   "notes": "h26, c33 verbatim. Orange = A+ only. The mirror \"Only the B\" is mildly silly but closes the odd-one-out tell; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -1194,7 +1195,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c21 (a doji before the gap gives a plain gap ORB) and c22 (EP is 10% or more) support the key; 3% is under 10%. c28 no longer keyed. Card proposals, owner flags filed."
+   "notes": "c21 (a doji before the gap gives a plain gap ORB) and c22 (EP is 10% or more) support the key; 3% is under 10%. c28 no longer keyed. Card proposals, owner flags filed.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -1781,9 +1783,9 @@
    "q": "Which do you take?",
    "choices": [
     "Only the A+; the B waits",
-    "Both; a break is a break",
-    "Neither; Orange means cash",
-    "Only the B; the A+ can wait"
+    "Both; breaks are breaks",
+    "Neither; Orange is cash",
+    "Only the B; A+ can wait"
    ],
    "answer": "Only the A+; the B waits",
    "why": "The A+ only. The market reading is a guide. Green is full risk, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Here it is Orange, so the B setup stays on the bench.",
@@ -1793,9 +1795,9 @@
     "c33"
    ],
    "wrong": {
-    "Both; a break is a break": "Orange narrows you to A+. The B setup waits for a better market.",
-    "Neither; Orange means cash": "Red is mostly cash. Orange still allows the best setups.",
-    "Only the B; the A+ can wait": "Orange allows only A+ setups. The A+ does not wait; the B does."
+    "Both; breaks are breaks": "Orange narrows you to A+. The B setup waits for a better market.",
+    "Neither; Orange is cash": "Red is mostly cash. Orange still allows the best setups.",
+    "Only the B; A+ can wait": "Orange allows only A+ setups. The A+ does not wait; the B does."
    },
    "house": true,
    "simple": "Take the A+ only. In an Orange market we buy only A+ setups, so the B waits.",
@@ -3008,9 +3010,9 @@
    "q": "What is it?",
    "choices": [
     "A plain gap ORB, no Kicker",
-    "A Kicker ORB after the doji",
-    "An EP, a gap on a catalyst",
-    "An opening drive, bought late"
+    "A Kicker ORB after a doji",
+    "An EP, a gap on catalyst",
+    "An open drive, a late buy"
    ],
    "answer": "A plain gap ORB, no Kicker",
    "why": "A plain gap ORB. A Kicker needs a real red day before the gap, and a doji before it makes a plain gap ORB. An EP needs a gap of 10% or more on a named catalyst, and this one is 3%.",
@@ -3021,9 +3023,9 @@
     "c20"
    ],
    "wrong": {
-    "A Kicker ORB after the doji": "A Kicker needs a real red day before the gap, and a doji is not one.",
-    "An EP, a gap on a catalyst": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that.",
-    "An opening drive, bought late": "A drive is bought over the first 5-minute bar's high by about 9:40. This break came at 10:00 over the 30-minute high, so it is an ORB."
+    "A Kicker ORB after a doji": "A Kicker needs a real red day before the gap, and a doji is not one.",
+    "An EP, a gap on catalyst": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that.",
+    "An open drive, a late buy": "A drive is bought over the first 5-minute bar's high by about 9:40. This break came at 10:00 over the 30-minute high, so it is an ORB."
    },
    "house": true,
    "simple": "It is a plain gap ORB. A Kicker needs a real red day before the gap, and a doji is not one.",

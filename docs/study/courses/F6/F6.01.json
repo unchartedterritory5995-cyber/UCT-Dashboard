@@ -582,7 +582,7 @@
    "choices": [
     "The right to buy at the strike",
     "The duty to buy at the strike",
-    "The right to sell at the strike",
+    "A right to sell at the strike",
     "Ownership of 100 shares"
    ],
    "answer": "The right to buy at the strike",
@@ -598,7 +598,7 @@
    ],
    "wrong": {
     "The duty to buy at the strike": "A buyer gets a right, not a duty. The duty sits with the seller, who must sell if you exercise.",
-    "The right to sell at the strike": "That's a put. A call is the right to buy.",
+    "A right to sell at the strike": "That's a put. A call is the right to buy.",
     "Ownership of 100 shares": "You own a contract, not the stock. You'd have to exercise it to own the shares."
    },
    "simple": "A call gives the buyer the right to buy the stock at the strike, but not the obligation.",
@@ -1108,9 +1108,9 @@
    "q": "What happens to your call?",
    "choices": [
     "It expires worth nothing",
-    "You must buy shares at 55",
-    "It turns into shares at 52",
-    "It rolls into next month"
+    "You must buy at 55",
+    "It becomes shares at 52",
+    "It rolls to next month"
    ],
    "answer": "It expires worth nothing",
    "why": "It expires worth nothing. The stock closed at 52, below the 55 strike, so the call is out of the money. Owners generally let such options expire with no value, and an expired option no longer exists. You lose the whole premium, 1.50 a share. You never have to buy shares: a call is a right, not a duty.",
@@ -1124,9 +1124,9 @@
     "f71"
    ],
    "wrong": {
-    "It rolls into next month": "Options don't carry over. After expiry the contract no longer exists.",
-    "You must buy shares at 55": "A call gives you a right, never a duty. Nobody makes you pay 55 for a stock at 52.",
-    "It turns into shares at 52": "Out-of-the-money options are generally not exercised. Owners let them expire with no value."
+    "It rolls to next month": "Options don't carry over. After expiry the contract no longer exists.",
+    "You must buy at 55": "A call gives you a right, never a duty. Nobody makes you pay 55 for a stock at 52.",
+    "It becomes shares at 52": "Out-of-the-money options are generally not exercised. Owners let them expire with no value."
    },
    "simple": "It expires worth nothing, because the stock closed below the 55 strike, so you lose the 1.50 you paid.",
    "deeper": {
@@ -1446,7 +1446,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: the right to buy at the strike (f3, f1, f45). Key matches. Choices 23-31 chars, key not longest. Simple and lesson_line now say right, not obligation, so no clash with q20's auto-exercise. f29 backs the ownership note, f48 the 100 shares."
+   "notes": "Own answer: the right to buy at the strike (f3, f1, f45). Key matches. Choices 23-31 chars, key not longest. Simple and lesson_line now say right, not obligation, so no clash with q20's auto-exercise. f29 backs the ownership note, f48 the 100 shares.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1560,7 +1561,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: expires worthless (stock 52 below the 55 strike, f71 ITM definition, f44 OTM not exercised, f11, f20). Choices 24-26 chars, key not longest. 1.50 and 52/55 come from the story; the whole premium lost is f21. Distractors are real slips (duty to buy, auto conversion, rolling). Consistent with sizing_rule.md B25 (premium paid is the stop). No leak into q20 (q20 is the in-the-money auto-exercise case)."
+   "notes": "Own answer: expires worthless (stock 52 below the 55 strike, f71 ITM definition, f44 OTM not exercised, f11, f20). Choices 24-26 chars, key not longest. 1.50 and 52/55 come from the story; the whole premium lost is f21. Distractors are real slips (duty to buy, auto conversion, rolling). Consistent with sizing_rule.md B25 (premium paid is the stop). No leak into q20 (q20 is the in-the-money auto-exercise case).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

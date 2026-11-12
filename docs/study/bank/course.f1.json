@@ -1476,9 +1476,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "QQQ's fees ate the difference",
+    "QQQ's fees ate the gap",
     "QQQ follows a different index",
-    "QQQ weights its stocks by price",
+    "QQQ weights stocks by price",
     "QQQ stopped trading early"
    ],
    "kind": "mcq",
@@ -1573,7 +1573,7 @@
     "summary": "The Nasdaq Composite, often just called \"the Nasdaq\", tracks almost every Nasdaq-listed company. AP's own shorthand: \"the Nasdaq\" fell 2% that day. The Nasdaq composite fell 2% on July 11, 2024. The Nasdaq Composite measures the common stocks listed on Nasdaq, a different index from the Nasdaq-100. QQQ tracks the Nasdaq-100. The Nasdaq-100 measures 100 of the largest non-financial companies listed on Nasdaq. QQQ's total expense ratio is 0.18% a year. ETF shares trade all day on exchanges, like stocks. Nasdaq: the Composite holds every common-type stock listed on Nasdaq, US and foreign. The Nasdaq-100 is weighted by (modified) market cap. AP's index recap for Thursday, July 11, 2024."
    },
    "facts": {
-    "given": "Why don't the two numbers match? The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%. QQQ follows a different index QQQ's fees ate the difference QQQ stopped trading early QQQ weights its stocks by price"
+    "given": "Why don't the two numbers match? The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%. QQQ follows a different index QQQ's fees ate the gap QQQ stopped trading early QQQ weights stocks by price"
    },
    "lesson_line": "Know which index a headline means. The Nasdaq Composite is not QQQ.",
    "simple": "QQQ follows a different index. The news often means the Nasdaq Composite, while QQQ tracks the smaller Nasdaq-100.",
@@ -1582,8 +1582,8 @@
    "why": "QQQ follows a different index. \"The Nasdaq\" in the news often means the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial Nasdaq companies. Two different baskets can move by different amounts on the same day. Fees cannot explain it: QQQ's total expense ratio is 0.18%.",
    "wrong": {
     "QQQ stopped trading early": "ETF shares trade throughout the day on exchanges. The gap is in what each one tracks.",
-    "QQQ weights its stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index.",
-    "QQQ's fees ate the difference": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day."
+    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index.",
+    "QQQ's fees ate the gap": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day."
    }
   },
   "review_status": "draft",
@@ -2986,9 +2986,9 @@
   "prompt_json": {
    "choices": [
     "50.01 / 50.02, sizes 100 / 100",
-    "49.70 / 50.30, sizes 2,000 / 2,500",
+    "49.70 / 50.30, 2,000 / 2,500",
     "50.00 / 50.02, sizes 3,000 / 2,500",
-    "49.95 / 50.05, sizes 1,500 / 1,800"
+    "49.95 / 50.05, 1,500 / 1,800"
    ],
    "kind": "mcq",
    "q": "Which quote would you buy 2,000 shares into?",
@@ -3040,7 +3040,7 @@
     "summary": "A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares. Bid size is the number of shares buyers want at that bid price. The number of shares showing at the best bid or ask is usually small. Smaller spreads are generally better, judged in context."
    },
    "facts": {
-    "given": "Which quote would you buy 2,000 shares into? Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask. 50.00 / 50.02, sizes 3,000 / 2,500 49.70 / 50.30, sizes 2,000 / 2,500 50.01 / 50.02, sizes 100 / 100 49.95 / 50.05, sizes 1,500 / 1,800"
+    "given": "Which quote would you buy 2,000 shares into? Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask. 50.00 / 50.02, sizes 3,000 / 2,500 49.70 / 50.30, 2,000 / 2,500 50.01 / 50.02, sizes 100 / 100 49.95 / 50.05, 1,500 / 1,800"
    },
    "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
    "simple": "Pick the tight quote with 2,500 shares at the ask, because it is cheap to cross and covers your 2,000 shares.",
@@ -3048,8 +3048,8 @@
    "unit": "F1.03",
    "why": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it.",
    "wrong": {
-    "49.70 / 50.30, sizes 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
-    "49.95 / 50.05, sizes 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher.",
+    "49.70 / 50.30, 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "49.95 / 50.05, 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher.",
     "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices."
    }
   },
@@ -4014,9 +4014,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Its price barely moves from day to day",
+    "Its price barely moves day to day",
     "Its shares cost only a few dollars",
-    "The company holds plenty of cash on hand",
+    "The company holds plenty of cash",
     "Easy to trade without moving the price"
    ],
    "kind": "mcq",
@@ -4058,7 +4058,7 @@
     "summary": "A stock is liquid when its shares can be bought or sold quickly without a big move in the price. Market liquidity is how easily you can buy or sell at a fair price when you want to. Liquidity is how easily a security can be bought or sold without moving its price. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones."
    },
    "facts": {
-    "given": "When we call a stock liquid, what do we mean? Easy to trade without moving the price The company holds plenty of cash on hand Its price barely moves from day to day Its shares cost only a few dollars"
+    "given": "When we call a stock liquid, what do we mean? Easy to trade without moving the price The company holds plenty of cash Its price barely moves day to day Its shares cost only a few dollars"
    },
    "lesson_line": "Liquid means you can get in and out fast, at a fair price.",
    "simple": "Liquid means you can buy or sell the shares quickly without moving the price much.",
@@ -4066,9 +4066,9 @@
    "unit": "F1.04",
    "why": "Easy to trade without moving the price. A stock's liquidity is how fast its shares can be bought or sold without a big hit to the price. FINRA adds: at a fair price, when you want to. It is about the shares trading, not the company's cash, a calm price or a cheap one.",
    "wrong": {
-    "Its price barely moves from day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
+    "Its price barely moves day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
     "Its shares cost only a few dollars": "Cheap doesn't mean liquid. Low-priced, low-volume stocks are generally less liquid.",
-    "The company holds plenty of cash on hand": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade."
+    "The company holds plenty of cash": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade."
    }
   },
   "review_status": "draft",

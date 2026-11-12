@@ -1031,8 +1031,8 @@
    "q": "What does a Power Earnings Gap look like on day one?",
    "choices": [
     "Earnings gap, big volume, strong close",
-    "Earnings gap that fills before the close",
-    "Small earnings gap on very light volume",
+    "Earnings gap that fills by the close",
+    "Small earnings gap on light volume",
     "Gap down that recovers by noon"
    ],
    "answer": "Earnings gap, big volume, strong close",
@@ -1047,8 +1047,8 @@
     "f73"
    ],
    "wrong": {
-    "Earnings gap that fills before the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
-    "Small earnings gap on very light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap.",
+    "Earnings gap that fills by the close": "That's a fade. A gap that reverses and closes weak is what this setup rules out.",
+    "Small earnings gap on light volume": "Light volume is the warning sign. This setup wants big volume behind a big gap.",
     "Gap down that recovers by noon": "Wrong direction. This setup is a gap up on strong earnings."
    },
    "simple": "It gaps up on strong earnings, trades heavy volume, and closes strong, best near the day's high.",
@@ -1267,9 +1267,9 @@
    "q": "Why might you wait before buying an earnings gap right at the open?",
    "choices": [
     "The open can fade; wait for proof",
-    "A filled gap is a much safer entry",
-    "The open is usually the day's low",
-    "Rules bar buying in the first hour"
+    "A filled gap is a safer entry",
+    "The open's usually the day's low",
+    "Rules bar buys in the first hour"
    ],
    "answer": "The open can fade; wait for proof",
    "why": "The open can fade, so wait for proof. A gap up without enough buying can level off or drop below its opening price. One StockCharts gap method lets the first hour set the range. Bulkowski waits for a close above the report-day high, because sellers may push price down instead. These are published methods, not a market rule. Waiting for a full fill instead can mean missing the move.",
@@ -1281,9 +1281,9 @@
     "f19"
    ],
    "wrong": {
-    "A filled gap is a much safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
-    "The open is usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price.",
-    "Rules bar buying in the first hour": "No rule bars it. Waiting an hour is one gap method's choice, so the day's range can form first."
+    "A filled gap is a safer entry": "Waiting for a fill can mean missing the whole move. The plan wants proof the gap holds, not a discount.",
+    "The open's usually the day's low": "If it were, you'd buy the open. But a gap up without enough buying drops below its opening price.",
+    "Rules bar buys in the first hour": "No rule bars it. Waiting an hour is one gap method's choice, so the day's range can form first."
    },
    "simple": "Waiting lets the gap show it can hold, because a gap up without enough buying can drop below its open.",
    "tier": "extended",
@@ -1819,7 +1819,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is the three day-one marks (f71, f72 re-checked live on tramondo.ch; f38, f40 re-checked on thepatternsite.com). Key not the longest. Overclaim gone from the why. Integrator: the conflicts line still says q08 'keys only the three features every source shares'; update it to match the new why."
+   "notes": "Key is the three day-one marks (f71, f72 re-checked live on tramondo.ch; f38, f40 re-checked on thepatternsite.com). Key not the longest. Overclaim gone from the why. Integrator: the conflicts line still says q08 'keys only the three features every source shares'; update it to match the new why.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -1861,7 +1862,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why now rests only on f23, f41, f22, f19 (f23 and f22 re-checked live). It names the wait as published methods, not a rule, which matches C30. The owner flag on C30 and E57 stands for the lesson_line's mentor voice."
+   "notes": "Why now rests only on f23, f41, f22, f19 (f23 and f22 re-checked live). It names the wait as published methods, not a rule, which matches C30. The owner flag on C30 and E57 stands for the lesson_line's mentor voice.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",

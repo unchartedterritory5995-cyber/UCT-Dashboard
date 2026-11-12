@@ -820,13 +820,13 @@
    "q": "What do most people mean by a correction in a stock index?",
    "choices": [
     "A drop of 10% to 20% from the high",
-    "A drop of 20% or more from the high",
+    "A drop of over 20% from the high",
     "A dip of under 10% from the high",
     "Any losing week after a rally"
    ],
    "answer": "A drop of 10% to 20% from the high",
    "wrong": {
-    "A drop of 20% or more from the high": "That's a bear market. A correction stops short of 20%.",
+    "A drop of over 20% from the high": "That's a bear market. A correction stops short of 20%.",
     "A dip of under 10% from the high": "Too small. Alan Shaw, whose work largely gave us these labels, called anything up to 10% a consolidation.",
     "Any losing week after a rally": "A down week isn't a label. A correction needs a decline of more than 10% from the peak."
    },
@@ -1837,7 +1837,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: 10% to 20% (f03, f11, f29). Matches. Shaw 'largely gave us these labels' matches f28 'largely the work of one man'. Choices balanced (34/35/32/29), no tell, notes grounded (f29, f03). 'Most people' rests on f03 'general definition'; acceptable."
+   "notes": "Own answer before key: 10% to 20% (f03, f11, f29). Matches. Shaw 'largely gave us these labels' matches f28 'largely the work of one man'. Choices balanced (34/35/32/29), no tell, notes grounded (f29, f03). 'Most people' rests on f03 'general definition'; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",

@@ -2421,8 +2421,8 @@
    "choices": [
     "The gap up on 2.5 times",
     "The pop on 1.2 times",
-    "They are equally strong",
-    "Neither, a gap is a chase"
+    "They tie in strength",
+    "Neither, it is a chase"
    ],
    "answer": "The gap up on 2.5 times",
    "why": "The gap up on 2.5 times. The strongest pop gaps up through the averages and the pivot on clearly more volume than the base days. STLD popped on only 1.2 times the base's volume, the lightest of our ten, and still worked. A light pop can work, but it is the weaker picture.",
@@ -2435,8 +2435,8 @@
    ],
    "wrong": {
     "The pop on 1.2 times": "Less volume and no gap is the weaker picture. The strongest pop gaps up on clearly more volume than the base days.",
-    "They are equally strong": "They are not equal. The strongest pop gaps up through the pivot on clearly more volume than the base days.",
-    "Neither, a gap is a chase": "A gap is not a chase by itself. We buy the open when the gap is no more than 4% above the pivot."
+    "They tie in strength": "They are not equal. The strongest pop gaps up through the pivot on clearly more volume than the base days.",
+    "Neither, it is a chase": "A gap is not a chase by itself. We buy the open when the gap is no more than 4% above the pivot."
    },
    "house": true,
    "simple": "The gap on 2.5 times volume is stronger, because the best pop gaps through the pivot on more volume than the base.",
@@ -2754,9 +2754,9 @@
    "q": "By our default rules, what happened?",
    "choices": [
     "Stopped at 83.15, as planned",
-    "Stopped at breakeven, at 84.88",
-    "Stopped at 81.50, the day's low",
-    "Sold a third at 1.5R, held on"
+    "Stopped at breakeven, 84.88",
+    "Stopped at 81.50, the low",
+    "Sold a third at 1.5R, held"
    ],
    "answer": "Stopped at 83.15, as planned",
    "why": "Stopped at 83.15, a planned loss. By default the stop moves to breakeven at the first trim. The hard rule for that trim is a third at 3R. At 1.5R neither had happened, so the stop had not moved. On day 3 the low of 81.50 went through 83.15.",
@@ -2766,9 +2766,9 @@
     "h05"
    ],
    "wrong": {
-    "Stopped at breakeven, at 84.88": "Our default moves the stop to breakeven at the first trim, a third at 3R. At 1.5R no trim had come off, so the stop had not moved.",
-    "Stopped at 81.50, the day's low": "The stop sat at 83.15, so that was the planned exit. The day's low is only how far price ran after it.",
-    "Sold a third at 1.5R, held on": "The hard rule for the first trim is a third at 3R, not 1.5R."
+    "Stopped at breakeven, 84.88": "Our default moves the stop to breakeven at the first trim, a third at 3R. At 1.5R no trim had come off, so the stop had not moved.",
+    "Stopped at 81.50, the low": "The stop sat at 83.15, so that was the planned exit. The day's low is only how far price ran after it.",
+    "Sold a third at 1.5R, held": "The hard rule for the first trim is a third at 3R, not 1.5R."
    },
    "house": true,
    "story": "Bought the pop at 84.88, stop 83.15. It reaches 1.5R in two sessions, before any trim. On day 3 it trades down through the stop, to 81.50.",
@@ -3875,7 +3875,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -3930,7 +3931,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",

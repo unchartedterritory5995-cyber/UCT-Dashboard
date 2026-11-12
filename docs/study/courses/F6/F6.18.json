@@ -996,9 +996,9 @@
    "q": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest?",
    "choices": [
     "It stays where it was",
-    "It rises by 10 contracts",
-    "It falls by 10 contracts",
-    "It rises by 20 contracts"
+    "It rises by 10",
+    "It falls by 10",
+    "It rises by 20"
    ],
    "answer": "It stays where it was",
    "why": "It stays where it was. One trader closes 10 and the other opens 10, so the same contracts change hands. Open interest rises only when both sides open. It falls when both sides close, or when contracts are exercised and assigned.",
@@ -1011,9 +1011,9 @@
     "f84"
    ],
    "wrong": {
-    "It rises by 10 contracts": "That needs both sides opening. Here one side is closing.",
-    "It falls by 10 contracts": "That needs both sides closing. Here the buyer is opening.",
-    "It rises by 20 contracts": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
+    "It rises by 10": "That needs both sides opening. Here one side is closing.",
+    "It falls by 10": "That needs both sides closing. Here the buyer is opening.",
+    "It rises by 20": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
    },
    "simple": "Open interest stays the same, because one trader is closing and the other is opening, so the contracts just change hands.",
    "tier": "core",
@@ -1287,9 +1287,9 @@
    "q": "What tells you if you can get a fair fill?",
    "choices": [
     "The bid, ask and size quoted now",
-    "The open interest at that strike",
-    "Today's volume so far on the strike",
-    "The last price the option traded at"
+    "The open interest at the strike",
+    "Today's volume at the strike",
+    "The last price it traded at"
    ],
    "answer": "The bid, ask and size quoted now",
    "why": "The bid, ask and size quoted now. Volume and open interest are not liquidity, and OIC warns they can fool you either way. A two-sided market with size shows how many contracts are bid or offered right now. Your fill depends more on the bid and ask than on open interest.",
@@ -1302,9 +1302,9 @@
     "f52"
    ],
    "wrong": {
-    "The open interest at that strike": "That counts contracts still open, not how many someone will trade with you right now.",
-    "Today's volume so far on the strike": "Volume is what already traded. The quote is what's on offer right now.",
-    "The last price the option traded at": "The last trade is history. A market buy fills at or near the current ask, so the live quote is what you'll pay."
+    "The open interest at the strike": "That counts contracts still open, not how many someone will trade with you right now.",
+    "Today's volume at the strike": "Volume is what already traded. The quote is what's on offer right now.",
+    "The last price it traded at": "The last trade is history. A market buy fills at or near the current ask, so the live quote is what you'll pay."
    },
    "simple": "Check the live bid, ask and size, because they show what you can trade now, not what traded before.",
    "deeper": {
@@ -1325,9 +1325,9 @@
    "q": "A call's volume today is three times its open interest. What does that tell you for sure?",
    "choices": [
     "Heavy trading versus what was open",
-    "Open interest will rise next session",
-    "New buyers opened bullish call bets",
-    "The stock is about to make a big move"
+    "Open interest will rise next day",
+    "New buyers opened bullish calls",
+    "The stock is about to move a lot"
    ],
    "answer": "Heavy trading versus what was open",
    "why": "Heavy trading versus what was open. Volume is today's activity, and open interest is the count already open. Three times as much traded as was open, but some trades may have closed positions or just changed hands. The next open interest count shows only the net change, so it can't say how much was new.",
@@ -1345,9 +1345,9 @@
     "f67"
    ],
    "wrong": {
-    "Open interest will rise next session": "Not for sure. It rises only from trades where both sides open, and falls from trades where both close. Volume can't show that mix.",
-    "New buyers opened bullish call bets": "You can't see who opened or closed, and every contract has a seller on the other side.",
-    "The stock is about to make a big move": "Heavy volume says people traded it, not what the stock does next. It can be hedges, closes or bets."
+    "Open interest will rise next day": "Not for sure. It rises only from trades where both sides open, and falls from trades where both close. Volume can't show that mix.",
+    "New buyers opened bullish calls": "You can't see who opened or closed, and every contract has a seller on the other side.",
+    "The stock is about to move a lot": "Heavy volume says people traded it, not what the stock does next. It can be hedges, closes or bets."
    },
    "simple": "It only tells you a lot traded compared with what was open, because volume cannot show how much was new.",
    "tier": "extended",
@@ -1714,7 +1714,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1762,13 +1763,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f12, f14, f11, f13; all re-found on s4/s5; the 8 contracts match s4's own example). One overreach: the last-price wrong note says 'A buy fills at or near the current ask', but f52 says that of a market order only; a limit buy can fill lower. Reworded to 'A market buy'. Everything else unchanged."
+   "notes": "Key right (f12, f14, f11, f13; all re-found on s4/s5; the 8 contracts match s4's own example). One overreach: the last-price wrong note says 'A buy fills at or near the current ask', but f52 says that of a market order only; a limit buy can fill lower. Reworded to 'A market buy'. Everything else unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: 3x volume over open interest is heavy trading for sure, and nothing else is (positions can change hands many times with no change in open interest, f21). Overreach: the why says 'How much was new shows only in the next open interest count', but the next count is a net figure (both-open adds minus both-close and exercises, f19, f20, f84), so it cannot show how much was new; q15's deeper says exactly that. The lesson_line's 'not new bets' reads as a claim they were not new. Both reworded; f84 added. Key restating the stem is inherent to a 'for sure' ask; accepted."
+   "notes": "Key right: 3x volume over open interest is heavy trading for sure, and nothing else is (positions can change hands many times with no change in open interest, f21). Overreach: the why says 'How much was new shows only in the next open interest count', but the next count is a net figure (both-open adds minus both-close and exercises, f19, f20, f84), so it cannot show how much was new; q15's deeper says exactly that. The lesson_line's 'not new bets' reads as a claim they were not new. Both reworded; f84 added. Key restating the stem is inherent to a 'for sure' ask; accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",

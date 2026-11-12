@@ -2023,8 +2023,8 @@
    "choices": [
     "Yes; a new trade with a new stop",
     "No; only one try per pattern",
-    "Yes, with a wider stop this time",
-    "No; the pattern has already failed"
+    "Yes, with a wider stop now",
+    "No; the pattern already failed"
    ],
    "answer": "Yes; a new trade with a new stop",
    "why": "Yes, as a new trade. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. Today's trade back over 320.28 is that new trigger. The stop is set fresh for this trade and is never widened to dodge another whipsaw. Count the tries: at most 3 in a week and 6 in a month. Failures whipsaw, and a second entry over the same level is allowed. In our AAPL example the first try was a whipsaw, and the stock then rose 11% within 60 sessions without the trade.",
@@ -2040,8 +2040,8 @@
    ],
    "wrong": {
     "No; only one try per pattern": "The limit is 3 tries in a week and 6 in a month, not one.",
-    "Yes, with a wider stop this time": "Every new trade gets its own stop, a few cents under its own trigger day's low. Widening it to dodge another whipsaw breaks the stop-first rule.",
-    "No; the pattern has already failed": "The trade failed; the pattern triggered again. A second entry over the same level is allowed."
+    "Yes, with a wider stop now": "Every new trade gets its own stop, a few cents under its own trigger day's low. Widening it to dodge another whipsaw breaks the stop-first rule.",
+    "No; the pattern already failed": "The trade failed; the pattern triggered again. A second entry over the same level is allowed."
    },
    "house": true,
    "simple": "Yes, as a new trade with its own stop, as long as you are inside the limit of 3 tries a week.",
@@ -2104,9 +2104,9 @@
    "q": "What is the rule?",
    "choices": [
     "First 30-minute low; past 2R, out",
-    "Hold; gaps usually fill by the close",
-    "Wait for a close back over the stop",
-    "Move the stop down to the gap open"
+    "Hold; gaps fill by the close",
+    "Wait for a close over the stop",
+    "Move the stop down to the open"
    ],
    "answer": "First 30-minute low; past 2R, out",
    "why": "The first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop, and if that puts the loss past 2R, you get out. Here the open, 96.73, was already past 2R from the 107.59 buy, so out. The top worked: GILD lost 20.1% within 60 sessions. The stop never moves down or wider, except by this one gap rule.",
@@ -2120,9 +2120,9 @@
     "d28"
    ],
    "wrong": {
-    "Wait for a close back over the stop": "The rule has no wait for a reclaim. The first 30 minutes decide, with a ceiling of 2R.",
-    "Move the stop down to the gap open": "The stop only moves up, never down or wider. The gap rule is the one exception, and it uses the first 30-minute low with a ceiling of 2R, not the open.",
-    "Hold; gaps usually fill by the close": "Not our rule. No rule waits for a gap to fill. The first 30 minutes decide, with a ceiling of 2R."
+    "Hold; gaps fill by the close": "Not our rule. No rule waits for a gap to fill. The first 30 minutes decide, with a ceiling of 2R.",
+    "Wait for a close over the stop": "The rule has no wait for a reclaim. The first 30 minutes decide, with a ceiling of 2R.",
+    "Move the stop down to the open": "The stop only moves up, never down or wider. The gap rule is the one exception, and it uses the first 30-minute low with a ceiling of 2R, not the open."
    },
    "house": true,
    "simple": "A gap through the stop means the first 30-minute low is the new stop, and past 2R you sell.",
@@ -2584,8 +2584,8 @@
    "choices": [
     "No; its volume is under the limit",
     "No; the stock price is too low",
-    "Yes; a clean pattern is still clean",
-    "Yes, but only in a small position"
+    "Yes; a clean pattern stays clean",
+    "Yes, but in a small position"
    ],
    "answer": "No; its volume is under the limit",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. At $12 the price passes, but about $6 million a day fails the volume test. The pattern can be clean and the stock is still not ours. Illiquid stocks are not even watched.",
@@ -2596,9 +2596,9 @@
     "h19"
    ],
    "wrong": {
-    "Yes; a clean pattern is still clean": "The pattern may be clean, but illiquid stocks are not even watched.",
-    "Yes, but only in a small position": "The rule screens the stock, not the size. A small position in a stock under the minimums still breaks it.",
-    "No; the stock price is too low": "$12 clears the $10 minimum. The failure is the volume: about $6 million a day is under $20 million."
+    "No; the stock price is too low": "$12 clears the $10 minimum. The failure is the volume: about $6 million a day is under $20 million.",
+    "Yes; a clean pattern stays clean": "The pattern may be clean, but illiquid stocks are not even watched.",
+    "Yes, but in a small position": "The rule screens the stock, not the size. A small position in a stock under the minimums still breaks it."
    },
    "house": true,
    "simple": "No, because the stock trades far less than $20 million a day.",
@@ -3162,9 +3162,9 @@
    "q": "What do you do?",
    "choices": [
     "No longs; Red means mostly cash",
-    "Buy it; the pattern is a clean A+",
-    "Buy half size and keep it tight",
-    "Short it; Red markets favor shorts"
+    "Buy it; the pattern is clean",
+    "Buy half size, keep it tight",
+    "Short it; Red favors shorts"
    ],
    "answer": "No longs; Red means mostly cash",
    "why": "Nothing long. Our failed-top card allows a buy only in a Green or Yellow reading, and in Orange only for an A+. In a Red market we are mostly in cash, plus shorts below the 200-day. This leader is above its 200-day, so it is not a short either. The best failed top in a Red market is a chart to study, not a trade.",
@@ -3176,9 +3176,9 @@
     "h10"
    ],
    "wrong": {
-    "Buy it; the pattern is a clean A+": "Orange allows A+. Red allows mostly cash and shorts.",
-    "Buy half size and keep it tight": "Red is a reading about whether to buy longs at all, not about size. The card allows Green, Yellow, or an A+ in Orange.",
-    "Short it; Red markets favor shorts": "Shorts are only below the 200-day, never above it. This leader is above its 200-day."
+    "Buy it; the pattern is clean": "Orange allows A+. Red allows mostly cash and shorts.",
+    "Buy half size, keep it tight": "Red is a reading about whether to buy longs at all, not about size. The card allows Green, Yellow, or an A+ in Orange.",
+    "Short it; Red favors shorts": "Shorts are only below the 200-day, never above it. This leader is above its 200-day."
    },
    "house": true,
    "simple": "Do not buy, because in a Red market we sit mostly in cash and this long is not allowed there.",
@@ -3204,8 +3204,8 @@
    "choices": [
     "Skip it; the limit is 10%",
     "Skip it; the limit is 5%",
-    "Buy it; the pattern decides",
-    "Buy at half size to be safe"
+    "Buy it; pattern decides",
+    "Buy half size to be safe"
    ],
    "answer": "Skip it; the limit is 10%",
    "why": "Skip. Our rule: skip a long that is more than 10% above its 10-day average, because it is too stretched to buy. At 12% above, this one is past the line. The card repeats it as an entry test: at entry, no more than 10% above the 10-day average. A clean pattern does not change the distance.",
@@ -3216,9 +3216,9 @@
     "h11"
    ],
    "wrong": {
-    "Buy it; the pattern decides": "The pattern is the trigger, not the whole rule. The stretch rule still applies at the fill.",
-    "Buy at half size to be safe": "Size does not fix a stretched entry. The rule is skip.",
-    "Skip it; the limit is 5%": "The action is right, but the line is wrong. Our limit is 10% above the 10-day average, not 5%."
+    "Skip it; the limit is 5%": "The action is right, but the line is wrong. Our limit is 10% above the 10-day average, not 5%.",
+    "Buy it; pattern decides": "The pattern is the trigger, not the whole rule. The stretch rule still applies at the fill.",
+    "Buy half size to be safe": "Size does not fix a stretched entry. The rule is skip."
    },
    "house": true,
    "simple": "Skip it, because a long more than 10% above its 10-day average is too stretched to buy.",
@@ -3460,8 +3460,8 @@
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
     "Market 22.71; stop 22.30; third at 3R",
-    "Limit 21.22; stop 19.80; sell all at 2R",
-    "Market at close; stop 19.80; hold all",
+    "Limit 21.22; stop 19.80; all at 2R",
+    "Market close; stop 19.80; hold all",
     "Market 22.71; stop 22.30; all at 5R"
    ],
    "answer": "Market 22.71; stop 22.30; third at 3R",
@@ -3479,8 +3479,8 @@
     "h18"
    ],
    "wrong": {
-    "Limit 21.22; stop 19.80; sell all at 2R": "A limit at the neckline sits well under price and does not buy the trigger. 19.80 is the undercut low, the invalidation line, not the stop. The hard rule is a third at 3R, not all at 2R.",
-    "Market at close; stop 19.80; hold all": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop.",
+    "Limit 21.22; stop 19.80; all at 2R": "A limit at the neckline sits well under price and does not buy the trigger. 19.80 is the undercut low, the invalidation line, not the stop. The hard rule is a third at 3R, not all at 2R.",
+    "Market close; stop 19.80; hold all": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop.",
     "Market 22.71; stop 22.30; all at 5R": "The entry and stop are right, but the first trim is a third at 3R, not everything at 5R. The hard rule is a third at 3R, a third at 5R, then trail the rest."
    },
    "house": true,
@@ -4000,7 +4000,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers match d21. 'Neckline still holds' closes the other reading. Two Yes, two No."
+   "notes": "Numbers match d21. 'Neckline still holds' closes the other reading. Two Yes, two No.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",
@@ -4012,7 +4013,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c45, h06, h07, d27, d28 support it. 107.59 buy, 104.59 stop (3.00 risk), open 96.73 is about 3.6R, so past 2R holds. Wrong notes grounded."
+   "notes": "c45, h06, h07, d27, d28 support it. 107.59 buy, 104.59 stop (3.00 risk), open 96.73 is about 3.6R, so past 2R holds. Wrong notes grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -4092,7 +4094,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "$12 passes, $6M fails h09/B23 $20M; numbers from question and h09. No tell, distractors handled."
+   "notes": "$12 passes, $6M fails h09/B23 $20M; numbers from question and h09. No tell, distractors handled.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -4182,13 +4185,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c34 and h32 support no Red buy; shorts are only below the 200-day (h10). Note for the set: q31's wrong note says the market reading 'decides size, not whether a leader may be bought', which clashes with q20 and q55 (Orange A+ only, Red no buy). q31 is outside this check but should be reworded."
+   "notes": "c34 and h32 support no Red buy; shorts are only below the 200-day (h10). Note for the set: q31's wrong note says the market reading 'decides size, not whether a leader may be bought', which clashes with q20 and q55 (Orange A+ only, Red no buy). q31 is outside this check but should be reworded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "10% from c52 and h13; 12% is in the stem. 5% is a clean wrong line."
+   "notes": "10% from c52 and h13; 12% is in the stem. 5% is a clean wrong line.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
@@ -4224,7 +4229,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: d03 fill 22.71, stop 22.30 = 5 cents under 22.35, third at 3R (h05); '23.7R at best' matches the dossier's Best R definition. But the why says 'in regular hours' and 'with a real stop order' and neither is in the cited facts; h23 (E58) and h18 (D41) are in the lesson and must be cited."
+   "notes": "Key right: d03 fill 22.71, stop 22.30 = 5 cents under 22.35, third at 3R (h05); '23.7R at best' matches the dossier's Best R definition. But the why says 'in regular hours' and 'with a real stop order' and neither is in the cited facts; h23 (E58) and h18 (D41) are in the lesson and must be cited.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q63": {
    "status": "pass",

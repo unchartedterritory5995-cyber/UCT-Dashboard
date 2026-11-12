@@ -1067,9 +1067,9 @@
    "q": "Which backdrop does our card list as a cue for a wick play?",
    "choices": [
     "A leading group, monthly chart set up",
-    "A beaten-down group due for a rebound",
-    "A quiet group with no news for months",
-    "Any group, as long as the daily is clean"
+    "A beaten-down group due to rebound",
+    "A quiet group, no news for months",
+    "Any group, if the daily is clean"
    ],
    "answer": "A leading group, monthly chart set up",
    "why": "A leading group, with the weekly and monthly charts set up. Our card lists a leading group with fresh explosions (gaps, volume), and the weekly and monthly charts set up, as a cue. Our rule buys leaders in one of the strongest groups. Buying a laggard is a named mistake on our card.",
@@ -1082,9 +1082,9 @@
     "tp6"
    ],
    "wrong": {
-    "A beaten-down group due for a rebound": "The cue is a leading group. TaPlot says to use the wick play in true market leaders, and our rule buys leaders.",
-    "A quiet group with no news for months": "The cue names fresh explosions, gaps and volume. A quiet group shows none.",
-    "Any group, as long as the daily is clean": "The backdrop counts. Not every wick play is buyable, and the cue asks for the weekly and monthly set up too."
+    "A beaten-down group due to rebound": "The cue is a leading group. TaPlot says to use the wick play in true market leaders, and our rule buys leaders.",
+    "A quiet group, no news for months": "The cue names fresh explosions, gaps and volume. A quiet group shows none.",
+    "Any group, if the daily is clean": "The backdrop counts. Not every wick play is buyable, and the cue asks for the weekly and monthly set up too."
    },
    "house": true,
    "simple": "A leading group with the weekly and monthly charts set up, because our card lists that backdrop as a cue.",
@@ -2262,8 +2262,8 @@
    "q": "Which setup grades higher?",
    "choices": [
     "A, stronger on each of the cues",
-    "B, its wider stop gives more room",
-    "The same, since both are leaders",
+    "B, its wider stop gives room",
+    "The same, as both are leaders",
     "B, a Yellow market is calmer"
    ],
    "answer": "A, stronger on each of the cues",
@@ -2278,8 +2278,8 @@
     "h14"
    ],
    "wrong": {
-    "B, its wider stop gives more room": "A wider stop only means a smaller size, and B's market is weaker too.",
-    "The same, since both are leaders": "Both pass our leader rule, but the cues still differ. A is the true leader, with the tighter stop and the Green market.",
+    "B, its wider stop gives room": "A wider stop only means a smaller size, and B's market is weaker too.",
+    "The same, as both are leaders": "Both pass our leader rule, but the cues still differ. A is the true leader, with the tighter stop and the Green market.",
     "B, a Yellow market is calmer": "Our card lists Green as the stronger cue and Yellow as the weaker one."
    },
    "story": "Setup A: RS 93 in the strongest group, a 1.4% stop, a Green market. Setup B: RS 85 in a strong group, a 4.1% stop, a Yellow market.",
@@ -2681,9 +2681,9 @@
    "q": "Do you buy?",
    "choices": [
     "No, not outside regular hours",
-    "Yes, the trigger printed early",
-    "Yes, if you use a limit order",
-    "No, premarket resets the trigger"
+    "Yes, the trigger came early",
+    "Yes, if you use limit orders",
+    "No, it resets the trigger"
    ],
    "answer": "No, not outside regular hours",
    "why": "No. We make no new buys outside regular trading hours, and 8:15 in premarket is outside them. Entries are market orders, placed in the regular session. The trigger stays day 2's high, and the buy waits for the regular session.",
@@ -2694,9 +2694,9 @@
     "cTrig"
    ],
    "wrong": {
-    "Yes, the trigger printed early": "Price over the trigger in premarket is not a buy. No new buys outside regular hours.",
-    "Yes, if you use a limit order": "A limit order is still a new buy outside regular hours, and our entries are market orders.",
-    "No, premarket resets the trigger": "The trigger stays the prior day's high. The rule only stops a new buy outside regular hours."
+    "Yes, the trigger came early": "Price over the trigger in premarket is not a buy. No new buys outside regular hours.",
+    "Yes, if you use limit orders": "A limit order is still a new buy outside regular hours, and our entries are market orders.",
+    "No, it resets the trigger": "The trigger stays the prior day's high. The rule only stops a new buy outside regular hours."
    },
    "story": "On day 3, price trades over day 2's high at 8:15 in the morning, in premarket.",
    "house": true,
@@ -2932,9 +2932,9 @@
    "q": "What do you do on day 3?",
    "choices": [
     "Buy; 3.72% is inside the 4% limit",
-    "Skip; the open is past the 4% limit",
-    "Buy, with the stop under day 1's low",
-    "Buy, raising the stop to keep size"
+    "Skip; the open is past 4%",
+    "Buy, stop under day 1's low",
+    "Buy, raise the stop to keep size"
    ],
    "answer": "Buy; 3.72% is inside the 4% limit",
    "why": "Buy. We skip only an open more than 4% over the trigger. 25.90 is 3.72% over 24.97, inside that. The buy goes in at market. The stop stays a few cents under day 2's low. So the stop is wider and the shares fewer for the same risk.",
@@ -2948,9 +2948,9 @@
     "mStop"
    ],
    "wrong": {
-    "Buy, raising the stop to keep size": "The stop stays under the buy point. Chasing costs size, not risk: the shares shrink.",
-    "Buy, with the stop under day 1's low": "Moving the stop under day 1's low is a named mistake. The stop stays a few cents under day 2's low.",
-    "Skip; the open is past the 4% limit": "25.90 is 3.72% over 24.97. We skip only an open more than 4% over the trigger, so this is inside it."
+    "Buy, raise the stop to keep size": "The stop stays under the buy point. Chasing costs size, not risk: the shares shrink.",
+    "Buy, stop under day 1's low": "Moving the stop under day 1's low is a named mistake. The stop stays a few cents under day 2's low.",
+    "Skip; the open is past 4%": "25.90 is 3.72% over 24.97. We skip only an open more than 4% over the trigger, so this is inside it."
    },
    "story": "Day 2's high is 24.96, so the trigger is 24.97. On day 3 the stock opens at 25.90, above that trigger.",
    "house": true,
@@ -3100,9 +3100,9 @@
    "story": "A clean wick play. Day 2 was quiet, with 300,000 shares traded. The stock averages 1,200,000 shares a day. Your risk math says 20,000 shares, under the 40% cap.",
    "choices": [
     "12,000 shares, 1% of the average",
-    "3,000 shares, 1% of day 2's volume",
-    "20,000 shares, the risk math allows",
-    "20,000 shares, bought over two days"
+    "3,000 shares, 1% of day 2",
+    "20,000 shares, risk math allows",
+    "20,000 shares, over two days"
    ],
    "answer": "12,000 shares, 1% of the average",
    "why": "12,000. We never own more than 1% of a stock's average daily volume, and 1% of 1,200,000 is 12,000. The risk math gives a size first, then the caps trim it, so the smallest number wins. The 40% cap does not bind here. One quiet day does not set the volume cap. The average does.",
@@ -3113,9 +3113,9 @@
     "h32"
    ],
    "wrong": {
-    "3,000 shares, 1% of day 2's volume": "The cap uses the average daily volume, not one quiet day.",
-    "20,000 shares, the risk math allows": "The risk-based size is then capped. 20,000 is over 1% of the average daily volume.",
-    "20,000 shares, bought over two days": "The cap is on what you own, not on one day's buying. Never own more than 1% of the average daily volume."
+    "3,000 shares, 1% of day 2": "The cap uses the average daily volume, not one quiet day.",
+    "20,000 shares, risk math allows": "The risk-based size is then capped. 20,000 is over 1% of the average daily volume.",
+    "20,000 shares, over two days": "The cap is on what you own, not on one day's buying. Never own more than 1% of the average daily volume."
    },
    "house": true,
    "calc": {
@@ -3241,7 +3241,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cGrp verbatim on the card; key is the card's cue. Distractors fail for different reasons (weak group, no explosions, ignores weekly and monthly). h14, mLag, tp5, tp6 on file."
+   "notes": "cGrp verbatim on the card; key is the card's cue. Distractors fail for different reasons (weak group, no explosions, ignores weekly and monthly). h14, mLag, tp5, tp6 on file.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -3424,7 +3425,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "gL1, gS1, gM1 against gS2, gM2 verbatim; every cue favours A, so the comparison holds even under E50's discretionary grading. Lesson hedged ('tend to')."
+   "notes": "gL1, gS1, gM1 against gS2, gM2 verbatim; every cue favours A, so the comparison holds even under E50's discretionary grading. Lesson hedged ('tend to').",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -3485,7 +3487,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no, not outside regular hours (h23). Notes clean. For whoever owns q63 (not in this set): q63's why says 'It goes in only during regular trading hours', which states q54's key at the same rung 3."
+   "notes": "Own answer: no, not outside regular hours (h23). Notes clean. For whoever owns q63 (not in this set): q63's why says 'It goes in only during regular trading hours', which states q54's key at the same rung 3.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",
@@ -3528,7 +3531,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (3.72% < 4%; calc checks: 0.93 / 24.97 = 3.72). Tell: the key is the only choice carrying a number and it does the arithmetic for the member ('3.72% is inside the 4% limit'), so the calc is never tested; the lone Skip is a weak foil. Key and a mirrored Skip now both name the limit without the number, so the member must compute. why, simple, calc unchanged."
+   "notes": "Key right (3.72% < 4%; calc checks: 0.93 / 24.97 = 3.72). Tell: the key is the only choice carrying a number and it does the arithmetic for the member ('3.72% is inside the 4% limit'), so the calc is never tested; the lone Skip is a weak foil. Key and a mirrored Skip now both name the limit without the number, so the member must compute. why, simple, calc unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "w1": {
    "status": "pass",
@@ -3575,7 +3579,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 12,000 (1% of 1,200,000, calc; h19). q62's recall comes at rung 4, before this rung 7 application. Distractors are real (day-2 volume, raw risk size, splitting the buy)."
+   "notes": "Own answer 12,000 (1% of 1,200,000, calc; h19). q62's recall comes at rung 4, before this rung 7 application. Distractors are real (day-2 volume, raw risk size, splitting the buy).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

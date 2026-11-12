@@ -1516,9 +1516,9 @@
    "q": "Is this a spring?",
    "choices": [
     "No; there is no range",
-    "Yes; it closed back up",
-    "Yes; any undercut counts",
-    "No; the volume is wrong"
+    "Yes; it bounced back",
+    "Yes; any dip counts",
+    "No; volume is wrong"
    ],
    "story": "A stock makes a new low every day for two weeks. Then it ticks up and closes above yesterday's low.",
    "answer": "No; there is no range",
@@ -1530,9 +1530,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; it closed back up": "A bounce in a downtrend is not a spring. There is no floor to reclaim.",
-    "No; the volume is wrong": "Volume is not the problem. The missing range is.",
-    "Yes; any undercut counts": "A spring needs a flat range behind the undercut."
+    "Yes; it bounced back": "A bounce in a downtrend is not a spring. There is no floor to reclaim.",
+    "No; volume is wrong": "Volume is not the problem. The missing range is.",
+    "Yes; any dip counts": "A spring needs a flat range behind the undercut."
    },
    "simple": "No, because a stock falling to a new low every day has no flat floor to dip under.",
    "tier": "core",
@@ -2471,9 +2471,9 @@
    "q": "Name each trade.",
    "choices": [
     "A: spring. B: flat base",
-    "A: flat base. B: spring",
-    "Both trades are springs",
-    "Both trades are flat bases"
+    "A: base. B: spring",
+    "Both are springs",
+    "Both are flat bases"
    ],
    "story": "Two traders watch the same flat range. Trader A buys the reclaim at the floor. Trader B buys through the top.",
    "answer": "A: spring. B: flat base",
@@ -2486,9 +2486,9 @@
    ],
    "house": true,
    "wrong": {
-    "A: flat base. B: spring": "It is the other way round. The floor buy is the spring.",
-    "Both trades are springs": "A spring is bought at the floor, not through the top.",
-    "Both trades are flat bases": "A flat base is bought through the top, not at the floor."
+    "A: base. B: spring": "It is the other way round. The floor buy is the spring.",
+    "Both are springs": "A spring is bought at the floor, not through the top.",
+    "Both are flat bases": "A flat base is bought through the top, not at the floor."
    },
    "simple": "A bought a spring at the floor, and B bought a flat base through the top of the same range.",
    "deeper": {
@@ -2515,9 +2515,9 @@
    "q": "Which setup is this?",
    "choices": [
     "An Oops Reversal",
-    "A spring off a low",
-    "A capitulation low",
-    "A failed breakout"
+    "A spring low",
+    "A capitulation",
+    "A failed break"
    ],
    "story": "After a short dip with no range behind it, a stock trades under the prior day's low. In the same session it closes back above the prior day's close.",
    "answer": "An Oops Reversal",
@@ -2530,9 +2530,9 @@
    ],
    "house": true,
    "wrong": {
-    "A spring off a low": "A spring breaks the floor of a range. This broke only the prior day's low.",
-    "A capitulation low": "A capitulation is a 2 ATR flush on 2x volume. A short dip is not one.",
-    "A failed breakout": "A failed breakout is a break above a level that falls back. This broke a low."
+    "A spring low": "A spring breaks the floor of a range. This broke only the prior day's low.",
+    "A capitulation": "A capitulation is a 2 ATR flush on 2x volume. A short dip is not one.",
+    "A failed break": "A failed breakout is a break above a level that falls back. This broke a low."
    },
    "simple": "It is an Oops Reversal, because it broke only the prior day's low, not the floor of a range.",
    "tier": "extended",
@@ -2755,9 +2755,9 @@
    "q": "Hidden ticker. The last bar undercut a recent low and closed back above it. On the pattern alone, take it or pass?",
    "choices": [
     "Take it; flat floor, modest dip",
-    "Pass; there is no range behind it",
-    "Pass; the dip is a real breakdown",
-    "Take it; it sprang on heavy volume"
+    "Pass; there is no range",
+    "Pass; the dip is a breakdown",
+    "Take it; the volume was heavy"
    ],
    "answer": "Take it; flat floor, modest dip",
    "why": "Take it. A flat range 7.2% tall with five floor touches. Then one probe 0.75 ATR under the floor closed back inside on 0.96x volume. The dip sits inside our 0.1 to 1 ATR band, far from the over 2 ATR of a breakdown. Take it means a spring worth the plan, not an order at that bar.",
@@ -2770,9 +2770,9 @@
    ],
    "house": true,
    "wrong": {
-    "Pass; there is no range behind it": "Look again: the floor was touched five times.",
-    "Pass; the dip is a real breakdown": "A breakdown is over 2 ATR. This probe was 0.75 ATR.",
-    "Take it; it sprang on heavy volume": "Volume was 0.96x, about normal, not heavy. The flat floor and the modest dip make this one."
+    "Pass; there is no range": "Look again: the floor was touched five times.",
+    "Pass; the dip is a breakdown": "A breakdown is over 2 ATR. This probe was 0.75 ATR.",
+    "Take it; the volume was heavy": "Volume was 0.96x, about normal, not heavy. The flat floor and the modest dip make this one."
    },
    "chart": {
     "sym": "ODFL",
@@ -3156,9 +3156,9 @@
    "q": "Fraser calls this a classic place to add. What do we do?",
    "choices": [
     "No add; one price, one stop",
-    "Add half the size, same stop",
-    "Double up and raise the stop",
-    "No add; sell into the pullback"
+    "Add half size, same stop",
+    "Double up, raise the stop",
+    "No add; sell the pullback"
    ],
    "answer": "No add; one price, one stop",
    "why": "No add. Fraser calls the back-up a classic place to add. ChartSchool calls a last point of support a place to start or add. Our rule replaced that view: the full size at one price with one stop, and no adding. You hold, and the stop is the exit.",
@@ -3171,9 +3171,9 @@
     "h02"
    ],
    "wrong": {
-    "Add half the size, same stop": "No adding. The plan is the full size at one price with one stop.",
-    "Double up and raise the stop": "The plan has no adds, however the stop moves.",
-    "No add; sell into the pullback": "The stop is the exit, not a pullback. A light-volume dip that holds the old top is a sign of support."
+    "Add half size, same stop": "No adding. The plan is the full size at one price with one stop.",
+    "Double up, raise the stop": "The plan has no adds, however the stop moves.",
+    "No add; sell the pullback": "The stop is the exit, not a pullback. A light-volume dip that holds the old top is a sign of support."
    },
    "house": true,
    "story": "You hold a long from the spring. The stock has pushed to the top of the range and now pulls back on light volume, holding the old top.",
@@ -3670,7 +3670,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c23 verbatim covers the exact story; volume distractor is clearly off since the story gives no volume."
+   "notes": "c23 verbatim covers the exact story; volume distractor is clearly off since the story gives no volume.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -3767,7 +3768,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c30 and c31; choices balanced (22 to 26). The deeper's mixed-plan line overlaps q32, which sits at an earlier rung (5)."
+   "notes": "Key from c30 and c31; choices balanced (22 to 26). The deeper's mixed-plan line overlaps q32, which sits at an earlier rung (5).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -3841,7 +3843,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c32/c33 verbatim; story matches the card's Oops definition exactly."
+   "notes": "c32/c33 verbatim; story matches the card's Oops definition exactly.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -3866,7 +3869,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d19/d20 give 7.2%, five touches, 0.75 ATR, 0.96x; c09/c10 the band. Stem now limits the call to the pattern. Chart asof is the spring day; no ticker or date in the text."
+   "notes": "d19/d20 give 7.2%, five touches, 0.75 ATR, 0.96x; c09/c10 the band. Stem now limits the call to the pattern. Chart asof is the spring day; no ticker or date in the text.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",
@@ -3975,7 +3979,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A5 (h28b) over Fraser's f08 and ChartSchool's t07, named as the view our rulebook replaced. Note: its story describes q66's key (the back-up); q66 is rung 3 and unchanged, so left as a teach-then-apply pair."
+   "notes": "A5 (h28b) over Fraser's f08 and ChartSchool's t07, named as the view our rulebook replaced. Note: its story describes q66's key (the back-up); q66 is rung 3 and unchanged, so left as a teach-then-apply pair.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q68": {
    "status": "pass",

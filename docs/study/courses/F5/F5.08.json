@@ -922,9 +922,9 @@
    "q": "Netflix, first quarter 2022: EPS of $3.53. The Refinitiv consensus was $2.89. How does EPS read?",
    "choices": [
     "A beat: above the consensus",
-    "A miss: below the consensus",
-    "In line: near the consensus",
-    "A miss: below last year's EPS"
+    "Miss: below the consensus",
+    "In line: near consensus",
+    "A miss: below last year"
    ],
    "answer": "A beat: above the consensus",
    "why": "A beat. Actual above the estimate is a beat, below is a miss, and equal is in line. $3.53 is above the $2.89 Refinitiv consensus. Last year's $3.75 does not enter it: beat and miss compare with the estimate. The $3.53 included a $162 million non-cash currency gain, so take care with the size of the beat.",
@@ -936,9 +936,9 @@
     "f02"
    ],
    "wrong": {
-    "A miss: below the consensus": "$3.53 is above $2.89, not below it. Below the consensus would be a miss.",
-    "In line: near the consensus": "In line means equal to the estimate, not near it. $3.53 and $2.89 are far apart.",
-    "A miss: below last year's EPS": "Netflix did earn $3.75 a year earlier. But beat and miss compare with the estimate, not with last year."
+    "Miss: below the consensus": "$3.53 is above $2.89, not below it. Below the consensus would be a miss.",
+    "In line: near consensus": "In line means equal to the estimate, not near it. $3.53 and $2.89 are far apart.",
+    "A miss: below last year": "Netflix did earn $3.75 a year earlier. But beat and miss compare with the estimate, not with last year."
    },
    "simple": "It is a beat, because $3.53 is above the $2.89 that analysts expected.",
    "tier": "core",
@@ -1831,7 +1831,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: beat ($3.53 > $2.89, f13/f20, rule f02). Matches key. Choices 27-29 chars, parallel 'verdict: reason', key not longest, no lone hedge. Last-year distractor is a real misconception, $3.75 from f10, refuted by f02. Why and wrong-notes all grounded (f02, f10, f13). The why now states 'compare with the estimate, not last year', the rule q11 tests on Meta; that is teaching a rule before it is used on a new case, not giving q11's answer."
+   "notes": "Own answer: beat ($3.53 > $2.89, f13/f20, rule f02). Matches key. Choices 27-29 chars, parallel 'verdict: reason', key not longest, no lone hedge. Last-year distractor is a real misconception, $3.75 from f10, refuted by f02. Why and wrong-notes all grounded (f02, f10, f13). The why now states 'compare with the estimate, not last year', the rule q11 tests on Meta; that is teaching a rule before it is used on a new case, not giving q11's answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",

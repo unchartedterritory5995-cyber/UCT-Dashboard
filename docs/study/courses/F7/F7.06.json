@@ -897,9 +897,9 @@
    "q": "Who sets the target range for the federal funds rate?",
    "choices": [
     "The Fed's FOMC",
-    "The US Treasury",
-    "The US Congress",
-    "Banks, by trading"
+    "The Treasury",
+    "Congress",
+    "Bank trading"
    ],
    "answer": "The Fed's FOMC",
    "why": "The Fed's FOMC. It sets the target range for trading in the federal funds market. Changing that target is its main policy tool. Daily trading between banks then sets the effective rate, a volume-weighted median of real overnight trades. Neither Congress nor the Treasury sets the range.",
@@ -911,9 +911,9 @@
     "f4"
    ],
    "wrong": {
-    "The US Treasury": "Treasury doesn't set it. The FOMC establishes the target range for trading in the fed funds market.",
-    "The US Congress": "The Federal Reserve Act sets the Fed's goals. Setting the target range is the FOMC's job.",
-    "Banks, by trading": "Bank trading sets the effective rate each day. The target range it trades against is the FOMC's call."
+    "The Treasury": "Treasury doesn't set it. The FOMC establishes the target range for trading in the fed funds market.",
+    "Congress": "The Federal Reserve Act sets the Fed's goals. Setting the target range is the FOMC's job.",
+    "Bank trading": "Bank trading sets the effective rate each day. The target range it trades against is the FOMC's call."
    },
    "simple": "The Fed's rate-setting group, the FOMC, sets the target range at its meetings.",
    "tier": "core",
@@ -1773,7 +1773,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided FOMC before reading the key; f34 re-read live on the NY Fed EFFR page (verbatim), f35 verbatim. Trading sets the effective rate, not the range, so 'Banks, by trading' is wrong without ambiguity. Key is the shortest choice. The why no longer gives away q04's meeting count. A small leak remains: the 'Banks, by trading' choice and the effective-rate sentence show that fed funds trades between banks, which points to q02's key. w1 step 1 already teaches this before any question, and removing it would mean dropping a real distractor, so it was left as is."
+   "notes": "Decided FOMC before reading the key; f34 re-read live on the NY Fed EFFR page (verbatim), f35 verbatim. Trading sets the effective rate, not the range, so 'Banks, by trading' is wrong without ambiguity. Key is the shortest choice. The why no longer gives away q04's meeting count. A small leak remains: the 'Banks, by trading' choice and the effective-rate sentence show that fed funds trades between banks, which points to q02's key. w1 step 1 already teaches this before any question, and removing it would mean dropping a real distractor, so it was left as is.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",

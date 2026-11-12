@@ -1824,8 +1824,8 @@
    "q": "What's the read, and what do you do?",
    "choices": [
     "Bottom isn't in. Let your stops work",
-    "A cheaper entry. Add to both leaders",
-    "Just a shakeout. Move your stops lower",
+    "A cheaper entry. Add to the leaders",
+    "Just a shakeout. Lower your stops",
     "The buy signal stands. Cancel stops"
    ],
    "answer": "Bottom isn't in. Let your stops work",
@@ -1842,8 +1842,8 @@
     "h3"
    ],
    "wrong": {
-    "A cheaper entry. Add to both leaders": "Worse internals at a new low say the bottom isn't in yet. And our rule is no adding: the full size goes on at one price, with one stop.",
-    "Just a shakeout. Move your stops lower": "Worse internals at the new low say the bottom isn't in yet. And our stop only moves up, never down or wider.",
+    "A cheaper entry. Add to the leaders": "Worse internals at a new low say the bottom isn't in yet. And our rule is no adding: the full size goes on at one price, with one stop.",
+    "Just a shakeout. Lower your stops": "Worse internals at the new low say the bottom isn't in yet. And our stop only moves up, never down or wider.",
     "The buy signal stands. Cancel stops": "Follow-through days are not foolproof, and this one is failing. Our rule: every position keeps a real stop order with the broker."
    },
    "deeper": {
@@ -2080,7 +2080,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I got the key on my own. f78 (worse internals at a new low: the bottom isn't in) gives the read, and section 9 gives the action. A4 (h1) says the stop is the exit and only moves up. A5 (h2) says no adding. D41 (h3) says every position has a real stop order. The owner's answer in sizing_rule.md ('my stop is my stop most of the time') also backs 'let your stops work' over a discretionary cut. I checked the h1-h3 quotes: they are verbatim in section 9. Each distractor breaks a house rule in its action: add, lower the stop, cancel stops. So even the defensible-sounding 'shakeout' read stays wrong."
+   "notes": "I got the key on my own. f78 (worse internals at a new low: the bottom isn't in) gives the read, and section 9 gives the action. A4 (h1) says the stop is the exit and only moves up. A5 (h2) says no adding. D41 (h3) says every position has a real stop order. The owner's answer in sizing_rule.md ('my stop is my stop most of the time') also backs 'let your stops work' over a discretionary cut. I checked the h1-h3 quotes: they are verbatim in section 9. Each distractor breaks a house rule in its action: add, lower the stop, cancel stops. So even the defensible-sounding 'shakeout' read stays wrong.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",

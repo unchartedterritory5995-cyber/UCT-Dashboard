@@ -831,9 +831,9 @@
    "q": "In one line, what is a mean-reversion long?",
    "choices": [
     "A bounce after a short, fast drop",
-    "A breakout from a quiet, flat base",
-    "A hold for months in a rising leader",
-    "Buying any stock that is down a lot"
+    "A breakout of a quiet, flat base",
+    "A hold for months in a leader",
+    "Buying any stock down a lot"
    ],
    "answer": "A bounce after a short, fast drop",
    "why": "A bounce after a short, fast drop. Our card defines it as a swing trade against a short, unusually fast move, aimed at a return to a short average. Stockbee: extreme strength or weakness tends to mean revert in short time frames. It is not a breakout and not a long hold. Nor is it any falling stock: the leader flush needs a leader above its 200-day and 50-day.",
@@ -844,9 +844,9 @@
     "cA"
    ],
    "wrong": {
-    "A breakout from a quiet, flat base": "That is a base breakout. Mean reversion buys after a drop, not after quiet.",
-    "A hold for months in a rising leader": "That is a trend hold. This is a swing trade aimed at a short average, so the hold is short.",
-    "Buying any stock that is down a lot": "A big fall is not enough. The leader flush needs a leader above its 200-day and 50-day, up at least 25% first."
+    "A breakout of a quiet, flat base": "That is a base breakout. Mean reversion buys after a drop, not after quiet.",
+    "A hold for months in a leader": "That is a trend hold. This is a swing trade aimed at a short average, so the hold is short.",
+    "Buying any stock down a lot": "A big fall is not enough. The leader flush needs a leader above its 200-day and 50-day, up at least 25% first."
    },
    "house": true,
    "simple": "It is a short bounce trade after a stock drops unusually fast, aimed at a snap back toward a short average.",
@@ -968,8 +968,8 @@
    "q": "Where does the stop go on a mean-reversion long?",
    "choices": [
     "Just under the flush day's low",
-    "Under the rising 50-day average",
-    "A fixed 5% under your fill price",
+    "Under the rising 50-day line",
+    "A fixed 5% under your entry",
     "Right at the flush day's low"
    ],
    "answer": "Just under the flush day's low",
@@ -982,9 +982,9 @@
     "h01"
    ],
    "wrong": {
-    "A fixed 5% under your fill price": "A fixed percent ignores the chart. The stop comes first, from the flush low, and the size comes from the stop.",
+    "A fixed 5% under your entry": "A fixed percent ignores the chart. The stop comes first, from the flush low, and the size comes from the stop.",
     "Right at the flush day's low": "Our rule puts the stop a few cents under the day's low, not exactly on it.",
-    "Under the rising 50-day average": "The stop comes from the flush low, not from an average. It goes a few cents under the flush low, or the turn day's low if that is lower."
+    "Under the rising 50-day line": "The stop comes from the flush low, not from an average. It goes a few cents under the flush low, or the turn day's low if that is lower."
    },
    "house": true,
    "simple": "The stop goes a few cents under the flush day's low, not right on it.",
@@ -1216,8 +1216,8 @@
    "choices": [
     "A market order now",
     "A limit 2% lower",
-    "A stop over the high",
-    "Wait for the close"
+    "A breakout stop",
+    "Wait for a close"
    ],
    "answer": "A market order now",
    "why": "A market order. Our entries are market orders, placed in regular trading hours. Raschke also uses market orders most of the time. A limit below the market, or waiting for a later break, can miss the turn you planned for.",
@@ -1230,9 +1230,9 @@
     "ku1"
    ],
    "wrong": {
-    "Wait for the close": "The turn has already printed, and the turn is the trigger. Waiting for the close buys later, at a price you cannot know yet.",
+    "Wait for a close": "The turn has already printed, and the turn is the trigger. Waiting for the close buys later, at a price you cannot know yet.",
     "A limit 2% lower": "Entries are market orders. A limit below the market can miss the turn.",
-    "A stop over the high": "That waits for a break of a high, like Kullamagi's opening range entry. Our entries are market orders, and the turn is the trigger."
+    "A breakout stop": "That waits for a break of a high, like Kullamagi's opening range entry. Our entries are market orders, and the turn is the trigger."
    },
    "house": true,
    "simple": "Use a market order, because our rule is that every entry is a market order in regular trading hours.",
@@ -1872,8 +1872,8 @@
    "choices": [
     "No, only the second down day",
     "Yes, it broke the 50-day",
-    "Yes, the gap down is the flush",
-    "No, it is under the 50-day now"
+    "Yes, the gap is the flush",
+    "No, it is under the 50-day"
    ],
    "answer": "No, only the second down day",
    "why": "No. The card skips a flush on only the first or second down day. It also skips a slow decline without range or volume expansion. This is day two on average volume. Mark 4 needs 3 or more straight down closes. Breaking the 50-day is not a stretch mark, and form A checks the 50-day the day before the flush.",
@@ -1890,8 +1890,8 @@
    ],
    "wrong": {
     "Yes, it broke the 50-day": "Breaking the 50-day is not a stretch mark. Day two is a skip.",
-    "Yes, the gap down is the flush": "A gap on day two is still day two. The card skips the first or second down day.",
-    "No, it is under the 50-day now": "Form A checks the 50-day the day before the flush, and it closed above it yesterday. The problem is too few down days."
+    "Yes, the gap is the flush": "A gap on day two is still day two. The card skips the first or second down day.",
+    "No, it is under the 50-day": "Form A checks the 50-day the day before the flush, and it closed above it yesterday. The problem is too few down days."
    },
    "story": "A leader gaps down 3% on its second straight down day, on average volume. It closed above its 50-day yesterday and sits just under it now.",
    "house": true,
@@ -1955,9 +1955,9 @@
    "q": "What do you do?",
    "choices": [
     "Skip it; over 4% past the trigger",
-    "Buy at market, then widen the stop",
-    "Place a limit at 50.00 and just wait",
-    "Buy fewer shares at the same risk"
+    "Buy at market, widen the stop",
+    "Place a limit at 50.00 and wait",
+    "Buy fewer shares, same risk"
    ],
    "answer": "Skip it; over 4% past the trigger",
    "why": "Skip it. Never buy more than 4% above the buy point, and 52.40 is more than 4% above the 50.00 turn. Chasing costs size, not risk, so inside 4% you would buy fewer shares. Past 4% there is no buy at all. A limit back at 50.00 is not our entry either: entries are market orders. The stop never widens.",
@@ -1968,9 +1968,9 @@
     "h22"
    ],
    "wrong": {
-    "Buy at market, then widen the stop": "The stop only moves up, never wider. And you would be chasing.",
-    "Place a limit at 50.00 and just wait": "Our entries are market orders on the trigger. A limit under the market is hope, not a trigger.",
-    "Buy fewer shares at the same risk": "Fewer shares is what chasing costs inside 4%. Here the price is more than 4% above the trigger, so there is no buy."
+    "Buy at market, widen the stop": "The stop only moves up, never wider. And you would be chasing.",
+    "Place a limit at 50.00 and wait": "Our entries are market orders on the trigger. A limit under the market is hope, not a trigger.",
+    "Buy fewer shares, same risk": "Fewer shares is what chasing costs inside 4%. Here the price is more than 4% above the trigger, so there is no buy."
    },
    "story": "The turn printed at 50.00 while you were in a meeting. You see 52.40 now.",
    "house": true,
@@ -3035,8 +3035,8 @@
    "choices": [
     "Sell the whole position now",
     "Use 36.80 as the new stop",
-    "Hold and wait for the bounce",
-    "Sell half, hold half on 36.80"
+    "Hold and wait for a bounce",
+    "Sell half, stop at 36.80"
    ],
    "answer": "Sell the whole position now",
    "why": "Sell the whole position now. On a gap against the stop, the first 30 minutes decide. The low of the first 30-minute bar becomes the new stop, but only while the loss stays inside 2R. With the buy at 40.00 and the stop at 38.50, a low of 36.80 is past 2R. So the ceiling says get out, all of it.",
@@ -3047,8 +3047,8 @@
    ],
    "wrong": {
     "Use 36.80 as the new stop": "That works only inside 2R. At 36.80 the loss is past 2R, so get out.",
-    "Hold and wait for the bounce": "The stop only moves up, and the gap ceiling is 2R. Past it, get out.",
-    "Sell half, hold half on 36.80": "Past 2R the rule is get out, not trim. No part of it stays on a new stop."
+    "Hold and wait for a bounce": "The stop only moves up, and the gap ceiling is 2R. Past it, get out.",
+    "Sell half, stop at 36.80": "Past 2R the rule is get out, not trim. No part of it stays on a new stop."
    },
    "story": "You bought at 40.00 with the stop at 38.50. The stock gaps down and the first 30 minutes make a low of 36.80, still falling.",
    "house": true,
@@ -3449,7 +3449,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from cDef and bo4 before reading it. One right answer; choices 33-36 chars; wrong notes grounded (cA). 'any' in a wrong choice is a mild absolute, acceptable."
+   "notes": "Key re-derived from cDef and bo4 before reading it. One right answer; choices 33-36 chars; wrong notes grounded (cA). 'any' in a wrong choice is a mild absolute, acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3473,7 +3474,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per cK, h24, F62. Right-at-the-low vs just-under is a real misconception. Kell's stop (ke2) is supporting only. Its why teaches the lower-of rule that q17 then applies, which is teaching, not a give-away of q17's choices."
+   "notes": "Key per cK, h24, F62. Right-at-the-low vs just-under is a real misconception. Kell's stop (ke2) is supporting only. Its why teaches the lower-of rule that q17 then applies, which is teaching, not a give-away of q17's choices.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -3515,7 +3517,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market order per h22/E57 after the turn has printed (cJ). One right answer; wrong notes grounded (ku1 re-verified on qullamaggie.com). ra4 (Raschke, market orders) could not be re-read this run: the Discerning-trader PDF is a scan with no text layer; it is supporting only, not the key."
+   "notes": "Market order per h22/E57 after the turn has printed (cJ). One right answer; wrong notes grounded (ku1 re-verified on qullamaggie.com). ra4 (Raschke, market orders) could not be re-read this run: the Discerning-trader PDF is a scan with no text layer; it is supporting only, not the key.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3625,7 +3628,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cG skips the second down day. The story meets form A yesterday, so the 'under the 50-day now' choice fails on cA. The why is grounded."
+   "notes": "cG skips the second down day. The story meets form A yesterday, so the 'under the 50-day now' choice fails on cA. The why is grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -3637,7 +3641,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3807,7 +3812,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",

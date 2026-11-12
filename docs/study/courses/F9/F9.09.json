@@ -1332,9 +1332,9 @@
    "q": "What do you do?",
    "choices": [
     "Pass until you have your own plan",
-    "Buy a small starter, plan it after",
-    "Buy. The alert is from a good trader",
-    "Pass. Never trade an alerted stock"
+    "Buy a starter, plan it after",
+    "Buy. A good trader sent it",
+    "Pass. Never trade alerted stocks"
    ],
    "answer": "Pass until you have your own plan",
    "why": "Pass until you have your own plan. Never take a trade from an alert, a post or a video without your own entry, stop and size by our rules. The alert is a reason to look, not a reason to buy. If it runs before you have a plan, you miss it.",
@@ -1345,9 +1345,9 @@
     "h27"
    ],
    "wrong": {
-    "Pass. Never trade an alerted stock": "Too strict. The rule bars a trade without your own entry, stop and size. A stock you plan yourself, by every rule, is fair game.",
-    "Buy a small starter, plan it after": "A starter with no stop and no size is a trade with no plan. Never trade an alert without your own entry, stop and size.",
-    "Buy. The alert is from a good trader": "Their plan isn't yours. You don't know their stop, their size or their account."
+    "Pass. Never trade alerted stocks": "Too strict. The rule bars a trade without your own entry, stop and size. A stock you plan yourself, by every rule, is fair game.",
+    "Buy a starter, plan it after": "A starter with no stop and no size is a trade with no plan. Never trade an alert without your own entry, stop and size.",
+    "Buy. A good trader sent it": "Their plan isn't yours. You don't know their stop, their size or their account."
    },
    "simple": "Pass for now, because you never take a trade from an alert without your own entry, stop and size.",
    "tier": "extended",
@@ -1442,8 +1442,8 @@
    "choices": [
     "No buys outside regular hours",
     "Buy. A trigger is a trigger",
-    "Limit orders only, after hours",
-    "No buys after 3 p.m., any day"
+    "Limits only, after hours",
+    "No buys after 3 p.m. daily"
    ],
    "answer": "No buys outside regular hours",
    "why": "No new buys outside regular trading hours. Regular hours for listed stocks run from 9:30 a.m. to 4 p.m. ET, so 4:35 p.m. is extended-hours trading. The next day's open is set by supply and demand at the open, so the after-hours price may not hold. The order type doesn't change this. Inside regular hours, we have no time-of-day rule.",
@@ -1459,8 +1459,8 @@
    ],
    "wrong": {
     "Buy. A trigger is a trigger": "A trigger after hours is in extended-hours trading, and the next day's open can land somewhere else. The rule waits for regular hours.",
-    "Limit orders only, after hours": "The order type doesn't change the rule. The session matters, and our entries are market orders anyway.",
-    "No buys after 3 p.m., any day": "We have no time-of-day rule. Regular hours run from 9:30 a.m. to 4 p.m. ET, and this trigger came after 4."
+    "Limits only, after hours": "The order type doesn't change the rule. The session matters, and our entries are market orders anyway.",
+    "No buys after 3 p.m. daily": "We have no time-of-day rule. Regular hours run from 9:30 a.m. to 4 p.m. ET, and this trigger came after 4."
    },
    "simple": "No buys, because 4:35 is after regular hours end at 4, and we make no new buys outside them.",
    "deeper": {
@@ -1834,7 +1834,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass by h29; 'never' choice wrong by h29's own scope. Same-day plan vs D39 left with the owner flag; key avoids keying it."
+   "notes": "Pass by h29; 'never' choice wrong by h29's own scope. Same-day plan vs D39 left with the owner flag; key avoids keying it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -1852,7 +1853,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No buys by h24 + f03. '3 p.m.' choice wrong by h34; order-type note by h23. Two-two polarity."
+   "notes": "No buys by h24 + f03. '3 p.m.' choice wrong by h34; order-type note by h23. Two-two polarity.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",

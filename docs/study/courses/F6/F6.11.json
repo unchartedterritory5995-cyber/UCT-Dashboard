@@ -655,9 +655,9 @@
    "q": "You own a put. What do you want the stock to do?",
    "choices": [
     "Fall sharply before expiry",
-    "Rise, so the put gains value",
-    "Stay flat while time passes",
-    "Finish just below the strike"
+    "Rise, so the put gains",
+    "Stay flat as time passes",
+    "End just below the strike"
    ],
    "answer": "Fall sharply before expiry",
    "why": "Fall sharply, and soon. A put buyer is looking for a sharp decline in the stock during the life of the option. The time horizon ends at expiry, and as it nears, the chances of further gains shrink. A put loses value as the stock rises.",
@@ -672,9 +672,9 @@
     "f47"
    ],
    "wrong": {
-    "Rise, so the put gains value": "That's backward. A put profits from a fall in the stock, and loses value as it rises.",
-    "Stay flat while time passes": "Time works against the buyer. As expiry nears, the chances of further gains shrink.",
-    "Finish just below the strike": "At expiry, just below the strike, the put is in the money but likely still a net loss. It profits only below the strike minus the premium."
+    "Rise, so the put gains": "That's backward. A put profits from a fall in the stock, and loses value as it rises.",
+    "Stay flat as time passes": "Time works against the buyer. As expiry nears, the chances of further gains shrink.",
+    "End just below the strike": "At expiry, just below the strike, the put is in the money but likely still a net loss. It profits only below the strike minus the premium."
    },
    "simple": "You want the stock to drop fast before expiry, because a put gains on a fall and its time runs out.",
    "tier": "core",
@@ -1037,9 +1037,9 @@
    "q": "How many contracts do you buy?",
    "choices": [
     "3 contracts, $750 in premium",
-    "300 contracts, 750 over 2.50",
-    "As many as your cash will buy",
-    "6 contracts, out if it halves"
+    "300 contracts, 750 / 2.50",
+    "As many as your cash buys",
+    "6 contracts, out if halved"
    ],
    "answer": "3 contracts, $750 in premium",
    "calc": {
@@ -1060,9 +1060,9 @@
     "h3"
    ],
    "wrong": {
-    "300 contracts, 750 over 2.50": "750 divided by 2.50 is 300, but that counts shares. Each contract covers 100 shares.",
-    "As many as your cash will buy": "That sizes by buying power, not risk. If they expire worthless, you could lose more than your planned $750.",
-    "6 contracts, out if it halves": "The story treats the whole premium as the risk, and so does our rule: the premium paid is the stop. At 2.50 times 100 shares each, $750 covers 3."
+    "300 contracts, 750 / 2.50": "750 divided by 2.50 is 300, but that counts shares. Each contract covers 100 shares.",
+    "As many as your cash buys": "That sizes by buying power, not risk. If they expire worthless, you could lose more than your planned $750.",
+    "6 contracts, out if halved": "The story treats the whole premium as the risk, and so does our rule: the premium paid is the stop. At 2.50 times 100 shares each, $750 covers 3."
    },
    "simple": "Buy 3 contracts, because each costs 2.50 times 100 shares, so three put exactly your $750 at risk.",
    "tier": "extended",
@@ -1230,9 +1230,9 @@
    "q": "What did the trade end up doing, per contract?",
    "choices": [
     "Lost the whole $160 premium",
-    "Made $680 from the run to 58",
+    "Made $680 on the run to 58",
     "Lost $300, from 47 to 44",
-    "Broke even on the round trip"
+    "Broke even on a round trip"
    ],
    "answer": "Lost the whole $160 premium",
    "calc": {
@@ -1255,9 +1255,9 @@
     "f37"
    ],
    "wrong": {
-    "Broke even on the round trip": "Break-even was above the strike by the premium paid. At 44 the call is worth nothing.",
+    "Broke even on a round trip": "Break-even was above the strike by the premium paid. At 44 the call is worth nothing.",
     "Lost $300, from 47 to 44": "That's how 100 shares would have done. The call's loss is its whole premium.",
-    "Made $680 from the run to 58": "That was the profit on offer two weeks in, 8.40 minus 1.60, times 100, if you'd sold. Holding turned it into a total loss."
+    "Made $680 on the run to 58": "That was the profit on offer two weeks in, 8.40 minus 1.60, times 100, if you'd sold. Holding turned it into a total loss."
    },
    "simple": "You lost the whole $160, because the call finished below its strike and the $680 gain was never locked in.",
    "deeper": {
@@ -1308,8 +1308,8 @@
    "q": "Which view suits a long call better than the shares?",
    "choices": [
     "A sharp rally you expect soon",
-    "A slow climb over the next year",
-    "A stock you'd hold through dips",
+    "A slow climb over a year",
+    "A stock to hold through dips",
     "A small rise you expect soon"
    ],
    "answer": "A sharp rally you expect soon",
@@ -1324,9 +1324,9 @@
     "f10"
    ],
    "wrong": {
-    "A slow climb over the next year": "Time value melts while you wait, and the call can expire before the climb pays. Shares can wait.",
-    "A stock you'd hold through dips": "Riding out dips takes time, and an option has a deadline. That's a job for shares.",
-    "A small rise you expect soon": "A small rise may not cover the premium. A call makes money only when the stock passes the strike by more than the premium. Shares profit on any rise."
+    "A stock to hold through dips": "Riding out dips takes time, and an option has a deadline. That's a job for shares.",
+    "A small rise you expect soon": "A small rise may not cover the premium. A call makes money only when the stock passes the strike by more than the premium. Shares profit on any rise.",
+    "A slow climb over a year": "Time value melts while you wait, and the call can expire before the climb pays. Shares can wait."
    },
    "simple": "A fast rise soon suits a call best, because the call has a deadline and tends to lose value as time passes.",
    "deeper": {
@@ -1613,7 +1613,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Fall sharply (f18). 'Finish just below the strike' is a real trap, note hedged 'likely' and anchored at expiry (f21, f47). Lengths 26-28. No second defensible answer."
+   "notes": "Own answer Fall sharply (f18). 'Finish just below the strike' is a real trap, note hedged 'likely' and anchored at expiry (f21, f47). Lengths 26-28. No second defensible answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1709,7 +1710,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 3 contracts: 750 / (2.50 x 100) = 3, recomputed; calc matches. The story fixes the whole premium as the risk and h3 (B25) says the premium paid is the stop, so '6 contracts, out if it halves' is excluded by the story and the rulebook. Cash note hedged 'could' since the story gives no cash figure. f45, f37, f59 support. Choice lengths 28-30, no tell. No overlap with q12 (cut) or q26 beyond the 100-share multiplier."
+   "notes": "Own answer 3 contracts: 750 / (2.50 x 100) = 3, recomputed; calc matches. The story fixes the whole premium as the risk and h3 (B25) says the premium paid is the stop, so '6 contracts, out if it halves' is excluded by the story and the rulebook. Cash note hedged 'could' since the story gives no cash figure. f45, f37, f59 support. Choice lengths 28-30, no tell. No overlap with q12 (cut) or q26 beyond the 100-share multiplier.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1745,7 +1747,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (stock 65 below the 70 strike, call worthless, f42/f43). But the story is the SEC example word for word and walkthrough w2 tells exactly this case with the answer ('The whole $220 is gone'), so q20 is answered by w2 (the previous checker flagged this for the integrator; still unresolved). Fixed by new numbers in the question itself (stock 47, the 50 call at 1.60, 58 and 8.40 two weeks later, 44 at expiry): calc 1.60 x 100 = 160; 680 = (8.40 - 1.60) x 100 and 51.60 = 50 + 1.60 and 300 = (47 - 44) x 100 are spelled out where used. Facts now carry the principle (f11 OTM worth zero at ex"
+   "notes": "Key right (stock 65 below the 70 strike, call worthless, f42/f43). But the story is the SEC example word for word and walkthrough w2 tells exactly this case with the answer ('The whole $220 is gone'), so q20 is answered by w2 (the previous checker flagged this for the integrator; still unresolved). Fixed by new numbers in the question itself (stock 47, the 50 call at 1.60, 58 and 8.40 two weeks later, 44 at expiry): calc 1.60 x 100 = 160; 680 = (8.40 - 1.60) x 100 and 51.60 = 50 + 1.60 and 300 = (47 - 44) x 100 are spelled out where used. Facts now carry the principle (f11 OTM worth zero at ex",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -1757,7 +1760,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

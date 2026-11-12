@@ -13,7 +13,7 @@
     "A dip of under 10% from the high",
     "A drop of 10% to 20% from the high",
     "Any losing week after a rally",
-    "A drop of 20% or more from the high"
+    "A drop of over 20% from the high"
    ],
    "kind": "mcq",
    "q": "What do most people mean by a correction in a stock index?",
@@ -61,7 +61,7 @@
     "summary": "A correction is generally a decline of more than 10% but less than 20%; a bear market is usually a decline of 20% or more. A correction is a decline of more than 10% but less than 20%, and the 10% line is an arbitrary convention. Shaw called a drop of up to 10% a consolidation, 10% to 20% a correction, and more than 20% a bear market. The 10% correction and 20% bear market labels came largely from one technician, Alan Shaw. There is no single official definition of a correction."
    },
    "facts": {
-    "given": "What do most people mean by a correction in a stock index? A drop of 10% to 20% from the high A drop of 20% or more from the high A dip of under 10% from the high Any losing week after a rally"
+    "given": "What do most people mean by a correction in a stock index? A drop of 10% to 20% from the high A drop of over 20% from the high A dip of under 10% from the high Any losing week after a rally"
    },
    "lesson_line": "More than 10% off the high is a correction. 20% or more is a bear market.",
    "simple": "A correction is a drop of more than 10% but less than 20% from the high, short of a bear market.",
@@ -70,7 +70,7 @@
    "why": "A drop of 10% to 20% from the high. Most people call a decline of more than 10%, but less than 20%, a correction. At 20% or more it's a bear market. The line is a convention, not a law. Schwab says no definition is universally accepted, and Morningstar calls the 10% threshold arbitrary. Alan Shaw, whose work largely gave us these labels, called a drop of up to 10% a consolidation.",
    "wrong": {
     "A dip of under 10% from the high": "Too small. Alan Shaw, whose work largely gave us these labels, called anything up to 10% a consolidation.",
-    "A drop of 20% or more from the high": "That's a bear market. A correction stops short of 20%.",
+    "A drop of over 20% from the high": "That's a bear market. A correction stops short of 20%.",
     "Any losing week after a rally": "A down week isn't a label. A correction needs a decline of more than 10% from the peak."
    }
   },
@@ -9124,8 +9124,8 @@
   "prompt_json": {
    "choices": [
     "Bottom isn't in. Let your stops work",
-    "Just a shakeout. Move your stops lower",
-    "A cheaper entry. Add to both leaders",
+    "Just a shakeout. Lower your stops",
+    "A cheaper entry. Add to the leaders",
     "The buy signal stands. Cancel stops"
    ],
    "kind": "mcq",
@@ -9192,7 +9192,7 @@
     "summary": "A new low with worse internals than the last low says the bottom isn't in. IBD says follow-through days are not foolproof. Without institutional buying rallies fade; with it, the odds shift. In a correction, build your watch list so you're ready when the new uptrend starts. Our rule: the stop is the exit, and it only moves up, never down or wider, except under the gap rule. Our rule: the full size goes on at one price with one stop, and we never add. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "What's the read, and what do you do? You bought two leaders after a follow-through day. A week later the index undercuts its low, and more stocks hit new lows than last time. Bottom isn't in. Let your stops work A cheaper entry. Add to both leaders Just a shakeout. Move your stops lower The buy signal stands. Cancel stops"
+    "given": "What's the read, and what do you do? You bought two leaders after a follow-through day. A week later the index undercuts its low, and more stocks hit new lows than last time. Bottom isn't in. Let your stops work A cheaper entry. Add to the leaders Just a shakeout. Lower your stops The buy signal stands. Cancel stops"
    },
    "lesson_line": "When the signal fails, the stop is the exit. Rebuild the watch list for the next one.",
    "simple": "The bottom is not in, since the index broke its low with more stocks breaking down. Let your stops do their job.",
@@ -9200,8 +9200,8 @@
    "unit": "F7.04",
    "why": "Bottom isn't in. A CMT Association article says a new low with worse internals than the prior low signals the bottom isn't in yet. IBD says follow-through signals are not foolproof. Our rule: the stop is the exit, and it only moves up. Keep the watch list ready for the next attempt.",
    "wrong": {
-    "A cheaper entry. Add to both leaders": "Worse internals at a new low say the bottom isn't in yet. And our rule is no adding: the full size goes on at one price, with one stop.",
-    "Just a shakeout. Move your stops lower": "Worse internals at the new low say the bottom isn't in yet. And our stop only moves up, never down or wider.",
+    "A cheaper entry. Add to the leaders": "Worse internals at a new low say the bottom isn't in yet. And our rule is no adding: the full size goes on at one price, with one stop.",
+    "Just a shakeout. Lower your stops": "Worse internals at the new low say the bottom isn't in yet. And our stop only moves up, never down or wider.",
     "The buy signal stands. Cancel stops": "Follow-through days are not foolproof, and this one is failing. Our rule: every position keeps a real stop order with the broker."
    }
   },
@@ -11843,10 +11843,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The A/D line's six-week slide",
-    "New lows outnumbering new highs",
+    "The A/D line's six-week dip",
+    "More new lows than highs",
     "The app's own market reading",
-    "Your setup's grade, A+ to B-"
+    "Your setup's grade"
    ],
    "kind": "mcq",
    "q": "Under our rules, which of these decides when the account trades?",
@@ -11905,7 +11905,7 @@
     "summary": "Our rule: the app's market reading is the filter that decides when the account trades. Our rule: a setup's grade sets the size, not whether we trade. An A/D line that fails to confirm the index's new highs shows narrowing participation. Narrowing participation often shows up as a bearish divergence between the A/D line and its index. More new highs than lows favors the bulls; more new lows favors the bears. A divergence is a condition, not a signal."
    },
    "facts": {
-    "given": "Under our rules, which of these decides when the account trades? Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks. The app's own market reading Your setup's grade, A+ to B- The A/D line's six-week slide New lows outnumbering new highs"
+    "given": "Under our rules, which of these decides when the account trades? Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks. The app's own market reading Your setup's grade The A/D line's six-week dip More new lows than highs"
    },
    "lesson_line": "Breadth warns. The app's market reading decides when we trade.",
    "simple": "The app's market reading decides when we trade, and the breadth here is a warning about fewer stocks, not our filter.",
@@ -11913,9 +11913,9 @@
    "unit": "F7.05",
    "why": "The app's own market reading. Our rule: a market filter decides when the account trades, and it is the app's market reading. The setup's grade sets the size. The breadth here is a real warning: fewer stocks are carrying the index.",
    "wrong": {
-    "New lows outnumbering new highs": "More new lows than new highs favors the bears. It's a warning to note, but our filter is the app's market reading.",
-    "The A/D line's six-week slide": "It's a warning that fewer stocks are carrying the index. A divergence is a condition, not a signal, and it is not our filter.",
-    "Your setup's grade, A+ to B-": "Our rule: the grade sets the size. A and B are normal size, A+ sized up, B- or lower sized down."
+    "More new lows than highs": "More new lows than new highs favors the bears. It's a warning to note, but our filter is the app's market reading.",
+    "The A/D line's six-week dip": "It's a warning that fewer stocks are carrying the index. A divergence is a condition, not a signal, and it is not our filter.",
+    "Your setup's grade": "Our rule: the grade sets the size. A and B are normal size, A+ sized up, B- or lower sized down."
    }
   },
   "review_status": "draft",
@@ -12233,10 +12233,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Banks, by trading",
-    "The US Congress",
+    "Bank trading",
+    "Congress",
     "The Fed's FOMC",
-    "The US Treasury"
+    "The Treasury"
    ],
    "kind": "mcq",
    "q": "Who sets the target range for the federal funds rate?",
@@ -12277,7 +12277,7 @@
     "summary": "The FOMC sets the target range; banks trade fed funds within it. The FOMC's main tool is its target for the fed funds rate. The effective fed funds rate is the volume-weighted median of actual overnight fed funds trades. The Federal Reserve Act gives the Fed the goals of maximum employment, stable prices and moderate long-term interest rates."
    },
    "facts": {
-    "given": "Who sets the target range for the federal funds rate? The Fed's FOMC The US Treasury The US Congress Banks, by trading"
+    "given": "Who sets the target range for the federal funds rate? The Fed's FOMC The Treasury Congress Bank trading"
    },
    "lesson_line": "The FOMC sets the target range. Daily trading in fed funds sets the effective rate.",
    "simple": "The Fed's rate-setting group, the FOMC, sets the target range at its meetings.",
@@ -12285,9 +12285,9 @@
    "unit": "F7.06",
    "why": "The Fed's FOMC. It sets the target range for trading in the federal funds market. Changing that target is its main policy tool. Daily trading between banks then sets the effective rate, a volume-weighted median of real overnight trades. Neither Congress nor the Treasury sets the range.",
    "wrong": {
-    "Banks, by trading": "Bank trading sets the effective rate each day. The target range it trades against is the FOMC's call.",
-    "The US Congress": "The Federal Reserve Act sets the Fed's goals. Setting the target range is the FOMC's job.",
-    "The US Treasury": "Treasury doesn't set it. The FOMC establishes the target range for trading in the fed funds market."
+    "Bank trading": "Bank trading sets the effective rate each day. The target range it trades against is the FOMC's call.",
+    "Congress": "The Federal Reserve Act sets the Fed's goals. Setting the target range is the FOMC's job.",
+    "The Treasury": "Treasury doesn't set it. The FOMC establishes the target range for trading in the fed funds market."
    }
   },
   "review_status": "draft",
@@ -14748,9 +14748,9 @@
   "prompt_json": {
    "choices": [
     "A monthly survey of households",
-    "A monthly survey of businesses",
+    "A monthly survey of employers",
     "Weekly jobless benefit claims",
-    "A full head count of the jobless"
+    "A full count of the jobless"
    ],
    "kind": "mcq",
    "q": "Where does the unemployment rate in the jobs report come from?",
@@ -14798,7 +14798,7 @@
     "summary": "The unemployment rate comes from a monthly survey of households. Nonfarm payrolls (and average hourly earnings) come from a monthly survey of businesses. Weekly jobless claims come out every Thursday at 8:30 a.m. Eastern. To count as unemployed you must be jobless, have looked for work in the past 4 weeks, and be available. People who are neither employed nor unemployed are outside the labor force."
    },
    "facts": {
-    "given": "Where does the unemployment rate in the jobs report come from? A monthly survey of households A monthly survey of businesses Weekly jobless benefit claims A full head count of the jobless"
+    "given": "Where does the unemployment rate in the jobs report come from? A monthly survey of households A monthly survey of employers Weekly jobless benefit claims A full count of the jobless"
    },
    "lesson_line": "Two surveys, two headlines: payrolls from businesses, the jobless rate from households.",
    "simple": "It comes from a monthly survey of households, a different survey from the one that counts payroll jobs.",
@@ -14806,8 +14806,8 @@
    "unit": "F7.07",
    "why": "A monthly survey of households. That survey, the Current Population Survey, measures the labor force, the employed and the unemployed. Payrolls come from a separate survey of businesses. Weekly claims are a separate Labor Department report. The rate itself comes from the household survey.",
    "wrong": {
-    "A full head count of the jobless": "It's an estimate from a monthly survey of households, not a full count. And not every jobless person counts as unemployed.",
-    "A monthly survey of businesses": "That's where payrolls come from. Businesses report jobs, not who is out looking for work.",
+    "A full count of the jobless": "It's an estimate from a monthly survey of households, not a full count. And not every jobless person counts as unemployed.",
+    "A monthly survey of employers": "That's where payrolls come from. Businesses report jobs, not who is out looking for work.",
     "Weekly jobless benefit claims": "Claims are a separate weekly report from the Labor Department. The jobless rate comes from the household survey."
    }
   },
@@ -15775,10 +15775,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It rises; more people are now jobless",
+    "It rises; more people are jobless",
     "It falls; more of them found jobs",
     "It falls; they left the labor force",
-    "It stays put; they're still jobless"
+    "It stays put; they remain jobless"
    ],
    "kind": "mcq",
    "q": "What happens to the unemployment rate?",
@@ -15837,7 +15837,7 @@
     "summary": "To count as unemployed you must be jobless, have looked for work in the past 4 weeks, and be available. People who are neither employed nor unemployed are outside the labor force. Unemployment rate = unemployed divided by the labor force. The labor force is the employed plus the unemployed. The participation rate is the labor force as a share of the population. Laid-off workers expecting to be recalled count as unemployed even if they are not looking for work."
    },
    "facts": {
-    "given": "What happens to the unemployment rate? Many unemployed people give up and stop looking for work. None of them has looked in the past 4 weeks. Nothing else changes. It falls; they left the labor force It rises; more people are now jobless It stays put; they're still jobless It falls; more of them found jobs"
+    "given": "What happens to the unemployment rate? Many unemployed people give up and stop looking for work. None of them has looked in the past 4 weeks. Nothing else changes. It falls; they left the labor force It rises; more people are jobless It stays put; they remain jobless It falls; more of them found jobs"
    },
    "lesson_line": "A lower jobless rate can mean people stopped looking. Check the participation rate too.",
    "simple": "It falls, because people who stop looking for work leave the labor force and no longer count as unemployed.",
@@ -15846,8 +15846,8 @@
    "why": "It falls. With no job search in the past 4 weeks, BLS no longer counts them as unemployed. So they are not in the labor force. The unemployed and the labor force both shrink by the same number, and the rate drops. They are still jobless. The participation rate, the labor force as a share of the population, falls too. Laid-off workers expecting recall are the exception: they need not be looking.",
    "wrong": {
     "It falls; more of them found jobs": "No one found a job, and nothing else changed. The rate falls only because they left the labor force.",
-    "It rises; more people are now jobless": "No one new lost a job. Those who quit looking are still jobless, but BLS no longer counts them as unemployed.",
-    "It stays put; they're still jobless": "The rate is the unemployed over the labor force. Take the same number out of both and the rate drops."
+    "It rises; more people are jobless": "No one new lost a job. Those who quit looking are still jobless, but BLS no longer counts them as unemployed.",
+    "It stays put; they remain jobless": "The rate is the unemployed over the labor force. Take the same number out of both and the rate drops."
    }
   },
   "review_status": "draft",
@@ -20092,9 +20092,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Nothing useful, since both are down",
-    "The sector's price is now going up",
-    "It's falling more than the market",
+    "Nothing useful, both are down",
+    "The sector's price is going up",
+    "It's down more than the market",
     "It's falling less than the market"
    ],
    "kind": "mcq",
@@ -20143,7 +20143,7 @@
     "summary": "The ratio rises when the stock gains more than the S&P 500 or falls less than it. You can chart a sector fund against the S&P 500 as a ratio, for example XLY:$SPX. A group that holds up while the market falls shows relative strength; one that can't rally with the market shows weakness. A rising relative strength line means the security is beating the index. Names that hold up best in a decline are often the leaders when the market turns."
    },
    "facts": {
-    "given": "This week the market and a sector fund both fall. The sector's ratio line against the S&P 500 rises. What does that tell you? It's falling less than the market It's falling more than the market Nothing useful, since both are down The sector's price is now going up"
+    "given": "This week the market and a sector fund both fall. The sector's ratio line against the S&P 500 rises. What does that tell you? It's falling less than the market It's down more than the market Nothing useful, both are down The sector's price is going up"
    },
    "lesson_line": "In a selloff, the groups that fall least are showing strength. Put them on your list.",
    "simple": "It is falling less than the market, because the line rises when the sector holds up better.",
@@ -20151,9 +20151,9 @@
    "unit": "F7.09",
    "why": "It's falling less than the market. The ratio rises when the sector gains more than the S&P 500, or falls less. Both fell, so the sector fell less. That is relative strength in a decline. Names that hold up best in a decline are often, not always, the leaders when the market turns.",
    "wrong": {
-    "It's falling more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
-    "Nothing useful, since both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing.",
-    "The sector's price is now going up": "No. The fund fell this week. The ratio can rise while both prices fall, as long as the sector falls less."
+    "It's down more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
+    "Nothing useful, both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing.",
+    "The sector's price is going up": "No. The fund fell this week. The ratio can rise while both prices fall, as long as the sector falls less."
    }
   },
   "review_status": "draft",

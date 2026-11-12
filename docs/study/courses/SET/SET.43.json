@@ -1623,9 +1623,9 @@
    "q": "The trade reaches 3R. What do our rules say to do?",
    "choices": [
     "Sell half and hold the rest",
-    "Add to the position as it climbs",
+    "Add to it as it climbs",
     "Sell a third and hold the rest",
-    "Do nothing until it reaches 5R"
+    "Do nothing until it hits 5R"
    ],
    "answer": "Sell a third and hold the rest",
    "why": "Sell a third. The hard rule is a third at 3R. The rest of the position stays in the trade.",
@@ -1635,9 +1635,9 @@
     "c24"
    ],
    "wrong": {
-    "Do nothing until it reaches 5R": "The hard rule is a third at 3R.",
-    "Add to the position as it climbs": "No adds. The plan trims here.",
-    "Sell half and hold the rest": "The hard rule is a third at 3R, not half."
+    "Sell half and hold the rest": "The hard rule is a third at 3R, not half.",
+    "Add to it as it climbs": "No adds. The plan trims here.",
+    "Do nothing until it hits 5R": "The hard rule is a third at 3R."
    },
    "house": true,
    "simple": "At 3R we sell a third. The other two thirds stay in the trade.",
@@ -2310,7 +2310,7 @@
     "Pullback; it touched the 10 EMA",
     "Bull Flag; a fast gain came first",
     "Pullback; four days is too short",
-    "Remount; it dropped to the 10 EMA"
+    "Remount; it fell to the 10 EMA"
    ],
    "answer": "Bull Flag; a fast gain came first",
    "why": "Bull Flag. A bull flag needs a 20% or larger gain inside 20 sessions, and 28% in 9 sessions is that pole. A pullback to the averages needs no pole. It needs a rising line in a stacked trend and a 1 ATR dip from the swing high to the line.",
@@ -2323,7 +2323,7 @@
    "wrong": {
     "Pullback; it touched the 10 EMA": "A pullback needs no pole. A 28% gain in 9 sessions is a bull flag's pole.",
     "Pullback; four days is too short": "Length is not what decides it. The pole is.",
-    "Remount; it dropped to the 10 EMA": "A Remount is five or more closes under the 50-day or 200-day. This drift was 4 tight days onto the 10 EMA."
+    "Remount; it fell to the 10 EMA": "A Remount is five or more closes under the 50-day or 200-day. This drift was 4 tight days onto the 10 EMA."
    },
    "house": true,
    "story": "A stock gains 28% in 9 sessions, then drifts 4 tight days down onto its 10 EMA.",
@@ -2567,7 +2567,7 @@
     "Yes, a tight reversal at the line helps",
     "Yes, since a hammer predicts a bounce",
     "No, it helps the entry, not the grade",
-    "No, volume sets the grade, not a candle"
+    "No, volume sets the grade, not candles"
    ],
    "answer": "Yes, a tight reversal at the line helps",
    "why": "Yes. A tight reversal at the line is an A+ cue, because it keeps the stop at 3% or less. A hammer, an inside day and an undercut and reclaim all count. It is a cue, not a guarantee. Grading is discretionary and hard to define.",
@@ -2579,7 +2579,7 @@
    "wrong": {
     "Yes, since a hammer predicts a bounce": "A hammer is a cue, not a prediction. It helps because it keeps the stop at 3% or less.",
     "No, it helps the entry, not the grade": "Our card lists a tight reversal at the line as an A+ cue, so it does help the grade.",
-    "No, volume sets the grade, not a candle": "Quiet volume is one cue. A tight reversal at the line is another."
+    "No, volume sets the grade, not candles": "Quiet volume is one cue. A tight reversal at the line is another."
    },
    "house": true,
    "story": "A leader dips to its 10-day. The hold day is a hammer that closes on the line.",
@@ -2704,9 +2704,9 @@
    "q": "Does the dip pass the depth rule?",
    "choices": [
     "No, it must be 2 ATR or more",
-    "No, six days is too long a drift",
+    "No, six days is a long drift",
     "Yes, just: it is at least 1 ATR",
-    "Yes, quiet volume is all it needs"
+    "Yes, quiet volume is enough"
    ],
    "answer": "Yes, just: it is at least 1 ATR",
    "why": "Yes, just. The depth rule is a close at least 1 ATR under the highest high of the last 11 sessions. 1.01 ATR clears it. MOH was the shallowest of the ten examples, right at the rule's edge. Six sessions also fits the 2 to 8 session length.",
@@ -2721,8 +2721,8 @@
    ],
    "wrong": {
     "No, it must be 2 ATR or more": "The rule is at least 1 ATR, not 2.",
-    "No, six days is too long a drift": "Two to eight sessions is the length rule, so six fits.",
-    "Yes, quiet volume is all it needs": "Quiet volume is a separate cue. The depth rule asks for a close at least 1 ATR under the highest high of the last 11 sessions."
+    "No, six days is a long drift": "Two to eight sessions is the length rule, so six fits.",
+    "Yes, quiet volume is enough": "Quiet volume is a separate cue. The depth rule asks for a close at least 1 ATR under the highest high of the last 11 sessions."
    },
    "house": true,
    "story": "MOH, 2018. Six days sideways on the lowest volume on the chart. The dip is 1.01 ATR deep.",
@@ -2920,10 +2920,10 @@
    "criterion": "map.inv_heavy_close",
    "q": "Is this a pullback to buy?",
    "choices": [
-    "Yes, it is just testing the 50-day",
+    "Yes, it just tests the 50-day",
     "No, a heavy close under the line",
     "Yes, if it reclaims it tomorrow",
-    "No, the 50-day is too deep a line"
+    "No, the 50-day is too deep"
    ],
    "answer": "No, a heavy close under the line",
    "why": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This close came on 4.5 times, far past that. The card drops it before entry, and a reclaim tomorrow does not bring it back.",
@@ -2935,9 +2935,9 @@
     "l1b"
    ],
    "wrong": {
-    "Yes, it is just testing the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
+    "Yes, it just tests the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
     "Yes, if it reclaims it tomorrow": "The card drops it before entry. Heavy selling is not a pullback.",
-    "No, the 50-day is too deep a line": "This card does buy the 50-day, when the low reaches it with the 200-day far below. The heavy close is the problem, not the line."
+    "No, the 50-day is too deep": "This card does buy the 50-day, when the low reaches it with the 200-day far below. The heavy close is the problem, not the line."
    },
    "house": true,
    "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
@@ -3300,10 +3300,10 @@
    "criterion": "map.near_high",
    "q": "Hidden ticker, the day before a would-be buy. Is this a leader's pullback? Take it or pass.",
    "choices": [
-    "Take it; the dip touched the 10-day",
+    "Take it; the dip hit the 10-day",
     "Pass; it sits far under its high",
-    "Pass; the dip is too short to count",
-    "Take it; volume dried up on the dip"
+    "Pass; the dip is too short",
+    "Take it; volume fell on the dip"
    ],
    "answer": "Pass; it sits far under its high",
    "why": "Pass. At the hold day the stock sat 32.7% under its 52-week high of 34.14, and the card allows 25%. Only that one gate check fails. It is a recovering stock's 10-day, not a leader's pullback.",
@@ -3315,9 +3315,9 @@
     "c03"
    ],
    "wrong": {
-    "Take it; the dip touched the 10-day": "A touch of the line is not enough. The stock is too far from its 52-week high.",
-    "Pass; the dip is too short to count": "That check passes here. The distance from the high is what fails.",
-    "Take it; volume dried up on the dip": "Quiet volume does not fix the distance from the high. The card still wants price within 25% of it."
+    "Take it; the dip hit the 10-day": "A touch of the line is not enough. The stock is too far from its 52-week high.",
+    "Pass; the dip is too short": "That check passes here. The distance from the high is what fails.",
+    "Take it; volume fell on the dip": "Quiet volume does not fix the distance from the high. The card still wants price within 25% of it."
    },
    "house": true,
    "chart": {
@@ -4265,7 +4265,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B19 hard rule a third at 3R; declined item 73 confirms no skipping the 3R trim. 'Wait for 5R' is his practice, not the rule, and the stem asks for the rules. No tell."
+   "notes": "B19 hard rule a third at 3R; declined item 73 confirms no skipping the 3R trim. 'Wait for 5R' is his practice, not the rule, and the stem asks for the rules. No tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",
@@ -4380,7 +4381,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. The card's full tell (give back at most half the pole) is not in the story; D-002 pending."
+   "notes": "Pass. The card's full tell (give back at most half the pole) is not in the story; D-002 pending.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -4423,7 +4425,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "g4 verbatim (tight reversal at the line, A+ cue, stop 3% or less); E50 caveat kept. Two Yes and two No choices, key tied for longest at 39 characters. Hammer-predicts-a-bounce is rejected in the wrong note. Hedged as a cue, so it does not teach a fixed checklist."
+   "notes": "g4 verbatim (tight reversal at the line, A+ cue, stop 3% or less); E50 caveat kept. Two Yes and two No choices, key tied for longest at 39 characters. Hammer-predicts-a-bounce is rejected in the wrong note. Hedged as a cue, so it does not teach a fixed checklist.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4447,7 +4450,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found."
+   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "cut",
@@ -4477,7 +4481,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c28 verbatim: close under the line on more than 1.5x 50-day volume is distribution; 4.5x is from dTSM. 50-day wrong note rests on l1b. TSM name flagged for the owner."
+   "notes": "c28 verbatim: close under the line on more than 1.5x 50-day volume is distribution; 4.5x is from dTSM. 50-day wrong note rests on l1b. TSM name flagged for the owner.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "cut",
@@ -4531,7 +4536,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "32.7% under 34.14 fails the 25% rule. It still fails at the floated 10% or 15%, so the answer holds whatever he rules. dNear grounds 'only that one check fails'. Lesson-level: this is the same AMD example and numbers as q55, so a student who saw q55 may recognize the hidden chart. Recommend separating them in the run order."
+   "notes": "32.7% under 34.14 fails the 25% rule. It still fails at the floated 10% or 15%, so the answer holds whatever he rules. dNear grounds 'only that one check fails'. Lesson-level: this is the same AMD example and numbers as q55, so a student who saw q55 may recognize the hidden chart. Recommend separating them in the run order.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q66": {
    "status": "pass",

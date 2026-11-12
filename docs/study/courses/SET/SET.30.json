@@ -1586,9 +1586,9 @@
    "q": "Which decline is parabolic?",
    "choices": [
     "Steeper legs, little overlap",
-    "A stair-step, every dip bought",
-    "A slow drift under the 50-day",
-    "A fall that slows with each leg"
+    "A stair-step, dips bought",
+    "A drift under the 50-day",
+    "A fall that slows each leg"
    ],
    "answer": "Steeper legs, little overlap",
    "why": "Steeper legs, little bar overlap. The fall accelerates, and an orderly, overlapping decline is not this setup. Bulkowski's vertical run down has the same feature: minimal overlap from bar to bar.",
@@ -1601,9 +1601,9 @@
    ],
    "house": true,
    "wrong": {
-    "A stair-step, every dip bought": "A stair-step is orderly and overlapping. The setup needs a fall that accelerates.",
-    "A slow drift under the 50-day": "A slow grind lower is the worst setting for this setup, and it has no climax.",
-    "A fall that slows with each leg": "Slowing legs are the opposite of the test. The setup needs each leg steeper."
+    "A stair-step, dips bought": "A stair-step is orderly and overlapping. The setup needs a fall that accelerates.",
+    "A drift under the 50-day": "A slow grind lower is the worst setting for this setup, and it has no climax.",
+    "A fall that slows each leg": "Slowing legs are the opposite of the test. The setup needs each leg steeper."
    },
    "simple": "A parabolic fall gets steeper each leg and the bars hardly overlap. A slow or orderly decline is a different thing.",
    "tier": "core",
@@ -3546,9 +3546,9 @@
    "story": "A 3x inverse Nasdaq ETF is 35% off its high with all five boxes ticked. The index is rallying to new highs.",
    "choices": [
     "No; its climax is the index peak",
-    "Yes; the boxes all fit the pattern",
-    "Yes; inverse funds snap back harder",
-    "No; 3x funds are too risky for us"
+    "Yes; the boxes fit the pattern",
+    "Yes; inverse funds snap harder",
+    "No; 3x funds are too risky"
    ],
    "answer": "No; its climax is the index peak",
    "why": "No. An inverse fund's selling climax is simply the index making a high. A bounce there is a bet on an index pullback, a different setup with different odds. SQQQ with all five boxes made 0.01R.",
@@ -3561,9 +3561,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; inverse funds snap back harder": "They snap back only if the index pulls back. That is a different trade with different odds.",
-    "No; 3x funds are too risky for us": "3x ETFs are the preferred vehicles for the index version, with no extra rules. The problem here is that it is inverse.",
-    "Yes; the boxes all fit the pattern": "The boxes describe a stock's panic. Here they describe the index's strength."
+    "Yes; the boxes fit the pattern": "The boxes describe a stock's panic. Here they describe the index's strength.",
+    "Yes; inverse funds snap harder": "They snap back only if the index pulls back. That is a different trade with different odds.",
+    "No; 3x funds are too risky": "3x ETFs are the preferred vehicles for the index version, with no extra rules. The problem here is that it is inverse."
    },
    "simple": "No, because an inverse fund falls when the index rises. Its bounce is only a bet on an index pullback.",
    "deeper": {
@@ -3588,9 +3588,9 @@
    "story": "BABA, 2022-03-15: 43.4% off the high in 17 sessions, all five boxes, a 3.4% gap down on 3.6x volume. Say it reclaims VWAP after the low.",
    "choices": [
     "Buy reclaim, stop under low, 9 EMA",
-    "Buy open, stop under 200-day, 9 EMA",
-    "Buy reclaim, 200-day stop, old high",
-    "Buy close, stop under low, old high"
+    "Buy open, stop at 200-day, 9 EMA",
+    "Buy reclaim, 200-day stop, high",
+    "Buy close, stop under low, high"
    ],
    "answer": "Buy reclaim, stop under low, 9 EMA",
    "why": "Buy the reclaim at market, put the stop a few cents under the climax low, and target the daily 9 EMA. Entries are market orders, and the full size goes in at one price. On our bars BABA closed 2.2% above its open and reached 3R the next session. Know the exit before you buy.",
@@ -3605,9 +3605,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy open, stop under 200-day, 9 EMA": "The open is before the turn, and the stop sits a few cents under the climax low, not the 200-day.",
-    "Buy close, stop under low, old high": "The buy is the intraday reclaim, not the close, and the target is the daily 9 EMA, not the old high.",
-    "Buy reclaim, 200-day stop, old high": "The stop sits a few cents under the climax low, not the 200-day, and the target is the daily 9 EMA, not the old high."
+    "Buy open, stop at 200-day, 9 EMA": "The open is before the turn, and the stop sits a few cents under the climax low, not the 200-day.",
+    "Buy reclaim, 200-day stop, high": "The stop sits a few cents under the climax low, not the 200-day, and the target is the daily 9 EMA, not the old high.",
+    "Buy close, stop under low, high": "The buy is the intraday reclaim, not the close, and the target is the daily 9 EMA, not the old high."
    },
    "simple": "Buy the VWAP reclaim at market, set the stop a few cents under the low, and aim for the 9 EMA.",
    "deeper": {
@@ -3969,7 +3969,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "upgraded wave3; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -4276,13 +4277,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c38/d22/d23; story numbers from d22."
+   "notes": "Key from c38/d22/d23; story numbers from d22.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Entry, stop and target from c12, c16, c18, h22; BABA numbers match d01/d02. Each key part is shared with exactly one distractor, so no tell. D-003 pending is flagged in risk."
+   "notes": "Entry, stop and target from c12, c16, c18, h22; BABA numbers match d01/d02. Each key part is shared with exactly one distractor, so no tell. D-003 pending is flagged in risk.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "pass",

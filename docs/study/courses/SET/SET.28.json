@@ -1460,8 +1460,8 @@
    "choices": [
     "A quiet inside day above the line",
     "Any red day with heavy volume",
-    "A second wide green day, big volume",
-    "A fresh close back under the line"
+    "A wide green day, big volume",
+    "A fresh close under the line"
    ],
    "answer": "A quiet inside day above the line",
    "why": "A quiet inside day above the line. After the remount day, the pause closes above the line and ends on an inside day. The buy is a market order as price trades over that day's high. A close back under the line first means no trade.",
@@ -1474,8 +1474,8 @@
    ],
    "wrong": {
     "Any red day with heavy volume": "Heavy volume is not a quiet day. The pause is an inside day that closes above the line.",
-    "A second wide green day, big volume": "A wide day is not quiet. The pause is a quiet inside day that holds above the line.",
-    "A fresh close back under the line": "A close back under the line before the trigger means no trade."
+    "A wide green day, big volume": "A wide day is not quiet. The pause is a quiet inside day that holds above the line.",
+    "A fresh close under the line": "A close back under the line before the trigger means no trade."
    },
    "house": true,
    "simple": "The buy is armed by a quiet inside day that holds above the line, and we buy over that day's high.",
@@ -1756,8 +1756,8 @@
    "q": "The open is past your 3R level. Your move?",
    "choices": [
     "Take the first third at the open",
-    "Wait for 104.82 on a pullback down",
-    "Hold it all and trail the average",
+    "Wait for 104.82 on a pullback",
+    "Hold it all, trail the average",
     "Sell the whole lot at the open"
    ],
    "answer": "Take the first third at the open",
@@ -1769,8 +1769,8 @@
     "h20"
    ],
    "wrong": {
-    "Wait for 104.82 on a pullback down": "You may never see it again. A trim level the day opens past is taken at the open.",
-    "Hold it all and trail the average": "The trail is for the last third, after the trims.",
+    "Wait for 104.82 on a pullback": "You may never see it again. A trim level the day opens past is taken at the open.",
+    "Hold it all, trail the average": "The trail is for the last third, after the trims.",
     "Sell the whole lot at the open": "The plan is a third at 3R, a third at 5R, then the trail."
    },
    "house": true,
@@ -2233,8 +2233,8 @@
    "choices": [
     "A U&R, back within 3 sessions",
     "A Remount of the base low",
-    "An Oops, a one-session undercut",
-    "A breakdown to sell, not a buy"
+    "An Oops, a one-day undercut",
+    "A breakdown to sell, not buy"
    ],
    "answer": "A U&R, back within 3 sessions",
    "why": "A U&R. Our card says a U&R closes back above the level within 3 sessions of the undercut. It is bought as the level is retaken. Here the stock was back over its base low by Thursday. A Remount needs the line lost for real.",
@@ -2246,8 +2246,8 @@
    ],
    "wrong": {
     "A Remount of the base low": "A Remount lost the line for real. This was two closes under, a short dip.",
-    "An Oops, a one-session undercut": "An Oops is one session. This took closes on two days under the low.",
-    "A breakdown to sell, not a buy": "It closed back over the low within 3 sessions. That undercut is bought as the level is retaken."
+    "An Oops, a one-day undercut": "An Oops is one session. This took closes on two days under the low.",
+    "A breakdown to sell, not buy": "It closed back over the low within 3 sessions. That undercut is bought as the level is retaken."
    },
    "house": true,
    "story": "The stock closed under its base low on Tuesday and Wednesday. It closed back over it on Thursday.",
@@ -2371,9 +2371,9 @@
    "q": "How do you read this close?",
    "choices": [
     "A marginal poke, no remount yet",
-    "A clear remount, pause comes next",
+    "A clear remount, pause next",
     "A U&R, a quick snap back over",
-    "An Oops, a one-session undercut"
+    "An Oops, a one-day undercut"
    ],
    "answer": "A marginal poke, no remount yet",
    "why": "A marginal poke. A close 0.08 ATR over the line is inside the noise, so ESS could not be called a remount that evening. Wait for the clear close. ESS remounted clearly in the next sessions and reached 14.9R.",
@@ -2386,9 +2386,9 @@
     "k21"
    ],
    "wrong": {
-    "A clear remount, pause comes next": "A close that small over the line is a marginal poke inside the noise, not a clear retake.",
+    "A clear remount, pause next": "A close that small over the line is a marginal poke inside the noise, not a clear retake.",
     "A U&R, a quick snap back over": "A U&R is back above within 3 sessions. This stock sat under the line for weeks.",
-    "An Oops, a one-session undercut": "An Oops is one session. This stock sat under the line for weeks."
+    "An Oops, a one-day undercut": "An Oops is one session. This stock sat under the line for weeks."
    },
    "house": true,
    "story": "After weeks under the 50-day, the stock closes just 0.08 ATR over it, a small slice of a normal day's range. Nothing else is wrong.",
@@ -2851,9 +2851,9 @@
    "q": "Which one do you buy?",
    "choices": [
     "A, the leader chart",
-    "B, the 50-day retake",
-    "C, the flat-line close",
-    "None; wait for better"
+    "B, 50-day retake",
+    "C, the flat line",
+    "None; stay out"
    ],
    "answer": "A, the leader chart",
    "why": "A. It clears every average, sits above the 200-day, has a stop inside about 3% and a Green reading. B is a 50-day retake with the close under a falling 200-day. We take no longs below the 200-day unless it is a parabolic long. C is a flat line crossed back and forth, a chop line and a listed mistake.",
@@ -2867,9 +2867,9 @@
     "m04"
    ],
    "wrong": {
-    "B, the 50-day retake": "The close is still under a falling 200-day. We take no longs below the 200-day unless it is a parabolic long.",
-    "C, the flat-line close": "A flat line crossed ten times is a chop line.",
-    "None; wait for better": "Chart A meets every rule here, so there is a trade to take."
+    "B, 50-day retake": "The close is still under a falling 200-day. We take no longs below the 200-day unless it is a parabolic long.",
+    "C, the flat line": "A flat line crossed ten times is a chop line.",
+    "None; stay out": "Chart A meets every rule here, so there is a trade to take."
    },
    "house": true,
    "story": "Three charts. A: a leader clears every average, with a quiet day, a 2% stop and a Green reading. B: the 50-day retaken, with the close still under a falling 200-day. C: a flat 200-day crossed ten times in 60 sessions.",
@@ -3643,9 +3643,9 @@
    "q": "Which is the stronger picture?",
    "choices": [
     "B; average and level together",
-    "A; one clean line reads better",
-    "Same; a second line adds nothing",
-    "A; a level only adds noise to it"
+    "A; one clean line is better",
+    "Same; a second adds nothing",
+    "A; a level adds noise to it"
    ],
    "answer": "B; average and level together",
    "why": "B. On our card, a line many people watch matters, and it is best when an average and a level sit together. B retakes the 50-day and a round 100.00 level that held before the break, while A retakes only the 50-day. Grading is a judgment call, so this is a cue, not a score.",
@@ -3656,9 +3656,9 @@
     "k27"
    ],
    "wrong": {
-    "A; one clean line reads better": "Two lines taken back at once is the stronger picture, not the noisier one.",
-    "Same; a second line adds nothing": "A second line that many people watch adds to the picture.",
-    "A; a level only adds noise to it": "A round number that held is a level many people name. Together with an average it is the best case on our card."
+    "A; one clean line is better": "Two lines taken back at once is the stronger picture, not the noisier one.",
+    "Same; a second adds nothing": "A second line that many people watch adds to the picture.",
+    "A; a level adds noise to it": "A round number that held is a level many people name. Together with an average it is the best case on our card."
    },
    "house": true,
    "story": "Two remounts close back over their line today, everything else equal. A retakes the 50-day alone. B retakes the 50-day and the round 100.00 level together. 100.00 held as support for months before the break.",
@@ -4081,7 +4081,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "m10, m11 and card 32 rm.entry_pause support it. The distractors are clearly not quiet days. The key is not the longest choice. The red-to-green variant is not offered, so there is no second answer."
+   "notes": "m10, m11 and card 32 rm.entry_pause support it. The distractors are clearly not quiet days. The key is not the longest choice. The red-to-green variant is not offered, so there is no second answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -4129,7 +4130,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "pass",
@@ -4208,7 +4210,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Two closes under, back on the third session, fits m03's 'within 3 sessions' and card 32's 'fewer than 5'. Oops is one session (k21), so it is excluded. I could not break it."
+   "notes": "Two closes under, back on the third session, fits m03's 'within 3 sessions' and card 32's 'fewer than 5'. Oops is one session (k21), so it is excluded. I could not break it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "pass",
@@ -4227,7 +4230,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -4295,7 +4299,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",
@@ -4424,7 +4429,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k32/k33: best when an average and a level sit together. The story says 100.00 held for months (k27). It is framed as a cue, not a score (E50). Mild: B is the lone B among two A choices, but not decisive."
+   "notes": "k32/k33: best when an average and a level sit together. The story says 100.00 held for months (k27). It is framed as a cue, not a score (E50). Mild: B is the lone B among two A choices, but not decisive.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q77": {
    "status": "pass",

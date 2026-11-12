@@ -839,9 +839,9 @@
    "q": "Where does the unemployment rate in the jobs report come from?",
    "choices": [
     "A monthly survey of households",
-    "A monthly survey of businesses",
+    "A monthly survey of employers",
     "Weekly jobless benefit claims",
-    "A full head count of the jobless"
+    "A full count of the jobless"
    ],
    "answer": "A monthly survey of households",
    "why": "A monthly survey of households. That survey, the Current Population Survey, measures the labor force, the employed and the unemployed. Payrolls come from a separate survey of businesses. Weekly claims are a separate Labor Department report. The rate itself comes from the household survey.",
@@ -854,9 +854,9 @@
     "f33"
    ],
    "wrong": {
-    "A monthly survey of businesses": "That's where payrolls come from. Businesses report jobs, not who is out looking for work.",
+    "A monthly survey of employers": "That's where payrolls come from. Businesses report jobs, not who is out looking for work.",
     "Weekly jobless benefit claims": "Claims are a separate weekly report from the Labor Department. The jobless rate comes from the household survey.",
-    "A full head count of the jobless": "It's an estimate from a monthly survey of households, not a full count. And not every jobless person counts as unemployed."
+    "A full count of the jobless": "It's an estimate from a monthly survey of households, not a full count. And not every jobless person counts as unemployed."
    },
    "simple": "It comes from a monthly survey of households, a different survey from the one that counts payroll jobs.",
    "tier": "core",
@@ -1274,8 +1274,8 @@
    "q": "What happens to the unemployment rate?",
    "choices": [
     "It falls; they left the labor force",
-    "It rises; more people are now jobless",
-    "It stays put; they're still jobless",
+    "It rises; more people are jobless",
+    "It stays put; they remain jobless",
     "It falls; more of them found jobs"
    ],
    "answer": "It falls; they left the labor force",
@@ -1290,8 +1290,8 @@
     "f82"
    ],
    "wrong": {
-    "It rises; more people are now jobless": "No one new lost a job. Those who quit looking are still jobless, but BLS no longer counts them as unemployed.",
-    "It stays put; they're still jobless": "The rate is the unemployed over the labor force. Take the same number out of both and the rate drops.",
+    "It rises; more people are jobless": "No one new lost a job. Those who quit looking are still jobless, but BLS no longer counts them as unemployed.",
+    "It stays put; they remain jobless": "The rate is the unemployed over the labor force. Take the same number out of both and the rate drops.",
     "It falls; more of them found jobs": "No one found a job, and nothing else changed. The rate falls only because they left the labor force."
    },
    "simple": "It falls, because people who stop looking for work leave the labor force and no longer count as unemployed.",
@@ -1661,7 +1661,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: household survey (f20). Matches. Choices 30/30/27/32, no tell. Claims distractor refuted with f20 and f45 only; f26 is no longer stated, so q10 is not answered. The why and the businesses note restate that payrolls come from businesses (q03's answer), but w1 step 2 teaches both openly, so no new leak. Head-count note 'not every jobless person counts as unemployed' (f32, f33) hints at q17 only in general; q10's why already teaches the 4-week rule. Minor: the why's last sentence repeats its first; harmless."
+   "notes": "My answer before the key: household survey (f20). Matches. Choices 30/30/27/32, no tell. Claims distractor refuted with f20 and f45 only; f26 is no longer stated, so q10 is not answered. The why and the businesses note restate that payrolls come from businesses (q03's answer), but w1 step 2 teaches both openly, so no new leak. Head-count note 'not every jobless person counts as unemployed' (f32, f33) hints at q17 only in general; q10's why already teaches the 4-week rule. Minor: the why's last sentence repeats its first; harmless.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1740,7 +1741,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Falls: f24, f25, f32, f33. Trap now grounded in f31. Two 'falls' choices, key not longest (35 vs 37)."
+   "notes": "Falls: f24, f25, f32, f33. Trap now grounded in f31. Two 'falls' choices, key not longest (35 vs 37).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",

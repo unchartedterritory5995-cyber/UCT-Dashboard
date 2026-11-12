@@ -1363,8 +1363,8 @@
    "q": "The gap is holding and the volume is there. Where is the day-one buy?",
    "choices": [
     "Over the opening-range high, at market",
-    "At the open, before any range has formed",
-    "On a limit order a little under the open",
+    "At the open, before a range forms",
+    "On a limit order a bit under the open",
     "At the close, if the gap held all day"
    ],
    "answer": "Over the opening-range high, at market",
@@ -1378,8 +1378,8 @@
     "c32"
    ],
    "wrong": {
-    "At the open, before any range has formed": "Our day-one buy waits for the first 5-minute candle, then goes over its high. Kullamagi also waits for the opening-range high.",
-    "On a limit order a little under the open": "Our entries are market orders, so a limit under the open is not the plan.",
+    "At the open, before a range forms": "Our day-one buy waits for the first 5-minute candle, then goes over its high. Kullamagi also waits for the opening-range high.",
+    "On a limit order a bit under the open": "Our entries are market orders, so a limit under the open is not the plan.",
     "At the close, if the gap held all day": "A close entry puts the stop far away, 7% or more in the card's example. Then the size is tiny or the 3% rule breaks. Buy early, near the opening-range high."
    },
    "house": true,
@@ -1709,9 +1709,9 @@
    "q": "You buy a delayed entry on day three. Where is the stop?",
    "choices": [
     "Just under the trigger day's low",
-    "Under the gap-day low, which holds",
-    "Under the prior close, the gap fill",
-    "Under the 10-day average, the trail"
+    "Under the gap-day low, it holds",
+    "Under the prior close, gap fill",
+    "Under the 10-day, the trail"
    ],
    "answer": "Just under the trigger day's low",
    "why": "Just under the trigger day's low, by a few cents. Stop first: the size comes from the stop. Morales uses the gap-up day's low as his selling guide, and ours sits at or above it. If the honest stop is wider than about 3%, skip the trade. Every position has a real stop order with the broker.",
@@ -1728,9 +1728,9 @@
     "h21"
    ],
    "wrong": {
-    "Under the prior close, the gap fill": "A gap fill is an invalidation before entry, not a stop after it. Far too wide.",
-    "Under the gap-day low, which holds": "Morales uses the gap-up day's low as his selling guide. Ours is the trigger day's low, which sits at or above it, so the stop is tighter.",
-    "Under the 10-day average, the trail": "The 10-day is the trail for the last third, sold on a close below it. It is not the first stop."
+    "Under the prior close, gap fill": "A gap fill is an invalidation before entry, not a stop after it. Far too wide.",
+    "Under the 10-day, the trail": "The 10-day is the trail for the last third, sold on a close below it. It is not the first stop.",
+    "Under the gap-day low, it holds": "Morales uses the gap-up day's low as his selling guide. Ours is the trigger day's low, which sits at or above it, so the stop is tighter."
    },
    "house": true,
    "simple": "The stop goes a few cents under the low of the trigger day, which is tighter than the gap-day low.",
@@ -1790,9 +1790,9 @@
    "q": "Is this an Episodic Pivot?",
    "choices": [
     "No; that news is a weak catalyst",
-    "Yes; the gap and volume are enough",
-    "Yes; any news counts as the episode",
-    "No; the gap is too small to count"
+    "Yes; the gap and volume suffice",
+    "Yes; any news is the episode",
+    "No; the gap is too small"
    ],
    "story": "A stock gaps up 15% on big volume. The only news is a morning television mention by a well-known host.",
    "answer": "No; that news is a weak catalyst",
@@ -1806,9 +1806,9 @@
     "k01"
    ],
    "wrong": {
-    "Yes; the gap and volume are enough": "Price and volume are half of the EP. The other half is the news, and a mention is weak news.",
-    "Yes; any news counts as the episode": "Bonde keeps a high-probability list and a low-probability list. Mentions sit on the second.",
-    "No; the gap is too small to count": "A 15% gap clears Kullamagi's line of 10% or more. The catalyst is what fails here."
+    "Yes; the gap and volume suffice": "Price and volume are half of the EP. The other half is the news, and a mention is weak news.",
+    "Yes; any news is the episode": "Bonde keeps a high-probability list and a low-probability list. Mentions sit on the second.",
+    "No; the gap is too small": "A 15% gap clears Kullamagi's line of 10% or more. The catalyst is what fails here."
    },
    "house": true,
    "simple": "No. A television mention is weak news, and the setup needs a real episode like earnings or raised guidance.",
@@ -2463,8 +2463,8 @@
    "choices": [
     "Sell; under 1R after 10 trading days",
     "Hold; the stop has not been hit",
-    "Hold; the next report will move it up",
-    "Sell half now and trail the other half"
+    "Hold; the next report lifts it",
+    "Sell half now, trail the rest"
    ],
    "story": "You bought a delayed EP entry. Ten trading days later it sits at 0.4R, never near 3R, never near the stop.",
    "answer": "Sell; under 1R after 10 trading days",
@@ -2478,8 +2478,8 @@
    ],
    "wrong": {
     "Hold; the stop has not been hit": "The stop is one exit; the time stop is another. Ten days under 1R is the second.",
-    "Hold; the next report will move it up": "A hoped-for report is not part of this trade's plan. The time stop sells a trade still under 1R after 10 trading days.",
-    "Sell half now and trail the other half": "The time stop sells the whole trade. Trailing the rest is for after the trims."
+    "Hold; the next report lifts it": "A hoped-for report is not part of this trade's plan. The time stop sells a trade still under 1R after 10 trading days.",
+    "Sell half now, trail the rest": "The time stop sells the whole trade. Trailing the rest is for after the trims."
    },
    "house": true,
    "simple": "Sell. A trade still under 1R after 10 trading days gets sold, and this one is at 0.4R.",
@@ -2834,8 +2834,8 @@
    "choices": [
     "A few; EPs lead out of a correction",
     "All six; Green is full risk",
-    "None; wait for the indexes to confirm",
-    "One; EPs are risky after a correction"
+    "None; wait for indexes to confirm",
+    "One; EPs are risky in a correction"
    ],
    "story": "A correction just ended and the reading turned Green. Earnings season is on, and six neglected names gapped on reports this week.",
    "answer": "A few; EPs lead out of a correction",
@@ -2848,8 +2848,8 @@
    ],
    "wrong": {
     "All six; Green is full risk": "Full risk is the ceiling, not the first day's order. Earn the next positions.",
-    "None; wait for the indexes to confirm": "EPs often work when the indexes do not. Waiting for the indexes misses the leaders.",
-    "One; EPs are risky after a correction": "The card calls EPs the first longs to try as a correction ends, so one is too few. The rule is a few, then more as they work."
+    "None; wait for indexes to confirm": "EPs often work when the indexes do not. Waiting for the indexes misses the leaders.",
+    "One; EPs are risky in a correction": "The card calls EPs the first longs to try as a correction ends, so one is too few. The rule is a few, then more as they work."
    },
    "house": true,
    "simple": "Take a few at first, because after a correction you start small and add more only as the first ones work.",
@@ -2874,8 +2874,8 @@
    "q": "What is the right read of this loss?",
    "choices": [
     "A loss from a strong gap that failed",
-    "A loss from a stop set a bit too tight",
-    "A loss from a gap too big to be bought",
+    "A loss from a stop set too tight",
+    "A loss from a gap too big to buy",
     "A loss from a gap on thin volume"
    ],
    "story": "A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
@@ -2892,8 +2892,8 @@
     "b20"
    ],
    "wrong": {
-    "A loss from a stop set a bit too tight": "A few cents under the trigger day's low is our rule. It kept the loss near 1R, which is the plan.",
-    "A loss from a gap too big to be bought": "Our card marks a gap down only over 25%, and Bonde's caution starts over 20%. This one was 18.2%.",
+    "A loss from a stop set too tight": "A few cents under the trigger day's low is our rule. It kept the loss near 1R, which is the plan.",
+    "A loss from a gap too big to buy": "Our card marks a gap down only over 25%, and Bonde's caution starts over 20%. This one was 18.2%.",
     "A loss from a gap on thin volume": "13.1x the average is heavy, well over the 3 times floor. The volume was not the problem."
    },
    "house": true,
@@ -3586,9 +3586,9 @@
    "q": "Hidden ticker; the gap day is the last bar. Read the months before it and the gap day. Buy a delayed break, or pass?",
    "choices": [
     "Take it; neglect, strong close",
-    "Pass; the stock was already up",
+    "Pass; it was already up",
     "Pass; the gap day closed weak",
-    "Take it, but after the gap fills"
+    "Take it, but after the fill"
    ],
    "answer": "Take it; neglect, strong close",
    "why": "Take it. The months before the gap show a stock down 19% over six months, the neglect the setup needs. The gap day closed near its high, at 85% of its range. A break over the post-gap high is the delayed trigger, and this one came on day 4. The real numbers: a 10.5% gap on 7.4x volume.",
@@ -3602,9 +3602,9 @@
     "c19"
    ],
    "wrong": {
-    "Pass; the stock was already up": "Look left: the stock was down 19% over six months. That is the neglect the EP needs.",
+    "Pass; it was already up": "Look left: the stock was down 19% over six months. That is the neglect the EP needs.",
     "Pass; the gap day closed weak": "The gap day closed at 85% of its range, in the top quarter. The close passes.",
-    "Take it, but after the gap fills": "A trade back to the prior close fills the gap and ends the setup. We step aside then, we do not buy."
+    "Take it, but after the fill": "A trade back to the prior close fills the gap and ends the setup. We step aside then, we do not buy."
    },
    "house": true,
    "chart": {
@@ -3993,7 +3993,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -4054,7 +4055,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -4066,7 +4068,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "upgraded wave2; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
@@ -4174,7 +4177,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "cut",
@@ -4234,13 +4238,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h27/c26 support a few, then more as they work; All six, None and One each fail a cited line."
+   "notes": "h27/c26 support a few, then more as they work; All six, None and One each fail a cited line.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (d16/d17/d30/h02). Choice D 'not buying on the first day' cannot be ruled out from the story (d17 says the inside-day trigger is the weaker one), so it is a second defensible read. Replace it with a clearly false choice. Also the deeper example's '0.0R' reads as the result; d16 says best run 0.0R."
+   "notes": "Key right (d16/d17/d30/h02). Choice D 'not buying on the first day' cannot be ruled out from the story (d17 says the inside-day trigger is the weaker one), so it is a second defensible read. Replace it with a clearly false choice. Also the deeper example's '0.0R' reads as the result; d16 says best run 0.0R.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4340,7 +4346,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q63": {
    "status": "cut",

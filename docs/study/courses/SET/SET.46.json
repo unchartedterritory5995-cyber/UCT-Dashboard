@@ -1108,9 +1108,9 @@
    "q": "By our card, how far over the AVWAP should the reclaim day close?",
    "choices": [
     "0.3 to 1.0 ATR over the line",
-    "Anywhere above it, even a cent",
-    "At least 2 ATR over the line",
-    "Right on the line at the close"
+    "Anywhere above, even a cent",
+    "At least 2 ATR over it",
+    "Right on the line at close"
    ],
    "answer": "0.3 to 1.0 ATR over the line",
    "why": "0.3 to 1.0 ATR over the line. That is our card's proposed band: clear, but not stretched. ATR is Wilder's 14-session average true range, in price. A close under 0.3 ATR over the line is not clear of it yet. A close more than 1.0 ATR over is stretched, past the top of that range, so it fails the card's test. The range is read on the reclaim day's close.",
@@ -1120,9 +1120,9 @@
     "g1a"
    ],
    "wrong": {
-    "Anywhere above it, even a cent": "A cent over is not clear of the line. The card wants 0.3 ATR at least.",
-    "At least 2 ATR over the line": "Past 1.0 ATR is stretched, over the top of the card's range.",
-    "Right on the line at the close": "On the line is not back over it. Nothing is reclaimed yet."
+    "Anywhere above, even a cent": "A cent over is not clear of the line. The card wants 0.3 ATR at least.",
+    "At least 2 ATR over it": "Past 1.0 ATR is stretched, over the top of the card's range.",
+    "Right on the line at close": "On the line is not back over it. Nothing is reclaimed yet."
    },
    "house": true,
    "simple": "Our card wants the close between 0.3 and 1.0 ATR over the line, clear of it but not stretched.",
@@ -1559,9 +1559,9 @@
    "story": "A stock held above the rising AVWAP from its March high for months. Tuesday it dips under the line. Thursday it closes back over.",
    "choices": [
     "No; too few closes under the line",
-    "Yes; it closed back over the line",
-    "No; it must close a full ATR over",
-    "Yes; a rising line makes it stronger"
+    "Yes; it closed back over it",
+    "No; it must close an ATR over",
+    "Yes; a rising line adds strength"
    ],
    "answer": "No; too few closes under the line",
    "why": "No. Our card's tell is to count the closes under the line. An AVWAP reclaim comes after weeks of closes under it, with the line flattened. Here the stock dipped under a still-rising line for a few days. That is a brief dip, not a reclaim. Shannon also weighs the line's direction more than a close or two under it.",
@@ -1572,9 +1572,9 @@
     "c04"
    ],
    "wrong": {
-    "Yes; it closed back over the line": "A close back over is not enough. Our reclaim comes after weeks of closes under a line that has flattened.",
-    "Yes; a rising line makes it stronger": "Our reclaim comes after weeks of closes under the line. This stock held above it for months and dipped for a few days.",
-    "No; it must close a full ATR over": "Our card wants the close 0.3 to 1.0 ATR over the line, not a full ATR. The real miss is too few closes under."
+    "Yes; it closed back over it": "A close back over is not enough. Our reclaim comes after weeks of closes under a line that has flattened.",
+    "Yes; a rising line adds strength": "Our reclaim comes after weeks of closes under the line. This stock held above it for months and dipped for a few days.",
+    "No; it must close an ATR over": "Our card wants the close 0.3 to 1.0 ATR over the line, not a full ATR. The real miss is too few closes under."
    },
    "house": true,
    "simple": "No, because a real reclaim comes after weeks under a flat line, not a few days under a rising one.",
@@ -1985,9 +1985,9 @@
    "story": "The reclaim day closed 0.6 ATR over the line. The next day never clears its high and closes back under the AVWAP.",
    "choices": [
     "No; a close back under ends it",
-    "Yes; the trigger is still live",
-    "Yes; buy the next close over it",
-    "No; the reclaim day was too small"
+    "Yes; the trigger is live",
+    "Yes; buy the next close above",
+    "No; the reclaim was too small"
    ],
    "answer": "No; a close back under ends it",
    "why": "No. Our card proposes this invalidation: a close back at or under the AVWAP before the trigger trades means no trade. The reclaim has to hold until the buy. The reclaim day itself was fine, 0.6 ATR over the line. A later close back over is a new reclaim, judged from scratch.",
@@ -1997,9 +1997,9 @@
     "c04"
    ],
    "wrong": {
-    "Yes; buy the next close over it": "A new close over is a new reclaim, judged from scratch. This one is off.",
-    "Yes; the trigger is still live": "The close back under came before the trigger traded. Our card makes that no trade.",
-    "No; the reclaim day was too small": "Right verdict, wrong reason. 0.6 ATR is inside the card's 0.3 to 1.0 band. The close back under ended it."
+    "Yes; buy the next close above": "A new close over is a new reclaim, judged from scratch. This one is off.",
+    "Yes; the trigger is live": "The close back under came before the trigger traded. Our card makes that no trade.",
+    "No; the reclaim was too small": "Right verdict, wrong reason. 0.6 ATR is inside the card's 0.3 to 1.0 band. The close back under ended it."
    },
    "house": true,
    "simple": "No, it slipped back under the line before the buy, so the setup is off and you walk away.",
@@ -2228,9 +2228,9 @@
    "q": "When does the stop move to breakeven on an AVWAP reclaim winner?",
    "choices": [
     "Once it is up between 2R and 5R",
-    "The day after entry, to be safe",
-    "Never; the stop stays where it is",
-    "As soon as it closes over the line"
+    "The next day, to be safe",
+    "Never; the stop stays put",
+    "As soon as it closes over it"
    ],
    "answer": "Once it is up between 2R and 5R",
    "why": "Between 2R and 5R. Our rule moves the stop to breakeven at 2R to 5R, ideally. The stop only moves up, never down, so up to breakeven is allowed. It is a range of gain, not a fixed day.",
@@ -2240,9 +2240,9 @@
     "h02"
    ],
    "wrong": {
-    "The day after entry, to be safe": "Breakeven waits for 2R to 5R of gain. A day after entry is far too soon.",
-    "Never; the stop stays where it is": "The stop only moves up. Up to breakeven at 2R to 5R is allowed.",
-    "As soon as it closes over the line": "Every reclaim closes over the line. That is the setup, not a gain of 2R."
+    "The next day, to be safe": "Breakeven waits for 2R to 5R of gain. A day after entry is far too soon.",
+    "Never; the stop stays put": "The stop only moves up. Up to breakeven at 2R to 5R is allowed.",
+    "As soon as it closes over it": "Every reclaim closes over the line. That is the setup, not a gain of 2R."
    },
    "house": true,
    "simple": "Once the trade is up between 2R and 5R, because that is when our rule moves the stop to breakeven.",
@@ -3595,7 +3595,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c04 verbatim band; choices balanced; why grounded in c04 and g1a."
+   "notes": "Key c04 verbatim band; choices balanced; why grounded in c04 and g1a.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -3667,7 +3668,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived No: a few days under a rising line is a dip, not weeks under a flattened line (c24, b03). Other gates (c02 first reclaim, real fall) would also say No, but no choice offers them, so no second defensible answer. Two Yes / two No, lengths balanced. Story's 'held above the AVWAP from its March high for months' reads as a swing high the stock later exceeded; plausible. Keys no count (D-083 kept out). Pass."
+   "notes": "Derived No: a few days under a rising line is a dip, not weeks under a flattened line (c24, b03). Other gates (c02 first reclaim, real fall) would also say No, but no choice offers them, so no second defensible answer. Two Yes / two No, lengths balanced. Story's 'held above the AVWAP from its March high for months' reads as a swing high the stock later exceeded; plausible. Keys no count (D-083 kept out). Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -3685,7 +3687,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c12; 0.6 ATR inside c04 band; depends_on D-003 recorded (story assumes the high-break trigger)."
+   "notes": "Key c12; 0.6 ATR inside c04 band; depends_on D-003 recorded (story assumes the high-break trigger).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -3709,7 +3712,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from B19 (h05), 2R to 5R; why keeps 'ideally'. Distractors are distinct misconceptions. Pass."
+   "notes": "Key from B19 (h05), 2R to 5R; why keeps 'ideally'. Distractors are distinct misconceptions. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",

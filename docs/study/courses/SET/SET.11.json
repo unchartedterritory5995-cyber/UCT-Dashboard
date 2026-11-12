@@ -1065,9 +1065,9 @@
    "q": "What must come right before a launchpad's long rest?",
    "choices": [
     "A correction of 15% or more",
-    "A new high on rising volume",
-    "A 5% dip and a quick bounce",
-    "A steady climb over the 50-day"
+    "A new high, volume rising",
+    "A 5% dip, then a bounce",
+    "A climb over the 50-day"
    ],
    "answer": "A correction of 15% or more",
    "why": "A correction of 15% or more. The lowest close of the last 60 sessions sits at least 15% under the highest high of the 60 sessions before that. A launchpad follows that fall, then rests five weeks or more under a tight bundle.",
@@ -1079,9 +1079,9 @@
    ],
    "house": true,
    "wrong": {
-    "A new high on rising volume": "A launchpad follows a fall, not a new high. The correction comes first, then the rest.",
-    "A 5% dip and a quick bounce": "Too shallow. The line is a correction of at least 15%, then weeks of rest.",
-    "A steady climb over the 50-day": "Price riding on top of the averages in an uptrend is a pullback breakout, not a launchpad."
+    "A new high, volume rising": "A launchpad follows a fall, not a new high. The correction comes first, then the rest.",
+    "A 5% dip, then a bounce": "Too shallow. The line is a correction of at least 15%, then weeks of rest.",
+    "A climb over the 50-day": "Price riding on top of the averages in an uptrend is a pullback breakout, not a launchpad."
    },
    "simple": "A real fall comes first, because a launchpad is the long rest after a correction of at least 15%.",
    "tier": "core",
@@ -1858,8 +1858,8 @@
    "choices": [
     "The gap and news test",
     "The 2% push test",
-    "The close-in-range test",
-    "The four-averages test"
+    "The range-close test",
+    "The averages test"
    ],
    "answer": "The gap and news test",
    "why": "The gap and news test. The launch opens no more than 6% above the prior close and is not a news bar. This bar opens 8% up on a news item. A bigger gap is a different setup, a Kicker or an earnings gap.",
@@ -1874,8 +1874,8 @@
    "house": true,
    "wrong": {
     "The 2% push test": "It passes. The bar is up 9% and the floor is 2%.",
-    "The close-in-range test": "It passes. A close at 0.90 clears the 0.65 floor.",
-    "The four-averages test": "It passes. The bar closed above all four averages."
+    "The range-close test": "It passes. A close at 0.90 clears the 0.65 floor.",
+    "The averages test": "It passes. The bar closed above all four averages."
    },
    "simple": "This is not a launch. A gap of more than 6% on news is a different setup.",
    "tier": "core",
@@ -2132,9 +2132,9 @@
    "q": "What does the second setup do to the grade?",
    "choices": [
     "Lifts it; it is an A+ cue",
-    "Nothing; one setup at a time",
-    "Lowers it; too busy a day",
-    "Swaps it for the other setup"
+    "Nothing; one at a time",
+    "Lowers it; too busy",
+    "Swaps it for the other"
    ],
    "answer": "Lifts it; it is an A+ cue",
    "why": "Lifts it. Another UCT setup on the launch day, an Oops or an inside day, is an A+ cue. The pad grades up.",
@@ -2145,9 +2145,9 @@
    ],
    "house": true,
    "wrong": {
-    "Nothing; one setup at a time": "Two of our setups on the launch day is an A+ cue, so it changes the grade.",
-    "Lowers it; too busy a day": "Another setup on the launch day is an A+ cue, so it cannot lower the grade.",
-    "Swaps it for the other setup": "It stays a launchpad. The second setup is a cue that lifts the grade."
+    "Lowers it; too busy": "Another setup on the launch day is an A+ cue, so it cannot lower the grade.",
+    "Swaps it for the other": "It stays a launchpad. The second setup is a cue that lifts the grade.",
+    "Nothing; one at a time": "Two of our setups on the launch day is an A+ cue, so it changes the grade."
    },
    "story": "The launch bar also prints an Oops reversal the same day: it opened under the prior close, traded under the prior low and closed back above the prior close.",
    "simple": "A second UCT setup on the launch day grades the pad up, because it is an A+ cue.",
@@ -2529,8 +2529,8 @@
    "choices": [
     "The 2.1x day, over twice average",
     "The 1.3x day; quieter is better",
-    "Equal; both days passed the gate",
-    "The 1.3x day; 2.1x looks like news"
+    "Equal; both passed the gate",
+    "The 1.3x day; 2.1x means news"
    ],
    "answer": "The 2.1x day, over twice average",
    "why": "The 2.1x day. Volume of 2 times the 50-day average or more is the A+ version of the launch bar. It is not a rule. Neither day gaps and both close in the top 35% of the range, so both pass those tests. Grading stays a judgment call.",
@@ -2545,8 +2545,8 @@
    "house": true,
    "wrong": {
     "The 1.3x day; quieter is better": "On the launch bar, volume of 2 times the 50-day average or more is the A+ version. Quiet does not lead.",
-    "Equal; both days passed the gate": "Passing is the gate. Volume of 2 times the average is a cue toward A+, so the days are not equal.",
-    "The 1.3x day; 2.1x looks like news": "The story has no gap and no news day. A news bar is a gap over 6% or a one-off news day, not heavy volume."
+    "Equal; both passed the gate": "Passing is the gate. Volume of 2 times the average is a cue toward A+, so the days are not equal.",
+    "The 1.3x day; 2.1x means news": "The story has no gap and no news day. A news bar is a gap over 6% or a one-off news day, not heavy volume."
    },
    "story": "Same pad, two launch days. Neither gaps and neither is a news day. Both close in the top 35% of their range. One trades 1.3x average volume; the other 2.1x.",
    "simple": "The day with 2.1x volume leans toward the A+ version, though both days still pass.",
@@ -3030,8 +3030,8 @@
    "q": "Launchpad or flat base?",
    "choices": [
     "A flat base; it broke its own high",
-    "A launchpad; the averages are nearby",
-    "Both; the labels are interchangeable",
+    "A launchpad; averages are nearby",
+    "Both; the labels are the same",
     "A VCP; it held a rising 50-day"
    ],
    "answer": "A flat base; it broke its own high",
@@ -3045,8 +3045,8 @@
    ],
    "house": true,
    "wrong": {
-    "A launchpad; the averages are nearby": "Near is not under. A pad spends weeks under the bundle; this one never did.",
-    "Both; the labels are interchangeable": "Each has its own trigger. A pad's is the close above the averages. A flat base's is a break of its own high.",
+    "A launchpad; averages are nearby": "Near is not under. A pad spends weeks under the bundle; this one never did.",
+    "Both; the labels are the same": "Each has its own trigger. A pad's is the close above the averages. A flat base's is a break of its own high.",
     "A VCP; it held a rising 50-day": "A VCP shows pullbacks that shrink one after another above a rising 50-day. This is one flat box, not a run of shrinking pullbacks."
    },
    "story": "For nine weeks every close held above a rising 50-day in a box near the highs. Today it trades through the box's top.",
@@ -3089,9 +3089,9 @@
    "q": "Does the time stop fire?",
    "choices": [
     "No; over 1R, so it stays",
-    "Yes; ten days without 3R",
-    "Yes; sell half the position",
-    "No; any profit exempts it"
+    "Yes; ten days, no 3R",
+    "Yes; sell half of it",
+    "No; any gain exempts it"
    ],
    "answer": "No; over 1R, so it stays",
    "why": "No. The time stop sells a trade still under 1R after 10 trading days. This one was over 1R by day ten, so it stays. The test is 1R, not 3R. A pad that does not expand is a quiet failure, but a slow pad that is working is not. DDOG took 33 sessions to reach 3R and ran to 10.8R.",
@@ -3104,9 +3104,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; ten days without 3R": "The line is 1R, not 3R. Over 1R in ten days means the trade has done something.",
-    "Yes; sell half the position": "There is no half rule here. Either it is under 1R and sold, or it stays.",
-    "No; any profit exempts it": "The line is 1R, not any profit. A trade still under 1R after 10 trading days is sold, even if it is slightly up."
+    "Yes; ten days, no 3R": "The line is 1R, not 3R. Over 1R in ten days means the trade has done something.",
+    "Yes; sell half of it": "There is no half rule here. Either it is under 1R and sold, or it stays.",
+    "No; any gain exempts it": "The line is 1R, not any profit. A trade still under 1R after 10 trading days is sold, even if it is slightly up."
    },
    "story": "You bought the launch at 122.69, stop 118.32. The stock dangles along the 21-day for four weeks. On day ten it is over 1R but under 3R.",
    "simple": "No, because the time stop only sells a trade still under 1R after ten days, and this one was over.",
@@ -3322,9 +3322,9 @@
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
     "Late market buy; day-low stop; 3R",
-    "Limit below market; base-low stop",
-    "Next open; 200-day stop; out at 2R",
-    "Late market buy; fixed 3% stop; 3R"
+    "Limit below price; base-low stop",
+    "Next open; 200-day stop; 2R",
+    "Late market buy; 3% stop; 3R"
    ],
    "answer": "Late market buy; day-low stop; 3R",
    "why": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. The card's buy is a market order in the last minutes of the launch day, once the day meets the launch tests. BABA filled at 89.14 with the stop at 86.43 and reached 3R in three sessions. Entries are market orders, so a limit below the market is not the plan. The base low is not the stop.",
@@ -3345,9 +3345,9 @@
    ],
    "house": true,
    "wrong": {
-    "Limit below market; base-low stop": "Entries are market orders, so a limit below the market is not the plan, and the base low is not the stop.",
-    "Next open; 200-day stop; out at 2R": "The buy is a market order in the last minutes of the launch day, not the next open. The stop goes under the launch day's low, not the 200-day. At 2R the stop only moves up to the entry.",
-    "Late market buy; fixed 3% stop; 3R": "The 3% is how far the stop usually sits, not how it is set. It goes a few cents under the launch day's low, and a wider honest stop means fewer shares."
+    "Limit below price; base-low stop": "Entries are market orders, so a limit below the market is not the plan, and the base low is not the stop.",
+    "Next open; 200-day stop; 2R": "The buy is a market order in the last minutes of the launch day, not the next open. The stop goes under the launch day's low, not the 200-day. At 2R the stop only moves up to the entry.",
+    "Late market buy; 3% stop; 3R": "The 3% is how far the stop usually sits, not how it is set. It goes a few cents under the launch day's low, and a wider honest stop means fewer shares."
    },
    "story": "BABA, January 2025: weeks of closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four.",
    "simple": "Buy at market in the last minutes, stop a few cents under the launch day's low, and sell a third at 3R.",
@@ -3548,7 +3548,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
@@ -3687,7 +3688,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",
@@ -3729,7 +3731,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key is c32 and the Oops story is o01 (quote verified in the Oops card). Two silly distractors but none defensible."
+   "notes": "Pass. Key is c32 and the Oops story is o01 (quote verified in the Oops card). Two silly distractors but none defensible.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3802,7 +3805,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -3881,7 +3885,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q58": {
    "status": "cut",
@@ -3893,7 +3898,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h15/c21/d06 support the key; DDOG numbers match d05. Wrong notes grounded. Key repeats 'over 1R' from the story but the 3R and any-profit distractors make it a real test."
+   "notes": "h15/c21/d06 support the key; DDOG numbers match d05. Wrong notes grounded. Key repeats 'over 1R' from the story but the 3R and any-profit distractors make it a real test.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",
@@ -3929,7 +3935,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q66": {
    "status": "pass",

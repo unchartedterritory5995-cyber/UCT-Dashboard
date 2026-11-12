@@ -878,7 +878,7 @@
     "Count, win rate, average win and loss",
     "Win rate and number of trades only",
     "Total dollar P&L and trade count",
-    "The best and worst trades of the month"
+    "The month's best and worst trades"
    ],
    "answer": "Count, win rate, average win and loss",
    "why": "Count, win rate, average win and loss. The money manager Steenbarger quotes tracks the share of winners and the average win against the average loss. Together with the count, they give the average R the setup has paid, which Tharp calls expectancy. The count tells you how far to trust the rest: Tharp wants more than thirty results. A high win rate can still lose money when the losses are big next to the wins. UCT's own monthly review checks win rate, average win and loss in R, and expectancy.",
@@ -895,7 +895,7 @@
    "wrong": {
     "Win rate and number of trades only": "That leaves out how big the wins and losses are. Even with a high win rate, a poor risk/reward can lose.",
     "Total dollar P&L and trade count": "Dollars mix big trades with small ones, and it leaves out the win rate. Our monthly review reads the win rate, and wins and losses in R.",
-    "The best and worst trades of the month": "Two extremes say little about the rest. The monthly numbers are the share of winners and the average win and loss."
+    "The month's best and worst trades": "Two extremes say little about the rest. The monthly numbers are the share of winners and the average win and loss."
    },
    "simple": "Count, win rate and average win and loss, because together they show what the setup has paid per trade.",
    "tier": "core",
@@ -1095,7 +1095,7 @@
     "Check if you kept last week's goal",
     "Set new goals for the coming week",
     "Add up the week's profit and loss",
-    "Start a clean page for the new week"
+    "Start a clean page for next week"
    ],
    "answer": "Check if you kept last week's goal",
    "why": "Check if you kept last week's goal. Steenbarger calls a review you never come back to a throwaway, and goals nobody checks hold nobody to account. If you kept it, write down what worked so you keep doing it. If you didn't, tweak the plan. Only then set the next goal. UCT's own rule is to journal every trade the same day and review the week every weekend, ideally.",
@@ -1113,7 +1113,7 @@
    "wrong": {
     "Set new goals for the coming week": "New goals on top of an unchecked one is how goals pile up and fade. Check the old one first.",
     "Add up the week's profit and loss": "The P&L is the score. CME puts the why and how of your trading ahead of the total.",
-    "Start a clean page for the new week": "A clean page leaves last week's goal unchecked. Steenbarger calls a review you never return to a throwaway."
+    "Start a clean page for next week": "A clean page leaves last week's goal unchecked. Steenbarger calls a review you never return to a throwaway."
    },
    "simple": "Check last week's goal first, because a goal nobody comes back to is only a wish.",
    "tier": "extended",
@@ -1702,7 +1702,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rederived from f10, f67 (E59) and f53 for the count. The CME dollar-P&L attack is answered: that choice drops the win rate, which E59 reads. 'only' in one distractor is load-bearing (it is a subset of the key without it), so it stays; key is not the longest (37 vs 38)."
+   "notes": "Key rederived from f10, f67 (E59) and f53 for the count. The CME dollar-P&L attack is answered: that choice drops the win rate, which E59 reads. 'only' in one distractor is load-bearing (it is a subset of the key without it), so it stays; key is not the longest (37 vs 38).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -1739,7 +1740,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rederived from f05, f06, f07, f27 (Steenbarger) with CME f33 (come back to your conclusions). Lengths 33-35, no tell. The example goal (no trades in the first 15 minutes) is framed as the member's own; C30 (no time-of-day rule) stays on the owner flag list."
+   "notes": "Key rederived from f05, f06, f07, f27 (Steenbarger) with CME f33 (come back to your conclusions). Lengths 33-35, no tell. The example goal (no trades in the first 15 minutes) is framed as the member's own; C30 (no time-of-day rule) stays on the owner flag list.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",

@@ -719,9 +719,9 @@
    "q": "Why keep the risk on each trade to a small slice of the account?",
    "choices": [
     "So you survive losing streaks",
-    "So each trade is likelier to win",
-    "Because regulators cap it at 2%",
-    "So you can hold losers longer"
+    "So each trade wins more",
+    "As regulators cap it at 2%",
+    "So you hold losers longer"
    ],
    "answer": "So you survive losing streaks",
    "why": "So you survive losing streaks. Losses are a normal part of trading, and streaks happen to good traders too. Under the 2% rule, a $100,000 account risks $2,000 a trade, so ten straight losses cost 20%. You are hurt, but still trading. Small risk doesn't stop losses. It limits what each one costs.",
@@ -738,9 +738,9 @@
     "f05"
    ],
    "wrong": {
-    "So each trade is likelier to win": "Good sizing doesn't stop losses. It limits what a loss costs you, not whether the trade wins.",
-    "Because regulators cap it at 2%": "No regulator sets it. Investopedia says the 2% rule is not a requirement of any regulator. It's a trader's own limit.",
-    "So you can hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and you lose more than you planned."
+    "So each trade wins more": "Good sizing doesn't stop losses. It limits what a loss costs you, not whether the trade wins.",
+    "As regulators cap it at 2%": "No regulator sets it. Investopedia says the 2% rule is not a requirement of any regulator. It's a trader's own limit.",
+    "So you hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and you lose more than you planned."
    },
    "simple": "So you survive losing streaks: small risk keeps a run of losses from ending your trading.",
    "tier": "core",
@@ -1404,7 +1404,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f06, f23, f02+f03 = exactly 20% on Investopedia's flat case, f30); choices balanced, no tell. One defect: the wrong note for 'So you can hold losers longer' says 'Hold past the stop, and that plan no longer caps the loss', which implies the plan caps the loss when you do keep the stop. q16 in this lesson teaches the opposite ('1% is the plan, not a cap on the loss', FINRA f42). Reworded so the two questions agree."
+   "notes": "Key right (f06, f23, f02+f03 = exactly 20% on Investopedia's flat case, f30); choices balanced, no tell. One defect: the wrong note for 'So you can hold losers longer' says 'Hold past the stop, and that plan no longer caps the loss', which implies the plan caps the loss when you do keep the stop. q16 in this lesson teaches the opposite ('1% is the plan, not a cap on the loss', FINRA f42). Reworded so the two questions agree.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q08": {
    "status": "pass",

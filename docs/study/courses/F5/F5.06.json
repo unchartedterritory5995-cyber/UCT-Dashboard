@@ -1172,8 +1172,8 @@
    "choices": [
     "About 2x your normal risk",
     "About the same as normal",
-    "About 8x your normal risk",
-    "About 25x your normal risk"
+    "About 8x your risk",
+    "About 25x your risk"
    ],
    "answer": "About 2x your normal risk",
    "calc": {
@@ -1196,8 +1196,8 @@
    ],
    "wrong": {
     "About the same as normal": "Your stop doesn't set the loss here. The gap does, and 8% of a 25% position is 2% of the account.",
-    "About 8x your normal risk": "That's the stock's move. The account feels it only on the 25% you hold.",
-    "About 25x your normal risk": "That reads the position's size as the loss. Only the 8% drop on that 25% hits the account."
+    "About 8x your risk": "That's the stock's move. The account feels it only on the 25% you hold.",
+    "About 25x your risk": "That reads the position's size as the loss. Only the 8% drop on that 25% hits the account."
    },
    "simple": "About 2x, because 8% off a position worth 25% of the account is 2%, double your 1% risk.",
    "tier": "extended",
@@ -1831,7 +1831,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the lesson line changed: neutral, grounded in f28 and the calc (2x). 25% position is within A7's 40% cap."
+   "notes": "Only the lesson line changed: neutral, grounded in f28 and the calc (2x). 25% position is within A7's 40% cap.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",

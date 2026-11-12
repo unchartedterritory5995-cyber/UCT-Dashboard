@@ -1557,9 +1557,9 @@
    "q": "In trading, what does it mean to be on tilt?",
    "choices": [
     "Making bad decisions out of anger",
-    "Feeling too sure after a few wins",
+    "Feeling too sure after wins",
     "Holding a losing trade too long",
-    "Buying in fear of missing a move"
+    "Buying in fear of missing out"
    ],
    "answer": "Making bad decisions out of anger",
    "why": "Making bad decisions out of anger. Jared Tendler calls tilt a problem with anger in performance. A poker study defines tilting as out-of-control decisions driven by negative emotions. Tendler keeps the word narrow. Fear of missing a move is FOMO, and holding a loser too long is the disposition effect.",
@@ -1572,9 +1572,9 @@
     "f17"
    ],
    "wrong": {
-    "Feeling too sure after a few wins": "That's overconfidence. Tendler says no one gets angry about winning.",
+    "Feeling too sure after wins": "That's overconfidence. Tendler says no one gets angry about winning.",
     "Holding a losing trade too long": "That's the disposition effect. Tilt is about anger driving your decisions.",
-    "Buying in fear of missing a move": "That's FOMO, the fear of missing out. Tendler calls tilt a problem with anger in performance."
+    "Buying in fear of missing out": "That's FOMO, the fear of missing out. Tendler calls tilt a problem with anger in performance."
    },
    "simple": "Being on tilt means anger is making your trading choices, which leads to bad, out of control decisions.",
    "tier": "core",
@@ -2397,7 +2397,7 @@
     "Confirmation bias",
     "Herd mentality",
     "Anchoring",
-    "Gambler's fallacy"
+    "Gambling fallacy"
    ],
    "answer": "Confirmation bias",
    "why": "Confirmation bias. Schwab defines it as the tendency to seek information that supports what we already believe. Its own example is seeking more from influencers who think like you do. Muting the bear does the same job from the other side. The OSC calls it focusing on information that supports your preconceptions.",
@@ -2410,7 +2410,7 @@
    "wrong": {
     "Herd mentality": "Herding is copying what others do. Here you're choosing which opinions you hear.",
     "Anchoring": "Anchoring is leaning on a first number. This is about filtering opinions.",
-    "Gambler's fallacy": "The gambler's fallacy expects a streak to reverse. Nothing here is about a streak."
+    "Gambling fallacy": "The gambler's fallacy expects a streak to reverse. Nothing here is about a streak."
    },
    "simple": "Confirmation bias, because you keep the voices that agree with you and mute the one that doesn't.",
    "tier": "extended",
@@ -3544,7 +3544,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f108 + f113: anger driving decisions. Matches key. Choices 31-33 chars, key not longest. f110 context re-read live (heading 'Winner's Tilt is Not Tilt') supports the overconfidence note. The overconfidence distractor overlaps q09's idea, but the why no longer states it; accepted as rung 1 to rung 6 reinforcement."
+   "notes": "Own answer from f108 + f113: anger driving decisions. Matches key. Choices 31-33 chars, key not longest. f110 context re-read live (heading 'Winner's Tilt is Not Tilt') supports the overconfidence note. The overconfidence distractor overlaps q09's idea, but the why no longer states it; accepted as rung 1 to rung 6 reinforcement.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -3694,7 +3695,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "pass",

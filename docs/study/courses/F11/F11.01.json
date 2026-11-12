@@ -596,7 +596,7 @@
     "Bought and sold the same day",
     "Held one to five days",
     "Opened in the first hour",
-    "Any trade in a margin account"
+    "Any margin account trade"
    ],
    "answer": "Bought and sold the same day",
    "why": "Bought and sold the same day. A day trade is a buy and a sell of the same stock on one day. Selling short and buying back that day counts too. How long you held it within the day doesn't matter.",
@@ -611,7 +611,7 @@
    "wrong": {
     "Held one to five days": "That's a short swing trade. Hold it overnight and it isn't a day trade.",
     "Opened in the first hour": "When you buy doesn't decide it. Whether you sell the same day does.",
-    "Any trade in a margin account": "Many day traders trade on margin, but that isn't the test. A stock held for weeks in a margin account is still a swing or position trade."
+    "Any margin account trade": "Many day traders trade on margin, but that isn't the test. A stock held for weeks in a margin account is still a swing or position trade."
    },
    "simple": "A day trade means you buy and sell the same stock on the same day, so the day decides it.",
    "tier": "core",
@@ -976,7 +976,7 @@
     "The position trader",
     "The swing trader",
     "The day trader",
-    "Every trader equally"
+    "Each one equally"
    ],
    "answer": "The position trader",
    "why": "The position trader. Schwab says longer holds lead position traders to weigh fundamentals, valuation, money flows and the economy more than swing traders do. Investopedia says position trading is driven more by fundamentals. Day traders pay fundamentals little attention. It is a matter of weight: many swing traders still track fundamentals.",
@@ -992,7 +992,7 @@
    "wrong": {
     "The swing trader": "Swing traders lean on the chart. Many track fundamentals too, with less weight than someone holding for months.",
     "The day trader": "Fundamentals rarely change inside one day, so day traders pay them little attention.",
-    "Every trader equally": "Not equally. Schwab says position traders weigh fundamentals more than swing traders. Day traders pay them little attention."
+    "Each one equally": "Not equally. Schwab says position traders weigh fundamentals more than swing traders. Day traders pay them little attention."
    },
    "simple": "The position trader, because over a hold of months the business behind the stock matters more than any one day.",
    "deeper": {
@@ -1226,7 +1226,7 @@
     "FINRA replaced it; ask your broker",
     "Right, save up to $25,000 first",
     "FINRA kept it; ask your broker",
-    "Your broker can't keep the old rule"
+    "Your broker can't keep that rule"
    ],
    "answer": "FINRA replaced it; ask your broker",
    "why": "FINRA replaced it. Its intraday margin standards took effect June 4, 2026 and drop the pattern day trader count and the $25,000 minimum. Brokers that need more time may phase them in until October 20, 2027. Until then yours may still run the old rules, so ask. Margin still needs at least $2,000 in equity.",
@@ -1241,7 +1241,7 @@
    ],
    "wrong": {
     "Right, save up to $25,000 first": "That was the old pattern day trader minimum. FINRA replaced it, though your broker may run the old rule until it switches.",
-    "Your broker can't keep the old rule": "It can, for now. Brokers that need more time may run the old rules until October 20, 2027.",
+    "Your broker can't keep that rule": "It can, for now. Brokers that need more time may run the old rules until October 20, 2027.",
     "FINRA kept it; ask your broker": "FINRA didn't keep it. Its new intraday margin standards replace the $25,000 pattern day trader minimum."
    },
    "simple": "FINRA dropped the $25,000 rule, but your broker may still use it for a while, so ask them.",
@@ -1364,7 +1364,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f10/f18/f19 before reading it. Key (28) not the longest (margin choice 29). No overnight-exception hand-over to q08 any more. Margin note grounded in f1."
+   "notes": "Key from f10/f18/f19 before reading it. Key (28) not the longest (margin choice 29). No overnight-exception hand-over to q08 any more. Margin note grounded in f1.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1436,7 +1437,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Position trader by f30 (Schwab) and f46 (Investopedia). Key 19 chars, 'Every trader equally' 20. Deeper teaches D40 (h03) as ours with the chart first; 'tends to' matches f30's 'often'."
+   "notes": "Position trader by f30 (Schwab) and f46 (Investopedia). Key 19 chars, 'Every trader equally' 20. Deeper teaches D40 (h03) as ours with the chart first; 'tends to' matches f30's 'often'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -1472,7 +1474,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right: FINRA Notice 26-10 re-fetched today (Effective June 4, 2026; phase-in ends October 20, 2027; replaces day trading margin requirements). f9 (Investor.gov, 403 today) carries the broker transition. Story pins November 2026, so not date-ambiguous. $2,000 from f4. The replaced/kept twin choices are parallel but the knowledge test is real; key 34 chars, not longest (35). Once q16's deeper is fixed, nothing earlier hands it over."
+   "notes": "Key right: FINRA Notice 26-10 re-fetched today (Effective June 4, 2026; phase-in ends October 20, 2027; replaces day trading margin requirements). f9 (Investor.gov, 403 today) carries the broker transition. Story pins November 2026, so not date-ambiguous. $2,000 from f4. The replaced/kept twin choices are parallel but the knowledge test is real; key 34 chars, not longest (35). Once q16's deeper is fixed, nothing earlier hands it over.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",

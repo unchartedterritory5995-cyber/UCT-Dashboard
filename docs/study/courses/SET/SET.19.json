@@ -981,9 +981,9 @@
    "q": "Each earnings gap stays open all day. Which day is not a Power Earnings Gap?",
    "choices": [
     "Gap 10%, closes at 0.20 of its range",
-    "Gap 10%, closes at 0.95 of its range",
-    "Gap 10%, closes at 0.80 of its range",
-    "Gap 10%, closes at 0.88 of its range"
+    "Gap 10%, ends at 0.95 of its range",
+    "Gap 10%, closes at 0.80 of range",
+    "Gap 10%, closes at 0.88 of range"
    ],
    "answer": "Gap 10%, closes at 0.20 of its range",
    "why": "A close at 0.20 of the range is a faded day. A faded PEG day is not a PEG. It can become a delayed-reaction watch. Stewie wants a close at or near the highs.",
@@ -995,9 +995,9 @@
     "d25"
    ],
    "wrong": {
-    "Gap 10%, closes at 0.95 of its range": "0.95 is a close at the high, the ideal PEG candle.",
-    "Gap 10%, closes at 0.80 of its range": "0.80 sits in the top quarter, a strong close.",
-    "Gap 10%, closes at 0.88 of its range": "0.88 also sits in the top quarter, a strong close."
+    "Gap 10%, ends at 0.95 of its range": "0.95 is a close at the high, the ideal PEG candle.",
+    "Gap 10%, closes at 0.88 of range": "0.88 also sits in the top quarter, a strong close.",
+    "Gap 10%, closes at 0.80 of range": "0.80 sits in the top quarter, a strong close."
    },
    "house": true,
    "simple": "A gap that fades to a weak close is not a PEG, because a PEG needs a strong close.",
@@ -1270,9 +1270,9 @@
    "story": "A company reports after the close on Tuesday. You check the earnings calendar that evening.",
    "choices": [
     "Wednesday, next session",
-    "Tuesday, the report day",
-    "Thursday, after it settles",
-    "Friday, as the pause forms"
+    "Tuesday, report day",
+    "Thursday, once settled",
+    "Friday, a pause forms"
    ],
    "answer": "Wednesday, next session",
    "why": "Wednesday. A report after the close belongs to the next regular session, so Wednesday is the PEG day. Only a report before the open makes the report day itself the PEG day. Check the report time first.",
@@ -1285,9 +1285,9 @@
     "d01"
    ],
    "wrong": {
-    "Tuesday, the report day": "Tuesday's regular session was over before the report.",
-    "Thursday, after it settles": "Waiting a day misses the reaction; the first session is the PEG day.",
-    "Friday, as the pause forms": "The pause comes after the PEG day, not before."
+    "Tuesday, report day": "Tuesday's regular session was over before the report.",
+    "Thursday, once settled": "Waiting a day misses the reaction; the first session is the PEG day.",
+    "Friday, a pause forms": "The pause comes after the PEG day, not before."
    },
    "house": true,
    "simple": "The PEG day is the first regular session after the report, so a report after Tuesday's close makes Wednesday the PEG day.",
@@ -2317,9 +2317,9 @@
    "story": "You are up 3.5R on a PEG after taking your third at 3R. The next report is in two sessions.",
    "choices": [
     "Sell the rest before the report",
-    "Hold; the last report was a winner",
-    "Sell half now and hold the rest",
-    "Hold; the stop will protect you"
+    "Hold; last report was a winner",
+    "Sell half now, hold the rest",
+    "Hold; the stop protects you"
    ],
    "answer": "Sell the rest before the report",
    "why": "Sell before the report. We hold through the next report only when the trade is up 5R. At 3.5R it is under that line, so what is still held comes off first. A stop does not cover a gap through it, which is the risk of a report. Holding through the next report under 5R is a named mistake.",
@@ -2331,9 +2331,9 @@
     "h06"
    ],
    "wrong": {
-    "Hold; the last report was a winner": "The last report says nothing about the next one.",
-    "Sell half now and hold the rest": "The part still held would sit through the report, and the trade is under 5R.",
-    "Hold; the stop will protect you": "A stop does not protect against a gap through it."
+    "Hold; last report was a winner": "The last report says nothing about the next one.",
+    "Sell half now, hold the rest": "The part still held would sit through the report, and the trade is under 5R.",
+    "Hold; the stop protects you": "A stop does not protect against a gap through it."
    },
    "house": true,
    "simple": "Sell before the report. A trade is held through earnings only when it is up 5R, and this one is up 3.5R.",
@@ -2648,9 +2648,9 @@
    "story": "A mega-cap followed by dozens of analysts gaps on earnings, closes strong and sets up a clean pause.",
    "choices": [
     "B-; many analysts follow it",
-    "A+; a clean pause outweighs it",
-    "A; large names hold up better",
-    "No trade; too widely followed"
+    "A+; a clean pause beats it",
+    "A; large names hold up",
+    "No trade; too well known"
    ],
    "answer": "B-; many analysts follow it",
    "why": "B-. A mega-cap with many analysts is a B- cue on the catalyst side. Bonde: earnings breakouts on companies with significant analyst coverage do not do as well as the first kinds. A clean pause helps, but it does not lift the catalyst grade. A mega-cap can still be a PEG; it just grades lower.",
@@ -2660,9 +2660,9 @@
     "bo2"
    ],
    "wrong": {
-    "A+; a clean pause outweighs it": "The pause is one cue. A mega-cap with many analysts is a separate B- cue on the catalyst side.",
-    "A; large names hold up better": "Bonde: earnings breakouts on companies with significant analyst coverage do not do as well.",
-    "No trade; too widely followed": "A mega-cap can still be a PEG; it just grades lower."
+    "A+; a clean pause beats it": "The pause is one cue. A mega-cap with many analysts is a separate B- cue on the catalyst side.",
+    "A; large names hold up": "Bonde: earnings breakouts on companies with significant analyst coverage do not do as well.",
+    "No trade; too well known": "A mega-cap can still be a PEG; it just grades lower."
    },
    "house": true,
    "simple": "It grades B-. Names that many analysts follow tend not to do as well after earnings.",
@@ -3508,7 +3508,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the 0.20 close fails the top-quarter / faded-day rule (c08, c09, st2); the other three close at 0.80 or higher under any proposed threshold. Overlaps in concept with q58 (AMD, rung 8) but at a different rung and form."
+   "notes": "Only the 0.20 close fails the top-quarter / faded-day rule (c08, c09, st2); the other three close at 0.80 or higher under any proposed threshold. Overlaps in concept with q58 (AMD, rung 8) but at a different rung and form.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -3544,7 +3545,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wednesday correct from c01; notes sound; key not longest."
+   "notes": "Wednesday correct from c01; notes sound; key not longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -3695,7 +3697,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c26/h08/c45: hold through a report only if up 5R; 3.5R is under it, so sell. Two sells and two holds. 3.5R and 3R in the story, 5R in h08."
+   "notes": "c26/h08/c45: hold through a report only if up 5R; 3.5R is under it, so sell. Two sells and two holds. 3.5R and 3R in the story, 5R in h08.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q43": {
    "status": "pass",
@@ -3743,7 +3746,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c39 and bo2: a mega-cap with many analysts is a B- catalyst cue; Bonde supports the wrong note for the A choice. No gap size in the story. Same E50 note as q36."
+   "notes": "c39 and bo2: a mega-cap with many analysts is a B- catalyst cue; Bonde supports the wrong note for the A choice. No gap size in the story. Same E50 note as q36.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "pass",

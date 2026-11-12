@@ -1435,8 +1435,8 @@
    "q": "What is a pre-market routine?",
    "choices": [
     "The same prep steps before each open",
-    "Trading in the hours before the open",
-    "Your review of trades after the close",
+    "Trading before the open",
+    "Your trade review after the close",
     "Your rules for how much to buy"
    ],
    "answer": "The same prep steps before each open",
@@ -1449,8 +1449,8 @@
     "f23"
    ],
    "wrong": {
-    "Trading in the hours before the open": "That's pre-market trading, a session. The routine is your prep, not your trades.",
-    "Your review of trades after the close": "That's a review. The routine comes before the open.",
+    "Trading before the open": "That's pre-market trading, a session. The routine is your prep, not your trades.",
+    "Your trade review after the close": "That's a review. The routine comes before the open.",
     "Your rules for how much to buy": "That's position sizing, part of your plan."
    },
    "simple": "A pre-market routine is the same prep you do before each open, like checking economic data and the index charts.",
@@ -1530,8 +1530,8 @@
    "q": "What does this prep mainly give you?",
    "choices": [
     "Fewer surprises, calmer decisions",
-    "Better odds that the stock goes up",
-    "No need to set a stop on the trade",
+    "Better odds the stock goes up",
+    "No need for a stop on the trade",
     "Knowing which case will happen"
    ],
    "answer": "Fewer surprises, calmer decisions",
@@ -1544,8 +1544,8 @@
     "f68"
    ],
    "wrong": {
-    "Better odds that the stock goes up": "Prep changes how you act, not what the stock does.",
-    "No need to set a stop on the trade": "Every case still needs its exit. The gap down case is exactly why you have one.",
+    "Better odds the stock goes up": "Prep changes how you act, not what the stock does.",
+    "No need for a stop on the trade": "Every case still needs its exit. The gap down case is exactly why you have one.",
     "Knowing which case will happen": "Nobody knows that. Steenbarger: even the best planning is fallible. You write several cases because you can't know which one comes."
    },
    "simple": "It gives you fewer surprises and calmer choices, because you already decided what to do in each case.",
@@ -3073,8 +3073,8 @@
    "choices": [
     "Its rules are bent to fit old data",
     "It covers too many years of data",
-    "It wasn't tested on enough settings",
-    "It needs a tighter stop to be safe"
+    "It didn't test enough settings",
+    "It needs tighter stops to be safe"
    ],
    "answer": "Its rules are bent to fit old data",
    "why": "Its rules are bent to fit old data. Each tweak you kept made the past look better, so almost no losing years is what you tuned for. Steenbarger warns that care must be taken not to curve-fit historical tests. StockCharts reminds us past results don't guarantee future ones.",
@@ -3085,8 +3085,8 @@
    ],
    "wrong": {
     "It covers too many years of data": "More years give the test more trades to judge. The trouble is the tuning, not the amount of data.",
-    "It wasn't tested on enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests.",
-    "It needs a tighter stop to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data."
+    "It didn't test enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests.",
+    "It needs tighter stops to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data."
    },
    "simple": "The problem is that the rules fit old data, not the future, because you tuned them to that data.",
    "deeper": {
@@ -3503,7 +3503,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -3521,7 +3522,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f69/f70 (Steenbarger) + f12 (Schwab). New distractor is a real misconception, noted from f68. Lengths even."
+   "notes": "Key from f69/f70 (Steenbarger) + f12 (Schwab). New distractor is a real misconception, noted from f68. Lengths even.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3803,7 +3805,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (curve fitting). Two breaks: (1) the why was a near copy of q57's why (same Steenbarger 'future may not mirror the past ... curve-fit' sentence followed by the same StockCharts 'past performance' line); (2) the 'too many years' wrong note and the deeper both quoted Hill's '11 signals, not a very big sample size', which is q35's key on a story with exactly 11 trades, so q59's reveal answered q35. Fix rewrites the why around the tuning mechanism and drops f46 and both 11-signal lines. Did not add f102 (CFTC 'benefit of hindsight') because it would hand q58 its fill word."
+   "notes": "Key right (curve fitting). Two breaks: (1) the why was a near copy of q57's why (same Steenbarger 'future may not mirror the past ... curve-fit' sentence followed by the same StockCharts 'past performance' line); (2) the 'too many years' wrong note and the deeper both quoted Hill's '11 signals, not a very big sample size', which is q35's key on a story with exactly 11 trades, so q59's reveal answered q35. Fix rewrites the why around the tuning mechanism and drops f46 and both 11-signal lines. Did not add f102 (CFTC 'benefit of hindsight') because it would hand q58 its fill word.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",

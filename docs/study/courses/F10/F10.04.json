@@ -1401,7 +1401,7 @@
    "story": "You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote.",
    "q": "You sell with a limit at $87.50. What does the limit protect you from?",
    "choices": [
-    "Getting less than tomorrow's open",
+    "Getting less than the next open",
     "Getting less than $87.50 a share",
     "Getting only part of your order",
     "Getting less than $88 a share"
@@ -1421,7 +1421,7 @@
    ],
    "wrong": {
     "Getting only part of your order": "A limit can't promise a full fill. In extended hours an order may fill in part, or not at all.",
-    "Getting less than tomorrow's open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
+    "Getting less than the next open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
     "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at its limit or higher, so a fill at $87.50 is allowed."
    },
    "simple": "It stops you selling for less than $87.50 a share, but it can't promise a full fill or tomorrow's price.",
@@ -1711,7 +1711,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (f10/f54: a sell limit fills only at the limit or higher). Two breaks. (1) Tell: the key is the only choice that repeats a price from the stem ($87.50), so a guesser can match it. (2) The distractor 'Getting filled by pros who know more' and its wrong-text restate q07's answer (extended-hours traders are pros with more information), and the choice is weak. Fix: swap that distractor for 'Getting less than $88 a share' so two choices name a price. A sell limit at $87.50 can fill between $87.50 and $88, so it does not protect against that. That is unambiguous and grounded in f10. Dro"
+   "notes": "Key is right (f10/f54: a sell limit fills only at the limit or higher). Two breaks. (1) Tell: the key is the only choice that repeats a price from the stem ($87.50), so a guesser can match it. (2) The distractor 'Getting filled by pros who know more' and its wrong-text restate q07's answer (extended-hours traders are pros with more information), and the choice is weak. Fix: swap that distractor for 'Getting less than $88 a share' so two choices name a price. A sell limit at $87.50 can fill between $87.50 and $88, so it does not protect against that. That is unambiguous and grounded in f10. Dro",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

@@ -2848,9 +2848,9 @@
   "prompt_json": {
    "choices": [
     "A sell stop at $47.80",
-    "A sell limit at $47.80",
+    "Sell limit at $47.80",
     "A buy stop at $47.80",
-    "A buy limit at $47.80"
+    "Buy limit at $47.80"
    ],
    "kind": "mcq",
    "q": "Which order puts that stop in the market?",
@@ -2906,7 +2906,7 @@
     "summary": "A sell stop goes in below the current price. Once the stop price is reached, a stop order turns into a market order. A buy limit fills at its limit or lower; a sell limit fills at its limit or higher. A sell stop belongs below the current bid, or it can trigger right away. F62: our stop sits a few cents under the day's low, not exactly on it. A5: the whole position goes on at one price with one stop, and we never add to it."
    },
    "facts": {
-    "given": "Which order puts that stop in the market? You own a stock trading at $49.60. Your plan's stop is $47.80, a few cents under today's low. A sell stop at $47.80 A sell limit at $47.80 A buy stop at $47.80 A buy limit at $47.80"
+    "given": "Which order puts that stop in the market? You own a stock trading at $49.60. Your plan's stop is $47.80, a few cents under today's low. A sell stop at $47.80 Sell limit at $47.80 A buy stop at $47.80 Buy limit at $47.80"
    },
    "lesson_line": "Read the stop off the chart, then enter it as a sell stop under the price.",
    "simple": "A sell stop at $47.80, because it waits below the price and sells only if the stock falls to it.",
@@ -2914,9 +2914,9 @@
    "unit": "F10.02",
    "why": "A sell stop at $47.80. It sits below the current price and waits. If the price falls to $47.80, it becomes a market sell. A sell limit at $47.80 would sell right away, since the stock is above it. We set the stop a few cents under the day's low, not exactly on it.",
    "wrong": {
-    "A buy limit at $47.80": "That buys more shares if it dips to $47.80, the reverse of an exit. We never add to a trade, and a stop must sell.",
     "A buy stop at $47.80": "A buy stop buys, and it goes above the price. You own the stock, so you need a sell order.",
-    "A sell limit at $47.80": "A sell limit fills at $47.80 or higher. With the stock at $49.60, it would sell right away."
+    "Buy limit at $47.80": "That buys more shares if it dips to $47.80, the reverse of an exit. We never add to a trade, and a stop must sell.",
+    "Sell limit at $47.80": "A sell limit fills at $47.80 or higher. With the stock at $49.60, it would sell right away."
    }
   },
   "review_status": "draft",
@@ -4080,9 +4080,9 @@
   "prompt_json": {
    "choices": [
     "5%, about one typical day",
-    "30%, so no dip ever trips it",
+    "30%, no dip ever trips it",
     "10%, beyond its usual swing",
-    "2%, to keep nearly every cent"
+    "2%, keep nearly every cent"
    ],
    "kind": "mcq",
    "q": "Which trail width fits best?",
@@ -4141,7 +4141,7 @@
     "summary": "Too tight a trail gets hit by normal swings; too loose a trail gives back most of the win. Where to set a trailing stop depends on your time frame and how much the stock swings. Short-term swings can set off a trailing stop, so the trail distance needs care. As the stock moves your way, the trailing stop follows it by the set amount. Leave only the first stop in place and a winning trade can turn into a loser. E52: our trail is the 10-day for fast movers or the 21-day for steadier ones, selling on a close below it."
    },
    "facts": {
-    "given": "Which trail width fits best? A trader is up 60% on a strong stock and trails it with a percent trailing stop. On a typical day it moves 4% to 6%. 10%, beyond its usual swing 5%, about one typical day 2%, to keep nearly every cent 30%, so no dip ever trips it"
+    "given": "Which trail width fits best? A trader is up 60% on a strong stock and trails it with a percent trailing stop. On a typical day it moves 4% to 6%. 10%, beyond its usual swing 5%, about one typical day 2%, keep nearly every cent 30%, no dip ever trips it"
    },
    "lesson_line": "Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
    "simple": "10%, because it sits wider than a typical 4% to 6% day but still keeps most of the gain.",
@@ -4149,8 +4149,8 @@
    "unit": "F10.02",
    "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so a 2% or 5% trail gets hit by a normal down day. 10% clears that and still keeps most of the 60% gain if the trend breaks. Too loose gives back most of the win.",
    "wrong": {
-    "2%, to keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
-    "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
+    "2%, keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
+    "30%, no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
     "5%, about one typical day": "A typical day moves 4% to 6%, so a 6% down day goes right through a 5% trail. Normal noise would shake the trade out."
    }
   },
@@ -8256,7 +8256,7 @@
    "choices": [
     "Getting less than $87.50 a share",
     "Getting less than $88 a share",
-    "Getting less than tomorrow's open",
+    "Getting less than the next open",
     "Getting only part of your order"
    ],
    "kind": "mcq",
@@ -8330,7 +8330,7 @@
     "summary": "A buy limit never pays more than its limit; a sell limit never takes less. A limit order that fills gets your limit price or better. In extended hours, you never fill worse than your limit. An extended-hours fill can be worse than the price the next regular session offers. Extended-hours prices may not match the close or the next morning's open. News plus thin, volatile extended-hours trading can push a price further than it can hold. In extended hours, your order may fill in part or not at all, and the price may be worse than in the regular session. In extended hours, a limit order may fill only in part, or not at all."
    },
    "facts": {
-    "given": "You sell with a limit at $87.50. What does the limit protect you from? You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote. Getting less than tomorrow's open Getting less than $87.50 a share Getting only part of your order Getting less than $88 a share"
+    "given": "You sell with a limit at $87.50. What does the limit protect you from? You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote. Getting less than the next open Getting less than $87.50 a share Getting only part of your order Getting less than $88 a share"
    },
    "lesson_line": "After-hours prices on news can overshoot. A limit sets your price; it can't promise a fill.",
    "simple": "It stops you selling for less than $87.50 a share, but it can't promise a full fill or tomorrow's price.",
@@ -8339,7 +8339,7 @@
    "why": "Getting less than $87.50 a share. A sell limit can only execute at the limit price or higher. Fidelity says the same holds in its extended-hours sessions. That is all it protects. An after-hours price on news may not hold into the next open. Thin trading can fill you in part, or not at all.",
    "wrong": {
     "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at its limit or higher, so a fill at $87.50 is allowed.",
-    "Getting less than tomorrow's open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
+    "Getting less than the next open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
     "Getting only part of your order": "A limit can't promise a full fill. In extended hours an order may fill in part, or not at all."
    }
   },

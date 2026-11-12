@@ -2033,7 +2033,7 @@
    "choices": [
     "Prices people pay for goods and services",
     "Prices producers get for their output",
-    "The value of all goods and services made",
+    "The value of goods and services made",
     "What urban consumers pay, per BLS"
    ],
    "answer": "Prices people pay for goods and services",
@@ -2049,7 +2049,7 @@
    ],
    "wrong": {
     "Prices producers get for their output": "That's the Producer Price Index from BLS, the seller's side.",
-    "The value of all goods and services made": "That's GDP, a measure of output, not prices.",
+    "The value of goods and services made": "That's GDP, a measure of output, not prices.",
     "What urban consumers pay, per BLS": "That describes CPI, which BLS builds for urban consumers. PCE is BEA's index of prices paid by people living in the U.S."
    },
    "simple": "PCE tracks what people across the country pay for goods and services, and the Fed's 2% goal uses it.",
@@ -2073,7 +2073,7 @@
     "Unemployed as a share of the labor force",
     "Unemployed as a share of all adults",
     "People on jobless benefits, as a share",
-    "Jobs lost this month, as a share of jobs"
+    "Jobs lost monthly, as a share of jobs"
    ],
    "answer": "Unemployed as a share of the labor force",
    "why": "Unemployed as a share of the labor force. The labor force is the employed plus the unemployed. Unemployed means no job, looked for work in the prior 4 weeks, and available now. Most jobless people who are not looking sit outside the labor force, so they are not in the rate. Getting benefits plays no part.",
@@ -2089,7 +2089,7 @@
    "wrong": {
     "Unemployed as a share of all adults": "That would count retirees and students. The labor force only includes people working or looking.",
     "People on jobless benefits, as a share": "BLS classifies people by survey answers. Getting benefits has nothing to do with it.",
-    "Jobs lost this month, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey."
+    "Jobs lost monthly, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey."
    },
    "simple": "It is the jobless people who are looking for work, as a share of all who are working or looking.",
    "tier": "core",
@@ -3090,8 +3090,8 @@
    "q": "A Treasury security matures in 20 years. What type is it?",
    "choices": [
     "A Treasury bond",
-    "A Treasury note",
-    "A Treasury bill",
+    "A T-note",
+    "A T-bill",
     "A Treasury FRN"
    ],
    "answer": "A Treasury bond",
@@ -3105,10 +3105,9 @@
     "f175"
    ],
    "wrong": {
-    "A Treasury bill": "Bills are short-term, a year or less.",
-    "A Treasury bond": "Treasury bonds are the 20- and 30-year.",
+    "A T-bill": "Bills are short-term, a year or less.",
     "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 20-year security can't be one.",
-    "A Treasury note": "Notes stop at 10 years. A 20-year Treasury is a bond."
+    "A T-note": "Notes stop at 10 years. A 20-year Treasury is a bond."
    },
    "simple": "It is a Treasury bond, since bonds run 20 or 30 years and notes stop at 10.",
    "tier": "extended",
@@ -3130,8 +3129,8 @@
    "q": "How does BLS classify Dana?",
    "choices": [
     "Not in the labor force",
-    "Unemployed; wants work",
-    "Employed, between jobs",
+    "Jobless; wants work",
+    "Employed between jobs",
     "Unemployed, on layoff"
    ],
    "answer": "Not in the labor force",
@@ -3144,8 +3143,8 @@
     "f173"
    ],
    "wrong": {
-    "Unemployed; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
-    "Employed, between jobs": "She has no job, so she isn't employed.",
+    "Jobless; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
+    "Employed between jobs": "She has no job, so she isn't employed.",
     "Unemployed, on layoff": "The layoff exception covers workers expecting a recall. Dana's job ended for good, so it doesn't apply."
    },
    "simple": "She is not in the labor force, because she has not looked for work in the last 4 weeks.",
@@ -3781,8 +3780,8 @@
    "q": "Which way of saying it is right and can't be misread?",
    "choices": [
     "Up by 100 basis points",
-    "Up 10% in the headline",
-    "Up 1% in the headline",
+    "Up 10% in a headline",
+    "Up 1% in a headline",
     "Up by 10 basis points"
    ],
    "answer": "Up by 100 basis points",
@@ -3795,8 +3794,8 @@
     "f136"
    ],
    "wrong": {
-    "Up 10% in the headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
-    "Up 1% in the headline": "One percent of what? Read as a share of the old rate, it would barely be a change.",
+    "Up 10% in a headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
+    "Up 1% in a headline": "One percent of what? Read as a share of the old rate, it would barely be a change.",
     "Up by 10 basis points": "That's too small. Ten basis points is a tenth of a percentage point. A move from 10% to 11% is 100 basis points."
    },
    "simple": "Saying 100 basis points can't be misread, while 10% or 1% leaves readers guessing what was meant.",
@@ -3994,13 +3993,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -4176,13 +4177,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right (f132), but q16 (rung 2, seen before this rung-5 item) prints the choice 'The yield on 10-year Treasury notes', and q54's story says 'a 10-year note'. That gives this question away. A 10-year TIPS also exists (TreasuryDirect: TIPS mature in 5, 10 or 30 years), a small extra blur. Fix: ask about the 20-year instead. No other question names its type, it is not a TIPS maturity, and 'note' is a real trap because notes run up to 10. All numbers come from f131/f132/f130/f174, re-checked on the TreasuryDirect page 2026-11-12."
+   "notes": "The key is right (f132), but q16 (rung 2, seen before this rung-5 item) prints the choice 'The yield on 10-year Treasury notes', and q54's story says 'a 10-year note'. That gives this question away. A 10-year TIPS also exists (TreasuryDirect: TIPS mature in 5, 10 or 30 years), a small extra blur. Fix: ask about the 20-year instead. No other question names its type, it is not a TIPS maturity, and 'note' is a real trap because notes run up to 10. All numbers come from f131/f132/f130/f174, re-checked on the TreasuryDirect page 2026-11-12.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per f93, f102; layoff exception per f173 correctly excluded. New lesson line grounded in f93 and distinct from q14. Minor, not a resolver change: 'Employed, between jobs' is a weak choice against a story that says her job ended."
+   "notes": "Key per f93, f102; layoff exception per f173 correctly excluded. New lesson line grounded in f93 and distinct from q14. Minor, not a resolver change: 'Employed, between jobs' is a weak choice against a story that says her job ended.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -4284,7 +4287,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Up by 100 basis points, from f151/f150. The new stem ('right and can't be misread') closes the 10-bp second answer; the 10% choice is right but misreadable (f150) and 1% is ambiguous, so one key. Choice lengths 21-22, no tell. Ten basis points = 0.1 point is simple arithmetic on f136. q38's lesson line previews the idea; accepted."
+   "notes": "Up by 100 basis points, from f151/f150. The new stem ('right and can't be misread') closes the 10-bp second answer; the 10% choice is right but misreadable (f150) and 1% is ambiguous, so one key. Choice lengths 21-22, no tell. Ten basis points = 0.1 point is simple arithmetic on f136. q38's lesson line previews the idea; accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q62": {
    "status": "pass",

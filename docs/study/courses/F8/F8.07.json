@@ -1024,9 +1024,9 @@
    "q": "Which job belongs in your warm-up before the open?",
    "choices": [
     "Entry, stop and size per name",
-    "Scan chat rooms for the hot tips",
-    "Wait and decide once it opens",
-    "Set a profit goal for the day"
+    "Scan chat rooms for hot tips",
+    "Wait and decide at the open",
+    "Set a profit goal for today"
    ],
    "answer": "Entry, stop and size per name",
    "why": "Entry, stop and size per name. Our rule: every planned buy has its entry, stop and size written down before the market opens. An SMB trader's morning plan, shared by Steenbarger, needs an entry, stop, target and risk amount for every idea. Tendler's warm-up covers the levels and the names you're watching that day. Investopedia: have set levels in mind for every stock you plan to trade. This does not mean you must buy every name. It means no buy happens without a plan.",
@@ -1040,9 +1040,9 @@
     "fq1"
    ],
    "wrong": {
-    "Scan chat rooms for the hot tips": "A hot tip is someone else's idea, not your plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size.",
-    "Wait and decide once it opens": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade.",
-    "Set a profit goal for the day": "A dollar goal is a result, not a plan. Steenbarger: focus on the processes that generate profits over time."
+    "Scan chat rooms for hot tips": "A hot tip is someone else's idea, not your plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size.",
+    "Wait and decide at the open": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade.",
+    "Set a profit goal for today": "A dollar goal is a result, not a plan. Steenbarger: focus on the processes that generate profits over time."
    },
    "simple": "Write down each stock's entry, stop and size before the open, so you trade a plan, not a guess.",
    "tier": "core",
@@ -1659,8 +1659,8 @@
    "choices": [
     "Step away, no new trades today",
     "Jump back in to make it back",
-    "Keep trading, tighten every stop",
-    "Do the warm-up, then trade again"
+    "Keep trading, tighten stops",
+    "Do the warm-up, trade again"
    ],
    "answer": "Step away, no new trades today",
    "why": "Step away, no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. You were tired before the first loss, so the rule already applied. Tendler explains why: when you're tired, your emotions get bigger while your ability to deal with them shrinks. The urge to get right back in is revenge trading. Investopedia: don't try to make up for a losing trade by trading more. The rule covers that day only.",
@@ -1673,8 +1673,8 @@
    ],
    "wrong": {
     "Jump back in to make it back": "That's revenge trading. Investopedia: don't try to make up for a losing trade by trading more.",
-    "Keep trading, tighten every stop": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop. Tired means no new trades that day.",
-    "Do the warm-up, then trade again": "A late warm-up doesn't lift the rule. You feel tired, and our rule says tired means no new trades that day."
+    "Keep trading, tighten stops": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop. Tired means no new trades that day.",
+    "Do the warm-up, trade again": "A late warm-up doesn't lift the rule. You feel tired, and our rule says tired means no new trades that day."
    },
    "simple": "Stop for the day, because you feel tired, and a tired trader takes no new trades that day under our rule.",
    "deeper": {
@@ -1794,7 +1794,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hd39 (D39) + fe2: entry, stop and size. Matches. Lengths 29/32/29/29. Chat-room note rests on hf66 (F66). q17 applies this rule at rung 7; progression, not a giveaway."
+   "notes": "Own answer from hd39 (D39) + fe2: entry, stop and size. Matches. Lengths 29/32/29/29. Chat-room note rests on hf66 (F66). q17 applies this rule at rung 7; progression, not a giveaway.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1903,7 +1904,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hf67 (F67): story states 'feel tired' before the loss, so no new trades that day; not a daily loss limit (B15). Lengths 30/28/32/32. Consistent with q14/q15."
+   "notes": "Own answer from hf67 (F67): story states 'feel tired' before the loss, so no new trades that day; not a daily loss limit (B15). Lengths 30/28/32/32. Consistent with q14/q15.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

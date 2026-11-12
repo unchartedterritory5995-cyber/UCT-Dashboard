@@ -1999,9 +1999,9 @@
    "q": "Your last third rides the trail on a fast mover. What takes you out of it?",
    "choices": [
     "A close below the 10-day average",
-    "Any dip under the 10-day average",
-    "One red candle on the daily chart",
-    "A close below the 50-day average"
+    "A dip under the 10-day average",
+    "One red candle on the chart",
+    "A close below the 50-day line"
    ],
    "answer": "A close below the 10-day average",
    "why": "A close below the 10-day average. After a third at 3R and a third at 5R, the last third rides the trail. The default trail is the 10-day average for fast movers and the 21-day for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
@@ -2011,9 +2011,9 @@
     "h20"
    ],
    "wrong": {
-    "Any dip under the 10-day average": "The trail sells on a close below the line, not a touch.",
-    "A close below the 50-day average": "The default is the 10-day for fast movers, the 21-day for steadier ones.",
-    "One red candle on the daily chart": "A red candle is not the trail. The trail is a close below the 10-day for a fast mover."
+    "A dip under the 10-day average": "The trail sells on a close below the line, not a touch.",
+    "A close below the 50-day line": "The default is the 10-day for fast movers, the 21-day for steadier ones.",
+    "One red candle on the chart": "A red candle is not the trail. The trail is a close below the 10-day for a fast mover."
    },
    "house": true,
    "simple": "A close under the 10-day average ends it. That is our trail for a fast mover, and a touch is not a close.",
@@ -2439,7 +2439,7 @@
    "story": "You bought a drive at 9:35. It closes at 24% of its range, still above your stop.",
    "choices": [
     "A warning; the stop is the exit",
-    "Sell it at the close to be safe",
+    "Sell at the close to be safe",
     "Sell it at the open tomorrow",
     "Hold and add on the next dip"
    ],
@@ -2452,7 +2452,7 @@
     "h03b"
    ],
    "wrong": {
-    "Sell it at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
+    "Sell at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
     "Hold and add on the next dip": "Full size at one price with one stop, no adding.",
     "Sell it at the open tomorrow": "Same mistake, a day later. The stop is the only exit."
    },
@@ -2613,9 +2613,9 @@
    "story": "A leader in a base gaps up 4.7% after an up day. Its first bar closes green on heavy volume, and price trades through its high. There is no named catalyst, and the name is not neglected.",
    "choices": [
     "The opening drive's",
-    "An Episodic Pivot's",
+    "Episodic Pivot's",
     "The Kicker setup's",
-    "The Parabolic Short's"
+    "Parabolic Short's"
    ],
    "answer": "The opening drive's",
    "why": "The opening drive's. Measure the gap and name the news. An EP needs a gap of 10% or more on a named catalyst in a neglected name. This is 4.7%, with no catalyst, in a name that is not neglected. A Kicker needs a real red day before the gap; the day before was up. A Parabolic Short needs day 3 to 5 of a burst, not a base. With none of those, the drive's rules apply.",
@@ -2627,9 +2627,9 @@
     "c16"
    ],
    "wrong": {
-    "An Episodic Pivot's": "An EP needs a gap of 10% or more on a named catalyst in a neglected name. 4.7% with no news is not that.",
+    "Episodic Pivot's": "An EP needs a gap of 10% or more on a named catalyst in a neglected name. 4.7% with no news is not that.",
     "The Kicker setup's": "A Kicker needs a real red day before the gap. The day before this gap was up.",
-    "The Parabolic Short's": "That needs day 3 to 5 of a parabolic burst. This stock gapped out of a base, not a burst."
+    "Parabolic Short's": "That needs day 3 to 5 of a parabolic burst. This stock gapped out of a base, not a burst."
    },
    "house": true,
    "simple": "The drive's: under 10% with no news is not an EP, and an up day before is not a Kicker.",
@@ -3447,9 +3447,9 @@
    "story": "Your list shows six drive candidates, and the market reads Orange.",
    "choices": [
     "Only the A+ drives on the list",
-    "All six; each has a clean setup",
-    "None; Orange means no new buys",
-    "Fewer of them, at smaller size"
+    "All six; each setup is clean",
+    "None; Orange means no buying",
+    "Fewer of them, smaller size"
    ],
    "answer": "Only the A+ drives on the list",
    "why": "Only the A+ drives. In an Orange market we take A+ setups only. Smaller and fewer is Yellow, and mostly cash is Red. A clean first bar is not the same as an A+ grade. The reading is a guide, but Orange still narrows the list to the best.",
@@ -3459,9 +3459,9 @@
     "h26"
    ],
    "wrong": {
-    "All six; each has a clean setup": "Orange allows A+ setups only. Clean is not the same as A+.",
-    "None; Orange means no new buys": "Mostly cash is Red. Orange still allows A+ setups.",
-    "Fewer of them, at smaller size": "Smaller and fewer is Yellow. Orange allows A+ setups only."
+    "All six; each setup is clean": "Orange allows A+ setups only. Clean is not the same as A+.",
+    "None; Orange means no buying": "Mostly cash is Red. Orange still allows A+ setups.",
+    "Fewer of them, smaller size": "Smaller and fewer is Yellow. Orange allows A+ setups only."
    },
    "house": true,
    "simple": "Only the A+ drives, because an Orange market allows A+ setups only, and a clean first bar is not the same as A+.",
@@ -3693,7 +3693,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right: 4.7% with no catalyst, not neglected, fails c36; up day fails c37; base not burst fails c16. Lesson line 20 words."
+   "notes": "Key right: 4.7% with no catalyst, not neglected, fails c36; up day fails c37; base not burst fails c16. Lesson line 20 words.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3910,7 +3911,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from E52 (h21): sell on a close below the 10-day for a fast mover. Stem no longer names the trims, so q42 is not given away. Choices balanced."
+   "notes": "Own answer from E52 (h21): sell on a close below the 10-day for a fast mover. Stem no longer names the trims, so q42 is not given away. Choices balanced.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "pass",
@@ -3928,7 +3930,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (c11, h02/A4); 24% under one third is from the story. Asked as 'our rules', correct since the warning is the card's."
+   "notes": "Key right (c11, h02/A4); 24% under one third is from the story. Asked as 'our rules', correct since the warning is the card's.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "pass",
@@ -3971,7 +3974,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Orange = A+ only (c20, h26); four choices balanced (30-31 chars), each wrong note grounded."
+   "notes": "Orange = A+ only (c20, h26); four choices balanced (30-31 chars), each wrong note grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "w1": {
    "status": "pass",

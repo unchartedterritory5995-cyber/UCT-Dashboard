@@ -1482,9 +1482,9 @@
    "q": "Why don't the two numbers match?",
    "choices": [
     "QQQ follows a different index",
-    "QQQ's fees ate the difference",
+    "QQQ's fees ate the gap",
     "QQQ stopped trading early",
-    "QQQ weights its stocks by price"
+    "QQQ weights stocks by price"
    ],
    "answer": "QQQ follows a different index",
    "why": "QQQ follows a different index. \"The Nasdaq\" in the news often means the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial Nasdaq companies. Two different baskets can move by different amounts on the same day. Fees cannot explain it: QQQ's total expense ratio is 0.18%.",
@@ -1503,9 +1503,9 @@
     "f75"
    ],
    "wrong": {
-    "QQQ's fees ate the difference": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day.",
+    "QQQ's fees ate the gap": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day.",
     "QQQ stopped trading early": "ETF shares trade throughout the day on exchanges. The gap is in what each one tracks.",
-    "QQQ weights its stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index."
+    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index."
    },
    "simple": "QQQ follows a different index. The news often means the Nasdaq Composite, while QQQ tracks the smaller Nasdaq-100.",
    "deeper": {
@@ -1684,7 +1684,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

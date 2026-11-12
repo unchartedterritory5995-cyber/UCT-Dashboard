@@ -1829,7 +1829,7 @@
    "choices": [
     "It trails after the second trim",
     "It sells with the second trim",
-    "It sells at a flat percent gain",
+    "It sells at a set percent gain",
     "It sells at a 2R profit target"
    ],
    "answer": "It trails after the second trim",
@@ -1842,7 +1842,7 @@
    ],
    "wrong": {
     "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails.",
-    "It sells at a flat percent gain": "Our plan does not sell the last third at a flat percent. It trails.",
+    "It sells at a set percent gain": "Our plan does not sell the last third at a set percent. It trails.",
     "It sells at a 2R profit target": "Our plan has no 2R target. The thirds come off at 3R and 5R, and the last third trails."
    },
    "house": true,
@@ -2110,8 +2110,8 @@
    "choices": [
     "A $401 profit",
     "A $99 loss",
-    "A $500 profit",
-    "A $4.01 profit"
+    "$500 profit",
+    "A $4.01 gain"
    ],
    "answer": "A $401 profit",
    "why": "A $401 profit. The 99 losers cost $1 each, $99 in all. The one winner made $500, and $500 less $99 is $401. This is Tharp's own example: 99% of the trades lost and the method still made money. Win rate counts how often you win, never how much.",
@@ -2123,8 +2123,8 @@
    ],
    "wrong": {
     "A $99 loss": "That counts the losers and forgets the one big winner.",
-    "A $500 profit": "That forgets the 99 small losses.",
-    "A $4.01 profit": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net result."
+    "$500 profit": "That forgets the 99 small losses.",
+    "A $4.01 gain": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net result."
    },
    "calc": {
     "fn": "arith",
@@ -3050,9 +3050,9 @@
    "q": "What is portfolio heat?",
    "choices": [
     "Total open risk across your trades",
-    "How fast your best stock is rising",
+    "How fast your best stock rises",
     "Your single largest position",
-    "Your account's drawdown this month"
+    "Your account's monthly drawdown"
    ],
    "answer": "Total open risk across your trades",
    "why": "Total open risk across your trades. Tharp: the total open risk in your portfolio at any given time. Seykota and Druz named it the heat of the portfolio. Elder's rule adds up the risk on all open positions the same way. Our rulebook treats total open risk as a guide that varies, not a hard cap.",
@@ -3064,9 +3064,9 @@
     "h4a10"
    ],
    "wrong": {
-    "How fast your best stock is rising": "Heat here means risk, not momentum.",
+    "How fast your best stock rises": "Heat here means risk, not momentum.",
     "Your single largest position": "That's one position's size. Heat adds up the risk on all of them.",
-    "Your account's drawdown this month": "That's a loss already taken. Heat is risk still open."
+    "Your account's monthly drawdown": "That's a loss already taken. Heat is risk still open."
    },
    "simple": "Portfolio heat is the total you would lose if every one of your open stops were hit at once.",
    "tier": "core",
@@ -3157,9 +3157,9 @@
    "q": "If chips have a bad day, how much of the account is at risk?",
    "choices": [
     "About 5%, if all five stops hit",
-    "About 1%, only one stop will hit",
-    "All the money in the five stocks",
-    "About 0.2%, the 1% split five ways"
+    "About 1%, one stop will hit",
+    "All the money in the stocks",
+    "About 0.2%, 1% split five ways"
    ],
    "answer": "About 5%, if all five stops hit",
    "why": "About 5%, if all five stops hit. FINRA: same-industry holdings tend to be highly correlated. What happens to one is likely to happen to the others. Heat adds the risks: five trades at 1% each is 5%.",
@@ -3171,9 +3171,9 @@
     "f30"
    ],
    "wrong": {
-    "About 1%, only one stop will hit": "Stocks in one industry tend to move together. When one falls hard, the others likely fall too.",
-    "All the money in the five stocks": "That's what you invested. Tharp: the amount risked is not the amount invested. Each stop is set to cost 1%.",
-    "About 0.2%, the 1% split five ways": "Each stock risks its own 1%. Heat adds the risks up; it does not split them."
+    "About 1%, one stop will hit": "Stocks in one industry tend to move together. When one falls hard, the others likely fall too.",
+    "All the money in the stocks": "That's what you invested. Tharp: the amount risked is not the amount invested. Each stop is set to cost 1%.",
+    "About 0.2%, 1% split five ways": "Each stock risks its own 1%. Heat adds the risks up; it does not split them."
    },
    "simple": "About 5% is at risk, because chip stocks tend to fall together, so all five stops can hit at once.",
    "deeper": {
@@ -3651,9 +3651,9 @@
    "q": "Which one moves more for its price?",
    "choices": [
     "B, about 7.5% a day",
-    "A, its ATR is bigger",
-    "They're about the same",
-    "B, about 1.5% a day"
+    "A, ATR is bigger",
+    "About the same",
+    "B, 1.5% a day"
    ],
    "answer": "B, about 7.5% a day",
    "why": "B, about 7.5% a day. ATR is in dollars, so a high-priced stock shows a bigger number. StockCharts: ATR is not shown as a percent of the close, so raw ATRs can't be compared across price levels. B's $1.50 is 7.5% of $20. A's $6 is a much smaller share of $300.",
@@ -3664,9 +3664,9 @@
     "f87"
    ],
    "wrong": {
-    "A, its ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
-    "They're about the same": "For its price, B moves several times as much as A.",
-    "B, about 1.5% a day": "That reads the $1.50 ATR as a percent. ATR is in dollars, and $1.50 on a $20 stock is 7.5%."
+    "A, ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
+    "About the same": "For its price, B moves several times as much as A.",
+    "B, 1.5% a day": "That reads the $1.50 ATR as a percent. ATR is in dollars, and $1.50 on a $20 stock is 7.5%."
    },
    "calc": {
     "fn": "arith",
@@ -4165,7 +4165,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "pass",
@@ -4213,7 +4214,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -4364,7 +4366,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -4382,7 +4385,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 5% right (calc 5x1, f65, f46; FINRA f12 correlation confirmed on finra.org). Choices 31-34 chars, key not longest. Overlaps q44's heat sum and touches q47's correlation idea, but the test here is whether correlated stops hit together; not a giveaway of q47's tech-fund point."
+   "notes": "Key 5% right (calc 5x1, f65, f46; FINRA f12 correlation confirmed on finra.org). Choices 31-34 chars, key not longest. Overlaps q44's heat sum and touches q47's correlation idea, but the test here is whether correlated stops hit together; not a giveaway of q47's tech-fund point.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4467,7 +4471,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1.5/20*100=7.5 matches; 'daily ATR' in the story grounds 'a day' (f87). A's percent kept in words, no ungrounded number."
+   "notes": "Calc 1.5/20*100=7.5 matches; 'daily ATR' in the story grounds 'a day' (f87). A's percent kept in words, no ungrounded number.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",

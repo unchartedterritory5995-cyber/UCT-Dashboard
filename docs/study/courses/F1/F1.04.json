@@ -735,8 +735,8 @@
    "q": "When we call a stock liquid, what do we mean?",
    "choices": [
     "Easy to trade without moving the price",
-    "The company holds plenty of cash on hand",
-    "Its price barely moves from day to day",
+    "The company holds plenty of cash",
+    "Its price barely moves day to day",
     "Its shares cost only a few dollars"
    ],
    "answer": "Easy to trade without moving the price",
@@ -749,8 +749,8 @@
     "f26"
    ],
    "wrong": {
-    "The company holds plenty of cash on hand": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade.",
-    "Its price barely moves from day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
+    "The company holds plenty of cash": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade.",
+    "Its price barely moves day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
     "Its shares cost only a few dollars": "Cheap doesn't mean liquid. Low-priced, low-volume stocks are generally less liquid."
    },
    "simple": "Liquid means you can buy or sell the shares quickly without moving the price much.",
@@ -1471,7 +1471,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",

@@ -885,9 +885,9 @@
    "q": "Which of these usually moves a stock option's premium the least?",
    "choices": [
     "The interest rate",
-    "The stock's price",
-    "Time left to expiry",
-    "Implied volatility"
+    "The stock price",
+    "Time to expiry",
+    "Volatility"
    ],
    "answer": "The interest rate",
    "why": "The interest rate. OIC lists the factors with a significant effect on the premium. They are the stock price, the strike, time to expiry, implied volatility, dividends and interest rates. Of these, dividends and the risk-free rate have a lesser effect. Lesser does not mean zero. Rates still count, just less than the stock's price, time left and implied volatility.",
@@ -900,9 +900,9 @@
     "f16"
    ],
    "wrong": {
-    "The stock's price": "The stock's price is a major driver. It has a significant effect on the premium, and rates have a lesser one.",
-    "Time left to expiry": "Time is a major driver. Time value generally erodes as expiry gets closer.",
-    "Implied volatility": "Implied volatility is a major driver. Bigger expected moves mean higher premiums for calls and puts."
+    "The stock price": "The stock price is a major driver. It has a significant effect on the premium, and rates have a lesser one.",
+    "Time to expiry": "Time is a major driver. Time value generally erodes as expiry gets closer.",
+    "Volatility": "Volatility is a major driver. Bigger expected moves mean higher premiums for calls and puts."
    },
    "simple": "The interest rate usually moves the premium least, because rates and dividends have a lesser effect than price, time and volatility.",
    "tier": "core",
@@ -1558,8 +1558,8 @@
    "q": "You buy a call instead of the shares. Under our rules, what is your stop on that trade?",
    "choices": [
     "All of the premium paid",
-    "Half of the premium paid",
-    "Under the stock's day low",
+    "Half the premium paid",
+    "Under the stock's low",
     "A 3% drop in the stock"
    ],
    "answer": "All of the premium paid",
@@ -1573,8 +1573,8 @@
     "f48"
    ],
    "wrong": {
-    "Half of the premium paid": "Our rule sets no partial stop on an option. The premium paid is the stop, so plan to lose all of it.",
-    "Under the stock's day low": "That's where a share trade's stop starts, a few cents under the day's low. On an option, the premium paid is the stop.",
+    "Half the premium paid": "Our rule sets no partial stop on an option. The premium paid is the stop, so plan to lose all of it.",
+    "Under the stock's low": "That's where a share trade's stop starts, a few cents under the day's low. On an option, the premium paid is the stop.",
     "A 3% drop in the stock": "On a share trade the stop usually sits within about 3% of the buy. On an option, our stop is the premium paid."
    },
    "tier": "extended",
@@ -1691,7 +1691,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f13: the interest rate; matches. Choices 17/17/19/18. Notes rest on f12/f13/f15/f16 and no longer give q11 away. Simple 21 words, keeps 'usually' to match f13's 'lesser effect'."
+   "notes": "Own answer from f13: the interest rate; matches. Choices 17/17/19/18. Notes rest on f12/f13/f15/f16 and no longer give q11 away. Simple 21 words, keeps 'usually' to match f13's 'lesser effect'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1805,7 +1806,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from h01 (B25, quote verified at sizing_rule.md line 154): the premium paid is the stop; matches. h03 (A3) and h04 (A13) quotes verified verbatim and ground the two share-stop distractors. Choices 23/24/25/22, key not longest, 'premium paid' shared with a distractor so no word-echo tell. Teaches the rule q06/q20 lean on."
+   "notes": "Own answer from h01 (B25, quote verified at sizing_rule.md line 154): the premium paid is the stop; matches. h03 (A3) and h04 (A13) quotes verified verbatim and ground the two share-stop distractors. Choices 23/24/25/22, key not longest, 'premium paid' shared with a distractor so no word-echo tell. Teaches the rule q06/q20 lean on.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",

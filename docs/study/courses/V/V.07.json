@@ -1514,9 +1514,9 @@
    "story": "You sold a stock short at $30. You want out automatically if it rises to $32.",
    "choices": [
     "A buy stop at $32",
-    "A sell stop at $32",
-    "A buy limit at $32",
-    "A sell limit at $32"
+    "Sell stop at $32",
+    "Buy limit at $32",
+    "A sell limit $32"
    ],
    "answer": "A buy stop at $32",
    "why": "A buy stop at $32. You're short, so getting out means buying. A buy stop sits above the current price. If the stock rises to it, it becomes a market buy and closes the short. The stop price is a trigger, not a promised price. In a fast move or a gap up, the fill can come in above $32.",
@@ -1534,9 +1534,9 @@
     "f36"
    ],
    "wrong": {
-    "A sell stop at $32": "A sell stop sells, and it sits below the price. You're short, so getting out means buying.",
-    "A buy limit at $32": "A buy limit fills at $32 or lower. The stock is below $32 now, so it could buy at once instead of waiting for a rise.",
-    "A sell limit at $32": "You own no shares, so selling at $32 is another short sale. It adds to the short instead of closing it."
+    "Sell stop at $32": "A sell stop sells, and it sits below the price. You're short, so getting out means buying.",
+    "Buy limit at $32": "A buy limit fills at $32 or lower. The stock is below $32 now, so it could buy at once instead of waiting for a rise.",
+    "A sell limit $32": "You own no shares, so selling at $32 is another short sale. It adds to the short instead of closing it."
    },
    "simple": "Use a buy stop at $32, because you close a short by buying and a buy stop fires on a rise.",
    "tier": "core",
@@ -2043,9 +2043,9 @@
    "story": "A stock trades at $21. A trader will buy a pullback to $20 or a breakout over $22.50, whichever comes first. They want only one position.",
    "choices": [
     "OCO of buy limit $20, stop $22.50",
-    "Buy limit $20 and buy stop $22.50",
-    "A bracket order on the $20 buy limit",
-    "One buy stop-limit, $20 to $22.50"
+    "Buy limit $20, buy stop $22.50",
+    "A bracket on the $20 buy limit",
+    "One stop-limit, $20 to $22.50"
    ],
    "answer": "OCO of buy limit $20, stop $22.50",
    "why": "An OCO with a buy limit at $20 and a buy stop at $22.50. Whichever fills first cancels the other, so both can't fill. The buy limit fills at $20 or lower. The buy stop sits above the price and triggers on a rise to $22.50.",
@@ -2061,9 +2061,9 @@
     "h2"
    ],
    "wrong": {
-    "Buy limit $20 and buy stop $22.50": "Separate orders can both fill. A pop to $22.50, then a drop to $20, doubles the position.",
-    "A bracket order on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel the breakout entry.",
-    "One buy stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
+    "Buy limit $20, buy stop $22.50": "Separate orders can both fill. A pop to $22.50, then a drop to $20, doubles the position.",
+    "A bracket on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel the breakout entry.",
+    "One stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
    },
    "simple": "An OCO, because it links the two entries so when one fills the other cancels, leaving one position.",
    "deeper": {
@@ -2089,9 +2089,9 @@
    "q": "On an order ticket, what does the time in force set?",
    "choices": [
     "How long the order stays live",
-    "The price that will trigger it",
-    "How many shares are able to fill",
-    "When the finished trade settles"
+    "The price that triggers it",
+    "How many shares can fill",
+    "When the trade settles"
    ],
    "answer": "How long the order stays live",
    "why": "How long the order stays live. Time in force is the time frame an order must happen within, and you pick it on the ticket. A day order cancels at the close if it hasn't filled. A good 'til canceled order stays active until it fills or you cancel it, within your broker's time limit.",
@@ -2107,9 +2107,9 @@
     "f29"
    ],
    "wrong": {
-    "The price that will trigger it": "That's the stop price, its own field on a stop order. Time in force is about how long the order lives.",
-    "How many shares are able to fill": "That's the quantity, plus size conditions like all-or-none.",
-    "When the finished trade settles": "Time in force is the time frame the order itself must happen within. It sets nothing about settlement."
+    "The price that triggers it": "That's the stop price, its own field on a stop order. Time in force is about how long the order lives.",
+    "How many shares can fill": "That's the quantity, plus size conditions like all-or-none.",
+    "When the trade settles": "Time in force is the time frame the order itself must happen within. It sets nothing about settlement."
    },
    "simple": "Time in force sets how long your order stays live, like today only or until you cancel it.",
    "tier": "core",
@@ -2406,7 +2406,7 @@
    "q": "On your order screen, what does a fill mean?",
    "choices": [
     "An executed order, or its price",
-    "An order still waiting to trade",
+    "An order waiting to trade",
     "Shares left after a cancel",
     "The total shares traded today"
    ],
@@ -2417,7 +2417,7 @@
     "f68"
    ],
    "wrong": {
-    "An order still waiting to trade": "That's a working order. Nothing has traded yet.",
+    "An order waiting to trade": "That's a working order. Nothing has traded yet.",
     "Shares left after a cancel": "Those didn't fill. A fill is what did trade.",
     "The total shares traded today": "That's the day's volume, for everyone. A fill is your own order."
    },
@@ -2588,9 +2588,9 @@
    "q": "What is slippage on a trade?",
    "choices": [
     "Your fill vs. the price you expected",
-    "The gap between the bid and the ask",
+    "The gap between bid and ask",
     "The day's high minus the day's low",
-    "A price gap between two trading days"
+    "A price gap between trading days"
    ],
    "answer": "Your fill vs. the price you expected",
    "why": "Your fill versus the price you expected. Investopedia defines slippage as the difference between a trade's expected price and its executed price. Nasdaq frames it as expected versus actual cost.",
@@ -2602,9 +2602,9 @@
     "f88"
    ],
    "wrong": {
-    "The gap between the bid and the ask": "That's the spread. Slippage is the gap between your expected price and your fill.",
+    "The gap between bid and ask": "That's the spread. Slippage is the gap between your expected price and your fill.",
     "The day's high minus the day's low": "That's the day's range. It isn't about your order at all.",
-    "A price gap between two trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage."
+    "A price gap between trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage."
    },
    "simple": "Slippage is the gap between the price you expected and the price you actually got.",
    "tier": "core",
@@ -2874,9 +2874,9 @@
    "q": "Your platform flags a stock as hard to borrow. What does that tell you?",
    "choices": [
     "Few shares free to lend for shorts",
-    "Shorting it is banned by federal law",
-    "It can't trade until the next open",
-    "It's too expensive to buy outright"
+    "Shorting it is banned by law",
+    "It can't trade until the open",
+    "It's too costly to buy outright"
    ],
    "answer": "Few shares free to lend for shorts",
    "why": "Few shares are free to lend. A hard-to-borrow list names stocks that are hard to obtain for short sales. They may carry higher loan fees, and a short order may be refused. Brokers update these lists daily.",
@@ -2889,9 +2889,9 @@
     "f127"
    ],
    "wrong": {
-    "Shorting it is banned by federal law": "It's about the broker's supply of shares to lend, not a law. A short may still go through, at a higher fee.",
-    "It can't trade until the next open": "Borrow has nothing to do with trading hours.",
-    "It's too expensive to buy outright": "Buying doesn't need a borrow. The flag is about shorting."
+    "Shorting it is banned by law": "It's about the broker's supply of shares to lend, not a law. A short may still go through, at a higher fee.",
+    "It can't trade until the open": "Borrow has nothing to do with trading hours.",
+    "It's too costly to buy outright": "Buying doesn't need a borrow. The flag is about shorting."
    },
    "simple": "It means few shares are free to lend for shorting, so the fee can be high or the short refused.",
    "tier": "core",
@@ -3084,9 +3084,9 @@
    "q": "What is a short squeeze?",
    "choices": [
     "Short covering lifts the price fast",
-    "Short sellers piling in sink the price",
-    "A stock stuck in a tight price range",
-    "A broker forcing longs to sell shares"
+    "Shorts piling in sink the price",
+    "A stock stuck in a tight range",
+    "A broker forcing longs to sell"
    ],
    "answer": "Short covering lifts the price fast",
    "why": "Short covering lifts the price fast. The SEC defines a short squeeze as pressure on short sellers to cover. A sharp price rise or a hard borrow causes it. Their buying adds upward pressure, which can squeeze them harder. It is a rise driven by shorts buying back, not a drop.",
@@ -3098,9 +3098,9 @@
     "f91"
    ],
    "wrong": {
-    "A stock stuck in a tight price range": "That's a tight range. Nobody is being forced to buy.",
-    "A broker forcing longs to sell shares": "That describes forced selling by owners. A squeeze is pressure on short sellers to buy back.",
-    "Short sellers piling in sink the price": "That's the reverse. In a squeeze the short sellers are under pressure, and their buying back lifts the price."
+    "A stock stuck in a tight range": "That's a tight range. Nobody is being forced to buy.",
+    "A broker forcing longs to sell": "That describes forced selling by owners. A squeeze is pressure on short sellers to buy back.",
+    "Shorts piling in sink the price": "That's the reverse. In a squeeze the short sellers are under pressure, and their buying back lifts the price."
    },
    "simple": "A short squeeze is when shorts rush to buy back shares, and their buying pushes the price up even faster.",
    "tier": "core",
@@ -3195,7 +3195,7 @@
     "Total open short positions in a stock",
     "Shares sold short in a single day",
     "The yearly fee to borrow a stock",
-    "Shares the company itself bought back"
+    "Shares the company bought back"
    ],
    "answer": "Total open short positions in a stock",
    "why": "Total open short positions in a stock. The SEC calls short interest the aggregate number of open short positions. FINRA says it is a snapshot on a given settlement date, and that short sale volume is not the same thing.",
@@ -3209,7 +3209,7 @@
    "wrong": {
     "Shares sold short in a single day": "That's short sale volume. FINRA says it is not the same as short interest.",
     "The yearly fee to borrow a stock": "That's the borrow fee, the interest on the stock loan.",
-    "Shares the company itself bought back": "That's a buyback. It has nothing to do with shorts."
+    "Shares the company bought back": "That's a buyback. It has nothing to do with shorts."
    },
    "simple": "Short interest is the total number of short positions still open in a stock, counted on a set date.",
    "tier": "core",
@@ -3487,7 +3487,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: a short closes by buying (f37) and a buy stop sits above and fires on a rise (f9, f55, f85). Balanced buy/sell x stop/limit choices, no length tell. 'The stock is below $32 now' is implied by the story (you want out if it rises to $32). Sell-limit note grounded in f36. Gap-up fill note grounded in f88 and f11. Agrees with D41."
+   "notes": "Solved cold: a short closes by buying (f37) and a buy stop sits above and fires on a rise (f9, f55, f85). Balanced buy/sell x stop/limit choices, no length tell. 'The stock is below $32 now' is implied by the story (you want out if it rises to $32). Sell-limit note grounded in f36. Gap-up fill note grounded in f88 and f11. Agrees with D41.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3571,13 +3572,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: only an OCO stops both entries filling (f122, f96); separate orders can double (wrong note sound); buy stop must sit above price (f111); bracket links exits to one entry (f72). Key 33 chars, not longest. Third person with the E57 counter (h2 quoted correctly). The 'how should' stem still teaches resting entries UCT does not use; owner flag is open, so passed on the mechanics, not on the policy."
+   "notes": "Re-derived: only an OCO stops both entries filling (f122, f96); separate orders can double (wrong note sound); buy stop must sit above price (f111); bracket links exits to one entry (f72). Key 33 chars, not longest. Third person with the E57 counter (h2 quoted correctly). The 'how should' stem still teaches resting entries UCT does not use; owner flag is open, so passed on the mechanics, not on the policy.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key = f74, f109, f116. Choices 29-32 chars, none silly. Settlement note grounded in f74; quantity note in f29; stop-price note in f60."
+   "notes": "Key = f74, f109, f116. Choices 29-32 chars, none silly. Settlement note grounded in f74; quantity note in f29; stop-price note in f60.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -3632,7 +3635,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q37": {
    "status": "pass",
@@ -3662,7 +3666,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f117 and f69. Lesson line no longer calls slippage a cost. Distractors are spread, range and chart gap, each with a grounded note (gap note f88). Key 36 chars ties the gap choice; no tell."
+   "notes": "Key from f117 and f69. Lesson line no longer calls slippage a cost. Distractors are spread, range and chart gap, each with a grounded note (gap note f88). Key 36 chars ties the gap choice; no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "pass",
@@ -3710,7 +3715,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: hard to borrow = hard to obtain for short sales, limited availability (f124, f125), order may be refused (f126), lists updated daily (f127); all four quotes found verbatim on the Investopedia page (curl). Key 34 chars, not the longest. Wrong notes grounded; 'may still go through, at a higher fee' fits f125 'might have higher loan fees'. Its why reveals q50's key only after answering (teaching, not a stem leak)."
+   "notes": "Solved cold: hard to borrow = hard to obtain for short sales, limited availability (f124, f125), order may be refused (f126), lists updated daily (f127); all four quotes found verbatim on the Investopedia page (curl). Key 34 chars, not the longest. Wrong notes grounded; 'may still go through, at a higher fee' fits f125 'might have higher loan fees'. Its why reveals q50's key only after answering (teaching, not a stem leak).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -3746,7 +3752,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key = f43, f44, f91, f130. 'Short' now in two choices, so no lone echo; choices 35-38, key not longest. 'Tight price range' is a real misconception (a volatility squeeze). All wrong notes grounded in f43 and f44."
+   "notes": "Key = f43, f44, f91, f130. 'Short' now in two choices, so no lone echo; choices 35-38, key not longest. 'Tight price range' is a real misconception (a volatility squeeze). All wrong notes grounded in f43 and f44.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",
@@ -3764,7 +3771,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The borrow-fee note now rests on f39 (interest on the loan); 'yearly' in the choice matches f83 'annualized'. Key from SEC f45 and FINRA f66/f67."
+   "notes": "The borrow-fee note now rests on f39 (interest on the loan); 'yearly' in the choice matches f83 'annualized'. Key from SEC f45 and FINRA f66/f67.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",

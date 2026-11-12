@@ -952,8 +952,8 @@
    "q": "What must the gap day do for the gap to count as holding?",
    "choices": [
     "No fill, green close in upper half",
-    "Close at the exact high of the day",
-    "Stay above its opening price all day",
+    "Close at the exact high of day",
+    "Stay above its open all day",
     "Close anywhere if volume is heavy"
    ],
    "answer": "No fill, green close in upper half",
@@ -967,9 +967,9 @@
     "d25"
    ],
    "wrong": {
-    "Close at the exact high of the day": "The close does not have to be the exact high; the upper half is the test.",
+    "Close at the exact high of day": "The close does not have to be the exact high; the upper half is the test.",
     "Close anywhere if volume is heavy": "Volume is its own test. A heavy day that closes in the lower half still misses the upper-half test.",
-    "Stay above its opening price all day": "The test is the prior close, not the open. A day can dip under its open and still hold the gap."
+    "Stay above its open all day": "The test is the prior close, not the open. A day can dip under its open and still hold the gap."
    },
    "house": true,
    "simple": "A held gap never falls back to the prior close and ends the day green in the top half of its range.",
@@ -1485,8 +1485,8 @@
    "q": "Which gap is an A+ gap?",
    "choices": [
     "10% or more, and a true gap",
-    "10% or more, even if it fills",
-    "Any gap on 3x average volume",
+    "10% or more, filled or not",
+    "Any gap on 3x usual volume",
     "Any gap that closes green"
    ],
    "answer": "10% or more, and a true gap",
@@ -1499,8 +1499,8 @@
     "c52"
    ],
    "wrong": {
-    "10% or more, even if it fills": "A true gap keeps the day's low above the prior day's high. A gap that fills does not.",
-    "Any gap on 3x average volume": "Volume is its own test. The A+ gap is judged on its size and on being a true gap.",
+    "10% or more, filled or not": "A true gap keeps the day's low above the prior day's high. A gap that fills does not.",
+    "Any gap on 3x usual volume": "Volume is its own test. The A+ gap is judged on its size and on being a true gap.",
     "Any gap that closes green": "A green close is needed for any gapper. The A+ gap also needs 10% or more and a true gap."
    },
    "house": true,
@@ -3145,9 +3145,9 @@
    "story": "Report beats with a raise on accelerating growth. A 12% true gap on the highest volume in a year, closing in the top quarter. It comes out of a 4-month quiet range above a rising 200-day. Green market.",
    "choices": [
     "A+; all the main cues line up here",
-    "B-; a quiet range shows no momentum",
-    "A; the gap needs to be bigger for A+",
-    "B-; the close is not at the very high"
+    "B-; a quiet range lacks momentum",
+    "A; the gap must be bigger for A+",
+    "B-; the close is not at the high"
    ],
    "answer": "A+; all the main cues line up here",
    "why": "A+. A beat, a raise and accelerating growth, a true gap of 10% or more and the year's top volume line up. So do a top-quarter close and a quiet range above a rising 200-day. An A+ is sized up.",
@@ -3161,9 +3161,9 @@
     "h30"
    ],
    "wrong": {
-    "B-; a quiet range shows no momentum": "A quiet range above a rising 200-day is an A+ cue, not a lack of momentum.",
-    "A; the gap needs to be bigger for A+": "The A+ gap is 10% or more, and this one is 12%.",
-    "B-; the close is not at the very high": "The A+ close is in the top quarter of the range. It need not be at the high."
+    "B-; a quiet range lacks momentum": "A quiet range above a rising 200-day is an A+ cue, not a lack of momentum.",
+    "A; the gap must be bigger for A+": "The A+ gap is 10% or more, and this one is 12%.",
+    "B-; the close is not at the high": "The A+ close is in the top quarter of the range. It need not be at the high."
    },
    "house": true,
    "simple": "It is an A+ because the beat and raise, true gap, top volume, strong close and quiet base all line up.",
@@ -3571,8 +3571,8 @@
    "q": "What is Gap Support?",
    "choices": [
     "A later test of the gap-up low itself",
-    "First pullback after a gap, within days",
-    "Gap up on good news, then a red close",
+    "First pullback after a gap, in days",
+    "Gap up on good news, red close",
     "Stop placed under the gap-up low"
    ],
    "answer": "A later test of the gap-up low itself",
@@ -3585,8 +3585,8 @@
     "c15"
    ],
    "wrong": {
-    "First pullback after a gap, within days": "That is the News Gapper pullback: within about 2 to 10 sessions, with every close above the gap-day low.",
-    "Gap up on good news, then a red close": "That is a News Failure: it closes red after good news.",
+    "First pullback after a gap, in days": "That is the News Gapper pullback: within about 2 to 10 sessions, with every close above the gap-day low.",
+    "Gap up on good news, red close": "That is a News Failure: it closes red after good news.",
     "Stop placed under the gap-up low": "Gap Support is a later test of the gap-up low, bought as that low is defended. It is not a stop level."
    },
    "house": true,
@@ -3753,7 +3753,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c02. Lengths ok, no stale notes in the merged file. Note for owner: q53 calls NFLX 2018 'held the gap' on a 35% close while q03 defines holding with an upper-half close; q53 wording is outside this check."
+   "notes": "Key matches c02. Lengths ok, no stale notes in the merged file. Note for owner: q53 calls NFLX 2018 'held the gap' on a 35% close while q03 defines holding with an upper-half close; q53 wording is outside this check.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -3825,7 +3826,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "upgraded wave2; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -4036,7 +4038,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Every cue is quoted (c38, c05, c06, c40, c45); A+ is sized up (h30). Story is stacked, so easy, but not wrong. Teaches the card's cues against E50: owner flag stands, cut if refused."
+   "notes": "Every cue is quoted (c38, c05, c06, c40, c45); A+ is sized up (h30). Story is stacked, so easy, but not wrong. Teaches the card's cues against E50: owner flag stands, cut if refused.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q66": {
    "status": "pass",
@@ -4096,7 +4099,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key says 'weeks on', but c50 says 2 to 60 sessions on, and the gapper's pullback is 2 to 10 sessions, so the time wording overreaches and overlaps the 'within days' distractor. The real difference is testing the low itself versus keeping every close above it (c10, c50). Rewritten."
+   "notes": "Key says 'weeks on', but c50 says 2 to 60 sessions on, and the gapper's pullback is 2 to 10 sessions, so the time wording overreaches and overlaps the 'within days' distractor. The real difference is testing the low itself versus keeping every close above it (c10, c50). Rewritten.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

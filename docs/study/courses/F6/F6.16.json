@@ -844,7 +844,7 @@
    "q": "Many traders are short the same call. A holder exercises one. How is the writer who must deliver chosen?",
    "choices": [
     "OCC at random, then your broker's rule",
-    "The holder picks the person who sold it",
+    "The holder picks the seller",
     "The largest short position goes first",
     "Whoever sold the call most recently"
    ],
@@ -859,7 +859,7 @@
     "f30"
    ],
    "wrong": {
-    "The holder picks the person who sold it": "The holder deals with OCC's system, not with the person who sold to them.",
+    "The holder picks the seller": "The holder deals with OCC's system, not with the person who sold to them.",
     "The largest short position goes first": "Size doesn't set the order. OCC picks at random, then the broker uses random selection or first in, first out.",
     "Whoever sold the call most recently": "Under first in, first out the oldest short goes first, not the newest. Other brokers pick at random."
    },
@@ -881,9 +881,9 @@
    "q": "You buy back your short May 50 call and sell a June 55 call in one trade. What is that called?",
    "choices": [
     "Rolling the call",
-    "Exercising the call",
-    "Getting assigned",
-    "Letting it expire"
+    "Exercising it",
+    "Being assigned",
+    "Expiring"
    ],
    "answer": "Rolling the call",
    "term": "Rolling",
@@ -897,9 +897,9 @@
     "f84"
    ],
    "wrong": {
-    "Letting it expire": "You closed the May call before expiry and opened a new one.",
-    "Exercising the call": "Exercising uses an option's right to buy or sell the shares. You traded the options instead.",
-    "Getting assigned": "Assignment comes to you from OCC. Here you chose to close and reopen."
+    "Expiring": "You closed the May call before expiry and opened a new one.",
+    "Exercising it": "Exercising uses an option's right to buy or sell the shares. You traded the options instead.",
+    "Being assigned": "Assignment comes to you from OCC. Here you chose to close and reopen."
    },
    "simple": "It's rolling, because you closed one option and opened a new one at a new strike and date in one trade.",
    "tier": "core",
@@ -1018,9 +1018,9 @@
    "q": "You're short four puts on different stocks. Which one is most likely to be assigned early?",
    "choices": [
     "Deep in the money, near expiry",
-    "Just in the money, months to go",
-    "At the money, expiry this week",
-    "Out of the money, ex-date soon"
+    "Just in the money, months out",
+    "At the money, expiry in days",
+    "Out of the money, ex-div soon"
    ],
    "answer": "Deep in the money, near expiry",
    "why": "Deep in the money, near expiry. OIC says early assignment on a short put generally comes only once it goes deep in the money. Most professionals exercise deep puts before expiry. Schwab adds it is more likely when the time value has mostly decayed. Exercising early forfeits time value, so a put with months left, or one at the money, is rarely worth exercising. OIC's ex-dividend warning is for call writers, and an out-of-the-money put gives a holder nothing to collect.",
@@ -1034,9 +1034,9 @@
     "f9"
    ],
    "wrong": {
-    "Just in the money, months to go": "With months left it still carries time value, which an early exercise would throw away.",
-    "At the money, expiry this week": "At the money there's nothing in the money to collect. Exercising would sell at about the market price.",
-    "Out of the money, ex-date soon": "Out of the money, exercising means selling below the market. OIC's ex-dividend warning is for call writers."
+    "Just in the money, months out": "With months left it still carries time value, which an early exercise would throw away.",
+    "At the money, expiry in days": "At the money there's nothing in the money to collect. Exercising would sell at about the market price.",
+    "Out of the money, ex-div soon": "Out of the money, exercising means selling below the market. OIC's ex-dividend warning is for call writers."
    },
    "simple": "The deep in-the-money put near expiry, because it has almost no time value left, so exercising early costs the holder little.",
    "tier": "core",
@@ -1652,13 +1652,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f2/f40 (OCC random to a firm) and f3/f37 (firm uses random or FIFO). Choices 35-39 chars, no tell. 'Oldest goes first' is what first in, first out means (f37), so the 'most recently' wrong note holds. No second defensible answer."
+   "notes": "Key from f2/f40 (OCC random to a firm) and f3/f37 (firm uses random or FIFO). Choices 35-39 chars, no tell. 'Oldest goes first' is what first in, first out means (f37), so the 'most recently' wrong note holds. No second defensible answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f48 (OIC glossary: close one, open another at a new strike/expiry at the same time). Choices now 16-19 chars, balanced. The dividend sentence is backed by f84. The wrong notes are backed by f52, f51 and f53. q01's rolling wrong note comes first, which is teaching order, not a leak."
+   "notes": "Key from f48 (OIC glossary: close one, open another at a new strike/expiry at the same time). Choices now 16-19 chars, balanced. The dividend sentence is backed by f84. The wrong notes are backed by f52, f51 and f53. q01's rolling wrong note comes first, which is teaching order, not a leak.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1682,7 +1684,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f55 (OIC, deep ITM), f10 and f81 (time value mostly decayed). Choices 30-31 chars. The f9 call-writer wording now replaces the unsupported claim. 'Selling below the market' for an OTM put is what OTM means. No second defensible answer."
+   "notes": "Key from f55 (OIC, deep ITM), f10 and f81 (time value mostly decayed). Choices 30-31 chars. The f9 call-writer wording now replaces the unsupported claim. 'Selling below the market' for an OTM put is what OTM means. No second defensible answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",

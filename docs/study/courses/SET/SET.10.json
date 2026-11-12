@@ -1789,10 +1789,10 @@
    "criterion": "ipo.after_entry_stop",
    "q": "What now?",
    "choices": [
-    "Sell all; the breakout failed",
-    "Sell half; it slipped back in",
+    "Sell all; breakout failed",
+    "Sell half; it slid back",
     "Hold; the stop is the exit",
-    "Hold; widen the stop for room"
+    "Hold; give the stop room"
    ],
    "answer": "Hold; the stop is the exit",
    "why": "Hold. The stop is the exit. A breach of the pivot back into the base is a warning, not an exit by itself. MarketSmith India would rather not see price breach the pivot and go back to the base. The stop only moves up, never down or wider.",
@@ -1804,9 +1804,9 @@
     "c42"
    ],
    "wrong": {
-    "Sell all; the breakout failed": "A warning is not an exit. The stop is the exit.",
-    "Sell half; it slipped back in": "The stop is our exit. Selling half on a warning is not a rule.",
-    "Hold; widen the stop for room": "The stop only moves up, never down or wider."
+    "Sell all; breakout failed": "A warning is not an exit. The stop is the exit.",
+    "Sell half; it slid back": "The stop is our exit. Selling half on a warning is not a rule.",
+    "Hold; give the stop room": "The stop only moves up, never down or wider."
    },
    "house": true,
    "story": "You bought the IPO-high break at 19.53. Two days later it closes back inside the base, but still above your stop.",
@@ -1871,8 +1871,8 @@
    "q": "Buy the breakout today?",
    "choices": [
     "No; wait until after the report",
-    "Yes, the base is clean and tight",
-    "Yes, but at half size, to be safe",
+    "Yes, a clean and tight base",
+    "Yes, but at half size",
     "No; wait one day, then buy it"
    ],
    "answer": "No; wait until after the report",
@@ -1883,8 +1883,8 @@
     "c24"
    ],
    "wrong": {
-    "Yes, the base is clean and tight": "A clean base does not lift the earnings rule. There is no new buy in the 3 sessions before a report.",
-    "Yes, but at half size, to be safe": "The rule is no new buy in that window, not a smaller one.",
+    "Yes, a clean and tight base": "A clean base does not lift the earnings rule. There is no new buy in the 3 sessions before a report.",
+    "Yes, but at half size": "The rule is no new buy in that window, not a smaller one.",
     "No; wait one day, then buy it": "Tomorrow is still inside the 3 sessions before the report. Wait until after it."
    },
    "house": true,
@@ -1934,10 +1934,10 @@
    "criterion": "ipo.window",
    "q": "Which card is it?",
    "choices": [
-    "None; no 200-day yet",
-    "The flat base card",
+    "None; no 200-day",
+    "The flat card",
     "The IPO base card",
-    "The VCP setup card"
+    "The VCP card"
    ],
    "answer": "The IPO base card",
    "why": "The IPO base card. The stock is young and this is its first rest under its post-listing high. Many IPO bases look like cups or flat bases, so the shape alone does not decide. The listing date does. A young listing has no 200-day, and that does not cancel the setup.",
@@ -1951,9 +1951,9 @@
     "c13"
    ],
    "wrong": {
-    "The flat base card": "The shape can look flat, but the listing date decides. A young stock's first rest is an IPO base.",
-    "None; no 200-day yet": "A young listing has no 200-day yet. That does not cancel the setup.",
-    "The VCP setup card": "Nothing in the story shows shrinking swings. Tightening inside an IPO base is only a grade cue, not a VCP."
+    "The flat card": "The shape can look flat, but the listing date decides. A young stock's first rest is an IPO base.",
+    "None; no 200-day": "A young listing has no 200-day yet. That does not cancel the setup.",
+    "The VCP card": "Nothing in the story shows shrinking swings. Tightening inside an IPO base is only a grade cue, not a VCP."
    },
    "house": true,
    "story": "A stock listed three months ago rests for 16 sessions, 18% deep, under its post-listing high. It is the first rest, and it looks like a flat base.",
@@ -1982,10 +1982,10 @@
    "criterion": "ipo.above_200",
    "q": "Which setup is it?",
    "choices": [
-    "A VCP, because the swings shrink",
-    "A bull flag, because it is a pause",
+    "A VCP, since the swings shrink",
+    "A bull flag, as it is a pause",
     "An IPO base; tightening is a cue",
-    "A failed breakout, now retesting"
+    "A failed breakout, retesting"
    ],
    "answer": "An IPO base; tightening is a cue",
    "why": "An IPO base, and the tightening is only a grade cue. The stock is four months old and resting under its post-listing high, so the listing date decides. A young listing has no 200-day and one rest. Tightening inside an IPO base is a grade cue, not a VCP.",
@@ -1996,9 +1996,9 @@
     "c30"
    ],
    "wrong": {
-    "A VCP, because the swings shrink": "Tightening inside an IPO base is a grade cue, not a VCP. A young listing has no 200-day and one rest.",
-    "A failed breakout, now retesting": "Nothing has closed above the high, so there has been no breakout to fail. It is a first rest under the high.",
-    "A bull flag, because it is a pause": "The story has no sharp run before the rest. It is a first rest under the post-listing high, and on a stock this young that is an IPO base."
+    "A VCP, since the swings shrink": "Tightening inside an IPO base is a grade cue, not a VCP. A young listing has no 200-day and one rest.",
+    "A failed breakout, retesting": "Nothing has closed above the high, so there has been no breakout to fail. It is a first rest under the high.",
+    "A bull flag, as it is a pause": "The story has no sharp run before the rest. It is a first rest under the post-listing high, and on a stock this young that is an IPO base."
    },
    "house": true,
    "story": "A stock listed four months ago rests under its highest price since listing for the first time. Nothing has closed above it. The weekly swings inside the rest get smaller each week.",
@@ -3402,9 +3402,9 @@
    "story": "Our price history for a ticker goes back only 30 sessions, and it shows a neat rest under its high. The company listed six years ago.",
    "choices": [
     "From its first day of trading",
-    "From the first bar that we hold",
-    "From the heaviest-volume session",
-    "From the day the company filed"
+    "From the first bar we hold",
+    "From the heaviest-volume day",
+    "From the day it filed"
    ],
    "answer": "From its first day of trading",
    "why": "From its first trading day on record. Our card dates the listing from the stock's first trading day, not from the first bar we hold. Here our history covers only 30 sessions. The company listed six years ago, so the bar count says nothing about its age.",
@@ -3414,9 +3414,9 @@
     "c30"
    ],
    "wrong": {
-    "From the first bar that we hold": "A short history only shows how little data we hold. This company listed years before that bar.",
-    "From the heaviest-volume session": "A volume spike is a guess at the listing. The record gives the actual first trading day.",
-    "From the day the company filed": "A filing comes before the stock trades. Our card dates the listing from the first trading day on record."
+    "From the first bar we hold": "A short history only shows how little data we hold. This company listed years before that bar.",
+    "From the heaviest-volume day": "A volume spike is a guess at the listing. The record gives the actual first trading day.",
+    "From the day it filed": "A filing comes before the stock trades. Our card dates the listing from the first trading day on record."
    },
    "house": true,
    "simple": "We date the listing from the stock's first trading day on record, not from where our own price history starts.",
@@ -4045,7 +4045,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c17 and h02 support: warning, stop is the exit. Choices balanced, no tell."
+   "notes": "c17 and h02 support: warning, stop is the exit. Choices balanced, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",
@@ -4057,7 +4058,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "upgraded wave1; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "cut",
@@ -4069,13 +4071,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story supports the IPO base card (young, first rest, listing date decides). 'None' choice and wrong notes grounded in c30b, c32."
+   "notes": "Story supports the IPO base card (young, first rest, listing date decides). 'None' choice and wrong notes grounded in c30b, c32.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Young stock, first rest under post-listing high, c30/c32: tightening is a grade cue. Nothing closed above, so not a failed breakout. Shares its lesson with q29 but tests a different distractor set."
+   "notes": "Young stock, first rest under post-listing high, c30/c32: tightening is a grade cue. Nothing closed above, so not a failed breakout. Shares its lesson with q29 but tests a different distractor set.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -4300,7 +4304,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c46 supports key; owner already flagged the app-data reliance."
+   "notes": "c46 supports key; owner already flagged the app-data reliance.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q68": {
    "status": "pass",

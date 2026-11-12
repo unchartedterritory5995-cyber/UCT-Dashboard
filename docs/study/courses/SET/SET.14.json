@@ -2043,8 +2043,8 @@
    "choices": [
     "96.10, the first 30-minute low",
     "Sell at the open, 96.50",
-    "No stop until it reclaims 98.10",
-    "Keep 98.10; the stop never moves"
+    "No stop till it regains 98.10",
+    "Keep 98.10; the stop stays"
    ],
    "answer": "96.10, the first 30-minute low",
    "why": "96.10. A gap through the stop hands it to the first 30 minutes of the gap-down day. The low of that first bar is the new stop. There is a ceiling: if the first 30 minutes take the loss past 2R, get out. Here the loss at 96.10 is a little under 2R, so 96.10 stands.",
@@ -2055,8 +2055,8 @@
    ],
    "wrong": {
     "Sell at the open, 96.50": "The gap rule gives it the first 30 minutes. The open is not the decision.",
-    "No stop until it reclaims 98.10": "There is always a stop. The new one is the 30-minute low.",
-    "Keep 98.10; the stop never moves": "A stop only moves up, but a gap through it is the one exception. The old stop was gapped through, so the first 30 minutes decide."
+    "No stop till it regains 98.10": "There is always a stop. The new one is the 30-minute low.",
+    "Keep 98.10; the stop stays": "A stop only moves up, but a gap through it is the one exception. The old stop was gapped through, so the first 30 minutes decide."
    },
    "house": true,
    "story": "You bought the hold at 100.20 with the stop at 98.10. It opens at 96.50 on a sector headline. The first 30-minute bar's low is 96.10.",
@@ -2871,9 +2871,9 @@
    "q": "Take it?",
    "choices": [
     "No; distribution into the line",
-    "Yes; the hold itself looks clean",
-    "Yes; volume on a red day is good",
-    "No; five days is too long a drift"
+    "Yes; the hold looks clean",
+    "Yes; red-day volume is good",
+    "No; five days is too long"
    ],
    "answer": "No; distribution into the line",
    "why": "No. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. This one ran on 2.3 times, so the setup is off even though the hold closed above the line. INTC showed this in November 2017.",
@@ -2886,9 +2886,9 @@
     "c04"
    ],
    "wrong": {
-    "Yes; volume on a red day is good": "Heavy volume on a down day into the line is selling. Shannon wants volume contracting on pullbacks.",
-    "Yes; the hold itself looks clean": "The hold candle is clean, but the heavy down day before it already ended the setup.",
-    "No; five days is too long a drift": "A pullback may last 2 to 15 sessions, so five days is fine. The problem is the heavy down day."
+    "Yes; red-day volume is good": "Heavy volume on a down day into the line is selling. Shannon wants volume contracting on pullbacks.",
+    "Yes; the hold looks clean": "The hold candle is clean, but the heavy down day before it already ended the setup.",
+    "No; five days is too long": "A pullback may last 2 to 15 sessions, so five days is fine. The problem is the heavy down day."
    },
    "house": true,
    "story": "A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume.",
@@ -3506,9 +3506,9 @@
    "story": "Monday held the 20 EMA, and your buy is a cent over Monday's high. Tuesday the stock sinks instead, and its low breaks the 50-day SMA without trading over Monday's high.",
    "choices": [
     "Cancel it; the 20 EMA setup is off",
-    "Cancel it; any red day voids the hold",
-    "Keep it; Monday's hold still counts",
-    "Raise it above Tuesday's high instead"
+    "Cancel it; any red day voids it",
+    "Keep it; Monday's hold counts",
+    "Raise it above Tuesday's high"
    ],
    "answer": "Cancel it; the 20 EMA setup is off",
    "why": "Cancel it. On our card, a low that breaks the 50-day before entry ends the 20 EMA pullback, and Monday's hold no longer counts. It is the 50-day pullback, if anything.",
@@ -3519,9 +3519,9 @@
     "c11"
    ],
    "wrong": {
-    "Keep it; Monday's hold still counts": "Monday held, but the break before the entry ends the setup. The 50-day pullback is a different card.",
-    "Raise it above Tuesday's high instead": "A new buy level does not repair the break. The setup is off until it sets up again.",
-    "Cancel it; any red day voids the hold": "Not every red day ends it. The low breaking the 50-day before the buy is what ends the 20 EMA setup."
+    "Keep it; Monday's hold counts": "Monday held, but the break before the entry ends the setup. The 50-day pullback is a different card.",
+    "Raise it above Tuesday's high": "A new buy level does not repair the break. The setup is off until it sets up again.",
+    "Cancel it; any red day voids it": "Not every red day ends it. The low breaking the 50-day before the buy is what ends the 20 EMA setup."
    },
    "house": true,
    "simple": "Cancel it, because once the low breaks the 50-day before you buy, the 20 EMA pullback is over.",
@@ -3772,7 +3772,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: R is 2.10, loss at 96.10 is 4.10, which is 1.95R, under the 2R ceiling. Key h06/h07. B20 vs D41 flag stands (rulebook B20 wins)."
+   "notes": "Re-derived: R is 2.10, loss at 96.10 is 4.10, which is 1.95R, under the 2R ceiling. Key h06/h07. B20 vs D41 flag stands (rulebook B20 wins).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3907,7 +3908,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c16 and d18 verbatim (2.3x against 1.5x); five days sits inside c04's 2 to 15. Overlaps q22 on the 1.5x line but tests an application, not the same ask."
+   "notes": "c16 and d18 verbatim (2.3x against 1.5x); five days sits inside c04's 2 to 15. Overlaps q22 on the 1.5x line but tests an application, not the same ask.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",
@@ -4004,7 +4006,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c17: a low breaking the 50-day before entry ends the 20 EMA setup. Notes fine."
+   "notes": "Key c17: a low breaking the 50-day before entry ends the 20 EMA setup. Notes fine.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

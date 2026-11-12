@@ -1094,9 +1094,9 @@
    "q": "Same stock, same expiry, same wing width. How does an iron condor usually compare with an iron butterfly?",
    "choices": [
     "Less credit, a wider profit range",
-    "More credit, a wider profit range",
-    "More credit, a narrower profit range",
-    "Less credit, a narrower profit range"
+    "More credit, wider profit range",
+    "More credit, a narrower range",
+    "Less credit, a narrower range"
    ],
    "answer": "Less credit, a wider profit range",
    "why": "Less credit, a wider profit range. With the same wing width, the condor's short strikes sit apart. The stock has more room, and the break-evens sit further out. The iron butterfly sells both short options at one strike. That brings in more premium but needs the stock to finish closer. With the same wings, the condor's smaller credit also means a higher max loss.",
@@ -1108,9 +1108,9 @@
     "f20"
    ],
    "wrong": {
-    "More credit, a wider profit range": "You don't get both. More room for the stock means less premium collected.",
-    "More credit, a narrower profit range": "That describes the iron butterfly, which sells both options at one strike.",
-    "Less credit, a narrower profit range": "Splitting the short strikes widens the range. A condor's break-evens sit further out than a butterfly's."
+    "More credit, wider profit range": "You don't get both. More room for the stock means less premium collected.",
+    "More credit, a narrower range": "That describes the iron butterfly, which sells both options at one strike.",
+    "Less credit, a narrower range": "Splitting the short strikes widens the range. A condor's break-evens sit further out than a butterfly's."
    },
    "simple": "An iron condor takes in less credit but gives the stock a wider range to finish in for a profit.",
    "tier": "core",
@@ -1861,7 +1861,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
