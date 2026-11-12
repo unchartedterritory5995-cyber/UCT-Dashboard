@@ -40,7 +40,7 @@ export const GLOSSARY = Object.freeze([
     // ⭐ MEASURED 2026-11-08 (design round; `tests/fixtures/indicators/rs_parity_deepvue.json`,
     // railed by `tests/test_rs_parity_deepvue.py`): 21 names, Spearman 1.00 against
     // Deepvue's 12M, mean |diff| 1.4 at 75 and above, ours 11.1 lower below 75.
-    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue\'s RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.',
+    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranked against every stock we hold a recent price for, the way Deepvue\'s is: across 61 of its readings at 1, 3, 6, 9 and 12 months, ours sit about 3 points away on average with no lean either way; it has not been measured against MarketSurge.',
     aliases: ['relative strength rating', 'IBD-style rating'] },
   { key: 'rsNewHigh', term: 'RS new high',
     definition: 'The RS line closes higher than at any point in its lookback. The stock is outperforming the market by the most it has in that window.',
