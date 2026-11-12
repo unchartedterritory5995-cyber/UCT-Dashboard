@@ -217,7 +217,8 @@ describe('the byte-identical CONTROL — exactly the RS split\'s three carry the
   // ⭐ U6 (2026-11-09) landed `rsRating`, `rsPhases` and `rsVsEma` with the flag.
   // Spelled by name: a fourth definition picking the flag up is a decision this
   // case fails first, and a definition losing it reaches members a deploy early.
-  const GATED_SHIPPED = ['rsRating', 'rsPhases', 'rsVsEma']
+  // 2026-11-12 (RS Exit Warnings): and the fourth, `rsExit`, last.
+  const GATED_SHIPPED = ['rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
 
   it('every shipped definition but the three is offered with nothing landed, so every other offer list is what it was', () => {
     expect(engineRegistry.listDefinitions().filter((d) => definitionRequiresServer(d)).map((d) => d.id)).toEqual(GATED_SHIPPED)

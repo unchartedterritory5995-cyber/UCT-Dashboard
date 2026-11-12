@@ -1872,6 +1872,7 @@ _RS_CORE_LOCK = threading.Lock()
 _RS_RATING_PAYLOAD_SHAPE = 1
 _RS_PHASES_PAYLOAD_SHAPE = 1
 _RS_VS_EMA_PAYLOAD_SHAPE = 1
+_RS_EXIT_PAYLOAD_SHAPE = 1
 
 #: The phase column's words (the legend row; the bgcolor paint reads the number).
 _RS_PHASE_LABELS = {1: "RS rising while the market falls", 0: "RS falling while the market rises"}
@@ -2204,5 +2205,141 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     t_built = time.perf_counter()
     if times:
         _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsVsEma", sym)
+    _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
+    return envelope
+
+
+# ── UCT RS Exit Warnings (`rsExit`, 2026-11-12) ─────────────────────────────
+#
+# Mike Webster's Quick Break / Quicksand / Grateful Dead Break on the RS line
+# (`relative_strength.compute_rs_exit_columns`; the module header there states
+# the rules and why they are OUR reading of a published idea). Daily and weekly
+# charts only: the lengths are daily 21 / 50 and weekly 8 / 21 and a warning on a
+# minute chart means nothing, so any other timeframe answers blank columns and
+# says so (`state: "daily-weekly-only"`), reading no benchmark at all.
+
+_RS_EXIT_KIND_LABELS = {"quickBreak": "Quick Break", "quicksand": "Quicksand", "deadBreak": "Grateful Dead Break"}
+#: Most severe first: on a bar where two fire, the legend names the worse one.
+_RS_EXIT_SEVERITY = ("deadBreak", "quicksand", "quickBreak")
+_RS_EXIT_BLANK_WHY = "daily and weekly charts only"
+
+
+def _rs_exit_when(bars_ago: int) -> str:
+    return "on the latest bar" if bars_ago == 0 else ("1 bar ago" if bars_ago == 1 else f"{bars_ago} bars ago")
+
+
+def _rs_exit_last_warning(cols: dict) -> dict | None:
+    """The newest warning in the columns: ``{kind, label, index, barsAgo}`` (``barsAgo``
+    counted from the newest bar, 0 = that bar), the worse one when two share a bar,
+    or None when no warning has fired in the bars held."""
+    n = len(cols["rsLine"])
+    for i in range(n - 1, -1, -1):
+        for kind in _RS_EXIT_SEVERITY:
+            if cols[kind][i] == 1.0:
+                return {"kind": kind, "label": _RS_EXIT_KIND_LABELS[kind], "index": i, "barsAgo": n - 1 - i}
+    return None
+
+
+def _rs_exit_legend(cols: dict, times, params: dict, why: str | None) -> dict:
+    """The RS Exit Warnings legend: the newest warning in plain words
+    (``Last warning: Quicksand, 6 bars ago``), where the RS line sits against its
+    two averages at the newest bar it can be judged at, and both averages'
+    values. A blank state carries its reason as the summary."""
+    out = {"lastKind": None, "lastLabel": None, "barsAgo": None, "lastAsOf": None, "chipText": None,
+           "blankReason": why,
+           "status": None, "statusLabel": None, "rs": None, "fast": None, "slow": None,
+           "fastLength": params["fastLength"], "slowLength": params["slowLength"],
+           "asOf": None, "stale": None, "summary": why}
+    if why:
+        return out
+    idx = _rs_last_finite(cols["rsLine"], cols["fast"])
+    if idx is None:
+        out["summary"] = out["blankReason"] = "not enough bars yet"
+        return out
+    rs, fast = float(cols["rsLine"][idx]), float(cols["fast"][idx])
+    slow = float(cols["slow"][idx]) if _rs_num(cols["slow"][idx]) else None
+    below_fast = rs < fast
+    below_slow = slow is not None and rs < slow
+    if below_fast and below_slow:
+        status, label = "belowBoth", "RS is below both averages"
+    elif below_fast:
+        status, label = "belowFast", f"RS is below its {params['fastLength']}-bar average"
+    elif below_slow:
+        status, label = "belowSlow", f"RS is below its {params['slowLength']}-bar average"
+    else:
+        status, label = "aboveBoth", "RS is above both averages"
+    out.update(status=status, statusLabel=label, rs=rs, fast=fast, slow=slow,
+               asOf=_rs_bar_ymd(times[idx]), stale=idx < len(times) - 1)
+    last = _rs_exit_last_warning(cols)
+    if last is None:
+        out["summary"] = "No warning in the bars shown"
+        out["chipText"] = "no warning"
+    else:
+        out.update(lastKind=last["kind"], lastLabel=last["label"], barsAgo=last["barsAgo"],
+                   lastAsOf=_rs_bar_ymd(times[last["index"]]))
+        out["summary"] = f"Last warning: {last['label']}, {_rs_exit_when(last['barsAgo'])}"
+        # the pane label's short form (the chip row): `Quicksand · 6 bars ago`
+        out["chipText"] = f"{last['label']} · {_rs_exit_when(last['barsAgo']).replace('on the latest bar', 'latest bar')}"
+    if out["stale"] and _rs_short_date(out["asOf"]):
+        out["summary"] += f" · as of {_rs_short_date(out['asOf'])}"
+    return out
+
+
+def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
+    """`rsExit`: `relative_strength.compute_rs_exit_columns` on the shared core,
+    the RS line, its two simple averages and the three dots on the wire, and a
+    payload of `benchmark`, `legend`, `history`, `inputs` (the RESOLVED lengths:
+    0 in the request is auto, daily 21 / 50, weekly 8 / 21), `intraday`, `state`.
+    Daily and weekly only: any other timeframe answers blank columns with
+    ``state: "daily-weekly-only"`` and reads no benchmark. The same-symbol and
+    no-benchmark states blank the columns with the RS line's reason."""
+    t0 = time.perf_counter()
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import _round_series
+    src = inputs or {}
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    supported = store in ("D", "W")
+    count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
+    requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    custom = str(src.get("customBenchmark") or "")
+    fast, slow = rsmod.resolve_exit_lengths(store, src.get("fastLength"), src.get("slowLength"))
+    params = {"benchmark": requested, "customBenchmark": custom, "fastLength": fast, "slowLength": slow,
+              "maType": "SMA"}
+    rev = _rs_split_rev("rsExit")
+    day = _et_session_day()
+    ck = cache_key(f"rsExit{rev}p{_RS_EXIT_PAYLOAD_SHAPE}",
+                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
+    hit = _rs_split_cached(ck)
+    if hit:
+        _record_timing("cache", t0, {})
+        return hit
+    stages: dict = {"bars": 0.0}
+    t_build = time.perf_counter()
+    core = _rs_core(sym, tf, requested if supported else None, custom, fetch_bars=_timed_fetch(fetch_bars, stages),
+                    warm=warm, count=count, day=day)
+    times = core["times"]
+    why = _RS_EXIT_BLANK_WHY if not supported else _rs_split_why(core)
+    if why is None:
+        cols = rsmod.compute_rs_exit_columns(core["bars"], core["bench"]["bars"], fast, slow)
+    else:
+        cols = {k: [None] * len(times) for k in rsmod.RS_EXIT_COLUMNS}
+    legend = _rs_exit_legend(cols, times, params, why)
+    wire = {k: _round_series(cols[k], 6) for k in registry_defs.RS_EXIT_WIRE_COLUMNS}   # a RATIO: six places
+    state = "daily-weekly-only" if not supported else _rs_split_state(core, False)
+    payload = {
+        "benchmark": (_rs_split_benchmark_block(core, _rs_last_finite(core["rs"]), intraday=intraday)
+                      if supported else {"requested": requested, "resolved": None, "label": None,
+                                         "fallback": None, "bars": 0, "note": None}),
+        "legend": legend,
+        "history": _rs_split_history(core, count),
+        "inputs": params,
+        "intraday": intraday,
+        "state": state,
+    }
+    envelope = {"columns": wire, "times": times, "asOf": time.time(), "payload": payload}
+    t_built = time.perf_counter()
+    if times:
+        _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsExit", sym)
     _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
     return envelope

@@ -1378,7 +1378,10 @@ def test_a_bound_rs_alert_address_reads_the_rsLine_rev_not_the_default():
     from api.services import alert_rev_migration as rev
     from api.services.indicator_alert_evaluator import plot_base, resolve_address
     assert plot_base(resolve_address("rs_line.crossUp")) == "rs_line"
-    assert rev.ADDRESS_BASE_DEFINITION == {"rs_line": "rsLine"}
+    # 2026-11-10 (RS split, S2) added the two split bases and 2026-11-12 (RS Exit Warnings) the
+    # fourth; the one base -> definition map names every RS definition an alert can bind to.
+    assert rev.ADDRESS_BASE_DEFINITION == {"rs_line": "rsLine", "rs_phases": "rsPhases",
+                                           "rs_vs_ema": "rsVsEma", "rs_exit": "rsExit"}
     assert rev.compute_rev("rs_line.crossUp") == 5
     assert rev.compute_rev("rs_line.newHigh") == 5
     assert rev.compute_rev("RS_LINE.NEWHIGH") == 5, "resolution folds case like every other address"
