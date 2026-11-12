@@ -1,0 +1,1549 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+...............................................ssssssssssssssssssssss... [ 17%]
+........................................................................ [ 20%]
+........s............................................................... [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+.........................EE...............................EEE..EEEEEEEE. [ 32%]
+..........................F.FF.....F.FFFF..FF..FFFFFFF.................. [ 35%]
+.........................F.............................................. [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+..F..................................................................... [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+..............................F......................................... [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+...........................................FFFF......................... [ 71%]
+....................................s................................... [ 74%]
+........................................................................ [ 77%]
+......................................................................s. [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+...[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+..................................................................... [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+................................                                         [100%]
+==================================== ERRORS ====================================
+_______ ERROR collecting tests/test_notebook_fin_walk_followup_group.py ________
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_followup_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_followup_group.py:18: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+_____ ERROR collecting tests/test_notebook_fin_walk_page_layouts_group.py ______
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_page_layouts_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_page_layouts_group.py:20: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+_______________ ERROR collecting tests/test_notebook_p5_walk.py ________________
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_p5_walk.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_p5_walk.py:22: in <module>
+    import notebook_p5_walk as w  # noqa: E402
+tools/notebook_p5_walk.py:80: in <module>
+    import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
+tools/mobile_audit.py:28: in <module>
+    from playwright.sync_api import sync_playwright
+E   ModuleNotFoundError: No module named 'playwright'
+_ ERROR at setup of test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_mutation_removing_the_origin_check_reds_the_cross_origin_rail _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED __
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+________ ERROR at setup of test_CONTROL_distinct_keys_are_never_deduped ________
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+=================================== FAILURES ===================================
+____________ test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool ____________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool(chain):
+        """Review round 2's scenario: a fix whose subject never says 'notebook', touching only a
+        Notebook file the hand-typed regex missed. The derived set catches it by path."""
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "fix(j2): correct the schema stamp on forwarding",
+                               "app/src/pages/journal-2-0/hooks/useJ2Notes.js",
+                               lambda b: b + b"\n// synthetic\n")
+
+tests/test_notebook_rollback_chain.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', 'b49169ab71bc83a80887055a4215f77f0a79a308', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'fix(j2): correct the schema stamp on forwarding')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'b49169ab71bc83a80...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'b49169ab71bc83a80...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+___________ test_check_says_current_on_a_base_with_nothing_uncharted ___________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+capsys = <_pytest.capture.CaptureFixture object at 0x73a818232690>
+
+    def test_check_says_current_on_a_base_with_nothing_uncharted(chain, capsys):
+        """`--check` exit 0: MEASURED_AT itself, and a later docs-only commit on top of it."""
+        rc, out = _check(chain, capsys, chain.MEASURED_AT)
+        assert (rc, out["check"]) == (0, "current") and "stopped" not in out
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "docs(terminal): synthetic, not Notebook work",
+                               "docs/notebook/wave5-rollback.md", lambda b: b + b"\n")
+
+tests/test_notebook_rollback_chain.py:320: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '08b1ebf6b06281dfced5a43fc105fea7d20c3c5b', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'docs(terminal): synthetic, not Notebook work')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+____________ test_check_says_stale_and_why_on_an_uncharted_landing _____________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+capsys = <_pytest.capture.CaptureFixture object at 0x73a81767e180>
+
+    def test_check_says_stale_and_why_on_an_uncharted_landing(chain, capsys):
+        """`--check` exit 2, naming the commit: a synthetic Notebook landing on top of MEASURED_AT,
+        and a base that does not contain MEASURED_AT at all."""
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "fix(notebook): a landing the chain does not name",
+                               "app/src/pages/journal-2-0/tabs/NotebookTab.module.css",
+                               lambda b: b + b"/* synthetic */\n")
+
+tests/test_notebook_rollback_chain.py:329: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '10401c4386027d4d88ec6792281479b49bd39b29', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'fix(notebook): a landing the chain does not name')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_____ test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain ______
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a8175895b0>
+
+    def test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain(chain, monkeypatch):
+        """R1b: wave 7's revert keeps `api/services/daily_counters.py` ("ours": two later features
+        import it). A later commit that changes that file is not what the rule was measured on, so the
+        chain must stop at wave 7 -- before the fingerprint fix it resolved silently."""
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): a synthetic counter change",
+                               "api/services/daily_counters.py", lambda b: b + b"\n# synthetic\n")
+
+tests/test_notebook_rollback_chain.py:457: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '770f9d93a1961d51ab3ae6190ff05c5546ac5973', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'feat(terminal): a synthetic counter change')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '770f9d93a1961d51a...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '770f9d93a1961d51a...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+___ test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path ____
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path(chain):
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "fix(notebook): a landing the chain does not name",
+                               "app/src/pages/journal-2-0/tabs/NotebookTab.module.css",
+                               lambda b: b + b"/* synthetic */\n")
+
+tests/test_notebook_rollback_chain.py:472: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '10401c4386027d4d88ec6792281479b49bd39b29', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'fix(notebook): a landing the chain does not name')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_________ test_the_tool_refuses_a_landing_the_subject_criterion_misses _________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_the_tool_refuses_a_landing_the_subject_criterion_misses(chain):
+        """M6: a Notebook hotfix whose subject never says 'notebook' is caught by its PATHS."""
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "hotfix(j2): H14 -- a synthetic door fix",
+                               "api/services/journal_two/notes.py", lambda b: b + b"\n# synthetic\n")
+
+tests/test_notebook_rollback_chain.py:481: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', 'f1663c20e482a14fd72845391f26b0e9264a04da', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'hotfix(j2): H14 -- a synthetic door fix')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'f1663c20e482a14fd...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'f1663c20e482a14fd...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_______________ test_a_non_notebook_commit_on_top_runs_and_warns _______________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_a_non_notebook_commit_on_top_runs_and_warns(chain):
+        """Control for the refusals: a later commit that is neither Notebook work nor on a recorded
+        conflict's lines runs, and the run says the check list and rehearsal are mandatory."""
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "docs(terminal): synthetic, not Notebook work",
+                               "docs/notebook/wave5-rollback.md", lambda b: b + b"\n")
+
+tests/test_notebook_rollback_chain.py:490: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '08b1ebf6b06281dfced5a43fc105fea7d20c3c5b', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'docs(terminal): synthetic, not Notebook work')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+______ test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain _______
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a8175799a0>
+
+    def test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain(chain, monkeypatch):
+        """I1: a later master commit mounts a new (non-Notebook) router beside the journal_two mount.
+        The wave-8 revert's recorded rule was measured on a hunk without that line, so the chain must
+        STOP rather than resolve it; before the pins it exited 0 and dropped the new mount."""
+        mount = b"app.include_router(journal_two_router.router, dependencies=_OPEN_READS)\n"
+    
+        def add_router(b):
+            assert b.count(mount) == 1
+            return b.replace(mount, mount + b"app.include_router(terminal_synthetic_router.router)\n")
+>       sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): mount a synthetic router",
+                               "api/main.py", add_router)
+
+tests/test_notebook_rollback_chain.py:507: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '99fbb02189d79654d362c208280bdab216615215', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'feat(terminal): mount a synthetic router')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '99fbb02189d79654d...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '99fbb02189d79654d...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_______ test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees ________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees(chain):
+        """Tree for tree, the chain the sandbox booted. A changed rule, a dropped keep-path or a
+        dropped schema restore changes a tree here before it changes a member's Notebook."""
+        recorded = [json.loads(l) for l in RECORD.read_text(encoding="utf-8").splitlines()]
+        want = [(d["squash"], d["tree"]) for d in recorded if "squash" in d]
+        got, lines = [], []
+>       final = chain.run(chain.MEASURED_AT, "wave5", emit=lines.append)
+
+tests/test_notebook_rollback_chain.py:547: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/notebook_rollback_chain.py:949: in run
+    res["commit"] = _out("commit-tree", res["tree"], "-p", prev, "-m", msg).strip()
+tools/notebook_rollback_chain.py:704: in _out
+    return _git(*a, **k).stdout.decode("utf-8", errors="replace")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = None, inp = None, ok = (0,)
+a = ('commit-tree', 'c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'R... f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py')
+
+    def _git(*a, env=None, inp=None, ok=(0,)):
+        r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, env=env, input=inp)
+        if r.returncode not in ok:
+>           raise RuntimeError(f"git {' '.join(a)}: rc {r.returncode}: {r.stderr.decode(errors='replace')}")
+E           RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+E           
+E           *** Please tell me who you are.
+E           
+E           Run
+E           
+E             git config --global user.email "you@example.com"
+E             git config --global user.name "Your Name"
+E           
+E           to set your account's default identity.
+E           Omit --global to set the identity only in this repository.
+E           
+E           fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+
+tools/notebook_rollback_chain.py:699: RuntimeError
+_________________ test_an_unrecorded_conflict_stops_the_chain __________________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a8177dcce0>
+
+    def test_an_unrecorded_conflict_stops_the_chain(chain, monkeypatch):
+        """Fail closed: take away the rule for one known conflict (wave 8's api/main.py) and the
+        chain must stop there and name the file, never resolve it some other way."""
+        rules = {k: dict(v) for k, v in chain.RULES.items()}
+        del rules["caf6d1b9e"]["api/main.py"]
+        monkeypatch.setattr(chain, "RULES", rules)
+        with pytest.raises(chain.ChainStopped, match=r"api/main\.py"):
+>           chain.run(chain.MEASURED_AT, "wave8", emit=lambda _l: None)
+
+tests/test_notebook_rollback_chain.py:568: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/notebook_rollback_chain.py:949: in run
+    res["commit"] = _out("commit-tree", res["tree"], "-p", prev, "-m", msg).strip()
+tools/notebook_rollback_chain.py:704: in _out
+    return _git(*a, **k).stdout.decode("utf-8", errors="replace")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = None, inp = None, ok = (0,)
+a = ('commit-tree', 'c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'R... f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave8, built by tools/notebook_rollback_chain.py')
+
+    def _git(*a, env=None, inp=None, ok=(0,)):
+        r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, env=env, input=inp)
+        if r.returncode not in ok:
+>           raise RuntimeError(f"git {' '.join(a)}: rc {r.returncode}: {r.stderr.decode(errors='replace')}")
+E           RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave8, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+E           
+E           *** Please tell me who you are.
+E           
+E           Run
+E           
+E             git config --global user.email "you@example.com"
+E             git config --global user.name "Your Name"
+E           
+E           to set your account's default identity.
+E           Omit --global to set the identity only in this repository.
+E           
+E           fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+
+tools/notebook_rollback_chain.py:699: RuntimeError
+_ test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must _
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must(chain):
+        """This lane booted nothing, so this is what carries lane R1h's sandbox rehearsal over. At
+        every step below W11 the tree may differ from the one R1h booted in two places only:
+          * the paths a rollback never reverts (docs, tools, scripts, CLAUDE.md, the schema tables and
+            their rails), which are the newer tip's;
+          * the files OTHER workstreams changed between L15 and wave 11, which no Notebook step
+            reverts (read off git: `b529c8a78..f473d00b3^`).
+        Anything else would mean W11's revert left wave-11 code behind, or took something that was
+        not wave 11's."""
+        def rows(path):
+            return {d["squash"][:9]: d["tree"] for d in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+                    if "squash" in d}
+        new, old = rows(RECORD), rows(RECORD_R1H)
+        assert len(old) >= 13 and set(new) - set(old) == {"f473d00b3"}
+>       _restore_r1h_trees(old)
+
+tests/test_notebook_rollback_chain.py:666: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:645: in _restore_r1h_trees
+    mod.run(R1H_FROM, "wave5", emit=lines.append)
+f473d00b3:tools/notebook_rollback_chain.py:864: in run
+    ???
+f473d00b3:tools/notebook_rollback_chain.py:624: in _out
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = None, inp = None, ok = (0,)
+a = ('commit-tree', 'a25311e3aeabc65c661e351a3b37670a1c5df30a', '-p', 'b529c8a786a0a02fac3889d5438b98c3b304ba0f', '-m', 'Revert b529c8a78 (wave 10 L15 #262) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py')
+
+>   ???
+E   RuntimeError: git commit-tree a25311e3aeabc65c661e351a3b37670a1c5df30a -p b529c8a786a0a02fac3889d5438b98c3b304ba0f -m Revert b529c8a78 (wave 10 L15 #262) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+E   
+E   *** Please tell me who you are.
+E   
+E   Run
+E   
+E     git config --global user.email "you@example.com"
+E     git config --global user.name "Your Name"
+E   
+E   to set your account's default identity.
+E   Omit --global to set the identity only in this repository.
+E   
+E   fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+
+f473d00b3:tools/notebook_rollback_chain.py:619: RuntimeError
+_____ test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list ______
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list(chain):
+        """`--landing --pending`: the branch is squashed on its merge-base from objects, reverted, and
+        the product file goes back while the schema table and the purge list stay as the landing has
+        them. The same answer for the real squash once it exists."""
+        base = full(chain.MEASURED_AT)
+>       tip = _synthetic_landing(chain, base)
+
+tests/test_notebook_rollback_chain.py:712: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:695: in _synthetic_landing
+    a = synthetic_commit(base, "feat(notebook lane): a synthetic feature", LANDING_FILE,
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '363ec7224a2c6e6b6b1b5508dc0425c5ae30388c', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'feat(notebook lane): a synthetic feature')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_______ test_landing_mode_says_when_the_landing_has_not_merged_the_base ________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_landing_mode_says_when_the_landing_has_not_merged_the_base(chain):
+        base = full(chain.MEASURED_AT)
+>       tip = _synthetic_landing(chain, base)
+
+tests/test_notebook_rollback_chain.py:732: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:695: in _synthetic_landing
+    a = synthetic_commit(base, "feat(notebook lane): a synthetic feature", LANDING_FILE,
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '363ec7224a2c6e6b6b1b5508dc0425c5ae30388c', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'feat(notebook lane): a synthetic feature')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_ test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule _
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a818a51a30>
+
+    def test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule(chain, monkeypatch):
+        """Fail closed: a later commit on the landing's own lines stops it and names the file -- even
+        when RULES holds an entry for that squash (a chain rule was measured on a different base)."""
+        base = full(chain.MEASURED_AT)
+>       squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                                  lambda b: b + b"/* synthetic landing */\n")
+
+tests/test_notebook_rollback_chain.py:745: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '363ec7224a2c6e6b6b1b5508dc0425c5ae30388c', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'Notebook: wave 99 -- a synthetic landing')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+_ test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files _
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files(chain):
+        """Merged clean is not the same as correct: a later commit elsewhere in a file the landing
+        changed is named in the output, with a warning, so a person reads it."""
+        base = full(chain.MEASURED_AT)
+>       squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                                  lambda b: b + b"/* synthetic landing */\n")
+
+tests/test_notebook_rollback_chain.py:761: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '363ec7224a2c6e6b6b1b5508dc0425c5ae30388c', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'Notebook: wave 99 -- a synthetic landing')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+____________ test_landing_mode_refuses_what_is_not_a_landing_there _____________
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+
+    def test_landing_mode_refuses_what_is_not_a_landing_there(chain):
+        base = full(chain.MEASURED_AT)
+>       squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                                  lambda b: b + b"/* synthetic landing */\n")
+
+tests/test_notebook_rollback_chain.py:777: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:228: in synthetic_commit
+    return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inp = None
+a = ('commit-tree', '363ec7224a2c6e6b6b1b5508dc0425c5ae30388c', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'Notebook: wave 99 -- a synthetic landing')
+r = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n')
+@py_assert1 = 128
+
+    def g(*a, inp=None):
+        r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+>       assert r.returncode == 0, r.stderr
+E       AssertionError: b'Author identity unknown
+E         
+E         *** Please tell me who you are.
+E         
+E         Run
+E         
+E           git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+E         '
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+
+tests/test_notebook_rollback_chain.py:220: AssertionError
+___ test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other ___
+
+chain = <module 'nb_rollback_chain' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_rollback_chain.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a817da2720>
+
+    def test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other(chain, monkeypatch):
+        """KEEP_WITH_LANDING is per landing. Named for W11, the purge list stays at the tip through
+        W11's revert (which would otherwise take wave 11's rows out); the step below it then follows
+        the ordinary revert. Unnamed, W11's revert changes the file -- the control."""
+        tip = full(chain.MEASURED_AT)
+    
+        def through_w11():
+            lines = []
+            chain.run(chain.MEASURED_AT, "W11", emit=lines.append)
+            return json.loads(lines[0])
+>       plain = through_w11()
+
+tests/test_notebook_rollback_chain.py:802: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_rollback_chain.py:800: in through_w11
+    chain.run(chain.MEASURED_AT, "W11", emit=lines.append)
+tools/notebook_rollback_chain.py:949: in run
+    res["commit"] = _out("commit-tree", res["tree"], "-p", prev, "-m", msg).strip()
+tools/notebook_rollback_chain.py:704: in _out
+    return _git(*a, **k).stdout.decode("utf-8", errors="replace")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = None, inp = None, ok = (0,)
+a = ('commit-tree', 'c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb', '-p', 'f473d00b3231ffc8cd0ae50e17096ccf30ecb801', '-m', 'Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through W11, built by tools/notebook_rollback_chain.py')
+
+    def _git(*a, env=None, inp=None, ok=(0,)):
+        r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, env=env, input=inp)
+        if r.returncode not in ok:
+>           raise RuntimeError(f"git {' '.join(a)}: rc {r.returncode}: {r.stderr.decode(errors='replace')}")
+E           RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through W11, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+E           
+E           *** Please tell me who you are.
+E           
+E           Run
+E           
+E             git config --global user.email "you@example.com"
+E             git config --global user.name "Your Name"
+E           
+E           to set your account's default identity.
+E           Omit --global to set the identity only in this repository.
+E           
+E           fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+
+tools/notebook_rollback_chain.py:699: RuntimeError
+______ test_every_notebook_route_on_the_real_app_is_classified_and_agrees ______
+
+real_app = <fastapi.applications.FastAPI object at 0x73a81ad48f80>
+doc_tables = ({('DELETE', '/api/j2/capture/connections/{token_id}'): {'auth': 'session', 'flag': 'no', 'own': "member-scoped; anoth...er), not Notebook notes', ('GET', '/api/coaching-notes'): 'intelligence router coaching notes, not the Notebook', ...})
+
+    def test_every_notebook_route_on_the_real_app_is_classified_and_agrees(real_app, doc_tables):
+        table, excluded = doc_tables
+        problems = census_problems(candidates(real_app), table, excluded)
+>       assert not problems, "the Notebook route census disagrees with the app:\n  " + "\n  ".join(problems)
+E       AssertionError: the Notebook route census disagrees with the app:
+E           UNCLASSIFIED Notebook route: PUT /api/trade-exchange-news/library/bookmarks/{event_id}/note (api.routers.trade_exchange_news.library_note)
+E           UNCLASSIFIED Notebook route: POST /api/j2/notes/import/heal-links (api.routers.journal_two.notes_import_heal_links_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/notes/import/repair-notice (api.routers.journal_two.notes_import_repair_notice_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/notes/import/repair-notice/dismiss (api.routers.journal_two.notes_import_repair_notice_dismiss_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/styles (api.routers.notebook_template_gallery.publish_style_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/layouts/status (api.routers.notebook_template_gallery.layout_status_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/layouts (api.routers.notebook_template_gallery.publish_layout_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/examples/preview (api.routers.notebook_template_gallery.preview_example_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/examples (api.routers.notebook_template_gallery.publish_example_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/updates (api.routers.notebook_template_gallery.list_updates_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/updates/{style_id} (api.routers.notebook_template_gallery.plan_update_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/updates/{style_id} (api.routers.notebook_template_gallery.apply_update_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/feed (api.routers.notebook_template_gallery.feed_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/authors/{handle} (api.routers.notebook_template_gallery.author_page_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/authors/{handle}/follow (api.routers.notebook_template_gallery.follow_endpoint)
+E           UNCLASSIFIED Notebook route: DELETE /api/j2/template-gallery/authors/{handle}/follow (api.routers.notebook_template_gallery.unfollow_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/share/preview (api.routers.notebook_template_gallery.share_preview_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/tools (api.routers.notebook_template_gallery.publish_tool_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/library (api.routers.notebook_template_gallery.library_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/tools/updates/{kind}/{copy_id} (api.routers.notebook_template_gallery.update_tool_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/notes/{note_id}/helpful-prompt (api.routers.notebook_template_gallery.helpful_prompt_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/preview-mine (api.routers.notebook_template_gallery.preview_mine_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt-tool (api.routers.notebook_template_gallery.adopt_tool_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/use-template (api.routers.notebook_template_gallery.use_template_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/helpful-prompt (api.routers.notebook_template_gallery.answer_helpful_prompt_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/{gallery_id}/images/{n} (api.routers.notebook_template_gallery.example_image_endpoint)
+E           RATE in-handler claim unproved for ('POST', '/api/j2/template-gallery'): 'in-handler: enforce_rate'
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt (api.routers.notebook_template_gallery.adopt_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt-layout (api.routers.notebook_template_gallery.adopt_layout_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/helpful (api.routers.notebook_template_gallery.helpful_endpoint)
+E           UNCLASSIFIED Notebook route: DELETE /api/j2/template-gallery/{gallery_id}/helpful (api.routers.notebook_template_gallery.unhelpful_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/journal-styles (api.routers.notebook_journal_styles.list_styles_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles (api.routers.notebook_journal_styles.create_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/preview (api.routers.notebook_journal_styles.preview_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/starter-packs/{pack} (api.routers.notebook_journal_styles.install_starter_pack_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/archive (api.routers.notebook_journal_styles.archive_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/unarchive (api.routers.notebook_journal_styles.unarchive_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/duplicate (api.routers.notebook_journal_styles.duplicate_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/delete (api.routers.notebook_journal_styles.delete_typed_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/journal-styles/{style_id}/used-in (api.routers.notebook_journal_styles.used_in_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.get_style_endpoint)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.update_style_endpoint)
+E           UNCLASSIFIED Notebook route: DELETE /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.delete_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/restore (api.routers.notebook_journal_styles.restore_style_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/default (api.routers.notebook_journal_styles.default_style_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/market-context (api.routers.notebook_journal_styles.trader_market_context)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry (api.routers.notebook_journal_styles.trader_pre_entry)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trader-blocks/price-stamp (api.routers.notebook_journal_styles.trader_price_stamp)
+E           UNCLASSIFIED Notebook route: GET /api/j2/note-kinds (api.routers.notebook_journal_styles.list_kinds_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/note-kinds/mapping-offer (api.routers.notebook_journal_styles.mapping_offer_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/note-kinds/mapping-offer (api.routers.notebook_journal_styles.apply_mapping_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/note-kinds (api.routers.notebook_journal_styles.create_kind_endpoint)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/note-kinds/{kind_id} (api.routers.notebook_journal_styles.update_kind_endpoint)
+E           UNCLASSIFIED Notebook route: DELETE /api/j2/note-kinds/{kind_id} (api.routers.notebook_journal_styles.delete_kind_endpoint)
+E           UNCLASSIFIED Notebook route: GET /api/j2/notes/{note_id}/style-update-plan (api.routers.notebook_journal_styles.style_update_plan_endpoint)
+E           UNCLASSIFIED Notebook route: POST /api/j2/notes/{note_id}/apply-style-update (api.routers.notebook_journal_styles.apply_style_update_endpoint)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/trader-blocks/rules/{rule_id} (api.routers.notebook_journal_styles.trader_edit_rule)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/rules/{rule_id}/versions (api.routers.notebook_journal_styles.trader_rule_versions)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/rules/{rule_id}/before-after (api.routers.notebook_journal_styles.trader_rule_before_after)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/prep/{part} (api.routers.notebook_journal_styles.trader_prep)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/review/trades (api.routers.notebook_journal_styles.trader_review_trades)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/review/{trade_key} (api.routers.notebook_journal_styles.trader_review)
+E           UNCLASSIFIED Notebook route: GET /api/j2/research-capture/tweets/recent (api.routers.notebook_tweet_capture.recent_tweets)
+E           UNCLASSIFIED Notebook route: POST /api/j2/research-capture/tweets/resolve (api.routers.notebook_tweet_capture.resolve_tweet)
+E           UNCLASSIFIED Notebook route: POST /api/j2/research-capture/tweets/save (api.routers.notebook_tweet_capture.save_tweets)
+E           UNCLASSIFIED Notebook route: GET /api/j2/insights/checklist-suggestions (api.routers.notebook_winners_checklist.get_checklist_suggestions)
+E           UNCLASSIFIED Notebook route: GET /api/j2/wrapped/years (api.routers.notebook_wrapped.get_wrapped_years)
+E           UNCLASSIFIED Notebook route: GET /api/j2/wrapped/{year} (api.routers.notebook_wrapped.get_wrapped)
+E           UNCLASSIFIED Notebook route: GET /api/j2/notebook-widgets/{kind} (api.routers.notebook_widgets.get_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/run (api.routers.notebook_widget_definitions.run_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/preview (api.routers.notebook_widget_definitions.preview_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/examples (api.routers.notebook_widget_definitions.run_examples)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/drill (api.routers.notebook_widget_definitions.drill_widget)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/vocabulary (api.routers.notebook_widget_definitions.vocabulary)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/shelf (api.routers.notebook_widget_definitions.shelf)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions (api.routers.notebook_widget_definitions.list_widgets)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions (api.routers.notebook_widget_definitions.create_widget)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id} (api.routers.notebook_widget_definitions.get_widget)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/widget-definitions/{def_id} (api.routers.notebook_widget_definitions.save_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/archive (api.routers.notebook_widget_definitions.archive_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/unarchive (api.routers.notebook_widget_definitions.unarchive_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/delete (api.routers.notebook_widget_definitions.delete_widget)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/undelete (api.routers.notebook_widget_definitions.undelete_widget)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id}/used-in (api.routers.notebook_widget_definitions.used_in)
+E           UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id}/revs (api.routers.notebook_widget_definitions.list_revs)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/revs/{rev}/name (api.routers.notebook_widget_definitions.name_rev)
+E           UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/revs/{rev}/restore (api.routers.notebook_widget_definitions.restore_rev)
+E           UNCLASSIFIED Notebook route: POST /api/j2/notebook-shelf-widgets/{kind} (api.routers.notebook_shelf_widgets.post_widget)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines (api.routers.notebook_routines.list_routines)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines (api.routers.notebook_routines.create_routine)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines/starters (api.routers.notebook_routines.routine_starters)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines/import-day-rules (api.routers.notebook_routines.routine_import_day_rules)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/days (api.routers.notebook_routines.routine_days)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid} (api.routers.notebook_routines.get_routine)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid} (api.routers.notebook_routines.save_routine)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/archive (api.routers.notebook_routines.archive_routine)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/unarchive (api.routers.notebook_routines.unarchive_routine)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/delete (api.routers.notebook_routines.delete_routine)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/undelete (api.routers.notebook_routines.undelete_routine)
+E           UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/duplicate (api.routers.notebook_routines.duplicate_routine)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid}/days/{day}/items/{item_id} (api.routers.notebook_routines.tick_routine_item)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid}/days/{day} (api.routers.notebook_routines.skip_routine_day)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid}/used-in (api.routers.notebook_routines.routine_used_in)
+E           UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid}/vs-pnl (api.routers.notebook_routines.routine_vs_pnl)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trackers (api.routers.notebook_routines.list_trackers)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers (api.routers.notebook_routines.create_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/days (api.routers.notebook_routines.tracker_days)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid} (api.routers.notebook_routines.get_tracker)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/trackers/{tid} (api.routers.notebook_routines.save_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/archive (api.routers.notebook_routines.archive_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/unarchive (api.routers.notebook_routines.unarchive_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/delete (api.routers.notebook_routines.delete_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/undelete (api.routers.notebook_routines.undelete_tracker)
+E           UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/duplicate (api.routers.notebook_routines.duplicate_tracker)
+E           UNCLASSIFIED Notebook route: PUT /api/j2/trackers/{tid}/days/{day} (api.routers.notebook_routines.log_tracker_day)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid}/used-in (api.routers.notebook_routines.tracker_used_in)
+E           UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid}/vs-pnl (api.routers.notebook_routines.tracker_vs_pnl)
+E           GUARD NOT IN SOURCE ('POST', '/api/j2/notes/connectors/obsidian/ingest'): '_authenticate_obsidian_device' does not appear in the handler
+E           PAID in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/ingest'): 'in-handler: _require_paid_device_user'
+E           GUARD NOT IN SOURCE ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): '_authenticate_obsidian_device' does not appear in the handler
+E           PAID in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): 'in-handler: _require_paid_device_user'
+E           FLAG in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): 'in-handler: _obsidian_attachments_enabled'
+E           GUARD NOT IN SOURCE ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): '_authenticate_obsidian_device' does not appear in the handler
+E           PAID in-handler claim unproved for ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): 'in-handler: _require_paid_device_user'
+E           FLAG in-handler claim unproved for ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): 'in-handler: _obsidian_attachments_enabled'
+E           STALE row: GET /api/j2/notes/connectors/{provider}/folders is not served by the app
+E       assert not ['UNCLASSIFIED Notebook route: PUT /api/trade-exchange-news/library/bookmarks/{event_id}/note (api.routers.trade_excha...oute: GET /api/j2/template-gallery/layouts/status (api.routers.notebook_template_gallery.layout_status_endpoint)', ...]
+
+tests/test_notebook_route_security_census.py:255: AssertionError
+__________ test_every_notebook_gate_is_rehearsed_or_carries_a_reason ___________
+
+t = <module 'switch_rehearsal' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/notebook_switch_rehearsal.py'>
+table = {'AWARENESS_NOTE_RESURFACE_ENABLED': False, 'COMPASS_NOTES_TOOL_ENABLED': False, 'J2_SHARE_LINKS_ENABLED': False, 'JOURNAL_PAGE_LAYOUTS_ENABLED': False, ...}
+
+    def test_every_notebook_gate_is_rehearsed_or_carries_a_reason(t, table):
+        """A gate added tomorrow reds here until someone writes a probe or a reason."""
+        _, modes = t.capability_table()
+        found = t.notebook_gates_in_index()
+        # non-vacuity: the index sees gates from both kinds of read site
+        assert "NOTEBOOK_SEMANTIC_SEARCH_ENABLED" in found and "J2_SHARE_LINKS_ENABLED" in found
+        skipped = t.not_rehearsed(table, modes)
+>       assert not [k for k, why in skipped.items() if why == "no rendered probe written"], skipped
+E       AssertionError: {'AWARENESS_NOTE_RESURFACE_ENABLED': "armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the awareness s...oor; creating only (an existing check-in block still renders); evidence is the fin walk's Tier 3 group (Task 10)", ...}
+E       assert not ['NOTEBOOK_TWEET_IMPORT_ENABLED']
+
+tests/test_notebook_switch_rehearsal.py:105: AssertionError
+_______________ test_the_import_graph_never_reaches_alphavantage _______________
+
+    def test_the_import_graph_never_reaches_alphavantage():
+        reached = _reach(CAPTURE_MODULES)
+        # non-vacuity: the walk follows function-level imports into what the module reuses
+        assert {"api.services.fmp_transcripts", "api.services.transcript_index",
+                "api.services.journal_two.note_excerpts", "api.services.journal_two.notes",
+                "api.services.journal_two.web_capture"} <= reached
+>       assert not reached & FORBIDDEN_MODULES, sorted(reached & FORBIDDEN_MODULES)
+E       AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer']
+E       assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer'})
+
+tests/test_notebook_transcript_capture.py:430: AssertionError
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] __
+
+db_path = '/tmp/tmpmth9nlt4.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a8154247a0>
+door = ('notebook_entry_context', 'api.services.journal_two.entry_context', 'PUT', '/api/j2/entry-context/why')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpmth9nlt4.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] _
+
+db_path = '/tmp/tmpnx46yjow.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a8175398b0>
+door = ('notebook_plan_grades', 'api.services.journal_two.plan_grading', 'POST', '/api/j2/plan-grades/trades/t1/relink')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpnx46yjow.db
+__ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] __
+
+db_path = '/tmp/tmp1thdvwis.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a81753b380>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmp1thdvwis.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] _
+
+db_path = '/tmp/tmpckcs_rix.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73a81753b4a0>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery/g1/report')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpckcs_rix.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_widgets_service.py:3
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+tests/test_notebook_plan_grading.py: 1 warning
+tests/test_notebook_transcript_capture.py: 2 warnings
+tests/test_notes_answer_is_the_committed_row.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_notebook_upload_cap.py: 2 warnings
+tests/test_notebook_voice_notes.py: 43 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_nvda_pass.py:34: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:41: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:50: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:64: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:81: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:95: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:109: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:119: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:198: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:214: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:232: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:272: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:282: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:293: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:305: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:317: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:357: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:370: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:385: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:398: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:432: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:439: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_perf_harness.py:563: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_voice_notes.py:256: no ffmpeg on this box
+SKIPPED [1] tests/test_notebook_wave8_walk.py:627: could not import 'playwright._impl._helper': No module named 'playwright'
+ERROR tests/test_notebook_fin_walk_followup_group.py
+ERROR tests/test_notebook_fin_walk_page_layouts_group.py
+ERROR tests/test_notebook_p5_walk.py
+ERROR tests/test_notebook_proof_walk.py::test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_mutation_removing_the_origin_check_reds_the_cross_origin_rail - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped - ModuleNotFoundError: No module named 'playwright'
+ERROR tests/test_notebook_proof_walk.py::test_CONTROL_distinct_keys_are_never_deduped - ModuleNotFoundError: No module named 'playwright'
+FAILED tests/test_notebook_rollback_chain.py::test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'b49169ab71bc83a80...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_check_says_current_on_a_base_with_nothing_uncharted - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_check_says_stale_and_why_on_an_uncharted_landing - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '770f9d93a1961d51a...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '10401c4386027d4d8...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_the_tool_refuses_a_landing_the_subject_criterion_misses - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', 'f1663c20e482a14fd...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_a_non_notebook_commit_on_top_runs_and_warns - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '08b1ebf6b06281dfc...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '99fbb02189d79654d...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees - RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+FAILED tests/test_notebook_rollback_chain.py::test_an_unrecorded_conflict_stops_the_chain - RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through wave8, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+FAILED tests/test_notebook_rollback_chain.py::test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must - RuntimeError: git commit-tree a25311e3aeabc65c661e351a3b37670a1c5df30a -p b529c8a786a0a02fac3889d5438b98c3b304ba0f -m Revert b529c8a78 (wave 10 L15 #262) -- Notebook rollback through wave5, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_says_when_the_landing_has_not_merged_the_base - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_refuses_what_is_not_a_landing_there - AssertionError: b'Author identity unknown
+  
+  *** Please tell me who you are.
+  
+  Run
+  
+    git config --global user.email "you@example.c...fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+  '
+assert 128 == 0
+ +  where 128 = CompletedProcess(args=['git', '-C', '/home/runner/work/UCT-Dashboard/UCT-Dashboard', 'commit-tree', '363ec7224a2c6e6b6...atal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed\n').returncode
+FAILED tests/test_notebook_rollback_chain.py::test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other - RuntimeError: git commit-tree c4f93e2fa5591c085bbdecf5f2d08b3e3abbaefb -p f473d00b3231ffc8cd0ae50e17096ccf30ecb801 -m Revert f473d00b3 (wave 10 L16 + wave 11 #263) -- Notebook rollback through W11, built by tools/notebook_rollback_chain.py: rc 128: Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <runner@runnervmwuk1x.myh4tnwwn3pu5cqpkh4nzgfg2g.gx.internal.cloudapp.net>) not allowed
+FAILED tests/test_notebook_route_security_census.py::test_every_notebook_route_on_the_real_app_is_classified_and_agrees - AssertionError: the Notebook route census disagrees with the app:
+    UNCLASSIFIED Notebook route: PUT /api/trade-exchange-news/library/bookmarks/{event_id}/note (api.routers.trade_exchange_news.library_note)
+    UNCLASSIFIED Notebook route: POST /api/j2/notes/import/heal-links (api.routers.journal_two.notes_import_heal_links_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/notes/import/repair-notice (api.routers.journal_two.notes_import_repair_notice_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/notes/import/repair-notice/dismiss (api.routers.journal_two.notes_import_repair_notice_dismiss_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/styles (api.routers.notebook_template_gallery.publish_style_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/layouts/status (api.routers.notebook_template_gallery.layout_status_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/layouts (api.routers.notebook_template_gallery.publish_layout_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/examples/preview (api.routers.notebook_template_gallery.preview_example_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/examples (api.routers.notebook_template_gallery.publish_example_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/updates (api.routers.notebook_template_gallery.list_updates_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/updates/{style_id} (api.routers.notebook_template_gallery.plan_update_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/updates/{style_id} (api.routers.notebook_template_gallery.apply_update_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/feed (api.routers.notebook_template_gallery.feed_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/authors/{handle} (api.routers.notebook_template_gallery.author_page_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/authors/{handle}/follow (api.routers.notebook_template_gallery.follow_endpoint)
+    UNCLASSIFIED Notebook route: DELETE /api/j2/template-gallery/authors/{handle}/follow (api.routers.notebook_template_gallery.unfollow_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/share/preview (api.routers.notebook_template_gallery.share_preview_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/tools (api.routers.notebook_template_gallery.publish_tool_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/library (api.routers.notebook_template_gallery.library_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/tools/updates/{kind}/{copy_id} (api.routers.notebook_template_gallery.update_tool_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/notes/{note_id}/helpful-prompt (api.routers.notebook_template_gallery.helpful_prompt_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/preview-mine (api.routers.notebook_template_gallery.preview_mine_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt-tool (api.routers.notebook_template_gallery.adopt_tool_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/use-template (api.routers.notebook_template_gallery.use_template_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/helpful-prompt (api.routers.notebook_template_gallery.answer_helpful_prompt_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/template-gallery/{gallery_id}/images/{n} (api.routers.notebook_template_gallery.example_image_endpoint)
+    RATE in-handler claim unproved for ('POST', '/api/j2/template-gallery'): 'in-handler: enforce_rate'
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt (api.routers.notebook_template_gallery.adopt_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/adopt-layout (api.routers.notebook_template_gallery.adopt_layout_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/template-gallery/{gallery_id}/helpful (api.routers.notebook_template_gallery.helpful_endpoint)
+    UNCLASSIFIED Notebook route: DELETE /api/j2/template-gallery/{gallery_id}/helpful (api.routers.notebook_template_gallery.unhelpful_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/journal-styles (api.routers.notebook_journal_styles.list_styles_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles (api.routers.notebook_journal_styles.create_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/preview (api.routers.notebook_journal_styles.preview_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/starter-packs/{pack} (api.routers.notebook_journal_styles.install_starter_pack_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/archive (api.routers.notebook_journal_styles.archive_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/unarchive (api.routers.notebook_journal_styles.unarchive_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/duplicate (api.routers.notebook_journal_styles.duplicate_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/delete (api.routers.notebook_journal_styles.delete_typed_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/journal-styles/{style_id}/used-in (api.routers.notebook_journal_styles.used_in_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.get_style_endpoint)
+    UNCLASSIFIED Notebook route: PUT /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.update_style_endpoint)
+    UNCLASSIFIED Notebook route: DELETE /api/j2/journal-styles/{style_id} (api.routers.notebook_journal_styles.delete_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/restore (api.routers.notebook_journal_styles.restore_style_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/journal-styles/{style_id}/default (api.routers.notebook_journal_styles.default_style_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/market-context (api.routers.notebook_journal_styles.trader_market_context)
+    UNCLASSIFIED Notebook route: PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry (api.routers.notebook_journal_styles.trader_pre_entry)
+    UNCLASSIFIED Notebook route: POST /api/j2/trader-blocks/price-stamp (api.routers.notebook_journal_styles.trader_price_stamp)
+    UNCLASSIFIED Notebook route: GET /api/j2/note-kinds (api.routers.notebook_journal_styles.list_kinds_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/note-kinds/mapping-offer (api.routers.notebook_journal_styles.mapping_offer_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/note-kinds/mapping-offer (api.routers.notebook_journal_styles.apply_mapping_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/note-kinds (api.routers.notebook_journal_styles.create_kind_endpoint)
+    UNCLASSIFIED Notebook route: PUT /api/j2/note-kinds/{kind_id} (api.routers.notebook_journal_styles.update_kind_endpoint)
+    UNCLASSIFIED Notebook route: DELETE /api/j2/note-kinds/{kind_id} (api.routers.notebook_journal_styles.delete_kind_endpoint)
+    UNCLASSIFIED Notebook route: GET /api/j2/notes/{note_id}/style-update-plan (api.routers.notebook_journal_styles.style_update_plan_endpoint)
+    UNCLASSIFIED Notebook route: POST /api/j2/notes/{note_id}/apply-style-update (api.routers.notebook_journal_styles.apply_style_update_endpoint)
+    UNCLASSIFIED Notebook route: PUT /api/j2/trader-blocks/rules/{rule_id} (api.routers.notebook_journal_styles.trader_edit_rule)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/rules/{rule_id}/versions (api.routers.notebook_journal_styles.trader_rule_versions)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/rules/{rule_id}/before-after (api.routers.notebook_journal_styles.trader_rule_before_after)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/prep/{part} (api.routers.notebook_journal_styles.trader_prep)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/review/trades (api.routers.notebook_journal_styles.trader_review_trades)
+    UNCLASSIFIED Notebook route: GET /api/j2/trader-blocks/review/{trade_key} (api.routers.notebook_journal_styles.trader_review)
+    UNCLASSIFIED Notebook route: GET /api/j2/research-capture/tweets/recent (api.routers.notebook_tweet_capture.recent_tweets)
+    UNCLASSIFIED Notebook route: POST /api/j2/research-capture/tweets/resolve (api.routers.notebook_tweet_capture.resolve_tweet)
+    UNCLASSIFIED Notebook route: POST /api/j2/research-capture/tweets/save (api.routers.notebook_tweet_capture.save_tweets)
+    UNCLASSIFIED Notebook route: GET /api/j2/insights/checklist-suggestions (api.routers.notebook_winners_checklist.get_checklist_suggestions)
+    UNCLASSIFIED Notebook route: GET /api/j2/wrapped/years (api.routers.notebook_wrapped.get_wrapped_years)
+    UNCLASSIFIED Notebook route: GET /api/j2/wrapped/{year} (api.routers.notebook_wrapped.get_wrapped)
+    UNCLASSIFIED Notebook route: GET /api/j2/notebook-widgets/{kind} (api.routers.notebook_widgets.get_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/run (api.routers.notebook_widget_definitions.run_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/preview (api.routers.notebook_widget_definitions.preview_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/examples (api.routers.notebook_widget_definitions.run_examples)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/drill (api.routers.notebook_widget_definitions.drill_widget)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/vocabulary (api.routers.notebook_widget_definitions.vocabulary)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/shelf (api.routers.notebook_widget_definitions.shelf)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions (api.routers.notebook_widget_definitions.list_widgets)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions (api.routers.notebook_widget_definitions.create_widget)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id} (api.routers.notebook_widget_definitions.get_widget)
+    UNCLASSIFIED Notebook route: PUT /api/j2/widget-definitions/{def_id} (api.routers.notebook_widget_definitions.save_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/archive (api.routers.notebook_widget_definitions.archive_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/unarchive (api.routers.notebook_widget_definitions.unarchive_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/delete (api.routers.notebook_widget_definitions.delete_widget)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/undelete (api.routers.notebook_widget_definitions.undelete_widget)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id}/used-in (api.routers.notebook_widget_definitions.used_in)
+    UNCLASSIFIED Notebook route: GET /api/j2/widget-definitions/{def_id}/revs (api.routers.notebook_widget_definitions.list_revs)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/revs/{rev}/name (api.routers.notebook_widget_definitions.name_rev)
+    UNCLASSIFIED Notebook route: POST /api/j2/widget-definitions/{def_id}/revs/{rev}/restore (api.routers.notebook_widget_definitions.restore_rev)
+    UNCLASSIFIED Notebook route: POST /api/j2/notebook-shelf-widgets/{kind} (api.routers.notebook_shelf_widgets.post_widget)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines (api.routers.notebook_routines.list_routines)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines (api.routers.notebook_routines.create_routine)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines/starters (api.routers.notebook_routines.routine_starters)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines/import-day-rules (api.routers.notebook_routines.routine_import_day_rules)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/days (api.routers.notebook_routines.routine_days)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid} (api.routers.notebook_routines.get_routine)
+    UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid} (api.routers.notebook_routines.save_routine)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/archive (api.routers.notebook_routines.archive_routine)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/unarchive (api.routers.notebook_routines.unarchive_routine)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/delete (api.routers.notebook_routines.delete_routine)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/undelete (api.routers.notebook_routines.undelete_routine)
+    UNCLASSIFIED Notebook route: POST /api/j2/routines/{rid}/duplicate (api.routers.notebook_routines.duplicate_routine)
+    UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid}/days/{day}/items/{item_id} (api.routers.notebook_routines.tick_routine_item)
+    UNCLASSIFIED Notebook route: PUT /api/j2/routines/{rid}/days/{day} (api.routers.notebook_routines.skip_routine_day)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid}/used-in (api.routers.notebook_routines.routine_used_in)
+    UNCLASSIFIED Notebook route: GET /api/j2/routines/{rid}/vs-pnl (api.routers.notebook_routines.routine_vs_pnl)
+    UNCLASSIFIED Notebook route: GET /api/j2/trackers (api.routers.notebook_routines.list_trackers)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers (api.routers.notebook_routines.create_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/days (api.routers.notebook_routines.tracker_days)
+    UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid} (api.routers.notebook_routines.get_tracker)
+    UNCLASSIFIED Notebook route: PUT /api/j2/trackers/{tid} (api.routers.notebook_routines.save_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/archive (api.routers.notebook_routines.archive_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/unarchive (api.routers.notebook_routines.unarchive_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/delete (api.routers.notebook_routines.delete_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/undelete (api.routers.notebook_routines.undelete_tracker)
+    UNCLASSIFIED Notebook route: POST /api/j2/trackers/{tid}/duplicate (api.routers.notebook_routines.duplicate_tracker)
+    UNCLASSIFIED Notebook route: PUT /api/j2/trackers/{tid}/days/{day} (api.routers.notebook_routines.log_tracker_day)
+    UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid}/used-in (api.routers.notebook_routines.tracker_used_in)
+    UNCLASSIFIED Notebook route: GET /api/j2/trackers/{tid}/vs-pnl (api.routers.notebook_routines.tracker_vs_pnl)
+    GUARD NOT IN SOURCE ('POST', '/api/j2/notes/connectors/obsidian/ingest'): '_authenticate_obsidian_device' does not appear in the handler
+    PAID in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/ingest'): 'in-handler: _require_paid_device_user'
+    GUARD NOT IN SOURCE ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): '_authenticate_obsidian_device' does not appear in the handler
+    PAID in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): 'in-handler: _require_paid_device_user'
+    FLAG in-handler claim unproved for ('POST', '/api/j2/notes/connectors/obsidian/attachments/check'): 'in-handler: _obsidian_attachments_enabled'
+    GUARD NOT IN SOURCE ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): '_authenticate_obsidian_device' does not appear in the handler
+    PAID in-handler claim unproved for ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): 'in-handler: _require_paid_device_user'
+    FLAG in-handler claim unproved for ('PUT', '/api/j2/notes/connectors/obsidian/attachments/{sha256}'): 'in-handler: _obsidian_attachments_enabled'
+    STALE row: GET /api/j2/notes/connectors/{provider}/folders is not served by the app
+assert not ['UNCLASSIFIED Notebook route: PUT /api/trade-exchange-news/library/bookmarks/{event_id}/note (api.routers.trade_excha...oute: GET /api/j2/template-gallery/layouts/status (api.routers.notebook_template_gallery.layout_status_endpoint)', ...]
+FAILED tests/test_notebook_switch_rehearsal.py::test_every_notebook_gate_is_rehearsed_or_carries_a_reason - AssertionError: {'AWARENESS_NOTE_RESURFACE_ENABLED': "armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the awareness s...oor; creating only (an existing check-in block still renders); evidence is the fin walk's Tier 3 group (Task 10)", ...}
+assert not ['NOTEBOOK_TWEET_IMPORT_ENABLED']
+FAILED tests/test_notebook_transcript_capture.py::test_the_import_graph_never_reaches_alphavantage - AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer']
+assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer'})
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] - AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] - AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+24 failed, 2346 passed, 25 skipped, 72 warnings, 16 errors in 714.72s (0:11:54)

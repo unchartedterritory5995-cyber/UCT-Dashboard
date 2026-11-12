@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2411,
+  "passed": 2346,
+  "failed": 24,
+  "errored": 16,
+  "skipped": 25,
+  "wall_s": 714.72,
+  "failed_files": [
+    "tests/test_notebook_rollback_chain.py",
+    "tests/test_notebook_route_security_census.py",
+    "tests/test_notebook_switch_rehearsal.py",
+    "tests/test_notebook_transcript_capture.py",
+    "tests/test_notebook_upload_cap_2.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "24 failed, 2346 passed, 25 skipped, 72 warnings, 16 errors in 714.72s (0:11:54)",
+  "ok": true
+}

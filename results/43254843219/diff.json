@@ -1,0 +1,284 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 6,
+    "fixed": 12,
+    "unchanged": 359,
+    "missing": 0,
+    "baseline": 371,
+    "current": 365,
+    "current_ran": 146588,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 3,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 371 = unchanged 359 + fixed 12 + missing 0  |  current 365 = unchanged 359 + new 6 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "43168843821",
+  "current_run_id": "43254843219",
+  "baseline_sha": "95ef430b1015483d3e0f50b2cf8e5195915cd3e1",
+  "current_sha": "150283034b1a6a74ab7c63e3bde6b55ee439af5b",
+  "commit_range": "95ef430b1015483d3e0f50b2cf8e5195915cd3e1..150283034b1a6a74ab7c63e3bde6b55ee439af5b",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable",
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[tiny links, each its own host]",
+    "vitest|src/components/chart/engine/__tests__/rsRatingDef.test.js|1 \u00b7 the identity > is version 1 on the server lane, registered beside rsLine, and validates",
+    "vitest|src/components/chart/engine/__tests__/rsVsEmaDef.test.js|1 \u00b7 the identity > is version 1 on the server lane, registered last, and validates"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[A]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[B]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[D]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[E]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[F]",
+    "pytest|tests.test_account_size_readers|test_scenario_simulator_runs_and_sizes_on_the_authority",
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_rs_columns_provider|test_a_bound_rs_alert_address_reads_the_rsLine_rev_not_the_default",
+    "vitest|src/components/TickerPopup.chartFit.test.jsx|TickerPopup wires the fit into the chart > a short landscape modal fits the chart to the room it has left, and stays put",
+    "vitest|src/pages/journal-2-0/components/notebook/onboarding/LearnMenu.coldPress.test.jsx|the Learn menu on a cold first press (real panel, no warm-up) > the menu arrives with focus inside it; Escape returns focus to Learn; a tour launches from it"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a5561fe7",
+        "4ddc53e82",
+        "1a5561fe7"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4ddc53e82",
+          "workstream": "speed",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a5561fe7",
+        "4ddc53e82",
+        "1a5561fe7"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4ddc53e82",
+          "workstream": "speed",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a5561fe7",
+        "4ddc53e82",
+        "1a5561fe7"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4ddc53e82",
+          "workstream": "speed",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1a5561fe7",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[tiny links, each its own host]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_gallery_w11_fnote1.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/rsRatingDef.test.js|1 \u00b7 the identity > is version 1 on the server lane, registered beside rsLine, and validates": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched src/components/chart/engine/__tests__/rsRatingDef.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/rsVsEmaDef.test.js|1 \u00b7 the identity > is version 1 on the server lane, registered last, and validates": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched src/components/chart/engine/__tests__/rsVsEmaDef.test.js or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[A]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[B]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[D]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[E]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[F]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_readers|test_scenario_simulator_runs_and_sizes_on_the_authority": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_account_size_readers.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "imported-file-change",
+      "commits": [
+        "fc564e709",
+        "5d6fc5d9c",
+        "7e3b888c1",
+        "150283034"
+      ],
+      "workstreams": [
+        {
+          "commit": "fc564e709",
+          "workstream": "reliability",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5d6fc5d9c",
+          "workstream": "reliability",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7e3b888c1",
+          "workstream": "speed",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "150283034",
+          "workstream": "speed",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rs_columns_provider|test_a_bound_rs_alert_address_reads_the_rsLine_rev_not_the_default": {
+      "class": "test-file-change",
+      "commits": [
+        "46705db95"
+      ],
+      "workstreams": [
+        {
+          "commit": "46705db95",
+          "workstream": "WIP feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/components/TickerPopup.chartFit.test.jsx|TickerPopup wires the fit into the chart > a short landscape modal fits the chart to the room it has left, and stays put": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched src/components/TickerPopup.chartFit.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/onboarding/LearnMenu.coldPress.test.jsx|the Learn menu on a cold first press (real panel, no warm-up) > the menu arrives with focus inside it; Escape returns focus to Learn; a tour launches from it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 95ef430b1..150283034 touched src/pages/journal-2-0/components/notebook/onboarding/LearnMenu.coldPress.test.jsx or anything it imports"
+    }
+  },
+  "run_attempt": "1",
+  "rerun_flaky": []
+}

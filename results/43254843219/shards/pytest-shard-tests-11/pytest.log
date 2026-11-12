@@ -1,0 +1,177 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+...........................................ss........................... [  3%]
+........................................................................ [  5%]
+.........................................F.............................. [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+....................................s................................... [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+..............................................s......................... [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+.................................................F.............s........ [ 74%]
+..................................x..................................... [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+.........................................................                [100%]
+=================================== FAILURES ===================================
+__ test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes ___
+
+    def test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes():
+        """🔴 M8. A member request never triggers an evaluation — not bounded on the
+        request path, ABSENT from it."""
+        handlers = _endpoints_from_router_routes()
+        assert len(handlers) > 100, f"the census walked {len(handlers)} handlers"
+    
+        offenders = [f"{h[2]} -> {h[0]}::{h[1]}" for h in handlers
+                     if _transitive_imports_and_calls(h)]
+>       assert not offenders, (
+            "these route handlers can reach the universe sweep:\n  "
+            + "\n  ".join(offenders)
+            + "\nA universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod "
+              "with 64 shared anyio threads. That is the 2026-07-01 outage.")
+E       AssertionError: these route handlers can reach the universe sweep:
+E           /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+E           /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+E         A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+E       assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+
+tests/test_scan_evaluator_off_request_path.py:459: AssertionError
+_______________ test_no_credential_in_git_history_of_this_branch _______________
+
+    def test_no_credential_in_git_history_of_this_branch():
+        """A scrubbed working tree is not enough — the leak may be in a commit.
+    
+        ⛔ RANGE IS `origin/master..HEAD`, NOT `merge-base..HEAD`. After this branch merges
+        master, a merge-base range replays master's OWN commits as if they were ours — the
+        first run failed on an `Authorization:` header in `api/` code from another
+        workstream. A rail that reds on somebody else's commit gets waved through.
+    
+        ⛔ Findings name the FILE. The first version scanned one concatenated blob and
+        reported `line 2058` of something that exists nowhere on disk, which is a finding
+        nobody can act on (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+        """
+        # ⛔ NOT `text=True`: on Windows that decodes the pipe with the locale codec
+        # (cp1252) and git emits UTF-8, so the first box-drawing byte kills the reader
+        # thread. That is the exact bug that made `tools/flag_ledger_audit.py` unrunnable
+        # for weeks while reporting something that read like an auth failure.
+        def git(*args):
+            return subprocess.run(["git", "-C", str(REPO), *args],
+                                  capture_output=True, encoding="utf-8", errors="replace").stdout
+    
+        if not git("rev-parse", "--verify", "-q", "origin/master").strip():
+            return                                  # no remote to compare against
+        diff = git("diff", "-U0", "origin/master..HEAD")
+>       assert diff.strip(), "empty diff — the check would pass vacuously"
+E       AssertionError: empty diff — the check would pass vacuously
+E       assert ''
+E        +  where '' = <built-in method strip of str object at 0x740a8d42f5f0>()
+E        +    where <built-in method strip of str object at 0x740a8d42f5f0> = ''.strip
+
+tests/test_secret_scrub.py:81: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+tests/test_secret_scrub.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_secret_scrub.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+SKIPPED [1] tests/test_seed_large_notebook_guard.py:72: mklink /J unavailable/failed on this host ([Errno 2] No such file or directory: 'cmd') -- this guard's resistance to an NTFS-junction bypass into the shared production root is UNVERIFIED on this host.
+XFAIL tests/test_serve_label_budget.py::test_warmth_audit_tool_classifies_only_declared_labels_and_all_of_them - KNOWN ROT (P0 rails 2026-11-11): tools/bars_warmth_audit.py classifies by its own hand-copied sets; they name 'disk' (never emitted) and omit most deadline/delta labels. TODO(P1 monitor): import api.services.serve_labels.SERVE_LABELS there and delete the copies — then drop this xfail.
+FAILED tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes - AssertionError: these route handlers can reach the universe sweep:
+    /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+    /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+  A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+FAILED tests/test_secret_scrub.py::test_no_credential_in_git_history_of_this_branch - AssertionError: empty diff — the check would pass vacuously
+assert ''
+ +  where '' = <built-in method strip of str object at 0x740a8d42f5f0>()
+ +    where <built-in method strip of str object at 0x740a8d42f5f0> = ''.strip
+2 failed, 4153 passed, 5 skipped, 1 xfailed, 7290 warnings in 712.75s (0:11:52)

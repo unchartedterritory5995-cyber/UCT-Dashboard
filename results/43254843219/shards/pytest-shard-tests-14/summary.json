@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 5986,
+  "passed": 5977,
+  "failed": 9,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 616.24,
+  "failed_files": [
+    "tests/test_trade_exchange_news_archive.py",
+    "tests/test_two_engines_do_not_agree.py",
+    "tests/test_upload_cap_member_doors.py",
+    "tests/test_user_definitions_auth.py",
+    "tests/test_vendor_batch_capture.py",
+    "tests/test_vendor_callsite_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "9 failed, 5977 passed, 33 warnings in 616.24s (0:10:16)",
+  "ok": true
+}

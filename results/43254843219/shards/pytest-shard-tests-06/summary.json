@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 1937,
+  "passed": 1926,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 548.22,
+  "failed_files": [
+    "tests/test_journal_styles_deep_settings.py",
+    "tests/test_journal_styles_schema.py",
+    "tests/test_journal_two_task_digest.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 1926 passed, 8 skipped, 12 warnings in 548.22s (0:09:08)",
+  "ok": true
+}

@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 4160,
+  "passed": 4153,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 712.75,
+  "failed_files": [
+    "tests/test_scan_evaluator_off_request_path.py",
+    "tests/test_secret_scrub.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 4153 passed, 5 skipped, 1 xfailed, 7290 warnings in 712.75s (0:11:52)",
+  "ok": true
+}
