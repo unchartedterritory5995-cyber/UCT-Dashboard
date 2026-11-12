@@ -68,8 +68,9 @@ def test_a_token_in_a_url_FRAGMENT_is_never_stored(store):
     assert TOKEN not in json.dumps(row)
     assert row["page"] == "/smoke-login"
     assert "https://uctintelligence.com/smoke-login" in row["message"]
-    # The frame keeps its location — :line:col is not a secret, the query was.
-    assert row["stack"].endswith("assets/app.js:#:#)")
+    # The frame keeps its location — :line:col is not a secret, the query was. Since 2026-11-11 a
+    # position in our own built code keeps its digits too (`_OWN_POSITION`), so it can be traced.
+    assert row["stack"].endswith("assets/app.js:9:3)")
 
 
 def test_query_strings_relative_urls_bare_fragments_and_credentials_all_go(store):
@@ -93,7 +94,33 @@ def test_every_digit_in_a_text_field_is_masked(store):
     ce.record_reports([_report(message="Buy 500 NVDA at 132.50, stop 128.75")],
                       user_id=None, ip="1.2.3.4", user_agent="UA")
     [row] = _rows(store)
-    assert not re.search(r"\d", row["message"] + row["stack"] + row["component_stack"])
+    # The one exception: a frame's position in our own built code (`_OWN_POSITION`). Nothing else.
+    rest = ce._OWN_POSITION.sub("", row["stack"] + row["component_stack"])
+    assert not re.search(r"\d", row["message"] + rest)
+
+
+def test_a_frame_in_our_own_built_code_keeps_its_position_and_nothing_else_does(store):
+    """2026-11-11: `<site>/assets/<chunk>.js:<line>:<col>` keeps its digits in the STACK fields, so a
+    report can be traced to a source line. Anything else with digits is masked as before."""
+    own = "https://uctintelligence.com/assets/StockChart-B9x2Lq7.js:1:482913"
+    www = "https://www.uctintelligence.com/assets/index-Ab12.js:3:77"
+    ce.record_reports([_report(
+        message=f"Buy 500 NVDA {own}",
+        stack="\n".join([
+            f"    at Wn ({own})",
+            f"    at {www}",
+            "    at f9 (https://evil.test/assets/a1.js:1:2)",
+            "    at g (https://uctintelligence.com/assets/x/a1.js:5:6)",
+            "    at h (https://uctintelligence.com.evil.test/assets/a1.js:7:8)",
+        ]),
+        componentStack=f"    at NoteCard ({own})",
+    )], user_id=None, ip="1.2.3.4", user_agent="UA")
+    [row] = _rows(store)
+    assert own in row["stack"] and www in row["stack"] and own in row["component_stack"]
+    assert own not in row["message"] and "500" not in row["message"]       # a message never gets it
+    assert "f# (https://evil.test/assets/a#.js:#:#)" in row["stack"]       # another host
+    assert "/assets/x/a#.js:#:#" in row["stack"]                           # deeper than /assets/
+    assert "uctintelligence.com.evil.test/assets/a#.js:#:#" in row["stack"]  # a look-alike host
 
 
 def test_a_data_uri_never_carries_its_payload(store):
