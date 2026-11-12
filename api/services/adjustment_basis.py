@@ -36,7 +36,109 @@ path" invariant CLAUDE.md names as the 524-outage cause.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from typing import Iterable, Optional
+from zoneinfo import ZoneInfo
+
+# ── THE adjustment basis id (`adj_basis`, docs/architecture/bar-contract.md §2) ──────
+#
+# ⭐ ONE OWNER. `adj_basis` names the set of split events whose adjustment the rows of an
+# INTRADAY series are on: a split (date d, ratio r) is APPLIED when every row before the
+# split's first post-split bar is divided by r (volume x r). The id is a pure function of
+# that event set, so it is STORE-INDEPENDENT (bars-api, the web pod and the worker name one
+# basis the same way; `history_rev` is comparable only within one store) and it changes
+# exactly when the stored rows move onto another basis.
+#
+#   "s0"            no adjudicable split applied (incl. a ticker that never split)
+#   "s1:<12 hex>"   sha1 over the sorted canonical events "YYYY-MM-DD:<ratio %.6g>"
+#   None            unknown (never checked, or a cliff the heal could not prove)
+#
+# Only `bars_sanitize.adjudicable` events count: a 3% stock dividend is never healed (its
+# accept band contains 1.0), so it must not move the id either.
+# Writer: `intraday_split_heal` stamps `series_meta.adj_basis` (with the rescaled rows, in
+# the heal's one transaction). Readers: `bar_contract.compute` serves it; the client
+# BarStore stamps every persisted record with it and refuses a record on another basis.
+
+_ET = ZoneInfo("America/New_York")
+#: A declared split date can sit a few sessions AFTER the session the price stepped on
+#: (`bars_sanitize._SPLIT_BOUNDARY_WINDOW`, the DD case): an event this close is already
+#: part of the target basis, so the heal looks for its cliff as soon as one can show.
+DECLARED_PAD_DAYS = 10
+BASIS_NONE = "s0"
+
+
+def _event_key(d, ratio) -> Optional[tuple]:
+    try:
+        iso = date.fromisoformat(str(d)[:10]).isoformat()
+        r = float(ratio)
+    except (TypeError, ValueError):
+        return None
+    if not (r > 0):
+        return None
+    return iso, r
+
+
+def adjudicable_events(splits: Iterable, as_of: Optional[date] = None) -> list:
+    """Declared splits that can move the basis, as sorted, unique `(iso_date, ratio)`:
+    adjudicable (`bars_sanitize.adjudicable`) and dated on/before `as_of` (default: today
+    ET) + DECLARED_PAD_DAYS."""
+    from api.services.bars_sanitize import adjudicable
+    if as_of is None:
+        as_of = datetime.now(_ET).date()
+    hi = (as_of + timedelta(days=DECLARED_PAD_DAYS)).isoformat()
+    out = set()
+    for s in splits or ():
+        try:
+            k = _event_key(s[0], s[1])
+        except (TypeError, IndexError):
+            k = None
+        if k is None or k[0] > hi or not adjudicable(k[1]):
+            continue
+        out.add(k)
+    return sorted(out)
+
+
+def canonical(events: Iterable) -> str:
+    """The canonical text of a set of applied split events: sorted, unique
+    "YYYY-MM-DD:<ratio %.6g>" joined by ";" ("" = none). What `series_meta.adj_basis`
+    STORES (so the heal can read back which events a series is known to be on); the
+    served id is `basis_id` of it."""
+    keys = sorted({(d, f"{r:.6g}") for d, r in
+                   (k for k in (_event_key(e[0], e[1]) for e in events or ()) if k is not None)})
+    return ";".join(f"{d}:{r}" for d, r in keys)
+
+
+def parse_canonical(text) -> Optional[list]:
+    """`canonical` back to [(iso, ratio)]; None for None (unknown) or unreadable text."""
+    if text is None:
+        return None
+    out = []
+    for part in str(text).split(";"):
+        if not part:
+            continue
+        d, _, r = part.partition(":")
+        k = _event_key(d, r)
+        if k is None:
+            return None
+        out.append(k)
+    return out
+
+
+def basis_id(events: Iterable) -> str:
+    """THE id of a set of APPLIED split events (`(date, ratio)` pairs). Order- and
+    duplicate-insensitive; ratios canonicalised to 6 significant digits."""
+    canon = canonical(events)
+    if not canon:
+        return BASIS_NONE
+    return "s1:" + hashlib.sha1(canon.encode("ascii")).hexdigest()[:12]
+
+
+def target_basis_id(splits: Iterable, as_of: Optional[date] = None) -> str:
+    """The basis a series is on once every adjudicable declared split is applied — what a
+    provider's `adjusted=true` answer is on today."""
+    return basis_id(adjudicable_events(splits, as_of))
 
 
 @dataclass(frozen=True)
@@ -129,9 +231,10 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
 def _intraday_basis(ticker: str, tf: str) -> AdjustmentBasis:
     """TERM-055 — the basis for an INTRADAY series.
 
-    ⛔ Nothing heals an intraday split: `bars_sanitize` is D/W/M only, and the intraday
-    payload is the vendor's `adjusted=true` feed served as-is
-    (tests/test_intraday_split_is_not_staleness.py). So there are exactly three answers:
+    `bars_sanitize` is D/W/M only and the intraday payload is the vendor's `adjusted=true`
+    feed served as-is (tests/test_intraday_split_is_not_staleness.py); a stored cliff is
+    healed IN THE STORE by `intraday_split_heal` (which stamps `adj_basis`). So the
+    stored series gives exactly three answers:
 
       * a declared split inside the stored series shows as a cliff
         (`bars_sanitize.intraday_unadjusted_splits`) ⇒ `splits=False`, `applied_by=None`,

@@ -329,6 +329,7 @@ _META_DDL = (
     " unsealed_from INTEGER,"
     " covered_at REAL,"
     " proof_floor REAL,"
+    " adj_basis TEXT,"
     " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
     "CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)",
 )
@@ -382,7 +383,8 @@ def _create_meta_tables(c: sqlite3.Connection) -> None:
     if "history_rev" not in cols:      # a pre-release dev store
         c.execute("ALTER TABLE series_meta ADD COLUMN history_rev INTEGER NOT NULL DEFAULT 0")
     for col, typ in (("sealed_through", "REAL"), ("sealed_checked_at", "REAL"),
-                     ("unsealed_from", "INTEGER"), ("covered_at", "REAL")):
+                     ("unsealed_from", "INTEGER"), ("covered_at", "REAL"),
+                     ("adj_basis", "TEXT")):
         if col not in cols:
             c.execute(f"ALTER TABLE series_meta ADD COLUMN {col} {typ}")
 
@@ -943,26 +945,39 @@ def _store_unsealed(c: sqlite3.Connection) -> tuple:
     return (min(frm), max(at)) if frm and at else (None, None)
 
 
+_META_SELECT = ("SELECT rev, history_rev, verified_through, proof_floor, sealed_through, "
+                "sealed_checked_at, unsealed_from, covered_at{} FROM series_meta "
+                "WHERE ticker=? AND tf=?")
+
+
 def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
-    """{"rev", "history_rev", "verified_through", "sealed_through"} for a stored series, as THIS
-    store states it (persisted value merged with this process's unflushed proofs).
-    rev 0 = no write recorded since the meta table existed (still a valid rev; it
-    only grows). Never raises: an unreadable store answers rev 0 / no proof."""
+    """{"rev", "history_rev", "verified_through", "sealed_through", "adj_basis"} for a stored
+    series, as THIS store states it (persisted value merged with this process's unflushed
+    proofs). rev 0 = no write recorded since the meta table existed (still a valid rev; it
+    only grows). `adj_basis` = the split-adjustment basis id the stored rows are on
+    (`adjustment_basis.basis_id`; None = unknown); `adj_events` = the applied events it
+    names (the column stores their canonical text). Never raises: an unreadable store
+    answers rev 0 / no proof."""
     key = (ticker.upper(), str(tf))
     rev, hrev, vt, pfloor = 0, 0, None, _mem_floors[PROOF_FLOOR_KEY]
+    adj = None
     seal_row = (None, None, None, None)
     glob = (None, None)
     try:
         c = _conn_override if _conn_override is not None else _conn()
         rev_floor, store_pfloor = _store_floors(c)
         try:
-            row = c.execute(
-                "SELECT rev, history_rev, verified_through, proof_floor, sealed_through, "
-                "sealed_checked_at, unsealed_from, covered_at FROM series_meta "
-                "WHERE ticker=? AND tf=?", key).fetchone()
+            row = c.execute(_META_SELECT.format(", adj_basis"), key).fetchone()
         except sqlite3.OperationalError:
-            row = None
+            # A store installed from a snapshot that predates the column (never ALTERed on
+            # a read path): every other field still reads; the basis is unknown.
+            try:
+                row = c.execute(_META_SELECT.format(""), key).fetchone()
+            except sqlite3.OperationalError:
+                row = None
         if row:
+            if len(row) > 8:
+                adj = row[8]           # canonical applied-event text (adjustment_basis)
             rev = int(row[0] or 0)
             hrev = int(row[1] or 0)
             vt = float(row[2]) if row[2] is not None else None
@@ -982,8 +997,14 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
     if vt is not None and vt <= pfloor:
         vt = None
     sealed, sealed_ck, _uns, _cov = _seal_state(seal_row, seals, pfloor, glob)
+    adj_events = adj_id = None
+    if adj is not None:
+        from api.services import adjustment_basis as _ab
+        adj_events = _ab.parse_canonical(adj)
+        adj_id = None if adj_events is None else _ab.basis_id(adj_events)
     return {"rev": rev, "history_rev": hrev, "verified_through": vt,
-            "sealed_through": sealed, "sealed_checked_at": sealed_ck}
+            "sealed_through": sealed, "sealed_checked_at": sealed_ck,
+            "adj_basis": adj_id, "adj_events": adj_events}
 
 
 def daily_bydate_index_ready() -> bool:
@@ -1336,6 +1357,84 @@ def replace_ticker_tf_rows(ticker: str, tf: str, bars: list[dict]) -> tuple[int,
             c.rollback()
             raise
     return deleted, len(rows)
+
+
+_ADJ_STAMP_SQL = ("INSERT INTO series_meta(ticker, tf, rev, adj_basis) VALUES (?, ?, 0, ?) "
+                  "ON CONFLICT(ticker, tf) DO UPDATE SET adj_basis = excluded.adj_basis")
+
+
+def apply_split_basis(ticker: str, plans: dict) -> dict:
+    """THE intraday split heal's write: ONE transaction for every intraday series of `ticker`.
+
+    `plans` = {tf: {"rev": <series rev the plan was computed at>, "adj_events": <applied
+    [(iso, ratio)] | None = unknown>, "rescale": [(boundary_ts, ratio), ...]}}. Under the write lock (`BEGIN IMMEDIATE`):
+      1. every planned series must still be at the rev it was planned at (optimistic
+         concurrency: a write that landed after the plan's read may have put rows on another
+         basis, so the plan is void) — any mismatch aborts the WHOLE transaction ("raced");
+      2. each rescale divides the rows before its boundary (one indexed UPDATE per event);
+      3. `bump_series_revs(history=True)` once per rescaled series — `history_rev` moves
+         exactly once, in the same commit as the rows;
+      4. `adj_basis` is stamped for every planned series (rescaled or only checked).
+    A reader sees the old basis + old stamp or the new basis + new stamp, never a mix.
+    Returns {"status": "applied" | "raced", "rows", "rows_by_tf", "rescaled": [tf, ...]}."""
+    tkr = ticker.upper()
+    plans = {str(tf): p for tf, p in (plans or {}).items()}
+    if not plans:
+        return {"status": "applied", "rows": 0, "rows_by_tf": {}, "rescaled": []}
+    last_lock_err = None
+    for attempt in range(3):
+        try:
+            with _WRITE_LOCK:
+                c = _conn()
+                if c.in_transaction:
+                    c.commit()
+                c.execute("BEGIN IMMEDIATE")
+                try:
+                    for tf, p in plans.items():
+                        if int(series_meta(tkr, tf, _conn_override=c)["rev"]) != int(p.get("rev") or 0):
+                            c.rollback()
+                            return {"status": "raced", "rows": 0, "rows_by_tf": {}, "rescaled": []}
+                    by_tf, keys = {}, []
+                    for tf, p in plans.items():
+                        for boundary, ratio in p.get("rescale") or ():
+                            f = float(ratio)
+                            # Every price of the rows BEFORE the boundary / ratio, volume x
+                            # ratio (`bars_sanitize.split_factor` / `scale_bar` semantics).
+                            # Prices are NOT rounded: a 4-decimal round would erase a
+                            # sub-penny name, and the provider's adjusted values are floats.
+                            cur = c.execute(
+                                "UPDATE ohlcv SET o = o / ?, h = h / ?, l = l / ?, c = c / ?, "
+                                "v = CAST(round(v * ?) AS INTEGER) "
+                                "WHERE ticker=? AND tf=? AND ts < ?",
+                                (f, f, f, f, f, tkr, tf, int(boundary)))
+                            by_tf[tf] = by_tf.get(tf, 0) + max(0, cur.rowcount or 0)
+                            keys.append((tkr, tf))
+                    if keys:
+                        bump_series_revs(c, keys, history=True)
+                    from api.services import adjustment_basis as _ab
+                    stamps = [(tkr, tf, None if p.get("adj_events") is None
+                               else _ab.canonical(p["adj_events"])) for tf, p in plans.items()]
+                    try:
+                        c.executemany(_ADJ_STAMP_SQL, stamps)
+                    except sqlite3.OperationalError as e:
+                        if "adj_basis" not in str(e).lower() and "no column" not in str(e).lower():
+                            raise
+                        _create_meta_tables(c)
+                        c.executemany(_ADJ_STAMP_SQL, stamps)
+                    c.commit()
+                except BaseException:
+                    c.rollback()
+                    raise
+            if keys:
+                _track(sorted(set(keys)))
+            return {"status": "applied", "rows": sum(by_tf.values()), "rows_by_tf": by_tf,
+                    "rescaled": sorted({k[1] for k in keys})}
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower():
+                raise
+            last_lock_err = e
+            time.sleep(0.05 * (attempt + 1))
+    raise last_lock_err
 
 
 #: One-time marker: set once a full sweep finds no old-grid 60m ticker. After
