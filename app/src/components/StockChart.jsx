@@ -1286,6 +1286,31 @@ function plotWidthOf(chart, containerEl = null) {
   return Number.isFinite(cw) && cw > 70 ? cw - 62 : null
 }
 
+// The + / - keys' time-axis zoom around the window's centre: ONE writer, for the keyboard and for UCT Agent's
+// chartSetup.zoom (onDateNavApi.zoom). `steps` = key presses (each × 0.8 in, × 1.25 out); the time scale clamps the
+// bar spacing itself. False when the window cannot be read (mid-load): nothing was zoomed.
+function zoomTimeAxis(chart, out, steps = 1) {
+  if (!chart) return false
+  let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+  if (!r || !(r.to > r.from)) return false
+  const center = (r.to + r.from) / 2
+  const half = ((r.to - r.from) * Math.pow(out ? 1.25 : 0.8, Math.max(1, steps | 0))) / 2
+  try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
+  return true
+}
+// How far that zoom can go, in the window's own units (logical to − from): the time scale's bar-spacing clamp
+// (lightweight-charts: minBarSpacing; maxBarSpacing, or half the plot width when it is 0). Null when unreadable.
+function zoomLimitsOf(chart) {
+  try {
+    const ts = chart?.timeScale?.()
+    const w = ts?.width?.(), o = ts?.options?.() || {}
+    if (!(Number.isFinite(w) && w > 0)) return null
+    const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
+  } catch { return null }
+}
+
 // ⭐ THE ONE "NEWEST CANDLE PINNED RIGHT" FRAME (TC2000 rule, W-R 2026-11-11): every arm that
 // pins the newest candle — symbol switch (typed / watchlist / scan / Agent all change `sym`),
 // timeframe switch, the settling re-assert on each load phase, the drift net and the
@@ -9303,17 +9328,9 @@ export default function StockChart({
       }
 
       // Zoom the time axis around its center: + / = zoom in, - zoom out.
+      // (zoomTimeAxis: the one writer — UCT Agent's chartSetup.zoom reaches it through onDateNavApi.zoom)
       if ((e.key === '+' || e.key === '=' || e.key === '-') && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        const chart = chartRef.current
-        if (chart) {
-          let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
-          if (r && r.to > r.from) {
-            e.preventDefault()
-            const center = (r.to + r.from) / 2
-            const half = ((r.to - r.from) * (e.key === '-' ? 1.25 : 0.8)) / 2
-            try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
-          }
-        }
+        if (zoomTimeAxis(chartRef.current, e.key === '-', 1)) e.preventDefault()
         return
       }
 
@@ -18515,6 +18532,8 @@ export default function StockChart({
     } catch { /* disposed */ }
     return {
       firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
+      // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
+      zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
@@ -18550,7 +18569,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), positionCalc })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])

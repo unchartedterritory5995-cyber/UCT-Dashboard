@@ -19,6 +19,8 @@ export const PAST_TO_PENDING = Object.freeze({
   Disabled: 'Disable', Replaced: 'Replace', Duplicated: 'Duplicate', Copied: 'Copy', Pinned: 'Pin', Undid: 'Undo',
   // Charts operator P1
   Locked: 'Lock', Unlocked: 'Unlock', Starred: 'Star', Unstarred: 'Unstar', Reordered: 'Reorder', Discarded: 'Discard',
+  // #1104 chart zoom (chartSetup.zoom: 'Zoomed this chart in …')
+  Zoomed: 'Zoom',
 })
 // phrases that state a RESULT as already true
 const PHRASES = [

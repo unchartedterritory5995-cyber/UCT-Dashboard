@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 199,
-  "withProductionKinds": 190,
+  "all": 200,
+  "withProductionKinds": 191,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 199,
-  "withAnyRegressionCase": 147,
+  "capabilities": 200,
+  "withAnyRegressionCase": 148,
   "perProtection": {
    "nl": {
-    "covered": 144,
-    "applicable": 199
+    "covered": 145,
+    "applicable": 200
    },
    "routing": {
-    "covered": 141,
-    "applicable": 199
+    "covered": 142,
+    "applicable": 200
    },
    "args": {
-    "covered": 147,
-    "applicable": 199
+    "covered": 148,
+    "applicable": 200
    },
    "execution": {
-    "covered": 144,
-    "applicable": 199
+    "covered": 145,
+    "applicable": 200
    },
    "receipt": {
-    "covered": 116,
-    "applicable": 199
+    "covered": 117,
+    "applicable": 200
    },
    "refusal": {
     "covered": 34,
-    "applicable": 199
+    "applicable": 200
    },
    "permission": {
-    "covered": 192,
-    "applicable": 199
+    "covered": 193,
+    "applicable": 200
    },
    "undo": {
-    "covered": 71,
-    "applicable": 130
+    "covered": 72,
+    "applicable": 131
    },
    "multiStep": {
     "covered": 39,
-    "applicable": 199
+    "applicable": 200
    },
    "phrasings": {
-    "covered": 140,
-    "applicable": 199
+    "covered": 141,
+    "applicable": 200
    }
   }
  },
@@ -2811,6 +2811,62 @@
     "permission": [],
     "undo": [
      "chartSetup.stepBars: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.zoom": {
+   "domain": "chartSetup",
+   "group": "chartView",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.zoom: \"zoom this chart out\"",
+     "chartSetup.zoom: \"zoom out on the chart\"",
+     "chartSetup.zoom: \"zoom the chart out one step\"",
+     "chartSetup.zoom: \"give me a wider view of the chart\""
+    ],
+    "routing": [
+     "chartSetup.zoom: \"zoom this chart out\"",
+     "chartSetup.zoom: \"zoom out on the chart\"",
+     "chartSetup.zoom: \"zoom the chart out one step\"",
+     "chartSetup.zoom: \"give me a wider view of the chart\""
+    ],
+    "args": [
+     "corpus chartSetup.zoom"
+    ],
+    "execution": [
+     "chartSetup.zoom (c)"
+    ],
+    "receipt": [
+     "chartSetup.zoom (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.zoom: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

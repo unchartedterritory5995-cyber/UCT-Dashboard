@@ -451,6 +451,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         // the ◀ / ▶ step (stepBar(n): the logical window + n, so right-relative − n) and the price axis menu's Auto-scale
         if (op === 'stepBar') v.frame = { ...v.frame, fromRight: v.frame.fromRight - arg, toRight: v.frame.toRight - arg, activeRange: null }
         if (op === 'autoScale') v.priceAuto = true
+        // the + / - zoom (zoomTimeAxis: the width × 0.8 or × 1.25 per press, around the window's centre)
+        if (op === 'zoom') { const c = (v.frame.fromRight + v.frame.toRight) / 2, half = ((v.frame.fromRight - v.frame.toRight) * Math.pow(arg.out ? 1.25 : 0.8, arg.steps)) / 2; v.frame = { ...v.frame, fromRight: c + half, toRight: c - half, activeRange: null } }
         // the Position Calculator (StockChart.positionCalc): the tool armed or disarmed, the panel's three prices as strings
         if (op === 'positionCalc') v.positionCalc = { ...v.positionCalc, open: !!arg.open, entry: String(arg.entry ?? ''), stop: String(arg.stop ?? ''), target: String(arg.target ?? ''), direction: arg.direction || v.positionCalc.direction }
         return true

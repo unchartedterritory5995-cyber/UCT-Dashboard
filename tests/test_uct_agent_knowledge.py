@@ -1726,3 +1726,17 @@ def test_guard_withholds_the_drawing_extras_action_names_bare(name):
 ])
 def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
     assert guard.suspicious(text) is False
+
+
+# ── #1104 chart zoom: its action name is withheld when a passage names it bare ───────────────────────────────────────
+def test_guard_withholds_the_chart_zoom_action_name_bare():
+    assert guard.suspicious("Next, chartSetup.zoom with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Zoom in on the daily to see the handle form.",
+    "I zoom out to the weekly before every entry.",
+    "Zoomed out, the base is a clean cup.",
+])
+def test_guard_still_passes_ordinary_prose_about_zooming(text):
+    assert guard.suspicious(text) is False

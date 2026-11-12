@@ -11280,6 +11280,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -11624,6 +11628,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -11964,6 +11972,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -12314,6 +12326,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -12653,6 +12669,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -12997,6 +13017,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -13337,6 +13361,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -13948,6 +13976,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -14291,6 +14323,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -14630,6 +14666,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -15234,6 +15274,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -15574,6 +15618,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -16185,6 +16233,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -16786,6 +16838,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -17391,6 +17447,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -17731,6 +17791,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -18342,6 +18406,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -18682,6 +18750,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -19032,6 +19104,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -19378,6 +19454,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -19728,6 +19808,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -20068,6 +20152,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -20412,6 +20500,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -20751,6 +20843,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -21093,6 +21189,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -21695,6 +21795,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -22301,6 +22405,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -22902,6 +23010,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",
@@ -23507,6 +23619,10 @@
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      },
      {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -23846,6 +23962,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
       "id": "periodSort",

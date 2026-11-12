@@ -10836,6 +10836,62 @@
       ]
     },
     {
+      "id": "chartSetup.zoom",
+      "source": "C1-028 (pl-zoom): the chart's + / - time-axis zoom keys",
+      "capabilities": [
+        "chartSetup.zoom"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.zoom"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.zoom",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "out",
+              "steps": 1
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 136,
+            "toRight": -24,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "zoom this chart out",
+        "zoom out on the chart",
+        "zoom the chart out one step",
+        "give me a wider view of the chart"
+      ]
+    },
+    {
       "id": "chartSetup.setIndicatorsHidden",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

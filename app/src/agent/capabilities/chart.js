@@ -260,6 +260,8 @@ export function viewDone(meta, { op, arg, want }) {
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
   // the ◀ / ▶ step: the window moved by exactly the bars asked (right-relative, within a bar), never just "it moved"
   if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
+  // the + / - zoom: the window narrowed (in) or widened (out) by at least half a bar, and its width is the one asked within a bar
+  if (op === 'zoom') return !!meta.frame && !!want && zoomedTo(meta.frame, want)
   // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
   if (op === 'autoScale') return meta.priceAuto === true
   // the Position Calculator (drawing extras): open or closed, and its entry / stop / target, as the panel shows them
@@ -272,12 +274,18 @@ const viewFp = (snap, op) => {
   if (op === 'applyRange') return snap.view?.activeRange ?? null
   // a Position Calculator's Undo is stale once the member typed in its panel or closed it themselves
   if (op === 'positionCalc') return positionCalcSig(snap.view?.positionCalc)
-  if (op === 'stepBar') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
+  if (op === 'stepBar' || op === 'zoom') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
   return !!snap.view?.indicatorsHidden
 }
 /** The Position Calculator's read-back: open, and its three prices (as numbers; '' = empty). */
 export const positionCalcSig = (p) => (p ? JSON.stringify([!!p.open, ...['entry', 'stop', 'target'].map(k => (p[k] === '' || p[k] == null ? null : Number(p[k])))]) : null)
 const samePositionCalc = (a, b) => !!a && !!b && positionCalcSig(a) === positionCalcSig(b)
+// the window's width in bars (logical to − from), and whether a zoom landed: the right direction, by the width asked
+const frameWidth = (f) => f.fromRight - f.toRight
+const zoomedTo = (f, want) => {
+  const w = frameWidth(f)
+  return (want.out ? w > want.from + 0.5 : w < want.from - 0.5) && Math.abs(w - want.width) < 1
+}
 const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
@@ -443,7 +451,7 @@ export const chartKind = {
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if ((op === 'applyRange' || op === 'stepBar') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'stepBar' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       // the Position Calculator back to exactly what it showed before (closed stays closed, its old prices kept)
       else if (op === 'positionCalc' && item.before.view?.positionCalc) p.viewDo = { op, arg: { ...item.before.view.positionCalc } }
       else return null
