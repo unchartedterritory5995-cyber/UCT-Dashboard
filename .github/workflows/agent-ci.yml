@@ -22,8 +22,11 @@ on:
   # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
   # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
   # still runs the whole Agent suite on every master push, unfiltered.
+  # (2026-11-12, AUDIT gap before agent-ci-required is made a required check): EVERY branch but master / production —
+  # a PR from charts/*, fix/*, feat/* … that touches an Agent path must be able to earn its push run, or the required
+  # status stays pending forever. Still path-filtered (below), so non-Agent pushes cost nothing; master keeps the gate.
   push:
-    branches: ['agent/**']
+    branches: ['**', '!master', '!main', '!production']
     paths:
       - 'app/src/agent/**'
       - 'app/src/components/chart/builder/agent*'

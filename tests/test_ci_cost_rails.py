@@ -57,6 +57,36 @@ def _workflows():
     return [(f.name, _load(f)) for f in files]
 
 
+def _push_reaches(push: dict, branch: str) -> bool:
+    """Does this push trigger fire for `branch`? GitHub semantics: `branches-ignore` excludes; in `branches`, patterns
+    apply in order and the LAST one that matches decides (a `!` pattern excludes). `**` / `*` glob as GitHub does.
+    (2026-11-12: agent-ci.yml's ['**', '!master', '!production'] must read as NOT reaching master.)"""
+    import re
+
+    def hit(pat: str) -> bool:
+        out, i = [], 0
+        while i < len(pat):
+            if pat.startswith("**", i):
+                out.append(".*"); i += 2
+            elif pat[i] == "*":
+                out.append("[^/]*"); i += 1
+            elif pat[i] == "?":
+                out.append("[^/]"); i += 1
+            else:
+                out.append(re.escape(pat[i])); i += 1
+        return re.fullmatch("".join(out), branch) is not None
+
+    if push.get("branches-ignore") is not None:
+        return not any(hit(p) for p in push["branches-ignore"])
+    pats = push.get("branches") or ["**"]
+    reached = False
+    for p in pats:
+        neg = p.startswith("!")
+        if hit(p[1:] if neg else p):
+            reached = not neg
+    return reached
+
+
 def _filtered(trigger: dict) -> bool:
     return bool(trigger.get("paths") or trigger.get("paths-ignore"))
 
@@ -112,8 +142,7 @@ def test_no_workflow_cancels_a_master_push_run():
         push = _on(doc).get("push")
         if push is None:
             continue
-        branches = set(push.get("branches") or ["**"])
-        if not (branches & MASTER or "**" in branches):
+        if not any(_push_reaches(push, m) for m in MASTER):
             continue
         conc = doc.get("concurrency")
         if isinstance(conc, dict) and conc.get("cancel-in-progress") is True:

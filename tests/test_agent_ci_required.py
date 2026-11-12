@@ -177,3 +177,21 @@ def test_newest_push_run_wins():
     old_red = dict(GREEN, id=6, conclusion="failure", created_at="s")
     api = FakeApi(files=[AGENT_FILE], runs=[old_red, GREEN])
     assert acr.evaluate(api, SHA, [1], DOC)[0] == "success"
+
+
+# ── (2026-11-12, AUDIT gap) the agent ci PUSH trigger must cover every branch a PR can come from, or agent-ci-required
+#    stays pending forever for a PR from charts/* / fix/* / feat/* that touches an Agent path ─────────────────────────
+def _push_branches():
+    doc = yaml.safe_load((pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/agent-ci.yml").read_text(encoding="utf-8"))
+    on = doc.get("on", doc.get(True))
+    return on["push"]["branches"]
+
+
+@pytest.mark.parametrize("branch", ["agent/pl/x", "charts/p3-legacy", "fix/rs-line-polish", "feat/rs-universe", "land/abc", "perf/batch", "docs/x"])
+def test_agent_ci_push_covers_every_pr_branch(branch):
+    assert acr.matches(branch, _push_branches()), f"{branch} gets no agent ci push run → agent-ci-required pending forever"
+
+
+@pytest.mark.parametrize("branch", ["master", "production"])
+def test_agent_ci_push_leaves_master_and_production_to_the_gate(branch):
+    assert not acr.matches(branch, _push_branches())
