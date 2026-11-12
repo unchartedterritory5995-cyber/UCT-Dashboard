@@ -347,7 +347,10 @@ describe('the block-valued detector, asked directly', () => {
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    1.0', 'else if x[2] > 0', '    0.0']), 0, 'x')).toBe(true)
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = switch', '    c => x[1]', '    => 0.0']), 0, 'x')).toBe(true)
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    nz(y[1])', 'else', '    0.0']), 0, 'x')).toBe(false)
+    // a field: `p.x` lexes as ONE name; `g(close).x` and `a[0].x` put the field after a `.` token
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    p.x[1]', 'else', '    0.0']), 0, 'x')).toBe(false)
+    expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    g(close).x[1]', 'else', '    0.0']), 0, 'x')).toBe(false)
+    expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    a[0].x[1]', 'else', '    0.0']), 0, 'x')).toBe(false)
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    x = close', '    x[1]', 'else', '    0.0']), 0, 'x')).toBe(false)
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['x = if c', '    [x, y] = f()', '    x[1]', 'else', '    0.0']), 0, 'x')).toBe(false)
     expect(blockDeclarationReadsOwnHistory(stmtsOf(['close = if c', '    close[1]', 'else', '    0.0']), 0, 'close')).toBe(false)
