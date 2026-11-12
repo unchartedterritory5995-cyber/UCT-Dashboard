@@ -117,3 +117,5 @@ The same run also exercised the no-silent-growth path. It printed 4 newly-IN ids
 ## Also run (this branch)
 
 These files ran together: the 4 count pins (agentRouting, agentScreener, agentNl1Selection, agentIndicatorsM2), `src/noRegexLookbehind.test.js`, `nlm1Routing`, and the ratchet. Result: **7 files, 153/153 passed** (14.35 s). The shard partition proof is in the CI section above. There are no lookbehind regexes in the new code.
+
+<!-- agent-ci-required validation 5b: non-agent branch that only merges master (own diff: docs only) — expect success, no Agent run. Close unmerged. -->
