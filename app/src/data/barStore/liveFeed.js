@@ -97,32 +97,39 @@ export function foldMinute(st, m, tf, rev) {
  * summed-aggregates total, at 09:30 it becomes the regular-session `day.v` — which restarts BELOW the
  * pre-market total. A delta across that switch would freeze the bar (dayVol < dayVol0) and
  * under-count for the whole morning. So the anchor records the feed's definition (`def0`: 'rth' |
- * 'ext', from the snapshot's ext_session, else the clock) and `anchorTick` RE-ANCHORS when the
- * definition, the day, or a falling reading says the old anchor is not comparable: dayVol0 = the
- * reading now, vBase = the volume already shown (never lower), and the first RTH tick after a
- * pre-market anchor asks the server for the bar (what traded between 09:30 and that tick).
- * Pure; `st` = the fold state ({base, vBase, dayVol0, day0, def0}). Returns the volume or null.
+ * 'ext', from the snapshot's ext_session, else the clock) and `anchorTick` RE-ANCHORS only when the
+ * definition or the day changes: dayVol0 = the reading now, vBase = the volume already shown (never
+ * lower); the first RTH tick after a pre-market anchor asks the server for the bar (what traded
+ * between 09:30 and that tick).
+ * ⛔ WITHIN ONE DEFINITION AND DAY A FALLING READING IS NOT A NEW ANCHOR (a stale / lagging snapshot
+ * dips and recovers): re-anchoring down would count the recovery twice. The fold keeps the reading's
+ * HIGH-WATER MARK (`hwm`): v = vBase + (hwm − dayVol0).
+ * Pure; `st` = the fold state ({base, vBase, dayVol0, hwm, day0, def0}). Returns the volume or null.
  */
 export function periodTickVolume(st, tf, dayVol, day) {
   if (!st?.base || !finite(dayVol) || dayVol <= 0) return null
   if (!finite(st.dayVol0) || st.day0 !== day) return null
   const bv = finite(st.vBase) ? st.vBase : (finite(st.base.v) ? st.base.v : 0)
-  return bv + Math.max(0, dayVol - st.dayVol0)
+  const hwm = Math.max(finite(st.hwm) ? st.hwm : st.dayVol0, dayVol)
+  return bv + Math.max(0, hwm - st.dayVol0)
 }
 
 /**
  * Re-anchor the fold when the feed's reading is no longer comparable with its anchor (another
- * definition / day, a falling reading, no anchor yet). Mutates `st`. `heldV` = the period bar's
+ * definition / day, no anchor yet); else only raise the high-water mark. Mutates `st`. `heldV` = the period bar's
  * volume on screen. Returns {reanchored, toRth} — toRth: an anchor taken under another definition
  * (pre-market) met the first regular-session reading (the caller asks the server once).
  */
 export function anchorTick(st, { dayVol, day, def, heldV }) {
   if (!st?.base || !finite(dayVol) || dayVol <= 0) return { reanchored: false, toRth: false }
-  if (finite(st.dayVol0) && st.day0 === day && st.def0 === def && dayVol >= st.dayVol0) return { reanchored: false, toRth: false }
+  if (finite(st.dayVol0) && st.day0 === day && st.def0 === def) {
+    st.hwm = Math.max(finite(st.hwm) ? st.hwm : st.dayVol0, dayVol)   // a dip never re-anchors
+    return { reanchored: false, toRth: false }
+  }
   const toRth = def === 'rth' && finite(st.dayVol0) && st.def0 != null && st.def0 !== 'rth'
   const bv = finite(st.vBase) ? st.vBase : (finite(st.base.v) ? st.base.v : 0)
   st.vBase = Math.max(bv, finite(heldV) ? heldV : 0)
-  st.dayVol0 = dayVol; st.day0 = day; st.def0 = def
+  st.dayVol0 = dayVol; st.hwm = dayVol; st.day0 = day; st.def0 = def
   return { reanchored: true, toRth }
 }
 
@@ -165,11 +172,14 @@ export function createLiveFeed({
     try { const v = Number(prices?.getSnapshot?.()?.prices?.[sym]?.volume); return finite(v) && v > 0 ? v : null } catch { return null }
   }
 
-  /** The feed volume's definition right now: the snapshot's ext_session, else the clock. */
+  /** The feed volume's definition right now. The server's `ext_session` is the session STRING
+   *  ('pre_market' | 'post_market') during an extended session with a print, else null
+   *  (api/routers/live_prices.py, massive._ext_price_for) — null cannot tell "regular" from an
+   *  empty extended read, so it falls back to the clock. */
   function _feedDef(sym, tsMs) {
     try {
       const x = prices?.getSnapshot?.()?.prices?.[sym]
-      if (x && typeof x.ext_session === 'boolean') return x.ext_session ? 'ext' : 'rth'
+      if (x && x.ext_session != null && x.ext_session !== false) return 'ext'
     } catch { /* fall through to the clock */ }
     return isRthBar(Math.floor(tsMs / 1000)) ? 'rth' : 'ext'
   }
@@ -209,10 +219,10 @@ export function createLiveFeed({
     // fallback's volume): the SERVER's developing period bar; anchor = its arrival (P3-S2b: tracked
     // whether or not push is on, so the tick fallback folds the same period bar).
     if (isDateTf(p.tf)) {
-      a.fold = { base: null, anchor: null, minutes: new Map(), rev: null, dayVol0: null, day0: null, def0: null, vBase: null }
+      a.fold = { base: null, anchor: null, minutes: new Map(), rev: null, dayVol0: null, hwm: null, day0: null, def0: null, vBase: null }
       const rebase = (d) => {
         a.fold.base = d; a.fold.anchor = foldAnchor(now()); a.fold.minutes = new Map()
-        a.fold.dayVol0 = _dayVol(p.sym); a.fold.day0 = etDay(now()); a.fold.def0 = _feedDef(p.sym, now()); a.fold.vBase = null
+        a.fold.dayVol0 = _dayVol(p.sym); a.fold.hwm = a.fold.dayVol0; a.fold.day0 = etDay(now()); a.fold.def0 = _feedDef(p.sym, now()); a.fold.vBase = null
       }
       off.push(registry.subscribe(key, (s) => {
         const d = s.developing

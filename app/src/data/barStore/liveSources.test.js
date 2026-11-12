@@ -39,7 +39,8 @@ function pricesWithVolume() {
     subscribe(_t, cb) { subs.add(cb); return () => subs.delete(cb) },
     getSnapshot: () => snap,
     set(sym, price, volume, ext) {
-      snap = { prices: { ...snap.prices, [sym]: { price, volume, ...(typeof ext === 'boolean' ? { ext_session: ext } : {}) } } }
+      // the REAL wire shape: ext_session is 'pre_market' | 'post_market' | null (live_prices.py)
+      snap = { prices: { ...snap.prices, [sym]: { price, volume, ...(ext !== undefined ? { ext_session: ext } : {}) } } }
       for (const cb of subs) cb()
     },
   }
@@ -269,8 +270,39 @@ describe('O1 — the feed volume definition switch at the open / close (P3-S2c)'
     expect(periodTickVolume(st, 'D', 800, DAY)).toBe(1000)
     expect(periodTickVolume(st, 'D', 1100, DAY)).toBe(1300)          // the RTH gain counts in full
     expect(anchorTick(st, { dayVol: 1200, day: DAY, def: 'rth', heldV: 1300 }).reanchored).toBe(false)
-    expect(anchorTick(st, { dayVol: 700, day: DAY, def: 'rth', heldV: 1400 })).toEqual({ reanchored: true, toRth: false })  // a falling reading
-    expect(st.vBase).toBe(1400)
+    // a falling reading within the same definition and day is NOT a new anchor
+    expect(anchorTick(st, { dayVol: 700, day: DAY, def: 'rth', heldV: 1400 })).toEqual({ reanchored: false, toRth: false })
+    expect(st.vBase).toBe(1000)
+  })
+
+  it('dip and recover within one definition: the recovery is never counted twice (high-water mark)', () => {
+    const st = { base: { v: 1000 }, vBase: null, dayVol0: 800, hwm: 800, day0: DAY, def0: 'rth' }
+    const show = (dayVol, heldV) => { anchorTick(st, { dayVol, day: DAY, def: 'rth', heldV }); return periodTickVolume(st, 'D', dayVol, DAY) }
+    expect(show(1100, 1000)).toBe(1300)
+    expect(show(700, 1300)).toBe(1300)       // a lagging snapshot dips…
+    expect(show(1150, 1300)).toBe(1350)      // …and recovers: true gain 350, never 1300 + 450
+  })
+
+  it('the real ext_session shape: a post-market reading stamped inside RTH is another definition (no jump)', () => {
+    const clock = { ms: minute(15 * 60 + 50) * 1000 }
+    vi.setSystemTime(clock.ms)
+    const key = keyOf({ sym: 'PMX', tf: 'D' })
+    const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }) })
+    const prices = pricesWithVolume()
+    prices.set('PMX', 100, 800, null)                                      // RTH: ext_session null
+    createLiveFeed({ registry, pushEnabled: () => false, stream: fakeStream(), candle: fakeCandle(), prices, now: () => clock.ms }).attach(key)
+    registry.dispatch(key, { type: 'rest-full', key, payload: {
+      bars: [{ t: '2026-11-09', o: 90, h: 95, l: 89, c: 94, v: 90000 }, { t: DAY, o: 100, h: 100, l: 100, c: 100, v: 1000 }],
+      contract: 1, grid: 'plain', cache_key: 'b1:PMX:D:plain', series_rev: 1, history_rev: 1, complete_through: null,
+      developing: { t: DAY, o: 100, h: 100, l: 100, c: 100, v: 1000, rev: 1 },
+    } }, { nowMs: clock.ms })
+    clock.ms = (minute(15 * 60 + 59) + 50) * 1000; vi.setSystemTime(clock.ms)
+    prices.set('PMX', 100.5, 850, null)
+    expect(registry.getSnapshot(key).developing.v).toBe(1050)
+    // the server already flipped to the post-market TOTAL (a larger definition) while the clock is RTH
+    clock.ms += 5000; vi.setSystemTime(clock.ms)
+    prices.set('PMX', 100.6, 1900, 'post_market')
+    expect(registry.getSnapshot(key).developing.v, 'no +1050 jump from a definition switch').toBe(1050)
   })
 
   it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])('seed %i: painted v never falls; never under-counts the RTH gain after the first post-open tick', (seed) => {
@@ -282,8 +314,8 @@ describe('O1 — the feed volume definition switch at the open / close (P3-S2c)'
     const prices = pricesWithVolume()
     const kicks = []
     let pre = 200 + r.int(0, 800), rth = 0, post = 0, rev = 1
-    const feedNow = (m) => (m < 570 ? [pre, true] : m < 960 ? [rth, false] : [pre + rth + post, true])
-    prices.set('OPX', 100, pre, true)
+    const feedNow = (m) => (m < 570 ? [pre, 'pre_market'] : m < 960 ? [rth, null] : [pre + rth + post, 'post_market'])
+    prices.set('OPX', 100, pre, 'pre_market')
     createLiveFeed({ registry, pushEnabled: () => false, stream: fakeStream(), candle: fakeCandle(), prices,
       now: () => clock.ms, onReanchor: (k) => kicks.push(k) }).attach(key)
     // the server's developing daily bar, read pre-market (its volume = the pre-market trades so far)

@@ -350,8 +350,11 @@ rolled candle = the store's closed row, HA, R1 at runtime with a quote that only
 - The live-price feed's day volume changes DEFINITION at 09:30 (pre-market summed aggregates →
   regular-session `day.v`, which restarts below the pre-market total) and at 16:00. The D/W/M fold
   anchor now records that definition (`def0`: the snapshot's `ext_session`, else the clock), and
-  `liveFeed.anchorTick` re-anchors when the definition, the day, or a falling reading makes the old
-  anchor incomparable: `dayVol0` = the reading now, `vBase` = the volume already shown (never lower).
+  `liveFeed.anchorTick` re-anchors ONLY when the definition or the day changes: `dayVol0` = the
+  reading now, `vBase` = the volume already shown (never lower). Within one definition and day a
+  falling (stale) reading never re-anchors: the fold keeps the reading's high-water mark and
+  v = vBase + (hwm − dayVol0), so a dip-and-recover is never counted twice. The definition is the
+  wire `ext_session` ('pre_market' | 'post_market' ⇒ extended; null ⇒ the clock decides).
   The first RTH tick after a pre-market anchor asks the server for the period bar once
   (`onReanchor` → `network.kick`) for what traded between 09:30 and that tick. Railed (seeded,
   across both boundaries): painted v never falls and never under-counts the feed's RTH gain after
