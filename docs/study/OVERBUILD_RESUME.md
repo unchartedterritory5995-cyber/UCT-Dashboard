@@ -1,5 +1,30 @@
 # Study overbuild: RESUME GUIDE (read this first in any new window)
 
+## >>> PAUSED 2026-11-12 (the owner stepped away; resume when he is back) <<<
+
+**State when paused:** waves 1 and 2 are COMMITTED (wave 2 before its verification fixes; commit d70da0d6f1), 1,019 of 5,259 live questions
+carry a simple answer, 1,090 choice questions still have 3 answers. Three workflows were still RUNNING in the background when he paused:
+
+| Run id | What | Script (in `_study-resume\overbuild\`) | Args file (same folder) |
+|---|---|---|---|
+| `wf_1b446492-b0e` | wave 2 VERIFY (114 questions) | `overbuild-verify.js` | `wave2_verify_args.json` |
+| `wf_5c8cc8c2-a84` | wave 3 (SET.22 to SET.31) | `overbuild-wave-routed.js` | `wave3_args.json` |
+| `wf_2646149c-298` | wave 4 (SET.32 to SET.46) | `overbuild-wave-routed.js` | `wave4_args.json` |
+
+**To resume, in order:**
+0. Read this guide. Run `git log --oneline -8` in the worktree, then `_study-resume\overbuild\sync_scratch.sh` (backs up the agent files).
+1. Find out which runs are still alive (the `/workflows` list). A run that FINISHED while he was away: its files are already in
+   `...\scratchpad\agents\<wave>\` and backed up under `_study-resume\overbuild\waves\<wave>\`; just integrate it (section 4).
+   A run that was KILLED or never finished: relaunch with `Workflow({scriptPath: <full path of the script above>, resumeFromRunId: "<run id>", args: <the args file's JSON>})`.
+   Finished agents replay from cache (the journal is kept under the Claude projects folder, in `...\subagents\workflows\<run id>\`) and only
+   unfinished agents run again. If that journal is gone, launch the same args fresh: they are complete.
+2. Finish wave 2: when its verify run completes, apply the fixes (section 4 step 6), run the gates, commit.
+3. Integrate waves 3 and 4 as each completes (section 4); launch waves 5 to 9 from `wave5_args.json` ... `wave9_args.json` as slots free up (never more than 3 workflows at once).
+4. Tools that exist: `apply_upgrade`, `wave_plan`, `integrate_wave` (scripts/study), `make_verify_args.py`, `overbuild-verify.js`,
+   `overbuild-wave-routed.js`, `sync_scratch.sh` (all in the resume folder except the scripts/study ones). Tests: `tests/test_study_apply_upgrade.py`, `tests/test_study_wave_tools.py`.
+5. Nothing is pushed. He merges PR #1046 himself. The review app is installed at `C:\Users\pgosz\StudyReview` (server on port 8794; rebuild its data after each wave, section 7).
+
+
 Last updated 2026-11-11 (evening). The owner (Patrick) wants this run **hands-off until done**, then a dedicated full review
 by him. He asked for everything to be saved locally (not in artifacts) so he can switch windows and resume easily. This file,
 `docs/study/OVERBUILD_STATE.md` (the dated log), `docs/study/OVERBUILD_PLAN.md` (the design) and the memory file
