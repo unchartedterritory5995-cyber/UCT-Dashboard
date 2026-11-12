@@ -1025,9 +1025,20 @@ class FlowDB:
         if hit is not None:
             return list(hit)
 
+        # ⚡ SKIP-SCAN (2026-11-12). `SELECT DISTINCT` walked every index entry for the
+        # source (679k for stocks) to find ~53 dates: /api/flow/dates p50 2.8 s, p95 5.9 s
+        # in the member beacon, and the TTL above is short, so most calls missed. This
+        # recursive CTE seeks `idx_flow_source_date` once per distinct date instead:
+        # same set of values (NULL excluded, which `_parse_date_mdy` dropped anyway),
+        # ~53 index seeks. Rail: tests/test_flow_dates_skipscan.py.
         with self._conn() as conn:
             cursor = conn.execute(
-                "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
+                "WITH RECURSIVE d(x) AS ("
+                " SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1)"
+                " UNION ALL"
+                " SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x)"
+                " FROM d WHERE d.x IS NOT NULL"
+                ") SELECT x FROM d WHERE x IS NOT NULL",
                 (source,),
             )
             all_dates_raw = [r[0] for r in cursor.fetchall()]
