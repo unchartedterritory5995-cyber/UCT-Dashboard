@@ -54,6 +54,8 @@ export function movePin(pins, index, delta) {
  * range leaves the rail as it was.
  */
 export function shiftPin(pins, from, to) {
+  // a non-integer index would step past `to` and never stop
+  if (!Number.isInteger(from) || !Number.isInteger(to)) return pins
   if (from < 0 || from >= pins.length || to < 0 || to >= pins.length) return pins
   let next = pins
   for (let i = from; i !== to; i += (to > i ? 1 : -1)) next = movePin(next, i, to > i ? 1 : -1)

@@ -1,4 +1,5 @@
 // Drawing Boards execution (C1-167 switch, C1-168 create, C1-169 rename, C1-170 delete).
+// CI trigger 11-12: the master re-merges (dcfe73fbfc barStore; 44f2b7bf50 Pine engine 51) and the ChartToolbar fix touched no Agent path, so this line starts the agent ci push run.
 // The Agent writes through the Boards panel's own store writers (host.drawingBoards → drawingsStore), reads the result
 // back, and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its
 // drawings and has no Undo. An unnamed or ambiguous board is asked about, never picked, and a board request aimed at
@@ -131,6 +132,7 @@ describe('Drawing Boards: delete (a card that names the board, no Undo)', () => 
     expect(res.ok).toBe(true)
     expect(names()).toEqual(['Swing', 'Board 2'])                     // the unnamed board is numbered by its place, as in the panel
     expect(res.undo).toBeNull()
+    expect(res.lines.join(' ')).not.toMatch(/undo it|Undo/)          // the receipt offers no Undo
     expect(res.lines.join(' ')).toMatch(/Deleted the drawing board “Earnings” and its 2 drawings\. This can't be undone\./)
   })
 

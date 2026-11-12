@@ -425,8 +425,8 @@ export const GROUPS = [
   // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
   // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
   // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
-  // between); a Dock of the ranking. LAST in the catalog: the server names at most turn.MAX_GROUPS (24) groups and master
-  // sends 24, so until that cap is raised (#1089) this group, not one of master's, is the one left unnamed.
+  // between); a Dock of the ranking. LAST in the catalog: the server once named at most turn.MAX_GROUPS (24) groups; #1089
+  // raised that cap to 48, so this group is named too. It stays last so it is the first left unnamed if the catalog outgrows the cap.
   { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
     domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
     words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
