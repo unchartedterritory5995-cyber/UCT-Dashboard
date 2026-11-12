@@ -22,7 +22,7 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
-import { viewCacheTf } from '../../../utils/viewSession'
+import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import useSymbolSettle from '../../../hooks/useSymbolSettle'
@@ -143,7 +143,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // that was supposed to catch it matched NOTHING, because POSIX awk has no
   // word-boundary escape at all -- the pattern silently matches nothing and
   // reads like a clean result. Verify a TDZ window with grep.
-  const sym = useSymbolHandoff(requestedSym, tf)
+  // The pane's extended-hours setting (its 60m key is `_60` or `_60e`): resolved below with the
+  // surface settings (`chartCs`), read by the handoff when a switch starts — so it prepares the
+  // key THIS pane reads, never the process-global view session.
+  const paneExtRef = useRef(true)
+  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -279,6 +283,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onStore: persistActiveSettings,
     chartsTheme,
   })
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
+  paneExtRef.current = resolveShowExtended(chartCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings

@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from api.services.cache import TTLCache
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _log = logging.getLogger(__name__)
 
@@ -70,8 +71,8 @@ def get_ticker_details(ticker: str) -> dict[str, Any]:
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon ticker details failed for %s: %s", sym, e)
-        return {"error": f"polygon request failed: {e}", "ticker": sym}
+        _log.warning("polygon ticker details failed for %s: %s", sym, _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}", "ticker": sym}
 
     r = data.get("results") or {}
     if not r:
@@ -156,8 +157,8 @@ def get_indices_snapshot(symbols: list[str] | str | None = None) -> dict[str, An
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon indices fetch failed: %s", e)
-        return {"error": f"polygon request failed: {e}"}
+        _log.warning("polygon indices fetch failed: %s", _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}"}
 
     out = []
     for r in (data.get("results") or []):
@@ -205,8 +206,8 @@ def get_upcoming_dividends(ticker: str = "", count: int = 10) -> dict[str, Any]:
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon dividends fetch failed: %s", e)
-        return {"error": f"polygon request failed: {e}"}
+        _log.warning("polygon dividends fetch failed: %s", _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}"}
 
     items = []
     for r in (data.get("results") or [])[:count]:
@@ -253,8 +254,8 @@ def get_splits(ticker: str = "", count: int = 10, lookback_days: int = 90) -> di
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon splits fetch failed: %s", e)
-        return {"error": f"polygon request failed: {e}"}
+        _log.warning("polygon splits fetch failed: %s", _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}"}
 
     items = []
     for r in (data.get("results") or [])[:count]:
@@ -289,8 +290,8 @@ def get_crypto_snapshot(symbol: str = "BTCUSD") -> dict[str, Any]:
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon crypto failed for %s: %s", s, e)
-        return {"error": f"polygon request failed: {e}"}
+        _log.warning("polygon crypto failed for %s: %s", s, _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}"}
 
     t = data.get("ticker") or {}
     day = t.get("day") or {}
@@ -331,8 +332,8 @@ def get_forex_snapshot(pair: str = "EURUSD") -> dict[str, Any]:
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon fx failed for %s: %s", s, e)
-        return {"error": f"polygon request failed: {e}"}
+        _log.warning("polygon fx failed for %s: %s", s, _safe_exc(e))
+        return {"error": f"polygon request failed: {_safe_exc(e)}"}
 
     t = data.get("ticker") or {}
     day = t.get("day") or {}

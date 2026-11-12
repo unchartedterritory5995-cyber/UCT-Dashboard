@@ -663,7 +663,7 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
     rating_tol = Tol(value=0.0, why="an integer rating has no tolerance")
     for col, what in (("rs_rating_ibd", "the IBD-style RS rating"),
                       ("rs_rating_1m", "the one-month return percentile"),
-                      ("rs_rating_3m", "the three-month return percentile"),
+                      ("rs_rating_3m", "the three-month equal-weighted-return percentile"),
                       ("rs_rating_6m", "the six-month weighted-return percentile"),
                       ("rs_rating_9m", "the nine-month weighted-return percentile"),
                       ("rs_rating_12m", "the twelve-month weighted-return percentile")):

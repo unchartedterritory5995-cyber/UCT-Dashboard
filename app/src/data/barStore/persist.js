@@ -25,10 +25,32 @@
 //   • the reducer then refuses the copy whole on another key / cache_key / older history_rev
 //     / stale gen (S7, staleReason), and a server row always replaces a non-sealed local one.
 // The developing bar is NOT persisted (it is live state; the base is).
+//
+// ⭐ DEEP HISTORY (`@hist`, P3-S1 review fix 6). The tail record is capped (barsIDB
+// INTRADAY_MAX_BARS = historyPrepend TAIL_ENTRY_MAX_BARS); an intraday series deeper than that
+// (scroll-back windows, the background window prefetch) ALSO writes the deep-history segment
+// through the same one write path (`idbPutHistory` → idbPutMonotonic segment 'history'), when the
+// held history GREW past what the segment holds or the tail is about to outrun it
+// (historyLagsTail) — never on every poll. Hydrate reads it after the tail and hands it to the
+// reducer as a `history` copy: prepend-only, only when it reaches the held oldest bar on the same
+// basis. Invalidation: barsIDB's (logic version, 60m grid, age) + idbDelete; P4: the segment
+// carries its own STAMP (cache_key, history_rev, adj_basis — `histStamp`), so the reducer refuses
+// it on another row series / history / basis exactly like a tail copy (S8), and an unstamped
+// (legacy) segment only on a proven basis (`basisVerdict`); a write under another stamp replaces
+// the segment (barsIDB). An interior hole is cut on hydrate (`_newestInteriorHoleEnd`): only the
+// run that reaches the tail is handed over.
+//
+// ⭐ HOLES. A hydrated copy reports its interior hole (barsIDB `_intradayGapStart`: idbGet's
+// `repairFromT`, or the same function over the mem record) as `repair_from`; the reducer turns a
+// hole older than the next delta's start into a FULL read (it would never be re-read).
 
 import { memPutMonotonic, memPeekEntry } from '../../utils/barsMemCache'
-import { idbPutMonotonic, idbGet, idbImportPack } from '../../utils/barsIDB'
-import { ACTION, parseKey, isDateTf, unixToDateLabel, keyOf } from './types'
+import {
+  idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry,
+  _intradayGapStart, _newestInteriorHoleEnd,
+} from '../../utils/barsIDB'
+import { TAIL_ENTRY_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
+import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
 import { isSealedRow, bucketEnd, normT } from './reducer'
 
 export const PERSIST_DEBOUNCE_MS = 1000
@@ -56,11 +78,22 @@ export function encodeMeta(s) {
   for (const b of s.bars) if (isSealedRow(s, b)) { sealedT.push(b.t); sealedH.push(rowHash(b)) }
   return {
     v: META_VERSION, key: s.key, cacheKey: s.cacheKey, grid: s.grid,
-    historyRev: s.historyRev, seriesRev: s.seriesRev,
+    historyRev: s.historyRev, seriesRev: s.seriesRev, adjBasis: s.adjBasis ?? null,
     completeThrough: s.completeThrough, verifiedThrough: s.verifiedThrough,
     spans: (s.sealedSpans || []).map(([a, c]) => [a, c]), gen: s.gen,
     sealed: { t: sealedT, h: sealedH },
   }
+}
+
+/** The `@hist` segment's stamp: the identity of the rows it holds (never seals). */
+export function histStamp(s) {
+  return { v: META_VERSION, key: s.key, cacheKey: s.cacheKey ?? null, historyRev: s.historyRev ?? null, adjBasis: s.adjBasis ?? null }
+}
+
+/** A `@hist` record's stamp → the identity fields of its reducer payload ({} when absent). */
+export function decodeHistStamp(key, m) {
+  if (!m || m.v !== META_VERSION || m.key !== key) return {}
+  return { cache_key: m.cacheKey ?? null, history_rev: m.historyRev ?? null, adj_basis: m.adjBasis ?? null }
 }
 
 /**
@@ -74,7 +107,8 @@ export function decodeEntry(key, entry) {
   const m = entry?.meta
   const p = parseKey(key)
   if (!p || !m || m.v !== META_VERSION || m.key !== key) return { bars }
-  const out = { bars, cache_key: m.cacheKey ?? null, history_rev: m.historyRev ?? null, series_rev: m.seriesRev ?? null }
+  const out = { bars, cache_key: m.cacheKey ?? null, history_rev: m.historyRev ?? null, series_rev: m.seriesRev ?? null,
+    adj_basis: m.adjBasis ?? null }
   if (m.grid != null) out.grid = m.grid
   if (m.verifiedThrough != null) out.verified_through = m.verifiedThrough
   if (m.cacheKey == null || m.historyRev == null || !Array.isArray(m.spans) || !m.spans.length) return out
@@ -126,7 +160,14 @@ export function createPersist({
   registry, io = null, debounceMs = PERSIST_DEBOUNCE_MS, idle = _defaultIdle, now = () => Date.now(),
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
 } = {}) {
-  const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, ...(io || {}) }
+  const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry, ...(io || {}) }
+  /** key → {first, last} of the deep-history segment last written / read (bounded). */
+  const hist = new Map()
+  const _noteHist = (key, rows) => {
+    hist.delete(key)
+    if (rows?.length) hist.set(key, { first: rows[0].t, last: rows[rows.length - 1].t })
+    if (hist.size > 1000) hist.delete(hist.keys().next().value)
+  }
   /** key → { refs, unsub, written (baseRev), timer, writing, again, changedAt } */
   const watched = new Map()
   /** key → savedAt of the record the last hydrate read (bounded, oldest out). */
@@ -153,6 +194,15 @@ export function createPersist({
     const opts = { startedAt, meta: encodeMeta(s) }
     IO.memPutMonotonic(p.sym, p.cacheTf, rows, opts)
     await IO.idbPutMonotonic(p.sym, p.cacheTf, rows, opts)
+    // The deep-history segment: only for a series deeper than the capped tail record, and only
+    // when its history grew past the segment or the tail is about to outrun it.
+    if (isIntradayTf(p.tf) && rows.length > TAIL_ENTRY_MAX_BARS) {
+      const h = hist.get(key)
+      if (!h || rows[0].t < h.first || historyLagsTail(h.last, rows)) {
+        const out = await IO.idbPutHistory(p.sym, p.cacheTf, rows, { meta: histStamp(s) })
+        if (out?.length) _noteHist(key, out)
+      }
+    }
   }
 
   async function _write(key) {
@@ -227,13 +277,14 @@ export function createPersist({
       const gen = registry.getSnapshot(key).gen
       const m = IO.memPeekEntry(p.sym, p.cacheTf)
       if (m?.bars?.length) {
-        registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: decodeEntry(key, m) })
+        const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
+        registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
       }
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
       if (e?.bars?.length) {
-        registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: decodeEntry(key, e) })
+        registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: { ...decodeEntry(key, e), saved_at: e.savedAt ?? null, repair_from: e.repairFromT ?? null } })
         // IDB → mem promotion (the legacy warmers' `_promote`): the synchronous readers (the
         // handoff's mem fast path, useDayFacts) see a disk copy once it is hydrated. With its
         // OWN stamp and envelope, never now (every age rule still judges it by its write
@@ -241,6 +292,27 @@ export function createPersist({
         if (!m?.bars?.length) {
           try { IO.memPutMonotonic(p.sym, p.cacheTf, e.bars, { savedAt: e.savedAt ?? null, meta: e.meta ?? null }) } catch { /* derived */ }
           _noteSaved(key, e.savedAt)
+        }
+      }
+      // The deep-history segment, after the tail (prepend-only; the reducer judges reach,
+      // identity — cache_key / history_rev / adj_basis from its stamp — and basis). An interior
+      // hole is cut here: only the run after the NEWEST hole (the one reaching the tail) goes in.
+      if (isIntradayTf(p.tf)) {
+        let h = null
+        try {
+          h = IO.idbGetHistoryEntry ? await IO.idbGetHistoryEntry(p.sym, p.cacheTf)
+            : { bars: await IO.idbGetHistory?.(p.sym, p.cacheTf), meta: null }
+        } catch { h = null }
+        const all = h?.bars
+        if (all?.length) {
+          const cut = _newestInteriorHoleEnd(all, p.cacheTf)
+          const rows = cut > 0 ? all.slice(cut) : all
+          const before = registry.peek(key)
+          registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: { bars: rows, history: true, ...decodeHistStamp(key, h.meta) } })
+          // Accepted ⇒ remember what the segment holds; refused (another history / basis, no
+          // reach, a hole) ⇒ forget it, so the next write of a deep series re-writes it.
+          if (registry.peek(key) !== before && cut === 0) _noteHist(key, all)
+          else hist.delete(key)
         }
       }
       return registry.peek(key)

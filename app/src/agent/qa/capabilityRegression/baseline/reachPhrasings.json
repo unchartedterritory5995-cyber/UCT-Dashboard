@@ -22,6 +22,7 @@
     "settings.setWatchlistDigest": [{ "text": "turn on the weekly watchlist email digest" }],
     "settings.show": [{ "text": "show my settings" }],
     "stock.themes": [{ "text": "which themes are leading this week" }],
+    "multiChart.cell": [{ "text": "maximize the top-left chart in the multi chart grid", "board": "GRID" }],
     "watchlist.arrangeColumns": [{ "text": "move the price column in the watchlist widget to the left of the change column", "board": "WATCH" }],
     "watchlist.exportList": [{ "text": "export this watchlist as a csv file", "board": "WATCH" }],
     "widget.addTab": [{ "text": "add a news tab to the scanner widget" }],

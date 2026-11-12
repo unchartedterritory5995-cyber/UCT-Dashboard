@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import * as store from './videoStore'
 import { videoOwnsMediaSession, setVideoOwnsMediaSession } from './mediaSessionOwner'
 
-vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true }))
+vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true, useAfterFirstPaintIdle: () => true }))
 
 let lastPlayer, lastOnStateChange, lastPlayerVars
 beforeEach(() => {

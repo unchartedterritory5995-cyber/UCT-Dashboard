@@ -212,7 +212,9 @@ const BARE_POLL_SITES = {
   'app/src/components/AlertBell.jsx': 2,
   'app/src/components/NavBar.jsx': 3,
   'app/src/components/RsBadge.jsx': 1,
-  'app/src/components/StockChart.jsx': 2,
+  // P3-S0 (#1129) moved StockChart's two bar SWRs (the intraday tail / native poll and the custom-
+  // tf base poll) VERBATIM into chart/useLegacyChartBars.js; same two sites, same reason.
+  'app/src/components/chart/useLegacyChartBars.js': 2,
   'app/src/components/admin/AiSearchInsightsPanel.jsx': 2,
   'app/src/components/admin/CatalystRulesPanel.jsx': 1,
   'app/src/components/admin/CommunityReportsPanel.jsx': 1,

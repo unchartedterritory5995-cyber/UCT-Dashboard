@@ -47,7 +47,9 @@ import useDelisted from '../../../hooks/useDelisted'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
-import { warmTypedSymbol } from '../../../utils/prefetchBars'
+import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
+import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
+import { BARSTORE } from '../barStoreSwitch'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -55,6 +57,7 @@ import { warmTypedSymbol } from '../../../utils/prefetchBars'
 import styles from '../../../pages/charts/ChartsWorkspace.module.css'
 
 import { STUDIO_DOCK_W_MAX, STUDIO_DOCK_W_MIN, STUDIO_DOCK_MIN_CHART_W, studioDockWidth } from './studioDock'
+import { resolveShowExtended } from '../../../utils/viewSession'
 
 // Letters only, no modifier combos. Period allowed for class-share tickers
 // (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
@@ -292,7 +295,7 @@ function ChartPane({
     onStore,
     chartsTheme,
   })
-  const extHoursOn = chartCs.extendedHoursShading ?? true
+  const extHoursOn = resolveShowExtended(chartCs)
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -821,7 +824,9 @@ function ChartPane({
     })
   }, [onSymbolChange])
   // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
-  const handleTypedIntent = useCallback((s) => { warmTypedSymbol(s, effectiveTf) }, [effectiveTf])
+  // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
+  // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
+  const handleTypedIntent = useCallback((s) => { (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf) }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React

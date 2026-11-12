@@ -288,6 +288,9 @@ def _tally(report: dict, st: dict) -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     # ⛔ NEVER LOG REQUEST URLS. The Massive client carries `apiKey=` in the query
     # string, and httpx logs every request URL at INFO -- measured: the first
     # production run wrote the key into its job log in plain text.

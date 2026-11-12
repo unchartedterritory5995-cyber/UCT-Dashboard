@@ -23,7 +23,7 @@ import { useSearchParams } from 'react-router-dom'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import TreemapView from './breadth/views/TreemapView'
 import { TREEMAP_DEF } from './breadth/heatmapMetrics'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 import { renderTokenOk } from '../lib/renderToken'
 // Newsletter export: drop treemap tiles that DUPLICATE the live exposure card

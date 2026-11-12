@@ -419,7 +419,8 @@ describe('⭐ the byte-identical CONTROL — a definition using neither field re
     expect(ungated.map((d) => d.id)).not.toContain('rsLine')
     // ⭐ U6 (2026-11-09): `rsPhases` and `rsVsEma` carry rsLine's gated benchmark pair;
     // `rsRating` declares no server input at all, so it stays in the control set.
-    expect(defs.filter((d) => !ungated.includes(d)).map((d) => d.id)).toEqual(['rsLine', 'rsPhases', 'rsVsEma'])
+    // 2026-11-12 (RS Exit Warnings): `rsExit` carries the same gated benchmark pair.
+    expect(defs.filter((d) => !ungated.includes(d)).map((d) => d.id)).toEqual(['rsLine', 'rsPhases', 'rsVsEma', 'rsExit'])
   })
 
   it('every shipped ungated definition: byte-identical, with and without a declaration, at defaults and on an instance', () => {

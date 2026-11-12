@@ -185,7 +185,22 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
+    periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
+    // #1070: the Drawing Boards actions' own words — a switch / rename / delete / new verb governing the board noun, or "drawing board"
+    drawingBoards: ['switch to my Earnings board', 'rename Board 3 to Gaps', 'delete the current drawing board', 'make me a new board called Breakouts'],
+    // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's entry / stop / target alerts
+    drawingOps: ['duplicate this trendline', 'make a duplicate of the trendline', 'set the stop and target alerts on my position', 'alert me at my stop'],
+    // #1030: the Multi Chart grid's own words (the grid as a thing acted on, a shape with rows AND columns, sync WITH what it syncs)
+    multiChart: ['open multi chart as a 2x3', 'open my momentum nine grid', 'sync the crosshairs on every chart', 'turn groups mode on'],
+    // #1074: the Layout Dock's bar — a place on the bar / dock, "unpin", or "pin" with "layout"
+    layoutBar: ['take Swing off the bar', 'pin my Momentum layout', 'move Day Trading to the left on the layout bar'],
   }
+  // #1070 negative controls: a bare "board" is the workspace — these never select drawingBoards
+  it.each(['remove everything from the board', 'add a chart to the board', 'make the board 2x2', 'clear the board', 'new chart on the board'])
+  ('"%s": not the Drawing Boards group', (msg) => {
+    expect(wordsSelect('drawingBoards', msg)).toBe(false)
+  })
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)
     for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
@@ -197,8 +212,40 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     expect(sent.size).toBeGreaterThan(1)
     for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
   })
+  // #1082 negative controls: a bare sort / rank / dock (a list column, a scan, a widget) never names the Custom-Period Sort
+  it.each(['sort my watchlist by change', 'rank these by relative strength', 'sort the list from highest to lowest', 'dock the chart on the left', 'show the top gainers since the open', 'what period does this cover'])
+  ('"%s": not the Custom-Period Sort', (msg) => {
+    expect(wordsSelect('periodSort', msg)).toBe(false)
+    expect(sentOf(msg).has('periodSort')).toBe(false)
+  })
   it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
     expect(wordsSelect(id, msg)).toBe(true)
     expect(sentOf(msg).has(id)).toBe(true)
+  })
+})
+
+// #1076 (AUDIT 2026-11-11): drawingOps is words-only — its words never take a plain price alert or an indicator copy, and the
+// v1 undo words ("scratch that", "never mind", …) carry agent.undo in the FIRST call on both routers
+describe('#1076 drawingOps controls and the undo words, v1 and v2', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const BY = { v1: routeManifest, v2: routeManifestV2 }
+  const first = (v, msg) => {
+    const r = BY[v](full(), msg, opts())
+    return { selected: r.routing ? r.routing.selected : ['FULL'], names: new Set(r.manifest.map(c => c.name)) }
+  }
+  const CONTROLS = [['alert me at 150', 'alerts', 'alert.create'], ['set an alert on NVDA', 'alerts', 'alert.create'], ['duplicate my RSI', 'indicatorSetup', 'indicatorCopy.duplicate'], ['create a custom copy of the rsi indicator', 'definitions', 'definition.duplicate']]
+  // ("create a custom copy of the rsi indicator" → definition.duplicate is a v2 reach, as duplicateRouting.test.js; v1 sends indicators / indicatorSetup)
+  it.each(['v1', 'v2'].flatMap(v => CONTROLS.filter(c => v === 'v2' || c[1] !== 'definitions').map(c => [v, ...c])))('%s control "%s" reaches %s (%s), never drawingOps', (v, msg, group, action) => {
+    const { selected, names } = first(v, msg)
+    console.log(`[#1076 control] ${v} "${msg}": ${selected.join(',')}`)
+    expect(wordsSelect('drawingOps', msg)).toBe(false)
+    expect(selected).not.toContain('drawingOps')
+    expect(selected).toContain(group)
+    expect(names.has(action)).toBe(true)
+  })
+  const UNDO = ['scratch that', 'never mind', 'go back to how it was before', 'put it back']
+  it.each(['v1', 'v2'].flatMap(v => UNDO.map(m => [v, m])))('%s undo words "%s" carry agent.undo in the first call', (v, msg) => {
+    expect(first(v, msg).names.has('agent.undo')).toBe(true)
   })
 })
