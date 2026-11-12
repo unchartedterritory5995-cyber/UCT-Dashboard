@@ -1407,8 +1407,8 @@
     "Net advances"
    ],
    "answer": "Advancers",
-   "why": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers. A new high needs a one-year extreme, not just an up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks.",
-   "lesson_line": "Advancers closed up on the day. Many breadth gauges start from that count.",
+   "why": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers and builds the A/D line from their count. A new high takes more than one up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks.",
+   "lesson_line": "Advancers closed up on the day. Gauges like the A/D line start from that count.",
    "facts": [
     "f99",
     "f47",
@@ -1418,11 +1418,11 @@
     "f12"
    ],
    "wrong": {
-    "New highs": "New highs is a one-year test. Closing up on the day is not enough.",
+    "New highs": "A new high is a different test. Closing up on the day is not enough.",
     "Up volume": "Up volume counts shares traded, not the stocks themselves.",
     "Net advances": "Net advances is one number for the day, not a group of stocks."
    },
-   "simple": "Stocks that closed higher on the day are called advancers, and their count is where many breadth gauges start.",
+   "simple": "Stocks that closed higher on the day are called advancers, and breadth gauges like the advance-decline line start from their count.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1638,13 +1638,12 @@
    "term": "Advance-decline line",
    "q": "The exact number on an A/D line matters more than its direction.",
    "answer": "False",
-   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: new highs or lows with the index, or a failure to confirm them. ChartSchool and Tom McClellan both say the level is not what matters.",
+   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters.",
    "lesson_line": "Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
    "facts": [
     "f15",
     "f105",
     "f13",
-    "f23",
     "f16",
     "f17"
    ],
@@ -1673,17 +1672,16 @@
     "Same, but a bigger gain counts more"
    ],
    "answer": "Exactly the same: one advance",
-   "why": "Exactly the same. On the A/D line every advance counts plus one and every decline minus one, regardless of market cap or volume. A giant company and a tiny one each get one vote. That is why the line can disagree with a cap-weighted index, where the biggest companies move the index most.",
-   "lesson_line": "One stock, one vote. That's why the A/D line can disagree with a cap-weighted index.",
+   "why": "Exactly the same. ChartSchool: regardless of market cap or volume, an advance counts as +1 and a decline as -1. Tom McClellan says every stock gets an equal vote in the A-D Line. A giant company and a tiny one each get one vote, however far each one rose.",
+   "lesson_line": "One stock, one vote, whatever its size.",
    "facts": [
     "f21",
     "f74",
     "f107",
-    "f73",
     "f11"
    ],
    "wrong": {
-    "More, weighted by its market cap": "Size drives a cap-weighted index, not the A/D line. Every stock gets an equal vote.",
+    "More, weighted by its market cap": "Market cap plays no part in the A/D line. Every stock gets an equal vote.",
     "More, weighted by its trading volume": "Volume plays no part in the A/D line. An advance counts as +1, whatever its volume.",
     "Same, but a bigger gain counts more": "The size of the move doesn't count either. An advance is +1, however far the stock rose."
    },
@@ -1704,24 +1702,23 @@
    "story": "The Nasdaq Composite is at an all-time high. Its A/D line sits near the lowest readings it has ever had. A friend calls it a screaming sell.",
    "q": "What's the better read?",
    "choices": [
-    "A known quirk of Nasdaq breadth",
+    "A known quirk of that A/D line",
     "Proof that the top is already in",
     "A bullish divergence in breadth",
     "A sign the index data is wrong"
    ],
-   "answer": "A known quirk of Nasdaq breadth",
-   "why": "A known quirk of Nasdaq breadth. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not a bullish divergence either, which needs the index at a lower low while breadth holds.",
+   "answer": "A known quirk of that A/D line",
+   "why": "A known quirk of that A/D line. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not bullish either: breadth here is weak, not strong.",
    "lesson_line": "Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
    "facts": [
     "f20",
     "f72",
     "f109",
-    "f19",
     "f111"
    ],
    "wrong": {
     "Proof that the top is already in": "The Nasdaq A/D line can fall for long stretches while the index rises, so this gap proves little on its own.",
-    "A bullish divergence in breadth": "A bullish divergence is the index making a lower low while breadth holds up. This is the opposite shape.",
+    "A bullish divergence in breadth": "Nothing bullish here. The index is at a high while breadth sits near its lows.",
     "A sign the index data is wrong": "The data is fine. Tom McClellan calls this gap 'not unusual' on the Nasdaq."
    },
    "simple": "It is a known Nasdaq quirk, because its advance-decline line can fall for long stretches while the index rises.",
@@ -2811,11 +2808,11 @@
    "choices": [
     "A good sign, but thrusts can fail",
     "Right: the low is in, so go all in",
-    "Bearish: it rose too much too fast",
+    "A good sign, but not a thrust yet",
     "Noise: thrusts rarely mark lows"
    ],
    "answer": "A good sign, but thrusts can fail",
-   "why": "A good sign, but thrusts can fail. Investopedia calls a move of 100 points or more from negative to positive a breadth thrust, and this jump qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price.",
+   "why": "A good sign, but thrusts can fail. The jump runs from -70 to +60. Investopedia calls a large move from negative to positive, typically 100 points or more, a breadth thrust, so this qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price.",
    "lesson_line": "A thrust raises the odds. It doesn't remove the risk.",
    "facts": [
     "f42",
@@ -2827,8 +2824,8 @@
    ],
    "wrong": {
     "Right: the low is in, so go all in": "Not every thrust leads to an extended advance. Let price confirm before you put the whole account to work.",
-    "Bearish: it rose too much too fast": "A thrust is broad buying after a slide. ChartSchool ties most important lows to one, a bullish clue.",
-    "Noise: thrusts rarely mark lows": "The reverse. ChartSchool says most important lows are marked by a sharp surge in breadth."
+    "Noise: thrusts rarely mark lows": "The reverse. ChartSchool says most important lows are marked by a sharp surge in breadth.",
+    "A good sign, but not a thrust yet": "It is one. Investopedia's bar is a move from negative to positive, typically 100 points or more, and -70 to +60 clears it."
    },
    "simple": "It is a good sign but not a sure one, because most big lows have a thrust, yet some thrusts fail.",
    "deeper": {
@@ -3267,7 +3264,7 @@
    "rung": 7,
    "format": "scenario",
    "term": "Distribution day",
-   "story": "The Nasdaq is in a healthy uptrend. It slips 0.3% today on volume a bit higher than yesterday. It's the first distribution day in weeks.",
+   "story": "The Nasdaq is in a healthy uptrend. Today it slips 0.3% on volume a bit higher than yesterday. There hasn't been a day like it in weeks.",
    "q": "What do you do?",
    "choices": [
     "Log it; one day means little",
@@ -3707,13 +3704,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (McClellan f99 + ChartSchool f47/f11). But the why and wrong notes gave other questions' keys: 'Net advances is advancers minus decliners' answers q06 outright, and 'Up volume is the shares traded in rising stocks' answers q45. Rewritten so each note says why the choice is wrong without defining the other term."
+   "notes": "Key right (f99, f47, f11). The why ('A new high needs a one-year extreme') and the New highs note ('a one-year test') give q23's key (a stock at its highest price in a year); no walkthrough teaches it first. The simple and lesson line said 'many breadth gauges' start from the count, which the why never said. Reworded so the why carries the A/D-line link (f11) and no note defines new highs."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right, but q04 and q24 answered each other: q04's why and lesson line define a new low as the lowest price of the past year (q24's key), and 'Down volume is the shares traded in falling stocks' gives q46's blank. The word 'decliners' itself is only in f11, which was not cited. Trimmed to the decline test and added f11."
+   "fixed": false,
+   "notes": "Decliners from f99/f47, the word from f11. Bank items do not fit the one-day close test. No overlap with q24 or q46 left."
   },
   "q05": {
    "status": "pass",
@@ -3749,19 +3746,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper trap said each level 'reflects only its own start point'. f105 says it reflects what happened since the start point. The w1 checker already fixed the same 'only' overreach. Reworded. The 'new highs with the index / lagging' line needs f16/f17, so they are added to facts."
+   "notes": "False right (f15, f105). The why's 'or a failure to confirm them' hands q19 (blank = confirming) its word; no walkthrough teaches breadth 'confirming'. Reworded to new highs with the index or lagging (f16/f17), as the deeper already says; f23 dropped."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f21, f74, f107). 'Same only inside the S&P 500' is a silly choice: nobody thinks index membership changes the count. Replaced it with a real misreading: a bigger gain counts more. f21 (+1 per advance) and f11 (a count of stocks that rose) refute it. The split stays 2 same and 2 more, lengths 29-36."
+   "notes": "Key right (f21, f74, f107). But the why's last sentence and the lesson line ('That's why the A/D line can disagree with a cap-weighted index') state q65's key outright, the overlap that got q02 cut and q12 fixed. Trimmed to the one-vote rule; f73 dropped."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (ChartSchool f20, Investopedia f72, McClellan f109). One wrong note ('an index weighted by size versus a stock count') states q65's key; replaced with McClellan's 'not unusual' from f109. f107 no longer needed."
+   "notes": "Key right (f20, f72, f109). Two breaks: the why and the bullish-divergence note define a bullish divergence as the index at a lower low while breadth holds, which is q17's key (later, not in any walkthrough); and the key was the only choice repeating the story's 'Nasdaq'. Key reworded; the note and why no longer define the bullish shape; f19 dropped."
   },
   "q13": {
    "status": "pass",
@@ -3814,8 +3811,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f62, f98, f106, f63). The why moves from narrow breadth to McClellan's bearish divergence. That link needs f18 (narrowing participation shows up as a bearish divergence), which was not cited. Added it. The text is unchanged."
+   "fixed": false,
+   "notes": "False right (f62, f98 verified on the Schwab page 2026-11-12, f106, f63, f18). No rulebook conflict (D46 shorts are in a Red market, not on narrowness)."
   },
   "q22": {
    "status": "pass",
@@ -3832,14 +3829,14 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (Nasdaq Tier 1 f09, ChartSchool f32; f146 re-read on the page 2026-11-12). But the why's 'A decliner only closed down on the day' gives q04's key and 'Down volume is the shares traded in falling stocks' gives q46's blank. The lesson line ('takes an extended slide', f146) also hands q27 its reason early. Rewritten; AAII f140 and f146 dropped as unused."
+   "fixed": false,
+   "notes": "New lows from f32/f09. The new-highs line only repeats q23, which comes earlier. Bank distractors are daily measures."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f31, f140). The why's last sentence ('it lags: the market turns before new highs and lows shift') is q27's whole key ('Normal: new highs lag at turns'). q27 comes later in the lesson, so this gives its answer away. Dropped that sentence and f141/f142. The resolver applied the same fix to q35/q41."
+   "fixed": false,
+   "notes": "Key from f31/f140, positive reading from f143. The advancers-minus-decliners note points back to q06 (earlier, and taught in w1)."
   },
   "q26": {
    "status": "pass",
@@ -3892,8 +3889,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (ChartSchool f30, Schwab f95/f159). Tell: the key was the only patient choice against three act-now or absolute ones (lone hedge). Replaced 'Extreme weakness; add to shorts now' with a second wait choice that waits for the wrong thing; this also removes any brush with rulebook D46 (shorts in a Red market are ours)."
+   "fixed": false,
+   "notes": "Schwab page read 2026-11-12: the under-10% line is about S&P stocks above their near-term (50-day) average, 4% on April 9 2025, so the story's 50-day reading fits; f95/f159 verbatim. Key from ChartSchool f30. Two 'wait' choices, no lone hedge."
   },
   "q35": {
    "status": "pass",
@@ -3953,7 +3950,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (ChartSchool f42, CMT f139, Investopedia f79/f63). The why said -70 to +60 fits ChartSchool's thrust; ChartSchool's -50/+50 bar is in no cited quote (only in conflicts). Now rests on Investopedia's 100-point rule (f76), added to facts."
+   "notes": "Key right (f42, f139, f79, f76). Break: lone hedge tell, the key was the only measured choice against three flat claims. Replaced 'Bearish: it rose too much too fast' with a second 'good sign, but' choice that misreads the threshold (130-point move, calc 60 - (-70), meets f76). The why also dropped f76's 'typically'; restored."
   },
   "q45": {
    "status": "pass",
@@ -3994,8 +3991,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False right (ChartSchool f49/f55; Fidelity f91 agrees up-volume days read under 1.0). The lesson line said TRIN 'runs inverse' flatly, while the why and source say it appears to, as a tendency; q52 is the exception case. Hedged to match."
+   "fixed": false,
+   "notes": "False right (f49, f55). A hedged statement keyed False, so no hedge tell; the why keeps it a tendency, leaving q52's exception intact."
   },
   "q52": {
    "status": "pass",
@@ -4012,14 +4009,14 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and notes are right (f112, f135, f113). The why's last sentence, 'It is IBD's rule of thumb, not a law of the market', is a characterization no cited fact supports. Dropped it."
+   "fixed": false,
+   "notes": "Key from f135/f112, f113. 'Prior session' overlaps q56, but w3 step 1 already teaches it, so no new giveaway."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 0.2 right (IBD f112/f116, Bulkowski f136). Tell: 0.2 was the only decimal in a bank of whole numbers (1, 2, 5). New bank mixes decimals and uses IBD's follow-through 1.25 (f123) as a real confusion."
+   "fixed": false,
+   "notes": "0.2 from f112/f116, Bulkowski f136. Bank mixes decimals; no tell."
   },
   "q56": {
    "status": "pass",
@@ -4031,13 +4028,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (IBD f117/f114/f118). 'Stop watching volume for now' was a silly choice, and its note ('Five or six in a few weeks is the warning') gave q58's key. Replaced with a real misconception, that a 0.3% dip is too small to count, answered by IBD's 0.2% rule (f112, already cited)."
+   "notes": "Key right (f117, f114, f112). Break: the story itself labels the day 'the first distribution day in weeks', which rules out the 'a 0.3% dip doesn't count' choice before any knowledge is used. Story reworded so the student must apply the 0.2% rule. The cluster line is already taught in w3, so it stays."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right as IBD's read (f118/f119; f154 and f155 re-read on the Yahoo copy 2026-11-12). Only defect: one deeper sentence ran 23 words. Split."
+   "fixed": false,
+   "notes": "Key is IBD's read (f118, f119, f137, f154, f155). The cluster rule is taught in w3; the question frames IBD's method, so no rulebook clash."
   },
   "q59": {
    "status": "pass",
@@ -4084,8 +4081,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The h1-h3 quotes are verbatim in sizing_rule.md section 9 (F68, A5, B18). The key 'Start with a few; add more as they work' had two problems. It did not say more WHAT, so it overlapped the 'Add to your first trade' choice: a second defensible reading. It also echoed the stem's 'start' and tied for longest. Rewrote it as 'A few positions; more as they work' (34 chars against 35-39). The deeper line 'The first few positions test the market' has no support in the rulebook. Rewrote it from h1/h2."
+   "fixed": false,
+   "notes": "h1-h3 verbatim in sizing_rule.md section 9 (F68, A5, B18). The add-to-trade choice is ruled out by h2; the key is shortest and does not echo the stem."
   }
  }
 }

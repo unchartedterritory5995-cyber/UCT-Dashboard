@@ -1331,17 +1331,13 @@
     "You avoided a false breakdown"
    ],
    "answer": "You broke your exit rule",
-   "why": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Our rule: the stop is the exit, and it only moves up, never down or wider. Giving it one more day widens your exit. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. A plan can change over time, but with a replacement you devise, not mid-trade.",
+   "why": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. Holding one more day to dodge the loss is that kind of change.",
    "lesson_line": "The exit was decided when you were calm. Honor it when you're not.",
    "facts": [
     "f72",
-    "f05",
-    "f04",
-    "f07",
     "f11",
-    "f06",
-    "f06b",
-    "h5"
+    "f05",
+    "f04"
    ],
    "wrong": {
     "You adjusted your plan wisely": "A change made mid-trade, to dodge a loss, is a reaction, not a plan.",
@@ -1354,9 +1350,9 @@
    },
    "tier": "extended",
    "risk": {
-    "score": 2,
+    "score": 1,
     "reasons": [
-     "rests in part on the owner's rulebook (A4, new house fact h5)"
+     "house sentence removed: A4 had no house fact (h5 is B27 journaling)"
     ]
    },
    "batch": "wave8"
@@ -2507,13 +2503,13 @@
    "story": "Trader A wins 70% of her trades. Trader B wins 35% of his. That's all you know.",
    "q": "What else do you need to compare their results per trade?",
    "choices": [
-    "Their average win and average loss",
+    "Average win and average loss",
     "Nothing more, A wins more often",
     "How long each one holds a trade",
     "Their longest winning streak"
    ],
-   "answer": "Their average win and average loss",
-   "why": "Their average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab's expectancy is your average gain or loss per trade, and it needs both pieces. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it. Win rate alone ranks nothing.",
+   "answer": "Average win and average loss",
+   "why": "Average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab calls expectancy your average gain or loss per trade, and win rate alone can't give you that. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it.",
    "lesson_line": "Win rate without the size of wins and losses is half a number.",
    "facts": [
     "f41",
@@ -2525,7 +2521,7 @@
    ],
    "wrong": {
     "How long each one holds a trade": "Holding time isn't part of the result per trade. StockCharts pairs how often a strategy wins with its average win against its average loss.",
-    "Their longest winning streak": "Streaks show how wins and losses bunch up and how much pain to expect. They don't size the wins and losses.",
+    "Their longest winning streak": "A streak shows how wins bunch up, not how big each win or loss is.",
     "Nothing more, A wins more often": "If her losses are much bigger than her wins, she can still lose money. Win rate alone ranks nothing."
    },
    "simple": "You need their average win and average loss, because win rate alone says nothing about size.",
@@ -3081,21 +3077,20 @@
     "It needs a tighter stop to be safe"
    ],
    "answer": "Its rules are bent to fit old data",
-   "why": "Its rules are bent to fit old data. Steenbarger warns that the future may not mirror the past, and care must be taken not to curve-fit historical tests. Tuning settings until a backtest shows almost no losing years is that curve fit. More tweaks or a tighter stop only fit it closer. StockCharts: past performance does not guarantee future performance.",
+   "why": "Its rules are bent to fit old data. Each tweak you kept made the past look better, so almost no losing years is what you tuned for. Steenbarger warns that care must be taken not to curve-fit historical tests. StockCharts reminds us past results don't guarantee future ones.",
    "lesson_line": "Tune a test until it's perfect and you've tuned it to old data.",
    "facts": [
     "f73",
-    "f47",
-    "f46"
+    "f47"
    ],
    "wrong": {
-    "It covers too many years of data": "More years means more trades, a bigger sample. StockCharts calls 11 signals not a very big sample size.",
+    "It covers too many years of data": "More years give the test more trades to judge. The trouble is the tuning, not the amount of data.",
     "It wasn't tested on enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests.",
     "It needs a tighter stop to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data."
    },
    "simple": "The problem is that the rules fit old data, not the future, because you tuned them to that data.",
    "deeper": {
-    "trap": "The better a backtest looks after many tweaks, the less it may mean. Each tweak bends the rules toward what the chart already did. A test with few signals is weaker still: StockCharts calls a test with just 11 signals not a very big sample size."
+    "trap": "The better a backtest looks after many tweaks, the less it may mean. Each tweak bends the rules toward what the chart already did."
    },
    "tier": "expert",
    "risk": {
@@ -3178,29 +3173,28 @@
     "Your stock picks get worse live"
    ],
    "answer": "Real fills and real losses differ",
-   "why": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book. So fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. Schwab's advice: paper trade first and watch how you deal with losses before trading real money.",
-   "lesson_line": "Go live knowing your fills and your feelings will change. Track both in your journal.",
+   "why": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book, so fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. IBKR also calls paper trading financially risk-free. Live, every loss costs real money. In a Schwab article, Peterson says to watch how you handle losses before trading for real.",
+   "lesson_line": "Paper is risk-free practice. Live, the fills and the losses are real.",
    "facts": [
     "f98b",
     "f103",
-    "f26",
     "f97",
-    "h6"
+    "f26"
    ],
    "wrong": {
     "The same results as on paper": "IBKR itself says paper trading isn't exactly the same as live trading.",
     "Live fills usually beat paper fills": "Nothing says live fills are better. IBKR's paper fills are simulated from the top of the book, with no deep book access.",
-    "Your stock picks get worse live": "Going live doesn't change which stocks pass your rules. What changes is the fill you get and how a real loss feels."
+    "Your stock picks get worse live": "Going live doesn't change which stocks pass your rules. What changes is the fill you get, and a loss now costs real money."
    },
-   "simple": "Live fills can be worse than paper ones, and real losses test you in a way paper losses don't.",
+   "simple": "Live fills can be worse than paper ones, and real losses cost real money, unlike paper ones.",
    "deeper": {
     "example": "Our rule for new traders: start small on risk per trade until enough journaled trades followed the rules, then size up."
    },
    "tier": "extended",
    "risk": {
-    "score": 2,
+    "score": 1,
     "reasons": [
-     "deeper teaches the owner's rulebook (C37, new house fact h6)"
+     "deeper removed: C37 had no house fact (h6 is E59)"
     ]
    },
    "batch": "wave8"
@@ -3490,7 +3484,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (39.60 is a close under 40; held anyway). Why teaches house fact h5 (A4) as 'our rule' but the question lacks house: true, which the contract requires and the resolver left to the integrator. Owner flag on D41 stands."
+   "notes": "Key right (a $39.60 close is a close under $40). But the why's house sentence 'Our rule: the stop is the exit, and it only moves up, never down or wider' (A4) has no fact: the cited h5 is B27 journaling ('Journal every trade the same day...'), and the risk note's 'new house fact h5' for A4 collides with that id. 'Giving it one more day widens your exit' and 'not mid-trade' also go past the quotes (f06/f06b say plans can change over time with a replacement, nothing about mid-trade). Fix drops the ungrounded house sentence and the unused facts; key rests on Schwab f11, Fidelity f05/f04, Steenbar"
   },
   "q07": {
    "status": "pass",
@@ -3615,8 +3609,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answered by q26: q26's wrong note says 'A dollar target for the month: That's an outcome goal', and q27's key was 'Make $2,000 this month', the same example. Rebuilt on a different outcome goal that f109 grounds directly (another trader can simply perform better on the day of a competition). Same format, choices 23-26 chars, key not longest."
+   "fixed": false,
+   "notes": "Key derived before reading: the contest win is a result partly set by others (f65 Steenbarger, f109/f110 McCarthy and Gupta: two publishers). Never moving a stop lower is fully in your control, consistent with rulebook A4. No tell (key 23 chars, not longest). Wrong notes grounded. Does not hand another question its key."
   },
   "q28": {
    "status": "pass",
@@ -3639,8 +3633,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Resulting right (f84/f90, two publishers). Wrong notes for Curve fitting and Revenge trading stated definitions no cited fact supports; Curve fitting re-grounded on f73 (added), Revenge note rests on the story only."
+   "fixed": false,
+   "notes": "Resulting is the only fit: a plan-breaking oversized bet judged good because it won. Duke via Nautilus (f84) and the Inquirer (f90, f88): two publishers. Outcome bias (q33/q68 synonym) is not a choice, so no second right answer. Key is the shortest choice. Story consistent with rulebook D45."
   },
   "q32": {
    "status": "pass",
@@ -3663,8 +3657,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f46, f95). Why ended on an unsupported flourish ('a short record guarantees even less') and 'can be luck' had no cited fact; flourish dropped, f86 (outcomes involve a lot of luck) added."
+   "fixed": false,
+   "notes": "Too-small sample is the only defensible answer; Hill/StockCharts f46 (11 signals not a big sample) and Van Tharp f95 (10 isn't enough) agree. Key ties longest at 32 chars with another choice, not a lone tell. Note: q59's old reveal quoted the same 11-signal line, which handed q35 its key; fixed in q59."
   },
   "q36": {
    "status": "pass",
@@ -3700,7 +3694,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f41 + f15). Choice 'A wins twice as often' states a computed ratio (70/35) with no calc; reworded to 'more often'."
+   "notes": "Key right (f41 StockCharts; f15 Schwab expectancy, f30 Fidelity payoff ratio). Broken by a tell: the key 'Their average win and average loss' (34) was the lone longest choice (others 31, 31, 28). Fix shortens it to 28 chars (ties the streak choice). Also 'it needs both pieces' was not in f15, and the streak note claimed streaks show 'how much pain to expect', which f44 says of losing streaks, not the winning streak in the choice; both reworded."
   },
   "q42": {
    "status": "pass",
@@ -3789,14 +3783,14 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New lesson_line nearly repeats q55's ('A backtest shows what the rules would have done. Nobody traded it.'). Replaced with a line grounded in f99 (results not actually achieved by any portfolio)."
+   "fixed": false,
+   "notes": "Opened the rule text (17 CFR 275.206(4)-1(e)(8), via the law.cornell.edu mirror; eCFR blocks the client): 'Hypothetical performance includes, but is not limited to ... (B) Performance that is backtested ...'. f99 and f100 quotes match verbatim. Tier 1. Bank distractors (actual, audited, realized, verified) are wrong under the rule. Sentence names the SEC adviser rule, so not market-ambiguous; as_of covers rule-change risk."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New deeper ends on the CFTC hindsight line, which is q58's fill answer word for word (two questions answering each other). Re-grounded on f103 instead; f102 swapped for f103."
+   "fixed": false,
+   "notes": "False is the only answer: f73 Steenbarger, f104 CFTC (Tier 1), f47 StockCharts. Deeper uses f103 correctly. Overlaps in theme with q52/q61 but tests a different object (a backtest). After the q59 fix its why is no longer near-copied by q59."
   },
   "q58": {
    "status": "pass",
@@ -3808,7 +3802,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem 'What's the risk?' had only one choice that names a risk; the two others ('makes it safer', 'lower your risk') say the same thing and cancel out, and 'The test is now too cautious' is near silly. So the key is the only one left. Re-asked as the main problem, with three distinct, plausible misconceptions (more years, more settings, a tighter stop), each with a grounded note (f46, f73). Key 34 chars, not longest (35). Deeper unchanged."
+   "notes": "Key right (curve fitting). Two breaks: (1) the why was a near copy of q57's why (same Steenbarger 'future may not mirror the past ... curve-fit' sentence followed by the same StockCharts 'past performance' line); (2) the 'too many years' wrong note and the deeper both quoted Hill's '11 signals, not a very big sample size', which is q35's key on a story with exactly 11 trades, so q59's reveal answered q35. Fix rewrites the why around the tuning mechanism and drops f46 and both 11-signal lines. Did not add f102 (CFTC 'benefit of hindsight') because it would hand q58 its fill word."
   },
   "q60": {
    "status": "pass",
@@ -3826,7 +3820,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f98b, f103, f26). Deeper teaches house h6 (C37) but house: true is missing. Story praised limit-order fills while rulebook E57 says we market order every entry; story and why now say 'order' / 'price you wanted'."
+   "notes": "Fills half of the key is grounded (f98b, f103, f97). Breaks: (1) the 'real losses differ' half had no fact; now grounded on IBKR f97 'financially risk-free' (paper losses cost nothing, real ones do). (2) The deeper's house line 'start small on risk per trade until enough journaled trades followed the rules' is rulebook C37, but the cited h6 is E59 (monthly review numbers), so it is ungrounded; deeper removed (using h5 instead would hand q69 its key). (3) lesson_line 'your feelings will change' and the wrong note 'how a real loss feels' were in no quote. (4) f26 is Peterson's recommendation in "
   },
   "q63": {
    "status": "cut",
@@ -3867,8 +3861,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right from h5 (B27). Two fixes: the lesson_line dropped B27's 'ideally' and taught it as absolute; and the wrong note 'The monthly review reads the journal' had no cited fact, so Schwab f14 (record trades in a journal, review at month end) is added."
+   "fixed": false,
+   "notes": "House question; key matches rulebook B27 verbatim via h5 ('Journal every trade the same day and review the week every weekend, ideally'); E59 via h6 for the monthly line; f63 Steenbarger for the notes content. It asks the rulebook, so Schwab's month-end review (f14) is not a second right answer. No length tell (24/27/24/28). Hands q14, q15 and q70 nothing the walkthroughs don't already teach."
   },
   "q70": {
    "status": "pass",

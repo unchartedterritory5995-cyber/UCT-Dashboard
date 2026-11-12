@@ -1945,8 +1945,8 @@
     "Results under foreign accounting rules"
    ],
    "answer": "Results minus items management picks",
-   "why": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time, so the measures differ from company to company. It must also show the GAAP number and reconcile the two. It is not the audited figure, not an analyst estimate, and not a foreign rulebook.",
-   "lesson_line": "Adjusted means the company chose what to leave out. Always find the GAAP number next to it.",
+   "why": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time. It is not the audited figure, not an analyst estimate, and not a foreign rulebook.",
+   "lesson_line": "Adjusted means the company chose what to leave out. The choice is theirs, not the rulebook's.",
    "facts": [
     "f67",
     "f68",
@@ -1955,9 +1955,6 @@
     "f92",
     "f34",
     "f93",
-    "f69",
-    "f70",
-    "f78",
     "f95"
    ],
    "wrong": {
@@ -1967,7 +1964,7 @@
    },
    "simple": "An adjusted number starts from GAAP results but leaves out items the company picks, often ones it calls one-time.",
    "deeper": {
-    "counter": "Adjusted is not the same as wrong. It is the company's own choice of what counts as one-time, and Schwab notes that choice can cause debate. Always read the GAAP line and the reconciliation beside it."
+    "counter": "Adjusted is not the same as wrong. It is the company's own choice of what counts as one-time, and Schwab notes that choice can cause debate."
    },
    "tier": "core",
    "risk": {
@@ -3375,7 +3372,7 @@
     "The 5 million share float",
     "The 500 million share float",
     "No difference at the same price",
-    "The one with more volume today"
+    "The one with the higher price"
    ],
    "answer": "The 5 million share float",
    "why": "The 5 million share float. Nasdaq's glossary says a stock's volatility is inversely correlated to its float. The smaller the float, the bigger the swings tend to be. Investopedia adds that low-float stocks tend to have wider spreads. They can be hard to get in and out of, since a buyer or seller is harder to find. The price alone tells you nothing about supply.",
@@ -3388,7 +3385,7 @@
    "wrong": {
     "The 500 million share float": "More shares available usually means calmer trading and an easier time finding a buyer or seller.",
     "No difference at the same price": "Price doesn't tell you the supply. The float does.",
-    "The one with more volume today": "The question compares the floats, not today's volume. Fewer shares to trade usually means bigger swings."
+    "The one with the higher price": "Both trade near $20, so price can't tell them apart. The float size is what differs."
    },
    "simple": "The 5 million share float, because fewer shares to trade usually means bigger price swings.",
    "deeper": {
@@ -3871,8 +3868,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Convergence tell: two choices carry 'Gross' and two carry '% of revenue'; the key is the only one in both. Also the operating-margin distractor plus its note ('That's operating margin') hands q12 (rung 5) its key, so q09 and q12 test the same margin pair the same way. Fix: key and net-margin distractor share the same frame and differ only in which costs come out (f61 vs f62/f9); 'Gross revenue' keeps the real 'gross means before costs' lure (f3); no operating margin. Key 35 chars, not the longest (37)."
+   "fixed": false,
+   "notes": "Key right before looking (f61 Nasdaq, f120 Fidelity, f138 Investopedia; 73.4% is f75). Net-margin, gross-revenue and YoY distractors are real confusions, notes grounded (f62, f3, f134). Key 35 chars, not longest (37). No tell found."
   },
   "q10": {
    "status": "pass",
@@ -3883,8 +3880,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f17). 'Total expenses' note claimed the total 'adds in interest'; no cited fact says that, and many statements' total costs and expenses exclude interest. Note narrowed to overhead (f19, f7)."
+   "fixed": false,
+   "notes": "Key right (f17 SEC building blocks, f6). Distractor notes grounded (f19/f7 overhead, f20 interest). Key and 'Operating expenses' both 18 chars. Why mentions gross profit (q08's key) only as reveal reinforcement; q08 plays first."
   },
   "q12": {
    "status": "pass",
@@ -3907,14 +3904,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f71, f91, f92). why and lesson_line say adjusted numbers are 'measured against' GAAP; only f96 (publish GAAP too) was cited. Reconciliation quotes f69, f70 added so the claim is cited."
+   "fixed": false,
+   "notes": "Key right (f71 Reg G, f91/f92 Schwab, f93 IFRS). Distractors map to non-GAAP, consensus, guidance with grounded notes. Its distractor 'The analysts' average estimate' is q20's key verbatim, but as a labelled wrong answer in a vocab unit that is cross-teaching, not a give-away."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f68, f90); not the longest. simple said the adjustment 'leaves out or adds items', but no cited quote and not the why mention adding; simple may not claim beyond the proper answer. 'or adds' dropped."
+   "notes": "Key right (f68, f90, f95). But the why's sentence 'It must also show the GAAP number and reconcile the two' and the deeper's 'read the GAAP line and the reconciliation beside it' state q17's key (tf True, the very next question) nearly verbatim. Trimmed those, dropped the now-unused f69, f70, f78 (they stay on q17/q19). Everything left is grounded in f67, f68, f90, f95, f44, f92, f34, f93."
   },
   "q17": {
    "status": "pass",
@@ -3925,8 +3922,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Silly distractor: 'The two numbers cover different quarters' is refuted by the story's own first line ('fourth quarter of 2025' for both), so the item is really a 3-way choice. Swapped for a real confusion this unit tests in q16 (adjusted number taken for the analysts' estimate), refuted by f146 (8 cents expected) and f79. Key reworded so it is not the longest choice (36 vs 37 and 38). Why and deeper otherwise kept."
+   "fixed": false,
+   "notes": "Key right (f79 Intel 8-K: GAAP -$0.12, non-GAAP $0.15; f68 non-GAAP excludes amounts). Distractors: adjusted taken as real profit, as the estimate (refuted by f146 8 cents), as audited (f44/f92). Key not longest. Simple stays within the why."
   },
   "q19": {
    "status": "cut",
@@ -3937,8 +3934,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f34, f65). The whisper distractor leans on 'unofficial', which only f126 (Investopedia) says; f36 gives no 'unofficial'. f126 added to facts."
+   "fixed": false,
+   "notes": "Key right (f34 FINRA, f65 Nasdaq). Distractors are guidance (f63), whisper (f126 'unofficial'), past result; notes grounded. Lengths balanced."
   },
   "q21": {
    "status": "pass",
@@ -3985,8 +3982,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two thin distractors: 'It missed the consensus estimate' and 'The report was exactly in line' fall to reading $1.05 against $1.00, so the item was really key vs 'None'. The stem 'What's the risk now?' also did not fit those two choices. Re-asked as how to read the report, with misconceptions tied to the whisper: calling it a miss against the whisper (f35, f126), calling it in line because it sits between the two (f35), and assuming a clean beat lifts the stock (f38, f127). Key is the shortest choice. Why, simple and deeper kept."
+   "fixed": false,
+   "notes": "Key right: $1.05 > $1.00 consensus is a beat (f35); traders' $1.10 is the whisper (f126) and a beat under it can sell off (f127, f37). Story never says 'whisper', so the key does not repeat it. Key shortest. Each distractor is a real misreading with a grounded note."
   },
   "q29": {
    "status": "pass",
@@ -4003,8 +4000,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper says 'Schwab used this same Intel report as its example', but f86's quote names no company and no date; only the claim does. Schwab's page refused the fetch today (error page), so it cannot be re-read. Reworded so the deeper says only what the quote says. Story, key and why kept: beat on both lines (f146), forecast below estimates (f147), drop (f145), causal link backed by CNBC f144 and Schwab f86."
+   "fixed": false,
+   "notes": "Key right: beat on EPS and revenue (f146), forecast below estimates (f147), drop (f145), causal link from CNBC f144 and Schwab f86 ('cratered by double digits due to disappointing guidance'). The story's 'forecast' must be mapped to 'guidance', which is the vocab skill. Distractors are refuted by the story's own numbers, so it is easy for rung 8, but it is not ambiguous."
   },
   "q32": {
    "status": "pass",
@@ -4045,26 +4042,26 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f134). Two unsupported bits: the QoQ note says 'also called sequential' (no fact in the lesson uses 'sequential'), and the lesson_line says YoY 'takes the season out' where cited f135 says it helps mitigate. Both reworded to the quotes."
+   "fixed": false,
+   "notes": "Key right (f134). Distractors QoQ (f136), TTM (f101), surprise (f35). Note: its why and lesson_line ('takes much of the season out') teach the idea q41 later applies; reveal-level reinforcement, same as the q01/q02 precedent, not a stem give-away."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two questions answer each other. q40 (rung 5, plays BEFORE q39 at rung 7) prints 'up 62%' in its why and its Y/Y wrong note, and q39's key is 62. The resolver's note that q39 plays first by rung is backwards (7 > 5). Re-asked on the operating income row of the same table (f74 with f73's column order). (36010-21869)/21869*100 = 64.66, rounds to 65. That number is printed nowhere in the lesson."
+   "fixed": false,
+   "notes": "Recomputed: (36010-21869)/21869 = 64.66%, rounds to 65. Re-read the NVIDIA 8-K today: the operating income row prints '$36,010 $28,440 $21,869 27 % 65 %' under 'Q3 FY26 Q2 FY26 Q3 FY25 Q/Q Y/Y', so the key matches the company's own Y/Y column. Question 136 chars."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f72, f73, f136). lesson_line says QoQ 'is sequential': no cited fact uses that word. Reworded to f136's meaning."
+   "fixed": false,
+   "notes": "Re-read the 8-K: revenue row prints '22 %' in the Q/Q column and '62 %' Y/Y, header Q3 FY26 / Q2 FY26 / Q3 FY25. Key right (f72, f73, f136). Distractor notes grounded."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right by the story plus f135/f137, but still one publisher (Investopedia); a search of Tier 1 and broker pages found no definitional second source, so the owner flag stands. Fixed: 'Neither, revenue says nothing' was a lone absolute, near-silly, and its note ('Revenue growth matters') had no cited fact; replaced by a real confusion of surprise with trend, grounded on f35. The why's matching sentence and the lesson_line's 'sequential' (no fact) changed with it."
+   "fixed": false,
+   "notes": "Key follows from the story (the holiday quarter is always biggest, so the Q4-to-Q1 drop is the calendar) plus f134/f135/f137 and FINRA f28 (Tier 1: retail quarters carry holiday seasonal sales). Support for 'YoY tells more' is still one Tier 2 publisher (Investopedia); my search of Census/BLS/broker pages found no second definitional quote either, so the recorded owner flag (risk 3) stands. No second defensible answer."
   },
   "q42": {
    "status": "pass",
@@ -4136,7 +4133,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'The one more heavily shorted' points at data the story never gives, so it can be ruled out unread. Its note also argues past the claim: f129 says shorting does not change the float, which does not show a heavily shorted stock swings less. Cut to three choices (the format allows 3). f129 dropped with it. Why and deeper kept (f58, f131, f132)."
+   "notes": "Key right (f58 Nasdaq: volatility inversely correlated to float; f131/f132 Investopedia). But the fourth choice 'The one with more volume today' was re-added after the last check: it points at data the story never gives (the defect the prior checker cut for 'more heavily shorted'), its note has no cited fact, and a stock trading heavy volume today often is the one moving more, so it is near a second defensible answer. Back to three choices (the format allows 3)."
   },
   "q54": {
    "status": "pass",
@@ -4147,8 +4144,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f104). The why credits Schwab with 'the expected move', but f104 is about Schwab's MMM value, the attribution the q54 resolver corrected. Reworded to name Schwab's own figure."
+   "fixed": false,
+   "notes": "False is right (f104 Schwab MMM: no direction; f114 Cboe 'in either direction'; f106). Why names Schwab's own figure. Simple and lesson line stay within the why."
   },
   "q56": {
    "status": "pass",
@@ -4160,7 +4157,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: the $10 priced move (f105) is bigger than the story's $100-to-$95 stop distance; a stop is only a trigger (f46, f111); rulebook A7 also says a gap can jump the stop. Hold at 5R matches h01. Fixed a tell: 'A fill at exactly $95, whatever happens' was a lone double absolute, plainly wrong by tone; now states the real misconception. Owner flag B20 vs D41 stands."
+   "notes": "Key right: the ~$10 priced move (f105) exceeds the $5 stop distance in the story; a stop is a trigger that fills at market after a gap (f46, f111; rulebook A7 'a gap can jump the stop'); hold at 5R matches B22 (h01). Content passes, but the why rests on our rule ('Up 5R, our rule lets you hold through the report', cites h01) and the item lacks 'house': true, which README section 5 requires on a question that asks a house rule as ours (q62, q63, q64 carry it). Fix adds the flag only. Owner flag B20 vs D41 still stands."
   },
   "q58": {
    "status": "pass",
@@ -4187,10 +4184,10 @@
    "notes": "False per f34/f65 (consensus = analysts' average) with f63 (guidance tries to direct it). Re-aimed so it no longer repeats q20/q21's average fact."
   },
   "q64": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key matches B22 (sizing_rule.md section 9: hold through a report only if up 5R; 3R is short of it). The 'Add shares' note matches B22's no new buys in the 3 days before. The gap and stop notes are backed by f46/f110/f111, h1 is verbatim from line 149, and there are no tells (key shortest, two Hold choices). One defect: 'term': 'AMC'. study_store.game_pool('match') pairs any vocab item whose subject differs from its answer, so this would put the tile 'AMC' next to 'Sell before the news hits' in Word Match. AMC is not what this question asks about. Drop the term. Minor, not fixed: the story assu"
+   "fixed": false,
+   "notes": "Duplicate of q63: same fact asked the same way (hold through a report only at 5R; below it, sell before an AMC report tonight), same key ('Sell before the news hits' vs 'Sell before the report comes out') and the same breakeven-stop distractor ('Hold with a breakeven stop' vs 'Hold with the stop at breakeven'). README: no two questions test the same fact the same way, and q57's why ('Up 5R, our rule lets you hold') hands it its threshold too. A distinct BMO-tomorrow rewrite is ambiguous (premarket selling before a pre-open release), so it cannot be made a separate, clean item. Also the prior c"
   },
   "q62": {
    "status": "pass",

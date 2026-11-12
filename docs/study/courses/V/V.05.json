@@ -1252,7 +1252,7 @@
    "rung": 3,
    "format": "numeric",
    "house": true,
-   "q": "Kicker day. The red day before it topped at $11.04. What is our entry price over that high?",
+   "q": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?",
    "answer": 11.05,
    "calc": {
     "fn": "arith",
@@ -1262,13 +1262,13 @@
     }
    },
    "prefix": "$",
-   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. In the owner's JBI example the red day's high was 11.04 and the entry 11.05, a cent over.",
+   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example.",
    "lesson_line": "Kicker entry: over the red day's high, at market as it trades through.",
    "facts": [
     "h05"
    ],
    "term": "Kicker",
-   "simple": "$11.05, a cent over the red day's $11.04 high, the price in the owner's own example.",
+   "simple": "$11.05, a cent over the red day's $11.04 high, the level our Kicker entry breaks.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1824,7 +1824,7 @@
    "choices": [
     "A lower wick of 40% of the range",
     "The open is the low of the day",
-    "A gap up over the prior high",
+    "A gap up over the prior day's high",
     "Volume at twice its average"
    ],
    "answer": "A lower wick of 40% of the range",
@@ -1836,9 +1836,9 @@
     "g03"
    ],
    "wrong": {
-    "A gap up over the prior high": "A Go Signal opens weak, under the prior close. No gap up.",
     "Volume at twice its average": "Twice-average volume belongs to the recent-move check, the 4% gap. It isn't the buyers check.",
-    "The open is the low of the day": "Our sign wants a flush first: a long lower wick, or a low under the open. Here it never traded under the open."
+    "The open is the low of the day": "Our sign wants a flush first: a long lower wick, or a low under the open. Here it never traded under the open.",
+    "A gap up over the prior day's high": "A Go Signal opens weak, under the prior close. No gap up."
    },
    "term": "Go Signal",
    "simple": "A lower wick that is 40% of the day's range, because it shows buyers pushed the price back up.",
@@ -2017,7 +2017,7 @@
    "format": "scenario",
    "term": "decision point",
    "house": true,
-   "story": "Weeks ago a stock closed at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20.",
+   "story": "Weeks ago a stock closed up at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20.",
    "q": "In our High Volume Edge plan, what is this spot?",
    "choices": [
     "The cleanest decision point",
@@ -2038,7 +2038,7 @@
    "wrong": {
     "A new Kicker setup forming": "A Kicker needs a red day and a gap up. This is a return to an old close.",
     "The first trim, a third at 3R": "A 3R trim sits above the entry by three times the risk. This is a return to the $64 entry level.",
-    "A failed setup: the stop is hit": "On a long, our stop is the edge bar's low, at or under its $64 close. At $64.20 it hasn't been hit."
+    "A failed setup: the stop is hit": "The bar closed up, so our stop is its low, at or under the $64 close. At $64.20 it hasn't been hit."
    },
    "simple": "It is the cleanest place to decide, because it is the first time price has come back to the big-volume close.",
    "tier": "extended",
@@ -2122,7 +2122,7 @@
     "$40.00, the prior close",
     "$39.10, today's open",
     "Today's closing price",
-    "Over yesterday's high"
+    "The break over yesterday's high"
    ],
    "answer": "$40.00, the prior close",
    "why": "$40.00, the prior close. The stock opened under yesterday's close, swept yesterday's low and climbed back. It traded $40.00 this session, red to green, so that is our entry. The session's low sets the stop.",
@@ -2136,7 +2136,7 @@
    "wrong": {
     "$39.10, today's open": "Buying the weak open is guessing. We wait for the turn back to the prior close.",
     "Today's closing price": "Our entry is the prior close when it trades that session. It traded $40.00 here, so the close isn't the entry.",
-    "Over yesterday's high": "That's the Kicker's entry, over the red day's high."
+    "The break over yesterday's high": "That's the Kicker's entry, over the red day's high."
    },
    "simple": "$40.00, because our Go Signal buys the prior close as soon as the stock trades back up to it.",
    "tier": "extended",
@@ -3033,8 +3033,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leak: the why stated the Oops stop ('the stop is the day's low'), which answers q10 (rung 2) and conflicts with F62's 'a few cents under'. The Resolver trimmed q09 for the same reason. Stop clause removed; key and choices unchanged."
+   "fixed": false,
+   "notes": "Key matches h09 (TRADE_PLANS Oops row). Distractors are the Kicker, Slingshot and Launchpad definitions; the Go Signal (same entry mechanic) is not offered. Answer is not the longest. No giveaway of another question's stem."
   },
   "q05": {
    "status": "pass",
@@ -3051,20 +3051,20 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leak: the why said 'The first return to that close is the cleanest decision point', which is q38's key word for word. Sentence and h18 removed; 'that close becomes a level' dropped from lesson_line and simple, since only h18 supported it. Key (h17, m09) is sound."
+   "fixed": false,
+   "notes": "Entry = the high-volume close (h17); the HVC alias is verified in skill_map.json (m09). HVC is not expanded, so the owner flag on the expansion is respected. 'high-volume' also appears in a distractor, so there is no word-echo tell."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leak: the rung-1 why spelled out the Go Signal entry ('the prior close when it trades that session, else the close') and stop. That answers q41 and q49's fallback in full. The sweep list also previewed q57. Trimmed to the definition (g01, g04, g05); key and choices unchanged."
+   "fixed": false,
+   "notes": "Matches the g01 quote word for word in the TRADE_PLANS Go Signal section. Distractors are the Kicker, Gap Support and Launchpad. Answer 36 chars vs the longest distractor at 37."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why and the Go Signal wrong note said the Go Signal takes back or buys the prior close. g08 makes that only the first entry, with the close as the fallback. Overreach, and it leaks q41. Reworded to g01's definition. Key unchanged."
+   "fixed": false,
+   "notes": "Matches h11. Note for the lesson owner: this stem (the Slingshot enters on the close) answers q23 (outside this check). q04's choices and q58's story carry the same definition, so the overlap belongs to q23, not q09."
   },
   "q10": {
    "status": "pass",
@@ -3112,7 +3112,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Leak: the why said 'The Kicker's other entry is the day-one 30-minute opening-range break', which is q22's key (rung 4). Removed. Key 11.05 matches h05's JBI quote (11.04 high, 11.05 entry)."
+   "notes": "The house rule (h05) is 'over the red day's high, at market as it trades through' and sets no offset. The stem asked 'what is our entry price over that high?' with no offset, so the one-cent step came only from the owner's JBI example, and $11.06 or $11.10 are defensible. The fix puts 'a cent over' in the question, so the key rests on the question plus the calc."
   },
   "q18": {
    "status": "pass",
@@ -3177,8 +3177,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The Resolver said no line now claims what counts as a gap, but two wrong notes still call today 'the gap day' and 'a gap up off a red day'. The $20.55 open sits inside the prior $20.60 high, so that is no gap on a chart in V.02 q50's sense. Wrong notes now argue from the story only."
+   "fixed": false,
+   "notes": "The story fits both the textbook shape (opens over the red day's open, t01) and our detector (opens over the prior close, trades through the prior high, h05). The Oops needs a reclaim from under the close, which did not happen. Gap Support needs an old gap. The Slingshot needs a close. Only one answer holds."
   },
   "q29": {
    "status": "pass",
@@ -3208,7 +3208,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Silly choice: 'The low holds above the open' cannot happen, because a day's low is never above its open (README rule 10: no obviously silly wrong choice). Replaced it with 'The open is the low of the day', a real misread of g06 (no flush under the open). Choices now 27-32 characters."
+   "notes": "The content is right (g06, the daily-chart checks in TRADE_PLANS). But the key (32 chars) is the longest choice, a tell the README forbids. The fix lengthens one distractor so the key is no longer the longest, and renames its feedback key to match."
   },
   "q34": {
    "status": "pass",
@@ -3219,8 +3219,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: h19 takes the lower one, so $49.60. The stem asks which level sets the stop, so it agrees with F62 (h62). Only defect: the simple line had 23 words, over the 22-word limit. Shortened it with the same meaning."
+   "fixed": false,
+   "notes": "h19: the lower of the gap top ($50.00) and the day's low ($49.60) is $49.60. The why notes F62's few cents. Distractors are real mix-ups: the higher candidate, the Kicker's 3.5% rule, a trail line. The stem does not give away q18's 'lower'."
   },
   "q36": {
    "status": "pass",
@@ -3238,13 +3238,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right from h18. Tell: 'A failed setup: sell it all now' was the only absolute, making it easy to rule out, and the key looked like the safe answer. Replaced it with 'A failed setup: the stop is hit', which h17 rules out: on a long, the stop is the edge bar's low, at or under its $64 close. Choices 26-31 characters."
+   "notes": "The key matches h18. But the story never says the edge bar closed up. On a down close our stop is the bar's high (h17; q24 teaches this), so the feedback for 'A failed setup: the stop is hit', which assumes a long stopped at the low, rests on a fact the story leaves out. The fix adds 'closed up' to the story, which grounds the long and the stop at the low."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: h20 post-gap high plus h02 (the story puts $90 at 3R). Tell: three choices begin 'Where...' and the lone imperative 'Sell the whole position there' breaks the pattern, so it is easy to rule out. Changed it to 'Where we sell everything' (24 characters); the note stays the same. Choices 24-30 characters."
+   "fixed": false,
+   "notes": "h20 (the post-gap high is the first place to take some off) and h02 (a third at 3R) agree, because the story sets $90 at 3R. 'No adding' fits rulebook A5. Only one answer holds."
   },
   "q40": {
    "status": "cut",
@@ -3256,7 +3256,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key $40.00 is right from g08 (red to green). The 'Today's closing price' note said 'No need to wait for the close', a timing claim no fact makes. The daily Go Signal also needs the close in the upper 40% (g07). Reworded it from g08 alone, without the 'else the close' fallback (so it does not give away q49's key)."
+   "notes": "The key matches g08 (the prior close when it trades that session, red to green). But the key (23 chars) is the longest choice, a length tell. The fix lengthens the Kicker distractor; its feedback says the same thing."
   },
   "q42": {
    "status": "pass",
@@ -3267,8 +3267,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The deeper example says the last third 'trails under the rising averages'. That comes from p01, which is not in facts (h03 says only 'trail the last third'). p01 added. Key is sound: calc (69-60)/(60-57) = 3, and the 4R distractor is (69-57)/3."
+   "fixed": false,
+   "notes": "Calc (69-60)/(60-57) = 3; 3R is the first trim (h02, B19). The 4R distractor ((69-57)/3) and 9R (dollars) are real mistakes. Consistent with the rulebook."
   },
   "q44": {
    "status": "pass",
@@ -3333,8 +3333,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: h17 (entry at the high-volume close, stop at the bar's low on an up close). Convergence tell: the key and 'Entry $72 close, stop 3.5% under' each shared parts with two others, which narrowed it to two. Rebuilt as a balanced 2x2 (close or next open, times bar low or 3.5%), so every part appears twice and no choice stands out. Choices 28-32 characters. The deeper trap is unchanged."
+   "fixed": false,
+   "notes": "h17: entry at the high-volume close, stop at the edge bar's low on an up close (the story says 'closes up'). The why notes F62's few cents. The answer is not the longest. It overlaps q07 on the entry half only, which the rung ladder intends."
   },
   "q55": {
    "status": "pass",
@@ -3375,8 +3375,8 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leak: the why and simple said 'the day before's low is the wider choice/pick', which is q37's key (rung 6). Removed. The True key holds under h12 and h26 (F62)."
+   "fixed": false,
+   "notes": "h12 (the trigger day's low is the standard stop, the day before's low the wider choice) plus F62/h26 (a few cents under). True is the default plan. q37 covers the wider choice and is not given away."
   },
   "q62": {
    "status": "pass",

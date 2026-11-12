@@ -2455,7 +2455,7 @@
    ],
    "answer": "The one sitting on a support level",
    "why": "The one sitting on a support level. A prior low where buyers stepped in is support from earlier price action. Both hammers came after a pullback, so both qualify by shape and trend. ChartSchool says to look for bullish reversals at support levels. Investopedia adds that a hammer is especially reliable at established support. Neither one is a buy yet.",
-   "lesson_line": "A hammer at a level is a clue. A hammer in the middle of nowhere is just a bar.",
+   "lesson_line": "A hammer at support carries more weight. Location changes the weight, not the name.",
    "facts": [
     "f77",
     "f121",
@@ -2740,7 +2740,7 @@
     "A whole range inside the prior range": "That's an inside day. A harami only needs the body inside the body.",
     "Two candle bodies of about equal size": "A harami needs a large first body and a small second one inside it."
    },
-   "simple": "A harami is a small body inside the big body before it, and the name means pregnant in Japanese.",
+   "simple": "A harami is a small body inside the big body before it. Its shadows don't have to fit inside.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -2880,7 +2880,7 @@
    "wrong": {
     "Body inside the prior day's body": "That's a harami. An inside day looks at the high and low, not just the body.",
     "Open and close about the same price": "That's a doji.",
-    "Smaller range than the prior day": "That's only a narrow range day. Fidelity calls it an inside bar when the range sits within the prior range."
+    "Smaller range than the prior day": "A smaller range alone isn't enough. The high and low must both sit within the prior day's range."
    },
    "simple": "It is an inside day when its high and low both stay within the prior day's range, which shows the stock tightening.",
    "tier": "core",
@@ -3423,7 +3423,7 @@
     "Filled: it closed below its open",
     "Hollow: it's up from yesterday",
     "Neither: it's a doji, a thin line",
-    "Hollow: the day's range is wide"
+    "Hollow: buyers gapped it up at the open"
    ],
    "answer": "Filled: it closed below its open",
    "why": "Filled. The fill compares today's $52.00 close with today's $53.00 open, not with yesterday's $50.00 close. A close below the open draws a filled candle, with the open at the top of the body. It is filled even though the stock is up on the day.",
@@ -3440,7 +3440,7 @@
    "wrong": {
     "Hollow: it's up from yesterday": "The day's change doesn't decide the fill. A close below the open makes it filled.",
     "Neither: it's a doji, a thin line": "A doji needs the open and close about equal. $53.00 down to $52.00 is a real body.",
-    "Hollow: the day's range is wide": "A candle's body color comes from the open and the close, not from the size of the range."
+    "Hollow: buyers gapped it up at the open": "The gap sets where it opened, not the fill. The $52.00 close below the $53.00 open makes it filled."
    },
    "simple": "It's filled, because the $52.00 close is below the $53.00 open, even though the stock is up on the day.",
    "tier": "extended",
@@ -3814,8 +3814,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f30, f109). The Dragonfly wrong note rests on f28, which the question did not cite. Add f28."
+   "fixed": false,
+   "notes": "Open=low=close $20.00, high $21.50: gravestone doji (f30 ChartSchool + f109 Investopedia). Each distractor ruled out by the prices. No break found."
   },
   "q13": {
    "status": "pass",
@@ -3838,8 +3838,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f55, f32). The marubozu note calls it 'the opposite of indecision' but no cited fact says what a marubozu means; added f38 (ChartSchool: buyers controlled the price action from the first trade to the last). Text unchanged."
+   "fixed": false,
+   "notes": "Key is f55 near verbatim, f32/f115 agree (two publishers). Choice lengths balanced. Defines what q17 applies, which is teaching, not a giveaway."
   },
   "q17": {
    "status": "pass",
@@ -3862,14 +3862,14 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f37, f118). The Hammer note (long lower shadow) and the Spinning top note (small body, long shadows) cite no fact. Add f42 and f32."
+   "fixed": false,
+   "notes": "Open=low, close=high: white marubozu (f37 + f118). Distractors ruled out by the story."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f39, f119). Gravestone note rests on f30, Shooting star note on f90, 'no shadows' on f36; none were cited. Add them."
+   "fixed": false,
+   "notes": "Open=high, close=low: black marubozu (f39 + f119). Clean."
   },
   "q22": {
    "status": "pass",
@@ -3899,7 +3899,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right on f77 (ChartSchool) and f121 (Investopedia). The why misquotes f121: Investopedia says hammers are most reliable after a significant downtrend, especially at support, not 'most reliable at established support'. Reworded to what the quote says."
+   "notes": "Key is right (f77 ChartSchool + f121 Investopedia). But the lesson_line says a hammer away from a level 'is just a bar', which overreaches: no source says it is meaningless, and the deeper trap itself says both candles are hammers and location changes the weight, not the name."
   },
   "q27": {
    "status": "pass",
@@ -3910,8 +3910,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two cross-answers and an unsupported note. Why's 'At new highs it is not really a reversal' is q52's whole answer and off this question. The outside-day note spelled out q40's key. 'That's three white soldiers' cited no soldiers fact. Fixed why, two notes, facts (drop f71, add f58)."
+   "fixed": false,
+   "notes": "Body-only engulfing key held by ChartSchool f72, Investopedia f132, Fidelity f174; range split recorded in conflicts. The outside-day wrong note teaches what q29 tests, but q28's stem and choices do not give q29 away."
   },
   "q29": {
    "status": "pass",
@@ -3922,8 +3922,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer. Day 2 opens above Day 1's close and closes below its midpoint, so it meets dark cloud cover as f84, f153 and f159 define it. No cited source says a dark cloud must close inside the first body (ChartSchool's bearish page and dictionary re-read 2026-11-12: neither says so). The note, trap and lesson line taught that unsourced rule. Replaced the Dark cloud choice with Bullish engulfing (a real direction mix-up, 17 chars, ties the key). Rewrote why, lesson line, trap. Added f175 for the harami note, f72 and f132 for the new note."
+   "fixed": false,
+   "notes": "Day 2 black body $41.40 to $39.60 covers $40.00 to $41.00 after a rally: bearish engulfing (f82, f83, f158). Dark cloud cover not offered; harami and crows ruled out. No break."
   },
   "q31": {
    "status": "pass",
@@ -3941,7 +3941,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why's last sentence 'Many report it can break either way' is q36's answer and off a definition question. Engulfing and inside-day notes cited no fact. Trimmed why; added f174, f96; dropped f176."
+   "notes": "Key right (f74, f175). The simple line adds a fact the why never mentions (the name means pregnant), so it says more than the why. Replace with a line that restates the why."
   },
   "q34": {
    "status": "pass",
@@ -3952,8 +3952,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why's 'It is a potential reversal, not a sure one: many report a harami can break either way' answers q36 (a bearish harami after a rally, False) in the same scenario. Dropped it. Bearish engulfing note cited no engulfing fact: add f82; drop f176."
+   "fixed": false,
+   "notes": "Day 2 body $43.20 to $42.80 inside $40.00 to $44.00 after a rally: bearish harami (f86, f87, f138). Dark cloud and evening star ruled out by the opens. No break."
   },
   "q36": {
    "status": "pass",
@@ -3965,7 +3965,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f96, f141, f171). The distractor 'Higher high and lower low than prior' is q40's key word for word, and its wrong note names the outside day, so q37 hands over q40's answer before q40 asks it. Swapped it for the narrow-range confusion Fidelity itself separates from the inside bar (f172 vs f171). An inside day always has a smaller range, but a smaller range alone is not an inside day, so the key stays the only definition."
+   "notes": "Key right (f96 StockCharts + f141 Investopedia). The wrong note for 'Smaller range than the prior day' calls it 'a narrow range day', a term no cited quote supports and a loose use of it (NR days are a narrower-than-several-days rule). Replace with a sourced reason."
   },
   "q38": {
    "status": "pass",
@@ -3976,8 +3976,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right on f143. The why says the inside day shows the range narrowing 'nothing more', which overreaches and clashes with its own deeper (f143: a series of inside days may signal a reversal). Dropped 'nothing more'."
+   "fixed": false,
+   "notes": "False is held by Investopedia f143 (direction can't be predicted from the pattern alone) and Fidelity f173 (entry both ways). Why and trap quote the sources correctly."
   },
   "q40": {
    "status": "pass",
@@ -4000,8 +4000,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f61, f78, f79, f147). The Three white soldiers and Bullish harami notes rest on facts the question does not cite. Added f58 (ChartSchool: three consecutive long white bodies) and f74 (ChartSchool: second small body encompassed by the first). Text unchanged."
+   "fixed": false,
+   "notes": "Morning star by ChartSchool f61/f78/f79 and Investopedia f147. The last why sentence names the morning doji star (q46's key), but q46's choices pit it against evening doji star, so it does not decide q46. No break."
   },
   "q44": {
    "status": "pass",
@@ -4054,14 +4054,14 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right, but the key rested on one publisher (ChartSchool f71, f16, f70); f136 covers only the bearish mirror. Second publisher found in the cached Fidelity slides (s33, slide 31), checked verbatim in the PDF text: 'Traditionally, candlestick patterns are reversal patterns, meaning they are used to identify when a trend is ending' (17 words). ADD it as new fact f192 (source s33). The why gains one sentence on it."
+   "fixed": false,
+   "notes": "ChartSchool f71 states it outright; f16/f70 add the prior-trend rule and Fidelity f192 (patterns spot a trend that is ending) agrees in principle, so a second publisher supports the reasoning. False is solid."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Lone-category tell: one Filled against two Hollow choices, and 'Hollow: the open is the body's top' contradicts itself. Dropped it: 3 choices, one per verdict. Why's color sentences ('Most platforms color it red', the StockCharts black) answer q15. Trimmed why to the fill."
+   "notes": "Key right (f5/f190 StockCharts + f98 Investopedia). The distractor 'Hollow: the day's range is wide' cites a range the story never gives (no high or low), so it is unsupported and near silly. Replace it with a real misconception tied to the story's gap."
   },
   "q54": {
    "status": "pass",
@@ -4072,8 +4072,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f12, f13, f183); numbers from the story. The 'It will go higher tomorrow' note says no pattern guarantees the next move, which no cited fact says (f131 is about the shooting star only). Rewrote it on f169."
+   "fixed": false,
+   "notes": "ChartSchool f12/f13 and CME f183 agree; volume and forecast distractors are correctly ruled out (f6, f169). No break."
   },
   "q56": {
    "status": "pass",
@@ -4096,14 +4096,14 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "59.40 - 57.00 = 2.40, calc right. The trap says the open is the bottom of a hollow body, which rests on f4, not cited. Add f4."
+   "fixed": false,
+   "notes": "Filled candle, bottom of body = close $59.40; 59.40 - 57.00 = 2.40, calc matches (rounds to 2.4). Grounded by f5 and f3/f99/f178."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: small body $22.00-$22.50 near the $21.90 low, upper shadow to $24.10, after a slide (f47, f48, f130). The Hammer note says a hammer's long shadow is below the body, but no cited fact gives the hammer's shape. Added f120 (Investopedia: long lower shadow at least twice the body). Text unchanged."
+   "fixed": false,
+   "notes": "Body $22.00 to $22.50 near the $21.90 low, upper shadow to $24.10, after a month slide: inverted hammer (f47, f48, f130). Gravestone, hammer and shooting star ruled out. The trend-decides-the-name point repeats q22/q23/q24 teaching but the stem gives nothing away."
   }
  }
 }

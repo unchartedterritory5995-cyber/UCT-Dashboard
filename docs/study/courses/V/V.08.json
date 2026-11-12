@@ -2430,7 +2430,7 @@
    ],
    "answer": "Contracts not yet closed out",
    "why": "Contracts not yet closed out. Open interest is the total of outstanding contracts in a series that have not been closed. Volume is different: it counts only the contracts traded in one session. Open interest counts option contracts, not shares.",
-   "lesson_line": "Volume is today's trading. Open interest is what's still open.",
+   "lesson_line": "Open interest counts contracts still open, not today's trades.",
    "facts": [
     "f41",
     "f96",
@@ -3477,7 +3477,7 @@
     "Let it expire, then open a new one"
    ],
    "answer": "Close it, open a new strike or date",
-   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then buying again is two steps, not one roll.",
+   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
    "lesson_line": "A roll is two trades at once: a close and a new open.",
    "facts": [
     "f52",
@@ -4228,7 +4228,7 @@
    "rung": 5,
    "format": "scenario",
    "house": true,
-   "story": "A setup triggers, and you buy one call instead of the shares. The call costs $2.00.",
+   "story": "A setup triggers, and you buy one call instead of the shares. The call is quoted at $2.00.",
    "q": "Under our rules, what is your stop on the call?",
    "choices": [
     "The full premium you paid",
@@ -4237,7 +4237,7 @@
     "About 3% under your entry"
    ],
    "answer": "The full premium you paid",
-   "why": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole $2.00 is the risk you plan for.",
+   "why": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole premium, $2.00 a share, is the risk you plan for.",
    "simple": "The full premium, because our rule makes the premium paid on an option the stop.",
    "lesson_line": "On an option, the premium paid is the stop. Plan for losing all of it.",
    "wrong": {
@@ -4395,7 +4395,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key 'Contracts open, ...' echoed the 'open' in 'open interest', so a guesser could match the word. Key reworded to f96's 'not yet closed out'; why's opening sentence follows."
+   "notes": "Key right (f41, f96, f179). Distractors clean, no tell. Only defect: lesson_line copies q59's first sentence word for word ('Volume is today's trading.'). New line keeps the same fact without the copy."
   },
   "q18": {
    "status": "pass",
@@ -4430,8 +4430,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Simple's second sentence 'Calls and puts both tend to cost more.' dangled with no condition; now says when IV is high (f82)."
+   "fixed": false,
+   "notes": "False is the only defensible answer: f188 and f187 say magnitude, not direction; f82 says calls and puts alike cost more. Stem does not leak q21 or q61."
   },
   "q24": {
    "status": "pass",
@@ -4460,8 +4460,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper's gamma sentence and the lesson_line ('Gamma tells you how fast that estimate drifts') restate q14's key (gamma = how fast delta changes). Both cut back to delta only (f104, f108); f110 dropped."
+   "fixed": false,
+   "notes": "0.40 x $2 = $0.80 per share, matches calc and f121's worked method; 'all else equal' and 'about' cover gamma; f108 backs the estimate caveat."
   },
   "q29": {
    "status": "pass",
@@ -4478,8 +4478,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why and lesson_line ('the premium is yours to keep', f137) answer q64's distractor 'You lose the premium if it falls', and the key already removes q64's 'downside unlimited' distractor; with both gone q64 is near a coin flip. Premium sentence and f137 dropped; why now carries the covered-call meaning (f14) plus f136. Residual: q31's key still rules out q64's weakest distractor; consider swapping that q64 choice."
+   "fixed": false,
+   "notes": "False per f136, re-read on the OIC covered call page today ('The short call option does not increase that downside risk'). No second reading."
   },
   "q32": {
    "status": "pass",
@@ -4490,8 +4490,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The covered-call wrong note ('It caps your upside', f133) states q64's key. Note now says what a covered call is and that it sets no floor; f133 and f136 dropped from facts. Simple fine (f141/f143/f22)."
+   "fixed": false,
+   "notes": "Key per f141, f142, f30; married put line per f142; floor per f143; insurance per f144. Each wrong note names the right strategy. No leak into q22 or q34 stems."
   },
   "q34": {
    "status": "pass",
@@ -4526,8 +4526,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Iron condor wrong note used 'wings', jargon the lesson never teaches. Plain wording on f162."
+   "fixed": false,
+   "notes": "OTM call 110 and OTM put 90 on a $100 stock, same expiry = long strangle (f160). Straddle, condor and collar notes grounded (f157, f162, f12). Why keeps f161's 'generally'."
   },
   "q40": {
    "status": "pass",
@@ -4544,8 +4544,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The lesson_line says 'two credit spreads', and the stem relies on 'sold for a credit', but f15 (bull put and bear call are credit spreads) is not cited. Added f15 to facts. Everything else is grounded (f162-f166, f153, f12)."
+   "fixed": false,
+   "notes": "f163 states the pairing directly. Answer and the near-miss distractor are the same length; max loss and keep-the-credit lines match f165 and f166. Teaches q50's formula but does not give q50's number."
   },
   "q43": {
    "status": "pass",
@@ -4569,7 +4569,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The Exercise wrong note says 'Nothing new is opened', but exercise does open a stock position (f22). A member could be misled. Reworded to 'no new option'. The rest is grounded (f52, f4)."
+   "notes": "Key right per f52 (simultaneously close and open). Why's last sentence says 'buying again' while the choice says 'open a new one' (a roll can sell the new option too), so the why narrows the choice it is rebutting. Reworded to match."
   },
   "q47": {
    "status": "pass",
@@ -4652,8 +4652,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two problems. The lesson_line 'Before earnings you pay for the expected move' puts the member back in the buy-before-earnings seat that B22 (sizing_rule.md section 9) forbids, which the friend reframe set out to avoid. It also previews q61's key (the move priced in). And the deeper's 'moves less than the market priced in' leans on s59, which q60 does not cite. Rewrote both from f101/f102/f129. The owner flag on the story stays."
+   "fixed": false,
+   "notes": "Only IV crush fits (f101, f102, f103, f129). Delta stays 0 to 1 for calls (f109); holders are not assigned (f193, f43); OI does not set price (f41). Friend framing respects B22."
   },
   "q61": {
    "status": "cut",
@@ -4670,8 +4670,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why said delta is 'officially' an estimate, a word no fact supports (f104: a theoretical estimate); a wrong note said OIC pairs 'a .10 delta with a 10% probability', but f106 pairs under .10 with under 10%. Deeper's 'whole premium is lost' had no cited fact; f86 added."
+   "fixed": false,
+   "notes": "f105 and f106 re-read on the OIC Delta page today. 'Read as a rough probability' removes the definition ambiguity; the worthless/15%/0.1% traps each get a grounded note. Choices 39 to 40 characters."
   },
   "q64": {
    "status": "pass",
@@ -4695,7 +4695,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key matches sizing_rule.md section 9 B25 (premium paid is the stop) and A6; h_ quotes verified in the repo file. One wrong note overreached A13: 'That's about where the stop usually sits', but A13 says the stop sits WITHIN about 3% of the buy. Reworded to the rule's words."
+   "notes": "Key right per B25 and A6. Defect: story says 'The call costs $2.00', but q05 teaches a $2.00 quote means one contract costs $200, so 'the whole $2.00 is the risk' is wrong for the contract. Story now gives the quote; why names the $2.00 as the premium per share."
   }
  }
 }

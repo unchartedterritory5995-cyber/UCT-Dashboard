@@ -3432,8 +3432,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'limit' is right (f5, f6, f54). But the sentence is first person ('I'll pay $25.40 ... so I'm using a ___ order'), which reads as the mentor's own entry style and models a limit buy that E57 replaced ('Entries are market orders'). The Resolver neutralised the lesson_line for this reason but left the sentence. Made it third person, matching what was done in q15 and q26; why and simple follow."
+   "fixed": false,
+   "notes": "Solved cold: 'not a cent more' is a buy limit (f5 limit or lower, f54 limit or better, f6 may not fill). Bank has no stop-limit, so one answer. Third person, so no clash with E57 (entries are market orders). Why, simple and lesson line all trace to f5/f6/f54. No stem leak beyond the walkthrough."
   },
   "q04": {
    "status": "pass",
@@ -3480,8 +3480,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key solved cold (f9, f8, f56): only a buy stop sits above and turns into a market order. Stem and choices are clean. Defect: the lesson_line 'Use them to buy strength' prescribes buy-stop entries, while the owner's rulebook E57 says our entries are market orders. Replaced with a neutral description grounded in f9, f8 and f56."
+   "fixed": false,
+   "notes": "Solved cold: above the price and turns into a market order on a rise = buy stop (f9, f8, f56). Sell limit also sits above but stays a limit (f5), buy limit above the price is marketable (f50), sell stop sits below (f10). Choices 8-10 chars, no tell. The stem names the market-order conversion, but walkthrough w1 already teaches it before any scored question, so it gives away nothing new (q07, q59). Quotes checked on the SEC page (curl)."
   },
   "q12": {
    "status": "pass",
@@ -3600,8 +3600,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right: SEC f25 (limit varies by firm), Fidelity f106 (180 days), Schwab f76 (typically no more than 90). Why and deeper are grounded. The simple overreaches: 'brokers set a time limit' reads as every broker, while the proper answer only supports 'may vary', one broker's 180 days and 'typically'/'most brokers'. Hedged it."
+   "fixed": false,
+   "notes": "Solved cold: True. f25 checked on the SEC page ('may vary based on the brokerage firm'); f106 checked on Fidelity's FAQ (180 calendar days); f76 checked on Schwab ('typically no more than 90 days'); f131 Investopedia. No number is keyed; risk notes the broker limits can change. 'many brokers' in simple is backed by Investopedia's 'Most brokers'. Systemic, not this question's: Word Match (study_store.game_pool 'match') takes every approved vocab recall item whose term differs from its answer, so a tf or numeric item with a term pairs the word with 'True' or a number; 216 V items carry a term on"
   },
   "q32": {
    "status": "pass",
@@ -3648,8 +3648,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (f100, f6, f5) and the distractors are fine. Defect: the story is a third person's words ('A trader says ... my limit'), but the why says 'at your limit or better', which addresses the member as if it were their order. Reworded to 'the limit' and 'its price'; nothing else changed."
+   "fixed": false,
+   "notes": "Solved cold: 300 of 1,000 filled = partial fill (f100). Slippage is price, not size (f117); rejected fills nothing; FOK never takes part (f28). Key does not repeat the story's words. 'at the limit or better' follows from f5/f54. Deeper's 'limit orders reduce bad slippage' is f120 (checked on Investopedia, curl)."
   },
   "q40": {
    "status": "pass",
@@ -3666,8 +3666,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (15.29-15.2)*1000 = 90 is right (f47 ask as the expected price, f3 several prices). The new lesson_line says 'Slippage is part of what a trade costs', a general claim the Resolver removed from q41 because slippage can be positive (f118); it also sits against q43 (True: slippage can work in your favor). Replaced with a line grounded in f3/f47."
+   "fixed": false,
+   "notes": "Solved cold: (15.29 - 15.20) x 1,000 = $90; calc rounds 89.99999999999986 to 90.0, accepted forms fine. Expected price = ask is f47 (checked on the SEC Types of Orders page); several fill prices is f3 (checked). Stem's 'average' hints q37, but q37 is also taught in w1/f3; not a giveaway of a key word. Systemic, not this question's: Word Match (study_store.game_pool 'match') takes every approved vocab recall item whose term differs from its answer, so a tf or numeric item with a term pairs the word with 'True' or a number; 216 V items carry a term on tf/numeric. The pool should keep only mcq it"
   },
   "q43": {
    "status": "pass",
@@ -3702,14 +3702,14 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sentence fixed and correct: borrowing then selling (f82), broker usually lends (f38); bank has no second fit. The simple drops the source's hedge ('your broker lends them to you first'), while the proper answer and f38 say 'usually'/'Typically'. Hedged it."
+   "fixed": false,
+   "notes": "Solved cold: borrow (f82 'borrowing a security ... and then selling it', f38 broker lends, f36). 'buy' and 'own' are ruled out by the sentence's 'shares they don't own'; 'cover' is the closing word. Schwab fee range is f83 (checked, 'more than 100% of the value of your position', annualized). The sentence restates the short-sale meaning (q45), but w3 already teaches it, and q46's stem says the same."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New key is right (f124 hard to obtain, f125 limited availability) and no longer a lone hedge; key 34 chars, not longest. The lesson_line 'Hard to borrow means costly to short, or not possible at all' states as certain what f125 ('might have higher loan fees') and f126 ('may be refused') only allow. Hedged it to match the sources."
+   "fixed": false,
+   "notes": "Solved cold: hard to borrow = hard to obtain for short sales, limited availability (f124, f125), order may be refused (f126), lists updated daily (f127); all four quotes found verbatim on the Investopedia page (curl). Key 34 chars, not the longest. Wrong notes grounded; 'may still go through, at a higher fee' fits f125 'might have higher loan fees'. Its why reveals q50's key only after answering (teaching, not a stem leak)."
   },
   "q50": {
    "status": "pass",
@@ -3726,8 +3726,8 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (f37, f102, f103); choices and wrong notes fine. Defect: the why says 'Selling needs shares you own, and you own none', which is false as written: a short sale is a sale of stock you don't own (f36), and the next sentence is about selling short. Narrowed it to the 'Sell to close' choice."
+   "fixed": false,
+   "notes": "Solved cold: a short closes with a buy, entered as buy to cover (f102 Fidelity, checked; f37 SEC, checked; f70 Nasdaq, checked). Sell to close needs owned shares; sell short adds; buy to open opens. No second answer. Note: q54's and q60's stems also use 'buy to cover' for closing a short, which hints this key; those stems are outside this check, and w3 teaches the word anyway."
   },
   "q53": {
    "status": "pass",
@@ -3756,8 +3756,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right by f40, f44, f89 and our A4 (the stop never moves wider) and D41. B20 cannot be read in because price is still under the stop. Defect, a pilot tell: the key alone repeats the story's exact words 'buy stop' ('your buy stop'), while the other choices say 'the stop'. Dropped 'buy' from the key (now 25 chars against 28-36). The wrong notes are keyed by the wrong choices and stay as they are."
+   "fixed": false,
+   "notes": "Solved cold: honor the buy stop (A4 stop never moves wider, D41 real stop with the broker, D47 shorts mirror longs). B20's gap rule does not apply: it is for a gap THROUGH the stop (TRADE_PLANS.md and research notes), and here price is still under it. f40, f44, f89, f94 checked on SEC/Schwab pages; f55/f61 are FINRA (blocked to curl, earlier pass checked). Key is the shortest choice; no tell. Story does not name the squeeze, so q55 is not given away."
   },
   "q58": {
    "status": "pass",
@@ -3780,14 +3780,14 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and why are right under D48 (h1 quoted exactly), with f125/f126 for the fee and refusal. But the choices carry a structure tell: three parallel 'Short it ...' choices against one lone 'Skip', so a member can pick the odd one out on a 'what does our rule say' stem. Replaced 'Short it at a smaller size' with a second 'Skip' option that is wrong for a different reason (it overreaches the rule's scope: h1 is about 'the stock'). Now 2 skip / 2 short, 28-31 chars."
+   "fixed": false,
+   "notes": "Solved cold from h1 (D48: skip a short when hard to borrow or the fee is high, matches sizing_rule.md section 9 verbatim). 'Short it once the locate clears' answered by f41; 'count the fee in' answered by D48's fee clause; group choice is out of the rule. One answer. No term field, which is right here: it is a scenario and not a word definition."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "House rule E52 is quoted verbatim (h52, sh9 anchor correct) and the key is right. Three defects. (1) Length tell: the key (39 chars) was the longest choice. (2) 'the rest of a winner' rests on A11 or E51, and neither is a cited fact. (3) term 'Trailing stop' on an mcq with a non-term answer makes it Word Match material (study_store.game_pool pairs any approved vocab recall item whose subject differs from its answer): members would see 'Trailing stop = Sell on a close below the 10- or 21-day', which contradicts q17 and q64's own why. Fix: drop the term, reword the stem to rely on h52 only, and "
+   "notes": "Key is right (h52 = E52 verbatim: 10-day for fast movers, 21-day for steadier, sell on a close below; a touch is not a close). But the question carries term 'Trailing stop' on an mcq, so the course export sets subject='Trailing stop' and Word Match (study_store.game_pool) pairs 'Trailing stop' with 'A close below the 10- or 21-day line'. That pair is false: the lesson itself (q17, f17/f18) defines a trailing stop as a stop that follows price by a set gap, and this question's own why says a trailing stop order is not our trail. Fix: remove the term field (README: term is for a word and its mean"
   }
  }
 }

@@ -2617,7 +2617,7 @@
     "Trend reversal"
    ],
    "answer": "False breakout",
-   "why": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia calls a breakout that does not keep moving in its direction a failed breakout. It is not a pullback, which dips and holds. Nor do a few days prove a trend change.",
+   "why": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia says that if price does not move back in the breakout direction, the breakout has failed. It is not a pullback, which dips and holds. Nor do a few days prove a trend change.",
    "lesson_line": "A breakout that falls straight back through its level has failed. Fidelity calls it a false breakout.",
    "facts": [
     "f66",
@@ -3186,7 +3186,7 @@
    },
    "simple": "It can stay oversold for a long time, because a weak stock can keep falling while its RSI stays low.",
    "deeper": {
-    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down. In a steady downtrend, RSI can stay under 30 and give false signals on each small bounce, as Fidelity's slides note. Let price show the turn first: a higher low, then a higher high above the last peak."
+    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down. In a strong downtrend, Fidelity's slides note, an oscillator can stay in its oversold zone and give many false signals on the bounces. Let price show the turn first: a higher low, then a higher high above the last peak."
    },
    "tier": "extended",
    "risk": {
@@ -3397,7 +3397,7 @@
    "term": "divergence",
    "q": "In a strong uptrend, bearish RSI divergences give many false signals.",
    "answer": "True",
-   "why": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides say oscillators stay in a zone for the length of a trend and give many false signals on corrections. A divergence is a warning to watch, not proof of a top.",
+   "why": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides add that in some strong trends an oscillator stays in its zone and gives many false signals on corrections. A divergence is a warning to watch, not proof of a top.",
    "lesson_line": "One divergence in a strong leader is a note, not an exit. Let price break first.",
    "facts": [
     "f105",
@@ -3664,10 +3664,10 @@
     "Selling that barely moves the price",
     "Buying that barely lifts the price",
     "A company paying out a cash dividend",
-    "Heavy selling that sinks the price"
+    "A one-day crash on panic selling"
    ],
    "answer": "Selling that barely moves the price",
-   "why": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the selling is spread out.",
+   "why": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the price barely moves while the shares change hands.",
    "lesson_line": "Heavy volume with no price progress is a warning. Someone may be selling quietly.",
    "facts": [
     "f143",
@@ -3676,8 +3676,8 @@
    ],
    "wrong": {
     "A company paying out a cash dividend": "That's a different, business use of the word. On a chart, distribution means quiet selling.",
-    "Heavy selling that sinks the price": "That's not the chart meaning. ChartSchool defines distribution as selling without significantly affecting the price.",
-    "Buying that barely lifts the price": "That's the opposite: buying shares without pushing the price up much."
+    "Buying that barely lifts the price": "That's the opposite: buying shares without pushing the price up much.",
+    "A one-day crash on panic selling": "A crash is fast and loud. ChartSchool defines distribution as selling without significantly affecting the price."
    },
    "simple": "Distribution is steady selling that barely moves the price, even while a lot of shares trade.",
    "tier": "core",
@@ -4139,7 +4139,7 @@
    "facts": [
     "f185"
    ],
-   "simple": "It is down 12%, which is past the 10% line most guides use for a correction.",
+   "simple": "It is down 12%, past the 10% line Investopedia uses for a correction.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4482,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the stem said 'the breakout level', and 'False breakout' was the only choice with the word breakout, so it could be matched by echo. Stem now says 'that level'. Rest passes: f66 + f56 (two publishers), notes grounded, q16 (rung 7) links the words only after q15 (rung 4)."
+   "notes": "Key right (Fidelity slides verified: 'Price breaks out but almost immediately returns back through its breakout price'). The why paraphrased Investopedia loosely: the quote says a breakout that fails to move back in the breakout direction after a retrace has failed, not 'does not keep moving'. Fidelity also reserves 'Failed Breakout (Trap)' for a different case, so the why should not blur them. Reworded that sentence only."
   },
   "q16": {
    "status": "pass",
@@ -4493,8 +4493,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False holds, but 'a real breakout' opens a second answer. Bulkowski's 58% counts all upward breakouts, failed ones too, so a learner can argue a real one does not come back. Reworded to f71/f72's own scope."
+   "fixed": false,
+   "notes": "False is right. Bulkowski page re-read 2026-11-12: 'Since year 2000, 58% of 10,305 chart patterns with upward breakouts had throwbacks', 30-day window confirmed. 'Usually' is a claim above 50%, so the 58% makes it false. No tell found."
   },
   "q18": {
    "status": "pass",
@@ -4505,8 +4505,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 22.8 is right. But f88's quote (shown in the reveal's sources) says EMAs weight recent prices more, and 'Every day counts the same' marks q20's distractor as the SMA. Both hand over q20, the next question. Swapped f88 for Fidelity's SMA line f204 and dropped the weighting wording."
+   "fixed": false,
+   "notes": "(20+22+24+25+23)/5 = 22.8. Calc and quotes match."
   },
   "q20": {
    "status": "pass",
@@ -4523,8 +4523,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right. But f84 ('crossovers produce relatively late signals') and f199 sit in the reveal's sources unused by any text. They answer q23, the very next question (death cross is late, not early). Dropped both."
+   "fixed": false,
+   "notes": "Unambiguous definition. Quotes support it. The distractors are distinct. It does not give away q23 (lag) or q35."
   },
   "q23": {
    "status": "pass",
@@ -4535,8 +4535,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rulebook tension: 'Your stock' made it a held position, and the keyed-wrong 'Sell: the average is broken for good' taught holding through a pullback to the 50-day, while E52 trails a held trade on the 10-day or 21-day and sells on a close below it. The question is chart reading, so the story is now 'A stock' and the action choice became the reading 'The 50-day line is broken for good' (34 characters; key 29 is not the longest). Key, why (f85, f86, f28, f5) and deeper unchanged."
+   "fixed": false,
+   "notes": "ChartSchool f86 context (a bearish price cross under the 50-day inside a bigger uptrend reads as a pullback) supports the why. f85 supports 'zones'. The distractors are clearly wrong. No conflict with sizing_rule section 9."
   },
   "q25": {
    "status": "pass",
@@ -4572,25 +4572,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key, choices and the new hedged distractor pass (f111, f102, f211). Lesson line 'Wait for price to turn up and show you' reads as a buy cue on a stock months into a downtrend, which B26 (no longs below the 200-day) may still bar. Replaced with a line grounded in f112 and f113 that implies no entry. The B26 owner flag stands."
+   "notes": "Key right. deeper.trap overreaches: Fidelity's slide says that in some cases an oscillator stays in its zone and gives 'many false signals on corrections', not a false signal 'on each small bounce' (slide text verified via pdftotext). Reworded. Note: the key is the only modal/hedged choice (a mild tell), but the content forces it."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f207 Fidelity, f108 Investopedia, f103). Two forward leaks in the reveal: f222's quote defines the relative strength ratio as comparing one security to another (q32's key), and f126's quote says an RVOL of 2.5 is 2.5 times normal (q37's numeric answer). Rebuilt why and the S&P note on f108, used f127 for relative volume. f222 moves to q32, after this question."
+   "fixed": false,
+   "notes": "Gains vs losses is backed by ChartSchool, Fidelity and Investopedia. The distractors map to RS, RVOL and distance from the MA. It does not answer q32."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f115, f118, f227). The why's 'falls less than the index' and f116's quote hand q34 its key ('A: it fell less than the index'), and f126 hands q37 its 2.5. Removed the falls-less line and f116, swapped f126 for f127. Added f222 (RSI is unrelated), which now only looks back at q31. 'S&P 500' was only quoted in f116, so the notes say 'a market index'."
+   "fixed": false,
+   "notes": "Key is backed by ChartSchool, Fidelity and Investopedia. The first-person lesson_line matches the lesson's house voice (q14, q29, q43). It does not answer q31 or q34 outright."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f120 ChartSchool, f121 Investopedia, f224). Does not contradict rulebook C31 (owner flag stands). But f117 sits unused in the reveal's sources and says the stocks that hold up best in a decline are the leaders. That answers q34, the next question. Dropped f117."
+   "fixed": false,
+   "notes": "'In chart talk' rules out the business meaning, and the conflicts entry records the split. The distractors are clear."
   },
   "q34": {
    "status": "pass",
@@ -4608,7 +4608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True is right (f105, f213, f214). But 'one ... does not prove the stock has topped' is a negated absolute: almost nothing proves a top, so a test-wise learner answers True with no knowledge. Restated firmly from f105 and f213, with no hedge and no 'prove'. For the Resolver: q35's reveal ('a warning, not a sell signal on its own'; f236 'false alarms') still pre-answers q36; consider trimming q35's last sentence."
+   "notes": "True is right per ChartSchool f105. The why overstated Fidelity: the slide says 'In some cases' an oscillator stays in its zone for the trend's length (pdftotext verified), and it is about zone signals, not divergences. Reworded so the Fidelity line is scoped and framed as an addition, not proof of the divergence claim."
   },
   "q37": {
    "status": "pass",
@@ -4643,8 +4643,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f138 ChartSchool, f139 Bulkowski). But the distractor 'The year's lowest price', its note 'That's the 52-week low' and f58's quote ('the highest or lowest price seen over the last year') answer q47 (52-week high = highest price in the past year). Replaced it with the base-means-bottom misconception, grounded in f138/f139. Dropped f58 and the unused f190."
+   "fixed": false,
+   "notes": "Key matches ChartSchool's basing and Bulkowski's weeks or months. The distractors are distinct. q03 defines a trading range but does not name a base."
   },
   "q43": {
    "status": "pass",
@@ -4656,7 +4656,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Unsupported fact: the key, a note, the lesson line and simple said 'big holders' are selling, but no cited quote says who sells (f143 says systematic selling, f144 volume without price). The Wyckoff page says so but is not a source in this lesson. Key reworded to f143's meaning, the accumulation distractor mirrored on f140, 'near the highs' and 'someone big' dropped. Support: f143 ChartSchool + f144 Schwab. Choices 34 to 36 characters; the reveal still does not name q43's word."
+   "notes": "Key is backed by ChartSchool. But the distractor 'Heavy selling that sinks the price' is close to the IBD distribution-day idea the courses teach (V.11 f: a 0.2%+ index loss on higher volume), so an IBD-trained learner could defend it. 'The selling is spread out' in the why is not in any distribution quote (Schwab f142 is about accumulation). Swapped the distractor for an unambiguous crash and grounded the why line."
   },
   "q45": {
    "status": "pass",
@@ -4721,8 +4721,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 52.40 - 50.10 = 2.30 checked. The new lesson line says range shows 'how far price traveled'. That is wrong: price can travel up and down more than its range in a session. f171 calls range the distance between the high and the low. Reworded to that."
+   "fixed": false,
+   "notes": "52.40 - 50.10 = 2.30. Calc and quotes match."
   },
   "q56": {
    "status": "pass",
@@ -4734,7 +4734,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc (5,000 - 4,400) / 5,000 = 12 checked. But f184's quote, shown in the reveal, says 'A bear market is usually defined as a decline of 20% or greater', handing q58 (the next question) its key. f184 also could not be re-read on 2026-11-12 (Schwab refused). Dropped f184; the correction line now rests on Investopedia f185 by name, and the unsupported 'conventions most people use' is gone. Also noted for the Resolver: q49 and q57 test the same drawdown calc the same way (README section 2)."
+   "notes": "(5000-4400)/5000 = 12% is right. The simple line says 'the 10% line most guides use', but only Investopedia is cited (f185), and the conflicts entry notes ChartSchool defines a correction differently. Scoped it to Investopedia."
   },
   "q58": {
    "status": "pass",
@@ -4745,8 +4745,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Lesson line now on f73, passes. The Accumulation note says 'big buyers', which f140 does not say; f141 and f142 (Schwab: institutional investors, major players) do, so they are added to the cited facts."
+   "fixed": false,
+   "notes": "ChartSchool and Investopedia both support whipsaw. The distractors are distinct terms. Golden cross is a plausible buy-signal confusion and does not fit 'reverses against you'."
   },
   "q60": {
    "status": "pass",

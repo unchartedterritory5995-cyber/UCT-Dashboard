@@ -3087,29 +3087,30 @@
    "rung": 5,
    "format": "mcq",
    "term": "Treasury note",
-   "q": "Traders talk about the 10-year. What type of Treasury security is it?",
+   "q": "A Treasury security matures in 20 years. What type is it?",
    "choices": [
+    "A Treasury bond",
     "A Treasury note",
     "A Treasury bill",
-    "A Treasury bond",
     "A Treasury FRN"
    ],
-   "answer": "A Treasury note",
-   "why": "A Treasury note. Notes mature in 2, 3, 5, 7 or 10 years, so the 10-year is a note. Bills mature in a year or less. Bonds mature in 20 or 30 years. Floating rate notes, or FRNs, mature in two years.",
-   "lesson_line": "Bills are short, notes are the middle, bonds are the long end. The 10-year is a note.",
+   "answer": "A Treasury bond",
+   "why": "A Treasury bond. Bonds mature in 20 or 30 years. Notes mature in 2, 3, 5, 7 or 10 years, so no note runs 20 years. Bills mature in a year or less. Floating rate notes, or FRNs, mature in two years.",
+   "lesson_line": "Bills are short, notes run up to 10 years, bonds are the long end at 20 or 30.",
    "facts": [
+    "f131",
     "f132",
     "f130",
-    "f131",
     "f174",
     "f175"
    ],
    "wrong": {
     "A Treasury bill": "Bills are short-term, a year or less.",
     "A Treasury bond": "Treasury bonds are the 20- and 30-year.",
-    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 10-year security can't be one."
+    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 20-year security can't be one.",
+    "A Treasury note": "Notes stop at 10 years. A 20-year Treasury is a bond."
    },
-   "simple": "The 10-year is a Treasury note, since notes run 2 to 10 years and bonds run 20 or 30.",
+   "simple": "It is a Treasury bond, since bonds run 20 or 30 years and notes stop at 10.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -3455,7 +3456,7 @@
     "Can't tell"
    ],
    "answer": "About 0.8%",
-   "why": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate. Multiplying the annual rate up again scales the wrong way.",
+   "why": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. An annual rate is the pace the quarter would reach if it kept going for a full year, so the quarter's own growth is much smaller. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate.",
    "lesson_line": "GDP headlines are annualized. The quarter's own growth is far smaller, so check which rate you're reading.",
    "facts": [
     "f108",
@@ -3464,9 +3465,9 @@
    "wrong": {
     "About 13.6%": "That scales the wrong way. The annual rate already stretches the quarter out to a year.",
     "About 3.4%": "That's the annualized pace, not the quarter's own growth.",
-    "Can't tell": "You can. The 3.4% is an annual rate, not the quarter's own growth. BEA's same release puts the quarter at 0.8%."
+    "Can't tell": "You can. The story says annual rate, which stretches the quarter over a year. The quarter's own growth is much smaller, and only 0.8% fits."
    },
-   "simple": "About 0.8%, because the 3.4% is an annual pace, and BEA says the quarter itself grew 0.8%.",
+   "simple": "About 0.8%, because the 3.4% is a yearly pace, and one quarter on its own grows much less.",
    "deeper": {
     "trap": "Read the label, not just the number. BEA's release prints 3.4 percent at an annual rate and 0.8 percent at a quarterly rate, side by side."
    },
@@ -3938,14 +3939,14 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key CPI is right (f62, stem names BLS). Pair defects: the GDP wrong note ('GDP is the value of the final goods and services produced') hands q06 (rung 1, 'What does GDP measure?') its exact key, and the PCE wrong note / why ('PCE also tracks consumer prices') hands q13 its key. Both notes now rest only on the publisher (BEA vs BLS, f80, f109), which is what the stem tests. Stem fix ('monthly' dropped) is fine."
+   "fixed": false,
+   "notes": "Solved cold: CPI (BLS + consumer basket rules out PCE, which is BEA). Key backed by f62 (Tier 1 BLS). Wrong lines grounded (f78, f80/s23 BEA, f104/f109 BEA). No tell beyond the definitional name. The PPI wrong line restates q22's stem, but that is reveal-level reinforcement of a name-encoded fact (Producer Price Index), not a giveaway."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f85, f89, f90). Two defects. (1) Silly choice: 'Everyone who is working, farms included' is ruled out by the stem's own word 'nonfarm'; replaced with a real confusion grounded in f100 (the same survey reports hours). (2) The new why says 'a monthly survey of business establishments', which hands q40 its key 'Establishment survey'; reworded to 'Employers report the jobs on their payrolls' (f90, f88). Lesson line passes."
+   "fixed": false,
+   "notes": "Solved cold: jobs at businesses and in government (f85, f90, f89 civilian government). Exclusions in why match f86. Household survey and hours distractors are real confusions (f91, f100). 'Weekly' in the claims wrong line is not in f96 but is not a number and matches s29's title. Key is not the longest choice. It sets up q40 and q53 as a ladder but does not give their specific points (establishment survey name, one person on two payrolls)."
   },
   "q06": {
    "status": "pass",
@@ -3968,8 +3969,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right from f54/f165/f159 (QE = large-scale asset purchases); choices clean, key not longest. Defect: lesson line 'QE works on long rates. Rate cuts work on the short end.' sets up a split that f6 contradicts (fed funds changes also affect long-term rates). Rewritten from f27/f160 (QE pushes long rates down), f21 (a cut lowers the target, easing) and f54 (QE adds accommodation). q45 reveal (rate near zero) kept as teach-then-test."
+   "fixed": false,
+   "notes": "Solved cold: large-scale Fed bond buying. Backed by f54/f165 (LSAPs), f159, f27, f160 (Tier 1 + Tier 2). Rate cut, letting bonds mature (QT, f162) and fiscal spending are real confusions. Lesson line 'both ease policy' backed by f21 + f54. Note: fact f159's quote has mojibake (an encoded apostrophe and dash) at the fact level, worth cleaning, but it does not affect this question's text."
   },
   "q10": {
    "status": "pass",
@@ -4064,8 +4065,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and lesson line pass (f44, f46). The simple says M2 includes 'cash, checking and savings'; f47 only says those count in 'many measures of the money supply', not M2 by name. Same overreach in the 'New cash' wrong note ('Currency is only one piece'). Both rewritten on f46 and f44 alone."
+   "fixed": false,
+   "notes": "Solved cold: broad money supply measure. f44 (M2 = M1 + small time deposits + retail MMF shares), f46, f45 Tier 1. Distractors (Fed holdings, new cash, bank loans) are real confusions with grounded wrong lines. 'Small time deposits' hints at q42 but does not give its $100,000 line, so q42 is not answered."
   },
   "q26": {
    "status": "pass",
@@ -4076,8 +4077,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key dot plot right (f39 Tier 1, f170, f155). Tell: the stem 'Which chart' rules out 'The Beige Book' (a report, not a chart) on wording alone, leaving three live choices. Stem reworded so all four stay live (97 characters). FedWatch note and deeper (f137, f156) pass and no longer answer q47."
+   "fixed": false,
+   "notes": "Solved cold: the dot plot. f39 (Tier 1 SEP guide, 1/8 point midpoint), f170/f155 year-end and longer run, f40 uncertainty, f171 median dot, f156 anonymity. FedWatch wrong line backed by f137 and does not give away q47's futures source. Yield curve and Beige Book wrong lines grounded (f125, f52). No break found."
   },
   "q28": {
    "status": "pass",
@@ -4130,8 +4131,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f24). The resolver removed 'moves rates before the Fed acts' from simple as unsupported, but the lesson line still opened with 'Guidance can move markets before the Fed acts', the same claim. Rewritten to f24 (words about expected future policy) and f20 (long rates depend on expected policy, not just today's rate). Simple and why pass."
+   "fixed": false,
+   "notes": "Solved cold: forward guidance. f24/f25/f20 Tier 1. Beige Book, QE, dual mandate are distinct real terms with grounded wrong lines (f52, f54, f14). Stem shares no words with the key. The Beige Book wrong line is close to q27's, a minor echo, not a copied why."
   },
   "q37": {
    "status": "pass",
@@ -4173,7 +4174,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f132: notes mature in 2, 3, 5, 7 or 10 years). Re-fetched TreasuryDirect 2026-11-12: f174 and f175's heading are on the page, but the page lists FRNs as their own security type and never says they are notes. So 'FRNs are notes too' is unsupported; the why now states only the two-year maturity (f174). Owner note, outside this question: q16's wrong choice 'The yield on 10-year Treasury notes' (rung 2) and q54's story ('a 10-year note', rung 7) both name the answer."
+   "notes": "The key is right (f132), but q16 (rung 2, seen before this rung-5 item) prints the choice 'The yield on 10-year Treasury notes', and q54's story says 'a 10-year note'. That gives this question away. A 10-year TIPS also exists (TreasuryDirect: TIPS mature in 5, 10 or 30 years), a small extra blur. Fix: ask about the 20-year instead. No other question names its type, it is not a TIPS maturity, and 'note' is a real trap because notes run up to 10. All numbers come from f131/f132/f130/f174, re-checked on the TreasuryDirect page 2026-11-12."
   },
   "q44": {
    "status": "pass",
@@ -4227,7 +4228,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 0.8% is BEA's printed figure (f112); choices now read alike. Defect: deeper.trap copies the why almost word for word ('BEA reports quarterly GDP at annual rates unless it says otherwise. The quarter itself grew 0.8%'). Replaced with the habit the release supports: read the label (f112 prints both labels in one sentence)."
+   "notes": "Key right: f112 (re-checked on the BEA release 2026-11-12: '3.4 percent (0.8 percent at a quarterly rate'). Break: the story gives only the annual rate, yet the 'Can't tell' rebuttal and the why lean on the release's 0.8% figure, which the learner never sees. The reasoning that decides it from the story (an annual rate is the quarter's pace stretched over a year, so the quarter's own growth is much smaller, and only 0.8% is smaller) is missing. Fix adds that reasoning with no new numbers (f108). 13.6% stays a question-defined distractor."
   },
   "q53": {
    "status": "pass",
@@ -4274,8 +4275,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f118, f119, f117). Two defects. (1) Silly choice: 'It comes before the turn' is refuted by the story's own two dates; replaced with a real misconception, that the NBER forecasts (f119, f120 say it names peaks after the fact). (2) The GDP-report wrong note ends 'two down quarters is not its test', which hands q55 its answer; trimmed to f118/f119."
+   "fixed": false,
+   "notes": "Solved cold: it comes long after the turn. f118 (12 months, re-checked on the NBER FAQ), f119 (waits months), f117 (4 to 21 months, re-checked). Distractors are real misreadings, and each wrong line is grounded. 'On record' fits: the NBER table holds its announcements since 1980. Nothing in sizing_rule.md section 9 conflicts (C32 only rules out a news-day rule)."
   },
   "q61": {
    "status": "pass",

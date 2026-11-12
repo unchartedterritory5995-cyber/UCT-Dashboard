@@ -2089,7 +2089,7 @@
    "wrong": {
     "Expectancy": "That's your average result per trade, which weighs the size of wins and losses too.",
     "R-multiple": "That's one trade's result counted in R.",
-    "Risk/reward ratio": "That compares the stop distance with the target distance on one trade."
+    "Risk/reward ratio": "That's about one trade's plan, not your record of closed trades."
    },
    "simple": "Win rate, because it counts how often your closed trades made money, not how much.",
    "tier": "core",
@@ -2348,7 +2348,7 @@
     "Your losses in any one month to 2%"
    ],
    "answer": "Your risk per trade to 2% of capital",
-   "why": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's ceiling is also 2%, and under 1% is normal for us.",
+   "why": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's absolute ceiling is also 2%.",
    "lesson_line": "The 2% rule caps risk, not position size.",
    "facts": [
     "f99",
@@ -2372,7 +2372,7 @@
    "risk": {
     "score": 3,
     "reasons": [
-     "the why teaches the owner's rulebook A1 (2% ceiling, under 1% normal)",
+     "the why names the owner's rulebook A1 ceiling (2%)",
      "fixed before (key changed from loss to risk)"
     ]
    },
@@ -4040,25 +4040,24 @@
    "rung": 3,
    "format": "mcq",
    "term": "2% rule",
-   "q": "The 2% rule caps risk at 2% a trade. What does our rulebook call normal?",
+   "q": "What risk per trade does our rulebook call normal?",
    "choices": [
     "Under 1% of the account a trade",
     "2% of the account on every trade",
-    "2% a day across all your trades",
+    "1.5% of the account on every trade",
     "Up to 5% a trade on top setups"
    ],
    "answer": "Under 1% of the account a trade",
    "why": "Under 1% of the account a trade. Our rulebook: under 1% is normal, and 1.5% is the most any grade uses. 2% is the absolute ceiling, not the normal.",
    "wrong": {
     "2% of the account on every trade": "2% is our absolute ceiling, not our normal. Under 1% is normal.",
-    "2% a day across all your trades": "The 2% rule caps the risk on one trade, not one day. Investopedia: any single trade.",
-    "Up to 5% a trade on top setups": "Our ceiling is 2% a trade. Even the best grade uses 1.5% at most."
+    "Up to 5% a trade on top setups": "Our ceiling is 2% a trade. Even the best grade uses 1.5% at most.",
+    "1.5% of the account on every trade": "1.5% is the most any grade uses, a top, not the normal. Under 1% is normal."
    },
    "simple": "Our normal risk is under 1% of the account a trade, and 2% is the most we ever risk.",
    "lesson_line": "Our normal risk is under 1% a trade. 2% is the ceiling.",
    "facts": [
-    "h4a1",
-    "f99"
+    "h4a1"
    ],
    "house": true,
    "tier": "core",
@@ -4123,8 +4122,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f30, f31; f61 second publisher). Simple says R is what you plan to lose 'at your stop', but no cited fact ties R to the stop: added f40 (Tharp glossary: initial risk, R, is stop to entry). Also lowercased the shouted RISKED/INVESTED (plain voice). Overlap note for the integrator: q01's wrong note on 'The money you put into the trade' states q03's answer."
+   "fixed": false,
+   "notes": "False is right before looking (f30, f31; f61 Traders.com second publisher; f40 grounds 'at your stop'). Same idea recurs in q01's wrong note, q04's why and q46's wrong note: reinforcement of one core idea across formats, not a giveaway of a judgment key."
   },
   "q04": {
    "status": "pass",
@@ -4141,8 +4140,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f41, f42, f59). Two wrong notes rest on facts the question does not cite: 'share count times R is your total risk' (f18) and 'how an ATR stop is measured' (f86). Added both."
+   "fixed": false,
+   "notes": "Key independently right (f41, f42, f59). Choices 24-32 chars, key not longest. Definition is also taught by w1 by design. Wrong notes grounded (f86, f18)."
   },
   "q07": {
    "status": "pass",
@@ -4159,8 +4158,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key -3R right (calc r_multiple 60/55/45). Deeper's 'Gaps can also make a loss bigger than 1R' states q08's True key outright (two questions answering each other), and its last sentence repeats the why. Trimmed the deeper; f20 still grounds the why."
+   "fixed": false,
+   "notes": "Calc r_multiple 60/55/45 = -3. -1R, -15R, -0.33R are real slips with correct notes. Deeper's 12R matches f24 verbatim. No overlap with q08 (holding, not a gap)."
   },
   "q10": {
    "status": "pass",
@@ -4195,8 +4194,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f25, f62, f116). The why's last sentence ('Win rate only counts how often you win') has no cited support: added f45."
+   "fixed": false,
+   "notes": "Fill key 'expectancy' only defensible word (f25, f62, f116). Matches w1 step 3 by design. Bank words are lesson terms."
   },
   "q16": {
    "status": "pass",
@@ -4208,7 +4207,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f45, f95). The three wrong notes define expectancy, R-multiple and risk/reward with no cited fact: added f116, f41 and f91."
+   "notes": "Key right (f45, f95). The 'Risk/reward ratio' wrong note ('compares the stop distance with the target distance on one trade') states q19's key ('Loss at the stop vs gain at target') nearly word for word; risk/reward is not taught in a walkthrough. Reworded so it says what the term is not, without defining it."
   },
   "q18": {
    "status": "pass",
@@ -4219,14 +4218,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f91). The wrong-note 'like the 2% rule' pairs risk-vs-account with the 2% rule and hands over q24's key. Reworded without naming the rule; f99 still grounds 'risk per trade as a share of capital'."
+   "fixed": false,
+   "notes": "Key right (f91; f32 Tharp agrees on weighing reward vs risk). All four choices 34 chars, no tell. ATR and 2%-style notes grounded (f87, f99)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (23-20)/(20-19)=3 matches. But the f94 sentences ('a better ratio ... can come with a lower chance of reaching the target') hand over q21's key ('More chance the stop gets hit', the cost of a tighter stop for a better ratio). q21 owns that idea; removed here and f94 dropped."
+   "fixed": false,
+   "notes": "Calc (23-20)/(20-19) = 3 matches; 1:3 wording from f92. No overlap with q21 after the previous trim."
   },
   "q21": {
    "status": "pass",
@@ -4250,7 +4249,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f99, f134), UCT 2% ceiling and 8% monthly limit from hA1/hB16. The wrong note 'The chart sets where the stop goes' has no cited support: added hA3 (stop first, by default under the day's low)."
+   "notes": "Key right (f99, f134). But the why's last clause 'and under 1% is normal for us' states q72's house key ('Under 1% of the account a trade') outright. Trimmed to the ceiling only (hA1 still grounds it). INTEGRATOR: q42's deeper also says 'under 1% is normal' and gives q72's key; trim it there too."
   },
   "q25": {
    "status": "pass",
@@ -4261,8 +4260,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Mechanics right (f02, f05, f102; key robust even under B20, since the account is down about 2R at the open either way). Two defects: (1) the story has you risk 2%, above the 1.5% our rulebook says any grade uses (A1, h4a1/E49), so the lesson models a size our rules never use; re-based to 1% (calc (170-140)/(170-155)*1 = 2). (2) simple said 'the gap was twice your stop distance': a gap runs from the prior close, which the story never gives; it is the drop from entry to the open. The B20-versus-resting-stop owner flag stands."
+   "fixed": false,
+   "notes": "Calc (170-140)/(170-155)*1 = 2 matches; story gives a resting broker stop (D41, h4d41 really in sizing_rule.md), so mechanics (f02, f05, f102) decide. Loss at the open is about 2R either way, so B20 does not flip the key; the owner flag on B20 vs a resting stop stands. 'About 18%' is 30/170 = 17.6%, a distractor only."
   },
   "q27": {
    "status": "cut",
@@ -4273,8 +4272,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f33, f03, f54). One wrong note said the stop 'promises an exit', a guarantee word; under our rulebook (A4, B20) a gap does not even fill at the open. Reworded to 'sets an exit'."
+   "fixed": false,
+   "notes": "Key right (f03 SEC Tier 1, f54, f33). 'Sets how many shares' is wrong as the stop's job (sizing uses the distance, A3) and the why says so. 'Before you buy' in simple/lesson line overlaps q29's False key, but w1 step 1 teaches that before any question by design."
   },
   "q29": {
    "status": "pass",
@@ -4375,14 +4374,14 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (FINRA f11). Two defects: (1) a tell: three choices start 'Risk ...' and the key alone starts 'Bigger losses'; (2) the why's f12 sentence and the lesson line ('one hit can land on all of it') state the correlation that is q46's reasoning and q47's False key. Key reworded to the 'Risk ...' form (36 chars, not the longest), the why carries f11 only, gap wrong-note grounded in f71."
+   "fixed": false,
+   "notes": "Key right (FINRA f11, Tier 1; quote confirmed on finra.org). All four start 'Risk ...', key 36 chars not longest. No correlation giveaway left for q47."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 5% right (f12, f65, calc 5x1). But the story says 'They tend to move together' and the stem says 'the whole chip group drops hard', which hands over the key and makes 'only one stop will hit' a silly choice; 'what could you lose' also lets 'All the money' read as possible after a gap. Re-asked as planned risk at the stops, with the correlation left for the member to know (f12)."
+   "fixed": false,
+   "notes": "Key 5% right (calc 5x1, f65, f46; FINRA f12 correlation confirmed on finra.org). Choices 31-34 chars, key not longest. Overlaps q44's heat sum and touches q47's correlation idea, but the test here is whether correlated stops hit together; not a giveaway of q47's tech-fund point."
   },
   "q47": {
    "status": "pass",
@@ -4405,8 +4404,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f135; h4b19 consistent). Two wrong-notes answer other questions: the trailing-stop note ('moves only when the market goes your way') is q53's key, and 'That's our default first stop' gives q30's False key. Reworded both without defining those terms; f53 and h4a3 dropped."
+   "fixed": false,
+   "notes": "Key right (TradeStation f135 confirmed on page; house B19 uses 'breakeven' the same way). Choices 31-37 chars. No wrong note defines another question's key."
   },
   "q51": {
    "status": "cut",
@@ -4417,14 +4416,14 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f120 Schwab, f10 FINRA; h4b19 says wait for 2R to 5R; Dave Mabe is named in s45's record; the O'Neil attribution of f139 confirmed on the AAII page). Tell: the key was the longest choice (35 vs 32/30/30). Shortened the key and lengthened one distractor."
+   "fixed": false,
+   "notes": "Key right (Schwab f120, FINRA f10; B19 waits for 2R to 5R, story at 1R consistent). f136 'All stop orders are stop market orders' confirmed on TradeStation page. Choices 30-35 chars, key not longest."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f07, f08, f118, f53). The wrong note for 'Stop-limit order' (about the fill price) has no cited support: added f145 (a stop-limit may not fill past its limit)."
+   "fixed": false,
+   "notes": "Key right (SEC f07, f08 Tier 1; Schwab f118). A4 says all our stops only move up, but 'rises as the price rises' only fits the trailing stop. Breakeven note overlaps q50's key, but w3 and q50 cover stops by design."
   },
   "q54": {
    "status": "pass",
@@ -4483,8 +4482,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f85, f86, f110, f111). TELL: the stem asked 'Which exit' and the key was the only choice with the word Exit. The distractors were also non-trailing stops, so 'trailing' alone gave it away. New stem names no exit word; 'Stop-limit order' replaced by 'Moving-average trail' (f90), so ATR is the detail to know. Choices 12-20 characters, key not longest."
+   "fixed": false,
+   "notes": "Key right (f85, f86 Investopedia; f110, f111 StockCharts, both confirmed on page). Choices 12-20 chars, no Exit-word tell. Three ATRs under the high is also in w3 by design; q64 states its own 3 ATRs."
   },
   "q64": {
    "status": "pass",
@@ -4536,8 +4535,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from hB22 before reading it: up 2R is under 5R, so nothing is held through the report; halving still holds half. Story states the rule, house flag set, numbers only from the story, key shortest, no computed claims. INTEGRATOR: q27 (cut) is still present in merged_final.json with the same story and key; it must be removed or the two answer each other. Owner flag on B20 stands (the 'stop fills past the gap' notes describe a resting order, not our 30-minute gap rule)."
+   "fixed": true,
+   "notes": "The stem 'The 2% rule caps risk at 2% a trade' gives q24's key ('Your risk per trade to 2% of capital') away word for word. Re-asked as the house rule alone. The '2% a day' distractor only made sense against that preamble; replaced with a real slip (1.5% is the most any grade uses, not normal), grounded in h4a1. f99 dropped (no longer used). Key shortest but one; no lone hedge (the 5% choice also says 'Up to'). INTEGRATOR: q24's why (fixed here) and q42's deeper both stated this key."
   }
  }
 }

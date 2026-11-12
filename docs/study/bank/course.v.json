@@ -1158,7 +1158,7 @@
   "difficulty": 2,
   "id": "si_2a4d44e4b6ab",
   "lesson_origin": "session",
-  "lesson_text": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia calls a breakout that does not keep moving in its direction a failed breakout. It is not a pullback, which dips and holds. Nor do a few days prove a trend change. A breakout that falls straight back through its level has failed. Fidelity calls it a false breakout.",
+  "lesson_text": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia says that if price does not move back in the breakout direction, the breakout has failed. It is not a pullback, which dips and holds. Nor do a few days prove a trend change. A breakout that falls straight back through its level has failed. Fidelity calls it a false breakout.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -1219,7 +1219,7 @@
    "simple": "A false breakout, because price broke out and then fell right back through the breakout level.",
    "tier": "core",
    "unit": "V.02",
-   "why": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia calls a breakout that does not keep moving in its direction a failed breakout. It is not a pullback, which dips and holds. Nor do a few days prove a trend change.",
+   "why": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia says that if price does not move back in the breakout direction, the breakout has failed. It is not a pullback, which dips and holds. Nor do a few days prove a trend change.",
    "wrong": {
     "Bear trap": "A bear trap is the mirror: a break below support that snaps back up and catches sellers.",
     "Pullback": "A pullback is a dip inside an uptrend that holds. This move erased the breakout itself.",
@@ -2460,7 +2460,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down. In a steady downtrend, RSI can stay under 30 and give false signals on each small bounce, as Fidelity's slides note. Let price show the turn first: a higher low, then a higher high above the last peak."
+    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down. In a strong downtrend, Fidelity's slides note, an oscillator can stay in its oversold zone and give many false signals on the bounces. Let price show the turn first: a higher low, then a higher high above the last peak."
    },
    "depth": {
     "sources": [
@@ -2996,7 +2996,7 @@
   "difficulty": 3,
   "id": "si_f0ed501c0b0d",
   "lesson_origin": "session",
-  "lesson_text": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides say oscillators stay in a zone for the length of a trend and give many false signals on corrections. A divergence is a warning to watch, not proof of a top. One divergence in a strong leader is a note, not an exit. Let price break first.",
+  "lesson_text": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides add that in some strong trends an oscillator stays in its zone and gives many false signals on corrections. A divergence is a warning to watch, not proof of a top. One divergence in a strong leader is a note, not an exit. Let price break first.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -3044,7 +3044,7 @@
    "simple": "True, because a strong uptrend can show many bearish divergences while the stock keeps going up.",
    "tier": "expert",
    "unit": "V.02",
-   "why": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides say oscillators stay in a zone for the length of a trend and give many false signals on corrections. A divergence is a warning to watch, not proof of a top."
+   "why": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides add that in some strong trends an oscillator stays in its zone and gives many false signals on corrections. A divergence is a warning to watch, not proof of a top."
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -3576,12 +3576,12 @@
   "difficulty": 2,
   "id": "si_77ee2ab920f1",
   "lesson_origin": "session",
-  "lesson_text": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the selling is spread out. Heavy volume with no price progress is a warning. Someone may be selling quietly.",
+  "lesson_text": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the price barely moves while the shares change hands. Heavy volume with no price progress is a warning. Someone may be selling quietly.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "A company paying out a cash dividend",
-    "Heavy selling that sinks the price",
+    "A one-day crash on panic selling",
     "Buying that barely lifts the price",
     "Selling that barely moves the price"
    ],
@@ -3617,17 +3617,17 @@
     "summary": "Distribution is systematic selling without moving the price much. Distribution shows heavy volume without price progress. Accumulation is buying shares without pushing the price up much, often in a sideways base."
    },
    "facts": {
-    "given": "On a chart, what does distribution mean? Selling that barely moves the price Buying that barely lifts the price A company paying out a cash dividend Heavy selling that sinks the price"
+    "given": "On a chart, what does distribution mean? Selling that barely moves the price Buying that barely lifts the price A company paying out a cash dividend A one-day crash on panic selling"
    },
    "lesson_line": "Heavy volume with no price progress is a warning. Someone may be selling quietly.",
    "simple": "Distribution is steady selling that barely moves the price, even while a lot of shares trade.",
    "tier": "core",
    "unit": "V.02",
-   "why": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the selling is spread out.",
+   "why": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the price barely moves while the shares change hands.",
    "wrong": {
     "A company paying out a cash dividend": "That's a different, business use of the word. On a chart, distribution means quiet selling.",
-    "Buying that barely lifts the price": "That's the opposite: buying shares without pushing the price up much.",
-    "Heavy selling that sinks the price": "That's not the chart meaning. ChartSchool defines distribution as selling without significantly affecting the price."
+    "A one-day crash on panic selling": "A crash is fast and loud. ChartSchool defines distribution as selling without significantly affecting the price.",
+    "Buying that barely lifts the price": "That's the opposite: buying shares without pushing the price up much."
    }
   },
   "review_status": "draft",
@@ -4619,7 +4619,7 @@
     "given": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak, in percent?"
    },
    "lesson_line": "Measure a drop from the peak. A fall of 10% or more counts as a correction.",
-   "simple": "It is down 12%, which is past the 10% line most guides use for a correction.",
+   "simple": "It is down 12%, past the 10% line Investopedia uses for a correction.",
    "tier": "extended",
    "unit": "V.02",
    "why": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction."
@@ -7710,7 +7710,7 @@
   "difficulty": 3,
   "id": "si_8ec6b644d74f",
   "lesson_origin": "session",
-  "lesson_text": "The one sitting on a support level. A prior low where buyers stepped in is support from earlier price action. Both hammers came after a pullback, so both qualify by shape and trend. ChartSchool says to look for bullish reversals at support levels. Investopedia adds that a hammer is especially reliable at established support. Neither one is a buy yet. A hammer at a level is a clue. A hammer in the middle of nowhere is just a bar.",
+  "lesson_text": "The one sitting on a support level. A prior low where buyers stepped in is support from earlier price action. Both hammers came after a pullback, so both qualify by shape and trend. ChartSchool says to look for bullish reversals at support levels. Investopedia adds that a hammer is especially reliable at established support. Neither one is a buy yet. A hammer at support carries more weight. Location changes the weight, not the name.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -7778,7 +7778,7 @@
    "facts": {
     "given": "Which hammer deserves more of your attention? Two stocks print the same clean hammer after a pullback. One sits right on a prior low where buyers stepped in before. The other is in the middle of its range. The one sitting on a support level The one in the middle of its range Both equal: the shape is the same Neither: hammers need a prior rally"
    },
-   "lesson_line": "A hammer at a level is a clue. A hammer in the middle of nowhere is just a bar.",
+   "lesson_line": "A hammer at support carries more weight. Location changes the weight, not the name.",
    "simple": "The hammer on support deserves more attention, because the prior low gives it a level and the other has none.",
    "tier": "expert",
    "unit": "V.03",
@@ -8450,7 +8450,7 @@
     "given": "In candle terms, what is a harami? A small body inside the prior big body A big body that swallows the prior body A whole range inside the prior range Two candle bodies of about equal size"
    },
    "lesson_line": "Harami is body inside body. The small second candle shows the big move paused.",
-   "simple": "A harami is a small body inside the big body before it, and the name means pregnant in Japanese.",
+   "simple": "A harami is a small body inside the big body before it. Its shadows don't have to fit inside.",
    "tier": "core",
    "unit": "V.03",
    "why": "A small body inside the prior big body. The first candle has a large body, and the second's body sits inside it. Its shadows do not have to fit inside, though it is better if they do. After an advance it is a potential bearish reversal, and after a decline a potential bullish one.",
@@ -8817,7 +8817,7 @@
    "wrong": {
     "Body inside the prior day's body": "That's a harami. An inside day looks at the high and low, not just the body.",
     "Open and close about the same price": "That's a doji.",
-    "Smaller range than the prior day": "That's only a narrow range day. Fidelity calls it an inside bar when the range sits within the prior range."
+    "Smaller range than the prior day": "A smaller range alone isn't enough. The high and low must both sit within the prior day's range."
    }
   },
   "review_status": "draft",
@@ -10059,7 +10059,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Hollow: the day's range is wide",
+    "Hollow: buyers gapped it up at the open",
     "Filled: it closed below its open",
     "Neither: it's a doji, a thin line",
     "Hollow: it's up from yesterday"
@@ -10125,7 +10125,7 @@
     "summary": "Close below open draws a filled candle: open at the top of the body, close at the bottom. Black or red means close below open; white or green means close above open. Filled or hollow compares the close with the same candle's open. On StockCharts' default a candle can be black (up from the prior close) and still filled (below its open). StockCharts' default colors a candle black when it closes at or above the prior day's close. A doji's open and close are the same or very close. A doji's body should look like a thin line next to the candles before it."
    },
    "facts": {
-    "given": "Is today's candle hollow or filled? Yesterday a stock closed at $50.00. Today it gaps up, opens at $53.00, drifts lower and closes at $52.00. Filled: it closed below its open Hollow: it's up from yesterday Neither: it's a doji, a thin line Hollow: the day's range is wide"
+    "given": "Is today's candle hollow or filled? Yesterday a stock closed at $50.00. Today it gaps up, opens at $53.00, drifts lower and closes at $52.00. Filled: it closed below its open Hollow: it's up from yesterday Neither: it's a doji, a thin line Hollow: buyers gapped it up at the open"
    },
    "lesson_line": "A filled candle can still be up on the day. The fill compares the close with its own open.",
    "simple": "It's filled, because the $52.00 close is below the $53.00 open, even though the stock is up on the day.",
@@ -10133,8 +10133,8 @@
    "unit": "V.03",
    "why": "Filled. The fill compares today's $52.00 close with today's $53.00 open, not with yesterday's $50.00 close. A close below the open draws a filled candle, with the open at the top of the body. It is filled even though the stock is up on the day.",
    "wrong": {
+    "Hollow: buyers gapped it up at the open": "The gap sets where it opened, not the fill. The $52.00 close below the $53.00 open makes it filled.",
     "Hollow: it's up from yesterday": "The day's change doesn't decide the fill. A close below the open makes it filled.",
-    "Hollow: the day's range is wide": "A candle's body color comes from the open and the close, not from the size of the range.",
     "Neither: it's a doji, a thin line": "A doji needs the open and close about equal. $53.00 down to $52.00 is a real body."
    }
   },
@@ -11124,7 +11124,7 @@
   "prompt_json": {
    "choices": [
     "Continuation pattern",
-    "Pennant pattern",
+    "Throwback",
     "Flag pattern",
     "Reversal pattern"
    ],
@@ -11169,12 +11169,19 @@
       "quote": "Continuation Pattern A type of chart pattern that occurs in the middle of an existing trend. The previous trend resumes when the pattern is complete.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-c"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski (ThePatternSite.com): Glossary",
+      "quote": "Throwbacks Price breaks out upward, climbs, and then returns to the breakout price within 30 days.",
+      "tier": 2,
+      "url": "https://thepatternsite.com/glossary.html"
      }
     ],
-    "summary": "A reversal pattern forms before the trend turns the other way. Bulkowski defines a reversal as price entering and leaving a pattern in opposite directions. Flags and pennants are short continuation patterns: a small pause, then the prior move resumes. StockCharts glossary: a flag is a short continuation pattern, a parallelogram sloping against the trend. A continuation pattern forms in the middle of a trend, and the old trend resumes once it completes."
+    "summary": "A reversal pattern forms before the trend turns the other way. Bulkowski defines a reversal as price entering and leaving a pattern in opposite directions. Flags and pennants are short continuation patterns: a small pause, then the prior move resumes. StockCharts glossary: a flag is a short continuation pattern, a parallelogram sloping against the trend. A continuation pattern forms in the middle of a trend, and the old trend resumes once it completes. Bulkowski: a throwback is a return to the breakout price after an upward breakout."
    },
    "facts": {
-    "given": "Which word is this: a chart pattern that forms before the trend changes direction. Reversal pattern Continuation pattern Flag pattern Pennant pattern"
+    "given": "Which word is this: a chart pattern that forms before the trend changes direction. Reversal pattern Continuation pattern Flag pattern Throwback"
    },
    "lesson_line": "Reversal: in one way, out the other.",
    "simple": "A reversal pattern forms before the trend turns, so price goes in one way and comes out the other.",
@@ -11184,7 +11191,7 @@
    "wrong": {
     "Continuation pattern": "A continuation is a pause. The old trend resumes after it.",
     "Flag pattern": "A flag is a continuation pattern: a short pause, then the prior move resumes.",
-    "Pennant pattern": "A pennant is a continuation pattern too: a short pause before the prior move resumes."
+    "Throwback": "A throwback is a return to the breakout price after an upward breakout. It isn't a pattern."
    }
   },
   "review_status": "draft",
@@ -11265,30 +11272,9 @@
       "quote": "Pattern consists of a rounded bottom (not a “V” bottom), two “lips” at each end, and a “handle” (similar to a flag pattern) from the handle",
       "tier": 2,
       "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Identifying Chart Patterns with Technical Analysis (webinar slides, coauthor Charles D. Kirkpatrick II, CMT)",
-      "quote": "Three peaks with center peak higher than the other two",
-      "tier": 2,
-      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Double Bottom",
-      "quote": "This pattern resembles the letter “W” and involves a security or index experiencing two distinct lows at approximately the same level, with rebounds in between.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/d/doublebottom.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com (ChartSchool): Glossary: D",
-      "quote": "Descending Triangle A sideways price pattern between two converging trend lines in which the upper trend line is descending while the lower line is flat.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-d"
      }
     ],
-    "summary": "The cup with handle is a bullish continuation pattern: a consolidation, then a breakout. Fidelity: the cup forms after an advance and looks like a bowl. The cup should be a U-shaped bowl; a V-shaped bottom is too sharp to qualify. The handle is the pullback after the cup's right side makes its high. The handle is the last pullback before the breakout and usually gives back no more than a third of the cup's advance. Bulkowski describes the shape as a rounded turn like a cup, with a handle on the right. Fidelity's guide: a rounded bottom, not a V, with a lip at each end and a handle. Fidelity's guide: three peaks, the center one highest. Investopedia: a double bottom looks like a W, two lows at about the same level. A descending triangle has a flat lower line and a falling upper line."
+    "summary": "The cup with handle is a bullish continuation pattern: a consolidation, then a breakout. Fidelity: the cup forms after an advance and looks like a bowl. The cup should be a U-shaped bowl; a V-shaped bottom is too sharp to qualify. The handle is the pullback after the cup's right side makes its high. The handle is the last pullback before the breakout and usually gives back no more than a third of the cup's advance. Bulkowski describes the shape as a rounded turn like a cup, with a handle on the right. Fidelity's guide: a rounded bottom, not a V, with a lip at each end and a handle."
    },
    "facts": {
     "given": "What does cup with handle mean? U-shaped base plus a short pullback Three peaks, the middle one highest Two equal lows shaped like a W Lower highs pressing on a flat floor"
@@ -11299,9 +11285,9 @@
    "unit": "V.04",
    "why": "A U-shaped base plus a short pullback. Fidelity: the cup forms after an advance and looks like a bowl or rounding bottom. StockCharts: the cup should be U-shaped, and after the high on its right side, a pullback forms the handle.",
    "wrong": {
-    "Lower highs pressing on a flat floor": "That's a descending triangle: a flat lower line under a falling upper one.",
-    "Three peaks, the middle one highest": "That's a head and shoulders.",
-    "Two equal lows shaped like a W": "That's a double bottom."
+    "Lower highs pressing on a flat floor": "Those are straight lines closing in. A cup is a rounded bowl.",
+    "Three peaks, the middle one highest": "That's three peaks. A cup is one rounded, U-shaped low.",
+    "Two equal lows shaped like a W": "That's two separate lows. A cup is one rounded U, not a W."
    }
   },
   "review_status": "draft",
@@ -11461,7 +11447,7 @@
   "difficulty": 1,
   "id": "si_6466e026ca97",
   "lesson_origin": "session",
-  "lesson_text": "A brief pause tilting against a run. StockCharts calls a flag a small rectangle that slopes against the previous trend, with price held between two parallel lines. Bulkowski adds that it hangs off a flagpole, a quick run. The StockCharts glossary says flags generally last less than three weeks. Converging lines would make it a pennant instead. A flag leans against the move it interrupts.",
+  "lesson_text": "A brief pause tilting against a run. StockCharts calls a flag a small rectangle that slopes against the previous trend, with price held between two parallel lines. Bulkowski adds that it hangs off a flagpole, a quick run. Converging lines would make it a pennant instead. A flag leans against the move it interrupts.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -11550,7 +11536,7 @@
    "simple": "A flag is a short pause that leans against the sharp move before it, between two parallel lines.",
    "tier": "core",
    "unit": "V.04",
-   "why": "A brief pause tilting against a run. StockCharts calls a flag a small rectangle that slopes against the previous trend, with price held between two parallel lines. Bulkowski adds that it hangs off a flagpole, a quick run. The StockCharts glossary says flags generally last less than three weeks. Converging lines would make it a pennant instead.",
+   "why": "A brief pause tilting against a run. StockCharts calls a flag a small rectangle that slopes against the previous trend, with price held between two parallel lines. Bulkowski adds that it hangs off a flagpole, a quick run. Converging lines would make it a pennant instead.",
    "wrong": {
     "A long base shaped like a round bowl": "That's a rounding bottom, or the cup of a cup with handle.",
     "The sharp run that comes before it": "That's the flagpole. The flag is the pause that hangs off it.",
@@ -12119,7 +12105,7 @@
   "difficulty": 1,
   "id": "si_6482527e4350",
   "lesson_origin": "session",
-  "lesson_text": "The symmetrical triangle. StockCharts, Bulkowski and Investopedia all give coil as another name for it. The upper line falls and the lower line rises, so lower highs and higher lows squeeze price toward the apex. Coil names the shape, not a result. Bulkowski says the pattern appears often but its performance is awful. Coil is another name for the symmetrical triangle.",
+  "lesson_text": "The symmetrical triangle. StockCharts, Bulkowski and Investopedia all give coil as another name for it. Its two lines converge, squeezing price toward the apex. Coil names the shape, not a result. Bulkowski says the pattern appears often but its performance is awful. Coil is another name for the symmetrical triangle.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -12129,7 +12115,7 @@
     "Rounding bottom"
    ],
    "kind": "mcq",
-   "q": "Which pattern do some chart books also call a coil?",
+   "q": "Which pattern do some chart guides also call a coil?",
    "subject": "coil"
   },
   "reveal_json": {
@@ -12158,13 +12144,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com (ChartSchool): Glossary: S",
-      "quote": "Symmetrical Triangle A sideways chart pattern between two converging trend lines in which the upper trend line is declining and the lower trend line is rising.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-s"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "StockCharts.com (ChartSchool): Glossary: H",
       "quote": "Head and Shoulders Top A bearish reversal pattern marked by three (or more) prominent peaks with a middle peak (the head) that is higher than the other peaks (the shoulders).",
       "tier": 2,
@@ -12185,16 +12164,16 @@
       "url": "https://thepatternsite.com/cup.html"
      }
     ],
-    "summary": "StockCharts: the symmetrical triangle is also called a coil. Bulkowski: symmetrical triangles are sometimes called coils. Investopedia: a symmetrical triangle is also known as a coil. A symmetrical triangle has a falling upper line and a rising lower line that converge. A head and shoulders top has a middle peak, the head, higher than the shoulders either side. Bulkowski: a rounded bowl, usually over many months. Bulkowski describes the shape as a rounded turn like a cup, with a handle on the right."
+    "summary": "StockCharts: the symmetrical triangle is also called a coil. Bulkowski: symmetrical triangles are sometimes called coils. Investopedia: a symmetrical triangle is also known as a coil. A head and shoulders top has a middle peak, the head, higher than the shoulders either side. Bulkowski: a rounded bowl, usually over many months. Bulkowski describes the shape as a rounded turn like a cup, with a handle on the right."
    },
    "facts": {
-    "given": "Which pattern do some chart books also call a coil? Symmetrical triangle Head and shoulders top Rounding bottom Cup with handle"
+    "given": "Which pattern do some chart guides also call a coil? Symmetrical triangle Head and shoulders top Rounding bottom Cup with handle"
    },
    "lesson_line": "Coil is another name for the symmetrical triangle.",
    "simple": "The symmetrical triangle is also called a coil, because its two sloping lines squeeze price into a narrower range.",
    "tier": "core",
    "unit": "V.04",
-   "why": "The symmetrical triangle. StockCharts, Bulkowski and Investopedia all give coil as another name for it. The upper line falls and the lower line rises, so lower highs and higher lows squeeze price toward the apex. Coil names the shape, not a result. Bulkowski says the pattern appears often but its performance is awful.",
+   "why": "The symmetrical triangle. StockCharts, Bulkowski and Investopedia all give coil as another name for it. Its two lines converge, squeezing price toward the apex. Coil names the shape, not a result. Bulkowski says the pattern appears often but its performance is awful.",
    "wrong": {
     "Cup with handle": "A rounded cup with a handle on its right. Nothing narrows to a point.",
     "Head and shoulders top": "Three peaks with the middle one highest. Nothing narrows to a point.",
@@ -12376,7 +12355,7 @@
    ],
    "kind": "fill",
    "q": "Tap the word that fits the blank.",
-   "sentence": "A peak, a dip, then a second peak near the same price form a ___ top.",
+   "sentence": "A peak, a dip, then a second peak near the same price make the shape of a ___ top.",
    "subject": "double top"
   },
   "reveal_json": {
@@ -12395,12 +12374,19 @@
       "quote": "A double top pattern forms when a strong uptrend is followed by two distinct peaks at roughly the same price level with a trough in between.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/3-bearish-trading-patterns"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Identifying Chart Patterns with Technical Analysis (webinar slides, coauthor Charles D. Kirkpatrick II, CMT)",
+      "quote": "Three distinct peaks at roughly the same price level separated by two intermittent troughs",
+      "tier": 2,
+      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
      }
     ],
-    "summary": "A double top is two roughly equal peaks, a moderate trough between, then a support break. Schwab: a double top is two peaks at about the same price with a trough between."
+    "summary": "A double top is two roughly equal peaks, a moderate trough between, then a support break. Schwab: a double top is two peaks at about the same price with a trough between. Fidelity's guide: a triple top is three peaks at about the same price with two troughs between."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. A peak, a dip, then a second peak near the same price form a ___ top."
+    "given": "Tap the word that fits the blank. A peak, a dip, then a second peak near the same price make the shape of a ___ top."
    },
    "lesson_line": "Double top: two peaks near one price, with a dip between.",
    "simple": "It is a double top, because two peaks at about the same price with a dip between make that shape.",
@@ -12422,7 +12408,7 @@
   "difficulty": 1,
   "id": "si_248a90df4696",
   "lesson_origin": "session",
-  "lesson_text": "Head and shoulders. The middle peak is the head, and the two lower, roughly equal peaks on either side are the shoulders. StockCharts, Bulkowski and Fidelity's guide describe it this way. A triple top differs: its three peaks sit at about the same price. Head above, shoulders level on either side.",
+  "lesson_text": "Head and shoulders. The middle peak is the head, and the two lower, roughly equal peaks on either side are the shoulders. StockCharts, Bulkowski and Fidelity's guide describe it this way. Head above, shoulders level on either side.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -12468,20 +12454,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com (ChartSchool): Triple Top Reversal",
-      "quote": "There are three equal highs followed by a break below support .",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/triple-top-reversal"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Identifying Chart Patterns with Technical Analysis (webinar slides, coauthor Charles D. Kirkpatrick II, CMT)",
-      "quote": "Three distinct peaks at roughly the same price level separated by two intermittent troughs",
-      "tier": 2,
-      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Thomas Bulkowski (ThePatternSite.com): Rising Wedges",
       "quote": "Price bounces between two up-sloping and converging trendlines.",
       "tier": 2,
@@ -12495,7 +12467,7 @@
       "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-d"
      }
     ],
-    "summary": "A head and shoulders top has a middle peak, the head, higher than the shoulders either side. Three peaks: the middle one highest, the outer two lower and roughly equal. Bulkowski: three peaks, the middle one above the others. Fidelity's guide: three peaks, the center one highest. A triple top is three equal highs, then a break below support. Fidelity's guide: a triple top is three peaks at about the same price with two troughs between. A rising wedge sits between two up-sloping lines that converge. A descending triangle has a flat lower line and a falling upper line."
+    "summary": "A head and shoulders top has a middle peak, the head, higher than the shoulders either side. Three peaks: the middle one highest, the outer two lower and roughly equal. Bulkowski: three peaks, the middle one above the others. Fidelity's guide: three peaks, the center one highest. A rising wedge sits between two up-sloping lines that converge. A descending triangle has a flat lower line and a falling upper line."
    },
    "facts": {
     "given": "Which word is this: three peaks, the middle one highest, the outer two about level. Head and shoulders Triple top Descending triangle Rising wedge"
@@ -12504,11 +12476,11 @@
    "simple": "It is a head and shoulders, because the middle peak, the head, stands above the two lower peaks beside it.",
    "tier": "core",
    "unit": "V.04",
-   "why": "Head and shoulders. The middle peak is the head, and the two lower, roughly equal peaks on either side are the shoulders. StockCharts, Bulkowski and Fidelity's guide describe it this way. A triple top differs: its three peaks sit at about the same price.",
+   "why": "Head and shoulders. The middle peak is the head, and the two lower, roughly equal peaks on either side are the shoulders. StockCharts, Bulkowski and Fidelity's guide describe it this way.",
    "wrong": {
-    "Descending triangle": "Its highs fall one after another over a flat floor. Here the middle peak is highest.",
+    "Descending triangle": "A triangle's lines converge to a point. Here the middle peak stands above the outer two.",
     "Rising wedge": "That's two rising lines squeezing together, with no head.",
-    "Triple top": "A triple top has three peaks at about the same price. Here the middle one is higher."
+    "Triple top": "Not here. One peak, the middle one, stands above the other two. That raised peak is the head."
    }
   },
   "review_status": "draft",
@@ -12943,7 +12915,7 @@
   "prompt_json": {
    "choices": [
     "Too soon to name it",
-    "A topping pattern",
+    "Throwback",
     "Continuation pattern",
     "Trend reversal pattern"
    ],
@@ -12992,12 +12964,19 @@
       "quote": "A pattern is not complete or activated until an actual breakout occurs",
       "tier": 2,
       "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski (ThePatternSite.com): Glossary",
+      "quote": "Throwbacks Price breaks out upward, climbs, and then returns to the breakout price within 30 days.",
+      "tier": 2,
+      "url": "https://thepatternsite.com/glossary.html"
      }
     ],
-    "summary": "Bulkowski defines a continuation as price entering and leaving a pattern in the same direction. A continuation pattern forms in the middle of a trend, and the old trend resumes once it completes. Bulkowski defines a reversal as price entering and leaving a pattern in opposite directions. A reversal pattern forms before the trend turns the other way. Fidelity's pattern guide: a pattern is not complete or activated until price actually breaks out."
+    "summary": "Bulkowski defines a continuation as price entering and leaving a pattern in the same direction. A continuation pattern forms in the middle of a trend, and the old trend resumes once it completes. Bulkowski defines a reversal as price entering and leaving a pattern in opposite directions. A reversal pattern forms before the trend turns the other way. Fidelity's pattern guide: a pattern is not complete or activated until price actually breaks out. Bulkowski: a throwback is a return to the breakout price after an upward breakout."
    },
    "facts": {
-    "given": "Which label fits the sideways range? A stock runs from $40 to $60 in two months. It then moves sideways in a tight range for three weeks. Next it breaks out above the range. Continuation pattern Trend reversal pattern Too soon to name it A topping pattern"
+    "given": "Which label fits the sideways range? A stock runs from $40 to $60 in two months. It then moves sideways in a tight range for three weeks. Next it breaks out above the range. Continuation pattern Trend reversal pattern Too soon to name it Throwback"
    },
    "lesson_line": "Judge a pattern by how price enters and leaves it.",
    "simple": "It was a continuation pattern, because price came into the range going up and left it going up.",
@@ -13005,8 +12984,8 @@
    "unit": "V.04",
    "why": "A continuation pattern. Bulkowski defines a continuation as price entering and leaving a pattern in the same direction. Here it came in rising and broke out above. StockCharts says a continuation forms in the middle of a trend, and the old trend resumes when it completes.",
    "wrong": {
-    "A topping pattern": "Price came in rising and left rising, so nothing topped. A top would need it to leave falling.",
-    "Too soon to name it": "It has already broken out above the range. A pattern is complete once it breaks out, so you can name it.",
+    "Throwback": "A throwback comes after an upward breakout, a return to the breakout price. This range came before the breakout.",
+    "Too soon to name it": "It has already broken out above the range. Price came in rising and left rising, so you can name it.",
     "Trend reversal pattern": "A reversal leaves in the opposite direction. This one came in rising and left rising."
    }
   },
@@ -13998,10 +13977,17 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Thomas Bulkowski (ThePatternSite.com): Flags",
-      "quote": "Flags are short, less than 3 weeks long. Patterns longer than that are rectangles or channels.",
+      "name": "StockCharts.com (ChartSchool): Flag, Pennant",
+      "quote": "A flag is a small rectangle pattern that slopes against the previous trend.",
       "tier": 2,
-      "url": "https://thepatternsite.com/flags.html"
+      "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/flag-pennant"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com (ChartSchool): Flag, Pennant",
+      "quote": "the price action needs to be contained within two parallel trend lines.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/flag-pennant"
      },
      {
       "accessed": "2026-11-09",
@@ -14011,7 +13997,7 @@
       "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-s"
      }
     ],
-    "summary": "A falling wedge sits between two down-sloping lines that converge. StockCharts: the falling wedge is bullish; it narrows as prices fall. In a falling wedge each new low is only a little lower, which shows selling pressure easing. Investopedia: a falling wedge is seen as bullish. Fidelity's pattern guide: a pattern is not complete or activated until price actually breaks out. A descending triangle has a flat lower line and a falling upper line. Bulkowski: flags last under three weeks; longer ones are rectangles or channels. A symmetrical triangle has a falling upper line and a rising lower line that converge."
+    "summary": "A falling wedge sits between two down-sloping lines that converge. StockCharts: the falling wedge is bullish; it narrows as prices fall. In a falling wedge each new low is only a little lower, which shows selling pressure easing. Investopedia: a falling wedge is seen as bullish. Fidelity's pattern guide: a pattern is not complete or activated until price actually breaks out. A descending triangle has a flat lower line and a falling upper line. A flag is a small rectangle sloping against the trend before it. A flag's price action sits between two parallel lines. A symmetrical triangle has a falling upper line and a rising lower line that converge."
    },
    "facts": {
     "given": "Which word fits? A stock slides for four months. Its lower highs and lower lows trace two down-sloping lines that converge. Each new low is only a bit lower. Falling wedge Descending triangle Bear flag Symmetrical triangle"
@@ -14022,7 +14008,7 @@
    "unit": "V.04",
    "why": "Falling wedge. Both lines slope down and converge, as Bulkowski describes it. StockCharts says the shallower new lows show selling pressure easing. StockCharts and Investopedia both read it as bullish. Like any pattern, it counts only once price breaks out.",
    "wrong": {
-    "Bear flag": "A flag's lines run parallel, and it's a short pause, not four months.",
+    "Bear flag": "A bear flag tilts up, against the fall, between parallel lines. These lines slope down and converge.",
     "Descending triangle": "That needs a flat bottom line. Here the lows keep falling.",
     "Symmetrical triangle": "Its lower line rises. Here both lines slope down."
    }
@@ -16166,7 +16152,7 @@
   "difficulty": 1,
   "id": "si_56034db1e0f0",
   "lesson_origin": "session",
-  "lesson_text": "Triple top. StockCharts describes three equal highs followed by a break below support. Fidelity's guide describes three peaks at about the same price with two troughs between. It completes on that break. Three equal highs alone are not enough: StockCharts says they can also be found in an ascending triangle or rectangle. Triple top: three equal highs, done only when support breaks.",
+  "lesson_text": "Triple top. StockCharts describes three equal highs followed by a break below support. Fidelity's guide describes three peaks at about the same price with two troughs between. The level lows rule out an ascending triangle, whose lower line rises. Triple top: three equal highs, done only when support breaks.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -16205,20 +16191,27 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "StockCharts.com (ChartSchool): Glossary: D",
+      "quote": "The pattern forms with two prominent peaks that are roughly equal, a moderate trough in-between and a support break.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-d"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "StockCharts.com (ChartSchool): Glossary: A",
       "quote": "Ascending Triangle A sideways price pattern between two converging trend lines in which the lower line is rising while the upper line is flat.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-a"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62)",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Identifying Chart Patterns with Technical Analysis (webinar slides, coauthor Charles D. Kirkpatrick II, CMT)",
+      "quote": "A pattern is not complete or activated until an actual breakout occurs",
+      "tier": 2,
+      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf"
      }
     ],
-    "summary": "A triple top is three equal highs, then a break below support. Fidelity's guide: a triple top is three peaks at about the same price with two troughs between. A head and shoulders top has a middle peak, the head, higher than the shoulders either side. An ascending triangle has a flat upper line and a rising lower line. Our default stop sits a few cents under the day's low or the prior day's low."
+    "summary": "A triple top is three equal highs, then a break below support. Fidelity's guide: a triple top is three peaks at about the same price with two troughs between. A head and shoulders top has a middle peak, the head, higher than the shoulders either side. A double top is two roughly equal peaks, a moderate trough between, then a support break. An ascending triangle has a flat upper line and a rising lower line. Fidelity's pattern guide: a pattern is not complete or activated until price actually breaks out."
    },
    "facts": {
     "given": "Which word is this: three highs near one price, level lows between them, then a break below those lows. Triple top Head and shoulders Double top Ascending triangle"
@@ -16227,7 +16220,7 @@
    "simple": "It is a triple top, because three tries at the same high fail and then the lows between them break.",
    "tier": "core",
    "unit": "V.04",
-   "why": "Triple top. StockCharts describes three equal highs followed by a break below support. Fidelity's guide describes three peaks at about the same price with two troughs between. It completes on that break. Three equal highs alone are not enough: StockCharts says they can also be found in an ascending triangle or rectangle.",
+   "why": "Triple top. StockCharts describes three equal highs followed by a break below support. Fidelity's guide describes three peaks at about the same price with two troughs between. The level lows rule out an ascending triangle, whose lower line rises.",
    "wrong": {
     "Ascending triangle": "Its lows rise toward a flat top. Here the lows are level.",
     "Double top": "That's only two peaks.",
@@ -17895,12 +17888,12 @@
   "difficulty": 1,
   "id": "si_cbc62b8a217b",
   "lesson_origin": "session",
-  "lesson_text": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. In the owner's JBI example the red day's high was 11.04 and the entry 11.05, a cent over. Kicker entry: over the red day's high, at market as it trades through.",
+  "lesson_text": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example. Kicker entry: over the red day's high, at market as it trades through.",
   "module": "V",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "Kicker day. The red day before it topped at $11.04. What is our entry price over that high?",
+   "q": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?",
    "subject": "Kicker"
   },
   "reveal_json": {
@@ -17925,13 +17918,13 @@
      "fn": "arith",
      "result": 11.05
     },
-    "given": "Kicker day. The red day before it topped at $11.04. What is our entry price over that high?"
+    "given": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?"
    },
    "lesson_line": "Kicker entry: over the red day's high, at market as it trades through.",
-   "simple": "$11.05, a cent over the red day's $11.04 high, the price in the owner's own example.",
+   "simple": "$11.05, a cent over the red day's $11.04 high, the level our Kicker entry breaks.",
    "tier": "core",
    "unit": "V.05",
-   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. In the owner's JBI example the red day's high was 11.04 and the entry 11.05, a cent over."
+   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -19091,7 +19084,7 @@
   "prompt_json": {
    "choices": [
     "The open is the low of the day",
-    "A gap up over the prior high",
+    "A gap up over the prior day's high",
     "A lower wick of 40% of the range",
     "Volume at twice its average"
    ],
@@ -19127,7 +19120,7 @@
     "summary": "Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half. On a Go Signal day the stock opens under the prior close. A Go Signal needs a notable recent move: a 13% gain in 5 sessions within the last 20, a 4% gap on 2x volume within the last 30, or a tight 10-bar base above the 50-day."
    },
    "facts": {
-    "given": "On the daily bar, what shows buyers stepped in on a Go Signal? A lower wick of 40% of the range The open is the low of the day A gap up over the prior high Volume at twice its average"
+    "given": "On the daily bar, what shows buyers stepped in on a Go Signal? A lower wick of 40% of the range The open is the low of the day A gap up over the prior day's high Volume at twice its average"
    },
    "lesson_line": "Long lower wick, strong close: buyers showed up after the flush.",
    "simple": "A lower wick that is 40% of the day's range, because it shows buyers pushed the price back up.",
@@ -19135,7 +19128,7 @@
    "unit": "V.05",
    "why": "A lower wick of 40% of the range. That is one of two signs our Go Signal reads as buyers stepping in. The other is a low under the open with the close in the upper half. Either way, the stock was pushed down and buyers turned it.",
    "wrong": {
-    "A gap up over the prior high": "A Go Signal opens weak, under the prior close. No gap up.",
+    "A gap up over the prior day's high": "A Go Signal opens weak, under the prior close. No gap up.",
     "The open is the low of the day": "Our sign wants a flush first: a long lower wick, or a low under the open. Here it never traded under the open.",
     "Volume at twice its average": "Twice-average volume belongs to the recent-move check, the 4% gap. It isn't the buyers check."
    }
@@ -19466,7 +19459,7 @@
    ],
    "kind": "mcq",
    "q": "In our High Volume Edge plan, what is this spot?",
-   "story": "Weeks ago a stock closed at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20.",
+   "story": "Weeks ago a stock closed up at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20.",
    "subject": "decision point"
   },
   "reveal_json": {
@@ -19511,7 +19504,7 @@
     "summary": "The first time price comes back to the high-volume close is the cleanest place to decide. The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. R is your initial risk per share."
    },
    "facts": {
-    "given": "In our High Volume Edge plan, what is this spot? Weeks ago a stock closed at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20. The cleanest decision point A failed setup: the stop is hit The first trim, a third at 3R A new Kicker setup forming"
+    "given": "In our High Volume Edge plan, what is this spot? Weeks ago a stock closed up at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20. The cleanest decision point A failed setup: the stop is hit The first trim, a third at 3R A new Kicker setup forming"
    },
    "lesson_line": "First return to the high-volume close: the cleanest place to decide.",
    "simple": "It is the cleanest place to decide, because it is the first time price has come back to the big-volume close.",
@@ -19519,7 +19512,7 @@
    "unit": "V.05",
    "why": "The cleanest decision point. Our High Volume Edge buys the high-volume close, here $64. The first return to that close is the cleanest place to decide. Nothing has failed yet: the stock is back at the level, not under it. It is not a target either, since $64.20 is back near where the trade started.",
    "wrong": {
-    "A failed setup: the stop is hit": "On a long, our stop is the edge bar's low, at or under its $64 close. At $64.20 it hasn't been hit.",
+    "A failed setup: the stop is hit": "The bar closed up, so our stop is its low, at or under the $64 close. At $64.20 it hasn't been hit.",
     "A new Kicker setup forming": "A Kicker needs a red day and a gap up. This is a return to an old close.",
     "The first trim, a third at 3R": "A 3R trim sits above the entry by three times the risk. This is a return to the $64 entry level."
    }
@@ -19625,7 +19618,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Over yesterday's high",
+    "The break over yesterday's high",
     "Today's closing price",
     "$39.10, today's open",
     "$40.00, the prior close"
@@ -19670,7 +19663,7 @@
     "summary": "Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low. On a Go Signal day the stock opens under the prior close. The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
    },
    "facts": {
-    "given": "Where is our Go Signal entry? A strong stock closed at $40.00 yesterday. Today it opens at $39.10, dips under yesterday's low, then climbs. By 11 a.m. it trades $40.00. $40.00, the prior close $39.10, today's open Today's closing price Over yesterday's high"
+    "given": "Where is our Go Signal entry? A strong stock closed at $40.00 yesterday. Today it opens at $39.10, dips under yesterday's low, then climbs. By 11 a.m. it trades $40.00. $40.00, the prior close $39.10, today's open Today's closing price The break over yesterday's high"
    },
    "lesson_line": "Go Signal entry: the prior close, the moment it goes red to green.",
    "simple": "$40.00, because our Go Signal buys the prior close as soon as the stock trades back up to it.",
@@ -19679,7 +19672,7 @@
    "why": "$40.00, the prior close. The stock opened under yesterday's close, swept yesterday's low and climbed back. It traded $40.00 this session, red to green, so that is our entry. The session's low sets the stop.",
    "wrong": {
     "$39.10, today's open": "Buying the weak open is guessing. We wait for the turn back to the prior close.",
-    "Over yesterday's high": "That's the Kicker's entry, over the red day's high.",
+    "The break over yesterday's high": "That's the Kicker's entry, over the red day's high.",
     "Today's closing price": "Our entry is the prior close when it trades that session. It traded $40.00 here, so the close isn't the entry."
    }
   },
@@ -22525,7 +22518,7 @@
    "wrong": {
     "Expectancy": "That's your average result per trade, which weighs the size of wins and losses too.",
     "R-multiple": "That's one trade's result counted in R.",
-    "Risk/reward ratio": "That compares the stop distance with the target distance on one trade."
+    "Risk/reward ratio": "That's about one trade's plan, not your record of closed trades."
    }
   },
   "review_status": "draft",
@@ -23022,7 +23015,7 @@
   "difficulty": 1,
   "id": "si_b37798e7c5ed",
   "lesson_origin": "session",
-  "lesson_text": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's ceiling is also 2%, and under 1% is normal for us. The 2% rule caps risk, not position size.",
+  "lesson_text": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's absolute ceiling is also 2%. The 2% rule caps risk, not position size.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -23100,7 +23093,7 @@
    "simple": "It caps your risk on one trade at 2% of capital, what you plan to lose at the stop.",
    "tier": "core",
    "unit": "V.06",
-   "why": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's ceiling is also 2%, and under 1% is normal for us.",
+   "why": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's absolute ceiling is also 2%.",
    "wrong": {
     "Each position to 2% of the account": "That mixes up risk and size. A 2% risk can sit on a much bigger position.",
     "Your losses in any one month to 2%": "A monthly cap is a separate rule. UCT's monthly loss limit is 8%.",
@@ -26366,10 +26359,10 @@
     "Under 1% of the account a trade",
     "2% of the account on every trade",
     "Up to 5% a trade on top setups",
-    "2% a day across all your trades"
+    "1.5% of the account on every trade"
    ],
    "kind": "mcq",
-   "q": "The 2% rule caps risk at 2% a trade. What does our rulebook call normal?",
+   "q": "What risk per trade does our rulebook call normal?",
    "subject": "2% rule"
   },
   "reveal_json": {
@@ -26381,19 +26374,12 @@
       "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding the 2% Rule in Investing: A Guide to Risk Management (James Chen, updated May 13, 2026)",
-      "quote": "The 2% rule is a strategy that limits an investor's risk on any single trade to no more than 2% of their total trading capital.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/two-percent-rule.asp"
      }
     ],
-    "summary": "Our normal risk is under 1% a trade; 1.5% is the most any grade uses; 2% is the ceiling. The 2% rule caps the risk on one trade at 2% of trading capital."
+    "summary": "Our normal risk is under 1% a trade; 1.5% is the most any grade uses; 2% is the ceiling."
    },
    "facts": {
-    "given": "The 2% rule caps risk at 2% a trade. What does our rulebook call normal? Under 1% of the account a trade 2% of the account on every trade 2% a day across all your trades Up to 5% a trade on top setups"
+    "given": "What risk per trade does our rulebook call normal? Under 1% of the account a trade 2% of the account on every trade 1.5% of the account on every trade Up to 5% a trade on top setups"
    },
    "lesson_line": "Our normal risk is under 1% a trade. 2% is the ceiling.",
    "simple": "Our normal risk is under 1% of the account a trade, and 2% is the most we ever risk.",
@@ -26401,7 +26387,7 @@
    "unit": "V.06",
    "why": "Under 1% of the account a trade. Our rulebook: under 1% is normal, and 1.5% is the most any grade uses. 2% is the absolute ceiling, not the normal.",
    "wrong": {
-    "2% a day across all your trades": "The 2% rule caps the risk on one trade, not one day. Investopedia: any single trade.",
+    "1.5% of the account on every trade": "1.5% is the most any grade uses, a top, not the normal. Under 1% is normal.",
     "2% of the account on every trade": "2% is our absolute ceiling, not our normal. Under 1% is normal.",
     "Up to 5% a trade on top setups": "Our ceiling is 2% a trade. Even the best grade uses 1.5% at most."
    }
@@ -33464,7 +33450,7 @@
   "difficulty": 1,
   "id": "si_21e550fbf998",
   "lesson_origin": "session",
-  "lesson_text": "Contracts not yet closed out. Open interest is the total of outstanding contracts in a series that have not been closed. Volume is different: it counts only the contracts traded in one session. Open interest counts option contracts, not shares. Volume is today's trading. Open interest is what's still open.",
+  "lesson_text": "Contracts not yet closed out. Open interest is the total of outstanding contracts in a series that have not been closed. Volume is different: it counts only the contracts traded in one session. Open interest counts option contracts, not shares. Open interest counts contracts still open, not today's trades.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -33514,7 +33500,7 @@
    "facts": {
     "given": "On an option chain, what does open interest count? Contracts not yet closed out Contracts traded so far in the day Shares of the stock sold short Buy orders still waiting to be filled"
    },
-   "lesson_line": "Volume is today's trading. Open interest is what's still open.",
+   "lesson_line": "Open interest counts contracts still open, not today's trades.",
    "simple": "Open interest counts the contracts that are still open, not the ones traded today, which is volume.",
    "tier": "core",
    "unit": "V.08",
@@ -35938,7 +35924,7 @@
   "difficulty": 2,
   "id": "si_a7c0390aa927",
   "lesson_origin": "session",
-  "lesson_text": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then buying again is two steps, not one roll. A roll is two trades at once: a close and a new open.",
+  "lesson_text": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll. A roll is two trades at once: a close and a new open.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -35992,7 +35978,7 @@
    "simple": "Rolling means you close your option and open a new one at a different strike or date, all at once.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then buying again is two steps, not one roll.",
+   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
    "wrong": {
     "Add more contracts at a lower price": "That's averaging down: buying more at a lower price to cut your average cost.",
     "Exercise it early to take the shares": "Exercise uses the right to buy or sell at the strike. It opens no new option, so it is not a roll.",
@@ -37578,7 +37564,7 @@
   "difficulty": 2,
   "id": "si_edb58ebe5a27",
   "lesson_origin": "session",
-  "lesson_text": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole $2.00 is the risk you plan for. On an option, the premium paid is the stop. Plan for losing all of it.",
+  "lesson_text": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole premium, $2.00 a share, is the risk you plan for. On an option, the premium paid is the stop. Plan for losing all of it.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -37589,7 +37575,7 @@
    ],
    "kind": "mcq",
    "q": "Under our rules, what is your stop on the call?",
-   "story": "A setup triggers, and you buy one call instead of the shares. The call costs $2.00.",
+   "story": "A setup triggers, and you buy one call instead of the shares. The call is quoted at $2.00.",
    "subject": "V.08#q67"
   },
   "reveal_json": {
@@ -37634,13 +37620,13 @@
     "summary": "We use options only occasionally, and on an option the premium paid is the stop. We trade shares; options are only a defined-risk alternative. On shares, the stop by default sits a few cents under the day's low or the prior day's low. On shares, the stop usually sits within about 3% of the buy price. A buyer can lose only the premium; a call writer's loss is theoretically unlimited and a put writer's is substantial."
    },
    "facts": {
-    "given": "Under our rules, what is your stop on the call? A setup triggers, and you buy one call instead of the shares. The call costs $2.00. The full premium you paid Sell if the call loses half Just under the stock's day low About 3% under your entry"
+    "given": "Under our rules, what is your stop on the call? A setup triggers, and you buy one call instead of the shares. The call is quoted at $2.00. The full premium you paid Sell if the call loses half Just under the stock's day low About 3% under your entry"
    },
    "lesson_line": "On an option, the premium paid is the stop. Plan for losing all of it.",
    "simple": "The full premium, because our rule makes the premium paid on an option the stop.",
    "tier": "core",
    "unit": "V.08",
-   "why": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole $2.00 is the risk you plan for.",
+   "why": "The full premium you paid. Our rule: the premium paid is the stop. We trade shares, and options are only a defined-risk alternative. So the whole premium, $2.00 a share, is the risk you plan for.",
    "wrong": {
     "About 3% under your entry": "On shares, the stop usually sits within about 3% of the buy. On an option, the premium paid is the stop.",
     "Just under the stock's day low": "That's our default stop for shares. On an option, the premium paid is the stop.",
@@ -39166,7 +39152,7 @@
   "difficulty": 1,
   "id": "si_5e8caaad98da",
   "lesson_origin": "session",
-  "lesson_text": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time, so the measures differ from company to company. It must also show the GAAP number and reconcile the two. It is not the audited figure, not an analyst estimate, and not a foreign rulebook. Adjusted means the company chose what to leave out. Always find the GAAP number next to it.",
+  "lesson_text": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time. It is not the audited figure, not an analyst estimate, and not a foreign rulebook. Adjusted means the company chose what to leave out. The choice is theirs, not the rulebook's.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -39181,7 +39167,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Adjusted is not the same as wrong. It is the company's own choice of what counts as one-time, and Schwab notes that choice can cause debate. Always read the GAAP line and the reconciliation beside it."
+    "counter": "Adjusted is not the same as wrong. It is the company's own choice of what counts as one-time, and Schwab notes that choice can cause debate."
    },
    "depth": {
     "sources": [
@@ -39236,43 +39222,22 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC rule text, eCFR (17 CFR Part 244, Regulation G): Regulation G: disclosure of non-GAAP financial measures",
-      "quote": "the registrant must accompany that non-GAAP financial measure with: ( 1 ) A presentation of the most directly comparable financial measure calculated and presented in accordance with Generally Accepted Accounting Principles (GAAP)",
-      "tier": 1,
-      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-244"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC rule text, eCFR (17 CFR Part 244, Regulation G): Regulation G: disclosure of non-GAAP financial measures",
-      "quote": "A reconciliation (by schedule or other clearly understandable method)",
-      "tier": 1,
-      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-244"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "NVIDIA Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR): NVIDIA Announces Financial Results for Third Quarter Fiscal 2026 (Nov. 19, 2025)",
-      "quote": "the company’s non-GAAP measures may be different from non-GAAP measures used by other companies.",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Charles Schwab: GAAP vs. Adjusted Earnings: Know the Difference (Dan Rosenberg, October 22, 2026)",
       "quote": "A company has some wiggle room in defining these, which can cause debate over just what's \"one-time\" versus ongoing.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/gaap-vs-adjusted-earnings-know-difference"
      }
     ],
-    "summary": "A non-GAAP measure is a company's own measure of its performance. A non-GAAP measure leaves out (or adds) amounts that the GAAP number includes (or leaves out). Adjusted earnings leave out items the company calls unusual or one-time. The 10-K is the annual report, with audited financial statements. US companies must file their financial statements under GAAP. The consensus estimate is the average of the analysts covering the stock. Foreign companies may use IFRS instead of GAAP. A company showing a non-GAAP number must also present the comparable GAAP number. It must also reconcile the two numbers. Non-GAAP measures differ from company to company. Companies choose for themselves what counts as one-time."
+    "summary": "A non-GAAP measure is a company's own measure of its performance. A non-GAAP measure leaves out (or adds) amounts that the GAAP number includes (or leaves out). Adjusted earnings leave out items the company calls unusual or one-time. The 10-K is the annual report, with audited financial statements. US companies must file their financial statements under GAAP. The consensus estimate is the average of the analysts covering the stock. Foreign companies may use IFRS instead of GAAP. Companies choose for themselves what counts as one-time."
    },
    "facts": {
     "given": "What is a non-GAAP, or adjusted, number? Results minus items management picks Results checked by outside auditors The analysts' estimate of earnings Results under foreign accounting rules"
    },
-   "lesson_line": "Adjusted means the company chose what to leave out. Always find the GAAP number next to it.",
+   "lesson_line": "Adjusted means the company chose what to leave out. The choice is theirs, not the rulebook's.",
    "simple": "An adjusted number starts from GAAP results but leaves out items the company picks, often ones it calls one-time.",
    "tier": "core",
    "unit": "V.09",
-   "why": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time, so the measures differ from company to company. It must also show the GAAP number and reconcile the two. It is not the audited figure, not an analyst estimate, and not a foreign rulebook.",
+   "why": "Results minus items management picks. Under the SEC's Regulation G, a non-GAAP measure leaves out, or adjusts for, amounts that the comparable GAAP measure includes. Management decides which items, often ones the company calls unusual or one-time. It is not the audited figure, not an analyst estimate, and not a foreign rulebook.",
    "wrong": {
     "Results checked by outside auditors": "The audited statements are the GAAP ones in the 10-K. Adjusted numbers are the company's own choices.",
     "Results under foreign accounting rules": "Foreign companies may use IFRS instead of GAAP. That's a different rulebook, not an adjusted number.",
@@ -42289,7 +42254,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The one with more volume today",
+    "The one with the higher price",
     "The 500 million share float",
     "The 5 million share float",
     "No difference at the same price"
@@ -42330,7 +42295,7 @@
     "summary": "Nasdaq's glossary links a smaller float with more volatility. Low-float stocks tend to have wider spreads, more volatility, and are harder to get in and out of. Fewer shares available can make it harder to find the other side."
    },
    "facts": {
-    "given": "Which one is likely to swing more? Two stocks both trade near $20. One has a float of 5 million shares. The other has a float of 500 million. The 5 million share float The 500 million share float No difference at the same price The one with more volume today"
+    "given": "Which one is likely to swing more? Two stocks both trade near $20. One has a float of 5 million shares. The other has a float of 500 million. The 5 million share float The 500 million share float No difference at the same price The one with the higher price"
    },
    "lesson_line": "Low float means thin supply. Expect bigger swings and wider spreads.",
    "simple": "The 5 million share float, because fewer shares to trade usually means bigger price swings.",
@@ -42340,7 +42305,7 @@
    "wrong": {
     "No difference at the same price": "Price doesn't tell you the supply. The float does.",
     "The 500 million share float": "More shares available usually means calmer trading and an easier time finding a buyer or seller.",
-    "The one with more volume today": "The question compares the floats, not today's volume. Fewer shares to trade usually means bigger swings."
+    "The one with the higher price": "Both trade near $20, so price can't tell them apart. The float size is what differs."
    }
   },
   "review_status": "draft",
@@ -43113,92 +43078,6 @@
   "skill_id": "vocab.fund_terms",
   "source_kind": "course",
   "source_ref": "docs/study/courses/V/V.09.json#q63",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Sell before the news hits"
-  },
-  "difficulty": 3,
-  "id": "si_dacccdf8a173",
-  "lesson_origin": "session",
-  "lesson_text": "Sell before the news hits. Our rule: hold through a report only if the trade is up 5R. This one is up 3R, short of that line. AMC means the company reports after the market has closed. A stop won't cap the loss: after a gap, the stop becomes a market order that may fill well below it. Up 5R or more, you may hold through a report. Under that, be out before it.",
-  "module": "V",
-  "prompt_json": {
-   "choices": [
-    "Sell before the news hits",
-    "Hold with a breakeven stop",
-    "Hold it through the report",
-    "Add shares before the report"
-   ],
-   "kind": "mcq",
-   "q": "Under our earnings rule, what's the plan?",
-   "story": "You hold a stock that is up 3R on the trade. It reports AMC tonight.",
-   "subject": "AMC"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "The trap is trusting a breakeven stop. Schwab notes a report outside market hours can make a stock gap, with no trading in between. Our rule avoids the gap instead of hoping the stop holds."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investing.com (Help Center): How to Find Earnings Times for US Companies on Investing.com (October 23, 2025)",
-      "quote": "BMO (Before Market Open): The company will release earnings before trading begins for the day AMC (After Market Close): The company will release earnings after the market has closed for the day",
-      "tier": 2,
-      "url": "https://www.investing-support.com/hc/en-us/articles/115003946525-How-to-Find-Earnings-Times-for-US-Companies-on-Investing-com"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
-      "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Earnings Season: 3 Things You Should Look For (February 26, 2024)",
-      "quote": "if a stock starts the trading day sharply lower from the day before and the trailing stop is triggered, the stock will be sold at the current market price, which may be considerably below the stop price.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/earnings-season-what-to-look"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Earnings Season: 3 Things You Should Look For (February 26, 2024)",
-      "quote": "Be aware that companies can report results when markets aren't even open, which can cause their stocks to \"gap\" or make a sharp move up or down with no trading occurring in between.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/earnings-season-what-to-look"
-     }
-    ],
-    "summary": "B22: our rule is no new buys in the 3 days before a report, and hold through one only when up 5R. BMO means results before the day's trading begins; AMC means results after the close. A stop price is a trigger, not a guaranteed fill price. After a gap down, a triggered stop sells at the market, possibly far below the stop. Reports outside market hours can make a stock gap."
-   },
-   "facts": {
-    "given": "Under our earnings rule, what's the plan? You hold a stock that is up 3R on the trade. It reports AMC tonight. Sell before the news hits Hold it through the report Hold with a breakeven stop Add shares before the report"
-   },
-   "lesson_line": "Up 5R or more, you may hold through a report. Under that, be out before it.",
-   "simple": "Sell first, because our rule holds through earnings only when the trade is up 5R, and this one is up 3R.",
-   "tier": "expert",
-   "unit": "V.09",
-   "why": "Sell before the news hits. Our rule: hold through a report only if the trade is up 5R. This one is up 3R, short of that line. AMC means the company reports after the market has closed. A stop won't cap the loss: after a gap, the stop becomes a market order that may fill well below it.",
-   "wrong": {
-    "Add shares before the report": "Our rule bars new buys in the 3 days before a report. Buying more is a new buy.",
-    "Hold it through the report": "Our rule holds through a report only when the trade is up 5R. At 3R, sell first.",
-    "Hold with a breakeven stop": "A stop is a trigger, not a price. A gap can fill you well below it, and our rule still needs 5R."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "vocab.fund_terms",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/V/V.09.json#q64",
   "type": "scenario",
   "version": 1
  },
@@ -46852,27 +46731,34 @@
  },
  {
   "answer_json": {
-   "answer": "A Treasury note"
+   "answer": "A Treasury bond"
   },
   "difficulty": 2,
   "id": "si_cf476e158818",
   "lesson_origin": "session",
-  "lesson_text": "A Treasury note. Notes mature in 2, 3, 5, 7 or 10 years, so the 10-year is a note. Bills mature in a year or less. Bonds mature in 20 or 30 years. Floating rate notes, or FRNs, mature in two years. Bills are short, notes are the middle, bonds are the long end. The 10-year is a note.",
+  "lesson_text": "A Treasury bond. Bonds mature in 20 or 30 years. Notes mature in 2, 3, 5, 7 or 10 years, so no note runs 20 years. Bills mature in a year or less. Floating rate notes, or FRNs, mature in two years. Bills are short, notes run up to 10 years, bonds are the long end at 20 or 30.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A Treasury note",
     "A Treasury bond",
+    "A Treasury bill",
     "A Treasury FRN",
-    "A Treasury bill"
+    "A Treasury note"
    ],
    "kind": "mcq",
-   "q": "Traders talk about the 10-year. What type of Treasury security is it?",
+   "q": "A Treasury security matures in 20 years. What type is it?",
    "subject": "Treasury note"
   },
   "reveal_json": {
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "U.S. Department of the Treasury, TreasuryDirect: Understanding Pricing and Interest Rates",
+      "quote": "Bonds are long-term securities that mature in 20 or 30 years.",
+      "tier": 1,
+      "url": "https://www.treasurydirect.gov/marketable-securities/understanding-pricing/"
+     },
      {
       "accessed": "2026-11-09",
       "name": "U.S. Department of the Treasury, TreasuryDirect: Understanding Pricing and Interest Rates",
@@ -46884,13 +46770,6 @@
       "accessed": "2026-11-09",
       "name": "U.S. Department of the Treasury, TreasuryDirect: Understanding Pricing and Interest Rates",
       "quote": "Bills are short-term securities that mature in one year or less.",
-      "tier": 1,
-      "url": "https://www.treasurydirect.gov/marketable-securities/understanding-pricing/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "U.S. Department of the Treasury, TreasuryDirect: Understanding Pricing and Interest Rates",
-      "quote": "Bonds are long-term securities that mature in 20 or 30 years.",
       "tier": 1,
       "url": "https://www.treasurydirect.gov/marketable-securities/understanding-pricing/"
      },
@@ -46909,20 +46788,21 @@
       "url": "https://www.treasurydirect.gov/marketable-securities/understanding-pricing/"
      }
     ],
-    "summary": "Treasury notes mature in 2, 3, 5, 7 or 10 years. Treasury bills mature in a year or less. Treasury bonds mature in 20 or 30 years. Treasury floating rate notes (FRNs) mature in two years. TreasuryDirect names FRNs Floating Rate Notes (section heading, re-fetched 2026-11-12)."
+    "summary": "Treasury bonds mature in 20 or 30 years. Treasury notes mature in 2, 3, 5, 7 or 10 years. Treasury bills mature in a year or less. Treasury floating rate notes (FRNs) mature in two years. TreasuryDirect names FRNs Floating Rate Notes (section heading, re-fetched 2026-11-12)."
    },
    "facts": {
-    "given": "Traders talk about the 10-year. What type of Treasury security is it? A Treasury note A Treasury bill A Treasury bond A Treasury FRN"
+    "given": "A Treasury security matures in 20 years. What type is it? A Treasury bond A Treasury note A Treasury bill A Treasury FRN"
    },
-   "lesson_line": "Bills are short, notes are the middle, bonds are the long end. The 10-year is a note.",
-   "simple": "The 10-year is a Treasury note, since notes run 2 to 10 years and bonds run 20 or 30.",
+   "lesson_line": "Bills are short, notes run up to 10 years, bonds are the long end at 20 or 30.",
+   "simple": "It is a Treasury bond, since bonds run 20 or 30 years and notes stop at 10.",
    "tier": "extended",
    "unit": "V.10",
-   "why": "A Treasury note. Notes mature in 2, 3, 5, 7 or 10 years, so the 10-year is a note. Bills mature in a year or less. Bonds mature in 20 or 30 years. Floating rate notes, or FRNs, mature in two years.",
+   "why": "A Treasury bond. Bonds mature in 20 or 30 years. Notes mature in 2, 3, 5, 7 or 10 years, so no note runs 20 years. Bills mature in a year or less. Floating rate notes, or FRNs, mature in two years.",
    "wrong": {
-    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 10-year security can't be one.",
+    "A Treasury FRN": "FRNs, floating rate notes, mature in two years, so a 20-year security can't be one.",
     "A Treasury bill": "Bills are short-term, a year or less.",
-    "A Treasury bond": "Treasury bonds are the 20- and 30-year."
+    "A Treasury bond": "Treasury bonds are the 20- and 30-year.",
+    "A Treasury note": "Notes stop at 10 years. A 20-year Treasury is a bond."
    }
   },
   "review_status": "draft",
@@ -47625,7 +47505,7 @@
   "difficulty": 3,
   "id": "si_b66311601e08",
   "lesson_origin": "session",
-  "lesson_text": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate. Multiplying the annual rate up again scales the wrong way. GDP headlines are annualized. The quarter's own growth is far smaller, so check which rate you're reading.",
+  "lesson_text": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. An annual rate is the pace the quarter would reach if it kept going for a full year, so the quarter's own growth is much smaller. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate. GDP headlines are annualized. The quarter's own growth is far smaller, so check which rate you're reading.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -47666,14 +47546,14 @@
     "given": "About how much did real GDP grow within the quarter itself? BEA's advance estimate: real GDP grew at an annual rate of 3.4% in the third quarter of 2026. About 0.8% About 3.4% About 13.6% Can't tell"
    },
    "lesson_line": "GDP headlines are annualized. The quarter's own growth is far smaller, so check which rate you're reading.",
-   "simple": "About 0.8%, because the 3.4% is an annual pace, and BEA says the quarter itself grew 0.8%.",
+   "simple": "About 0.8%, because the 3.4% is a yearly pace, and one quarter on its own grows much less.",
    "tier": "extended",
    "unit": "V.10",
-   "why": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate. Multiplying the annual rate up again scales the wrong way.",
+   "why": "About 0.8%. BEA reports quarterly GDP at annual rates, for ease of comparison, unless it says otherwise. An annual rate is the pace the quarter would reach if it kept going for a full year, so the quarter's own growth is much smaller. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate.",
    "wrong": {
     "About 13.6%": "That scales the wrong way. The annual rate already stretches the quarter out to a year.",
     "About 3.4%": "That's the annualized pace, not the quarter's own growth.",
-    "Can't tell": "You can. The 3.4% is an annual rate, not the quarter's own growth. BEA's same release puts the quarter at 0.8%."
+    "Can't tell": "You can. The story says annual rate, which stretches the quarter over a year. The quarter's own growth is much smaller, and only 0.8% fits."
    }
   },
   "review_status": "draft",
@@ -49018,7 +48898,7 @@
   "difficulty": 1,
   "id": "si_e1ef244f323d",
   "lesson_origin": "session",
-  "lesson_text": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers. A new high needs a one-year extreme, not just an up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks. Advancers closed up on the day. Many breadth gauges start from that count.",
+  "lesson_text": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers and builds the A/D line from their count. A new high takes more than one up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks. Advancers closed up on the day. Gauges like the A/D line start from that count.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -49082,14 +48962,14 @@
    "facts": {
     "given": "On a breadth page, what are the stocks that closed higher on the day called? Advancers New highs Up volume Net advances"
    },
-   "lesson_line": "Advancers closed up on the day. Many breadth gauges start from that count.",
-   "simple": "Stocks that closed higher on the day are called advancers, and their count is where many breadth gauges start.",
+   "lesson_line": "Advancers closed up on the day. Gauges like the A/D line start from that count.",
+   "simple": "Stocks that closed higher on the day are called advancers, and breadth gauges like the advance-decline line start from their count.",
    "tier": "core",
    "unit": "V.11",
-   "why": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers. A new high needs a one-year extreme, not just an up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks.",
+   "why": "Advancers. McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers and builds the A/D line from their count. A new high takes more than one up day. Up volume counts shares traded, not stocks. Net advances is one number for the day, not a group of stocks.",
    "wrong": {
     "Net advances": "Net advances is one number for the day, not a group of stocks.",
-    "New highs": "New highs is a one-year test. Closing up on the day is not enough.",
+    "New highs": "A new high is a different test. Closing up on the day is not enough.",
     "Up volume": "Up volume counts shares traded, not the stocks themselves."
    }
   },
@@ -49591,7 +49471,7 @@
   "difficulty": 3,
   "id": "si_5be581176c1f",
   "lesson_origin": "session",
-  "lesson_text": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: new highs or lows with the index, or a failure to confirm them. ChartSchool and Tom McClellan both say the level is not what matters. Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
+  "lesson_text": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters. Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -49632,13 +49512,6 @@
      {
       "accessed": "2026-11-09",
       "name": "StockCharts.com: ChartSchool: Advance-Decline Line",
-      "quote": "The AD Line should confirm an advance or a decline with similar movements.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-line"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Advance-Decline Line",
       "quote": "An AD Line that rises and records new highs along with the underlying index shows strong participation that is bullish.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-line"
@@ -49651,7 +49524,7 @@
       "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-line"
      }
     ],
-    "summary": "What matters on the A/D line is its shape and direction, not its number. The A/D line's number depends on its start date and is not important. The A/D line is a running total of net advances. The A/D line should confirm the index's move by moving the same way. An A/D line making new highs with the index shows strong participation. An A/D line that fails to confirm the index's new highs shows narrowing participation."
+    "summary": "What matters on the A/D line is its shape and direction, not its number. The A/D line's number depends on its start date and is not important. The A/D line is a running total of net advances. An A/D line making new highs with the index shows strong participation. An A/D line that fails to confirm the index's new highs shows narrowing participation."
    },
    "facts": {
     "given": "The exact number on an A/D line matters more than its direction."
@@ -49660,7 +49533,7 @@
    "simple": "False, because the number depends on the day the count began, so you read the line's shape and direction instead.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: new highs or lows with the index, or a failure to confirm them. ChartSchool and Tom McClellan both say the level is not what matters."
+   "why": "False. The A/D line is a running total, so its number depends on the day the count started. Start the count on another day and the level changes, while the shape does not. What you read is the shape and direction: whether it makes new highs with the index or lags behind. ChartSchool and Tom McClellan both say the level is not what matters."
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -49676,7 +49549,7 @@
   "difficulty": 1,
   "id": "si_b43893761819",
   "lesson_origin": "session",
-  "lesson_text": "Exactly the same. On the A/D line every advance counts plus one and every decline minus one, regardless of market cap or volume. A giant company and a tiny one each get one vote. That is why the line can disagree with a cap-weighted index, where the biggest companies move the index most. One stock, one vote. That's why the A/D line can disagree with a cap-weighted index.",
+  "lesson_text": "Exactly the same. ChartSchool: regardless of market cap or volume, an advance counts as +1 and a decline as -1. Tom McClellan says every stock gets an equal vote in the A-D Line. A giant company and a tiny one each get one vote, however far each one rose. One stock, one vote, whatever its size.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -49715,31 +49588,24 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Advance/Decline (A/D) Line: Definition and What It Tells You (Cory Mitchell, CMT; updated August 16, 2024)",
-      "quote": "Another thing to be aware of is that some indexes are market capitalization weighted. This means that the bigger the company the more impact they have on the index's movement.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/advancedeclineline.asp"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "StockCharts.com: ChartSchool: Introduction to Market Indicators",
       "quote": "the Advance-Decline Line is calculated using the number of stocks in the group that increased in price (“advancers”) vs. the number that decreased in price (“decliners”).",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/introduction-to-market-indicators"
      }
     ],
-    "summary": "In the A/D line every stock counts the same, whatever its size. The A/D line weighs every stock equally. Big caps dominate price indexes; in the A/D line every stock gets one vote. In a cap-weighted index the biggest companies move the index most. Advancers are stocks that rose in price; decliners are stocks that fell."
+    "summary": "In the A/D line every stock counts the same, whatever its size. The A/D line weighs every stock equally. Big caps dominate price indexes; in the A/D line every stock gets one vote. Advancers are stocks that rose in price; decliners are stocks that fell."
    },
    "facts": {
     "given": "On the A/D line, how does a giant company's advance count next to a small company's? Exactly the same: one advance More, weighted by its market cap More, weighted by its trading volume Same, but a bigger gain counts more"
    },
-   "lesson_line": "One stock, one vote. That's why the A/D line can disagree with a cap-weighted index.",
+   "lesson_line": "One stock, one vote, whatever its size.",
    "simple": "It counts the same, because the advance-decline line gives every stock one vote whatever its size.",
    "tier": "core",
    "unit": "V.11",
-   "why": "Exactly the same. On the A/D line every advance counts plus one and every decline minus one, regardless of market cap or volume. A giant company and a tiny one each get one vote. That is why the line can disagree with a cap-weighted index, where the biggest companies move the index most.",
+   "why": "Exactly the same. ChartSchool: regardless of market cap or volume, an advance counts as +1 and a decline as -1. Tom McClellan says every stock gets an equal vote in the A-D Line. A giant company and a tiny one each get one vote, however far each one rose.",
    "wrong": {
-    "More, weighted by its market cap": "Size drives a cap-weighted index, not the A/D line. Every stock gets an equal vote.",
+    "More, weighted by its market cap": "Market cap plays no part in the A/D line. Every stock gets an equal vote.",
     "More, weighted by its trading volume": "Volume plays no part in the A/D line. An advance counts as +1, whatever its volume.",
     "Same, but a bigger gain counts more": "The size of the move doesn't count either. An advance is +1, however far the stock rose."
    }
@@ -49753,18 +49619,18 @@
  },
  {
   "answer_json": {
-   "answer": "A known quirk of Nasdaq breadth"
+   "answer": "A known quirk of that A/D line"
   },
   "difficulty": 3,
   "id": "si_fd6fe5ccbc1e",
   "lesson_origin": "session",
-  "lesson_text": "A known quirk of Nasdaq breadth. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not a bullish divergence either, which needs the index at a lower low while breadth holds. Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
+  "lesson_text": "A known quirk of that A/D line. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not bullish either: breadth here is weak, not strong. Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "A sign the index data is wrong",
     "Proof that the top is already in",
-    "A known quirk of Nasdaq breadth",
+    "A known quirk of that A/D line",
     "A bullish divergence in breadth"
    ],
    "kind": "mcq",
@@ -49801,31 +49667,24 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Advance-Decline Line",
-      "quote": "A bullish divergence forms when the AD Line fails to record a lower low along with the index. This means fewer stocks are declining and the decline in the index may be nearing an end.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-line"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "McClellan Financial Publications: Chart In Focus: A-D Line Divergence Shows Bull Market Starting To Crack (Tom McClellan, June 7, 2024)",
       "quote": "Most of the time, the NYSE's A-D Line will echo what prices are doing. That is the normal behavior.",
       "tier": 2,
       "url": "https://www.mcoscillator.com/learning_center/weekly_chart/a-d_line_divergence_shows_bull_market_starting_to_crack/"
      }
     ],
-    "summary": "The Nasdaq A/D line can fall for long stretches while the Nasdaq rises, because of its looser listing rules. The Nasdaq A/D line can fall for long periods while Nasdaq indexes rise. The Nasdaq can make all-time highs while its A/D line sits near all-time lows; that is not unusual. A bullish divergence: the index makes a lower low but the A/D line does not, so fewer stocks are falling. Normally the A/D line echoes the index."
+    "summary": "The Nasdaq A/D line can fall for long stretches while the Nasdaq rises, because of its looser listing rules. The Nasdaq A/D line can fall for long periods while Nasdaq indexes rise. The Nasdaq can make all-time highs while its A/D line sits near all-time lows; that is not unusual. Normally the A/D line echoes the index."
    },
    "facts": {
-    "given": "What's the better read? The Nasdaq Composite is at an all-time high. Its A/D line sits near the lowest readings it has ever had. A friend calls it a screaming sell. A known quirk of Nasdaq breadth Proof that the top is already in A bullish divergence in breadth A sign the index data is wrong"
+    "given": "What's the better read? The Nasdaq Composite is at an all-time high. Its A/D line sits near the lowest readings it has ever had. A friend calls it a screaming sell. A known quirk of that A/D line Proof that the top is already in A bullish divergence in breadth A sign the index data is wrong"
    },
    "lesson_line": "Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
    "simple": "It is a known Nasdaq quirk, because its advance-decline line can fall for long stretches while the index rises.",
    "tier": "expert",
    "unit": "V.11",
-   "why": "A known quirk of Nasdaq breadth. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not a bullish divergence either, which needs the index at a lower low while breadth holds.",
+   "why": "A known quirk of that A/D line. ChartSchool says the Nasdaq A/D line can fall for extended periods even while the Nasdaq rises. The reason is its looser listing rules. Tom McClellan calls an all-time high in the index with its A-D line near all-time lows 'not unusual'. So the gap alone proves little. It is not bullish either: breadth here is weak, not strong.",
    "wrong": {
-    "A bullish divergence in breadth": "A bullish divergence is the index making a lower low while breadth holds up. This is the opposite shape.",
+    "A bullish divergence in breadth": "Nothing bullish here. The index is at a high while breadth sits near its lows.",
     "A sign the index data is wrong": "The data is fine. Tom McClellan calls this gap 'not unusual' on the Nasdaq.",
     "Proof that the top is already in": "The Nasdaq A/D line can fall for long stretches while the index rises, so this gap proves little on its own."
    }
@@ -52091,13 +51950,13 @@
   "difficulty": 3,
   "id": "si_25459ebf87dd",
   "lesson_origin": "session",
-  "lesson_text": "A good sign, but thrusts can fail. Investopedia calls a move of 100 points or more from negative to positive a breadth thrust, and this jump qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price. A thrust raises the odds. It doesn't remove the risk.",
+  "lesson_text": "A good sign, but thrusts can fail. The jump runs from -70 to +60. Investopedia calls a large move from negative to positive, typically 100 points or more, a breadth thrust, so this qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price. A thrust raises the odds. It doesn't remove the risk.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "A good sign, but thrusts can fail",
     "Noise: thrusts rarely mark lows",
-    "Bearish: it rose too much too fast",
+    "A good sign, but not a thrust yet",
     "Right: the low is in, so go all in"
    ],
    "kind": "mcq",
@@ -52157,15 +52016,15 @@
     "summary": "Most important lows show a breadth thrust, but not every thrust leads to an extended advance. One or two thrusts can show up in a bear market rally; a cluster rarely comes before the real low. Thrusts, divergences and crossovers do not always lead to the expected move. A breadth thrust is a surge in the oscillator from deep negative to strong positive. A breadth thrust is a big jump in the oscillator, typically 100 points or more, from negative to positive. Confirm any breadth reading with price before acting."
    },
    "facts": {
-    "given": "What do you tell him? After a long slide, the McClellan Oscillator jumps from -70 to +60 in a few days. A friend says the bottom is now guaranteed. A good sign, but thrusts can fail Right: the low is in, so go all in Bearish: it rose too much too fast Noise: thrusts rarely mark lows"
+    "given": "What do you tell him? After a long slide, the McClellan Oscillator jumps from -70 to +60 in a few days. A friend says the bottom is now guaranteed. A good sign, but thrusts can fail Right: the low is in, so go all in A good sign, but not a thrust yet Noise: thrusts rarely mark lows"
    },
    "lesson_line": "A thrust raises the odds. It doesn't remove the risk.",
    "simple": "It is a good sign but not a sure one, because most big lows have a thrust, yet some thrusts fail.",
    "tier": "expert",
    "unit": "V.11",
-   "why": "A good sign, but thrusts can fail. Investopedia calls a move of 100 points or more from negative to positive a breadth thrust, and this jump qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price.",
+   "why": "A good sign, but thrusts can fail. The jump runs from -70 to +60. Investopedia calls a large move from negative to positive, typically 100 points or more, a breadth thrust, so this qualifies. ChartSchool says most important lows are marked by a sharp surge in breadth. Yet not all breadth thrusts foreshadow extended advances. The CMT Association notes one or two can show up in a bear market rally. Investopedia's rule of thumb: always confirm with price.",
    "wrong": {
-    "Bearish: it rose too much too fast": "A thrust is broad buying after a slide. ChartSchool ties most important lows to one, a bullish clue.",
+    "A good sign, but not a thrust yet": "It is one. Investopedia's bar is a move from negative to positive, typically 100 points or more, and -70 to +60 clears it.",
     "Noise: thrusts rarely mark lows": "The reverse. ChartSchool says most important lows are marked by a sharp surge in breadth.",
     "Right: the low is in, so go all in": "Not every thrust leads to an extended advance. Let price confirm before you put the whole account to work."
    }
@@ -53114,7 +52973,7 @@
    ],
    "kind": "mcq",
    "q": "What do you do?",
-   "story": "The Nasdaq is in a healthy uptrend. It slips 0.3% today on volume a bit higher than yesterday. It's the first distribution day in weeks.",
+   "story": "The Nasdaq is in a healthy uptrend. Today it slips 0.3% on volume a bit higher than yesterday. There hasn't been a day like it in weeks.",
    "subject": "Distribution day"
   },
   "reveal_json": {
@@ -53162,7 +53021,7 @@
     "summary": "One distribution day here or there does not hurt an uptrend. A few distribution days in an uptrend are no reason to dump everything. IBD watches for a cluster: usually five or six or more in several weeks or less. IBD: a distribution day is a Nasdaq or S&P 500 drop of 0.2% or more on higher volume than the prior session. IBD's version needs a drop of more than 0.2%."
    },
    "facts": {
-    "given": "What do you do? The Nasdaq is in a healthy uptrend. It slips 0.3% today on volume a bit higher than yesterday. It's the first distribution day in weeks. Log it; one day means little Sell everything at the open Short the Nasdaq right away Ignore it: a 0.3% dip doesn't count"
+    "given": "What do you do? The Nasdaq is in a healthy uptrend. Today it slips 0.3% on volume a bit higher than yesterday. There hasn't been a day like it in weeks. Log it; one day means little Sell everything at the open Short the Nasdaq right away Ignore it: a 0.3% dip doesn't count"
    },
    "lesson_line": "One distribution day is noise. Start paying attention when they pile up.",
    "simple": "Write it down and move on, because one distribution day does not hurt an uptrend, and IBD looks for a cluster.",
@@ -54206,7 +54065,7 @@
   "difficulty": 1,
   "id": "si_5802be2b9cb4",
   "lesson_origin": "session",
-  "lesson_text": "Fear of missing out. The SEC says everyone has felt some kind of fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act. FOMO is a feeling, not a setup. Feel it, then check your plan.",
+  "lesson_text": "Fear of missing out. FINRA writes it as fear of missing out (FOMO), and Investor.gov notes everyone has felt some fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act. FOMO is a feeling, not a setup. Name it, then pause.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -54256,15 +54115,15 @@
    "facts": {
     "given": "In trading talk, what does FOMO stand for? Fear of missing out Fear of losing money Following the crowd Greed for more profit"
    },
-   "lesson_line": "FOMO is a feeling, not a setup. Feel it, then check your plan.",
+   "lesson_line": "FOMO is a feeling, not a setup. Name it, then pause.",
    "simple": "FOMO stands for fear of missing out: the worry that you will be left out of a move.",
    "tier": "core",
    "unit": "V.12",
-   "why": "Fear of missing out. The SEC says everyone has felt some kind of fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
+   "why": "Fear of missing out. FINRA writes it as fear of missing out (FOMO), and Investor.gov notes everyone has felt some fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
    "wrong": {
     "Fear of losing money": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
     "Following the crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
-    "Greed for more profit": "Greed is wanting more. FOMO is a fear: in the SEC's words, the fear of missing out on something."
+    "Greed for more profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
    }
   },
   "review_status": "draft",
@@ -54338,7 +54197,7 @@
   "difficulty": 2,
   "id": "si_d2f31e2df9a3",
   "lesson_origin": "session",
-  "lesson_text": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. Schwab calls jumping on a move after it already happened a common mistake. The late entry can come just as the move is ready to reverse. It is not tilt: nothing here is anger after a loss. When you want in at any price, that's FOMO talking. Pause first.",
+  "lesson_text": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. It is not tilt: nothing here is anger after a loss. When you want in at any price, that's FOMO talking. Pause first.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -54361,20 +54220,6 @@
       "quote": "If you find yourself getting swept up in excitement or fear of missing out (FOMO) due to investment-related social media content, it’s best to pause and evaluate.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/following-crowd-investing-and-social-media"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Common Trading Mistakes to Avoid (February 15, 2024)",
-      "quote": "when it comes to missing out on a move, traders might make the mistake of trying to jump on a move after it's already happened—perhaps at the point when it's ready to reverse.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/common-trading-mistakes-to-avoid"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: Cognitive Behavioral Techniques for Changing Your Trading Psychology - Part Two: Overcoming FOMO (May 14, 2018)",
-      "quote": "The goal is not to trade every possible opportunity, but to identify the best opportunities and trade those as well as possible.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2018/05/cognitive-behavioral-techniques-for_14.html"
      },
      {
       "accessed": "2026-11-09",
@@ -54412,7 +54257,7 @@
       "url": "https://www.investopedia.com/terms/l/loss-psychology.asp"
      }
     ],
-    "summary": "When excitement or FOMO takes hold, pause and evaluate before acting. Jumping on a move after it already happened is a common mistake, and the late entry can come just as it's ready to reverse. Trade the best opportunities, not every one. Tilt is anger hurting your performance. Tilt was often set off by a significant loss. Anchoring is relying too heavily on the first piece of information. Anchoring is focusing too much on early information, like a stock's past price. Loss aversion: a loss feels more severe than an equal gain."
+    "summary": "When excitement or FOMO takes hold, pause and evaluate before acting. Tilt is anger hurting your performance. Tilt was often set off by a significant loss. Anchoring is relying too heavily on the first piece of information. Anchoring is focusing too much on early information, like a stock's past price. Loss aversion: a loss feels more severe than an equal gain."
    },
    "facts": {
     "given": "Which word names what you're feeling? A stock you watched broke out yesterday without you. Today it's up another 9%. Your chat is full of gains and you want in at any price. FOMO Tilt Anchoring Loss aversion"
@@ -54421,7 +54266,7 @@
    "simple": "It is FOMO, because the pull you feel is the fear of being left out of a move that is already running.",
    "tier": "extended",
    "unit": "V.12",
-   "why": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. Schwab calls jumping on a move after it already happened a common mistake. The late entry can come just as the move is ready to reverse. It is not tilt: nothing here is anger after a loss.",
+   "why": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. It is not tilt: nothing here is anger after a loss.",
    "wrong": {
     "Anchoring": "Anchoring is leaning on a first number, like an old price. Nothing here hangs on a reference price.",
     "Loss aversion": "Loss aversion is a loss feeling worse than an equal gain. You haven't lost anything here; you're afraid of missing out.",
@@ -55601,7 +55446,7 @@
   "difficulty": 1,
   "id": "si_dc431e2efa2a",
   "lesson_origin": "session",
-  "lesson_text": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. Gervais and Odean show where it leads: a trader who takes too much credit for successes becomes overconfident. A Library of Congress report done for the SEC pairs the two. The tell is who gets the credit and who gets the blame. Grade wins as hard as losses. Luck shows up on both sides.",
+  "lesson_text": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. The tell is who gets the credit and who gets the blame. Grade wins as hard as losses. Luck shows up on both sides.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -55626,20 +55471,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC (Library of Congress report for the SEC): Behavioral Patterns and Pitfalls of U.S. Investors (Federal Research Division, Library of Congress, under an Interagency Agreement with the SEC, August 2010)",
-      "quote": "selling winning positions and holding onto losing positions (disposition effect); and succumbing to optimism, short-term thinking, and overconfidence (self-attribution bias).",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Review of Financial Studies: Gervais and Odean, 'Learning to be Overconfident', vol. 14, no. 1 (2001), abstract on IDEAS/RePEc",
-      "quote": "In assessing his ability the trader takes too much credit for his successes. This leads him to become overconfident.",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/oup/rfinst/v14y2001i1p1-27.html"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Charles Schwab: Quiz: Test Your Trading Smarts (June 5, 2026)",
       "quote": "The tendency to favor information that supports our existing beliefs while ignoring contradictory evidence is known as confirmation bias.",
       "tier": 2,
@@ -55660,7 +55491,7 @@
       "url": "https://www.schwab.com/learn/story/3-investing-biases-to-avoid-now"
      }
     ],
-    "summary": "Self-attribution bias: wins are my skill, losses are outside forces. The report lists the disposition effect and overconfidence, which it ties to self-attribution bias, among repeated mistakes. Taking too much credit for wins makes a trader overconfident. Confirmation bias is favoring information that supports what you believe and ignoring what contradicts it. People follow a 'law of small numbers', trusting small samples too much. The availability heuristic lets whatever is top of mind sway decisions too much."
+    "summary": "Self-attribution bias: wins are my skill, losses are outside forces. Confirmation bias is favoring information that supports what you believe and ignoring what contradicts it. People follow a 'law of small numbers', trusting small samples too much. The availability heuristic lets whatever is top of mind sway decisions too much."
    },
    "facts": {
     "given": "Which word is this: wins are my skill, losses are bad luck? Self-attribution bias Law of small numbers Confirmation bias Availability heuristic"
@@ -55669,7 +55500,7 @@
    "simple": "It is self-attribution bias: you take the credit for wins and blame losses on luck or the market.",
    "tier": "core",
    "unit": "V.12",
-   "why": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. Gervais and Odean show where it leads: a trader who takes too much credit for successes becomes overconfident. A Library of Congress report done for the SEC pairs the two. The tell is who gets the credit and who gets the blame.",
+   "why": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. The tell is who gets the credit and who gets the blame.",
    "wrong": {
     "Availability heuristic": "That's letting what is top of mind sway a decision. Here the issue is where you put the credit.",
     "Confirmation bias": "Confirmation bias is favoring information that backs what you already think.",
@@ -55690,13 +55521,13 @@
   "difficulty": 2,
   "id": "si_d9820ab8c73e",
   "lesson_origin": "session",
-  "lesson_text": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets. Barber and Odean say overconfidence can explain heavy trading and poor results. Tag the real cause of every loss. 'Bad luck' is a tag you earn, not a default.",
+  "lesson_text": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets. Tag the real cause of every loss. 'Bad luck' is a tag you earn, not a default.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Better results from trading more often",
     "A clearer view of where your edge is",
-    "More careful position sizing",
+    "Self-doubt, then smaller size",
     "Overconfidence, then riskier bets"
    ],
    "kind": "mcq",
@@ -55727,29 +55558,22 @@
       "quote": "experienced investors can be tempted to overestimate their abilities when it comes to money matters, tricking their brains into making risky bets.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/when-portfolio-changes-do-and-dont-make-sense"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Journal of Finance: Barber and Odean, 'Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors', vol. 55, no. 2 (2000), abstract on IDEAS/RePEc",
-      "quote": "Overconfidence can explain high trading levels and the resulting poor performance of individual investors.",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/bla/jfinan/v55y2000i2p773-806.html"
      }
     ],
-    "summary": "Taking too much credit for wins makes a trader overconfident. Self-attribution bias: wins are my skill, losses are outside forces. Overconfidence is overestimating your abilities, which leads to risky bets. Overconfidence explains heavy trading and poor results."
+    "summary": "Taking too much credit for wins makes a trader overconfident. Self-attribution bias: wins are my skill, losses are outside forces. Overconfidence is overestimating your abilities, which leads to risky bets."
    },
    "facts": {
-    "given": "Where does this habit tend to lead? You review your journal. Every winner is tagged 'great read.' Every loser is tagged 'bad luck' or 'market was rigged.' Overconfidence, then riskier bets More careful position sizing A clearer view of where your edge is Better results from trading more often"
+    "given": "Where does this habit tend to lead? You review your journal. Every winner is tagged 'great read.' Every loser is tagged 'bad luck' or 'market was rigged.' Overconfidence, then riskier bets Self-doubt, then smaller size A clearer view of where your edge is Better results from trading more often"
    },
    "lesson_line": "Tag the real cause of every loss. 'Bad luck' is a tag you earn, not a default.",
    "simple": "It leads you to feel overconfident and take riskier bets, because taking credit for every win makes you rate your skill too high.",
    "tier": "extended",
    "unit": "V.12",
-   "why": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets. Barber and Odean say overconfidence can explain heavy trading and poor results.",
+   "why": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets.",
    "wrong": {
-    "A clearer view of where your edge is": "It clouds it. Gervais and Odean show that taking too much credit for wins makes a trader overconfident.",
-    "Better results from trading more often": "Heavy trading tends to hurt. Barber and Odean say overconfidence can explain high trading levels and the poor results that follow.",
-    "More careful position sizing": "The opposite. Schwab says overrating your abilities can trick you into making risky bets."
+    "A clearer view of where your edge is": "It clouds it. With every loss tagged bad luck, your journal can't show you what went wrong.",
+    "Better results from trading more often": "Nothing here improves results. Schwab says overrating your abilities can trick you into risky bets.",
+    "Self-doubt, then smaller size": "The opposite. Every win goes to your skill, so confidence grows. Gervais and Odean show taking too much credit for wins makes a trader overconfident."
    }
   },
   "review_status": "draft",
@@ -55942,70 +55766,6 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 2,
-  "id": "si_3a6d2cb124ea",
-  "lesson_origin": "session",
-  "lesson_text": "False. Schwab says the opposite can happen: loss aversion can cause us to take on extra risk when we're down. The fear of locking in a loss can drive riskier decisions than usual, in the hope of getting out of the hole. The OSC agrees that the pain of losing can increase risk-taking. So a trader who is down may take bigger risks, not smaller ones. Down money, you may want to swing bigger. That's the bias talking.",
-  "module": "V",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Schwab says loss aversion makes traders more careful when they're down.",
-   "subject": "Loss aversion"
-  },
-  "reveal_json": {
-   "deeper": {
-    "example": "Picture a trader down on the week. Booking the loss feels unbearable, so they take a bigger, riskier trade to make it back. Schwab describes the pull: the fear of locking in losses can drive riskier decisions than we would normally make."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: When Portfolio Changes Do—and Don't—Make Sense (Kasey McCurdy, July 23, 2026)",
-      "quote": "loss aversion can also cause us to take on extra risk when we're down.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/when-portfolio-changes-do-and-dont-make-sense"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: When Portfolio Changes Do—and Don't—Make Sense (Kasey McCurdy, July 23, 2026)",
-      "quote": "The idea here is that our fear of locking losses could drive us to make even riskier decisions than we normally would in the hope of bouncing out of a hole.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/when-portfolio-changes-do-and-dont-make-sense"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Ontario Securities Commission (GetSmarterAboutMoney.ca): Behavioural insights: key concepts, applications, and regulatory considerations (summary of OSC Staff Notice 11-778, last updated October 3, 2023)",
-      "quote": "What’s more, the pain of losing can also increase risk-taking with other securities.",
-      "tier": 2,
-      "url": "https://www.getsmarteraboutmoney.ca/learning-path/research-reports/behavioural-insights-key-concepts-applications-and-regulatory-considerations-2/"
-     }
-    ],
-    "summary": "Loss aversion can push you to take extra risk when you're down. Fear of locking in a loss can drive riskier decisions to get out of the hole. The pain of losing can raise risk-taking."
-   },
-   "facts": {
-    "given": "Schwab says loss aversion makes traders more careful when they're down."
-   },
-   "lesson_line": "Down money, you may want to swing bigger. That's the bias talking.",
-   "simple": "False: Schwab says loss aversion can push you to take more risk when you're down, hoping to get out of the hole.",
-   "tier": "core",
-   "unit": "V.12",
-   "why": "False. Schwab says the opposite can happen: loss aversion can cause us to take on extra risk when we're down. The fear of locking in a loss can drive riskier decisions than usual, in the hope of getting out of the hole. The OSC agrees that the pain of losing can increase risk-taking. So a trader who is down may take bigger risks, not smaller ones."
-  },
-  "review_status": "draft",
-  "skill_id": "vocab.psych_terms",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/V/V.12.json#q24",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Loss aversion"
   },
   "difficulty": 3,
@@ -56169,7 +55929,7 @@
     "given": "What is the disposition effect? Selling winners early, holding losers Adding to a stock that keeps falling Selling everything in a panic Trading on your mood instead of a plan"
    },
    "lesson_line": "Cut losers fast and let winners work. The bias pulls you the other way.",
-   "simple": "It is selling winners too soon and holding losers too long, partly because losses hurt more than gains feel good.",
+   "simple": "It is selling winners too soon and holding losers too long.",
    "tier": "core",
    "unit": "V.12",
    "why": "Selling winners early, holding losers. The SEC defines the disposition effect as holding losing investments too long and selling winning investments too soon. Odean found investors realize gains more readily than losses. Fidelity says loss aversion helps explain it. It is about which positions you sell, not about adding to a loser or panic selling.",
@@ -56347,7 +56107,7 @@
   "difficulty": 1,
   "id": "si_ca7d148db658",
   "lesson_origin": "session",
-  "lesson_text": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says it helps keep bulls bullish and bears bearish whatever the market does. It is not the chart habit of waiting for price to confirm a move. Confirmation bias hides in what you skip. Notice the news you ignore.",
+  "lesson_text": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says the same. It is not the chart habit of waiting for price to confirm a move. Confirmation bias hides in what you skip. Notice the news you ignore.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -56386,20 +56146,13 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: What Is Confirmation Bias in Finance? (Gordon Scott, updated March 5, 2026)",
-      "quote": "The syndrome is a source of investor overconfidence and helps explain why the bulls tend to remain bullish, and the bears tend to remain bearish regardless of what is happening in the market.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/c/confirmation-bias.asp"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Kellogg School of Management, Northwestern University: Roese and Vohs, 'Hindsight Bias', Perspectives on Psychological Science, vol. 7, no. 5 (2012), abstract on the Kellogg faculty research page",
       "quote": "Hindsight bias occurs when people feel that they “knew it all along,” that is, when they believe that an event is more predictable after it becomes known than it was before it became known.",
       "tier": 2,
       "url": "https://www.kellogg.northwestern.edu/academics-research/research/detail/2012/hindsight-bias/"
      }
     ],
-    "summary": "Confirmation bias is favoring information that supports what you believe and ignoring what contradicts it. Confirmation bias is focusing on information that supports what you already think. Confirmation bias is favoring information that backs your existing beliefs. Confirmation bias keeps bulls bullish and bears bearish whatever the market does. Hindsight bias is feeling you knew it all along: the event seems more predictable after it happens."
+    "summary": "Confirmation bias is favoring information that supports what you believe and ignoring what contradicts it. Confirmation bias is focusing on information that supports what you already think. Confirmation bias is favoring information that backs your existing beliefs. Hindsight bias is feeling you knew it all along: the event seems more predictable after it happens."
    },
    "facts": {
     "given": "What is confirmation bias? Favoring info that backs your view Waiting for price to confirm a breakout Believing you knew it all along Changing your view with every headline"
@@ -56408,7 +56161,7 @@
    "simple": "Confirmation bias is paying attention to facts that back your view and brushing off the ones that do not.",
    "tier": "core",
    "unit": "V.12",
-   "why": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says it helps keep bulls bullish and bears bearish whatever the market does. It is not the chart habit of waiting for price to confirm a move.",
+   "why": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says the same. It is not the chart habit of waiting for price to confirm a move.",
    "wrong": {
     "Believing you knew it all along": "That's a different bias, about how the past looks once you know the result. Confirmation bias is about what you take in now.",
     "Changing your view with every headline": "That's the reverse problem: no steady view at all. Confirmation bias holds a view and ignores contradictory evidence.",
@@ -57593,7 +57346,7 @@
   "difficulty": 1,
   "id": "si_5d43dca00352",
   "lesson_origin": "session",
-  "lesson_text": "Copying others over your own research. The OSC says herding is many people doing the same thing because others are doing it. Schwab says chasing trends outsources your due diligence to the crowd. Investopedia ties herding to following popular trends without independent analysis. The missing piece is your own work. A crowded trade can still be a good trade. Just make sure it's your trade.",
+  "lesson_text": "Copying others over your own research. The OSC says herding is many people doing the same thing because others are doing it. Schwab says chasing trends outsources your due diligence to the crowd. Investopedia ties herding to following popular trends without independent analysis. The missing piece is your own work. Before you follow anyone into a trade, do your own work.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -57664,7 +57417,7 @@
    "facts": {
     "given": "What is herd mentality? Copying others over your own research Investing in a company everyone knows Trusting a stock's old high price Betting against whatever the crowd buys"
    },
-   "lesson_line": "A crowded trade can still be a good trade. Just make sure it's your trade.",
+   "lesson_line": "Before you follow anyone into a trade, do your own work.",
    "simple": "Herd mentality is copying what others do instead of doing your own work on the trade.",
    "tier": "core",
    "unit": "V.12",
@@ -58556,7 +58309,7 @@
   "difficulty": 3,
   "id": "si_845dcf6f3168",
   "lesson_origin": "session",
-  "lesson_text": "False. Six trades is a tiny sample. The Nobel summary of Kahneman's work says people follow a 'law of small numbers', trusting small samples too much. Chen, Moskowitz and Shue found people underestimate how often streaks happen by chance. Five wins in six could be luck. It doesn't prove the setup has no edge either. It proves very little. Keep size small until the sample is big. A few trades can't tell skill from luck.",
+  "lesson_text": "False. Six trades is a tiny sample. The Nobel summary of Kahneman's work says people follow a 'law of small numbers', trusting small samples too much. Chen, Moskowitz and Shue found people underestimate how often streaks happen by chance. Five wins in six could be luck. It doesn't prove the setup has no edge either. It proves very little. Six trades can't tell skill from luck. Let the sample grow before you trust it.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -58593,7 +58346,7 @@
    "facts": {
     "given": "A start of five winners in six trades shows a new setup has an edge."
    },
-   "lesson_line": "Keep size small until the sample is big. A few trades can't tell skill from luck.",
+   "lesson_line": "Six trades can't tell skill from luck. Let the sample grow before you trust it.",
    "simple": "False, because six trades is far too few to tell a real edge from good luck.",
    "tier": "extended",
    "unit": "V.12",
@@ -58744,68 +58497,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/V/V.12.json#q60",
   "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "No new trades for the rest of the day"
-  },
-  "difficulty": 2,
-  "id": "si_8e24514ea85a",
-  "lesson_origin": "session",
-  "lesson_text": "No new trades for the rest of the day. Our rule says tired, sick, angry or distracted means no new trades that day. A poker study links out-of-control decisions to negative emotions. A smaller size, the next setup or a short wait is still a new trade that day. Angry, tired, sick or distracted means no new trades that day.",
-  "module": "V",
-  "prompt_json": {
-   "choices": [
-    "No new trades for the rest of the day",
-    "Skip it, but take the next setup",
-    "Wait an hour to cool off, then take it",
-    "Take it at half your normal size"
-   ],
-   "kind": "mcq",
-   "q": "Under our rulebook, what do you do with that setup?",
-   "story": "Your second stop-out of the morning just hit. You're angry and want the money back. A setup on your watchlist triggers.",
-   "subject": "V.12#q64"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Tired, sick, angry or distracted: no new trades that day.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "International Gambling Studies (Taylor & Francis): Palomäki, Laakasuo and Salmela, ''This is just so unfair!': A qualitative analysis of loss-induced emotions and tilting in on-line poker', vol. 13, no. 2 (2013), abstract on IDEAS/RePEc",
-      "quote": "Detrimental out-of-control poker decision-making due to negative emotions is known as tilting.",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/taf/intgms/v13y2013i2p255-270.html"
-     }
-    ],
-    "summary": "Our rule: when you are tired, sick, angry or distracted, you take no new trades that day. Tilting is out-of-control decision-making driven by negative emotions."
-   },
-   "facts": {
-    "given": "Under our rulebook, what do you do with that setup? Your second stop-out of the morning just hit. You're angry and want the money back. A setup on your watchlist triggers. No new trades for the rest of the day Take it at half your normal size Skip it, but take the next setup Wait an hour to cool off, then take it"
-   },
-   "lesson_line": "Angry, tired, sick or distracted means no new trades that day.",
-   "simple": "No new trades today, because our rule says that when you are angry you take no new trades that day.",
-   "tier": "extended",
-   "unit": "V.12",
-   "why": "No new trades for the rest of the day. Our rule says tired, sick, angry or distracted means no new trades that day. A poker study links out-of-control decisions to negative emotions. A smaller size, the next setup or a short wait is still a new trade that day.",
-   "wrong": {
-    "Skip it, but take the next setup": "The next setup is still a new trade today. Angry means no new trades that day.",
-    "Take it at half your normal size": "Smaller size is still a new trade. Our rule says angry means no new trades that day.",
-    "Wait an hour to cool off, then take it": "Our rule covers the whole day, not an hour. Angry means no new trades that day."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "vocab.psych_terms",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/V/V.12.json#q64",
-  "type": "scenario",
   "version": 1
  },
  {
@@ -59342,7 +59033,7 @@
   "difficulty": 3,
   "id": "si_42f7526ce7a9",
   "lesson_origin": "session",
-  "lesson_text": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Our rule: the stop is the exit, and it only moves up, never down or wider. Giving it one more day widens your exit. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. A plan can change over time, but with a replacement you devise, not mid-trade. The exit was decided when you were calm. Honor it when you're not.",
+  "lesson_text": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. Holding one more day to dodge the loss is that kind of change. The exit was decided when you were calm. Honor it when you're not.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -59371,6 +59062,13 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "Fidelity Investments: Trading plan (Fidelity Learning Center)",
       "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
       "tier": 2,
@@ -59382,44 +59080,9 @@
       "quote": "It's important to determine this process before you start investing so you aren't making spur-of-the-moment choices based on temporary market peaks or valleys.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
-      "quote": "Professional traders live by maxims, and one of the big ones is \"Plan your trade and trade your plan.\"",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
-      "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading plan (Fidelity Learning Center)",
-      "quote": "You may wish to change your trading plan over time. Market conditions, your financial situation, and your financial goals change, and you may want to amend your trading plan to reflect that.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading plan (Fidelity Learning Center)",
-      "quote": "And even if you decide to alter your original plan, make sure you devise a replacement to guide your trading.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Journal every trade the same day and review the week every weekend, ideally.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Losing well means exiting at a point you planned and accepted in advance. Don't change a trading plan as a knee-jerk reaction to a market drop. Set the process before you trade, so you aren't making spur-of-the-moment choices. A traders' maxim: plan your trade and trade your plan. Decide when and how you'll close the trade before you place it. Plans can be amended over time as market conditions and your goals change. If you change your plan, write a replacement to guide your trading. UCT's rule (B27): journal each trade the same day and review the week each weekend, ideally."
+    "summary": "Losing well means exiting at a point you planned and accepted in advance. Decide when and how you'll close the trade before you place it. Don't change a trading plan as a knee-jerk reaction to a market drop. Set the process before you trade, so you aren't making spur-of-the-moment choices."
    },
    "facts": {
     "given": "What just happened? Your plan says sell if the stock closes under $40. It closes at $39.60. You decide to give it one more day. You broke your exit rule You adjusted your plan wisely You followed your plan You avoided a false breakdown"
@@ -59428,7 +59091,7 @@
    "simple": "You broke your exit rule, because the plan said sell on a close under $40 and you held instead.",
    "tier": "extended",
    "unit": "V.13",
-   "why": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Our rule: the stop is the exit, and it only moves up, never down or wider. Giving it one more day widens your exit. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. A plan can change over time, but with a replacement you devise, not mid-trade.",
+   "why": "You broke your exit rule. The plan said sell on a close under $40, and $39.60 is a close under $40. Schwab says to decide when and how you'll close a trade before you place it. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. Holding one more day to dodge the loss is that kind of change.",
    "wrong": {
     "You adjusted your plan wisely": "A change made mid-trade, to dodge a loss, is a reaction, not a plan.",
     "You avoided a false breakdown": "Nobody knows that yet. Your rule said sell on a close under $40, and $39.60 is under it. Schwab says to set your exit before you trade.",
@@ -61833,16 +61496,16 @@
  },
  {
   "answer_json": {
-   "answer": "Their average win and average loss"
+   "answer": "Average win and average loss"
   },
   "difficulty": 3,
   "id": "si_355bf275b47f",
   "lesson_origin": "session",
-  "lesson_text": "Their average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab's expectancy is your average gain or loss per trade, and it needs both pieces. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it. Win rate alone ranks nothing. Win rate without the size of wins and losses is half a number.",
+  "lesson_text": "Average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab calls expectancy your average gain or loss per trade, and win rate alone can't give you that. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it. Win rate without the size of wins and losses is half a number.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Their average win and average loss",
+    "Average win and average loss",
     "How long each one holds a trade",
     "Their longest winning streak",
     "Nothing more, A wins more often"
@@ -61904,17 +61567,17 @@
     "summary": "You need both how often a strategy wins and its average win against its average loss. Some traders prefer a high win rate with small profits, others a lower win rate with larger profits. Expectancy is your average gain or loss per trade, calculated from your trade history. Payoff ratio is the average percentage profit per trade divided by the average percentage loss per trade. Strategy reports track the longest run of consecutive winning and losing trades. The longest losing streak shows how much pain a strategy can bring."
    },
    "facts": {
-    "given": "What else do you need to compare their results per trade? Trader A wins 70% of her trades. Trader B wins 35% of his. That's all you know. Their average win and average loss Nothing more, A wins more often How long each one holds a trade Their longest winning streak"
+    "given": "What else do you need to compare their results per trade? Trader A wins 70% of her trades. Trader B wins 35% of his. That's all you know. Average win and average loss Nothing more, A wins more often How long each one holds a trade Their longest winning streak"
    },
    "lesson_line": "Win rate without the size of wins and losses is half a number.",
    "simple": "You need their average win and average loss, because win rate alone says nothing about size.",
    "tier": "expert",
    "unit": "V.13",
-   "why": "Their average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab's expectancy is your average gain or loss per trade, and it needs both pieces. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it. Win rate alone ranks nothing.",
+   "why": "Average win and average loss. StockCharts: you need to know how often a strategy wins, as well as its average win relative to its average loss. Schwab calls expectancy your average gain or loss per trade, and win rate alone can't give you that. A 70% win rate with big losses can lose money. A 35% win rate with big wins can make it.",
    "wrong": {
     "How long each one holds a trade": "Holding time isn't part of the result per trade. StockCharts pairs how often a strategy wins with its average win against its average loss.",
     "Nothing more, A wins more often": "If her losses are much bigger than her wins, she can still lose money. Win rate alone ranks nothing.",
-    "Their longest winning streak": "Streaks show how wins and losses bunch up and how much pain to expect. They don't size the wins and losses."
+    "Their longest winning streak": "A streak shows how wins bunch up, not how big each win or loss is."
    }
   },
   "review_status": "draft",
@@ -62769,7 +62432,7 @@
   "difficulty": 3,
   "id": "si_707df4c07459",
   "lesson_origin": "session",
-  "lesson_text": "Its rules are bent to fit old data. Steenbarger warns that the future may not mirror the past, and care must be taken not to curve-fit historical tests. Tuning settings until a backtest shows almost no losing years is that curve fit. More tweaks or a tighter stop only fit it closer. StockCharts: past performance does not guarantee future performance. Tune a test until it's perfect and you've tuned it to old data.",
+  "lesson_text": "Its rules are bent to fit old data. Each tweak you kept made the past look better, so almost no losing years is what you tuned for. Steenbarger warns that care must be taken not to curve-fit historical tests. StockCharts reminds us past results don't guarantee future ones. Tune a test until it's perfect and you've tuned it to old data.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -62785,7 +62448,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The better a backtest looks after many tweaks, the less it may mean. Each tweak bends the rules toward what the chart already did. A test with few signals is weaker still: StockCharts calls a test with just 11 signals not a very big sample size."
+    "trap": "The better a backtest looks after many tweaks, the less it may mean. Each tweak bends the rules toward what the chart already did."
    },
    "depth": {
     "sources": [
@@ -62802,16 +62465,9 @@
       "quote": "Past performance does not guarantee future performance.",
       "tier": 2,
       "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: SystemTrader: Key Performance Metrics, Quantifying the Golden Cross for the S&P 500 (Arthur Hill, 2016)",
-      "quote": "The golden cross test from 1991 to 2015 produced just 11 signals, which is not a very big sample size.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/"
      }
     ],
-    "summary": "The future may not mirror the past; don't curve-fit historical tests. Past performance doesn't guarantee future performance. 11 signals is not a very big sample."
+    "summary": "The future may not mirror the past; don't curve-fit historical tests. Past performance doesn't guarantee future performance."
    },
    "facts": {
     "given": "What's the main problem with this backtest? You keep tweaking a strategy's settings until its backtest shows almost no losing years. Its rules are bent to fit old data It covers too many years of data It wasn't tested on enough settings It needs a tighter stop to be safe"
@@ -62820,9 +62476,9 @@
    "simple": "The problem is that the rules fit old data, not the future, because you tuned them to that data.",
    "tier": "expert",
    "unit": "V.13",
-   "why": "Its rules are bent to fit old data. Steenbarger warns that the future may not mirror the past, and care must be taken not to curve-fit historical tests. Tuning settings until a backtest shows almost no losing years is that curve fit. More tweaks or a tighter stop only fit it closer. StockCharts: past performance does not guarantee future performance.",
+   "why": "Its rules are bent to fit old data. Each tweak you kept made the past look better, so almost no losing years is what you tuned for. Steenbarger warns that care must be taken not to curve-fit historical tests. StockCharts reminds us past results don't guarantee future ones.",
    "wrong": {
-    "It covers too many years of data": "More years means more trades, a bigger sample. StockCharts calls 11 signals not a very big sample size.",
+    "It covers too many years of data": "More years give the test more trades to judge. The trouble is the tuning, not the amount of data.",
     "It needs a tighter stop to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data.",
     "It wasn't tested on enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests."
    }
@@ -62970,7 +62626,7 @@
   "difficulty": 3,
   "id": "si_06f5ce903593",
   "lesson_origin": "session",
-  "lesson_text": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book. So fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. Schwab's advice: paper trade first and watch how you deal with losses before trading real money. Go live knowing your fills and your feelings will change. Track both in your journal.",
+  "lesson_text": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book, so fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. IBKR also calls paper trading financially risk-free. Live, every loss costs real money. In a Schwab article, Peterson says to watch how you handle losses before trading for real. Paper is risk-free practice. Live, the fills and the losses are real.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -63006,13 +62662,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Charles Schwab: How Active Traders Approach and Track the Market",
-      "quote": "Peterson recommended spending time paper trading and monitoring how you deal with losses before trying it for real.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/how-active-traders-approach-and-track-market"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Interactive Brokers (IBKR Campus): Paper Trading vs Live Trading: What's the Difference?",
       "quote": "Paper trading is realistic, flexible, and financially risk-free, but it’s not exactly the same as live trading.",
       "tier": 2,
@@ -63020,26 +62669,26 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "name": "Charles Schwab: How Active Traders Approach and Track the Market",
+      "quote": "Peterson recommended spending time paper trading and monitoring how you deal with losses before trying it for real.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/how-active-traders-approach-and-track-market"
      }
     ],
-    "summary": "Paper fills are simulated from the top of the book. Simulated results may misjudge real-market factors such as lack of liquidity. Paper trade first and watch how you handle losses before trading real money. Paper trading is risk-free but not the same as live trading. UCT's rule (E59): each month, review win rate, average win and loss in R, expectancy and other statistics."
+    "summary": "Paper fills are simulated from the top of the book. Simulated results may misjudge real-market factors such as lack of liquidity. Paper trading is risk-free but not the same as live trading. Paper trade first and watch how you handle losses before trading real money."
    },
    "facts": {
     "given": "What should you expect when you go live? A month of paper trading went well. Every order filled at the price you wanted, and losses never bothered you. Real fills and real losses differ The same results as on paper Live fills usually beat paper fills Your stock picks get worse live"
    },
-   "lesson_line": "Go live knowing your fills and your feelings will change. Track both in your journal.",
-   "simple": "Live fills can be worse than paper ones, and real losses test you in a way paper losses don't.",
+   "lesson_line": "Paper is risk-free practice. Live, the fills and the losses are real.",
+   "simple": "Live fills can be worse than paper ones, and real losses cost real money, unlike paper ones.",
    "tier": "extended",
    "unit": "V.13",
-   "why": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book. So fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. Schwab's advice: paper trade first and watch how you deal with losses before trading real money.",
+   "why": "Real fills and real losses differ. IBKR's paper fills are simulated from the top of the book, so fills at the price you wanted may not hold live. The CFTC notes simulated results can misjudge market factors such as lack of liquidity. IBKR also calls paper trading financially risk-free. Live, every loss costs real money. In a Schwab article, Peterson says to watch how you handle losses before trading for real.",
    "wrong": {
     "Live fills usually beat paper fills": "Nothing says live fills are better. IBKR's paper fills are simulated from the top of the book, with no deep book access.",
     "The same results as on paper": "IBKR itself says paper trading isn't exactly the same as live trading.",
-    "Your stock picks get worse live": "Going live doesn't change which stocks pass your rules. What changes is the fill you get and how a real loss feels."
+    "Your stock picks get worse live": "Going live doesn't change which stocks pass your rules. What changes is the fill you get, and a loss now costs real money."
    }
   },
   "review_status": "draft",

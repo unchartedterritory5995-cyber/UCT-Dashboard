@@ -1388,8 +1388,8 @@
     "Greed for more profit"
    ],
    "answer": "Fear of missing out",
-   "why": "Fear of missing out. The SEC says everyone has felt some kind of fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
-   "lesson_line": "FOMO is a feeling, not a setup. Feel it, then check your plan.",
+   "why": "Fear of missing out. FINRA writes it as fear of missing out (FOMO), and Investor.gov notes everyone has felt some fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
+   "lesson_line": "FOMO is a feeling, not a setup. Name it, then pause.",
    "facts": [
     "f16",
     "f19",
@@ -1399,7 +1399,7 @@
    "wrong": {
     "Fear of losing money": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
     "Following the crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
-    "Greed for more profit": "Greed is wanting more. FOMO is a fear: in the SEC's words, the fear of missing out on something."
+    "Greed for more profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
    },
    "simple": "FOMO stands for fear of missing out: the worry that you will be left out of a move.",
    "tier": "core",
@@ -1455,12 +1455,10 @@
     "Loss aversion"
    ],
    "answer": "FOMO",
-   "why": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. Schwab calls jumping on a move after it already happened a common mistake. The late entry can come just as the move is ready to reverse. It is not tilt: nothing here is anger after a loss.",
+   "why": "FOMO. You missed the breakout, the stock is up another 9%, and you want in at any price. That is the fear of missing out. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. It is not tilt: nothing here is anger after a loss.",
    "lesson_line": "When you want in at any price, that's FOMO talking. Pause first.",
    "facts": [
     "f19",
-    "f51",
-    "f139",
     "f108",
     "f114",
     "f94",
@@ -2018,12 +2016,10 @@
     "Availability heuristic"
    ],
    "answer": "Self-attribution bias",
-   "why": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. Gervais and Odean show where it leads: a trader who takes too much credit for successes becomes overconfident. A Library of Congress report done for the SEC pairs the two. The tell is who gets the credit and who gets the blame.",
+   "why": "Self-attribution bias. Schwab defines it as crediting successes to your own skill and failures to outside forces you can't control. The tell is who gets the credit and who gets the blame.",
    "lesson_line": "Grade wins as hard as losses. Luck shows up on both sides.",
    "facts": [
     "f44",
-    "f11",
-    "f120",
     "f23",
     "f105",
     "f37"
@@ -2053,23 +2049,22 @@
    "story": "You review your journal. Every winner is tagged 'great read.' Every loser is tagged 'bad luck' or 'market was rigged.'",
    "choices": [
     "Overconfidence, then riskier bets",
-    "More careful position sizing",
+    "Self-doubt, then smaller size",
     "A clearer view of where your edge is",
     "Better results from trading more often"
    ],
    "answer": "Overconfidence, then riskier bets",
-   "why": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets. Barber and Odean say overconfidence can explain heavy trading and poor results.",
+   "why": "Overconfidence, then riskier bets. Schwab calls crediting wins to your skill and losses to outside forces self-attribution bias. Gervais and Odean show a trader who takes too much credit for his successes becomes overconfident. Schwab says overestimating your abilities can trick you into risky bets.",
    "lesson_line": "Tag the real cause of every loss. 'Bad luck' is a tag you earn, not a default.",
    "facts": [
     "f120",
     "f44",
-    "f33",
-    "f122"
+    "f33"
    ],
    "wrong": {
-    "More careful position sizing": "The opposite. Schwab says overrating your abilities can trick you into making risky bets.",
-    "Better results from trading more often": "Heavy trading tends to hurt. Barber and Odean say overconfidence can explain high trading levels and the poor results that follow.",
-    "A clearer view of where your edge is": "It clouds it. Gervais and Odean show that taking too much credit for wins makes a trader overconfident."
+    "Better results from trading more often": "Nothing here improves results. Schwab says overrating your abilities can trick you into risky bets.",
+    "A clearer view of where your edge is": "It clouds it. With every loss tagged bad luck, your journal can't show you what went wrong.",
+    "Self-doubt, then smaller size": "The opposite. Every win goes to your skill, so confidence grows. Gervais and Odean show taking too much credit for wins makes a trader overconfident."
    },
    "simple": "It leads you to feel overconfident and take riskier bets, because taking credit for every win makes you rate your skill too high.",
    "tier": "extended",
@@ -2252,7 +2247,7 @@
     "Selling everything in a panic": "That's panic selling. The disposition effect is quieter: you cut winners and keep losers.",
     "Trading on your mood instead of a plan": "The name isn't about mood. The SEC defines it as holding losing investments too long and selling winners too soon."
    },
-   "simple": "It is selling winners too soon and holding losers too long, partly because losses hurt more than gains feel good.",
+   "simple": "It is selling winners too soon and holding losers too long.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -2338,13 +2333,12 @@
     "Changing your view with every headline"
    ],
    "answer": "Favoring info that backs your view",
-   "why": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says it helps keep bulls bullish and bears bearish whatever the market does. It is not the chart habit of waiting for price to confirm a move.",
+   "why": "Favoring info that backs your view. Schwab defines confirmation bias as favoring information that supports your beliefs while ignoring contradictory evidence. The OSC calls it focusing on information that supports your preconceptions. Investopedia says the same. It is not the chart habit of waiting for price to confirm a move.",
    "lesson_line": "Confirmation bias hides in what you skip. Notice the news you ignore.",
    "facts": [
     "f23",
     "f89",
     "f56",
-    "f58",
     "f142"
    ],
    "wrong": {
@@ -2883,7 +2877,7 @@
    ],
    "answer": "Copying others over your own research",
    "why": "Copying others over your own research. The OSC says herding is many people doing the same thing because others are doing it. Schwab says chasing trends outsources your due diligence to the crowd. Investopedia ties herding to following popular trends without independent analysis. The missing piece is your own work.",
-   "lesson_line": "A crowded trade can still be a good trade. Just make sure it's your trade.",
+   "lesson_line": "Before you follow anyone into a trade, do your own work.",
    "facts": [
     "f97",
     "f10",
@@ -3332,7 +3326,7 @@
    "q": "A start of five winners in six trades shows a new setup has an edge.",
    "answer": "False",
    "why": "False. Six trades is a tiny sample. The Nobel summary of Kahneman's work says people follow a 'law of small numbers', trusting small samples too much. Chen, Moskowitz and Shue found people underestimate how often streaks happen by chance. Five wins in six could be luck. It doesn't prove the setup has no edge either. It proves very little.",
-   "lesson_line": "Keep size small until the sample is big. A few trades can't tell skill from luck.",
+   "lesson_line": "Six trades can't tell skill from luck. Let the sample grow before you trust it.",
    "facts": [
     "f105",
     "f148"
@@ -3519,7 +3513,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f16; acronym cue is inherent to a 'stand for' item). Cross-answer: the 'Fear of losing money' note ('a loss feels worse than an equal gain') nearly restates q22's key ('A loss hurts more than an equal gain'), and both are rung 1. Same standard the resolver applied to q37 and q41: the note no longer names and defines the other term. Rest passes."
+   "notes": "Key right (f19 gives the acronym, FINRA tier 1). Broke on a cross-answer: the lesson_line 'Feel it, then check your plan' hands q02 its fill word 'plan'. Also 'The SEC says' credits a former director's personal column (s3) to the agency; reworded to Investor.gov."
   },
   "q02": {
    "status": "pass",
@@ -3531,13 +3525,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key FOMO is the only fit (f19, f51); no second answer, key is the shortest choice. The Anchoring note's example 'like an old price' rests on Schwab f40 (historical stock price), which q03 did not cite; f94 alone gives only 'first piece of information'. Added f40 to facts. New lesson_line no longer gives q05's key."
+   "notes": "Key FOMO is right and the only fit. Broke on a cross-answer: the why's Schwab lines (jumping on a move after it happened is a mistake; the late entry can come right before a reversal) give away q05's key 'Let it go, wait for a new setup'. Removed those two sentences and the unused facts f51 and f139."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right (f21, f22). f19's advice is FINRA's line for FOMO from social media content; 'for any rush of FOMO' (why) and 'whenever FOMO takes hold' (deeper) are absolutes the quote does not carry. Softened to 'when FOMO takes hold', the wording the other questions use. Everything else is in f21/f22."
+   "fixed": false,
+   "notes": "True is right: FINRA tier 1 quotes f21 and f22 confirmed on the live page. No leak, no tell."
   },
   "q05": {
    "status": "pass",
@@ -3572,8 +3566,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f123 CIBC + f73 Investopedia agree). The 'Re-entering after a stop-out' note said re-entry on a fresh setup 'is normal': no cited fact supports it, and the house version of that idea is q65's answer. Rewritten from f123 only, so it neither leans on an uncited rule nor answers q65."
+   "fixed": false,
+   "notes": "Key matches CIBC f123 (confirmed on the page) and Investopedia f73. Distractors are real confusions; the 'Re-entering after a stop-out' note agrees with rulebook B21. Overlap with q11 is same-term recognition only."
   },
   "q11": {
    "status": "pass",
@@ -3608,8 +3602,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is the f34 definition; key (35) not longest (37). Cross-answer: the hindsight note names and defines hindsight bias ('an event seeming more predictable after it happened') at rung 1, the same rung as q41 'What is hindsight bias?'. Same standard the resolver used on q41's recency note: the note now says it is a different bias without naming and defining it (f142 still supports it)."
+   "fixed": false,
+   "notes": "Key matches Schwab f34 and OSC f91. Distractors map to hindsight, herding and earned trust; lengths balanced. Could not break it."
   },
   "q17": {
    "status": "pass",
@@ -3626,20 +3620,20 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right: f20 says users are MORE likely than non-users to be overconfident. Stem names the comparison. lesson_line 'makes everyone feel smart' is a lone absolute no fact supports (f20 is a comparison of likelihood). Reworded to a 'can' claim f20 supports."
+   "fixed": false,
+   "notes": "False is right: FINRA f20 confirmed on the live page (users more likely than non-users to show overconfidence). The why does not overreach (says no cause is claimed)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f44); new distractors fail for real reasons (f105, f23, f37), key (21) not longest (22). Why said 'The SEC's report pairs the two', but f11 is from s2, the Library of Congress report done for the SEC; the lesson fixed this same naming in w1, q17 and q23. Renamed. The Gervais and Odean line overlaps q21's key, but w3 already teaches that link before any question, so it is not a new giveaway."
+   "notes": "Key right (Schwab f44). Broke on a cross-answer: the why says Gervais and Odean show taking credit for wins makes a trader overconfident, and that the SEC report pairs the two. That is q21's key ('Overconfidence, then riskier bets'). Trimmed to the definition; dropped f11 and f120."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key said 'bigger bets', but the cited quote (f33) says 'risky bets'. The key now uses the source's word. Two notes were unsupported: 'Blaming luck for losses keeps you from fixing them' and 'makes you feel safer than you are'. Both now rest on f120 and f33."
+   "notes": "Key is right (f120 confirmed on RePEc, f33). Broke two ways: (1) all three distractors were good outcomes against the one bad one, so 'the only negative choice' gives the key away; (2) the why and a wrong note cite Barber and Odean (overconfidence explains heavy trading), which is q17's key. Swapped one distractor for a real negative misread and dropped f122."
   },
   "q22": {
    "status": "pass",
@@ -3654,10 +3648,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q24": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right: f29 (Schwab) says loss aversion can cause extra risk when we're down; f30 and OSC f90 agree; attribution to Schwab keeps Thaler and Johnson out of it. Schwab page s7 was unreachable to this checker (authorization error), so f29's 'also' context could not be re-read; the stem's 'when they're down' matches the quote's scope. Defect: why's 'hold a loser' and the deeper example's 'they hold the loser' are not in the cited facts (f29, f30, f90 speak of riskier decisions, not holding), and they pre-teach q25 (rung 7, holding a loser = loss aversion). Both now stay with f30/f90."
+   "fixed": false,
+   "notes": "Same fact tested the same way as q51: both are True/False statements keyed False that say people cut risk after losses (q24 via Schwab f29/f30, q51 via the Coval and Shumway pros). q24's why and lesson_line ('a trader who is down may take bigger risks'; 'Down money, you may want to swing bigger') answer q51 outright, and q50's why repeats f30. The remaining loss-aversion facts are already used by q22, q25 and q26, so there is no distinct rewrite. q51 keeps the idea with primary evidence."
   },
   "q25": {
    "status": "pass",
@@ -3669,7 +3663,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f01 Tier 1). Choices are balanced and the mood choice is a real misreading of the word. One note claimed adding to a loser is a 'related habit', which no cited fact says. That clause is dropped."
+   "notes": "Key right (SEC f01, Odean f106). Broke on the simple line: 'partly because losses hurt more than gains feel good' says more than the why (which only says loss aversion helps explain it) and hands over q22's key ('A loss hurts more than an equal gain'). Simple line trimmed."
   },
   "q27": {
    "status": "pass",
@@ -3687,7 +3681,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f23, f89, f56); key (34) not longest. Two defects. (1) Cross-answer: the distractor 'Believing you knew it all along' with the note 'That's hindsight bias.' nearly gives q41's key ('Feeling you knew it all along'), both rung 1. Note no longer names it (f142 supports). (2) lesson_line 'write the bear case' rests on f24/f57, which q29 does not cite, and pre-teaches q30's blank (contradict). New line rests on f23 ('ignoring contradictory evidence')."
+   "notes": "Key right (Schwab f23, OSC f89, Investopedia f56). Broke on a cross-answer: the Investopedia line 'keeps bulls bullish and bears bearish whatever the market does' is q32's reasoning (confirmation bias keeps you in a losing view, True). Dropped it and f58."
   },
   "q30": {
    "status": "pass",
@@ -3734,14 +3728,14 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f27, f125, f79); notes no longer name gambler's fallacy or outcome bias. Tell: 'Favoring only the newest listings' was the lone absolute ('only'), which marks it wrong on sight. Replaced with 'Favoring the newest stock listings' (34), so the key (32) is still not longest and not tied for longest. Note text unchanged."
+   "fixed": false,
+   "notes": "Key matches Schwab f27, Morningstar f125, Investopedia f79 and Schwab f55. Distractors map to gambler's fallacy, outcome bias and new listings; balanced lengths. The Morningstar example overlaps q38 only as same-term recognition."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and why pass (f125, f28, f93, h18). The lesson line 'Judge each setup on its own chart' leaves out B18 and clashes with the why's new closing sentence, where our market filter decides when we trade. It now teaches B18."
+   "fixed": false,
+   "notes": "Recency is the only fit among the choices; the story is enough (fear from last month's drop keeps you out). The closing house line matches rulebook B18 (h18 is verbatim in sizing_rule.md section 9). Could not break it."
   },
   "q39": {
    "status": "pass",
@@ -3783,7 +3777,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f97, f145, f146); key (37) ties a distractor but the longest is 39. Cross-answer: the note 'Favoring well-known names is familiarity bias.' nearly restates q56's key ('Favoring familiar, well-known names'), and q45 (rung 2) comes before q56 (rung 3). Note no longer names and defines it. 'Betting against' note is fine."
+   "notes": "Key right (OSC f97 confirmed on the page, Investopedia f146, Schwab f145). Broke on the lesson_line: 'A crowded trade can still be a good trade. Just make sure it's your trade.' is an unsourced judgment and is q47's answer word for word (buying a popular stock on your own plan is not herding)."
   },
   "q46": {
    "status": "pass",
@@ -3861,13 +3855,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key False is right (f105, f148). The deeper note said 'two good years prove far less about skill than they seem', which is word for word q59's key (rung 9). That sentence is replaced with f105, and f104 is dropped from this item."
+   "notes": "False is right (Nobel f105, Chen et al f148). Broke on the lesson_line: 'Keep size small until the sample is big' is a sizing rule no cited source gives, and it clashes with the rulebook, where the setup grade sets the size (D38, E49), not the setup's trade count."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f104 is nearly this case). The 'easy' note began with a flat 'It isn't.' that no cited fact supports. Rewritten to point at the sample-size flaw from f104."
+   "fixed": false,
+   "notes": "Key follows the Nobel summary's own case of beating the index two years in a row (f104). Distractors are real errors, and the over-correction ('never tell you anything') is handled in the why. f136 is cited but unused; harmless."
   },
   "q60": {
    "status": "pass",
@@ -3876,10 +3870,10 @@
    "notes": "Key from f06/f07 (SEC, Tier 1). Choices are balanced. C34 is left as an owner flag, and the key does not conflict with it."
   },
   "q64": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key matches F67 (h67, verbatim in sizing_rule.md section 9). There was a tell: one 'no trade' choice against three 'take it' choices. The A+ choice is replaced with a second plausible non-trade ('skip it, but take the next setup'), which is wrong under the same rule."
+   "fixed": false,
+   "notes": "Duplicates q13: both stories are stop-outs plus anger then a new setup, both key 'no new trades the rest of the day' from rulebook F67 (q13 already teaches that rule), and the distractors match (half size, wait for the next setup). Same fact tested the same way, and each answers the other. A rewrite to 'tired' would still test F67 the same way."
   },
   "q65": {
    "status": "pass",
