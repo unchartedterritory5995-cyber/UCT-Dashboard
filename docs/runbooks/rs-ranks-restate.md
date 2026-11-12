@@ -61,3 +61,56 @@ Treat the real run as one-way: the old plain-return `m6` / `m9` / `m12` of a res
 restore point, take a consistent copy of `screener.db` on the pod before step 4 (a `VACUUM INTO` copy, never a plain file
 copy of a WAL database). Reverting the PR alone changes how new sessions are written; it does not put the old values back
 in the sessions already restated.
+
+# The 3M rank (2026-11-12): equal-weighted average of the 1-, 2- and 3-month returns
+
+A day after the long ranks changed, the 3M rank changed too:
+
+| Column | Before | Now |
+|---|---|---|
+| `m1` | percentile of the plain 21-bar return | unchanged |
+| `m3` | percentile of the plain 63-bar return | percentile of the equally weighted average of the 21-, 42- and 63-bar close ratios: `m3 = (R21 + R42 + R63) / 3`, `Rn = close / close[-n]` |
+| `m6`, `m9`, `m12`, `ibd` | | unchanged (the previous section) |
+
+Why: the production fit against the same 61 Deepvue readings (2026-11-12) tested seven definitions of 3M and six of 1M.
+The equal-weighted average beat the plain 63-bar return clearly (rank correlation 0.856 to 0.994, mean miss 10.2 to 6.9
+points on our universe) and Deepvue documents its 3M as "equal weighted". 1M had no candidate that beat the plain return.
+Averaging the ratios or the percentage returns orders stocks identically; the ratio form matches the other blends. The
+math lives in `api/services/rs_weighted_return.py` (`EQUAL_WEIGHT_COMPONENT_TERMS`). A stock needs the 63-bar window: one
+with 63 closes or fewer has no 3M rank.
+
+The remaining gap to Deepvue (ours reads about 6 points lower) is the universe: we rank about 3,400 liquid stocks and
+Deepvue ranks about 6,600. That is a separate decision and this change does not touch it.
+
+## Restating the stored history for 3M
+
+Same command, one flag more. It has its own marker table (`rs_history_restated_m3`, method `m3_eqwt_v1`), so it is
+independent of the long restate: either can run first, and finishing one never marks the other done. It rewrites only
+`m3`. The check recomputes `ibd` and `m1` always, and `m6`/`m9`/`m12` for the sessions that already carry the long marker
+(a column still holding an old meaning is not compared, because it would only produce false mismatches). The same
+allowance applies (1 % drift, 1 % hard).
+
+Each session's commit is now retried with a growing wait when SQLite answers `database is locked` (6 attempts, 5 s
+doubling, 60 s cap): the first long restate died at session 249 of 254 on one lock. A retry never leaves half a session
+behind, because a session is one transaction.
+
+1. Merge the PR. Wait for the master deploy gate and the production deploy. From that deploy the nightly job stores the
+   new `m3` for new sessions; the sessions before it still hold the old one until step 3, so do not wait long.
+2. DRY RUN (read-only, a few minutes):
+
+   ```
+   MSYS_NO_PATHCONV=1 railway ssh --service web -- "/opt/venv/bin/python -m api.services.screener.rs_history --backfill-days 260 --restate-ranks --columns m3 --dry-run"
+   ```
+
+   A clean last line ends `ok=True`; `reason=would_change_other_values` means nothing was written (see step 3 of the
+   previous order).
+3. REAL RUN: the same command without `--dry-run`. About 18 minutes; the shell moves it to the background after two
+   minutes, which is normal. If it is cut off, run it again and it continues from the first session without a marker.
+4. Verify: the dry run again must print `todo=0` and `reason=nothing_to_do`.
+
+Nothing in the screener, chart or alerts needs a flag: the new meaning shows as soon as a session holds it. Saved screens
+that filter on `Rank 3M` change who they include once the rows are restated, and a chart opened earlier the same day can
+show the old 3M until the next session close (the RS payload is cached per ET day).
+
+Rollback is as one-way as the long restate: the old `m3` of a restated session is not kept. Take a `VACUUM INTO` copy of
+`screener.db` first if you want a restore point.

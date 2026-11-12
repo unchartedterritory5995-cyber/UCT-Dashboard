@@ -77,7 +77,7 @@ def test_the_table_is_the_owner_decision():
         "m12": ((63, 2), (126, 1), (189, 1), (252, 1)),
     }
     assert rh.RESTATE_COLUMNS == ("m6", "m9", "m12")
-    assert rh.RESTATE_COMPARED == ("ibd", "m1", "m3")
+    assert rh.RESTATE_COMPARED == ("ibd", "m1"), "m3 changed meaning later, so it is compared only once marked"
     assert rh.COMPONENTS == (("m1", 21), ("m3", 63), ("m6", 126), ("m12", 252)), "the screener's four stay four"
 
 
@@ -87,9 +87,9 @@ def test_the_blend_equals_the_hand_derived_values():
     assert v["m6"] == pytest.approx((2 * 2.0 + 4.0) / 3)
     assert v["m9"] == pytest.approx((2 * 2.0 + 4.0 + 5.0) / 4)
     assert v["m12"] == pytest.approx((2 * 2.0 + 4.0 + 5.0 + 10.0) / 5)
-    # 1M and 3M are still the plain percentage returns, not ratios
+    # 1M is still the plain percentage return, not a ratio; 3M is the equal-weighted ratio average
     assert v["m1"] == pytest.approx(rsw.period_return(c, 21))
-    assert v["m3"] == pytest.approx(100.0)               # 200 over 100 at 63 bars back
+    assert v["m3"] == pytest.approx(2.0)                 # R21 = R42 = R63 = 2.0 here
     assert list(v) == ["m1", "m3", "m6", "m9", "m12"]
 
 
@@ -147,7 +147,7 @@ def test_long_ranks_follow_the_blend_but_short_ranks_stay_plain():
     # plain 12M return: Q +200%, P +50%  -> a plain rank would put Q on top
     assert rsw.period_return(q, 252) > rsw.period_return(p, 252)
     assert out["P"]["m12"] > out["Q"]["m12"] > out["F"]["m12"], "the blend puts the recent surge on top"
-    assert out["P"]["m3"] > out["Q"]["m3"], "3M is the plain return: P is up 50%, Q flat"
+    assert out["P"]["m3"] > out["Q"]["m3"], "3M is a short average: P is up 50% lately, Q flat"
     assert out["P"]["m6"] > out["Q"]["m6"] and out["P"]["m9"] > out["Q"]["m9"]
 
 
@@ -315,8 +315,8 @@ def test_restate_allows_a_little_drift_and_a_little_unrestatable_but_never_leave
     want = _seed_old(tmp_db, series)
     conn = sqlite3.connect(tmp_db)
     # one stored rank off by exactly one point (drift), one off by three (hard): both inside 2 % of the rows
-    conn.execute(f"UPDATE {rh.TABLE} SET m3 = m3 + 1 WHERE session = '2026-11-05' AND ticker = 'S010' AND m3 < 99")
-    conn.execute(f"UPDATE {rh.TABLE} SET m1 = CASE WHEN m1 > 90 THEN m1 - 3 ELSE m1 + 3 END "
+    conn.execute(f"UPDATE {rh.TABLE} SET m1 = m1 + 1 WHERE session = '2026-11-05' AND ticker = 'S010' AND m1 < 99")
+    conn.execute(f"UPDATE {rh.TABLE} SET ibd = CASE WHEN ibd > 90 THEN ibd - 3 ELSE ibd + 3 END "
                  "WHERE session = '2026-11-05' AND ticker = 'S020'")
     conn.commit()
     conn.close()
