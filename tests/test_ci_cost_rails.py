@@ -32,6 +32,9 @@ UNFILTERED_PR_OK = {
     "term018-guards.yml": "every guard in api/ is its subject; ~3 min",
     "wisdom-rails.yml": "the ban rails scan the whole tree; ~5 min",
     "secret-scan.yml": "a key can land in ANY file of a public repo; scans only the PR's own commits, ~1 min",
+    # 2026-11-12: must post its status on EVERY PR into agent/int|master (a path filter = no status = a required check
+    # that never arrives); the job is a few API calls on a two-file sparse checkout, no node, no tests, <1 min
+    "agent-ci-required.yml": "the one required Agent status must exist on every PR; a few API calls, <1 min",
 }
 
 
