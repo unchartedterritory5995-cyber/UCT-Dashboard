@@ -723,3 +723,24 @@ def test_the_admin_read_is_admin_only_and_groups(app, store):
     assert body["total"] == 3 and body["enabled"] is True
     assert body["groups"][0]["n"] == 2
     assert body["groups"][0]["template"] == "cannot-read-properties"
+
+
+def test_the_build_source_maps_are_admin_only_one_chunk_name_and_never_a_path(app, tmp_path, monkeypatch):
+    """2026-11-11: production keeps its hidden source maps in app/dist/.maps/ (not under the public
+    /assets mount); this admin door is the only way to read one (tools/resolve_client_error.mjs)."""
+    from api.routers import client_errors as router_mod
+    maps = tmp_path / ".maps"
+    maps.mkdir()
+    (maps / "index-Ab1.js.map").write_text('{"version":3,"sources":["src/a.js"],"mappings":""}')
+    (tmp_path / "secret.txt").write_text("not a map")
+    monkeypatch.setattr(router_mod, "_MAPS_DIR", str(maps))
+    c = TestClient(app)
+    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "m", "role": "member"}
+    assert c.get("/api/admin/client-errors/sourcemap/index-Ab1.js").status_code == 403
+    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "a", "role": "admin"}
+    r = c.get("/api/admin/client-errors/sourcemap/index-Ab1.js")
+    assert r.status_code == 200 and r.json()["sources"] == ["src/a.js"]
+    assert r.headers["cache-control"] == "private, no-store"
+    assert c.get("/api/admin/client-errors/sourcemap/missing-X.js").status_code == 404
+    for bad in ["..%2Fsecret.txt", "secret.txt", "a.css", "..js", "%2E%2E.js"]:
+        assert c.get(f"/api/admin/client-errors/sourcemap/{bad}").status_code in (400, 404), bad
