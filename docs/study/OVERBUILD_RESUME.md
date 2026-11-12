@@ -11,6 +11,14 @@ carry a simple answer, 1,090 choice questions still have 3 answers. Three workfl
 | `wf_5c8cc8c2-a84` | wave 3 (SET.22 to SET.31) | `overbuild-wave-routed.js` | `wave3_args.json` |
 | `wf_2646149c-298` | wave 4 (SET.32 to SET.46) | `overbuild-wave-routed.js` | `wave4_args.json` |
 
+**Update after the pause started (still 2026-11-12):** WAVE 3 FINISHED and is integrated and COMMITTED (0c1701c2c3, SET.22 to SET.31, 0 validator
+problems after 6 hand fixes; 94 agents, 21.6M tokens, about 32k per question). Its VERIFY list is READY but the run was NOT launched (held until
+the owner is back, to avoid unattended spend): `_study-resume\overbuild\wave3_verify_args.json` (116 questions in 10 lessons; launch
+`overbuild-verify.js` with those args, then apply with `apply_upgrade <lesson> empty.json --check <scratch>gents\wave3erify\<unit>.check.json --batch wave3 --write`).
+Wave 2's verify run (`wf_1b446492-b0e`) had 9 of 10 agents finished (SET.13 outstanding); its check files so far are in
+`...\scratchpadgents\wave2erify\`. Wave 4 (`wf_2646149c-298`) had 9 of its first 21 agents finished. Library now: 1,642 of 5,215 live questions
+have a simple answer, 969 choice questions still have 3 answers. Final re-check fix rates for wave 3: full 22%, light 22%.
+
 **To resume, in order:**
 0. Read this guide. Run `git log --oneline -8` in the worktree, then `_study-resume\overbuild\sync_scratch.sh` (backs up the agent files).
 1. Find out which runs are still alive (the `/workflows` list). A run that FINISHED while he was away: its files are already in
