@@ -303,6 +303,7 @@ def _rs_params() -> dict:
         "tol": _rs.DEFAULT_PRICE_TOLERANCE_PCT, "red": abs(_rs.DEFAULT_RED_DAY_PCT),
         "terms": _rsw.IBD_TERMS, "components": _rsw.IBD_COMPONENTS,
         "long_terms": dict(_rsw.IBD_STYLE_COMPONENT_TERMS),
+        "equal_terms": dict(_rsw.EQUAL_WEIGHT_COMPONENT_TERMS),
         "required": _rsw.IBD_REQUIRED_TERM, "max": _rsh.RATING_MAX,
     }
 
@@ -315,6 +316,16 @@ def _long_blend_prose(terms) -> str:
     if len(parts) == 1:
         return "the close over the close " + parts[0]
     return "the close over the close " + ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def _equal_blend_prose(terms) -> str:
+    """The equal weighting of the 3M component rank in words, READ FROM
+    `rs_weighted_return.EQUAL_WEIGHT_COMPONENT_TERMS` (its row): "the close over the
+    close 21, 42 and 63 sessions earlier"."""
+    bars = sorted(n for n, _w in terms)
+    parts = [str(n) for n in bars]
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"the close over the close {joined} sessions earlier"
 
 
 def _ibd_formula_prose(p: dict) -> str:
@@ -589,6 +600,27 @@ def _rs_column_methods() -> list:
     for key, bars in p["components"]:
         column, label, words = names[key]
         blend = p["long_terms"].get(key)
+        equal = p["equal_terms"].get(key)
+        if equal is not None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the equal-weighted average of the one-, two- and "
+                            f"three-month returns, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"An equally weighted average of three close ratios, each counting once: "
+                        f"{_equal_blend_prose(equal)}, ranked across the same cap universe minus "
+                        f"ETFs as the IBD-style rating and scored the same way, max(1, ceil(percentile "
+                        f"x {top})). A window the history cannot reach leaves no value: without the "
+                        f"{max(n for n, _w in equal)}-session term there is no rank. " + _RS_RATING_NOTE),
+                "caveat": ("Not the plain three-month return: until 2026-11-12 this rank was taken over "
+                           "the plain 63-session return, so a chart or saved screen from before then "
+                           "reads on a different basis. A stock that rose early in the quarter and has "
+                           "been flat since ranks below one that rose late, which a plain three-month "
+                           "return cannot tell apart. It reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one is "
+                           "a young move, not a leader yet."),
+            })
+            continue
         if blend is None:
             out.append({
                 "column": column, "label": label,

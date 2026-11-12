@@ -5043,8 +5043,9 @@ const RS_LINE_V5_RAW = {
 // ⭐ `rsMa` DRAWS ONLY WHILE `showAverage` HOLDS (`plots[].activeWhen` on a data
 // plot: `defSchema.validatePlotActiveWhen` admits it on a server definition for a
 // presentation key the server never hears of — the `fill.activeWhen` rule), and
-// the shade is gated on the same switch, so the two can never disagree. Off by
-// default: on the price pane the line alone is the look.
+// the shade is gated on the same switch, so the two can never disagree. The
+// declared default is OFF (what a saved instance without the key means); a NEW
+// instance is born ON through `meta.createInputs` (see the note there).
 const RS_LINE_SLIM_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -5058,6 +5059,16 @@ const RS_LINE_SLIM_RAW = {
       'leader', 'leadership', 'price relative', 'benchmark', 'rs rating', 'red day', 'custom benchmark'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ A NEW UCT RS LINE ARRIVES WITH THE AVERAGE AND ITS SHADE ON (Deepvue ships its
+    // 21 EMA with the green/red shade on, and our own plan said so).
+    // ⛔ The DECLARED default stays false on purpose: it is also what a SAVED instance
+    // without the key means (`resolveInputs` fills an absent key from it), and every
+    // instance saved before this change (v1 shape, migrated, v5 era) lacks
+    // `showAverage`, so flipping the default would turn the average on across every
+    // saved chart. `createInputs` is the door for exactly this split
+    // (`instanceControls.createInputsOf`): written onto a NEW instance by `addInstance`
+    // and `ensureLegacyInstance` only. Pinned by `rsSplitSlim.test.js`.
+    createInputs: { showAverage: true },
     // No `legendFallback`: with the live value missing the pane label prints the
     // server's dated last RS value, muted (`readout.readoutFallbackValue`, A8).
     // ⭐ THE INPUTS THE SERVER DECLARES, trimmed (the header above says why each
@@ -5126,7 +5137,7 @@ const RS_LINE_SLIM_RAW = {
       placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
       tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Simple',
-      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. Off by default: on the price chart the line alone is the classic look.' },
+      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. On when you add the indicator (like Deepvue\'s 21 EMA); turn it off for the line alone.' },
     { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
       tooltip: 'A blue dot where the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
     { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
@@ -5255,7 +5266,7 @@ const RS_LINE_SLIM_RAW = {
     // from, each coloured by the site's bands while Rating colours is on.
     { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
       when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN },
-      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M and 3M rank the plain return and 6M, 9M and 12M rank a blend that counts the newest quarter double.',
+      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M ranks the plain return, 3M an equal-weighted average of the 1-, 2- and 3-month returns, and 6M, 9M and 12M a blend that counts the newest quarter double.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
         evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).' } },
     { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary',

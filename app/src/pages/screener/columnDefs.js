@@ -601,7 +601,7 @@ export const COLUMN_DEFS = {
   rs_rating_1m: { label: 'Rank 1M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 21-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
   rs_rating_3m: { label: 'Rank 3M', fmt: num(0), heat: heatRs,
-    desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
+    desc: 'Percentile rank, 1-99, of the equal-weighted average of the 1-, 2- and 3-month returns (the 21-, 42- and 63-session close ratios, each counting once) across the cap universe minus ETFs on daily bars, the quarter the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
   rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of a recency-weighted six-month blend (the 63-session close ratio counts double, the 126-session once) across the cap universe minus ETFs on daily bars, the same newest-quarter weighting the IBD-style rating uses; blank where the rating job has not rated the name.' },
   rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
