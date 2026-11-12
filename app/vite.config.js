@@ -179,6 +179,12 @@ export default defineConfig({
     // price the Notebook route (entry + everything it reaches), instead of a hand-typed chunk
     // list that goes stale on the next rename. It changes no chunk; it only writes the graph.
     manifest: true,
+    // ⭐ HIDDEN SOURCE MAPS (2026-11-11, desktop speed plan 9.7): a .map per chunk and NO
+    // sourceMappingURL comment, so the shipped JS is byte-identical and no browser fetches a map.
+    // `scripts/stash-sourcemaps.mjs` (next in the build) moves them out of the public /assets mount
+    // into dist/.maps/; only the admin endpoint GET /api/admin/client-errors/sourcemap/{chunk} reads
+    // them, so `tools/resolve_client_error.mjs` turns an error report's kept position into a source line.
+    sourcemap: 'hidden',
     chunkSizeWarningLimit: 4000,
     // ⚰️⚰️ THE `target` ABOVE LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
     // OBJECT LITERAL IS NOT A MERGE — THE LAST ONE WINS AND THE FIRST IS DISCARDED ENTIRELY.

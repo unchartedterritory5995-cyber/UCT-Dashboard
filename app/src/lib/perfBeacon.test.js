@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MAX_API, REPORT_AFTER_MS, apiTemplate, buildReport, pageTemplate, startPerfBeacon } from './perfBeacon'
+import { FIRST_CANDLES_MARK, MAX_API, REPORT_AFTER_MS, apiTemplate, buildReport, pageTemplate, startPerfBeacon } from './perfBeacon'
+import { FIRST_CHART_PAINT_EVENT } from './barsPackClient'
 
 const O = 'https://uctintelligence.com'
 
@@ -84,6 +85,21 @@ function fakeEnv() {
 }
 
 describe('startPerfBeacon', () => {
+  it('reports time to first candles from the mark the first chart sets, and omits it on pages with no chart', async () => {
+    expect(FIRST_CANDLES_MARK).toBe(FIRST_CHART_PAINT_EVENT)
+    vi.useFakeTimers()
+    const withChart = fakeEnv()
+    withChart.perf.getEntriesByName = (name, type) => (name === FIRST_CANDLES_MARK && type === 'mark' ? [{ startTime: 612.4 }] : [])
+    startPerfBeacon({ ...withChart, desktop: true })
+    const noChart = fakeEnv()
+    noChart.perf.getEntriesByName = () => []
+    startPerfBeacon({ ...noChart, desktop: false })
+    vi.advanceTimersByTime(REPORT_AFTER_MS)
+    vi.useRealTimers()
+    expect(JSON.parse(await withChart.beacons[0].blob.text())).toMatchObject({ client: 'desktop', candles: 612 })
+    expect(JSON.parse(await noChart.beacons[0].blob.text()).candles).toBeUndefined()
+  })
+
   it('sends exactly once, after the report delay', async () => {
     vi.useFakeTimers()
     const env = fakeEnv()

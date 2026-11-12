@@ -28,7 +28,7 @@
       "evidence": "The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).",
       "label": "Rating",
       "origin": "IBD's Relative Strength Rating, with IBD's published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.",
-      "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M and 3M rank the plain return and 6M, 9M and 12M rank a blend that counts the newest quarter double."
+      "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M ranks the plain return, 3M an equal-weighted average of the 1-, 2- and 3-month returns, and 6M, 9M and 12M a blend that counts the newest quarter double."
     },
     "redDay": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
@@ -58,7 +58,7 @@
         "relative strength rating",
         "IBD-style rating"
       ],
-      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue's RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.",
+      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranked against every stock we hold a recent price for, the way Deepvue's is: across 61 of its readings at 1, 3, 6, 9 and 12 months, ours sit about 3 points away on average with no lean either way; it has not been measured against MarketSurge.",
       "key": "rsRating",
       "term": "RS Rating"
     },
@@ -175,6 +175,33 @@
       "definition": "An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line's readout prints as its distance from the average.",
       "key": "uctRsVsEma",
       "term": "UCT RS vs 21 EMA"
+    },
+    {
+      "aliases": [
+        "RS exit warnings",
+        "Webby Quick and Grateful Dead"
+      ],
+      "definition": "An indicator that draws the RS line with a fast and a slow simple average of it, and marks three warnings on the line: Quick Break, Quicksand and Grateful Dead Break, Mike Webster's method for noticing a leader weaken. The averages are 21 and 50 bars on a daily chart and 8 and 21 on a weekly one, and both can be changed.",
+      "key": "uctRsExit",
+      "term": "UCT RS Exit Warnings"
+    },
+    {
+      "definition": "The first warning on the RS line: it drops below its fast average. It asks you to look at the position again, not to act by itself.",
+      "key": "quickBreak",
+      "term": "Quick Break"
+    },
+    {
+      "definition": "The second warning: after a Quick Break, the RS line falls lower than it was at that break. The weakness has deepened rather than recovered.",
+      "key": "quicksand",
+      "term": "Quicksand"
+    },
+    {
+      "aliases": [
+        "Dead Break"
+      ],
+      "definition": "The third warning, drawn as the largest dot: the RS line drops below its slow average. It does not need a Quick Break first.",
+      "key": "gratefulDeadBreak",
+      "term": "Grateful Dead Break"
     }
   ],
   "misconceptions": [

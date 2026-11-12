@@ -28,7 +28,12 @@ verified_through  float (unix s) | null
 sealed_through    float (unix s) | null
 complete_through  int (unix s) | null
 developing        {t, o, h, l, c, v, rev} | null
+adj_basis         "s0" | "s1:<12 hex>" | null          (P4, additive — see below)
 ```
+
+**Version rule.** `contract` changes only when an EXISTING field changes meaning. A new
+field is additive (old clients ignore unknown fields) and keeps `contract: 1`; its
+absence on an answer from an older server means "unknown" (`null`), never a default.
 
 ### grid
 The bucket grid of the rows in `bars`.
@@ -98,7 +103,8 @@ store, and a delete moves `history_rev`), and scroll-back reads them from the st
 deep write's overlap with stored rows is still judged row by row.
 
 Which writers this catches (each goes through `put_bars` / `put_bars_many` /
-`_history_keys`): split re-adjust (`bars_split_repair`), the R2 merge's hole fills and
+`_history_keys`, or bumps `history=True` itself): split re-adjust (`bars_split_repair`;
+intraday: `intraday_split_heal` via `apply_split_basis`), the R2 merge's hole fills and
 higher-volume corrections below the window, gap-fill and live-store backfill restoring an
 old hole, deep writes that differ from stored rows, alert/ingest add-only writes into old
 holes. Deletes (#1062 off-grid purge `intraday_grid.repair_pair`, the weekly / impossible /
@@ -245,6 +251,71 @@ process runs the broadcaster), supplies it; otherwise `null` — never an invent
 `series_rev` at read time; push partial: its last trade time. A consumer keeps the
 developing bar with the greater `rev` for the same `t`.
 
+### adj_basis
+P4 (2026-11-12). The split-adjustment basis the stored rows of an INTRADAY series are on:
+the id of the set of split events whose adjustment those rows carry (a split `(d, r)` is
+applied when every row before its first post-split bar is divided by `r`, volume x `r`).
+- One owner: `adjustment_basis.basis_id` (pure; sha1 of the sorted canonical events
+  `YYYY-MM-DD:<ratio %.6g>`, truncated to 12 hex). `"s0"` = no adjudicable split applied.
+  Only `bars_sanitize.adjudicable` events count (a 3% stock dividend never moves it).
+- STORE-INDEPENDENT: unlike `history_rev` it names the same basis identically on every
+  store (bars-api, web pod, worker), so a cached copy can be judged against any answer.
+- Stored in `series_meta.adj_basis` (the canonical event text) and written ONLY by
+  `intraday_split_heal` through `bars_sqlite.apply_split_basis`, in the same transaction
+  as the rows it rescales. A check is scheduled off the serve path (`note_served`) when
+  the series' stamp is not the ticker's target basis (`target_basis_id`: every adjudicable
+  declared split dated up to today + 10 days).
+- `null` = unknown: never checked, the split metadata is cold, a split the series has not
+  fully reached while rows were written since its date, or a cliff the heal could not prove
+  (below). Not store-backed answers and D/W/M carry `null` (D/W/M are healed on serve +
+  in the store by `bars_split_repair`; `history_rev` covers them). The derived eth 60m
+  carries its 15m source's value.
+- Changes exactly when the stored rows move onto another basis (a heal), or when a check
+  first establishes it. A client holding a copy stamped X must discard it when an answer
+  says Y != X (both non-null) — BarStore treats it like a `cache_key` change.
+
+**The heal** (`intraday_split_heal.heal_ticker`). For each adjudicable declared split:
+the session-close detector (`bars_sanitize.unadjusted_splits`, the one detector) reports a
+cliff at boundary session B, ratio r; ONE streamed pass over every stored close counts the
+bar-to-bar steps matching r and 1/r (`_SPLIT_TOL`). A rescale of the rows strictly before
+the step bar is planned only when ALL hold:
+- r matches exactly ONE step in the whole series, inside B, and 1/r matches none (a mixed
+  series — new-basis rows below old-basis ones — shows its junction as a 1/r step; a bad
+  print or a split-sized real move makes the count != 1);
+- no other declared event claims the same step (one split listed twice — two dates, two
+  sources — is refused, never divided by r twice: review of #1144 D1);
+- **independent proof** (`daily_proof`, D2): for up to 3 sessions before B the intraday RTH
+  close is r x the STORED daily close of the same date, and for up to 3 sessions from B on
+  it equals it (3%). A real gap shows in BOTH series and is never written — a unique step
+  alone is weak evidence for small ratios (6:5's accept band is 1.02-1.38);
+- the old-basis span fits one bounded transaction (`INTRADAY_SPLIT_HEAL_MAX_ROWS`, default
+  300k rows ≈ 0.15 s under the lock on a dev store; deeper ⇒ refused "too-deep").
+Anything else is logged (`[intraday-split-cliff] ... NOT rewritten: (why, fwd, inv)`),
+nothing is written and `adj_basis` is null. A split-sized step the session closes do not
+show at the declared window (anywhere in the series) also makes the split unprovable — never
+stamped "applied". Each series is written in its OWN `BEGIN IMMEDIATE` transaction, only if
+its `rev` has not moved since it was read (else "raced", re-planned later); a rescaled
+series' `history_rev` moves exactly once; `held_ms` is logged; the ticker's memory / disk
+payload caches are dropped. Idempotent: after the commit no step remains and the stamp
+equals the target.
+
+**The stamp is bound** (D3): `series_meta.adj_basis` stores `v2|<history_rev>|<first ts>|
+<canonical events>` (`adjustment_basis.bind_stamp`), and `series_meta()` serves it only while
+the series' `history_rev` and first stored row are still those — a later write that changes
+held history or prepends rows (an old-basis fallback, a merge) makes it null and the series
+is re-checked.
+
+**Modes** (owner-safety, first deploy): `INTRADAY_SPLIT_HEAL_MODE=report` is the DEFAULT —
+the heal plans and logs `[intraday-split-heal] WOULD-RESCALE <tk> tfs=<tf> boundary=<ts>
+ratio=<r> rows=<n>` (no prices) and counts would-be stamps (`intraday_split_heal.STATS`),
+writing NOTHING: no rows and no stamps, so every served `adj_basis` stays null and clients
+judge cached copies by their ratio test alone (stamping from a heal still being validated
+would make clients trust it first). `INTRADAY_SPLIT_HEAL_MODE=write` applies and logs
+`RESCALED ... rows=<n> held_ms=<ms>` / `STAMP ... adj_basis=<id> held_ms=<ms>`.
+`INTRADAY_SPLIT_HEAL_ENABLED=0` stays the hard off (no checks). Runbook:
+docs/runbooks/held-flags-and-checks.md. Railed: `tests/test_intraday_split_heal_basis.py`
+(H1-H3, C1, D1-D3, M).
+
 ## 3. Examples
 
 5m, 10:12:30 ET, store tail = the 10:10 bucket (partial), last repair at 10:11:02:
@@ -273,13 +344,16 @@ series'; `complete_through` = end of the newest clock hour that ends at or befor
 series_meta(ticker, tf, rev INTEGER, verified_through REAL, proof_floor REAL)  PK(ticker, tf)
 store_meta(k TEXT PK, v REAL)   -- rev_floor_ms, proof_floor_s
 ```
-`series_meta` also carries `history_rev INTEGER` and `sealed_through REAL`.
+`series_meta` also carries `history_rev INTEGER`, `sealed_through REAL` and `adj_basis TEXT`
+(the canonical applied-split text; added by `_create_meta_tables`, read tolerantly when a
+snapshot's table predates it).
 Writers: `bump_series_revs(conn, keys, deleted=, history=)` inside the writer's transaction
-(`put_bars`, `put_bars_many`, `replace_ticker_tf_rows`, `delete_bars`, the weekly /
+(`put_bars`, `put_bars_many`, `replace_ticker_tf_rows`, `apply_split_basis`, `delete_bars`, the weekly /
 impossible-bar purges, `intraday_grid.repair_pair`, `bars_reconciliation`,
 `data_sync._merge_pair`); wholesale writers call `bump_store_floor()` (snapshot
 install, init_db purge migrations, the boot heals in `api/main.py`, refresh-all).
-A census rail fails any new `INTO ohlcv` / `DELETE FROM ohlcv` site that does neither.
+A census rail fails any new `INTO ohlcv` / `DELETE FROM ohlcv` / `UPDATE ohlcv` site that
+does neither.
 Write cost: one upsert per (series, transaction) — a per-row SQLite trigger was
 measured ~6x slower on a 4M-row bulk load and rejected. Proof writes are batched
 (`BARS_META_FLUSH_SECONDS`, default 1.0; `bars_sqlite.meta_flush_stats()` reports

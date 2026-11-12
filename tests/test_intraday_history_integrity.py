@@ -1,7 +1,7 @@
 """W-F — stored intraday history integrity (2026-11-10).
 
 Synthetic stores and fake providers only; every price here is an invented round
-number. Covers: intraday split-cliff detection (detect + log, no writes), the R2 merge (holes / corrections / chunks),
+number. Covers: intraday split-cliff heal (proven cliffs rescaled; see test_intraday_split_heal_basis.py), the R2 merge (holes / corrections / chunks),
 the fallback-provider basis + history-complete guard, half-day `_is_market_open`,
 null-volume delta parsing, the prior-session gap-fill reach, and the RTH gap audit.
 """
@@ -25,6 +25,7 @@ ET = ZoneInfo("America/New_York")
 
 @pytest.fixture
 def store(tmp_path, monkeypatch):
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MODE", "write")
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
     bars_sqlite.bump_db_epoch()
     bars_sqlite.init_db()
@@ -52,27 +53,51 @@ def _series(pre_px: float, post_px: float, tf="5"):
     return out
 
 
+def _daily(ticker, px):
+    """Stored daily closes on the CURRENT basis (the independent proof the heal asks for)."""
+    bars_sqlite.put_bars(ticker, "D", [{"t": _dt.date(y, m, d).isoformat(), "o": px, "h": px,
+                                        "l": px, "c": px, "v": 1} for (y, m, d) in SESSIONS],
+                         date_tf=True)
+
+
 def _stored(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 100000)
 
 
-# ── 1. Intraday split cliff: DETECT + LOG only (no writes — review N1/N2) ────
+# ── 1. Intraday split cliff: a PROVEN cliff is healed; anything else is never written ──
 
 SPLITS = [(SPLIT_DAY, 2.0)]
 
 
-def test_split_cliff_is_detected_and_logged_but_nothing_is_written(store, caplog):
+def test_a_proven_split_cliff_is_healed_in_the_store(store, caplog):
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
+    _daily("SPLT", 50.0)
+    with caplog.at_level(logging.WARNING, logger=ish._log.name):
+        res = ish.heal_series("SPLT", "5", splits=SPLITS)
+    assert res["cliffs"] == [(SPLIT_DAY, 2.0)] and res["written"] == 18
+    assert _stored("SPLT", "5") == [tuple(r) for r in bars_sqlite.get_bars("SPLT", "5", 100000)]
+    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}    # one basis, no cliff
+    assert "intraday-split-heal" in caplog.text and "RESCALED" in caplog.text
+
+
+def test_an_unprovable_cliff_is_detected_and_logged_but_nothing_is_written(store, caplog):
+    """A second split-sized step anywhere in the series (a bad print) makes the step count
+    != 1: refused, byte-identical store, basis unknown."""
+    bars = _series(100.0, 50.0)
+    bars[3] = dict(bars[3], o=200.0, h=201.0, l=199.0, c=200.0)   # a lone 2x print
+    bars_sqlite.put_bars("SPLT", "5", bars)
     before = _stored("SPLT", "5")
     with caplog.at_level(logging.WARNING, logger=ish._log.name):
         res = ish.heal_series("SPLT", "5", splits=SPLITS)
     assert res["cliffs"] == [(SPLIT_DAY, 2.0)] and res["written"] == 0
     assert _stored("SPLT", "5") == before                    # byte-identical store
+    assert bars_sqlite.series_meta("SPLT", "5")["adj_basis"] is None
     assert "intraday-split-cliff" in caplog.text and "NOT rewritten" in caplog.text
 
 
 def test_partially_rewritten_or_mixed_series_is_never_modified(store):
-    """N1/N2: whatever mix of bases the store holds, detection never writes."""
+    """N1/N2: a mixed store (new-basis rows below old-basis ones) shows its junction as a
+    1/r step — never rewritten."""
     mixed = _series(100.0, 50.0)
     mixed[:6] = [dict(b, o=50.0, h=51.0, l=49.0, c=50.0) for b in mixed[:6]]   # new basis deep
     bars_sqlite.put_bars("MIX", "5", mixed)
@@ -101,13 +126,18 @@ def test_no_declared_split_never_reads(store, monkeypatch):
 def test_heal_ticker_checks_every_intraday_tf(store):
     for tf in ("5", "15"):
         bars_sqlite.put_bars("SPLT", tf, _series(100.0, 50.0))
+    _daily("SPLT", 50.0)
     by_tf = {r["tf"]: r for r in ish.heal_ticker("SPLT", splits=SPLITS)}
     assert set(by_tf) == {"1", "5", "15", "30", "60"}
     assert by_tf["5"]["cliffs"] and by_tf["15"]["cliffs"] and not by_tf["1"]["cliffs"]
-    assert all(r["written"] == 0 for r in by_tf.values())
+    assert by_tf["5"]["written"] == 18 and by_tf["15"]["written"] > 0 and by_tf["1"]["written"] == 0
 
 
-def test_note_served_schedules_once_per_split_and_only_near_a_declared_split(monkeypatch):
+def test_note_served_schedules_a_check_only_when_the_stamp_is_not_the_target(store, monkeypatch):
+    """A check is scheduled when the series' stored adj_basis is not the ticker's target
+    basis (never checked, or a split it was not checked against), at most once per
+    (ticker, tf, target) per TTL; never on a cold metadata cache, never for D/W/M."""
+    from api.services import adjustment_basis as ab
     submitted = []
     monkeypatch.setattr(ish._pool, "submit", lambda fn: submitted.append(fn))
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
@@ -115,12 +145,18 @@ def test_note_served_schedules_once_per_split_and_only_near_a_declared_split(mon
     ish._inflight.clear()
     bars = _series(100.0, 50.0)
     cache.set(bs._META_KEY.format("NOTE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
-    cache.set(bs._META_KEY.format("FAR"), {"ipo": None, "splits": [("2020-01-02", 2.0)]}, ttl=60)
+    cache.set(bs._META_KEY.format("DONE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
+    cache.delete_prefix(bs._META_KEY.format("COLD"))
     monkeypatch.setattr(bs, "_meta_cached", lambda t: cache.get(bs._META_KEY.format(t)))
+    bars_sqlite.put_bars("DONE", "5", bars[-3:])
+    bars_sqlite.apply_split_basis("DONE", {"5": {"rev": bars_sqlite.series_meta("DONE", "5")["rev"],
+                                                 "adj_events": [(SPLIT_DAY, 2.0)], "rescale": []}})
+    assert bars_sqlite.series_meta("DONE", "5")["adj_basis"] == ab.target_basis_id([(SPLIT_DAY, 2.0)])
     assert ish.note_served("NOTE", "5", bars) is True
     ish._inflight.clear()
     assert ish.note_served("NOTE", "5", bars) is False      # memoised for the TTL
-    assert ish.note_served("FAR", "5", bars) is False       # split outside the window
+    assert ish.note_served("DONE", "5", bars) is False      # already on the target basis
+    assert ish.note_served("COLD", "5", bars) is False      # splits unknown: nothing judged
     assert ish.note_served("NOTE", "D", bars) is False      # daily has its own repair
     assert len(submitted) == 1
     ish._checked.clear()

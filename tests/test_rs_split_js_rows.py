@@ -32,7 +32,13 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 JS = ROOT / "app" / "src" / "components" / "chart" / "engine" / "nativeRegistry.js"
 JS_CONTRACT = ROOT / "app" / "src" / "components" / "chart" / "engine" / "__tests__" / "rsSplitContract.json"
 
-RAW_NAMES = {"rsRating": "RS_RATING_RAW", "rsPhases": "RS_PHASES_RAW", "rsVsEma": "RS_VS_EMA_RAW"}
+RAW_NAMES = {"rsRating": "RS_RATING_RAW", "rsPhases": "RS_PHASES_RAW", "rsVsEma": "RS_VS_EMA_RAW",
+             "rsExit": "RS_EXIT_RAW"}
+
+#: 2026-11-12 (RS Exit Warnings): the one definition with presentation SWITCHES. Each toggles a dot
+#: through `plots[].activeWhen` (the slim RS line's `showAverage` rule): the server never hears of them,
+#: so they are not row inputs, and they are the only bool inputs an RS split definition may add.
+PRESENTATION_TOGGLES = {"rsExit": {"showQuick", "showQuicksand", "showDead"}}
 
 
 def _src() -> str:
@@ -158,8 +164,10 @@ def test_every_row_input_is_declared_on_the_js_side_with_the_rows_rule(def_id):
             assert js[key]["case"] == spec["case"], key
     # ...and the only JS inputs the row lacks are presentation (Style) ones.
     extra = {k: v for k, v in js.items() if k not in {i["key"] for i in _row(def_id)["inputs"]}}
-    assert all(v["type"] in ("color", "int") for v in extra.values()), extra
-    assert set(extra) <= {"color", "lineWidth"}, extra
+    toggles = PRESENTATION_TOGGLES.get(def_id, set())
+    assert all(v["type"] in ("color", "int") or (v["type"] == "bool" and k in toggles)
+               for k, v in extra.items()), extra
+    assert set(extra) <= {"color", "lineWidth"} | toggles, extra
 
 
 def test_the_rating_definition_sends_nothing_and_has_style_inputs_only():
@@ -206,6 +214,9 @@ def test_member_copy_is_plain_english():
     cards): no trade words, and RS never spelled as RSI (whole word; the field
     name `schemaVersion` is not member copy)."""
     for def_id in SPLIT_IDS:
-        strings = " ".join(re.findall(r"'((?:[^'\\]|\\.)*)'", _raw(def_id))).lower()
+        # `meta.tags` are SEARCH TERMS the member types, never printed (2026-11-12: `rsExit` carries
+        # `sell` and `trim` there so a search for either finds it); every printed string is scanned.
+        raw = re.sub(r"tags:\s*\[[^\]]*\],", "", _raw(def_id))
+        strings = " ".join(re.findall(r"'((?:[^'\\]|\\.)*)'", raw)).lower()
         for banned in (r"\bbuy\b", r"\bsell\b", r"\brsi\b"):
             assert not re.search(banned, strings), (def_id, banned)

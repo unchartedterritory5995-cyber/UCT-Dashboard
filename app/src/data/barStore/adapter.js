@@ -28,7 +28,7 @@ import { toChartTime, isRthBar } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
-import { toHeikinAshi } from '../../components/chart/indicators'
+import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
@@ -116,6 +116,13 @@ function legacyDeveloping(snapshot, tf, sealed) {
   return newer ? dev : null
 }
 
+/** The snapshot's developing bar in the legacy shape ({t,o,h,l,c,v}; D/W/M t = label), or
+ *  null — exactly the bar `legacyBars` appends. O(1) on a memo hit (the dev channel's read). */
+export function legacyDevelopingOf(snapshot, tf = tfOfSnapshot(snapshot, null)) {
+  if (!snapshot?.developing) return null
+  return legacyDeveloping(snapshot, tf, legacySealed(snapshot, tf))
+}
+
 const _legacyBarsMemo = new WeakMap()
 /** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy
  *  shape. Memoized per (frozen, identity-stable) snapshot, so indicators / drawings /
@@ -179,17 +186,12 @@ export function composePoints(base, tail) {
   return cut === base.length ? [...base, ...tail] : [...base.slice(0, cut), ...tail]
 }
 
-// Heikin-Ashi continued from a previous HA bar: the same recurrence as toHeikinAshi.
+// Heikin-Ashi continued from a previous HA bar: indicators.heikinAshiNext, the one recurrence
+// toHeikinAshi itself steps with (no second implementation).
 function haContinue(bars, prev) {
   const out = []
-  let pO = prev ? prev.o : (bars[0].o + bars[0].c) / 2
-  let pC = prev ? prev.c : (bars[0].o + bars[0].h + bars[0].l + bars[0].c) / 4
-  for (const bar of bars) {
-    const c = (bar.o + bar.h + bar.l + bar.c) / 4
-    const o = (pO + pC) / 2
-    out.push({ ...bar, o, h: Math.max(bar.h, o, c), l: Math.min(bar.l, o, c), c })
-    pO = o; pC = c
-  }
+  let p = prev || null
+  for (const bar of bars) { p = heikinAshiNext(p, bar); out.push(p) }
   return out
 }
 
