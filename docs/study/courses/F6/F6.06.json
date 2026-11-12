@@ -1053,8 +1053,8 @@
    "format": "tf",
    "q": "Heavy buying of a stock's options, with nothing else changing, pushes its implied volatility up.",
    "answer": "True",
-   "why": "True. OIC says increased demand and higher premiums mean an increase in implied volatility. Fidelity says strong buying of calls and puts generally pushes their prices up. IV comes from supply and demand for the options, so a higher price shows up as higher IV. 'With nothing else changing' matters: the stock price and time also move premiums.",
-   "lesson_line": "IV rises when traders rush to buy options. Demand sets the price.",
+   "why": "True. OIC says increased demand and higher premiums mean an increase in implied volatility. Fidelity says strong buying of calls and puts generally pushes their prices up. IV comes from supply and demand for the options, so a higher price shows up as higher IV. 'With nothing else changing' is there on purpose: a move in the stock, or a day of time decay, would change the premium too.",
+   "lesson_line": "Heavy buying lifts option prices, and a higher option price means a higher IV.",
    "facts": [
     "f5",
     "f63",
@@ -1124,9 +1124,9 @@
    "q": "What happens to the cost of buying back that call?",
    "choices": [
     "It rises, so closing costs more",
-    "It falls, since the stock is flat",
     "It stays near the price it sold at",
-    "It drops, as high IV helps sellers"
+    "It drops, as high IV helps sellers",
+    "It depends only on the stock price"
    ],
    "answer": "It rises, so closing costs more",
    "why": "It rises, so closing costs more. The trader sold the call, so they are short it. OIC's covered call page says rising volatility tends to increase the cost of buying the short call back. IV can rise with the stock flat, and uncertainty tends to push IV up. High IV helps a seller at the sale, by making the premium richer. Once short, a rise in IV works against the seller.",
@@ -1139,9 +1139,9 @@
     "f61"
    ],
    "wrong": {
-    "It falls, since the stock is flat": "A flat stock doesn't freeze the option. IV rose, and that lifts the premium.",
     "It drops, as high IV helps sellers": "High IV means a richer premium at the sale. Once short, a rise in IV hurts the seller.",
-    "It stays near the price it sold at": "Option prices move with IV even when the stock doesn't."
+    "It stays near the price it sold at": "A flat stock doesn't freeze the option. IV rose, and that lifts the premium even when the stock doesn't move.",
+    "It depends only on the stock price": "The stock did not move, yet the price changed. Implied volatility is part of an option's price too."
    },
    "simple": "Buying it back costs more, because higher implied volatility raises the option's price even when the stock does not move.",
    "tier": "extended",
@@ -1177,7 +1177,7 @@
     "f72",
     "f48"
    ],
-   "simple": "Today sits 75% of the way from the year's low to its high. By this measure, its options are on the pricey side.",
+   "simple": "Today sits 75% of the way from the year's low to its high, so its IV is in the upper part of its range.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1429,7 +1429,7 @@
    "q": "What should the trader weigh most before buying those calls?",
    "choices": [
     "A crush, even if they're right",
-    "High IV warns of a drop coming",
+    "High IV warns the stock will fall",
     "IV will likely keep rising after",
     "High IV makes the calls cheap"
    ],
@@ -1448,7 +1448,7 @@
    "wrong": {
     "IV will likely keep rising after": "After a report, IV often falls sharply. That's the crush.",
     "High IV makes the calls cheap": "It's the reverse. High IV makes options more expensive to buy.",
-    "High IV warns of a drop coming": "IV has no direction. It prices the size of a move, up or down, and that move may never come."
+    "High IV warns the stock will fall": "IV has no direction. It prices the size of a move, up or down, and that move may never come."
    },
    "simple": "IV can collapse after the report, so the calls can lose money even if the stock goes up as the trader expected.",
    "deeper": {
@@ -1579,20 +1579,20 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "FIX (grounding): the why says 'the stock price and time move premiums too', but no cited fact said so. Added f12 (IV second only to underlying price) and f23 (time decay). Key True stands on f20/f52; q09's ATM point no longer leaks."
+   "fixed": false,
+   "notes": "Decided cold: True. f20 re-read on the OIC Options Pricing page today ('higher option premiums for puts and calls alike'), plus f52/f24. 'Tend to' hedge is right; f12/f23 ground the stock-price-and-time caveat. Simple matches the why. Does not give away another key beyond what w2/w3 already teach."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "FIX (grounding): wrong note 'Volume counts shares traded' had no cited fact. Rewritten on f40 (built from option prices). Key from f39 (Tier 1). The Expected/Past pair is a real misconception (f14/f51 look-back), and lengths tie, so no tell."
+   "fixed": false,
+   "notes": "Decided cold: expected 30-day S&P 500 volatility. f39 and f40 re-read today in Cboe's methodology PDF (text extracted), f41 'fear gauge' present. Key ties the longest choice (34 vs 34), no echo. Wrong notes grounded (f56, f40, f14). No leak into q22/q24."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "FIX (grounding): 'A gap fill' and 'A short squeeze' notes still asserted 'That's about the stock's price', which no cited fact supports (no fact defines either term). Rewritten to rest only on f13 and f46. Key from f46/f60/f30; stem no longer names IV."
+   "fixed": false,
+   "notes": "Decided cold: IV crush (smaller priced move = IV fell, f13). f46 (Schwab) and f60 (Investopedia) both name it, plus OIC's chapter title f30 re-read today. Time decay is a real distractor; gap fill and short squeeze are real terms a novice can confuse. No second defensible answer."
   },
   "q08": {
    "status": "pass",
@@ -1634,31 +1634,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "FIX (grounding): why says 'the stock price and time also move premiums' with no cited fact; added f12 and f23. Key True from f5 (OIC Tier 1) plus f63/f66; 'with nothing else changing' makes it exact."
+   "notes": "Key True is right (f5 re-read today on the OIC vega page; f63, f66 confirmed in Fidelity's slides). Two repairs: (1) the why's last sentence copies q05's ('Tend to' matters: the stock price and time move premiums too) almost word for word; reworded. (2) lesson_line 'Demand sets the price' overreaches: f66 says supply AND demand. Replaced with a line that rests on f63 and f5."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "FIX (grounding): the trap says IV runs high before earnings and the price already holds a big expected move; neither f44 nor f13 was cited. Added both. Key decided cold: IV crush (f45/f46/f29). Choices 27-30, no story-word echo; third-person story avoids teaching a B22 entry as ours."
+   "fixed": false,
+   "notes": "Decided cold: IV fell after the report (f45/f46/f29; f29 re-read on the OIC video page today). 'Most likely' and 'alone' keep time decay from being a second answer. Choices 27-30, no echo of the story. Third-person story, so it does not teach a buy into a report as ours (B22). Why line 'It is not certain every time...' is clumsy but grounded in f46's 'can'."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "FIX (rulebook voice): story, why and a choice put 'you' in a covered call, a short-option strategy outside A6/B25 (options only a defined-risk alternative; premium paid is the stop). Made third person like q14/q17/q23; choice 'price you sold at' -> 'price it sold at'. Added f61 for 'richer premium'. Key verified today on the OIC covered call page (f25 wording present)."
+   "notes": "Key 'It rises' is right (f25 re-read verbatim today on OIC's covered call page). Tell: two choices say the same thing ('It falls, since the stock is flat' and 'It drops, as high IV helps sellers'), so a guesser strikes both and is left with rises vs stays. Dropped the 'falls since the stock is flat' choice; its misconception (a flat stock freezes the option) is already carried by 'It stays near the price it sold at'. Three choices, 30-34 chars, key not longest. Why and simple unchanged."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "FIX (voice): simple was one 24-word sentence (limit 22). Split into two. Calc (50-20)/(60-20)*100 = 75 correct; 'by this measure' handles the rank/percentile naming conflict."
+   "notes": "Calc (50-20)/(60-20)*100 = 75 correct; f72 confirmed today in Fidelity's slides (text extracted). Simple overreaches: 'its options are on the pricey side' judges 75 as high, but no cited fact sets where 'high' starts and the why does not say 75 is high. Simple now states only what the calc gives."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "FIX (grounding): trap says the price 'already held a big expected move' at 80% IV the day before earnings; added f13 (IV = expected move) and f44 (IV elevated before earnings). Calc 4.40 + 0.5*3 - 0.05*40 = 3.90 correct; 'Using delta and vega' pins one answer."
+   "fixed": false,
+   "notes": "Decided cold: 4.40 + 0.50*3 - 0.05*40 = 3.90, down 0.50. Every number is in the story; calc matches. Inputs realistic (a Black-Scholes check of an ATM weekly at 80% IV gives about 4.4 and vega about 0.055; after the gap and drop to 40% it gives about 3.88). f17 re-read today on OIC; f75 'theoretical guidepost' present on OIC's Greeks page. Each distractor is a real half-done calc. Third-person, no endorsement of buying into a report."
   },
   "q18": {
    "status": "pass",
@@ -1694,7 +1694,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "FIX (tell): stem asked for the 'main risk', but two distractors ('IV will likely keep rising after', 'High IV makes the calls cheap') are not risks at all, so the key fell out by elimination. Stem reworded to 'weigh most' so all four read as beliefs to weigh. Key from f45/f46/f48/f44."
+   "notes": "Key right (f44/f45/f48/f61). Second defensible answer: 'High IV warns of a drop coming' can be read as a drop in IV (which is the crush, i.e. correct), while its wrong note treats it as a stock drop. Reworded so it plainly means the stock. Lengths now 29-32, key not longest. Story is third person, so it does not clash with B22 (no new buys in the 3 days before a report)."
   },
   "q24": {
    "status": "pass",

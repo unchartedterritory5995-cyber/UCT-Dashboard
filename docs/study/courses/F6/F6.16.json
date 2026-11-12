@@ -1578,7 +1578,7 @@
     "Monday, once it's cash-settled"
    ],
    "answer": "The trading day before expiry",
-   "why": "The trading day before expiry, usually Thursday. Cboe's spec says standard SPX options ordinarily stop trading on the business day before the settlement value is set. That value comes from the opening prices of the index stocks on expiry day, so Friday's opening prices set your cash. SPXW is a different series and trades until 4:00 p.m. ET on its expiry day.",
+   "why": "The trading day before expiry, usually Thursday. Cboe's spec says standard SPX options ordinarily stop trading on the business day before the settlement value is set. That value comes from the opening prices of the index stocks on expiry day, so Friday's opening prices set your cash. SPXW is a different SPX option and trades until 4:00 p.m. ET on its expiry day.",
    "lesson_line": "With AM-settled index options, the day before expiry is your last exit. Overnight news lands on your settlement.",
    "facts": [
     "f65",
@@ -1591,7 +1591,7 @@
    "wrong": {
     "Friday's open, before settlement": "AM-settled SPX doesn't trade on expiry day. Friday's opening prices only set the settlement value.",
     "Monday, once it's cash-settled": "After expiry there's nothing left to sell. It settles straight to cash.",
-    "At Friday's 4 p.m. ET close": "That's SPXW, a different SPX series. It trades until 4:00 p.m. ET on its expiry day."
+    "At Friday's 4 p.m. ET close": "That's SPXW, a different SPX option. It trades until 4:00 p.m. ET on its expiry day."
    },
    "simple": "The trading day before, usually Thursday, because AM-settled SPX stops then and its cash value comes from Friday's opening prices.",
    "deeper": {
@@ -1663,8 +1663,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The new simple says OCC exercises 'an option one cent in the money'. That overreaches the sentence and the facts on two counts: the threshold is a cent OR MORE (f12, f69), and the facts cover equity options (f33, f54). Simple tightened. Everything else holds (f12, f18, f33)."
+   "fixed": false,
+   "notes": "My answer before the key: penny ($0.01). OIC FAQ re-fetched 2026-11-12: 'OCC uses the $.01 threshold for the positions of its clearing members' (f12) and 'Equity options: $.01 per contract in-the-money' are on the page; f13 and f18 also found. Sentence names OCC, so a broker's own threshold is not a second answer. All four bank words fit the grammar; no tell. Simple says 'a cent or more ... at the close', backed by f12/f69/f18/f92 and limited to equity options (f33/f54). Later questions (q19, q21) apply the threshold; q05 gives no keyed answer away."
   },
   "q06": {
    "status": "pass",
@@ -1766,7 +1766,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The new wrong note (and the why) call SPXW 'the PM-settled version'. No cited quote says that. Cboe's spec page, re-fetched 2026-11-12, only says SPXW stops trading on expiration day at 4:00 pm ET (f66), and its settlement field is blank. f66's claim and conflicts entry 2 also overstate the quote. The note also wrote 'pm', where the unit uses 'p.m.'. The 'PM-settled' label is dropped from both; the key and the choices are unchanged (f65, f28)."
+   "notes": "Key is right (f65 re-fetched on the Cboe spec page 2026-11-12: SPX ordinarily ceases on the business day, usually a Thursday, before the settlement value is calculated; f28). Could not break the key. One wording error: the why and a wrong note call SPXW 'a different series'. In options terms a series is one strike and expiry, and no quote calls SPXW a series; f66 only names SPXW and its 4:00 pm ET stop. Reworded to 'a different SPX option'. Key and choices unchanged."
   }
  }
 }

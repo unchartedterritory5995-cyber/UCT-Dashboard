@@ -1412,7 +1412,7 @@
    ],
    "answer": "The full premium you paid",
    "simple": "The full premium, because our rule makes the premium you paid the stop on an option.",
-   "why": "The full premium you paid. Our rule for options is short: the premium paid is the stop. A call buyer cannot lose more than the price paid for it. We trade shares; options are only a defined-risk alternative. On shares, our default stop sits a few cents under the day's low.",
+   "why": "The full premium you paid. Our rule for options is short: the premium paid is the stop. A call buyer cannot lose more than the price paid for it. We trade shares; options are only a defined-risk alternative. On shares, our default stop sits a few cents under the day's low or the prior day's low.",
    "lesson_line": "On an option, the premium paid is the stop. Count all of it as at risk.",
    "facts": [
     "h02",
@@ -1422,7 +1422,7 @@
    ],
    "wrong": {
     "Half the premium you paid": "Our rule doesn't cut at half. The premium paid is the stop, so all of it is at risk.",
-    "The stock's low of the day": "That's close to our share stop, which sits a few cents under the day's low. On an option, the premium paid is the stop.",
+    "The stock's low of the day": "That's near our share stop, a few cents under the day's low or the prior day's low. On an option, the premium paid is the stop.",
     "A close below the break-even": "Our rule names no exit like that. The premium paid is the stop, so all of it is at risk."
    },
    "tier": "core",
@@ -1507,14 +1507,14 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem 'weeklies or not' tells the learner some optionable stocks have no weeklies, which answers q02 ('Every stock that has options also has weekly options', False). Dropped the phrase; f5 still keys True. Simple only restated the stem; now gives the source reason."
+   "fixed": false,
+   "notes": "Decided True cold. f5 re-opened on OIC's LEAPS FAQ 2026-11-12: 'All stocks & ETFs will have options listed for at least the two near-term expiration months' is on the page (Tier 1, enough alone). The page's 'deviations' are extra months, not fewer. 'Every' on a True key balances q02/q12 (both 'Every', both False), so no absolute-word tell. The stem no longer hints at q02. Why, simple and lesson line stay inside f5 and f41."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Silly choice: the stem says both the plan and the option have a deadline, so 'No deadline, hold until the move comes' contradicts the stem and is struck at once. Replaced with a real misunderstanding (plan first but by days, not weeks), wrong by f8 (decay fast about 30 days out). Key, why and other notes unchanged."
+   "fixed": false,
+   "notes": "Decided 'the plan's, with weeks to spare' cold. Key 31 chars, not the longest (38). The near-key 'by just a day or two' is a real misunderstanding, wrong by f8 (OIC Theta, re-opened: 'around 30 days'). f11, f12 re-opened on OIC Long Call and are verbatim. 'Weeks' is judgment, and the why says so; recorded in conflicts. Fits C33/C35 (swing of days to a few weeks). It hints at q17's principle but does not answer q17, which still needs the 4-week winner applied."
   },
   "q09": {
    "status": "pass",
@@ -1549,8 +1549,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Absolute-word tell: both wrong choices carried the only absolutes ('always safer', 'can't hurt'), so a test-wise learner strikes them and is left with one factual distractor. Replaced both with content claims wrong by the story's own prices: May's most loss is $4 against $2 (f14, premium is the max loss) and May holds more time value (f19, f35). Lengths 33/36/28/35, key not longest. Why unchanged; facts gain f14 and f19."
+   "fixed": false,
+   "notes": "Decided March cold: from early January a March expiry outlasts a 3-week plan by weeks, at $2 against $4. f36, f37 re-opened on Fidelity's article and are verbatim; breakevens $52/$54 are in f36. Each May choice and the March time-value choice is wrong by the story's own numbers (max loss = premium, f14; at-the-money with stock at 50 so the whole premium is time value, more for May, f19/f35). Lengths 34/36/28/35, key not longest. Minor: f6 (weekend decay) is cited but unused; harmless."
   },
   "q15": {
    "status": "pass",
@@ -1591,8 +1591,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "q04's stem ('When expiry Friday is a market holiday, stock options last trade on the Thursday before') answered q21 outright, because q21's story already said June 18 is the third Friday and a holiday; the only step left was 'the day before'. Now the story gives June 1 as a Tuesday, so the learner must find the monthly's third Friday (q01's rule) and then apply the holiday rule: a real rung-8 composition. June 1, 2027 is a Tuesday: Jan 1, 2027 is a Friday per f30 (NYSE), plus 151 days. Calc 1 + 3 + 14 = 18. Choices and wrong notes unchanged."
+   "fixed": false,
+   "notes": "Decided Thursday June 17 cold: June 1 Tuesday gives Fridays 4, 11, 18, so the 18th is the third Friday; NYSE (re-opened: 2027 'Friday, June 18 (Juneteenth ... observed)') closes it, so stock options last trade Thursday. Monthly holiday rule has two Tier 2 publishers (Fidelity f42 re-opened verbatim; Saxo f52 re-opened verbatim). June 1, 2027 = Tuesday checked (Jan 1, 2027 Friday per NYSE, +151 days). 17 and 18 are in the choices/story, so grounded. 'Wednesday, June 16' is the AM-settled index trap, correctly wrong since the stem says a stock."
   },
   "q22": {
    "status": "pass",
@@ -1604,7 +1604,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key matches B25 (h02) verbatim in meaning. Two wrong notes overreach the rulebook: 'That's our default stop when we trade shares' for 'The stock's low of the day' is inexact, since A3/F62 (h04) put the stop a few cents UNDER the day's low or the prior day's low, not on it; 'Our rule sets no price exit on an option' claims more than B25 says ('no further rules'). Both reworded to what h04 and h02 say."
+   "notes": "Key right: B25 (h02) 'The premium paid is the stop.' But the why and the 'low of the day' note state the share stop as only 'a few cents under the day's low', while A3 (h04) says 'under the day's low or the prior day's low'. Half the house rule taught as the whole. Fixed both to say the full rule. Choices, key and other notes unchanged. Mild overlap: the key hints q19 (whole premium at risk) but does not answer it."
   }
  }
 }

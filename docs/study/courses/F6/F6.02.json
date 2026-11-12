@@ -1079,16 +1079,17 @@
     "f35",
     "f36",
     "f22",
-    "f16"
+    "f16",
+    "f46"
    ],
    "wrong": {
     "$500": "That's the loss if you hold and it expires worthless. Selling now gets back what the call is still worth.",
-    "$300": "That's what you get back, not what you lose.",
+    "$300": "That's the call's value now, the cash selling brings back. The loss is what you paid minus that.",
     "Nothing until it expires": "Selling to close settles it today. You paid $500 and get back $300, so the loss is real now."
    },
    "simple": "Selling now loses $200, because you paid $500 and the call is still worth $300.",
    "deeper": {
-    "trap": "Trap: treating the loss as unreal until expiry. Selling to close turns the call's market price back into cash today. Here that is $300 of the $500 you paid."
+    "trap": "Trap: forgetting the closing trade's cost. Commissions are charged when you close, not only when you open. The $200 loss is before those, so the real loss is larger."
    },
    "tier": "extended",
    "risk": {
@@ -1267,7 +1268,7 @@
    "skill": "options.premium",
    "rung": 7,
    "format": "numeric",
-   "q": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone?",
+   "q": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions?",
    "answer": 1.2,
    "suffix": "%",
    "calc": {
@@ -1285,6 +1286,7 @@
    "facts": [
     "f17",
     "f37",
+    "f10",
     "f47",
     "f46"
    ],
@@ -1676,8 +1678,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f48). But the why and the 'Unlimited, if the stock falls' note say the call 'can only go to zero', which no cited quote says. Rebuilt on f17 (options can expire with no value) and f6 (never exercised, you keep the money); f17 added to facts."
+   "fixed": false,
+   "notes": "Own answer before the key: the premium collected (FINRA f48, re-fetched 2026-11-12, verbatim). Matches. Choices 25/29/26/25, key not longest, no lone hedge or absolute against the key. Why rests on f48, f17, f6, f49 ('uncovered' qualifier keeps the unlimited-loss line true for a sell-to-open that may be covered). Strike x 100 note grounded in f65. Stem does not answer q21/q24 (those ask a dollar loss and a spread's max loss). No clash with sizing_rule section 9 (teaches mechanics; A6 is covered by q28)."
   },
   "q08": {
    "status": "pass",
@@ -1719,7 +1721,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key $200 right (calc, f36). The deeper trap frames waiting on a losing call as the trap and pushes selling early; that is the web view (f22) and clashes with q27 and the rulebook (B25: the premium paid is the stop, so holding to the full premium is planned). Trap rewritten to a neutral, grounded point (f35/f36) that does not repeat the wrong note."
+   "notes": "Key $200 right (calc 500-300; ODD f35/f36 re-read verbatim from the June 2024 PDF). Two defects: (1) the '$300' wrong note ('That's what you get back, not what you lose.') is a near copy of q18's '$790' note ('That's what you'd get back, not what you'd lose.'); (2) the deeper trap repeats the 'Nothing until it expires' wrong note almost word for word ('Selling to close ... today ... $300 of the $500'). Fix: new '$300' note; trap moved to a distinct grounded point, commissions on the closing trade (f46, added to facts). Key, choices, why and simple unchanged."
   },
   "q15": {
    "status": "pass",
@@ -1761,7 +1763,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc right (3 x 1.40 x 100 / 30,000 = 1.4%), but the answer 1.4 equals the 1.40 quote in the stem, so a member who just copies the quote scores. Re-numbered: $50,000 account, 4 calls at 1.50, key 1.2% (calc), still under A1's 1.5% grade maximum. 'Commissions would add a little' had no cited fact and sized the cost; now 'Commissions come on top.' with f46 added."
+   "notes": "Own answer: 4 x 1.50 x 100 = $600; 600 / 50,000 = 1.2% (calc checked). Key right, and 1.2% sits inside A1 (0.25% to 2%) and B25 (premium paid is the stop). Defect: the stem asks what percent 'is gone' without 'before commissions', yet the why says commissions come on top, so the true answer is a bit over 1.2%; every other money question in the unit says 'before commissions' (conflicts note 2). Fix: add it to the stem (132 chars). Also add f10 to facts, since the why says '1.50 a share' and f10 is the per-share quote fact."
   },
   "q21": {
    "status": "pass",
@@ -1796,8 +1798,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key C right (f42/f44: ten calls, all lost at or below 50). Choices 23/24/22/18, key not longest. One unsupported word: the B note says the rest 'sits safe' in T-bills; no cited fact says T-bills are safe. Word dropped."
+   "fixed": false,
+   "notes": "Own answer: A loses $400 (50 to 46, still holds), B loses the $500 premium (less some T-bill interest), C loses $5,000. C clearly most. Matches. f42/f43/f44 re-read verbatim in the ODD June 2024 PDF (C 'would lose all of his investment if the price of XYZ stayed at or below 50'). Choices 23/24/22/18, key not longest. 'All about the same' is the weakest distractor but a real 'same view, same outcome' misconception and not ambiguous. B's T-bill interest does not change the ranking. Does not answer another question. Minor: deeper.example largely restates the why, not a defect."
   },
   "q27": {
    "status": "pass",

@@ -1002,7 +1002,9 @@
     "f22",
     "f35",
     "f13",
-    "f8"
+    "f8",
+    "f23",
+    "f24"
    ],
    "wrong": {
     "Up 500%": "That compares the call's value to its cost. The gain takes the 1.00 you paid off first.",
@@ -1011,7 +1013,7 @@
    },
    "simple": "Up 400%, because you measure the call's gain against the 1.00 you paid, not against the stock's move.",
    "deeper": {
-    "trap": "The big percent needs the move to arrive in time. Had the stock closed at or below 110 on expiry day, the same call would have lost all 1.00 you paid. More leverage means more profit if you're right and more risk of loss if you're wrong."
+    "trap": "The big percent needs the big move to come before expiry. If it doesn't come in time, the call can expire worthless and lose all you paid. More leverage means more profit if you're right and more risk of loss if you're wrong."
    },
    "tier": "extended",
    "risk": {
@@ -1278,15 +1280,13 @@
    ],
    "answer": "The 47.50 put, but it costs more",
    "why": "The 47.50 put, but it costs more. The strike sets where protection kicks in, so 47.50 is the closer floor. It costs 1.20 against 0.55 for the 45 put. OIC says that cost is the strategy's main drawback, since it raises the bar for profit. Either way your upside stays open, less what the put cost.",
-   "lesson_line": "Pick a put strike like you'd pick a stop: closer protection costs more.",
+   "lesson_line": "The closer the floor, the more the put costs. Weigh the two.",
    "facts": [
     "f26",
     "f27",
     "f30",
     "f19",
-    "f59",
-    "f28",
-    "f29"
+    "f59"
    ],
    "wrong": {
     "The 45 put, and it's cheaper too": "Cheaper, yes, but its floor sits lower, so more of any drop is yours.",
@@ -1560,8 +1560,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (90 call; f19, f42). But the new fourth choice left the 110 call's wrong note saying 'the cheapest of the three'. There are four calls now, so the note is wrong. Changed to 'of the four'. Rest passes."
+   "fixed": false,
+   "notes": "Solved cold: 90 call (lowest strike, same expiry, deepest in the money). Key matches. f19 re-read on the OIC pricing page, verbatim. Choices in strike order, no length or absolute tell, no silly foil. All four wrong notes are right ('of the four' fix holds). Simple line stays within the why. No date or market dependence. Does not answer another item: q19's key needs tracking and decay, not cost alone."
   },
   "q02": {
    "status": "cut",
@@ -1578,8 +1578,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (90 put; f58, f53, f3). Same defect as q01: the 70 put's wrong note still said 'Of the three' after the 85 put made four choices. Changed to 'Of the four'."
+   "fixed": false,
+   "notes": "Solved cold: 90 put (strike furthest above 80, delta closest to -1.00). Key matches; put delta grows more negative with strike, so only one answer. f58, f53, f3, f52 back it; the 80 put note's 'about half as much' rests on f1 and f52. Choices in strike order, no tell. 'Deep in moves most like the stock' is w1's teaching, not a leak of q19's own answer."
   },
   "q04": {
    "status": "pass",
@@ -1663,7 +1663,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and calc right ((115-110-1)/1 = 400%). 'Up 4.5%' (value against strike) is a silly choice nobody would compute. That is a pilot-listed tell. Replaced it with 'Up 1,400%': measuring from today's 100 instead of the strike, the same real mistake as q16's 'Made $650'. Its note is backed by f13 and adds no new number."
+   "notes": "Key and calc right: (115-110-1)/1 = 400%. Foils are real mistakes (15% stock move, 500% value over cost, 1,400% measured from 100), notes right. Break: deeper.trap says 'Had the stock closed at or below 110 on expiry day, the same call would have lost all 1.00 you paid.' q13 uses the same chain (110 call at 1.00) and asks which call lost everything with a close at 108. That reveal gives q13's answer. Rewrote the trap without the 110 threshold, grounded in f23, f24, f35, and added those facts."
   },
   "q15": {
    "status": "pass",
@@ -1723,7 +1723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (47.50 is the closer floor and costs 1.20 against 0.55; f26, f30). But deeper.example stated the worst-case formula 'cost minus strike, plus the premium'. The story carries q20's exact inputs (shares at 50, 45 put at 0.55), so that reveal fully answers q20 (5.55). Replaced it with a no-formula upside point (f59, f30)."
+   "notes": "Solved cold: 47.50 put, the catch is cost (1.20 against 0.55). Key matches; f26, f30, f59 re-read on the OIC protective put page, verbatim. Foils fine (caps upside: f59; must sell: f27). Two breaks. (1) facts still lists f28 and f29 (the worst-loss rule: premium, plus cost minus strike). The why does not use them. With this story's inputs (shares at 50, 45 put at 0.55, the same as q20) the fact panel hands over q20's 5.55 formula. Dropped both. (2) The lesson line says 'Pick a put strike like you'd pick a stop: closer protection costs more.' A closer stop does not cost more up front. Our ruleb"
   },
   "q23": {
    "status": "cut",

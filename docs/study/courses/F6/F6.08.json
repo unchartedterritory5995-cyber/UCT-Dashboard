@@ -1493,7 +1493,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "You buy a $40 stock with an implied volatility of 56%. You put your stop $0.90 below your entry.",
-   "q": "What does the IV tell you about that stop?",
+   "q": "Using the Rule of 16, what does the IV tell you about that stop?",
    "choices": [
     "Inside one day's $1.40 expected move",
     "Well outside a normal day's move",
@@ -1509,11 +1509,12 @@
      "iv": 56
     }
    },
-   "why": "It sits inside one day's expected move. Here that is $40 times 56%, divided by 16: about $1.40. Your stop is $0.90 away, so an ordinary day can reach it. That is information, not an order to move the stop. Our rule puts the stop a few cents under the day's low or the prior day's low. The size comes from that stop. If that honest stop does not fit the risk, we skip the trade.",
-   "lesson_line": "IV tells you how easily an ordinary day reaches your stop. Our stop still sits under the day's or prior day's low.",
+   "why": "It sits inside one day's expected move. Under the Rule of 16, that is $40 times 56%, divided by 16: about $1.40. Your stop is $0.90 away, so an ordinary day can reach it. That is information, not an order to move the stop. By default, our rule puts the stop a few cents under the day's low or the prior day's low. The size comes from that stop. If that honest stop does not fit the risk, we skip the trade.",
+   "lesson_line": "IV shows how easily a normal day reaches your stop. Our default stop still sits under the day's or prior day's low.",
    "facts": [
     "f3",
     "f33",
+    "f17",
     "f22",
     "f41",
     "f11",
@@ -1522,11 +1523,11 @@
    "wrong": {
     "Well outside a normal day's move": "$0.90 is less than the $1.40 a normal day can move. The stop is inside it.",
     "Nothing, IV is only for option traders": "IV is the market's estimate of how much the stock moves. That matters to anyone holding the shares.",
-    "It should be $1.40 away instead": "Our stop goes a few cents under the day's low or the prior day's low. The size comes from the stop, not the IV."
+    "It should be $1.40 away instead": "By default our stop goes a few cents under the day's low or the prior day's low. The size comes from the stop, not the IV."
    },
    "simple": "The stop sits inside one day's expected move of about $1.40, so an ordinary day can reach it.",
    "deeper": {
-    "trap": "Trap: reading the expected move as the place the stop belongs. Our stop goes a few cents under the day's low or the prior day's low, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade."
+    "trap": "Trap: reading the expected move as the place the stop belongs. By default our stop goes a few cents under the day's low or the prior day's low. The size comes from the stop. If the honest stop does not fit the risk, skip the trade."
    },
    "tier": "expert",
    "risk": {
@@ -1680,8 +1681,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 16 right (f11, f73); why grounded (f44, f4, f71). Defect: the deeper trap's last sentence ran 28 words (limit 22). Split it, same facts."
+   "fixed": false,
+   "notes": "Own answer before key: 16 (f11, f73). Calendar-day count would give about 19 (sqrt 365), not in the bank, so no second answer. Distractors 12/52/252/365 each explained (f4, f71, f48). Why and deeper sentences grounded and short. Only leak is q01's reveal mentioning 'divide by about 16', which is a reveal, not a stem."
   },
   "q05": {
    "status": "pass",
@@ -1740,8 +1741,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (100-68)/2 = 16, key right; why grounded in f56. Defect: lesson_line says 'one outcome in six', a number in no quote or calc (16% is not 1/6). The Resolver removed 'two outcomes in three' from q03 for the same reason. Restated with the grounded 16%."
+   "fixed": false,
+   "notes": "Own answer: (100-68)/2 = 16, matches calc and f56 ('16 percent on either side'). 'Above' rules out 32. Skew caveat covered by 'about' and the conflicts note. Lesson line now uses the grounded 16%. Minor, accepted: stem states 68%, q03's answer, but w1 teaches it first."
   },
   "q15": {
    "status": "pass",
@@ -1764,14 +1765,14 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer from f45/f36: the first expiry after the report. Key matches; the drop choice (refuted by f28) removes the lone-earnings tell; key 36 chars, not the longest (39). Defect: the changed deeper trap has a 25-word sentence. Split it, same facts (f28, f64)."
+   "fixed": false,
+   "notes": "Own answer: the Friday expiry is the first after the report (f45, f36). 79%/31% are the question's own numbers. 'Weekly normally higher' refuted by f35, 'expect a drop' by f28, 'mispriced' by f20. Lengths 33-39, key not longest. Reveal overlaps q25's fact but q25 asks a different use."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right under the Rule of 16: 60*32/100/16 = 1.20 and $1.10 sits inside it. Defect 1: the stem names no day count, and q24 teaches that the 365 calendar-day count is also valid. Under it one day is about $1.00 (19.20 over the square root of 365), so the key's $1.20 is not the only defensible number. q10 already names the Rule of 16, so naming it here fixes the gap. Defect 2: the changed deeper trap has a 24-word sentence. Split it and dropped the $60 restatement."
+   "fixed": false,
+   "notes": "Own answer: 60*32/100/16 = 1.20, $1.10 inside, so No. Stem now names the Rule of 16, so the 365 count cannot give a second number. Two Yes / two No, lengths 32-35. Every wrong note grounded (f49, f44, calc). No leak into q10/q12."
   },
   "q20": {
    "status": "pass",
@@ -1795,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: 40*56/100/16 = 1.40 and $0.90 is inside it. It also holds on a 365 count (about $1.17). The $1.40-away distractor is keyed wrong on A3 (f76, quote checked word for word against sizing_rule.md section 9 A3), which section 9 says beats section 2's ATR line. Defect 1: the why teaches our house rule, but the question lacks \"house\": true, which README section 5 requires for a house rule. Defect 2: one why sentence ran 23 words; split it."
+   "notes": "Key right: 40*56/100/16 = 1.40, $0.90 inside. Three defects. (1) The prior check said the question needs \"house\": true (README section 5 for a house rule); it was never added. (2) The stem names no day count, yet the key prints $1.40; on q24's 365 count one day is about $1.17. q19 was fixed by naming the Rule of 16; same fix here. (3) The why, wrong note, deeper and lesson line say our stop goes under the day's or prior day's low as a flat rule; A3 (f76) says 'by default'. Added 'by default'. Also cited f17 for the 'Nothing' wrong note."
   },
   "q24": {
    "status": "pass",

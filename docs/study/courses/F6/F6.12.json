@@ -1019,7 +1019,7 @@
    "skill": "options.verticals",
    "rung": 3,
    "format": "mcq",
-   "q": "Why buy a bull call spread instead of the long call alone?",
+   "q": "How does a bull call spread compare with buying the long call alone?",
    "choices": [
     "It's cheaper, but caps your gain",
     "It keeps the call's full upside",
@@ -1065,7 +1065,7 @@
     "Not much: the two legs offset",
     "It jumps, just like a long call",
     "It drops, since you sold a call",
-    "Nothing: the two legs cancel out"
+    "Nothing: only the stock moves it"
    ],
    "answer": "Not much: the two legs offset",
    "why": "Not much. You are long one call and short another in the same expiry, so the volatility effects on the two largely offset. Slight is not zero. Depending on where the stock sits, a change in volatility can hit one leg more than the other.",
@@ -1078,9 +1078,9 @@
    "wrong": {
     "It drops, since you sold a call": "The short call does get pricier, but so does the long call. The two largely offset.",
     "It jumps, just like a long call": "The short call reacts to volatility too. OIC says the two legs' effects offset each other to a large degree.",
-    "Nothing: the two legs cancel out": "They offset to a large degree, not fully. Depending on where the stock sits, one leg can move more."
+    "Nothing: only the stock moves it": "Volatility moves both legs. OIC says the effects largely offset, not fully, and one leg can move more."
    },
-   "simple": "It barely moves, because the call you own and the call you sold both react, and they mostly cancel out.",
+   "simple": "It barely moves: the call you own and the call you sold both react, and they mostly offset.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1320,7 +1320,7 @@
    "skill": "options.verticals",
    "rung": 6,
    "format": "scenario",
-   "story": "XYZ trades at 51. You sell the 50/45 put spread for 1.50. Earnings miss, and XYZ gaps to 38 and stays there through expiry.",
+   "story": "XYZ trades at 51. You sell the 50/45 put spread for 1.50. Bad news hits overnight, and XYZ gaps to 38 and stays there through expiry.",
    "q": "What did one spread lose?",
    "choices": [
     "$350",
@@ -1416,7 +1416,7 @@
    "skill": "options.verticals",
    "rung": 6,
    "format": "numeric",
-   "q": "Your plan risks $750 on this trade. You sell the 25/20 put spread for 1.25. How many spreads keep the total max loss at $750?",
+   "q": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750?",
    "answer": 2,
    "suffix": "spreads",
    "calc": {
@@ -1430,7 +1430,7 @@
      "multiplier": 100
     }
    },
-   "why": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly.",
+   "why": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly, before fees.",
    "lesson_line": "Size a credit spread from its max loss, never from the credit.",
    "facts": [
     "f23",
@@ -1642,9 +1642,11 @@
     "f15",
     "f49",
     "f44",
-    "f50"
+    "f50",
+    "f14",
+    "f95"
    ],
-   "simple": "False: if only one leg ends in the money, you can be left holding stock that keeps moving against you.",
+   "simple": "False: if only one leg ends in the money, you can be left holding stock that can then move against you.",
    "deeper": {
     "trap": "Pin risk is worst when the stock closes at or very near a strike at expiry. Neither side knows what assignment will bring. Shares picked up on Friday can open Monday well against you."
    },
@@ -1853,13 +1855,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f56, f88, f4, f90). Two defects. (1) 'It costs more, but has no cap' is a mirror rewording of the key, not a real misconception, and silly as a reason to buy; the key and its mirror form a pair that points at the answer. (2) 'Time decay can't hurt it at all' is the lone absolute, a tell. Replaced with a real misconception (a spread keeps the call's upside, f4/f90) and a non-absolute decay distractor that f12 refutes (time hurts it less than a plain long call, never more)."
+   "notes": "Solved cold: cheaper, but capped (f56, f88, f4, f90; f56, f88 and f90 confirmed on the Fidelity and Investopedia pages 2026-11-12). Key right. The stem asks WHY you would buy it, but 'Time decay hurts it more than a call' is a drawback, not a reason anyone would buy. Under that stem it is a silly choice and easy to drop. A neutral 'compare' stem makes all three distractors real misconceptions. The choices, key, why and wrong notes stay the same."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Solved cold from f10/f11: slight, not zero. Key, choices, why and wrong notes are sound and stay inside f10/f11/f65. The unchanged lesson_line overreaches: 'A vertical' generalises OIC's bull call line to every vertical (the file's own conflicts note an out-of-the-money credit spread keeps some net exposure), and 'Direction and time drive it' is in no cited fact. Lesson line rewritten to what f10 says."
+   "notes": "Solved cold from f10/f11 (OIC page checked 2026-11-12): not much, not zero. Key right. Tell: the key 'Not much: the two legs offset' and 'Nothing: the two legs cancel out' are twins. They share the 'two legs' reason and differ only by hedge versus absolute, so a guesser narrows to them and picks the hedge. The fix keeps the slight-versus-zero test but gives the zero choice a different misconception. The simple line also used the distractor's own words ('cancel out'), so it now says 'offset' to match the why and f10."
   },
   "q10": {
    "status": "pass",
@@ -1901,7 +1903,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: (50 - 45 - 1.50) x 100 = 350 by calc; f27 caps it below 45. $1,050 is a printed choice, so it comes from the question. The deeper's last sentence ('Sell the long put early, and the short put alone keeps losing') rests on the disclosure document's leg-out risk (f40), which q16 does not cite. Added f40 to facts."
+   "notes": "Calc: (50 - 45 - 1.50) x 100 = 350. Key right, and f23, f27 and f35 are verbatim on the OIC bull put page (checked 2026-11-12). $1,050 = (50 - 38 - 1.50) x 100 is the no-long-put trap, and every choice is grounded. The break is the rulebook. The story has you holding a new bullish options trade through an earnings report ('Earnings miss'). Section 9 B22 says no new buys in the 3 days before earnings, and you hold through a report only if the trade is up 5R. A credit spread cannot be up 5R: at most it makes 1.50 against 3.50 of risk. So the story models a trade our rules forbid, with no word ab"
   },
   "q17": {
    "status": "pass",
@@ -1913,7 +1915,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second defensible answer: 'The 25/20 put spread sells for 1.25' gives a price but not the side. A reader who buys the spread for 1.25 risks $125 a spread and answers 6. The why ('not the credit') assumes a sale the stem never states. Stem now says you sell it. Calc unchanged: 750 / ((25 - 20 - 1.25) x 100) = 2. Not against the rulebook (A6 defined risk; B25 speaks only to premium paid); the owner flag on credit-spread sizing already covers it."
+   "notes": "Calc: 750 / ((25 - 20 - 1.25) x 100) = 2. Key right, and the sold side is now stated. A second defensible answer remains. Sizing lands EXACTLY on the budget, and the stem does not say fees are left out. Schwab (f82, verbatim on the page 2026-11-12) puts a credit spread's risk at the strike gap minus the credit, PLUS transaction costs. So 2 spreads risk slightly more than $750, and a fee-aware learner answers 1. Fix: 'Fees aside' in the stem, and the why says so. It is not against the rulebook: A6 (defined risk) and A5 (round down) both agree with 2 once fees are left out."
   },
   "q19": {
    "status": "pass",
@@ -1955,7 +1957,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f93, f81, f49). Deeper now generic pin risk (f50, f15, f49) and no longer describes q27. But the statement's 'never' is a lone absolute, the classic True/False tell for False. Reworded without the absolute word; the claim and the False key are unchanged."
+   "notes": "Solved cold from f93 (tastytrade), f81 (Schwab) and f49 (FINRA). All three quotes are verbatim on their pages (checked 2026-11-12). Answer: False. Key right, and the statement now has no lone absolute. Two defects. (1) The simple line says the stock 'keeps moving against you'. That says more than the why ('can move against you') and more than f49 ('might have moved unfavorably'), so it now says 'can then move'. (2) The lesson line ('close before the bell') rests on f14 and f95, which q24 does not cite, so both are added. Note: the why's 'you can be left holding shares' hints at q27, but q27 st"
   },
   "q25": {
    "status": "pass",

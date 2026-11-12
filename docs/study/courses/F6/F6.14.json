@@ -882,7 +882,7 @@
     "A call and a put at the same strike"
    ],
    "answer": "One strike, two different expiries",
-   "why": "One strike, two different expiries. OIC's glossary: buy a longer-dated option and write an equal number of nearer-dated ones, same type and same strike. Both legs are calls, or both are puts. It is also called a time spread or a horizontal spread. Change the strikes too and it becomes a diagonal. Buy one and sell another at two strikes in one expiry, and it's a vertical.",
+   "why": "One strike, two different expiries. OIC's glossary: a calendar usually buys a longer-dated option and writes an equal number of nearer-dated ones, same type and same strike. Both legs are calls, or both are puts. It is also called a time spread or a horizontal spread. Change the strikes too and it becomes a diagonal. Buy one and sell another at two strikes in one expiry, and it's a vertical.",
    "lesson_line": "Calendar: one strike, two expiries. You'll also see it called a time spread or a horizontal spread.",
    "facts": [
     "f37",
@@ -898,7 +898,7 @@
     "A call and a put at the same strike": "A call plus a put at one strike is how a straddle is built. A calendar uses two calls or two puts."
    },
    "skill": "options.vol_spreads",
-   "simple": "A calendar spread uses one strike and two expiry dates, selling the near option and buying the later one.",
+   "simple": "A calendar spread uses one strike and two expiry dates, usually selling the near option and buying the later one.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1468,7 +1468,7 @@
     "Only the put lost any value"
    ],
    "answer": "Worth less than the trader paid",
-   "why": "Worth less than the trader paid, most likely. The straddle cost 8.00, so it priced in a move near 8 points. The stock moved 3. The call gained, but the IV collapse took value out of both legs at once. IV crush can make an option lose value even when the stock moves the expected way.",
+   "why": "Worth less than the trader paid, most likely. The straddle cost 8.00, so it priced in a move near 8 points. The stock moved 3. The call moved 3 points into the money, but the IV collapse took value out of both legs at once. IV crush can make an option lose value even when the stock moves the expected way.",
    "lesson_line": "Into earnings, a straddle buys a priced move. The stock has to beat that price, or the IV crush wins.",
    "facts": [
     "f6",
@@ -1483,8 +1483,8 @@
    ],
    "wrong": {
     "It's flat, the legs offset": "Both legs lost their IV premium at once. Nothing offsets that.",
-    "It gained, since the stock moved": "It moved less than the straddle priced. The call's gain doesn't make up for the lost premium.",
-    "Only the put lost any value": "The call lost IV premium too, which ate into its 3-point gain."
+    "It gained, since the stock moved": "The stock moved 3, well short of the 8 points the straddle priced. With IV crushed, 3 points can't cover that.",
+    "Only the put lost any value": "The call lost IV premium too, which ate into the 3 points it moved into the money."
    },
    "skill": "options.vol_spreads",
    "simple": "It is worth less, because the stock moved less than the straddle's price and the drop in volatility cut both options.",
@@ -1669,7 +1669,7 @@
     "$27 a share",
     "$30 a share",
     "$3 a share",
-    "$0 a share"
+    "$33 a share"
    ],
    "answer": "$27 a share",
    "calc": {
@@ -1692,7 +1692,7 @@
    "wrong": {
     "$30 a share": "That's the short call's value at 140. The trader collected 3.00 up front, so take it off.",
     "$3 a share": "That's the premium taken in, the most the trade could make. It doesn't cap the loss.",
-    "$0 a share": "The short put expires worthless up here. It can't pay for the call."
+    "$33 a share": "The 3.00 was collected, not paid. It comes off the loss, so don't add it."
    },
    "skill": "options.vol_spreads",
    "simple": "The trader loses $27 a share, because the 110 call is worth 30 at 140 and the 3.00 taken in barely helps.",
@@ -1832,7 +1832,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Overbroad: the why and the 'Same expiry, two different strikes' note call ANY two-strike, one-expiry position a vertical, but q01 teaches that a call and a put at two strikes in one expiry is a strangle. Narrowed to buy one, sell another (f42's own wording)."
+   "notes": "Key right (f37). But the why and simple define every calendar as selling the near option and buying the later one, while q10 and q26 teach the short calendar (own the near, sell the later), which is still a calendar. f37 says the glossary definition 'generally' involves buying the longer one. Added 'usually' in the why and simple; nothing else changed."
   },
   "q04": {
    "status": "pass",
@@ -1885,8 +1885,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "lesson_line 'Two strikes, one expiry: vertical' is overbroad: a long strangle (q01, q02) is also two strikes in one expiry. Scoped to the buy-one, sell-another call spreads this question is about (f42, f37, f36)."
+   "fixed": false,
+   "notes": "Solved cold: different strikes and expiries, same type = diagonal (f36, whose own example is the same shape). Calendar, vertical and strangle notes rest on f37/f26, f42, f11. Lesson line scoped to buy-one, sell-another call spreads (18 words). Choices 13-16, no tell. q03's wrong note and q21's story teach the same structure, but as reinforcement, not a give-away of the stem."
   },
   "q13": {
    "status": "pass",
@@ -1903,14 +1903,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key, why and simple are right (f32 Tier 1; Fidelity f78 agrees on direction, conflict recorded). Deeper trap overreaches: 'holds only when both expiries move together' is too absolute (it also holds when the later IV rises more). Reworded; no numbers."
+   "fixed": false,
+   "notes": "True on f32 (OIC page re-fetched: 'extremely positive impact', longer-term options have higher Vega) and f78 (Fidelity re-fetched: 'slightly positive, but very close to zero'); direction agrees, conflict recorded. f89 verbatim on OIC page. Deeper trap is a hypothetical built on f89 and labelled as such; fine."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 6% correct (calc 12/200x100; exact because strike = price, f4/f5). The resolver changed the stem to 'at expiry' but the lesson_line still says 'by expiry'; made consistent."
+   "fixed": false,
+   "notes": "Solved cold: break-evens 188/212, 12/200 = 6%. calc matches. Why and deeper keep it as the break-even move, not a forecast (f45 'rough estimate'). Lesson line 19 words."
   },
   "q17": {
    "status": "pass",
@@ -1934,7 +1934,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Thin story: 'It opens 3 points higher' follows a sentence whose subject is the straddle, so 'It' reads as the straddle, not the stock, and the report's timing is only implied. Story rewritten; key, choices and notes unchanged (f6, f83, f84, f45/f70). B22 stays an owner flag (third person, not endorsed)."
+   "notes": "Key right (f83, f84, f69, f70): a 3-point move against an 8.00 straddle with IV crushed most likely leaves it worth less. But the why says 'The call gained', and the wrong note says 'The call's gain'. That is not supported and likely false: an at-the-money call in an 8.00 straddle cost about 4, and 3 points in the money with IV crushed can be worth less than that. Reworded to what the story supports: the call moved 3 points into the money. Key, choices and simple unchanged. Owner flag on B22 (buying the day before earnings) stays: third person, not endorsed."
   },
   "q21": {
    "status": "pass",
@@ -1951,8 +1951,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Distractor 'Time decay stops before earnings' is not a catch at all (near-silly as an answer to 'what is the catch'), and its note ('every day without a move costs a straddle owner') rests on f7, which the question does not cite. Replaced with a real catch-shaped misconception, that a straddle still needs a direction, refuted by f49 (added). Choices 24-34, key 29 not longest. Owner flag on B22 (holding a straddle through a report) still applies."
+   "fixed": false,
+   "notes": "Solved cold: high IV = rich premiums, wider break-evens (f85, f71); key not longest (29 vs 24-34). 'High IV caps your upside' and 'must still guess the direction' are real misconceptions with grounded notes (f49). q20's lesson line reinforces the idea but does not state q23's high-IV case. Owner flag on B22 (a straddle bought for earnings would be held through the report) still applies."
   },
   "q24": {
    "status": "pass",
@@ -1964,13 +1964,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key $27 correct (calc (140-110)-3). Deeper trap credits OIC with 'no precaution changes ... limited reward for unlimited risk' in a strangle context, but that line (f21) is on OIC's SHORT STRADDLE page; the short strangle page, re-fetched 2026-11-12, has no such sentence. Now rests on f44 (OIC FAQ, re-fetched: selling a strangle has defined reward and undefined risk), which the question cites."
+   "notes": "Key $27 right (calc (140-110)-3). Distractor '$0 a share' is close to silly with the stock 30 points through the short call, and its note names no real mistake. Replaced with '$33 a share', the real sign error of adding the premium collected to the loss (numbers from the question). Other fields unchanged."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Still second person ('you do nothing. What do you hold?'), so the lesson puts the member in a short call calendar, whose long leg expires first and leaves significant uncovered risk (f63, f35). That is the A6 problem the resolver fixed in q08, q20 and q25 by going third person; applied here too. Key unchanged."
+   "fixed": false,
+   "notes": "Solved cold: near long call expires worthless, sold May call remains uncovered = naked short call (f35 verbatim case, f68 for covered). Third person keeps the member out of an A6-excluded trade. Stem 128 chars, choices 15-20. q10's why names the short calendar but not this outcome."
   },
   "w1": {
    "status": "pass",
@@ -1999,8 +1999,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is right (h1 = A6 verbatim in sizing_rule.md; f44 re-fetched 2026-11-12: selling a strangle has undefined risk). But 'falls outside our rule' is ambiguous: it can read as 'the rule does not speak to it', which a careful member could mark False. Stem now says 'breaks'."
+   "fixed": false,
+   "notes": "True on h1 (A6 verbatim in sizing_rule.md section 9) and f44/f24 (sold strangle has undefined, unlimited risk). B25 ('no further rules') does not lift A6. 'breaks' is unambiguous. Does not give away q08 or q25 (both earlier or different numbers)."
   }
  }
 }

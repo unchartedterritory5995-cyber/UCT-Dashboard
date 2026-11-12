@@ -1043,14 +1043,14 @@
    "skill": "options.calls_puts",
    "rung": 6,
    "format": "tf",
-   "q": "A call holder gets no dividends from the call itself. To get them, the holder must exercise and own the shares.",
+   "q": "Owning a call gets you no vote and no dividends on the stock. Those come only with owning the shares.",
    "answer": "True",
    "why": "True. Option holders don't get a stockholder's rights, such as voting or cash dividends. A call holder must exercise the option and own the shares to be eligible. Owning a call is owning a contract, not the stock.",
-   "lesson_line": "A call is not the stock. No vote and no dividend until you exercise.",
+   "lesson_line": "A call is not the stock. No vote and no dividend until you own the shares.",
    "facts": [
     "f29"
    ],
-   "simple": "True, a call holder must exercise the call and own the shares to be eligible for dividends.",
+   "simple": "True, a call is a contract, not the stock, so the vote and the dividends go only to shareholders.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1523,8 +1523,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'keeps' right (f19, f9, f10). Defect: the why's last sentence (unlimited on a call, substantial on a put) is copied by the deeper, which repeats it as an OIC quote. It also hands q21 its answer in the main explanation. Fix: why stops at 'does not cap the seller's loss' (f30); the detail stays in the deeper only."
+   "fixed": false,
+   "notes": "Own answer: keeps (f19 non-refundable, f9 never exercised, f10 exercised). Bank slips are real: refunds contradicts f19, owes and forfeits put the premium on the wrong side. The why ends at 'does not cap the seller's loss' (f30). The deeper's maximum profit is f49, and its call/put loss line is f30 word for word. The deeper naming unlimited call-writer loss overlaps q21's crux, but q21 still needs the buyer's capped loss (f49), so it is not a full leak."
   },
   "q13": {
    "status": "pass",
@@ -1541,14 +1541,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: yes, any day before expiry (f26, f25, f42, f38). Key matches; 2 Yes / 2 No, key not longest (26-30 chars). Defect: the deeper says 'the holder could buy at 45' and 'you sell the shares at 45', but no cited fact covers selling at the strike when assigned (f6) or the holder's right to buy at the strike (f3). Fix: add f6 and f3 to facts."
+   "fixed": false,
+   "notes": "Own answer: yes, any day before expiry (f26 stock options American-style, f25, f42, f38). 2 Yes / 2 No, key 29 chars, not longest (30). Every distractor is a real misconception with a grounded note (f8, f25/f26, f38). Deeper: holder could buy at 45 (f3), distinct possibility (f38, OIC s5), keep premium (f10), sell at 45 (f6). Minor: the deeper's 'you keep it' restates q12's key, but q12 comes earlier (rung 4) and q17 says the same."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True follows f29. Defect: second defensible answer. 'To collect a stock's dividends, a call holder must first exercise' is False for a call holder who also buys the shares outright: they get dividends without exercising. Fix: the stem now says the call itself pays no dividends, and the holder must exercise and own the shares to get them. That is f29's claim, with no buy-shares loophole. Keeps the 2 True / 3 False balance."
+   "notes": "The old fix did not close the loophole. 'To get them, the holder must exercise and own the shares' is still False for a call holder who buys shares in the market: they get dividends without exercising. The new stem says what f29 says without the 'must exercise' absolute: holding the call gives no vote and no dividends; those come only with the shares. Stays True, keeping the TF balance (q06, q16 True; q03, q07, q20 False). Quote re-read on OIC Options Basics 2026-11-12."
   },
   "q17": {
    "status": "pass",
@@ -1559,8 +1559,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: expires worthless (f20, f44, f11). Choices 24-26 chars, key not longest; numbers come from the story. Defect: the deeper's new sentence says the stock had to finish above the strike for the call to be worth anything. That is the in-the-money/intrinsic-value definition (f71), which q18 does not cite. Fix: add f71."
+   "fixed": false,
+   "notes": "Own answer: expires worthless (stock 52 below the 55 strike, f71 ITM definition, f44 OTM not exercised, f11, f20). Choices 24-26 chars, key not longest. 1.50 and 52/55 come from the story; the whole premium lost is f21. Distractors are real slips (duty to buy, auto conversion, rolling). Consistent with sizing_rule.md B25 (premium paid is the stop). No leak into q20 (q20 is the in-the-money auto-exercise case)."
   },
   "q19": {
    "status": "pass",
@@ -1583,14 +1583,14 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: the right to sell at 45 (f39, f40). Earnings removed (B22). Defect: the why ('you choose when to use it') and the order-choice note ('use any time before expiry') rest on American-style exercise any time (f25). Only f26 is cited, and f26 says stock options are American-style, not what that means. Fix: add f25."
+   "fixed": false,
+   "notes": "Own answer: the right to sell at 45 (f39, f40). Choices 23-30 chars, key shortest. Order note rests on f25 (cited) plus f26. 'Drop from 48 to 45 is still yours' comes from f40 (insured below the strike) and the story's numbers; premium spent is f19. Hedging shares with a put agrees with sizing_rule.md A6/B25; no earnings date, so no B22 issue."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: two 30 calls on 100 shares each (f62, f69). Key ties for longest with a wrong choice, so it is not a tell. Defect: every choice assumes the old call was on 100 shares, but the stem does not say standard. q10, q14, q17, q19 and q24 all say standard. Fix: add 'standard' and cite f48."
+   "fixed": false,
+   "notes": "Own answer: two 30 calls on 100 shares each (f62 general rule, f63 and f69 the ODD's own 2-for-1 example at 60, f48 standard). Stem 114 chars, now says standard. Key ties for longest with 'Two 60 calls' (29), so not a tell; each distractor changes one term or none, which is the deeper's trap. 'As a general rule' matches f62's hedge; f28 covers the check-the-terms line."
   },
   "q24": {
    "status": "pass",
@@ -1601,8 +1601,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: the SPY call (f55 American-style; f67/f68 SPX European). The deeper fix tied early assignment to American-style, but the why still says 'American-style and settle in SPY shares, so they can be exercised before expiry'. That 'so' makes share settlement look like a cause. The new deeper also repeated the why almost sentence for sentence. Fix: the why puts the cause on American-style alone, and the deeper keeps only the writer's angle (f42, f68)."
+   "fixed": false,
+   "notes": "Own answer: the SPY call (f55 American-style; f25 meaning of American-style; f67/f68 SPX European, re-read on Cboe 2026-11-12: 'Options can only be exercised at expiration... eliminating early assignment risk'). The why now puts the cause on American-style alone. Deeper adds only the writer angle (f42, f68), not a copy of the why. Date-dependent product spec, already flagged in risk. q15's why teaches the rule but not which product is which, so not a leak."
   }
  }
 }

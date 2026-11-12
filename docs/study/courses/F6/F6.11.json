@@ -748,12 +748,12 @@
    "format": "mcq",
    "q": "You expect a stock to drop. Why buy a put instead of shorting the shares?",
    "choices": [
-    "Your loss is capped at the premium",
+    "It caps your loss at the premium",
     "It gains $1 for every $1 the stock drops",
     "It gives you more time to be right",
     "It needs a smaller drop to profit"
    ],
-   "answer": "Your loss is capped at the premium",
+   "answer": "It caps your loss at the premium",
    "why": "The cap. A put buyer's maximum loss is the premium paid. A short seller's risk is unlimited in theory, because there's no limit on how high a stock can go. Shorting also carries borrowing costs and margin. The trade-off: a put usually gains less than $1 per $1 the stock falls, and it expires.",
    "lesson_line": "Short the stock and your risk is open-ended. Buy the put and it's the premium.",
    "facts": [
@@ -1226,41 +1226,42 @@
    "skill": "options.directional",
    "rung": 7,
    "format": "scenario",
-   "story": "The stock is at 68. You buy the 70 call for 2.20. Two weeks later the stock is 80 and the call is 10.20. You hold for more, and at expiry the stock closes at 65.",
+   "story": "The stock is at 47. You buy the 50 call for 1.60. Two weeks later the stock is 58 and the call is 8.40. You hold for more, and at expiry the stock closes at 44.",
    "q": "What did the trade end up doing, per contract?",
    "choices": [
-    "Lost the whole $220 premium",
-    "Made $800 from the run to 80",
-    "Lost $300, from 68 to 65",
+    "Lost the whole $160 premium",
+    "Made $680 from the run to 58",
+    "Lost $300, from 47 to 44",
     "Broke even on the round trip"
    ],
-   "answer": "Lost the whole $220 premium",
+   "answer": "Lost the whole $160 premium",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "premium * shares",
-     "premium": 2.2,
+     "premium": 1.6,
      "shares": 100
     }
    },
-   "why": "Lost the $220. At expiry the stock is 65, below the 70 strike, so the call expires worthless. The $800 was on offer at 80. An option profit isn't guaranteed until you close the trade or the contract expires. Some buyers set a target or a review date before they buy.",
-   "lesson_line": "An option profit isn't yours until you close the trade. Plan the exit before you buy.",
+   "why": "Lost the $160. At expiry the stock is 44, below the 50 strike, so the call expires worthless. Selling at 8.40 two weeks in would have made $680: 8.40 minus 1.60, times 100. An option profit isn't guaranteed until you close the trade or the contract expires. Some buyers set a target or a review date before they buy.",
+   "lesson_line": "An option gain isn't yours until you close the trade. At expiry, below the strike, a call is worth nothing.",
    "facts": [
-    "f42",
-    "f43",
-    "f41",
+    "f11",
+    "f44",
+    "f45",
     "f50",
-    "f40",
-    "f15"
+    "f4",
+    "f15",
+    "f37"
    ],
    "wrong": {
-    "Lost $300, from 68 to 65": "That's how 100 shares would have done. The call's loss is its whole premium.",
-    "Made $800 from the run to 80": "That was the profit on offer two weeks in, if you'd sold. Holding turned it into a total loss.",
-    "Broke even on the round trip": "Break-even was the strike plus the premium. At 65 the call is worth nothing."
+    "Broke even on the round trip": "Break-even was above the strike by the premium paid. At 44 the call is worth nothing.",
+    "Lost $300, from 47 to 44": "That's how 100 shares would have done. The call's loss is its whole premium.",
+    "Made $680 from the run to 58": "That was the profit on offer two weeks in, 8.40 minus 1.60, times 100, if you'd sold. Holding turned it into a total loss."
    },
-   "simple": "You lost the whole $220, because the call finished below its strike and the $800 gain was never locked in.",
+   "simple": "You lost the whole $160, because the call finished below its strike and the $680 gain was never locked in.",
    "deeper": {
-    "trap": "The trap is counting the $800 as yours. It was a price on the screen, not a profit. Closing the trade would have kept it. Some buyers set a price target or a review date before they buy. That way the exit is planned in advance."
+    "trap": "The trap is counting the $680 as yours. It was a price on the screen, not a profit. Closing the trade would have kept it. Some buyers set a price target or a review date before they buy. That way the exit is planned in advance."
    },
    "tier": "extended",
    "risk": {
@@ -1630,7 +1631,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f45/f61 cap, f62 unlimited short risk). Wrong-note for 'It needs a smaller drop to profit' said a put makes money ONLY past strike minus premium; FINRA's line (re-fetched) names no expiry, and before expiry a put can be sold at a profit on a smaller drop. Anchored the note at expiry (f21)."
+   "notes": "Own answer before key: the loss cap (f61 'maximum loss is limited to the premium', f17, f62 short has theoretically unlimited risk). Key right, no second defensible choice (a short profits on any drop, so 'smaller drop' is wrong; no expiry on a short, so 'more time' is wrong; f22 kills $1 per $1). Tell: three choices start 'It ...' (the put as subject) and the key alone starts 'Your loss ...'. Reworded the key to the same grammar; wrong notes unchanged."
   },
   "q07": {
    "status": "pass",
@@ -1653,8 +1654,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Shares per h2 (A6) and h1; 'no adding' distractor per h4 (A5), taught in the why. Weeklies note said 'risk of losing it all'; f35 says 'lose all or part'. Reworded to the quote. Owner flag on A5/A6 wording stands."
+   "fixed": false,
+   "notes": "Own answer Shares (h1 'Trade SHARES', h2 A6 'Trade shares; options are only a defined-risk alternative'). The two 'Shares' choices narrow it to two, but the second one tests A5 (h4, 'no adding'), a real rule a beginner can get wrong (pyramiding), so it discriminates rather than gives away. Why grounded in h2, h3, h4, f57, f29; weeklies note matches f35 ('all or part'). No conflict with section 9. Does not answer any other question."
   },
   "q10": {
    "status": "cut",
@@ -1707,8 +1708,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 750 / (2.50 x 100) = 3 recomputed; key fits B25 (h3). The cash-sizing note said 'you lose far more than $750', but the story never gives the account's cash, so 'far more' is ungrounded; softened. Risk reasons still named A5 although h4 was dropped; corrected to B25."
+   "fixed": false,
+   "notes": "Own answer 3 contracts: 750 / (2.50 x 100) = 3, recomputed; calc matches. The story fixes the whole premium as the risk and h3 (B25) says the premium paid is the stop, so '6 contracts, out if it halves' is excluded by the story and the rulebook. Cash note hedged 'could' since the story gives no cash figure. f45, f37, f59 support. Choice lengths 28-30, no tell. No overlap with q12 (cut) or q26 beyond the 100-share multiplier."
   },
   "q16": {
    "status": "pass",
@@ -1744,7 +1745,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and calc (2.20 x 100 = 220) right per f42, f43. The why ended with an order, 'Set a target or a review date before you buy', but f15 only reports that some investors do this and others play it by ear. Reworded to match f15, as the deeper already does. Integrator: w2 tells this exact SEC case with the answer first, so q20 is answered by w2; change w2's numbers or q20's."
+   "notes": "Key right (stock 65 below the 70 strike, call worthless, f42/f43). But the story is the SEC example word for word and walkthrough w2 tells exactly this case with the answer ('The whole $220 is gone'), so q20 is answered by w2 (the previous checker flagged this for the integrator; still unresolved). Fixed by new numbers in the question itself (stock 47, the 50 call at 1.60, 58 and 8.40 two weeks later, 44 at expiry): calc 1.60 x 100 = 160; 680 = (8.40 - 1.60) x 100 and 51.60 = 50 + 1.60 and 300 = (47 - 44) x 100 are spelled out where used. Facts now carry the principle (f11 OTM worth zero at ex"
   },
   "q21": {
    "status": "pass",
@@ -1773,8 +1774,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer sell (f9, re-fetched 'recoup some or even all'; f36, f60). Key no longer echoes the story. Weekly-call note said 'risk of losing it all'; f35 says 'all or part'. Reworded to the quote."
+   "fixed": false,
+   "notes": "Own answer sell (f9: when a quick turnaround looks unlikely, selling while time value remains can recoup some or all). No 'hold and wait' choice, so OIC's open judgment is not keyed (conflicts note). Exercise wrong per f60/f36; buy more also breaks h4 (A5, no adding); weekly note matches f35. Section 9 agrees: C33 time stop (under 1R after 10 trading days is sold) supports selling a month-old loser; B25 (premium is the stop) sets the max risk and does not require holding to zero. Its why mentions time decay speeding up, which is q27's topic, but only in the explanation, not the question text."
   },
   "q26": {
    "status": "pass",

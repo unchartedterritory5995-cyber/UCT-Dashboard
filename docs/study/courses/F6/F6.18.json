@@ -770,7 +770,7 @@
     "Contracts not yet closed out",
     "Contracts traded so far today",
     "Orders waiting to be filled",
-    "Bullish bets minus bearish bets"
+    "Contracts traded since the series listed"
    ],
    "answer": "Contracts not yet closed out",
    "term": "Open interest",
@@ -782,13 +782,13 @@
     "f16",
     "f7",
     "f84",
-    "f8",
+    "f20",
     "f12"
    ],
    "wrong": {
     "Contracts traded so far today": "That's volume. It counts one session's trading, while open interest is the running total still open.",
     "Orders waiting to be filled": "Unfilled orders sit on the bid and ask. Open interest counts contracts that already traded and are still open.",
-    "Bullish bets minus bearish bets": "Every open contract has a buyer and a seller, so open interest can't split bulls from bears."
+    "Contracts traded since the series listed": "That would count closed trades too. When both sides close, open interest goes down, so it counts only what's still open."
    },
    "simple": "Open interest counts the contracts that are still open, because nobody has closed them out yet.",
    "tier": "core",
@@ -1304,7 +1304,7 @@
    "wrong": {
     "The open interest at that strike": "That counts contracts still open, not how many someone will trade with you right now.",
     "Today's volume so far on the strike": "Volume is what already traded. The quote is what's on offer right now.",
-    "The last price the option traded at": "The last trade is history. A buy fills at or near the current ask, so the live quote is what you'll pay."
+    "The last price the option traded at": "The last trade is history. A market buy fills at or near the current ask, so the live quote is what you'll pay."
    },
    "simple": "Check the live bid, ask and size, because they show what you can trade now, not what traded before.",
    "deeper": {
@@ -1330,14 +1330,15 @@
     "The stock is about to make a big move"
    ],
    "answer": "Heavy trading versus what was open",
-   "why": "Heavy trading versus what was open. Volume is today's activity, and open interest is the count already open. Three times as much traded as was open, but some trades may have closed positions or changed hands. How much was new shows only in the next open interest count.",
-   "lesson_line": "Volume above open interest shows heavy trading, not new bets. The next count shows what stuck.",
+   "why": "Heavy trading versus what was open. Volume is today's activity, and open interest is the count already open. Three times as much traded as was open, but some trades may have closed positions or just changed hands. The next open interest count shows only the net change, so it can't say how much was new.",
+   "lesson_line": "Volume above open interest shows heavy trading, not proof of new bets. The next count shows only the net change.",
    "facts": [
     "f16",
     "f10",
     "f19",
     "f20",
     "f21",
+    "f84",
     "f8",
     "f57",
     "f54",
@@ -1664,7 +1665,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f1, f7). The why and the wrong note say unfilled orders sit on the bid and ask, and no cited fact says that. Added f12 (bids and offers with size). Minor, left alone: f16's word 'pending' sits close to the 'Orders waiting to be filled' distractor, and the 'Bullish bets minus bearish bets' note previews q02's lesson, which the walk-throughs teach anyway."
+   "notes": "Key right (f1, f7, f50; quotes re-found on s1 and s4 2026-11-12). Leak: the wrong note for 'Bullish bets minus bearish bets' says every open contract has a buyer and a seller, so open interest can't split bulls from bears. That is q02's whole answer, one question earlier. Replaced that distractor with a real misread ('cumulative' read as all trading since listing), grounded in f16 and f20. f8 dropped, f20 added. Key stays not-longest (27 chars; new distractor 40)."
   },
   "q02": {
    "status": "pass",
@@ -1699,8 +1700,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f43 + f37). The wrong note's 'It doubles the risk' is a quantity no fact gives. Reworded as 'adds to'."
+   "fixed": false,
+   "notes": "Decided cold: a sold call is negative delta (f43, re-found on s14), short delta is hedged by buying stock (f37, re-found on s11). Key matches. Key is the shortest choice, no absolute, distractors are real errors (wrong direction, no hedge, late hedge). Its why echoes q06 (hedge, not a view) but q07 comes after q06, so it spoils nothing."
   },
   "q08": {
    "status": "pass",
@@ -1735,8 +1736,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f44, f45). The new covered-call note says 'sells calls for premium income', which is q14's whole answer one question earlier. The q14 leak is cut down: the note now only says the instrument doesn't fit. The other notes are fine (f3 for closing a long put)."
+   "fixed": false,
+   "notes": "Decided cold: a holder buying puts as protection (f44, f45, re-found on s15). 'Besides a bet on a drop' rules out the insider choice; a buy cannot close a long put (f3, re-found on s2). Minor, accepted: the covered-call choice text hints q14 (call sales can be income), but w2 already teaches that line before any question. 'Closing a long put means selling it' is not itself a cited quote, but s2's glossary entry says it and f3 carries the needed half."
   },
   "q14": {
    "status": "pass",
@@ -1760,13 +1761,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f12, f14). The new deeper.example isn't an example. It restates the why (two-sided market with size) and copies the last-price wrong note almost word for word ('so the live quote is what you'll pay'). Replaced it with a worked case. Its only number (8) comes from the story."
+   "notes": "Key right (f12, f14, f11, f13; all re-found on s4/s5; the 8 contracts match s4's own example). One overreach: the last-price wrong note says 'A buy fills at or near the current ask', but f52 says that of a market order only; a limit buy can fill lower. Reworded to 'A market buy'. Everything else unchanged."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key idea right (f16, f10, f20, f21). Tells and clarity: the key 'Heavy trading next to open interest' echoes the stem's 'open interest', and 'next to' is unclear for 'compared with'. Reworded it, and it is now the shortest choice. The wrong note 'You can't see who opened or closed' needs f67, so f67 is added."
+   "notes": "Key right: 3x volume over open interest is heavy trading for sure, and nothing else is (positions can change hands many times with no change in open interest, f21). Overreach: the why says 'How much was new shows only in the next open interest count', but the next count is a net figure (both-open adds minus both-close and exercises, f19, f20, f84), so it cannot show how much was new; q15's deeper says exactly that. The lesson_line's 'not new bets' reads as a claim they were not new. Both reworded; f84 added. Key restating the stem is inherent to a 'for sure' ask; accepted."
   },
   "q18": {
    "status": "pass",
@@ -1777,14 +1778,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f57, f54, f58). Three defects remain. (1) Unsourced house stance: the why and a wrong note say 'the breakdown is on the chart for everyone to see', and the trap says 'overrule a chart you can [read]'. That is the 'chart leads' view still in owner_flags. (2) The 'special data set the public doesn't see' line in a wrong note and in deeper leaves a partial q22 leak: it rules out q22's public-data distractors. (3) Calling one large print 'unusual activity' leans on f53 loosely. Rebuilt on f3/f29/f54/f57/f58 only and dropped f81/f67."
+   "fixed": false,
+   "notes": "Decided cold: very little; one print can be a hedge, a close or a bet (f54, f57, f58 re-found on s19; f3; f29). Key matches and fits the owner's chart-first stance (sizing_rule.md D40, F66). 'A lot, since big buyers know more' is not a second answer: q22's informed-flow result came from aggregated opening buys in a private data set, not one public print. No tell, no leak into q22."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key per f73. Tell: 'Every stock pins to its biggest strike' is the lone absolute left, so an eliminator drops it, and it pairs with the key's mirror opposite 'drift away'. Replaced it with a non-absolute distractor that is wrong per f73, and noted the futures result per f76. The why and deeper still teach 'tendency, not rule' (f79)."
+   "fixed": false,
+   "notes": "Decided cold: closes cluster at strikes (f73), at least 16.5 bp (f74), market maker rebalancing plus manipulation (f75); all re-found on the HKBU abstract. The stem restricts to optionable stocks, so Golez and Jackwerth's futures anti-pinning does not make 'drift away' defensible. Mild mirror pair (cluster vs drift away) remains, but the other two distractors are real and non-absolute. w3 states the finding, so q20 is recall by design."
   },
   "q21": {
    "status": "pass",

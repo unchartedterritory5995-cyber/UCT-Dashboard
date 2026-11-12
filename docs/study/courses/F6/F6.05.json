@@ -1122,9 +1122,9 @@
    "wrong": {
     "About flat, like the stock": "The shares lose nothing to time. The call's time value melts every day the stock sits still.",
     "Down only a little so far": "Decay speeds up in an option's final weeks. Two weeks of it takes a big bite out of an at-the-money call.",
-    "Already down to zero value": "Not yet. It still has time left, and an option loses all its time value only at expiry."
+    "Already down to zero value": "Not yet. Expiry hasn't come, and an option runs out of time value at expiry."
    },
-   "simple": "It is most likely down a lot, because an at-the-money call bleeds time value fast when the stock stalls.",
+   "simple": "It is most likely down a lot, because in its last weeks an at-the-money call bleeds time value fast when the stock stalls.",
    "deeper": {
     "trap": "Trap: reading a sideways stock as a safe call. The share price shows no loss, so the position feels fine. But an at-the-money call pays for every quiet day, and those days cost the most near the end. A stall that costs a shareholder nothing can cost a call holder a large part of the premium."
    },
@@ -1354,28 +1354,27 @@
    "skill": "options.theta",
    "rung": 7,
    "format": "mcq",
-   "q": "Same expiry. You buy a deep in-the-money call instead of an at-the-money one. What is the main drawback of that choice?",
+   "q": "Same stock, same expiry. You buy a deep in-the-money call instead of an at-the-money one. What is the main drawback of that choice?",
    "choices": [
     "More cash paid up front",
     "Faster daily time decay",
-    "Intrinsic value decays daily",
-    "Must be exercised to profit"
+    "Must be exercised to profit",
+    "A smaller move per $1 in the stock"
    ],
    "answer": "More cash paid up front",
    "simple": "More cash up front, because an option's premium generally rises the deeper in the money it is.",
-   "why": "More cash paid up front. An option's premium generally rises as it moves further in the money. In return you get less time decay. A deep in-the-money call usually carries very little time value, and its intrinsic value does not erode. So you pay more cash to lose less to time.",
+   "why": "More cash paid up front. An option's premium generally rises as it moves further in the money. In return you get less time decay. A deep in-the-money call usually carries very little time value, so it has little to lose each day. So you pay more cash to lose less to time.",
    "lesson_line": "Deep in the money decays less, but it ties up more cash.",
    "facts": [
     "f17",
     "f36",
-    "f63",
     "f13",
     "f35"
    ],
    "wrong": {
     "Faster daily time decay": "It's the reverse. A deep in-the-money call carries very little time value, so it has little to decay.",
-    "Intrinsic value decays daily": "Intrinsic value does not erode. It moves only with the stock price, and decay takes only the time value.",
-    "Must be exercised to profit": "You can sell it instead. A closing sale also collects whatever time value is left."
+    "Must be exercised to profit": "You can sell it instead. A closing sale also collects whatever time value is left.",
+    "A smaller move per $1 in the stock": "It is the reverse. A deep in-the-money call moves more with the stock, not less."
    },
    "deeper": {
     "trap": "Trap: seeing only the slower decay. The deep in-the-money call loses less to time, but you pay more for it up front."
@@ -1531,8 +1530,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper example says 'the delta part lifts the premium $0.35'. f57's quote says only that the premium increases $0.35 when the price moves $45 to $46; it never says that amount is delta alone (it could include gamma). Schwab's page could not be re-read (error page on 2026-11-12), so the attribution is unsupported. Reworded to 'the move lifts', which still separates it from theta's $0.02 and from q14's net key. All numbers are in f57."
+   "fixed": false,
+   "notes": "Own answer before key: delta 0.40 x $1 = 0.40, less one day of theta 0.05 = 0.35 (calc matches; f20 delta reading, f1 per-day theta, f57 Schwab pattern of move gain minus a day's theta). 'Using delta and theta' rules out a gamma-adjusted second answer. Choices not a tell (key not longest; 0.40 and 0.45 are the two named slips). One night = one day, so no weekend issue. Simple line matches the why. Does not answer or get answered by q09/q10. f57 page (Schwab) returned an error page again 2026-11-12; quote was found by the 2026-11-09 quote checker, so kept."
   },
   "q15": {
    "status": "pass",
@@ -1544,7 +1543,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key was the only choice naming the lesson's subject ('to time decay'), a tell in a theta lesson: a guesser picks it without reasoning. Replaced with 'Down a lot from your cost' (25 chars; others 25-26, not the longest). Why, simple, wrong notes and deeper are unchanged and still match (why opens 'Down a lot.'). Own answer agrees: an ATM call over its last three weeks with a still stock loses heavily (f8, f24, f9)."
+   "notes": "Key is right (own answer first: ATM call, three weeks to one week left, stock flat, loses heavily; f8, f24 Tier 1, f9). Two small breaks fixed. (1) The 'Already down to zero value' note says time value is lost 'only at expiry', an absolute the lesson itself contradicts (f36: deep in-the-money options carry very little time value before expiry); reworded to f14's own claim. (2) The simple line said an ATM call bleeds 'fast' whenever the stock stalls, dropping the near-expiry condition the why depends on (decay is slow early, f2); it now names the last weeks. Story, question, choices, key, why, "
   },
   "q17": {
    "status": "cut",
@@ -1592,7 +1591,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct and well supported (f17, Tier 1); each distractor fails on its own fact. But the why's last sentence ('At the money carries the most time value, so it decays the most each day') restates q04's key outright, and the 'Faster daily time decay' note compares against at the money again. Those two lines answer q04 and are not needed here. Trimmed both; the trade-off is still taught."
+   "notes": "Key right (own answer: deep ITM costs more up front, f17 Tier 1; less decay, f13/f36). Break: the distractor 'Intrinsic value decays daily' is q07's statement, and its wrong note plus the why's 'its intrinsic value does not erode' hand q07 its answer (False). Dropped that choice (mcq may have 3) and the line, and f63 with it; remaining choices 23/23/27 chars, key not longest. Also added 'Same stock' to the stem: the premium comparison (f17) only holds for options on the same stock. 131 chars."
   },
   "q24": {
    "status": "pass",

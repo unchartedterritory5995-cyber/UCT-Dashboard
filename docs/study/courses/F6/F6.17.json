@@ -1032,7 +1032,7 @@
    "skill": "options.manage",
    "rung": 4,
    "format": "numeric",
-   "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, where is that exit?",
+   "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?",
    "answer": 1.6,
    "prefix": "$",
    "calc": {
@@ -1043,7 +1043,7 @@
     }
    },
    "why": "$1.60, half of $3.20. E*TRADE says some traders close if they double their money or lose 50%. That is a plan some traders use, not our rule. For us, the premium paid is the stop.",
-   "lesson_line": "Cutting at half is one trader's plan. Our own rule for options: the premium paid is the stop.",
+   "lesson_line": "Cutting at half is a plan some traders use. Our rule for options: the premium paid is the stop.",
    "facts": [
     "f65",
     "h01"
@@ -1384,7 +1384,7 @@
    "skill": "options.manage",
    "rung": 8,
    "format": "scenario",
-   "story": "The options network tastylive says when it rolls a short option, it usually does so 7 to 21 days before expiry.",
+   "story": "The options network tastylive sells options for a credit. It says it usually rolls a short option 7 to 21 days before expiry.",
    "q": "What is it trying to avoid?",
    "choices": [
     "Gamma and assignment risk",
@@ -1401,7 +1401,8 @@
     "f28",
     "f34",
     "f05",
-    "f35"
+    "f35",
+    "f88"
    ],
    "wrong": {
     "A drop in implied volatility": "Falling volatility tends to lower option prices. That helps a seller, so it isn't what they're running from.",
@@ -1675,8 +1676,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Sell to close is right (f43, f31). The 'Exercise the call' wrong note says exercising buys the shares 'at the strike'; f46 says only that exercising a call buys shares, so 'at the strike' rests on no cited quote. Dropped it. Lesson line and the other notes are fine; no overlap with q04's stem."
+   "fixed": false,
+   "notes": "Cold answer Sell to close, matches key (f43 FINRA, f31 OIC glossary). 'with no shares' rules out exercise (f46). Put note rests on f43 'same contract series'. Choices 13-18 chars, key not longest, no lone absolute. Reveal does not give q04's key in its stem; q04's own reveal echoes q01 only after answering."
   },
   "q02": {
    "status": "pass",
@@ -1699,8 +1700,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (f19: trigger is personal preference); each distractor is false on f19/f20. But the reveal teaches setting a stop-loss on an option with no word of our rule B25 ('The premium paid is the stop.'), the same defect the Resolver fixed in q11. Added the house line to why and cited h01. Choices left as they are (37-40 chars, no lone absolute). Owner flag on B25 still applies."
+   "fixed": false,
+   "notes": "Cold answer: trigger is your choice, matches key. OIC FAQ re-fetched 2026-11-12: 'It is a matter of personal preference. Most exchanges allow stop-loss orders in options.' and the market/limit line are on the page (f19, f20). Each distractor false on f19/f20; f62 backs the stock trigger. Tried breaking 'Only the option's price' (an exchange stop keys off the option; a stock trigger is a broker contingent order) but OIC Tier 1 answers this exact question as personal preference. Mild tell: two distractors carry 'Only'/'must', key is the lone permissive choice; 'Most exchanges don't accept' still"
   },
   "q06": {
    "status": "pass",
@@ -1736,7 +1737,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key $1.60 is right (calc). Breaker: the stem still hands the member a 50% cut as 'Your plan', then the reveal says that is not our rule (B25: the premium paid is the stop). The question teaches a web plan as the member's own. Re-asked so the 50% cut is E*TRADE's traders' plan (as q25 frames tastylive's rule); the 50% now comes from f65's quote. f19 dropped (no longer used). Question text changed (new id)."
+   "notes": "Calc 3.20 x 0.5 = 1.60 is right; f65 quote supports the 50% exit. Two defects: (1) lesson_line says 'one trader's plan' but f65 says 'Some options traders' (plural), so the line misstates the source. (2) 'where is that exit?' with prefix $ is ambiguous in a lesson whose other numerics (q09, q13, q16, q17) answer in dollars per contract (x100); a member can fairly type 160. Stem now asks for the option price. 119 chars."
   },
   "q12": {
    "status": "pass",
@@ -1747,8 +1748,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (7.00 - 3.50) x 100 = 350 is right; f18 supports the credit. The why's last clause 'the premium on the new call can still be lost' cites no fact in this question (f18, f67, f52 do not say it). Added f06 (a buyer can lose up to the premium paid)."
+   "fixed": false,
+   "notes": "Cold calc (7.00 - 3.50) x 100 = 350, matches key and calc. f18 (OIC Tier 1) supports selling and buying a more distant strike for a credit; f67 for protecting part of the profit; f06 for the new premium still at risk; f52 for x100. All numbers from the question. No second reading: 'per contract' and 'cash comes back' fix the net credit. Does not give away q16 (roll out cost) or q09."
   },
   "q14": {
    "status": "pass",
@@ -1777,8 +1778,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Breaker: the key says 'Early in the day' but f53 says only that liquidity can dry up as it gets closer to the close on expiry day, so 'sooner may be better'. Nothing cited says early in the day. Re-keyed to 'Well before the close, as one order' (35 chars), which f53 and f82/f83 support; why, simple and lesson line follow. Wrong-note keys unchanged. Still an uncovered short put against A6 (owner flag stands; not fixable inside this question without false wrong notes)."
+   "fixed": false,
+   "notes": "Cold answer: roll well before the close in one order, matches key. f53 (Schwab: liquidity can dry up near the close on expiry day, 'sooner may be better' even for rolling) plus f30 (OIC: a roll simultaneously closes and opens) and f82/f83 (done together to cut slippage). Choices form a clean 2x2 (early/late x one order/split) plus let-it-expire, which f47 rebuts; no lone absolute, key 35 chars vs 33-34. Number-free. Premise is an uncovered short put, which sits against A6 (options only as a defined-risk alternative); the key itself does not contradict the rulebook, and the owner flag already r"
   },
   "q19": {
    "status": "pass",
@@ -1796,7 +1797,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Gamma and assignment risk is right (f72 states the reason; f37, f28 back it). Tell: the stem asks 'What risk' and only the key contains 'risk', repeating the stem's word. Re-asked without it. Simple said any short option swings fast; f37 says at-the-money options, so 'near the money' added. Question text changed (new id)."
+   "notes": "Key right: tastylive page re-fetched 2026-11-12, 'We usually roll our trades 7-21 days prior to expiration to avoid gamma risk & assignment risk that grows as expiration nears', in its short premium section (f72); f37, f28 back each half; each distractor is something that helps a seller (f05, f35/f36, f34). Defect: the story is one sentence; the contract (README section 2) requires a scenario story of 2 to 4 short sentences. Added a grounded first sentence (tastylive sells options for a credit: f88 'credit received') and cited f88. Key, choices and reveal unchanged. Mild residual: only the key"
   },
   "q22": {
    "status": "pass",

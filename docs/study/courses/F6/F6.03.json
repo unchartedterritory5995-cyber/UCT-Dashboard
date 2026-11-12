@@ -504,7 +504,7 @@
    "skill": "options.value",
    "rung": 2,
    "format": "mcq",
-   "q": "The stock trades exactly at the option's strike. What do you call that option?",
+   "q": "The stock price equals the option's strike. What do you call that option?",
    "choices": [
     "At the money",
     "In the money",
@@ -799,7 +799,7 @@
     "The 60-day call",
     "The 30-day call",
     "They cost the same",
-    "Whichever is deeper in the money"
+    "Can't tell without the stock price"
    ],
    "answer": "The 60-day call",
    "why": "The 60-day call, usually. Both calls have the same stock and strike, so their intrinsic value is the same. The difference is time value. More time to expiry gives more time value, so the later expiry generally costs more.",
@@ -812,7 +812,7 @@
    "wrong": {
     "The 30-day call": "Less time left means less time value, so the shorter one is usually cheaper.",
     "They cost the same": "Same strike and stock means the same intrinsic value. The time value is what differs.",
-    "Whichever is deeper in the money": "Both have the same strike and stock, so neither is deeper in the money. The time to expiry is what differs."
+    "Can't tell without the stock price": "The stock and strike are the same for both, so the intrinsic value is the same. The time value decides it."
    },
    "simple": "The 60-day call, because more time left means more time value, and both have the same intrinsic value.",
    "tier": "core",
@@ -1309,18 +1309,18 @@
    "skill": "options.value",
    "rung": 9,
    "format": "tf",
-   "q": "Before expiry, an American-style option can trade below its intrinsic value.",
+   "q": "Stock at 120, three days to expiry. Your American-style 100 call bids 19.80. Fees aside, exercising beats selling it.",
    "answer": "True",
-   "why": "True. An American-style option can be exercised at any time before expiry. It is ordinarily expected to trade for no less than its intrinsic value before expiry. But the options disclosure document says it occasionally trades below it. Deep in-the-money options normally carry very little time value, so check those bids most closely. Before you sell one, compare the bid with its intrinsic value.",
+   "why": "True. Exercising buys the shares at 100, and selling them at 120 nets the in-the-money amount, 120 minus 100. The call bids only 19.80, which is less. An American-style option can be exercised at any time before expiry. The disclosure document says it occasionally trades below its intrinsic value, as here.",
    "lesson_line": "Before you sell a deep in-the-money option, check the bid against its intrinsic value.",
    "facts": [
     "f18",
-    "f15",
-    "f42"
+    "f42",
+    "f17"
    ],
-   "simple": "True, because an American option usually trades at or above its intrinsic value, but now and then it trades below.",
+   "simple": "True, because the 19.80 bid is less than the 120 minus 100 that exercising nets.",
    "deeper": {
-    "trap": "Trap: assuming a deep in-the-money bid always covers its intrinsic value. Now and then an American-style option trades below it. If the bid sits under the in-the-money amount, selling hands that gap away. Exercise captures the full intrinsic value, so compare the two exits first, fees aside."
+    "trap": "Trap: always selling instead of exercising. Selling ordinarily wins, because the bid holds time value that exercise throws away. Here the bid sits under the in-the-money amount, so selling hands that gap away. Compare the two exits first, fees aside."
    },
    "tier": "expert",
    "risk": {
@@ -1432,13 +1432,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem opened with a bare 'Price', which in an options lesson can read as the option's price; f8 defines at the money by the underlying's price. Stem now names the stock. Rest unchanged and grounded (f8, f40, f29)."
+   "notes": "Key correct (f8, f40 Tier 1). Tell: the stem says the stock trades 'exactly at' the strike and the key is 'At the money', so the shared word 'at' points to the key. Restated the stem as 'equals', the wording f8 itself uses ('the same as'). 'At break-even' stays as a real decoy (equal looks like even). Everything else unchanged and grounded (f8, f40, f29). Does not answer another question."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the key 'The premium above intrinsic value' (33 chars) was the longest choice, against the Resolver's own claim (next longest 31). Shortened the key to 29 chars. Also the why's 'It reflects the time left, so it is a dollar amount' was a non sequitur; reworded."
+   "fixed": false,
+   "notes": "Decided 'Premium above intrinsic value' before reading the key; matches f4 and f11 (Tier 1). Key 29 chars, not the longest (31). Distractors are real misreadings (a day count, the daily melt, intrinsic value), each with a grounded note. No number in the prose. 'Paid for the time left' in simple rests on f11 ('reflects the time remaining'). Does not answer another question; q03's key appears here only as a distractor, and q03 comes first."
   },
   "q07": {
    "status": "pass",
@@ -1486,7 +1486,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two wrong choices picked the same call ('The 30-day call' and 'The 30-day, faster decay'), so a learner can rule both out by logic; the second was also the longest choice. Dropped it (mcq allows 3 choices) and the decay sentence that only served it; f28 no longer needed."
+   "notes": "Key correct (f5 Tier 1, f36). Silly choice: 'Whichever is deeper in the money' is ruled out by the stem itself (same stock, same strike), as its own wrong note admits; it was also the longest choice. Removed it; mcq allows 3 choices. Remaining choices 15-18 chars, key not longest. Rest unchanged and grounded."
   },
   "q15": {
    "status": "pass",
@@ -1545,8 +1545,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Mild tell: the key was the only choice with a dollar figure. Gave the 'deals kill options' distractor a figure ($0) so two choices carry numbers, without re-pairing the key with another '$10' choice. Note and key unchanged (f19, f20, f21)."
+   "fixed": false,
+   "notes": "Decided $10 before the key: f20 (Tier 1) gives exactly this case, and calc intrinsic(call, 40, 50) = 10 appears in the key. Two choices now carry dollar figures, so the number is no tell. Distractors are real beliefs (time value survives, deals kill options, last trade sets value), each refuted by f19-f21. 'At or above the $50' in a note is plain intrinsic arithmetic (50 minus 50 is zero). No conflict with sizing_rule.md section 9. Does not answer another question."
   },
   "q25": {
    "status": "pass",
@@ -1564,7 +1564,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: a True/False statement built on the absolute 'never' and keyed False; the lesson's TF keys were also 4 False to 1 True. Restated as the plain fact from f18 and keyed True. American-style definition (f42) kept."
+   "notes": "Fact is right (f18 Tier 1), but the statement carries the lone hedge in the lesson's true/false set ('can trade below') and is keyed True: a test-wise learner gets it without knowing. Every abstract rewording needs a hedge or an absolute, so it is now a concrete case keyed True with neither: the bid sits under the in-the-money amount, so exercising wins. It tests the real trap (always selling, from q17 and q28's rule). Kept tf (the unit needs 15% tf) and kept True (balance unchanged). No calc (the validator rejects one on tf); prose uses only the givens 120, 100 and 19.80, never a computed num"
   },
   "q28": {
    "status": "pass",

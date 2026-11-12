@@ -1139,8 +1139,8 @@
    ],
    "wrong": {
     "Hold it, decay is fastest now": "Decay is fast, but so is gamma. In Schwab's example, a $1 drop takes delta from -.39 to -.47, over 20% more risk.",
-    "Sell another put for more decay": "That doubles your negative gamma right when it's highest. More decay, more risk.",
-    "Hold, it's still out of the money": "Only just. With gamma at .08, a $1 drop takes delta from -.39 to -.47, more than a 20% rise in risk."
+    "Sell another put for more decay": "That adds more negative gamma while it's already high. More decay, more risk.",
+    "Hold, it's still out of the money": "Only just, by one point. With gamma at .08, a relatively small drop can wipe out the profit."
    },
    "simple": "Close it, because you're up most of the credit, and with gamma this high a small drop can wipe that out.",
    "deeper": {
@@ -1337,11 +1337,12 @@
     "Hold, expiry week is safer"
    ],
    "answer": "Roll to a later expiry",
-   "why": "Roll to a later expiry. Gamma is lower the more time an option has left. In Schwab's example, the same 259 strike with 53 days left had delta -.41 and gamma .02. At 18 days it was -.43 and .04. So the roll keeps about the same delta and cuts gamma in half. The trade-off is less of the fast decay a near-expiry short option collects.",
-   "lesson_line": "Rolling a short option out in time keeps the view and cuts the gamma.",
+   "why": "Roll to a later expiry. A -.43 delta puts the put near the money, and there gamma is lower the more time an option has left. In Schwab's example, the same 259 strike with 53 days left had delta -.41 and gamma .02. At 18 days it was -.43 and .04. So the roll keeps about the same delta and cuts gamma in half. The trade-off is less of the fast decay a near-expiry short option collects.",
+   "lesson_line": "Rolling a near-the-money short option out in time keeps a similar delta and cuts the gamma.",
    "facts": [
     "f51",
     "f52",
+    "f17",
     "f9",
     "f42",
     "f4",
@@ -1354,7 +1355,7 @@
     "Hold, expiry week is safer": "Near the money, gamma is highest close to expiry. Holding into expiry week raises it.",
     "Hedge the put with shares": "Shares have no gamma, so the put's gamma stays. A share hedge also moves your delta, which you wanted to keep."
    },
-   "simple": "Roll to a later expiry, because the same strike with more time keeps a similar delta but carries less gamma.",
+   "simple": "Roll to a later expiry, because near the money the same strike with more time keeps a similar delta but carries less gamma.",
    "deeper": {
     "trap": "Trap: holding into expiry week because the end is close. Near the money, gamma is highest close to expiry, so a relatively small move can wipe out a profit. Rolling out trades some of that fast decay for a steadier delta."
    },
@@ -1620,7 +1621,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key (close it) matches my own reading of f47 and f50, and holds as a rung-6 judgment. The owner flag on the seller's seat (A6, B25) stands. Two defects. (1) The story calls DJX 'a Dow index', but no cited quote says so (f48 quotes only 'Index (DJX)'). That fact came from memory. (2) The lesson line says a short option's gamma climbs in expiry week, but f9 and f42 say that only for at-the-money options; a far out-of-the-money option's gamma falls. It also still said 'banked'. Both are fixed. Nothing else changed."
+   "notes": "My own answer before the key: close it (f49 2.75 of 4 already earned, f50 a $1 drop takes delta -.39 to -.47, f47 high gamma can wipe out a profit). Key matches; holding is a choice some traders make, but f50 and the risk-first rule make closing the sound move at rung 6, and the key does not contradict A6/B25. Choice lengths 28-33, key not longest. Two defects in the wrong notes. (1) 'Sell another put for more decay' says 'That doubles your negative gamma': the choice names no strike or size, so 'doubles' is a number no quote or calc gives. (2) The two Hold notes repeat the same -.39 to -.47 /"
   },
   "q15": {
    "status": "pass",
@@ -1650,7 +1651,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key (roll to a later expiry) matches my own reading of f52, f42 and f9. Two tells. (1) 'Short shares to flatten delta' says outright that it changes delta, which the stem rules out ('keeps your delta about the same'), so it rules itself out. (2) 'Hold' is a poor answer to 'Which adjustment', because holding is not an adjustment. The new distractor tests a real misconception, that a share hedge fixes option risk (f5: shares have no gamma). The stem now says 'Which move'. The key, why, simple, deeper and facts are unchanged."
+   "notes": "My own answer before the key: roll to a later expiry (f52: same 259 strike, 53 days, delta -.41, gamma .02 vs -.43 and .04 at 18 days). Key matches; share hedge fails on f5, earlier expiry and hold fail on f9/f42. Key is the shortest choice; no tell. Defect: the why says 'Gamma is lower the more time an option has left' with no qualifier, and the simple and lesson line generalize the roll to any short option. f42 says it for at-the-money options and f9 for at-the-money near expiry; a far out-of-the-money option does not behave that way (the same overreach the last check fixed in q14's lesson l"
   },
   "q20": {
    "status": "pass",
@@ -1673,8 +1674,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "My own answer is positive: 'premium paid' (f76) means the option was bought, and f4 and f65 give bought options positive gamma. Two defects. (1) The key 'Positive, we buy the option' is the only choice that echoes the stem's 'Our' and 'we' (a pronoun tell). It also states 'we buy' as a rule the owner never wrote: B25 says 'no further rules'. The simple repeats it as 'the options we use are bought'. (2) 'Those trades' (plural) reaches past a single bought option to any defined-risk trade, such as a spread, and this lesson never teaches the gamma sign of a spread. Fixed: the stem is now singular"
+   "fixed": false,
+   "notes": "My own answer before the key: positive. f76 (B25) 'the premium paid is the stop' means the option was bought; f77 (A6) defined-risk alternative; f4 (OIC Tier 1) and f65 give bought calls and puts positive gamma. Both house quotes are verbatim in sizing_rule.md section 9 (A6, B25), and the key does not go past them. The stem is singular ('such an option'), so a debit spread is not in play. Choices 25-31 characters, one each of positive, negative, zero, depends; no pronoun echo left. Each wrong note is grounded (f29 theta, f6 delta moves, f21 call/put sets delta sign). Overlaps q02/q04 on the si"
   }
  }
 }

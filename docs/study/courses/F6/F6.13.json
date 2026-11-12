@@ -703,7 +703,7 @@
    ],
    "answer": "Selling a put with cash ready to buy",
    "term": "Cash-secured put",
-   "why": "Selling a put with cash ready to buy. You sell the put, collect the premium, and set aside cash equal to the strike price. If you're assigned, that cash pays for the shares. A put with no cash set aside is not cash-secured. The cash does not remove the risk: you can still lose if the stock falls.",
+   "why": "Selling a put with cash ready to buy. You sell the put, collect the premium, and set aside enough cash to buy the shares at the strike. If you're assigned, that cash pays for the shares. A put with no cash set aside is not cash-secured. The cash does not remove the risk: you can still lose if the stock falls.",
    "lesson_line": "Cash-secured means the money to buy the shares is set aside when you sell the put.",
    "facts": [
     "f21",
@@ -1507,7 +1507,7 @@
    },
    "simple": "You kept the $120 premium but missed the run from 48 to 60, so just buying the shares did far better.",
    "deeper": {
-    "trap": "Getting paid to wait sounds like a free edge. It is a trade: you swap the stock's upside for the premium. If owning the stock matters more than the price, buying the shares fits better. A short put suits only the case where the price matters more."
+    "trap": "Getting paid to wait sounds like a free edge. It is a trade: if the stock runs, you keep only the premium and miss the move. If owning the stock matters more than the price, buying the shares fits better. OIC calls the short put mainly a strategy for a price-sensitive investor."
    },
    "tier": "expert",
    "risk": {
@@ -1563,7 +1563,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f21, f44, f63). Choices clean, key not longest. Lesson line said the cash is set aside 'before you sell the put'; no cited fact gives that timing (OIC f21 says 'simultaneously'). Reworded to 'when you sell the put'."
+   "notes": "Key right before looking (f21, f44, f63; OIC page re-fetched 2026-11-12, f21/f24/f27 verbatim). Choices 30-39 chars, key not longest, no silly choice. Defect: the why says 'set aside cash equal to the strike price'. For a 45 put a learner reads that as $45, which is q08's own wrong choice ('$45: that's one share'). f44 is the disclosure document's wording, but the lesson needs the plain reading: enough cash to buy the shares at the strike. Reworded the why; no new numbers. Everything else unchanged."
   },
   "q04": {
    "status": "pass",
@@ -1622,8 +1622,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 45 - 1.20 = 43.80 right (f23, f51). Lesson line 'Judge it like any buy point' has no cited support and clashes with the rulebook: a UCT buy point carries a stop (A3, A4, A13), while OIC says the put seller must accept the strike however low the stock goes (f24). Replaced with a line grounded in f23 and f33."
+   "fixed": false,
+   "notes": "My answer before the key: 45 - 1.20 = 43.80 (f23, f51; f23 verbatim on OIC 2026-11-12). Matches. 'Real cost' clearly means the effective purchase. Today's 47 is a fair distractor and the why says it does not count. Break-even line on f33. The lesson line is descriptive and does not clash with sec. 9. It does not give away q22: different numbers, and q22 also subtracts the market price."
   },
   "q13": {
    "status": "pass",
@@ -1652,8 +1652,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: sold 45 put costs 45 less 1.10 if assigned; 50 less 3.20 is above 45. New f78 verified live on finra.org today (verbatim). Lesson line 'a price they'd buy at and hold, however low it goes' teaches holding a falling stock, against the rulebook's stop rule (A4, A13). Reworded to the obligation only (f24, f27), dropping 'and hold'. Owner flag on selling options stands."
+   "fixed": false,
+   "notes": "My answer before the key: sell the 45 put. The 50 put works out to 50 - 3.20 = 46.80, above the trader's 'not higher' limit, so it has one defensible answer. Choices 15-16 chars. Two choices say 45, so the key does not echo the story alone. Buy-the-put is a wrong-direction choice, refuted by f78. The lesson line covers only the obligation (f24 'no matter how low the market goes', verbatim), not holding a falling stock, so it does not clash with A4/A13. 'A trader' is not taught as our rule (A6/B25). The owner flag on selling options stands at the lesson level. Its why ('if the stock never dips,"
   },
   "q18": {
    "status": "pass",
@@ -1707,7 +1707,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right on f29 and f65; calc 1.20 x 100 = 120. Tell: the key 'missed the run' repeats the story's 'runs to 60'; changed to 'Kept $120, shares beat it' (25 chars, same as the others). Lesson line and deeper trap rest on 'price matters more' (OIC f76, price-sensitive investor), but f76 was not cited; added."
+   "notes": "My answer before the key: the put kept 1.20 x 100 = $120; the shares made 12 x 100 = $1,200; the shares win. The key matches. All choices are 20-25 chars with no lone hedge or absolute, and the key no longer repeats the story. Defect: the deeper trap ends with 'A short put suits only the case where the price matters more.' That overreaches f76, which says 'primarily a stock acquisition strategy for a price-sensitive investor' (verbatim on OIC 2026-11-12), not 'only'. It also contradicts the conflicts note (Fidelity's income framing). Rewrote the trap on f65, f29 and f76 as quoted. No new numbe"
   }
  }
 }

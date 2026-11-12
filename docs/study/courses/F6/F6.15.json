@@ -868,7 +868,7 @@
    ],
    "answer": "A bull put spread and a bear call spread",
    "why": "A bull put spread and a bear call spread. The put spread usually sits below the stock and the call spread above it. Both are credit spreads, so the trade opens for a net credit. The long options are the wings, and they cap the loss on each side. A bull call spread and a bear put spread make the debit trade, the long iron condor.",
-   "lesson_line": "An iron condor is a put credit spread below the price and a call credit spread above it.",
+   "lesson_line": "An iron condor is a put credit spread plus a call credit spread, usually below and above the price.",
    "facts": [
     "f02",
     "f04",
@@ -1211,11 +1211,10 @@
     "f141",
     "f95",
     "f11",
-    "f51",
     "f54"
    ],
    "wrong": {
-    "Time decay on the two short options": "Decay helps a short condor while the stock stays near the short strikes. It is not a trading cost.",
+    "Time decay on the two short options": "Time decay changes what the options are worth. It is not a cost you pay to open or close.",
     "The cost of the two long wings": "The wings are part of the position, not a trading cost. The credit you see is already net of them.",
     "One fee, since all four go in one order": "Each leg carries its own costs. A four-leg order pays commissions and crosses a spread on every leg."
    },
@@ -1819,13 +1818,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right before looking (OIC f02, Fidelity f80); credit framing rules out the debit pair (f134, f42). Choices within 34-40 chars, no tell. Why calls the long options 'the wings' for a condor; only f121 (long options cap losses) is cited, and the condor 'wings capping the risk' wording is OIC f55, not cited. Fix: cite f55."
+   "notes": "Key right before looking (OIC f02 re-read live 2026-11-12; Fidelity f80). Choices 34-40 chars, A and B mirror each other, no tell. Wrong notes hold (f134, f88, f74, f21). One overreach: the lesson_line states as a definition that the put spread sits below the price and the call spread above it, but OIC f04 says only 'Typically' (a skewed condor can sit on one side). The why and simple already say 'usually'. Fix: lesson_line adds 'usually'. Rest unchanged."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right (OIC f03 'must be of the same expiration', Fidelity f81). Why says the four legs differ in strike; f01 separates the two call strikes and the two put strikes but nothing cited puts the short put below the short call. Fidelity f80 does. Fix: cite f80."
+   "fixed": false,
+   "notes": "True is right: OIC f03 'All the options must be of the same expiration' and Fidelity f81 both re-read live 2026-11-12. The absolute 'All four' is the definition, so it is no tell toward False. Four strikes, two calls and two puts, two bought and two sold (f01, f80). Does not answer any other question."
   },
   "q03": {
    "status": "pass",
@@ -1836,14 +1835,14 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (OIC f30, Fidelity f113). Choices 32-37 chars, no tell. Wrong note D says a long straddle is 'the opposite of a butterfly'; the straddle half is f56, but the butterfly side (peaks with a close at the middle strike) is f50, not cited. Fix: cite f50. Using 'body' in the why after q03 asks for it is teaching, not a give-away (q03 is rung 1 and comes first)."
+   "fixed": false,
+   "notes": "Key right (OIC f30, Fidelity f113). Choices 32-37 chars; B is the real short-fly mistake, C a two-leg bull call spread, D a long straddle (f73, f56: OIC webinar quote is from its Long Straddle section, checked live). Why's 'body' line comes after q03 (rung 1 before rung 2) and repeats q03's own why, so no give-away as long as rung order holds."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (OIC f06/f07, Fidelity f85 'at or between'). Choices 33-36 chars. Wrong note 'Beyond either of the long strikes' says max loss is there and one whole side finishes in the money; that is Schwab f122 (at or beyond a long strike) and OIC f08 (both calls or both puts in the money), neither cited. Fix: cite f122 and f08."
+   "fixed": false,
+   "notes": "Key right before looking: OIC f06/f07 (max gain between the short strikes, all expire worthless) and Fidelity f85 'equal to or between' re-read live. The why handles the at-the-strike edge with pin uncertainty (f125). Distractors are real errors: butterfly peak, the zone between short and long strikes (f142), the max-loss zone (f122, f08). Choices 33-36 chars. Does not give away q09 or q21."
   },
   "q06": {
    "status": "pass",
@@ -1879,7 +1878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (Fidelity f87 four spreads to open and four to close; ODD f71 separate costs per component). Choices 30-39 chars, key not longest. Wrong note on time decay says flatly 'Decay works for you here', which contradicts q17's own lesson (decay turns against a condor out at a wing; OIC f51/f52, Fidelity f90). Fix: limit it to while the stock stays near the short strikes (OIC f51) and cite f51."
+   "notes": "Key right (Fidelity f87 'four bid-ask spreads when opening' and again when closing, re-read live; ODD f71). Choices 30-39 chars. Break found: the time-decay wrong note says decay helps 'while the stock stays near the short strikes', which hands the reader q17's key (q17 asks if decay keeps helping once the stock pushes out to a wing; key False). The note only needs to say decay is not a trading cost. Fix: neutral wrong note, f51 dropped from facts (no longer used), f11 kept for the 'passage of time changes value' line."
   },
   "q12": {
    "status": "pass",
@@ -1920,8 +1919,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (7060-6960)*100-2915 = 7,085, matches Schwab f131. $14,170 and $12,915 are the question's own choices. Why says the $2,915 credit 'is also the max profit', and the calc subtracts max profit as the credit; that link (max profit = net premium received) is OIC f61, not cited (f122 says credit, the story says max profit). Fix: cite f61. Dated example is labelled as Schwab's, fine."
+   "fixed": false,
+   "notes": "Worked it before the key: 100-point sides (f130), $100 a point (Cboe f77), 10,000 - 2,915 = 7,085, matches Schwab f131; calc args match. Max profit = credit is OIC f61, now cited. SPX is European and cash-settled, so no early assignment can push the loss past it. Distractors are real errors (no credit, both sides, credit added). Schwab page refused a plain fetch today (auth error), so f129-f131/f135 rest on the 2026-11-09 live re-read; the numbers agree with each other and with the calc. The deeper note's widest-spread rule comes after q15 (rung 6 before 7), so no give-away."
   },
   "q19": {
    "status": "cut",
