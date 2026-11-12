@@ -202,6 +202,7 @@ describe('the chart\'s half: the + / - keys and the Agent share ONE writer', () 
     expect(s).toMatch(/zoomLimits: zoomLimitsOf\(chartRef\.current\)/)
     // no second zoom path: the old inline arithmetic is gone from the key handler
     expect(s.match(/e\.key === '-' \? 1\.25 : 0\.8/g)).toBeNull()
-    expect(src('../components/chart/pane/ChartPane.jsx')).toMatch(/'stepBar', 'autoScale', 'zoom'\]\.includes\(op\)/)
+    // (re-merge onto 3f13cc4435) #1110 drawing extras added 'positionCalc' after 'zoom' in the same forwarded-ops list
+    expect(src('../components/chart/pane/ChartPane.jsx')).toMatch(/'stepBar', 'autoScale', 'zoom', 'positionCalc'\]\.includes\(op\)/)
   })
 })
