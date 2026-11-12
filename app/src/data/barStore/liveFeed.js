@@ -7,14 +7,15 @@
 // whose `t` is OLDER than the developing bar (the reducer replaces that closed row in place
 // by rev, never a sealed one). The pool already drops non-final stragglers per key.
 //
-// ⭐ TICKS ONLY AS A FALLBACK (S6). lib/realtimeCandle (the trade feed) — or, when it has
-// not ticked for this symbol recently, the live-price stream (lib/priceStreamManager, the
-// app's `livePrices`) — becomes `tick-fallback`, and ONLY while the push feed is not
-// delivering for this key (`barsStreamManager.getStatus().delivering`, with the pool's own
-// hysteresis). The same flag rides on the dispatch as `ctx.streamLive`, so the reducer
+// ⭐ TICKS ONLY AS A FALLBACK (S6). lib/realtimeCandle (the trade feed) — or, when its newest
+// trade is stale or behind the bucket the chart must advance (tradeFeedOwns), the live-price
+// stream (lib/priceStreamManager, the app's `livePrices`) — becomes `tick-fallback`, and ONLY
+// while the push feed is not delivering for this key (`barsStreamManager.getStatus().delivering`,
+// with the pool's own hysteresis). The same flag rides on the dispatch as `ctx.streamLive`, so the reducer
 // enforces it too. Exactly one tick source feeds a key at a time (never two feeds racing
 // the developing bar — audit D2). Sanity is the reducer's (`liveTickBaseline`, keyed to the
-// symbol: a store never sees another symbol's closes).
+// symbol: a store never sees another symbol's closes). Every tick carries its OWN trade time
+// (liveTickTimeMs / getLastTrade): the reducer buckets it with the one bucket rule (reducer.bucketOf).
 //
 // ⭐ D/W/M FOLD THE 1m STREAM (Writer E moves here). The store keeps the server's developing
 // period bar as the BASE (authoritative) and folds RTH 1m frames into it: open = the base's,
@@ -34,6 +35,7 @@ import * as priceStream from '../../lib/priceStreamManager'
 import { realtimeBarsEnabled } from '../../lib/realtimeBarsGate'
 import { isRthBar, computeBarTime } from '../../components/chart/barTime'
 import { ACTION, parseKey, isDateTf, isIntradayTf, DEV_SRC, dateLabelToUnix } from './types'
+import { bucketOf } from './reducer'
 
 /** Client↔exchange clock margin for the fold's volume anchor (one minute). */
 export const FOLD_SKEW_MARGIN_S = 60
@@ -43,8 +45,44 @@ export function foldAnchor(arrivedMs) {
   return Math.floor(arrivedMs / 60000) * 60 + 60 + FOLD_SKEW_MARGIN_S
 }
 
-/** The trade feed counts as "ticking" for a symbol within this window; else livePrices. */
-export const CANDLE_ACTIVE_MS = 10_000
+/** The trade feed's newest TRADE must be at most this old (and in the current bucket) for it to
+ *  own the key's ticks; else livePrices does (the legacy writers' FALLBACK_REGISTRY_FRESH_MS). */
+export const CANDLE_ACTIVE_MS = 3_000
+
+/**
+ * ⭐ THE TIME OF A LIVE-PRICE TICK — the one owner. A tick is bucketed by its OWN time: the
+ * trade time the live-price entry carries (`trade_ts` ms, else `updated_at` — the Massive trade
+ * time api/routers/stream.py stamps; the Finnhub store's own time otherwise), and only an entry
+ * with neither falls back to when it arrived. (Bucketing a stale price by arrival put a minute-old
+ * print into the new bucket; the legacy writer A has bucketed by `updated_at` all along.)
+ */
+export function liveTickTimeMs(entry, receiptMs) {
+  const ms = (x) => (finite(x) && x > 0 ? (x > 1e11 ? x : x * 1000) : null)
+  return ms(Number(entry?.trade_ts)) ?? ms(Number(entry?.updated_at)) ?? receiptMs
+}
+
+/**
+ * ⭐ TICK-SOURCE ARBITRATION — the one rule (the stall of 2026-11-12: the trade feed's candle
+ * lagged the wall clock while it kept ticking, its ticks were clamped into its own stale minute
+ * and dropped by the reducer, and livePrices stood down because "a tick arrived recently").
+ * The trade feed owns the key's ticks only while its newest TRADE (a) is fresh — at most
+ * CANDLE_ACTIVE_MS old by its own trade time — and (b) reaches the bucket the chart must advance
+ * now: the wall-clock bucket, and the developing bar's bucket when that is later. Otherwise
+ * livePrices feeds the key. Freshness is judged by the bucket the data advances, never by
+ * arrival. Pure.
+ * @param {{tradeMs:number}|null} trade   realtimeCandle.getLastTrade
+ * @param {object|null} state              the key's snapshot (tf / grid / developing)
+ * @param {number} nowMs
+ */
+export function tradeFeedOwns(trade, state, nowMs) {
+  if (!trade || !finite(trade.tradeMs) || !finite(nowMs)) return false
+  if (nowMs - trade.tradeMs >= CANDLE_ACTIVE_MS) return false
+  if (!state) return true
+  const b = (ms) => bucketOf(Math.floor(ms / 1000), state)
+  const tb = b(trade.tradeMs)
+  const need = Math.max(b(nowMs), finite(state.developing?.t) ? state.developing.t : -Infinity)
+  return finite(tb) && tb >= need
+}
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 const tMs = (t) => (t > 1e11 ? t : t * 1000)
@@ -137,7 +175,7 @@ export function anchorTick(st, { dayVol, day, def, heldV }) {
  * @param {object} o
  * @param {ReturnType<import('./registry').createRegistry>} o.registry
  * @param {object} [o.stream]  barsStreamManager-shaped ({subscribe, getStatus})
- * @param {object} [o.candle]  realtimeCandle-shaped ({subscribe, getCandle, getLastTickAt})
+ * @param {object} [o.candle]  realtimeCandle-shaped ({subscribe, getLastTrade})
  * @param {object} [o.prices]  priceStreamManager-shaped ({subscribe, getSnapshot})
  * @param {(key:string, lastBarT:number|null) => void} [o.onReconnect]  gap-backfill hook (network.kick)
  * @param {(key:string) => void} [o.onReanchor]  a D/W/M fold re-anchored into the regular session
@@ -249,22 +287,20 @@ export function createLiveFeed({
       }))
     }
 
-    // Tick fallback: one source at a time — the trade feed while it ticks, else livePrices.
+    // Tick fallback: ONE source at a time (tradeFeedOwns), each tick at its OWN trade time.
+    const tradeOwns = () => tradeFeedOwns(candle?.getLastTrade?.(p.sym) ?? null, registry.peek(key), now())
     if (candle?.subscribe) {
       off.push(candle.subscribe(p.sym, () => {
-        const c = candle.getCandle(p.sym, '1')
-        if (!c || !finite(c.c) || !finite(c.t)) return
-        const at = candle.getLastTickAt?.(p.sym) || now()
-        // Trade time ≈ receipt, clamped into the candle's own minute.
-        const ts = Math.min(Math.max(at, c.t * 1000), c.t * 1000 + 59_999)
-        _dispatchTick(key, session, c.c, ts, a)
+        if (!tradeOwns()) return
+        const tr = candle.getLastTrade(p.sym)
+        _dispatchTick(key, session, Number(tr.price), tr.tradeMs, a)
       }))
     }
     if (prices?.subscribe) {
       off.push(prices.subscribe([p.sym], () => {
-        if (candle?.getLastTickAt && now() - (candle.getLastTickAt(p.sym) || 0) < CANDLE_ACTIVE_MS) return
-        const px = prices.getSnapshot?.()?.prices?.[p.sym]?.price
-        _dispatchTick(key, session, Number(px), now(), a)
+        if (tradeOwns()) return
+        const x = prices.getSnapshot?.()?.prices?.[p.sym]
+        _dispatchTick(key, session, Number(x?.price), liveTickTimeMs(x, now()), a)
       }))
     }
     return a

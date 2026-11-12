@@ -115,8 +115,9 @@ export function normT(t, tf) {
   return s
 }
 
-/** The bucket (store `t`) a trade at unix second `sec` belongs to. */
-function bucketOf(sec, state) {
+/** The bucket (store `t`) a trade at unix second `sec` belongs to — THE tick bucket rule: the
+ *  tick merge below and liveFeed's tick-source arbitration both read it. */
+export function bucketOf(sec, state) {
   const tf = state.tf
   if (isDateTf(tf)) return dateLabelToUnix(computeBarTime(tf, sec))
   return bucketStartUnix(sec, Number(tf), { grid: _gridFor(state) })
