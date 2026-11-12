@@ -331,7 +331,12 @@ export function blankStated(text) {
 // never / not …) governs the click (this / this one / this chart / it / the clicked or selected one / here) as its OBJECT. The
 // click is EXCLUDED; the clause names no other chart and relates nothing (blanked for the relation readers, positions kept).
 // (#988, pl-grid / AUDIT probe 20) …or by the ACT: "not the one I clicked", "leave the chart I'm on alone" (clickRef.js)
-const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_ACT_NP + ')'
+// (AUDIT #1030 T2, probe-24 class) a POSSESSIVE that names a chart stands for the click when the member has one: "leave mine
+// alone", "don't touch my chart", "keep my own one as it is". Only a chart noun (one / chart / cell / pane / panel / graph) or
+// bare "mine" / "my own" — never "my watchlist", "my settings", "my layout" (not the click). negatedClick only matters when a
+// chart is selected (excludedCharts / chartsOutOfPlan read it as `sel && …`), so with no click this changes nothing.
+const CLICK_POSS = '(?:mine|my\\s+own(?:\\s+(?:one|chart|cell|pane|panel|graph))?|my\\s+(?:one|chart|cell|pane|panel|graph))'
+const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_POSS + '|' + CLICK_ACT_NP + ')'
 // (AUDIT probe 20 b) a STATIVE clause whose subject is the click — "the one I selected stays daily", "this one can stay as it is",
 // "the chart I'm on is fine as it is": the click is kept as it is, so it is EXCLUDED (as "leave this alone"). A want ("the one I
 // selected should be weekly", "…needs log scale") is not one: that clause is the change, on the click.
@@ -341,7 +346,7 @@ const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selec
 // (ii) fine / right / ok / good ENDS the clause (optionally "as it is", "the way it is", "where it is", "for now", "already"),
 // so "is right above support" is no verdict; (iii) stays / remains is never followed by a price place (above / below / under /
 // over / near / around / between / beneath, or at / on a level, support, resistance or an average).
-const STAY_SUBJ = '(?:this\\s+(?:one|chart)|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_ACT_NP + ')'
+const STAY_SUBJ = '(?:this\\s+(?:one|chart)|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_POSS + '|' + CLICK_ACT_NP + ')'
 const STAY_TAIL = '(?:\\s+(?:as\\s+(?:it\\s+)?is|the\\s+way\\s+it\\s+is|where\\s+it\\s+is|(?:for\\s+)?now|already|too))*'
 const PRICE_LEVEL = '(?:the\\s+|its\\s+|a\\s+)?(?:\\$?\\d|support|resistance|highs?|lows?|levels?|(?:trend\\s*)?lines?|(?:day\\s+)?(?:ma|sma|ema|vwap|moving\\s+average)\\b)'
 const PRICE_PLACE = '(?:(?:right|just|well|still|firmly|comfortably)\\s+)*(?:above|below|under(?:neath)?|over|beneath|near|around|between|(?:at|on)\\s+' + PRICE_LEVEL + ')'
