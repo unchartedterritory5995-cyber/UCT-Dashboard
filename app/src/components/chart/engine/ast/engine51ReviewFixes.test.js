@@ -116,6 +116,30 @@ describe('B1 · a position fixed before bar 0 is read through the four shapes', 
     expect(positionOf(t) || '').not.toContain('bottom_center')
   })
 
+  // ⭐ Re-review of #1149 (X2/X3/X4) — three guards that stop a WRONG drawing, each railed by the
+  // one input only it decides.
+  it('X2: a `var` reassigned inside a function is not read as its initializer (withheld, never top_right)', () => {
+    const t = T('p = input.string("Top Right")\nvar pos = p == "Top Right" ? position.top_right : position.bottom_left\n'
+      + 'f() =>\n    pos := position.bottom_left\n    1\nx = f()\nvar table t = table.new(pos, 1, 1)\n' + CELL)
+    expect(positionOf(t) || '').not.toContain('top_right')
+    expect(tableCreate(t)).toHaveLength(0)
+    expect(drops(t)[ENUM_DROPS.unreadable.drop] || 0).toBeGreaterThan(0)
+  })
+
+  it('X3: two block `var`s of one name are not read (withheld, never top_center)', () => {
+    const t = T('if close > open\n    var tp = position.bottom_left\nif close < open\n    var tp = position.top_center\n'
+      + 'var table t = table.new(tp, 1, 1)\n' + CELL)
+    expect(positionOf(t) || '').not.toContain('top_center')
+    expect(tableCreate(t)).toHaveLength(0)
+  })
+
+  it('X4: `false and X` is false (the table is drawn top_right)', () => {
+    const t = T('p = input.string("Top Right")\nq = input.string("B")\n'
+      + 'var table t = table.new(p == "Bottom Left" and q == "B" ? position.bottom_left : position.top_right, 1, 1)\n' + CELL)
+    expect(tableCreate(t)).toHaveLength(1)
+    expect(positionOf(t)).toBe(JSON.stringify({ v: 'text', node: { t: 'lit', s: 'top_right' } }))
+  })
+
   it('control: a `var` switch the script reassigns is not read as its first value', () => {
     const t = T('p = input.string("Middle")\nvar where = switch p\n    "Top Left" => position.top_left\n    "Middle" => position.middle_center\n'
       + 'if close > open\n    where := position.top_left\nvar table t = table.new(where, 1, 1)\n' + CELL)
