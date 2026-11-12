@@ -2270,15 +2270,15 @@
    "format": "scenario",
    "criterion": "peg.stop_width",
    "q": "What do you do?",
-   "story": "The pause high is 61.00 and the pause low is 57.90. The honest stop is 5.2% from the fill. A friend says to put the stop at 59.50 so the size looks normal.",
+   "story": "The pause high is 61.00 and the pause low is 59.30. The honest stop, a few cents under the low, is about 2.9% from the fill. A friend says to put the stop at 60.10 so the size can be bigger.",
    "choices": [
-    "Keep the stop; shrink the size",
-    "Put the stop at 59.50 to fit",
-    "Buy full size anyway, same stop",
+    "Keep the stop; let it set the size",
+    "Put the stop at 60.10 to fit more",
+    "Buy the bigger size, same stop",
     "Split the buy in two to cut risk"
    ],
-   "answer": "Keep the stop; shrink the size",
-   "why": "Keep the stop and shrink the size. The stop goes first, a few cents under the pause low, and the size comes from the stop. Here the honest stop is 5.2% from the fill, so the formula gives fewer shares. If the honest stop does not fit the risk at all, skip the trade. Moving the stop to 59.50 to fit the size does not fix it.",
+   "answer": "Keep the stop; let it set the size",
+   "why": "Keep the stop and let it set the size. The stop goes first, a few cents under the pause low, and the size comes from the stop. Here the honest stop is about 2.9% from the fill, so the formula gives fewer shares than a stop at 60.10 would. If the honest stop does not fit the risk at all, skip the trade. Moving the stop to 60.10 to get more shares does not fix it.",
    "lesson_line": "If the honest stop does not fit, size down or skip.",
    "facts": [
     "h01",
@@ -2288,26 +2288,23 @@
     "h04"
    ],
    "wrong": {
-    "Put the stop at 59.50 to fit": "Pulling the stop in to fit the size is the mistake, not the plan.",
-    "Buy full size anyway, same stop": "Full size on a stop this wide risks more than the plan allows.",
-    "Split the buy in two to cut risk": "A PEG is one buy at one price with one stop. No adding and no starter position."
+    "Split the buy in two to cut risk": "A PEG is one buy at one price with one stop. No adding and no starter position.",
+    "Put the stop at 60.10 to fit more": "Pulling the stop in to get more shares is the mistake, not the plan.",
+    "Buy the bigger size, same stop": "A bigger size on this stop risks more than the plan allows."
    },
    "house": true,
-   "simple": "Keep the stop and let the formula shrink the size. Do not pull the stop in just to make a bigger size fit.",
+   "simple": "Keep the stop and let it set the size. Do not pull the stop in just to get more shares.",
    "deeper": {
-    "trap": "The trap is working backward: pick the size you want, then move the stop to fit. The order is stop first, then size. Here the honest stop is 5.2% away, well past the usual 3%, so the formula gives fewer shares. If even that does not fit the risk, skip the trade."
+    "trap": "The trap is working backward: pick the size you want, then move the stop to fit. The order is stop first, then size. Here the honest stop is wider than the friend's tight stop, so the formula gives fewer shares. If even that does not fit the risk, skip the trade."
    },
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
      "rests on the owner's rulebook (A3, A5)",
-     "the 3% stop cap is still open (D-005)"
+     "stop width kept inside the usual 3% so the open stop-cap decision (D-005) does not touch the key"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
    "batch": "wave2"
   },
   {
@@ -2612,7 +2609,7 @@
     "A mistake; buy on day one instead"
    ],
    "answer": "A planned loss; the stop worked",
-   "why": "No. A textbook gap and a textbook pause still lost. The plan sizes by the stop, so a loss at the stop is about 1R and the system keeps working. In our scan of past PEGs, 31.0% reached 3R and 20.0% reached 5R before the stop. So most hits did not get to 3R before the stop. That scan scored a fixed stop with no trims, no breakeven move, no trail and no time stop.",
+   "why": "No. A textbook gap and a textbook pause still lost. The plan sizes by the stop, so a loss at the stop is about 1R and the system keeps working. In our scan of past PEGs, 31.0% reached 3R and 20.0% reached 5R before the stop. So most hits did not get to 3R before the stop.",
    "lesson_line": "Every gate can pass and the stop can still go.",
    "facts": [
     "d20v",
@@ -3283,7 +3280,7 @@
    "format": "scenario",
    "criterion": "peg.stop_pause",
    "q": "May you buy it again?",
-   "story": "Your PEG buy was stopped out on Tuesday, your first try on this stock this week. The PEG-day low still holds. By Friday the stock has formed a new pause and trades over its high.",
+   "story": "Your PEG buy was stopped out on Tuesday, your first try on this stock this month. The PEG-day low still holds. By Friday the stock has formed a new pause and trades over its high.",
    "choices": [
     "Yes; a new trigger is a new trade",
     "No; one try per gap, then done",
@@ -3510,8 +3507,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper trap reuses the exact AMD case (11.2%, 2.7x, 0.23) that q58 asks as a scenario, so q03 answers q58. Replace with a generic, cited statement."
+   "fixed": false,
+   "notes": "Only the 0.20 close fails the top-quarter / faded-day rule (c08, c09, st2); the other three close at 0.80 or higher under any proposed threshold. Overlaps in concept with q58 (AMD, rung 8) but at a different rung and form."
   },
   "q05": {
    "status": "pass",
@@ -3576,8 +3573,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper claims the size came from the stop distance, which no cited fact in the list supports (h01 says it). Add h01."
+   "fixed": false,
+   "notes": "Matches c16/c05/h24. Prior close is below the PEG-day low on an open gap so it is wider than the limit; exact-on-the-low fails the few-cents rule. No second defensible answer among the choices."
   },
   "q20": {
    "status": "pass",
@@ -3588,8 +3585,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is the longest choice (31 vs 29,29,26), and the 5R wrong note relies on h08, which is not cited. Lengthen the touch distractor and add h08."
+   "fixed": false,
+   "notes": "E52 (h21) says 10-day fast, 21-day steady, sell on a close. Distractors are clearly wrong by the rules; BIDU example matches d04/d06."
   },
   "q22": {
    "status": "pass",
@@ -3678,8 +3675,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (h25, 3R = 43.00 from 40.00 and 39.00, opens 43.60). Defect: the stem says 'sell the first third', so the choice 'Sell half, since it gapped up' contradicts the stem and is a silly, self-eliminating choice. Stem changed so every choice is a live plan. Numbers all in the question. Owner flag stands: the 3R first trim is the hard rule, in practice he waits for 5R."
+   "fixed": false,
+   "notes": "3R = 43.00 from 40.00 and 39.00; open 43.60 is past it; F63 (h25) says take the trim at the open. Third at 3R per B19/E51. Numbers all from the story or the calc."
   },
   "q40": {
    "status": "pass",
@@ -3691,7 +3688,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Right answer is h01/h03 (stop first, size from the stop). Defect: the key 'Size down by formula, or skip' is the only choice with an 'or', a lone-hedge tell. Rewritten to one action, 30 characters, not the longest; the skip rule stays in the why. Wrong notes still fit the three other choices. 5.2%, 61.00, 57.90, 59.50 are in the question."
+   "notes": "The 5.2% stop makes the key depend on the open 3% stop cap (D-005): under a hard cap the right answer would be skip, which is not offered, and the card's entry_pause wants a stop within about 3%. Use a stop of about 2.9% so 'stop first, size from the stop' holds under every option; 'shrink' becomes 'let it set the size'. Drop the D-005 dependency."
   },
   "q42": {
    "status": "pass",
@@ -3739,7 +3736,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and wrong notes are fine (h01, h03, d20v, d21). Defect: the why says the scan 'used our own bars with a fixed stop and no trims', and no cited quote carries that caveat; 'many valid setups still stop out' also reads more than 31.0% reaching 3R before the stop says. Added a verbatim quote (dossier section 12 base-rate caveat, 25 words) as d22c and reworded the inference to what the quotes say."
+   "notes": "The why says the scan 'scored a fixed stop with no trims, no breakeven move, no trail and no time stop'. No cited fact quote contains that method claim (d22, c47 give only the percentages). Remove the sentence; the key and numbers are otherwise grounded (d20v, d21, d22)."
   },
   "q51": {
    "status": "pass",
@@ -3786,14 +3783,14 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Loss at 47.20 is 2.8R, past 2R, key right. 'far past 2R' overstates; say past 2R."
+   "fixed": false,
+   "notes": "2R under 50.00 with a 49.00 stop is 48.00; 47.20 is 2.8R, past the ceiling, so out (B20, c25, h06, h07). Same rule as q29 but the opposite side of the 2R line, so it is a contrast pair, not a duplicate."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story repeats the question text; wrong notes about tight stops and holding into a report (h02, h08, h04) rest on uncited facts. Cleaned and added them. c47 quote verified on the card (line 152)."
+   "fixed": false,
+   "notes": "Key follows c46 and the story's numbers (d22, c47). Distractors contradict h02, h08 or invent an 80% win rate. Caveat 'not a promise' is present. Criterion tag peg.earnings_season does not fit the content (cosmetic)."
   },
   "q63": {
    "status": "pass",
@@ -3817,7 +3814,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h28/h29), but the 'double size breaks the sizing rule' note has no cited fact. Add h03."
+   "notes": "Story only says first try this week; the rule (E56, h29) also caps 6 a month, and the why cites it. Make the story say first try this month so the month cap cannot be in doubt. Key is right (B21, h28)."
   },
   "q68": {
    "status": "pass",

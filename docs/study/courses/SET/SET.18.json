@@ -1953,14 +1953,14 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "ep.market_reading",
-   "q": "The market reading is Orange. Which EP can you take?",
+   "q": "Our market reading is Orange. By our guide, which EP can you take?",
    "choices": [
-    "Only an A+ EP, by our guide",
+    "Only an A+ EP",
     "An A-grade EP, at half the size",
     "None; Orange means stay in cash",
     "Any EP; EPs ignore the market"
    ],
-   "answer": "Only an A+ EP, by our guide",
+   "answer": "Only an A+ EP",
    "why": "Only an A+ EP. Our market reading is a guide. Orange allows only A+ setups, where Green and Yellow allow more. It is a guide, not a hard cap.",
    "lesson_line": "Orange is a filter, not a ban. Only the best EP gets through.",
    "facts": [
@@ -2865,12 +2865,12 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ep.entry_delayed",
-   "q": "What is the right read of that loss?",
+   "q": "What is the right read of this loss?",
    "choices": [
     "A loss from a strong gap that failed",
     "A loss from a stop set a bit too tight",
     "A loss from a gap too big to be bought",
-    "A loss from not buying on the first day"
+    "A loss from a gap on thin volume"
    ],
    "story": "A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
    "answer": "A loss from a strong gap that failed",
@@ -2888,12 +2888,12 @@
    "wrong": {
     "A loss from a stop set a bit too tight": "A few cents under the trigger day's low is our rule. It kept the loss near 1R, which is the plan.",
     "A loss from a gap too big to be bought": "Our card marks a gap down only over 25%, and Bonde's caution starts over 20%. This one was 18.2%.",
-    "A loss from not buying on the first day": "Nothing in the story says day one would have done better. This strong gap had no follow-through, and the stop kept the loss small."
+    "A loss from a gap on thin volume": "13.1x the average is heavy, well over the 3 times floor. The volume was not the problem."
    },
    "house": true,
    "simple": "A stop-out is a planned loss. This strong gap simply failed to follow through.",
    "deeper": {
-    "example": "SBUX, 2024-08-13: an 18.2% gap on 13.1x volume on the new-CEO news, closing at 98% of its range. The day-4 break at 94.97 with the stop at 92.93 was stopped the next day, 0.0R. The stop made the loss cheap."
+    "example": "SBUX, 2024-08-13: an 18.2% gap on 13.1x volume on the new-CEO news, closing at 98% of its range. The day-4 break at 94.97 with the stop at 92.93 was stopped the next day, and its best run was 0.0R. The stop made the loss cheap."
    },
    "tier": "extended",
    "risk": {
@@ -2959,9 +2959,9 @@
    "q": "What was the weakest point of this setup?",
    "choices": [
     "The run it made before the report",
-    "A gap that was too small to qualify",
-    "A volume day that was too light",
-    "A close that was too weak to count"
+    "The size of the earnings gap",
+    "The volume on the gap day",
+    "Where it closed in the day's range"
    ],
    "story": "A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
    "answer": "The run it made before the report",
@@ -2978,9 +2978,9 @@
     "c08"
    ],
    "wrong": {
-    "A volume day that was too light": "7.4x the average is heavy, well over the 3 times floor. The volume passed.",
-    "A gap that was too small to qualify": "13.0% is a full gap, and the card asks for 10% or more. The size was not the problem.",
-    "A close that was too weak to count": "86% of the range is in the top quarter, well inside the upper half the card asks for. The close passed."
+    "The volume on the gap day": "7.4x the average is heavy, well over the 3 times floor. The volume passed.",
+    "The size of the earnings gap": "13.0% is a full gap, and the card asks for 10% or more. The size was not the problem.",
+    "Where it closed in the day's range": "86% of the range is in the top quarter, well inside the upper half the card asks for. The close passed."
    },
    "house": true,
    "simple": "The weakest point was the 19% run before the report, though the setup passed every rule.",
@@ -3921,8 +3921,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right. The note for the new-highs choice says the surprise is priced in, which no cited fact says (b19 is about third and fourth surprises). Reword to b14/b18."
+   "fixed": false,
+   "notes": "Derived blind: flat or down for months, no rally (b18, k05, b14). Near-miss 'flat two weeks then rally' is clearly wrong; no second answer; no overlap with q24/q25/q52/q62/q63 answers."
   },
   "q04": {
    "status": "pass",
@@ -4030,7 +4030,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c24, h26). The Any-EP note says Bonde says the market plays no role, but only b17 (opportunities even in bear markets) is cited. Reword to b17."
+   "notes": "Key right (F65, c24, h26: Orange only A+). Tell: 'by our guide' is the lone hedge, only in the key. Move it to the stem."
   },
   "q22": {
    "status": "pass",
@@ -4125,8 +4125,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (140% sales plus raised guide are the card's triple-digit and raised-guide A+ cues; 20% has neither). The why wrongly lists 'a beat' as an A+ cue: c09 makes the beat part of the base 25% cue, only triple-digit growth and a raised guide are A+ cues."
+   "fixed": false,
+   "notes": "Derived blind: first has triple-digit sales growth plus a raise (c09 A+ cues); second at 20% is under the 25% cue. Wrong notes match c09/k08/h17; growth-is-a-cue-not-a-gate stated. No numbers outside the story and quotes."
   },
   "q38": {
    "status": "pass",
@@ -4143,8 +4143,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math was right (392) but the fill 31.76 and stop 31.25 are OII's exact day-4 buy (d07), and OII is now the q62 hidden chart, so q40 leaks the real buy level of the hidden ticker. Replaced with neutral numbers: 40000*0.5%=200; 200/(38.40-37.80)=333.3 so 333 shares; 333*38.40=12,787 which is 32% of the account, under the 40% cap. d07 dropped from facts."
+   "fixed": false,
+   "notes": "40000*0.5%=200; 200/0.60=333.33, down to 333. Position 333*38.40=12,787 = 32% of the account, under the 40% cap (h37, A7). Calc args match the stem; no overlap."
   },
   "q41": {
    "status": "pass",
@@ -4180,7 +4180,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key says weaker trigger, but nothing in the lesson teaches that the inside-day trigger is weaker (q59 teaches it as a good tight trigger); it rests on a 28% vs 41% scan stat a member cannot derive, and one stop-out does not show it. Rekey to what d17/d30/h02 support: a strong gap that failed to follow through, cut small by the stop."
+   "notes": "Key right (d16/d17/d30/h02). Choice D 'not buying on the first day' cannot be ruled out from the story (d17 says the inside-day trigger is the weaker one), so it is a second defensible read. Replace it with a clearly false choice. Also the deeper example's '0.0R' reads as the result; d16 says best run 0.0R."
   },
   "q47": {
    "status": "pass",
@@ -4192,7 +4192,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is the longest choice, and the pre-market choice is silly (the story says a day-3 regular-hours break). Shorten the key and swap in a grounded lookalike: a weak close, refuted by the 86% close (c07/c08)."
+   "notes": "Key supported (d20, d21: least neglected of the four; others pass c03/c07/c27). Tell: the three wrong choices share 'too small/light/weak' while the key is the odd shape. Make the four parallel noun phrases."
   },
   "q49": {
    "status": "pass",

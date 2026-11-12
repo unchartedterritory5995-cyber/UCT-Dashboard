@@ -1599,27 +1599,26 @@
    "q": "By our rule, which base is the VCP?",
    "choices": [
     "Base B; its pullbacks get smaller",
-    "Base A; a rounded cup with a handle",
+    "Base A; one deep pullback is enough",
     "Both; each pulls back and recovers",
-    "Neither; a VCP is a single flat box"
+    "Neither; a VCP needs a cup shape first"
    ],
    "answer": "Base B; its pullbacks get smaller",
-   "why": "Base B. A cup is one rounded decline and one handle at the rim. A VCP strings pullbacks that shrink one after another, from greater volatility on the left to lesser on the right.",
-   "lesson_line": "Count the pullbacks. A string of shrinking ones is a VCP; one round trip plus a handle is a cup.",
+   "why": "Base B. A VCP strings pullbacks that shrink one after another, from greater volatility on the left to lesser on the right: 18%, 9%, 4%. Base A has one pullback, so nothing shrinks.",
+   "lesson_line": "A VCP is a string of shrinking pullbacks. One pullback is not a string.",
    "facts": [
-    "c33",
     "v01",
     "c27",
-    "c30"
+    "c33"
    ],
    "wrong": {
-    "Base A; a rounded cup with a handle": "One round trip plus a handle is a cup, judged by the cup rules.",
     "Both; each pulls back and recovers": "Every base pulls back. A VCP needs pullbacks that shrink one after another.",
-    "Neither; a VCP is a single flat box": "A flat box has no shrinking pullbacks. That is a flat base, not a VCP."
+    "Base A; one deep pullback is enough": "One pullback has nothing to shrink. A VCP needs a string of them.",
+    "Neither; a VCP needs a cup shape first": "A cup is a different base: one rounded decline and one handle. A VCP is read by its shrinking pullbacks."
    },
    "house": true,
-   "story": "Base A is one rounded decline with a small handle at the rim. Base B has three pullbacks: 18%, 9% and 4%.",
-   "simple": "Base B is the VCP, because its three pullbacks keep shrinking, while Base A is one rounded cup with a handle.",
+   "story": "Base A has one 15% pullback, then drifts up to the pivot. Base B has three pullbacks: 18%, 9% and 4%.",
+   "simple": "Base B is the VCP, because its three pullbacks keep shrinking, while Base A has only one pullback.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1693,7 +1692,6 @@
    "lesson_line": "A squat is a warning. The stop decides the exit.",
    "facts": [
     "c16",
-    "d11",
     "h02",
     "h03b",
     "d19"
@@ -1704,7 +1702,7 @@
     "Widen the stop to give it room": "The stop only moves up, never wider. Widening it to give the stock room is a named mistake."
    },
    "house": true,
-   "story": "You bought the breakout at 28.65. It closes at 28.14, back inside the base, still above your stop.",
+   "story": "You bought the breakout at 41.10. It closes at 40.52, back inside the base, still above your stop.",
    "simple": "Hold. A close back inside the base is a warning, not a sell signal, so the stop stays the exit.",
    "deeper": {
     "counter": "A warning is not a shrug. In our scan, a close above the pivot on the buy day reached 3R 36.9% of the time. A close back inside the base reached it 18.9% of the time. So the squat is a real warning, but the stop still decides the exit."
@@ -1830,11 +1828,11 @@
    "choices": [
     "A VCP in the making",
     "A flat base after a rally",
-    "A high tight flag pause",
+    "A high tight flag",
     "A cup with a handle"
    ],
-   "answer": "A high tight flag pause",
-   "why": "A high tight flag. The stock doubled in 7 weeks, a very big run in a short time, and then paused with no shrinking pullbacks. A high tight flag follows a run of 90% or more in 8 weeks or less. The pause then lasts 5 to 30 sessions and stays at most 25% deep. A VCP needs pullbacks that shrink one after another.",
+   "answer": "A high tight flag",
+   "why": "A high tight flag. The stock doubled in 7 weeks, a very big run in a short time, then paused with no shrinking pullbacks. On our card, a high tight flag follows a run of 90% or more in 8 weeks or less, then pauses 5 to 30 sessions, at most 25% deep. A VCP needs pullbacks that shrink one after another.",
    "lesson_line": "Measure the pole first. A near-double that pauses is a high tight flag.",
    "facts": [
     "c34"
@@ -2034,29 +2032,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "vcp.breakeven",
-   "q": "Where does the stop go now?",
+   "q": "Our rule moves the stop to breakeven, ideally within which range?",
    "choices": [
-    "Leave it where it was",
-    "Under the last swing's low",
-    "Move it up to breakeven",
-    "Under the 10-day average"
+    "Between 1R and 2R",
+    "Between 2R and 5R",
+    "Between 5R and 8R",
+    "Between 8R and 10R"
    ],
-   "answer": "Move it up to breakeven",
-   "why": "Up to breakeven. Our rule moves the stop to breakeven at 2R to 5R, ideally, and 3R is inside that window. The stop only moves up, never down or wider. The trail on a moving average belongs to the last third, after the 5R trim.",
-   "lesson_line": "Breakeven is due between 2R and 5R. At 3R the stop moves up.",
+   "answer": "Between 2R and 5R",
+   "why": "Between 2R and 5R. That is the window where our rule moves the stop to breakeven, ideally. The stop only moves up, never down or wider.",
+   "lesson_line": "Breakeven stop, ideally between 2R and 5R. The stop only moves up.",
    "facts": [
     "h05",
-    "h20",
-    "h21"
+    "h02"
    ],
    "wrong": {
-    "Under the last swing's low": "The rule names breakeven, not a swing low. The stop only moves up.",
-    "Leave it where it was": "At 3R the window of 2R to 5R is open, and our rule moves the stop to breakeven.",
-    "Under the 10-day average": "A trail on a moving average is for the last third, after the 5R trim, not for the stop at 3R."
+    "Between 1R and 2R": "Under 2R the window has not opened yet.",
+    "Between 5R and 8R": "The window ends at 5R. By then the stop should already be up.",
+    "Between 8R and 10R": "The window ends at 5R, well before this."
    },
    "house": true,
    "story": "You bought a VCP breakout. Your stop is still under the entry day's low. It hits 3R, and you sell a third.",
-   "simple": "Move the stop up to breakeven, because 3R is inside the 2R to 5R window where our rule moves it.",
+   "simple": "Between 2R and 5R. That is where our rule ideally moves the stop up to breakeven.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2065,7 +2062,8 @@
      "the old key said 'by default at the first trim', which no quoted line states"
     ]
    },
-   "batch": "wave2"
+   "batch": "wave2",
+   "order": "fixed"
   },
   {
    "key": "q38",
@@ -2155,30 +2153,31 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "vcp.after_entry_stop",
-   "q": "What went wrong?",
+   "q": "What was wrong with the setup?",
    "choices": [
     "Nothing; a clean setup can fail",
     "The base was loose",
-    "We should have held through the stop",
-    "Drop this setup from the plan"
+    "Volume was too light on the breakout",
+    "The contractions were too shallow"
    ],
    "answer": "Nothing; a clean setup can fail",
-   "why": "Nothing went wrong. CMG showed two shrinking contractions, 14.2% then 4.6%, on 2.0x volume, and closed above the pivot. It reached only 0.87R, then drifted to the stop 11 sessions later. Our scan lists it as a failure with nothing wrong in the setup. That is why the stop, not an opinion, is the exit.",
+   "why": "Nothing was wrong with the setup. CMG showed two shrinking contractions, 14.2% then 4.6%, on 2.0x volume, and closed above the pivot. It reached only 0.87R, then fell to the stop. Our scan lists it as a failure with nothing wrong in the setup. That is why the stop, not an opinion, is the exit.",
    "lesson_line": "A clean setup can still lose. The stop is the cost of finding out.",
    "facts": [
     "d12",
     "d13",
     "d14",
-    "h15"
+    "c02",
+    "c03"
    ],
    "wrong": {
-    "We should have held through the stop": "The stop is the exit. Holding past it is how small losses grow.",
-    "The base was loose": "The story shows a clean setup, and our scan lists this trade as a failure with nothing wrong in the setup.",
-    "Drop this setup from the plan": "One loss from a clean setup proves nothing. The setup was fine."
+    "The base was loose": "Two shrinking contractions, 14.2% then 4.6%, are not loose.",
+    "Volume was too light on the breakout": "2.0x volume is heavy, not light.",
+    "The contractions were too shallow": "14.2% and 4.6% sit inside the card's ranges."
    },
    "house": true,
-   "story": "CMG: two shrinking contractions, 2.0x volume, a close above the pivot. It reached 0.87R, then drifted to the stop 11 sessions later.",
-   "simple": "Nothing went wrong. A clean setup can still fail, and the stop, not an opinion, is the exit.",
+   "story": "CMG: two shrinking contractions, 2.0x volume, a close above the pivot. It reached 0.87R, then fell back to the stop.",
+   "simple": "Nothing was wrong with the setup. A clean setup can still fail, and the stop, not an opinion, is the exit.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2635,7 +2634,7 @@
    "criterion": "vcp.not_stretched",
    "q": "Buy or pass?",
    "choices": [
-    "Buy half size, tight stop",
+    "Pass; the base is too loose",
     "Pass; it is too stretched",
     "Buy; the base is perfect",
     "Buy; the 10% rule is for chases"
@@ -2649,8 +2648,8 @@
    ],
    "wrong": {
     "Buy; the base is perfect": "The stretch limit applies to every long.",
-    "Buy half size, tight stop": "The rule skips the buy, not halves it.",
-    "Buy; the 10% rule is for chases": "These are two rules. The chase limit is 4% above the pivot. The stretch limit is 10% above the 10-day average."
+    "Buy; the 10% rule is for chases": "These are two rules. The chase limit is 4% above the pivot. The stretch limit is 10% above the 10-day average.",
+    "Pass; the base is too loose": "The story gives a clean VCP breakout. The skip comes from the stretch, not the base."
    },
    "house": true,
    "story": "A VCP breaks out cleanly. But the stock is 12% above its 10-day average when you find it.",
@@ -2998,28 +2997,27 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "vcp.volume_dry",
-   "q": "The day before its breakout, pullbacks are 14% then 4%. The last leg's volume is 1.13 times the 50-day, quietest day 0.81 times. Take it?",
+   "q": "Pullbacks are 14%, then 4%. The last leg's volume is 0.89 times the first leg's; its quietest day 0.81 times the 50-day. Take it?",
    "choices": [
-    "Pass; volume did not dry up late",
-    "Take it; the swings keep shrinking",
-    "Take it; the last swing is under 10%",
+    "Pass; no day fell to half the average",
+    "Take it; volume is below the first leg's",
+    "Take it; the quietest day is under 1x",
     "Pass; the first swing is too shallow"
    ],
-   "answer": "Pass; volume did not dry up late",
-   "why": "Pass. The pullbacks shrink, 14% then 4%. But the final leg ran at 1.13 times the 50-day average volume, and its quietest day was 0.81 times. The rule needs volume below the 50-day average and at least one day at or under half of it.",
-   "lesson_line": "Shrinking price is not enough. Look at the volume bars in the last swing.",
+   "answer": "Pass; no day fell to half the average",
+   "why": "Pass. The last leg's volume is below the first leg's, which is good. But its quietest day was 0.81 times the 50-day, and the rule needs at least one day at or under half of it.",
+   "lesson_line": "Shrinking price is not enough. The last swing needs at least one day at half the average volume or less.",
    "facts": [
     "d24",
     "d25",
     "c05",
     "c02",
-    "c03",
     "v03"
    ],
    "wrong": {
-    "Take it; the swings keep shrinking": "They do shrink, but the dry-up test failed.",
     "Pass; the first swing is too shallow": "A 14% first swing is inside the 10% to 40% range. Only a first swing under 10% is too shallow.",
-    "Take it; the last swing is under 10%": "The 4% last swing does pass that test, but the dry-up test failed."
+    "Take it; volume is below the first leg's": "That is one of three tests. The rule also needs a day at or under half the 50-day average.",
+    "Take it; the quietest day is under 1x": "0.81 times is below average, but the rule needs a day at half the average or less."
    },
    "house": true,
    "chart": {
@@ -3028,7 +3026,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because the final leg traded above the 50-day average volume with no quiet day, so volume did not dry up.",
+   "simple": "Pass, because no day in the last leg fell to half the 50-day average, so volume did not dry up enough.",
    "deeper": {
     "trap": "Shrinking price alone is the trap. Swings of 14% then 4% look textbook, but Minervini ties the shrinking to a reduction in volume at particular points, and here the last leg shows none."
    },
@@ -3393,7 +3391,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "vcp.tight_closes",
-   "q": "Which base grades higher?",
+   "q": "By our card's grade cues, which base rates higher?",
    "choices": [
     "Base A; its closes stay tight",
     "Base B; its closes show action",
@@ -3401,15 +3399,15 @@
     "Base B; it shakes out weak hands"
    ],
    "answer": "Base A; its closes stay tight",
-   "why": "Base A. Our rule lists tight closes, with little change from one day to the next and from one week to the next in the final contraction, as a grade cue. Both bases have the same 5% depth and quiet volume, so the closes decide. 3% to 6% with tight closes is best, and 8% to 10% with loose closes is B-.",
+   "why": "Base A. Our card lists tight closes, with little change from one day to the next and from one week to the next in the final contraction, as a grade cue. Both bases have the same 5% depth and quiet volume, so the closes decide. Grading stays a judgment call.",
    "lesson_line": "In the final contraction, tight closes day to day and week to week grade higher.",
    "facts": [
     "c07",
     "c03"
    ],
    "wrong": {
-    "Base B; its closes show action": "Loose closes grade lower. The cue is little change from one day to the next.",
-    "Neither; equal depth, equal grade": "Both are 5% deep, but our rule also grades on tight closes.",
+    "Base B; its closes show action": "Loose closes rate lower. The cue is little change from one day to the next.",
+    "Neither; equal depth, equal grade": "Both are 5% deep, but our card also looks at tight closes.",
     "Base B; it shakes out weak hands": "A shakeout is a different cue: an undercut that recovers. Jumpy closes are not that."
    },
    "house": true,
@@ -3839,8 +3837,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (card Red: no VCP buys; D46). One deeper sentence ran 25 words; shortened."
+   "fixed": false,
+   "notes": "Key False is right (card c25, rulebook D46, ChartMill). No second answer, no tell."
   },
   "q11": {
    "status": "pass",
@@ -3869,8 +3867,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 6 right (calc). A deeper sentence ran 23 words; shortened."
+   "fixed": false,
+   "notes": "24 / 2 / 2 = 6; calc matches; the stem states exact halving so the 'about half' caveat is only in the why. No tell."
   },
   "q16": {
    "status": "pass",
@@ -3893,8 +3891,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 17.13 right (16.47 x 1.04 = 17.1288). The why says the stop stays put, the distance grows and shares shrink; that is h12, which was not cited. Added h12."
+   "fixed": false,
+   "notes": "16.47 x 1.04 = 17.1288, rounds to 17.13; matches calc and C28. No second answer."
   },
   "q20": {
    "status": "pass",
@@ -3930,19 +3928,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong note says a flat box is a flat base, which rests on c30 (and v05), not cited. Add c30. Key itself matches the card's cup versus VCP tell."
+   "notes": "Base A (a cup with a handle) is arguably a 2-contraction shrinking VCP by the card (vcp.count allows 2 to 6, D-058 default 2), so 'Base B only' is not safe; the 'flat box' choice is also silly. Rebuilt so Base A has a single pullback, which fails under any count."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c18). The wrong note for 'Wait a day' claimed a new setup needs a new contraction and pivot, which is c13 (a close below), not c18; narrowed to what c18 supports. Why had a 24-word sentence; split."
+   "fixed": false,
+   "notes": "Key right (c18, c29). Wrong choices are real misreadings. Rests on a proposed card check (D-008) but the stem says 'by our card'."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c16, A4). Deeper counter had a 26-word sentence; split, figures unchanged (d19)."
+   "notes": "Key right (c16, A4). But the story reuses the ALGN prices of q47 (28.14 close), and q47's choice 'A squat; the stop decides' gives this key away. Changed the numbers so it is not the same case."
   },
   "q28": {
    "status": "pass",
@@ -3966,7 +3964,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (100% run in 7 weeks, 18 sessions, 8% deep all inside c34). One wrong note ran 24 words; shortened."
+   "notes": "Key is right on the card's definition, but the key 'A high tight flag pause' repeats the story's word 'pauses' (tell), and the 90%/8 weeks/5-30 sessions/25% numbers sit under held decisions D-048 to D-050 so the why should say they are our card's. Shortened key; why now says 'on our card'."
   },
   "q32": {
    "status": "pass",
@@ -4002,7 +4000,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why and a wrong note state the 10-day trail for the last third; h21 says 10-day for fast movers, 21-day for steadier. Uncited and too specific. Reworded and h21 added."
+   "notes": "Second defensible answer: B19 says breakeven at 2R to 5R 'ideally', so at 3R 'leave it where it was' is also inside the window; the writer's own risk note flags the same. Replaced by a question on the window itself, which the rulebook states exactly."
   },
   "q38": {
    "status": "pass",
@@ -4013,14 +4011,14 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story says META 'closed above the pivot' and a wrong note says 'the breakout day closed well'; neither is in the cited facts (d15, d16). Removed."
+   "fixed": false,
+   "notes": "Key right (d15, d16, B19): 1.18R is under the 2R window. 3.2% checks (16.92/522.89). No second answer."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Setup read is right, but the key said 'the stop did its job'. CMG never reached 1R, so under C33 the time stop would have sold it about when the stop hit. Reworded the key and the wrong note to say only what the sources support (clean setup, still failed)."
+   "notes": "Contradicts q44 and C33: a trade under 1R after 10 trading days is sold, and CMG drifted 11 sessions at best 0.87R, so 'what went wrong?' has an answer (the time stop). Ask about the setup only and drop the 11 sessions; h15 dropped from facts."
   },
   "q41": {
    "status": "pass",
@@ -4104,7 +4102,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (C29, 12% > 10%). Deeper trap had a 30-word sentence; split."
+   "notes": "Key right (C29, 12% > 10%). Tell: one Pass against three Buy choices. Swapped 'Buy half size, tight stop' for a second Pass with a wrong reason."
   },
   "q55": {
    "status": "pass",
@@ -4158,7 +4156,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'The base is long enough' is an inert decoy: the stem says nothing about length. Replaced by a real misreading (final swing under 10%, grounded in c03)."
+   "notes": "Duplicate of q33 (same AMZN case: 14% then 4%, 1.13x, no quiet day, answer 'dry-up'); q33's stem and key give this one away, and the stem's volume numbers make the only volume choice a tell. Reframed on a different datum from d24 (0.89x the first leg, quietest day 0.81x) with a second volume decoy. Consider cutting q33 or q63 if fewer dry-up items are wanted."
   },
   "q64": {
    "status": "pass",
@@ -4224,7 +4222,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key was the longest choice (35 vs 33, 32, 32), a tell. Shortened the key; wrong notes unchanged."
+   "notes": "Rulebook E50: grading is discretionary, no fixed checklist taught as ours; 'Our rule lists... grade cue' and 'Neither, equal grade' collide with it, and c07 is a proposed card cue. Reworded as the card's cue and noted grading is a judgment call."
   },
   "q75": {
    "status": "pass",
@@ -4278,7 +4276,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Buy at market is right (E57, F62, B22, C28 0.8% over pivot, C29 3%, RS 90, above 200-day, Green). Distractors fail on stated rules. Story omits volume and the day's low vs final low but no choice depends on them."
   }
  }
 }

@@ -2357,16 +2357,16 @@
    "rung": 6,
    "format": "tf",
    "criterion": "ng.correction_end",
-   "q": "Coming out of a correction, the recent earnings gappers often lead on the other side.",
-   "answer": "True",
-   "why": "True. This is UCT's view from our Sunday Scans. Coming out of a correction, the recent earnings gappers often have stellar performance on the other side. Often is not always, and any buy still needs its own trigger.",
+   "q": "Our Sunday Scans say that, coming out of a correction, the recent earnings gappers usually lag the market.",
+   "answer": "False",
+   "why": "False. Our Sunday Scans say the opposite: coming out of a correction, the recent earnings gappers often have stellar performance on the other side. Often is not always, and any buy still needs its own trigger.",
    "lesson_line": "After a correction, watch the recent earnings gappers.",
    "facts": [
     "c31",
     "u05"
    ],
    "house": true,
-   "simple": "True. After a correction, the newest earnings gappers often lead the next move up.",
+   "simple": "False. After a correction, the newest earnings gappers often lead the next move up.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3047,9 +3047,9 @@
    "q": "Hidden ticker, five sessions after a report gap. Take the reclaim or pass?",
    "choices": [
     "Take it; the gap-day low held",
+    "Buy at the close; skip the trigger",
     "Pass; the gap-day low gave way",
-    "Pass; the gap has already filled",
-    "Pass; the stock is too extended"
+    "Pass; the gap has already filled"
    ],
    "answer": "Take it; the gap-day low held",
    "why": "Take it. The setup is complete. A 14.2% gap on 4.8x volume closed at 94% of its range. A 4-session pullback, 2.8% deep, held the gap-day low, then reclaimed the prior high. The buy is a market order as price trades over the prior day's high.",
@@ -3065,7 +3065,7 @@
    "wrong": {
     "Pass; the gap-day low gave way": "No close in the pullback sat under the gap-day low.",
     "Pass; the gap has already filled": "The pullback was only 2.8% deep against a 14.2% gap, so price never got near the prior close.",
-    "Pass; the stock is too extended": "This stock came out of a correction, down 11% over 65 sessions, so it was not extended."
+    "Buy at the close; skip the trigger": "The buy is a market order as price trades over the prior day's high. Buying before that skips the trigger."
    },
    "house": true,
    "chart": {
@@ -3233,7 +3233,7 @@
     "Buy it back at half size to be safe": "Half size does not replace the trigger. A new buy needs its own trigger, stop and size."
    },
    "house": true,
-   "simple": "Buy again only on a new trigger, as a new trade. A loss is never a reason to buy.",
+   "simple": "After a stop-out, buy again only on a new trigger, as a new trade with its own stop.",
    "deeper": {
     "trap": "A big gap on big volume can make a stop-out feel like a mistake. The day-4 reclaim at 51.76 failed the next session, best 0.0R, and the gap was given back within weeks. Whatever the gap looked like, the next buy needs its own new trigger."
    },
@@ -3262,7 +3262,7 @@
    ],
    "answer": "Small losses, trims at 3R and 5R",
    "why": "Small losses and trims at 3R and 5R. In our scan 29.5% reached 3R and 19.5% reached 5R before the stop, so most buys never get to the trims. The stop sets the size, so each loss is small. A third comes off at 3R and another at 5R.",
-   "lesson_line": "Most buys never reach 3R. Small losses and trims pay for them.",
+   "lesson_line": "Most buys never reach 3R. Small losses and trims keep the plan alive.",
    "facts": [
     "d29",
     "h01",
@@ -3270,7 +3270,7 @@
     "h20"
    ],
    "wrong": {
-    "A wider stop that rarely gets hit": "A wider stop turns a small loss into a big one.",
+    "A wider stop that rarely gets hit": "The stop sits a few cents under the pullback low and never moves wider. Parking it far away to avoid being hit breaks that rule.",
     "Adding more when volume climbs fast": "One buy, one price, one stop: no adding.",
     "Skipping every pullback buy": "The pullback buy is part of the plan, not the problem."
    },
@@ -3527,14 +3527,14 @@
    "term": "PEG",
    "q": "What is a PEG?",
    "choices": [
-    "A leader's report day, clearing a base",
+    "A leader's report gap, clearing a base",
     "First gap in six months, neglected stock",
     "Small gap after a weak red close",
     "Gap up on good news, then a red close"
    ],
-   "answer": "A leader's report day, clearing a base",
-   "why": "A leader's report day, clearing a base. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on it is taught here.",
-   "lesson_line": "A PEG is a leader's report day out of a base.",
+   "answer": "A leader's report gap, clearing a base",
+   "why": "A leader's report gap, clearing a base. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on it is taught here.",
+   "lesson_line": "A PEG is a leader's report gap out of a base.",
    "facts": [
     "c47",
     "c46",
@@ -3570,13 +3570,13 @@
    "term": "Gap Support",
    "q": "What is Gap Support?",
    "choices": [
-    "Later test of the gap-up low, weeks on",
+    "A later test of the gap-up low itself",
     "First pullback after a gap, within days",
     "Gap up on good news, then a red close",
     "Stop placed under the gap-up low"
    ],
-   "answer": "Later test of the gap-up low, weeks on",
-   "why": "A later test of the gap-up low. Gap Support is the later test of the gap-up low itself, 2 to 60 sessions on, bought as that low is defended. The gapper's own pullback comes within about 2 to 10 sessions.",
+   "answer": "A later test of the gap-up low itself",
+   "why": "A later test of the gap-up low itself. Gap Support is the later test of the gap-up low, 2 to 60 sessions on, bought as that low is defended. The gapper's own pullback comes within about 2 to 10 sessions and keeps every close above the gap-day low.",
    "lesson_line": "Gap Support is a later test of the gap-up low.",
    "facts": [
     "c50",
@@ -3585,7 +3585,7 @@
     "c15"
    ],
    "wrong": {
-    "First pullback after a gap, within days": "That is the News Gapper pullback, within about 2 to 10 sessions of the gap.",
+    "First pullback after a gap, within days": "That is the News Gapper pullback: within about 2 to 10 sessions, with every close above the gap-day low.",
     "Gap up on good news, then a red close": "That is a News Failure: it closes red after good news.",
     "Stop placed under the gap-up low": "Gap Support is a later test of the gap-up low, bought as that low is defended. It is not a stop level."
    },
@@ -3721,8 +3721,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 'wait; buy the pullback' choice is a second defensible answer: its own note says 'We teach both', and the story is only a day-one trigger. Replace it with a choice the card refutes and change the stem so it does not offer the pullback as a rival. Still rests on D-086; cut if the owner picks 'never the open'."
+   "fixed": false,
+   "notes": "Key correct: day one over the opening-range high with hot volume and still above the open (ng.entry_day1, F62 stop). 9% clears the 4% floor; 2% stop is under the 3% / 1.5 ATR limits. u01 and u04 verified on the Substack pages. Entry rule is a pending-owner default (D-086, D-005), not an owner ruling."
   },
   "q49": {
    "status": "cut",
@@ -3841,8 +3841,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c27, c28). Voice only: the why has a 24-word sentence. Near-duplicate in spirit of q42 (close under gap-day low, no Buy 2); q25 kept for the day-4 reclaim twist."
+   "fixed": false,
+   "notes": "Key correct (card ng.inv_pullback_breaks_low and ng.inv_close_under_low). Quotes verbatim in card. Note: overlaps q42 and q10 (same fact); the lone No is inherent to a no-buy answer."
   },
   "q26": {
    "status": "pass",
@@ -3901,14 +3901,14 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'Only the first has the A+ cue' is literally false: the 11% gap and record volume are also A+ cues (c05, c06) that both stocks have, and the foil 'Both A+' is defensible as a grade. Re-keyed to the single quiet cue (c41), stem asks for that cue, foil 'Both' no longer claims a grade, key no longer the shortest. Same logic as q69 (quiet beats active); kept because the lines differ (15% over 3 months vs 35% over 60 sessions)."
+   "fixed": false,
+   "notes": "Key correct: first stock is quiet (flat, under about 15% in 3 months); 25% misses the A+ cue but is not yet a B- cue (30%). Quotes c41, c42 verbatim in card."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'First a B-; closed too near the high' is a silly choice nobody would pick (a tell). Replace with the plausible swapped-order error. Still teaches the card's top-quarter cue, which clashes with the rulebook's E50 (no fixed grading checklist as ours); the owner flag stands, cut if refused."
+   "fixed": false,
+   "notes": "Key correct: 93% is in the top quarter (A+ cue, c40); 60% is upper half so only holds (c02). Mirror distractor stops a polarity tell."
   },
   "q39": {
    "status": "pass",
@@ -3938,7 +3938,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "True per u05 and c31, framed as UCT's view. Voice only: the why has a 25-word sentence. Split."
+   "notes": "True-with-hedge (often) is the classic TF tell, and the lesson's TFs are 10 True to 4 False. Quote u05 verified on the Sunday Scans page. Rewritten as a False statement that the source contradicts."
   },
   "q45": {
    "status": "pass",
@@ -3955,14 +3955,14 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Sell all; a report is a coin flip' is also a correct action with a reason no fact refutes, so its note ('Selling is right') admits a second defensible answer. Give the decoy a checkable false reason (the line is 5R, not 10R)."
+   "fixed": false,
+   "notes": "Key correct: B22 / E57-style rule, hold through a report only if up 5R; 4R is under. Quotes c24, c37, h08 verbatim. Sell-all distractor is wrong only on the 10R reason, which the fact refutes."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (h01, d15; TWLO d05 shows day 8 can win). Two wrong notes had no cited support ('A loss at the stop is the system working', 'one stopped trade proves nothing', stop 'set by the pullback low'). Rewritten onto d29 and c15, which are added to facts."
+   "notes": "Content and key are sound (planned loss; stop did its job). Provenance defect: facts d14 and d15 are quoted from the card's examples.failures (source c1) but cited to d1 (the dossier), where the wording differs ('gap 2024-03-05 (+15.3% ...)' and 'reclaim on 2024-03-14 was bought'), so the quotes are not found on the cited page. Repoint d14, d15 (and d17 for q66) to source c1 in the lesson facts array, or re-quote the dossier text verbatim. Question fields themselves unchanged."
   },
   "q50": {
    "status": "pass",
@@ -3997,8 +3997,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (c06, k04; 9:50 is 20 minutes after the open). Voice: why has a 27-word sentence and the deeper trap a 23-word one. Split. Also 'does not earn it' could read as denying a slow HVE day the A+ volume cue (c06 allows highest-volume-ever), so it now says 'this speed cue'."
+   "fixed": false,
+   "notes": "Key correct (c06, ng.volume_a_plus; k04 verified on qullamaggie page). 9:50 is exactly 20 minutes, inside the 15 to 20 window. Not answered by q31, which never calls the volume an A+ cue."
   },
   "q60": {
    "status": "pass",
@@ -4009,14 +4009,14 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer 400 is underdetermined: A5 takes the smaller of the risk size and the position cap, and the 40% cap could bind below 400 for a smaller account. State that the cap allows 666 too. Question kept under 140 characters."
+   "fixed": false,
+   "notes": "400 = 1% of 40,000 (D42), smaller than 666 (A5). Consistent with the rulebook; $24M a day passes B23. Minor: criterion tag is rule.A5 while the deciding rule is D42 (ng.position_adv). Overlaps q70/q71 but not a leak."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (d01, d02, d03; 2016-03-18 is the day-6 reclaim, five sessions after the 03-11 gap). The 'gap has already filled' note rested on an uncited chart claim; now grounded in d01 and d03 (2.8% pullback against a 14.2% gap). Lone Take against three Pass is inherent to a chart item."
+   "notes": "Lone Take against three Pass is a polarity tell. Replaced the weakest Pass (too extended) with a wrong Take (buy at the close, skipping the trigger) so it is two and two, as q63 is. Number checks (14.2%, 4.8x, 94%, 2.8%, 11%) match d01/d03. Chart asof 2016-03-18 is session 5 after gap day 2016-03-11 and the buy is session 6 (3/21), consistent; bars not available to confirm the chart itself."
   },
   "q63": {
    "status": "pass",
@@ -4034,13 +4034,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h28). 'Only' made the key the lone absolute, and the rule also caps tries (h29), so 'only' overstated it. 'There is no ban' note reworded to what E56 says."
+   "notes": "Key correct (B21, h28). The simple line 'A loss is never a reason to buy' says more than the rule or the why. Also fact d17 quote is from the card (c1) but cited to the dossier (d1) where it reads differently; repoint to c1."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The deeper claim 'small losses must carry the plan' has no cited fact; the scan has a fixed stop and no trims. Restate it with only what d29, h01, h05 and h20 say."
+   "notes": "Wrong-choice note 'A wider stop turns a small loss into a big one' is false under our sizing (A5: size comes from the stop, so the account loss stays the same; shares shrink). Rewritten to the real rule (A3/A4: a few cents under the pullback low, never wider). lesson_line 'pay for them' claims an expectancy the cited facts do not give; softened. 29.5% and 19.5% are verbatim in d29 (scan is fixed stop, no trims)."
   },
   "q68": {
    "status": "pass",
@@ -4051,8 +4051,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c54, c45; 31/20 is 55% above the low, past the 35% line). Voice: why has a 41-word sentence and simple a 23-word one. Split. Dropped 'far wider' to avoid an unstated degree. Overlaps in spirit with q37 (quiet beats active), kept for the different line."
+   "fixed": false,
+   "notes": "Key correct: 5-month flat base fits c54/c45; 20.00 to 31.00 is 55% wide, over the 35% line. Quotes verbatim in card."
   },
   "q70": {
    "status": "pass",
@@ -4082,13 +4082,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The Gap Support choice and its note ('the later test of the gap-up low') hand out q75's key word for word, so the two questions answer each other. Swap that choice for a Kicker (c48)."
+   "notes": "Key is correct (c47), but it is the only choice without the word gap while all three distractors contain it, and PEG stands for Power Earnings Gap: a mild tell. Rewritten so all four say gap. Distractor wrong-notes are supported by c46, c48, c26."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Its Kicker and News Failure choices repeat q74's notes, so elimination alone finds the key. Replace the Kicker choice with a stop-level misreading that c50 and c15 refute."
+   "notes": "Key says 'weeks on', but c50 says 2 to 60 sessions on, and the gapper's pullback is 2 to 10 sessions, so the time wording overreaches and overlaps the 'within days' distractor. The real difference is testing the low itself versus keeping every close above it (c10, c50). Rewritten."
   }
  }
 }

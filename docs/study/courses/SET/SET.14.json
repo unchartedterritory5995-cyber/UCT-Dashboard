@@ -934,7 +934,7 @@
    "q": "In one line, what is a 20 EMA pullback?",
    "choices": [
     "A leader resting on its rising 20 EMA",
-    "A line lost for a week, then retaken",
+    "A stock sliding below a falling 20 EMA",
     "A tight box under a flat ceiling",
     "A sharp V-bottom off the 200-day"
    ],
@@ -951,9 +951,9 @@
     "c21"
    ],
    "wrong": {
-    "A line lost for a week, then retaken": "That is a Remount: five or more closes in a row under the line. A pullback allows at most one.",
     "A tight box under a flat ceiling": "That is a flat base. A pullback is a dip to a moving line, not a rest under a level.",
-    "A sharp V-bottom off the 200-day": "A pullback sits in a rising trend above the 200-day. A V-bottom is a reversal."
+    "A sharp V-bottom off the 200-day": "A pullback sits in a rising trend above the 200-day. A V-bottom is a reversal.",
+    "A stock sliding below a falling 20 EMA": "That is a downtrend. A pullback needs a leader and a 20 EMA that is still rising."
    },
    "house": true,
    "simple": "It is a strong stock taking a short, quiet rest at a 20 EMA line that is still rising.",
@@ -1826,7 +1826,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "e20.stop",
-   "q": "Fill 48.60. The hold candle's low is 47.45 and the stop sits three cents under it. How far below the fill is the stop, in percent?",
+   "q": "Fill 48.60. The hold candle's low is 47.45 and the stop sits three cents under it. Stop distance below the fill, in percent, to 2 decimals?",
    "answer": 2.43,
    "calc": {
     "fn": "arith",
@@ -2222,16 +2222,16 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "e20.pullback_volume",
-   "q": "Which pullback grades higher?",
+   "q": "Two six-day pullbacks to the 20 EMA. Which one does Brian Shannon prefer?",
    "choices": [
     "The lighter-volume one; less selling",
     "The heavy one; buyers will show",
     "Equal; the touch is the touch",
-    "Neither; volume plays no part in a grade"
+    "Neither; he ignores volume"
    ],
    "answer": "The lighter-volume one; less selling",
-   "why": "The quiet drift. A quiet pullback, with lower volume each day and small bars, is the cue that lifts a grade. Heavy selling into the line pulls it down. Grading stays a judgment call. TraderLion: a slow drift into the EMAs is ideal.",
-   "lesson_line": "Quiet into the line grades up. Loud into the line grades down.",
+   "why": "The quiet drift. Shannon looks for volume contracting during pullbacks, and TraderLion calls a slow drift into the EMAs ideal. Heavy selling into the line is sellers showing. Grading stays a judgment call.",
+   "lesson_line": "Quiet into the line is the better sign. Loud into the line is a warning.",
    "facts": [
     "c24",
     "c25",
@@ -2240,13 +2240,13 @@
     "h91"
    ],
    "wrong": {
-    "The heavy one; buyers will show": "Heavy red days into the line are sellers showing, not buyers. That cue pulls a grade down.",
-    "Equal; the touch is the touch": "The touch is the pattern. How price got there feeds the grade.",
-    "Neither; volume plays no part in a grade": "Volume is a cue. Quiet into the line lifts a grade and heavy selling lowers it, as a judgment call, not a fixed checklist."
+    "The heavy one; buyers will show": "Heavy red days into the line are sellers showing, not buyers. Shannon wants volume to contract on a pullback.",
+    "Equal; the touch is the touch": "The touch is the pattern. How price got there matters to him: he looks for contracting volume.",
+    "Neither; he ignores volume": "He does not. Shannon looks for volume contracting during pullbacks."
    },
    "house": true,
    "story": "Two six-day pullbacks to the 20 EMA. One drifts down on 0.7x volume with small bars. The other has two heavy red days into the line.",
-   "simple": "The quiet one grades higher, because light selling looks like a rest, while heavy selling into the line looks like sellers.",
+   "simple": "The quiet one, because light selling looks like a rest, while heavy selling into the line looks like sellers.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2447,7 +2447,7 @@
     "Add more; strength is strength"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into the run. The rulebook says to sell a big part into a climax run on your own long. It is a judgment call. This story shows a vertical burst after a big run.",
+   "why": "Sell a big part into the run. The rulebook says to sell a big part into a climax run on your own long. It is a judgment call. This story is a climax run: a third straight up day, a gap up, the heaviest volume of the run.",
    "lesson_line": "When your winner goes vertical, sell them what they want.",
    "facts": [
     "h16",
@@ -2460,7 +2460,7 @@
     "Add more; strength is strength": "The pullback buy is one price at full size, with no adding. A climax is where we sell, not add."
    },
    "house": true,
-   "story": "Your pullback buy is up 9R in two weeks. Today it goes almost straight up for a third day, on the heaviest volume of the run.",
+   "story": "Your pullback buy is up 9R in two weeks. Today is its third straight up day, a gap up on the heaviest volume of the run.",
    "simple": "We sell a big part into a climax run on our own long, though it is a judgment call.",
    "deeper": {
     "trap": "A climax run feels like proof the trade is great, so holding it all feels right. The rule says to sell a big part into it. It is a judgment call, so the exact size is yours, but the call is to sell."
@@ -2952,7 +2952,7 @@
    "q": "Was the loss a mistake?",
    "choices": [
     "No; the stop did its job here",
-    "No; the gap rule moved the stop",
+    "No; the close back up erased the loss",
     "Yes; re-buy at 546.88 and hold",
     "Yes; a stop-out means a bad setup"
    ],
@@ -2965,12 +2965,12 @@
     "d13"
    ],
    "wrong": {
-    "No; the gap rule moved the stop": "The stock opened at 543.35, above the 540.97 stop, so the gap rule never applied. The stop fired that day as price fell through it.",
     "Yes; re-buy at 546.88 and hold": "After a stop-out you buy again only if the setup triggers again, as a new trade. A chase back in is not a trigger.",
-    "Yes; a stop-out means a bad setup": "A stop-out does not make a setup bad. Judge the trade by the plan, not by what the stock does next. The stop is the exit, and taking it is the plan."
+    "Yes; a stop-out means a bad setup": "A stop-out does not make a setup bad. Judge the trade by the plan, not by what the stock does next. The stop is the exit, and taking it is the plan.",
+    "No; the close back up erased the loss": "The stop fired when the low traded through 540.97. A later close above it does not undo the exit."
    },
    "house": true,
-   "story": "You bought a hold at 558.32 with the stop at 540.97, about 3.1% wide. Next day the stock gaps to 543.35, the low prints 538.05 and the stop fires. It closes 546.88 and reaches 610 within a month.",
+   "story": "You bought a hold at 558.32 with the stop at 540.97, about 3.1% wide. Next day the stock opens at 543.35, still above the stop, then the low prints 538.05 and the stop fires. It closes 546.88 and reaches 610 within a month.",
    "simple": "No, because the stop did its job, and a stock running after you are out does not make the exit wrong.",
    "deeper": {
     "trap": "Judging the trade by what came after. CAT closed at 546.88 and reached 610 within a month, but nobody knew that at the low of 538.05. A stop cannot know what comes next, so it is judged by the plan, not by the aftermath."
@@ -3217,7 +3217,7 @@
    "story": "GE, January 2024. A session holds the rising 20 EMA and closes above it. Its low is 99.10 and its high is 100.38.",
    "simple": "Buy at market a cent over the hold high, stop a few cents under its low, take a third off at 3R.",
    "deeper": {
-    "example": "GE, January 2024: the low kissed the line to the cent, a 1.3% stop, and the stock reached 3R in 5 sessions. After the first trim the stop moves up to breakeven, and another third comes off at 5R."
+    "example": "GE, January 2024: the low kissed the line to the cent, a 1.3% stop, and the stock reached 3R in 5 sessions. The stop may move up to breakeven somewhere from 2R to 5R, and another third comes off at 5R."
    },
    "tier": "expert",
    "risk": {
@@ -3582,7 +3582,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper example first sentence is 25 words (limit 22). Split."
+   "notes": "Key is the only choice that names the 20 EMA (repeats the stem) and is the longest of the three near-equal ones; guessable without the idea. Make a distractor 20 EMA-based and longer than the key."
   },
   "q02": {
    "status": "pass",
@@ -3659,8 +3659,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 50-day wrong note says the 50-day 'sits a few cents under the hold session's low', which is false as written (it means our stop does). Reword."
+   "fixed": false,
+   "notes": "Broke nothing: c13 quote supports 'wider than one ATR whenever entry is above the line'; card says never the line minus an ATR; A3/F62 stop under the low. Distractors are clearly wrong."
   },
   "q15": {
    "status": "pass",
@@ -3713,8 +3713,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two 'Stopped out' choices; 'the setup was wrong' is defensible (c19 calls this a failed hold) so the key rested on a judgment word ('planned') the stem does not decide. Rewritten so the choices differ on facts: the loss is booked / still in / re-buy needs no trigger (B21). Numbers re-checked against d14."
+   "fixed": false,
+   "notes": "Numbers in story only; key follows A4 and B21 (h02, h28); GILD facts d14 match. No gap involved."
   },
   "q24": {
    "status": "pass",
@@ -3732,19 +3732,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Math right (1.31) but the stem reuses the GE plan numbers (100.39 / 99.07) that q62 asks the member to produce, so q26 answers q62. Fresh numbers; the GE tie-in dropped. Recomputed (48.60 - 47.42) / 48.60 x 100 = 2.43. Also the 23-word 'simple' sentence split."
+   "notes": "Math right: (48.60-47.42)/48.60 = 2.428% -> 2.43. But the stem gives no precision and the scorer wants the 2-decimal value, so a member who types 2.4 is marked wrong. State the precision."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 97 recomputed (200 / 2.05 = 97.56, rounded down); A5 verbatim. Only defect: the 'simple' sentence is 23 words. Shortened."
+   "fixed": false,
+   "notes": "0.5% of 40,000 = 200; 200/2.05 = 97.56 -> 97; 97 x 95.90 = 9,302, 23% of the account, under the 40% cap (A7). Matches A5."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and choices correct (52.40 is over 4% above 50.00 and above the 50.01 trigger). Deeper counter is 25 words (limit 22). Split."
+   "fixed": false,
+   "notes": "4% over the 50.00 high (or the 50.01 buy) is 52.00 (52.01); 52.40 is over it. C28 (h11, h12, c35) decides it; one clearly right answer."
   },
   "q29": {
    "status": "pass",
@@ -3779,14 +3779,14 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "F65 verbatim and key right. Tell: the key (29 chars) was the longest choice. Lengthened the 'Full risk' distractor to 31 so the key is not the longest."
+   "fixed": false,
+   "notes": "F65: Yellow smaller and fewer; matches settled card criterion; other choices map to Green, Orange, Red."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "B21 and E56 verbatim, key right. Defects: the key tied for longest choice (32); the why had a 23-word sentence; the story did not say how many tries had been used this week, so the 3-a-week cap left it open. Added 'first try this week'."
+   "fixed": false,
+   "notes": "B21, E56 and c33 support a new trade on a new hold, second try inside the cap of 3 a week; no pilot per A5."
   },
   "q36": {
    "status": "pass",
@@ -3798,7 +3798,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'Neither; grading only counts the days' is a silly choice nobody believes. Replace with a plausible misconception that c24/c25/h91 refute. Dossier 14 / D-006 flag stands for the owner."
+   "notes": "Keyed on a pending-owner grade cue (e20.pullback_volume, D-006) and the lesson's own conflicts note says the dossier test found quiet pullbacks did worse; owner rule E50 says grading is discretionary with no fixed checklist taught as ours. Ask what Shannon prefers instead, which his quote (a02, verified on the page) and TraderLion (t01) support."
   },
   "q38": {
    "status": "pass",
@@ -3834,7 +3834,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "C34 verbatim, but the owner's note says 'yes but depends', and the story ('third straight up day, heaviest volume') did not show the vertical burst the why claims. Story now shows a near-vertical burst so the rule applies; key unchanged."
+   "notes": "Key follows C34 (sell a big part into a climax run, a judgment call). Story is thin: 'almost straight up for a third day' is hedged and does not match Bracco's burst (three up days, a gap up, heavy volume), leaving 'sell only a small slice' arguable under 'depends'. Tighten the story."
   },
   "q44": {
    "status": "pass",
@@ -3851,8 +3851,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "c18 verbatim, key right. Tell: the key tied with another choice for longest (30). Shortened the key to 29. (The 'firm' hit is only the word 'confirming'.)"
+   "fixed": false,
+   "notes": "c18 supports 'confirming sign, not a gate'; card status proposed but the stem says 'on our card' and the conflicts note covers it. Others clearly wrong (q05 already shows the buy is the cent over the high, minor overlap only)."
   },
   "q47": {
    "status": "pass",
@@ -3905,14 +3905,14 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "E56 and c33 verbatim, key 3 right. The lesson line 'the stock is telling you something' is a claim no fact supports. Replaced."
+   "fixed": false,
+   "notes": "E56 owner ruling: 3 a week, 6 a month; bank 1-5 has one fit; no other stem gives the number."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong note says the stop 'fired on the day's low'. d13 gives only the low (538.05), not the fill; the stop fires when price trades through 540.97. Reword. Key fine (h02, h28, d13; 3.1% = 17.35/558.32)."
+   "notes": "Distractor 'the gap rule moved the stop' is a second defensible No: B20 (h06) says the first 30 minutes of the gap-down day decide, and the story says the stock gapped down. The wrong note ('open above the stop so the rule never applied') is not backed by any cited fact (only the card's 'through the stop', not cited). Remove the gap framing and the distractor."
   },
   "q57": {
    "status": "pass",
@@ -3948,7 +3948,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story narrates the same GE hold that q65 (hidden GE chart) asks the member to judge ('four days, 0.78x, low kisses the line, closes above it'), so q62 hands over q65's answer. Trim the story to what the plan needs (the hold and its low and high). Key re-derived: 100.38+0.01=100.39, 99.10-0.03=99.07, trim 3R. Also q26 hands over these numbers (outside this chunk; resolver flag stands)."
+   "notes": "Key and numbers fine (100.38+0.01, 99.10-0.03, third at 3R by B19/E51). But deeper says 'after the first trim the stop moves up to breakeven', which overreaches B19 (breakeven somewhere from 2R to 5R, ideally)."
   },
   "q63": {
    "status": "pass",

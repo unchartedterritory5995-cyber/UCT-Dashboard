@@ -1554,7 +1554,7 @@
     "Breakout; a push to a new high"
    ],
    "answer": "EMA Crossback; the first retest",
-   "why": "EMA Crossback. It is the first test of the averages after the stock closed back over them, which Kell calls the crossback. A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback. This stock spent weeks under its averages.",
+   "why": "EMA Crossback. It is the first test of the averages after the stock's strong move back over them, which Kell calls the crossback. A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback. This stock spent weeks under its averages.",
    "lesson_line": "First test after the pop is the crossback. A tap of a long-rising 20 EMA is a pullback.",
    "facts": [
     "e01",
@@ -1563,12 +1563,12 @@
     "x01"
    ],
    "wrong": {
-    "20 EMA Pullback; a tap of the 20": "That is a tap of a 20 EMA that has been rising for weeks.",
+    "20 EMA Pullback; a tap of the 20": "That is a tap of a 20 EMA that has been rising for weeks. This 20 EMA only turned up eight sessions ago.",
     "Wedge Pop; first close back over": "The pop was eight sessions ago. This is the first pullback after it.",
     "Breakout; a push to a new high": "This stock is testing its averages after the pop, not pushing out to a new high."
    },
    "house": true,
-   "story": "A stock spent weeks under its averages. Eight sessions ago it closed back over the 9 and 20 EMA, and the 9 is over the 20 again. Today it dips back to those averages. It has not been near them since the move up.",
+   "story": "A stock spent weeks under its averages. Eight sessions ago it closed back over the 9 and 20 EMA on heavy volume, and the 9 is over the 20 again. Today it dips back to those averages. It has not been near them since the move up.",
    "simple": "This is the first test of the averages since the stock closed back over them, so it is the crossback.",
    "tier": "core",
    "risk": {
@@ -2435,12 +2435,12 @@
    "criterion": "xbk.trigger",
    "q": "How do you play this one?",
    "choices": [
-    "Buy at market, stop under the low",
+    "Buy at market; stop under the low",
     "Wait for the close over the high",
     "Buy half now and add on strength",
-    "Buy at market; stop at your entry"
+    "Buy at market; stop at the entry price"
    ],
-   "answer": "Buy at market, stop under the low",
+   "answer": "Buy at market; stop under the low",
    "why": "Buy at market once price trades over 52.40, with the stop a few cents under the hold day's low, 50.90. The size comes from that stop.",
    "lesson_line": "Hold day, then the trade over its high, then the stop under its low.",
    "facts": [
@@ -2453,7 +2453,7 @@
    "wrong": {
     "Wait for the close over the high": "We buy the trade through the high, at market. We do not wait for a later close.",
     "Buy half now and add on strength": "We buy once at one price with one stop. No pilot, no add on follow-through.",
-    "Buy at market; stop at your entry": "A stop at the entry is breakeven, which comes from 2R. The first stop is a few cents under the hold day's low."
+    "Buy at market; stop at the entry price": "A stop at the entry is breakeven, which comes from 2R. The first stop is a few cents under the hold day's low."
    },
    "house": true,
    "story": "A leader popped on strong volume, then drifted back for three quiet sessions. The hold day closed strong over the 20 EMA. Its high was 52.40 and its low 50.90. Next morning, after the open, the stock trades over 52.40.",
@@ -2999,7 +2999,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "xbk.wedge_pop_first",
-   "q": "Which crossback grades higher?",
+   "q": "On our card, which crossback grades higher?",
    "choices": [
     "Both crossbacks grade the same",
     "Crossback A, sooner and stronger",
@@ -3007,8 +3007,8 @@
     "Crossback B, as it is up 15% already"
    ],
    "answer": "Crossback A, sooner and stronger",
-   "why": "Crossback A. Our card counts a powerful pop, a gap on heavy volume, as an A+ cue. Crossback B comes 18 sessions after a 1.0x pop, late in a long advance, which the card grades lower. Late crossbacks fail most.",
-   "lesson_line": "A strong pop and a short wait grade higher. Late crossbacks fail most.",
+   "why": "Crossback A. Our card counts the first crossback after a powerful pop, a gap on heavy volume, as an A+ cue. Crossback B comes 18 sessions after a 1.0x pop, late in a long advance, which the card grades lower. The card also marks late crossbacks as ones that fail most.",
+   "lesson_line": "On our card, a strong pop and a short wait grade higher.",
    "facts": [
     "x22",
     "e08",
@@ -3956,8 +3956,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why states 'about 1% under the 20 EMA' but cited facts lack x04, so the number was not grounded in a cited fact. Added x04."
+   "fixed": false,
+   "notes": "Decided the answer from x03/x04 first; matches. Only the key has both touch and strong close. Choices within 40 chars. d22/d23 used only in the deeper trap and are supported."
   },
   "q11": {
    "status": "cut",
@@ -3986,8 +3986,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The HOOD answer 129.03 appears in the q44 story (answer leak) and sits next to q17's answer 129. Switched to ALGN (d06): 96.51 - 94.17 = 2.34; 96.51 + 3*2.34 = 103.53."
+   "fixed": false,
+   "notes": "96.51+3*(96.51-94.17)=103.53, recomputed; both inputs are in the question, calc fn arith exists. Matches B19 hard rule (a third at 3R)."
   },
   "q16": {
    "status": "pass",
@@ -4029,7 +4029,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key 'the first retest' repeated the story's 'tests those averages for the first time'. Reworded the story's last sentences; key unchanged."
+   "notes": "Story is too thin: it says only that the stock closed back over the 9 and 20 EMA eight sessions ago. Our own q09/q23 say one close back over the averages is only a pop setting up, and the Kell definition needs a strong move (volume). Without that, the stock might not have popped yet. Adding heavy volume (the card's own wording) to the story fixes it and ties the 20 EMA Pullback distractor to the story."
   },
   "q23": {
    "status": "pass",
@@ -4173,7 +4173,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story says 'Next morning the stock trades over 52.40' with no time; pre-market is ambiguous and q70 teaches that a pre-market print is not a trigger. Added 'after the open'. Key, numbers and facts are fine."
+   "notes": "Answer is right (x06, x14, x17; stop 50.90 is 2.9% from 52.40). Small tell only: the key is the longest choice (34 vs 33, 32, 32). Make the key match its minimal-pair distractor and let the wrong choice be the longest."
   },
   "q47": {
    "status": "pass",
@@ -4226,8 +4226,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Thin story: three buys, each stopped out, plus a fresh hold day by Wednesday is not possible (each try needs its own hold day and trigger). Moved to Thursday, which fits Mon/Tue/Wed tries; key unchanged."
+   "fixed": false,
+   "notes": "E56 (3 tries a week, 6 a month) and card xbk.tries (new try only on a new trigger) support the key; a hold day is not a try or a trigger. Losing-streak distractor is consistent with B17 (no streak rule). Rule is stated in q41 and applied here, which is fine (application, not a giveaway of this story)."
   },
   "q56": {
    "status": "pass",
@@ -4238,8 +4238,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The choice 'Take it; 72 is close enough to 80' leaks the 80 threshold, so the stem-less rule is handed to the learner. Reworded without the number."
+   "fixed": false,
+   "notes": "C31/x13: RS 80 or more; a crossback is not parabolic or mean-reversion, so 72 fails (xbk.leadership is a gate). Growth distractor is correctly rejected by D40. No second defensible answer. Rests on D-011 default (C31 as written for crossbacks); consider depends_on D-011 for the owner view."
   },
   "q58": {
    "status": "pass",
@@ -4257,19 +4257,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key repeats the story's words ('gap-up pop'), a tell. Reworded the key to 'sooner and stronger'; the grade logic (x41, x42) is unchanged. Still flagged D-076: our own scan does not support the lateness cue."
+   "notes": "Key (A grades higher) is right per card x41/x42. But the why and lesson line state 'Late crossbacks fail most' as a plain fact, while the unit's own conflicts note says our scan found 11-20 session waits slightly better (30.0% vs 28.5% to 3R). Attribute it to the card so the unit does not teach as fact what our data does not back, and say 'on our card' in the stem so the question is about the grade, not the outcome."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'We grade ... higher' states a grading rule as ours, but E50 says grading is discretionary with no fixed checklist taught as ours. Rebased on the card line x33 (a grade cue, not a gate); key still True."
+   "fixed": false,
+   "notes": "x33 and x12 support both halves (grade cue, gate is close above the 200-day); no conflict with B26. Note for the owner: xbk.ma200_rising is a proposed criterion (no source), so the question rides on the card as written; house:true already flags it."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why leans on the outcome ('ran past 3R') while the deeper trap warns against hindsight; the key must rest on the hold day alone. Dossier row checked: NET pop 11-03 (3.6x), 3-day drift, hold close 0.88 of range, entry 11-13, so the key holds. Chart render still needs the importer check."
+   "fixed": false,
+   "notes": "Dossier row and d26: NET hold day 2023-11-10 closed at 0.88 of its range, 3-day drift after the 11-03 earnings-gap pop on 3.6x, so Take it is right; wrong choices break x06/x41. 28.9%/82.6% in the deeper match d24. Chart bars and the archive quotes could not be re-opened here (archive blocked), key rests on the dossier read."
   },
   "q63": {
    "status": "pass",
@@ -4304,8 +4304,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'The gentle, sideways drift' repeats the story's 'eases gently sideways'. Reworded the story so the key is read from the rule (e02, e13, e14), not copied."
+   "fixed": false,
+   "notes": "Kell (e02), TraderLion (e13, e14) and card x05 all favour the gentle sideways drift; the two-session hard drop fails the card's sideways-or-slow shape. No tell (key is the shortest choice). Two of the wrong choices both say 'the drop' but each is wrong. Archive quotes could not be re-opened here."
   },
   "q69": {
    "status": "pass",
@@ -4376,8 +4376,8 @@
   "q80": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The stem said 'another third at 5R', giving away q81's key. Reworded to ask the shares left to trail; answer stays 40 (120 - 2*40)."
+   "fixed": false,
+   "notes": "120 - 2*(120/3) = 40, recomputed; calc matches. 3R and 5R default from h20/h05 (adjustable) and consistent with B19. Does not give away or repeat any other question."
   },
   "q81": {
    "status": "pass",

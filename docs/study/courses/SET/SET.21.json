@@ -1511,23 +1511,23 @@
    "choices": [
     "Only A+ setups",
     "Full risk per grade",
-    "Smaller size and fewer trades",
+    "Any grade, but smaller size",
     "Mostly cash and shorts"
    ],
    "answer": "Only A+ setups",
-   "why": "Only A+ setups. The market reading is a guide to how much you play. Green is full risk per grade. Yellow is smaller and fewer. Orange is only A+ setups. Red is mostly cash and shorts.",
+   "why": "Only A+ setups. The market reading is a guide to how much you play. In an Orange market we take only A+ setups.",
    "lesson_line": "The market sets how much you play.",
    "facts": [
     "c43",
     "h26"
    ],
    "wrong": {
-    "Full risk per grade": "That is Green. Orange is A+ only.",
-    "Smaller size and fewer trades": "That is Yellow. Orange is A+ only.",
-    "Mostly cash and shorts": "That is Red. Orange still allows A+ setups."
+    "Full risk per grade": "Orange is not full risk. It is A+ only.",
+    "Mostly cash and shorts": "Orange still allows A+ setups. It is not mostly cash.",
+    "Any grade, but smaller size": "Orange limits the grade. It is A+ only."
    },
    "house": true,
-   "simple": "In an Orange market you take only A+ setups. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "simple": "In an Orange market you take only A+ setups.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2072,7 +2072,7 @@
     "A day in a beaten-down stock"
    ],
    "answer": "The last session of a month",
-   "why": "The last session of a month. It never counts, because the volume on that day is not demand. The first session is not on the card's list. A trial result is the kind of fresh story the card wants, and a beaten-down stock can qualify because no prior advance is required.",
+   "why": "The last session of a month. The card bars it, because the volume on that day is not demand. A trial result is the kind of fresh story the card wants, and a beaten-down stock can qualify because no prior advance is required.",
    "lesson_line": "Month-end volume is not demand.",
    "facts": [
     "c09",
@@ -2082,7 +2082,7 @@
    "wrong": {
     "A day in a beaten-down stock": "Beaten-down is often where it starts. No prior trend is needed.",
     "A day on a trial result": "A trial result is a fresh story, the kind the card wants.",
-    "The first session of a month": "Not on the card's list. Only the monthly options expiry and the last session of a month are barred."
+    "The first session of a month": "The card does not bar the first session."
    },
    "house": true,
    "simple": "The last session of a month never counts, because that volume is not real demand. The first session does not.",
@@ -2305,29 +2305,29 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "hve.later_entries",
-   "q": "After day 2, which is NOT one of our follow-up entries at the HVC?",
+   "q": "Flat after day 2. Which one is a follow-up entry of ours at the HVC?",
    "choices": [
-    "A first touch of the HVC line",
-    "An undercut and rally at the HVC",
-    "A hold of the 9 or 20 EMA near it",
-    "A tight flag over the HVC"
+    "A tight flag over the HVC",
+    "A bare touch of the HVC line",
+    "A buy at the open on day 3",
+    "A buy on a close under the HVC"
    ],
-   "answer": "A first touch of the HVC line",
-   "why": "A first touch of the HVC line. The follow-up entries are our own setups at the level. One is an Oops Reversal or an undercut and rally at the HVC. Another is a hold of the 9 or 20 EMA near the HVC. A third is a tight flag over the HVC. Each has its own trigger and stop. A touch alone is no trigger. No setup, no trade.",
-   "lesson_line": "The level keeps paying. Each later entry is its own setup.",
+   "answer": "A tight flag over the HVC",
+   "why": "A tight flag over the HVC. The follow-up entries are our own setups at the level: an Oops Reversal or an undercut and rally at the HVC, a hold of the 9 or 20 EMA near it, or a tight flag over it. Each has its own trigger and stop.",
+   "lesson_line": "Later entries at the level are our own setups, each with its own trigger and stop.",
    "facts": [
     "c17",
     "c18",
-    "c38",
     "h36"
    ],
    "wrong": {
-    "An undercut and rally at the HVC": "That is one of our follow-up setups at the level, with its own trigger and stop.",
-    "A hold of the 9 or 20 EMA near it": "That is one of our follow-up setups, with its own trigger and stop.",
-    "A tight flag over the HVC": "That is another of our follow-up setups, with its own trigger and stop."
+    "A tight flag over the HVC": "That is another of our follow-up setups, with its own trigger and stop.",
+    "A bare touch of the HVC line": "A touch alone is not a setup. It has no trigger of its own.",
+    "A buy at the open on day 3": "The taught trigger is day 2. A later entry needs one of our own setups, not a buy at the open.",
+    "A buy on a close under the HVC": "A close under the HVC is not an entry. A later entry needs one of our own setups at the level."
    },
    "house": true,
-   "simple": "After day 2 we buy at the level only on one of our own named setups. A bare touch is not one.",
+   "simple": "After day 2 we buy at the level only on one of our own named setups, such as a tight flag over the HVC.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2386,9 +2386,9 @@
    "story": "An earnings report sends a stock up 22%. It trades more shares than on any day in its history.",
    "choices": [
     "An HVE; the volume is extreme",
-    "A PEG; it gapped on earnings",
+    "A PEG; the move came on earnings",
     "Neither; earnings are no catalyst",
-    "Neither; a 22% gap is too small"
+    "Neither; a 22% rise is too small"
    ],
    "answer": "An HVE; the volume is extreme",
    "why": "An HVE. Earnings on ordinary big volume is a PEG, but earnings so big the volume is extreme can be an HVE. This stock traded more shares than on any day in its history. DOCU in 2019 was the same case: earnings on all-time record volume, an HVE and not a PEG. Bonde notes that earnings-day volume can be the highest in a stock's history.",
@@ -2399,9 +2399,9 @@
     "b01"
    ],
    "wrong": {
-    "A PEG; it gapped on earnings": "A PEG is earnings on ordinary big volume. An all-time record is not ordinary.",
     "Neither; earnings are no catalyst": "Earnings so big the volume is extreme count as a fresh story.",
-    "Neither; a 22% gap is too small": "The card sets no minimum gap. The record volume is what makes it an HVE."
+    "A PEG; the move came on earnings": "A PEG is earnings on ordinary big volume. An all-time record is not ordinary.",
+    "Neither; a 22% rise is too small": "The size of the move is not the test here. Record volume on a fresh story is."
    },
    "house": true,
    "simple": "An HVE. Earnings can make an HVE when the volume is extreme, a record for the stock's whole history.",
@@ -2928,7 +2928,7 @@
    ],
    "wrong": {
     "An HVE; it is a one-year record": "A year-high on a mega-cap is not an HVE.",
-    "An HVE; it closed up on volume": "An up close is needed, not enough. The name and the size of the record fail.",
+    "An HVE; it closed up on volume": "An up close is needed but not enough. The name and the size of the record fail.",
     "A PEG; it is a well-owned name": "A PEG is an earnings gap on ordinary volume. This story has no earnings."
    },
    "house": true,
@@ -3461,10 +3461,10 @@
    "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q05": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "a01 says 'not just fixed time periods'; the why said 'not at a fixed time period', a stronger claim. Reworded."
+   "fixed": false,
+   "notes": "Redundant: q62 tests the same fact (AVWAP from the record day, Shannon) and its stem says AVWAP; q01's why already says ray and AVWAP kept for months. Any blank on this card line is answered by q01 or q62. Cut; coverage stays in q01 and q62."
   },
   "q06": {
    "status": "pass",
@@ -3560,7 +3560,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key is the only choice that is not 'Any HVE ...' or 'None', so it is the odd one out. Rebuilt as the four colour readings (Orange key; Green, Yellow, Red as the real misreadings), all from h26/c43. Stem kept so the id does not change."
+   "notes": "Key right (Orange = A+ only, F65). But q21's why and wrong notes name Red/Green/Yellow and so hand q60 its answer (Red = mostly cash); and 'Smaller size and fewer trades' is arguably true of A+ only. Fixed to not name the other readings and to use a clearly wrong 'any grade, smaller' choice. Also q60's why gives the full ladder and answers q21: trim it."
   },
   "q22": {
    "status": "pass",
@@ -3577,8 +3577,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The last sentence of the why ('a price alert or a chart note only tells you; it does not sell') is not supported by any cited fact. Dropped it; the rest follows c47/h18."
+   "fixed": false,
+   "notes": "Key matches D41 and the card. Stop order is the only protective-exit choice; limit order and mental stop are clearly wrong. Quotes verified in the repo files. Note: q57's stem ('a real stop order with the broker') echoes this answer."
   },
   "q25": {
    "status": "pass",
@@ -3643,14 +3643,14 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The premise is near impossible: the buy is a cent over the HVC (the record day's close), so a close under the 200-day and a fill over it needs the line within a cent. Also the 50-day choice and its wrong note give away q53's key. Reframed on a realistic story (sat under the line until the record day) and swapped the 50-day choice for a close-needed misconception."
+   "fixed": false,
+   "notes": "Key right per B26 and the card ('the trade, not the HVE day'). Quotes verified. Minor: q53's why states the same principle (200-day read at entry), so it overlaps; not a reason to cut."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key is the only calendar choice among three story or price choices, and q06's lesson line ('check the calendar') points straight at it. Replaced the 30% gap choice with 'The first session of a month' (not on the card's list in c09), a calendar twin that is really not barred. Wrong note grounded in c09."
+   "notes": "Key right (month's last session barred, c09). Problems: the wrong note on 'first session' says 'Only the monthly options expiry and the last session ... are barred', which overreaches (D-092 may add the last Friday of June) and hands q06 (OPEX) its answer. Fixed."
   },
   "q37": {
    "status": "pass",
@@ -3673,8 +3673,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why names the Oops Reversal and the tight flag, which gives away q42's key (An Oops Reversal at the HVC). Removed the names; the rest follows h28/c18."
+   "fixed": false,
+   "notes": "Key matches B21 (new trigger, new trade). Quotes verified. The SE detail in deeper (stopped the next session, 71.08, 88.84, 56.05) matches the research table row. No second defensible answer."
   },
   "q41": {
    "status": "pass",
@@ -3686,7 +3686,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Format tell: the key was the lone gerund ('Buying ...') and used the word 'plain'. Made all four noun phrases and dropped 'plain'. Added h36. Still relies on c17's list, which the unit never walks through (resolver's walkthrough flag stands)."
+   "notes": "The negative 'which is NOT' key rests on the card list being complete, but the card marks later entries 'proposed' and a bare pullback to a level is a common entry; also overlaps q16 (first pullback) and the why repeats 'No setup, no trade', q67's key phrase. The lesson_line 'The level keeps paying' is a promise (research shows flat results). Rewritten positive, with a stem that says flat so it does not clash with q16 (no adding)."
   },
   "q43": {
    "status": "pass",
@@ -3698,7 +3698,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second defensible answer: c32 says EP versus HVE depends on which day you buy, so the same record earnings day can be called an EP day. Dropped the EP choice (three choices) and restored the HVE, PEG or neither stem."
+   "notes": "Key right (c07, DOCU d05, Bonde b01 verified). Fixes: the 'no minimum gap' note is wrong (the card needs an up move of 8% or more; the gap is only a cue) and the story says 'up 22%', not a gap. Reworded choices and notes; no new numbers."
   },
   "q45": {
    "status": "pass",
@@ -3757,20 +3757,20 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Overreach: 'What the day needs is record volume and an up close' drops the fresh story and lesser-known tests. Reworded why and simple."
+   "fixed": false,
+   "notes": "Key matches c28 (a cue, not a rule; ERAS 3%, FUN 0.5%). Distractors are real misunderstandings; the EP choice is backed by c32. Quote verified. No tell found (key not the longest, 2 Yes / 2 No)."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The stem 'that low close' hands over the answer and the key repeats it. Neutral stem so the member must know 0.26 is under the 0.5 cue."
+   "fixed": false,
+   "notes": "Key matches c27/c40/d29/d30/d31 (MBX 0.26, 62x, 10x, +100%; repo quotes verified). It is a grade cue and the why says so. Note: fact g02's stored quote has a corrupted apostrophe (U+FFFD for I'll); the page has U+2019. Fix that fact quote in the file; q55's text does not use it."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The story never says there is no earnings, so the PEG choice is arguable and its wrong note ('no earnings') rests on silence. State it in the story."
+   "notes": "Key right (c36, c25, g01 verified; web quote verified). The wrong note for 'closed up on volume' is ungrammatical ('An up close is needed, not enough'). Also overlaps q09's wrong note on mega-cap (same fact), so it is weak on novelty; kept."
   },
   "q57": {
    "status": "pass",
@@ -3835,8 +3835,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: day 2 undercut the HVC, so 'Wait, then buy day 3 over 45.00' is an undercut and rally at the level, one of our c17 setups. Replaced with a clearly wrong day-3 open buy."
+   "fixed": false,
+   "notes": "Numbers check: HVC 45.00, day 2 high 44.70, so no trigger (c22). Key, 'level stays' (c24) and no-setup-no-trade (h36) all supported and match D44. Distractors are real errors; the day-3 open buy is ruled out by c12/c17. No second answer."
   },
   "q68": {
    "status": "cut",

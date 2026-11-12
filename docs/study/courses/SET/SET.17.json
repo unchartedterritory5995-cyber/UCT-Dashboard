@@ -3759,7 +3759,7 @@
     "A lead; my own entry, stop and size",
     "A plan; short a break of 166.50 now",
     "A plan; short it first, set a stop",
-    "Skip it; no post can ever be a lead"
+    "Skip it; a post is no source of ideas"
    ],
    "answer": "A lead; my own entry, stop and size",
    "why": "A lead, not a plan. Our rule: never take a trade from an alert, a post or a video. You need your own entry, stop and size by these rules first. Kell hedged his own post: it might just be an avoid.",
@@ -3773,7 +3773,7 @@
    "wrong": {
     "A plan; short a break of 166.50 now": "Taking the break as posted is taking a trade from a post. Our rule needs your own entry, stop and size first.",
     "A plan; short it first, set a stop": "Stop first: the stop is set before the trade and the size comes from the stop, not after.",
-    "Skip it; no post can ever be a lead": "A post can start your look. The rule is only that the trade needs your own entry, stop and size first."
+    "Skip it; a post is no source of ideas": "A post can start your look. The rule is only that the trade needs your own entry, stop and size first."
    },
    "simple": "Treat the post as a lead only. Build your own entry, stop and size by our rules before any trade.",
    "deeper": {
@@ -3811,8 +3811,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Choice 'A bounce that fails at the averages' is loosely defensible as a Wedge Drop (the lesson itself says the bounce stalls on the averages, then drops). Replaced with an unambiguous crossback description (y04)."
+   "fixed": false,
+   "notes": "Key is the close down through the averages (t01, y02, c28). Distractors are the 200-day gate, the downside crossback (y04) and the Wedge Pop; none defensible. Lengths 30-37, no tell."
   },
   "q02": {
    "status": "pass",
@@ -3835,14 +3835,14 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem presupposes 'a reclaim covers your short', which hands over q21's key (cover on the reclaim). Reworded to a generic closed-out short so the two do not answer each other; every claim is d33/h25."
+   "fixed": false,
+   "notes": "False rests on d33 (second short needs a new stall and a new close under both) and h25 (new trigger, new trade). Does not hand over q21 on the stem; q21's why repeats it only after answering."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (a few cents over the trigger day's high) is right (h22 mirrored, c47, t05). The wrong note on 'under the stall low' says the stall low is below the fill, but the dossier examples (d01 55.55 vs fill 55.16, d07 133.13 vs 131.23) show the fill is under the stall low, so that note is false and the choice is arguably defensible. Replaced that choice with the exact-on-the-high version that h22 rules out."
+   "fixed": false,
+   "notes": "Mirror of F62/A3 via D47 and the card's c47; the exact-on-the-high choice is ruled out by h22. No tell, ties on length. 3% line is c16/h04."
   },
   "q07": {
    "status": "pass",
@@ -3931,8 +3931,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (c20, 'on our card'). Only the 'Add' wrong note says 'not a cheaper one', which is wrong for a short (a higher price is richer). Reworded."
+   "fixed": false,
+   "notes": "c20 and t06: a close back above both averages is the cover. 50.00 to 51.20 is 2.4%, inside 3%. HPQ anecdote matches d23/d24 (reclaim and stop hit on day 2). Add/hold/breakeven choices all wrong by the card and h05."
   },
   "q22": {
    "status": "pass",
@@ -3955,14 +3955,14 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why sentence 'A wide red bar, or a gap down closing near its low, is the close we want' comes from c42, a grade row (rulebook E50), and a wide red bar is not the same as a lower-40% close. The deeper counter claims 'a mid-range close can still be followed by a fall', which d31 does not state. Both removed or reworded."
+   "fixed": false,
+   "notes": "c13 (lower 40% of range, a gate on the card) and d31 (LOW closed at 56%, stopped at 0R). 56% fails the rule whichever end it is measured from. Choices distinct; no tell."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Sellers leaning in' is in no cited fact (c11/c57 only say the up days are lighter). Rest the buyers-fading gloss on y01 ('fewer new buyers') and drop the seller claim."
+   "fixed": false,
+   "notes": "c11 and c57 key it; y01 (fewer new buyers) is used only as the gloss, no number or volume claim beyond the card. Mirror choice is the standard wrong. No tell."
   },
   "q27": {
    "status": "pass",
@@ -4115,10 +4115,10 @@
    "notes": "(40-36.40)/40 = 9.0%. Stem says how far under the average, so the divisor is the average. Does not repeat q18's verdict."
   },
   "q52": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (planned loss, not a mistake) is right on the story as told. But the why says DIS was stopped 'on its earnings reaction day', and the dossier shows the real trade was held into the report at about 0.3R (B22 says hold through a report only if up 5R) and had also closed back above both averages on day 2 (c20 cover). Naming DIS makes 'the plan working' contradict the cited facts. Dropped the DIS attribution and the earnings aside, and the wrong note 'a few cents over the high' (not in the story) now uses the 2.1% from d21."
+   "fixed": false,
+   "notes": "The story is the DIS trade (d21/d22 cited and the numbers 24.74, 25.26, 0.34R, 3.3x, day 8 are all its), but d22 says it closed back above both averages on day 2, which is the card's cover (c20, the same lesson as q21 on HPQ). The story leaves that out, so 'the stop worked' hides that the card exits on day 2. Making the path honest turns it into a copy of q21; making it hypothetical ('never closes back above both') contradicts d22 and is incoherent with a stop 2.1% over the fill. Also overlaps q41 (planned stop-out), and 'Yes; 3.3x volume said stay out' points the wrong way (heavy selling volu"
   },
   "q53": {
    "status": "pass",
@@ -4159,8 +4159,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (Red, under a falling 200-day, lower high, 5-day stall: a candidate, gates next). Tell: the key is the lone hedge among three absolutes (A short now / no short / Nothing). Replaced 'Nothing; Red means all cash' with a second candidate-style choice that is wrong ('Red blocks it'), which D46 and h15 refute."
+   "fixed": false,
+   "notes": "Red plus under the 200-day (h15, D46), lower high (c40), five-day stall inside 3 to 10 (c08). Story gives nothing on stop, borrow, report, RS, so 'candidate, gates next' is the only decidable answer. 'Red blocks it' refuted by h15. No tell."
   },
   "q60": {
    "status": "pass",
@@ -4189,8 +4189,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key cannot be decided unless the importer draws a 200-day line the chart object has no field for (README: chart facts come from quotes, never from reading the picture). Put the d29 fact (8.3% above the 200-day) in the stem so the question stands on its own; the chart still shows the stall."
+   "fixed": false,
+   "notes": "8.3% above the 200-day is in the stem (d29); B26/h10 shorts only below it; c01 sell signal for a long. 'Stall must run 10' is wrong by c08. The earlier q45 duplicate is cut in verify, so nothing leaks the answer except q02's rule statement, which is teaching, not this case."
   },
   "q65": {
    "status": "pass",
@@ -4238,7 +4238,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and F66 (verbatim in sizing_rule.md line 230) are right. The story says 'a loss of 166.50', which reads as a P&L loss; k06 says 'If lost 166.50' (the price level is lost). Reworded the story only."
+   "notes": "Key is right (F66/hf66, k06 hedge). One tell: the lone absolute 'no post can ever be a lead' marks the choice as wrong at a glance. Soften choice 4 and its wrong note."
   }
  }
 }

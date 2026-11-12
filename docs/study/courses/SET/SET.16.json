@@ -1413,13 +1413,13 @@
    "criterion": "wp.gap_up",
    "q": "A stock gaps up 3% over the pivot, through both averages. What does the gap tell us?",
    "choices": [
-    "Strength; strong pops often gap",
+    "Strength; it backs the pop",
     "Weakness; the gap will soon fill in",
     "Strength, but too late to buy now",
     "Nothing; gaps are only noise here"
    ],
-   "answer": "Strength; strong pops often gap",
-   "why": "Strength. Kell: most Wedge Pops that lead to new, powerful trends start with gaps. Our card calls a gap up through the pivot and the averages the strongest pop. In our scan a gap open of 1% or more did better, not worse.",
+   "answer": "Strength; it backs the pop",
+   "why": "Strength. Kell: most Wedge Pops that lead to new, powerful trends start with gaps. Our card calls a gap up through the pivot and the averages the A+ pop, and 3% is still inside the 4% line. In our scan a gap open of 1% or more did better, not worse.",
    "lesson_line": "A gap through the averages is strength, not a reason to wait.",
    "facts": [
     "k11",
@@ -1431,7 +1431,7 @@
    "wrong": {
     "Weakness; the gap will soon fill in": "Waiting for a fill is a guess. In our scan a gap open of 1% or more did better, not worse.",
     "Strength, but too late to buy now": "A 3% gap is still inside the 4% chase line, so it is not too late.",
-    "Nothing; gaps are only noise here": "It matters: our card calls a gap up through the pivot and the averages the strongest pop."
+    "Nothing; gaps are only noise here": "It matters: our card calls a gap up through the pivot and the averages the A+ pop."
    },
    "house": true,
    "simple": "A gap up through the pivot shows strength, so we buy the open unless it is more than 4% past the pivot.",
@@ -1728,7 +1728,7 @@
     "A fixed 8% under the high"
    ],
    "answer": "A close under the 10-day",
-   "why": "A close under the 10-day. We trail the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it, not on an intraday touch.",
+   "why": "A close under the 10-day. We trail the 10-day average for fast movers and the 21-day for steadier ones. We sell the last third on a close below it.",
    "lesson_line": "Fast movers ride the 10-day. Steady ones get the 21-day.",
    "facts": [
     "h21"
@@ -1739,7 +1739,7 @@
     "A close under the 50-day": "Not our trail. Ours is the 10-day for fast movers and the 21-day for steadier ones."
    },
    "house": true,
-   "simple": "A close under the 10-day average, because fast movers get the tighter trail and we sell only on a close below it.",
+   "simple": "A close under the 10-day average, because the rule gives fast movers the 10-day trail and we sell on a close below it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2456,12 +2456,12 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wp.early_cycle",
-   "q": "Which is the stronger pop?",
+   "q": "By our card, which is the stronger pop?",
    "choices": [
     "Pop A, early in the cycle",
     "Pop B, the trend is proven",
     "They are about equally strong",
-    "Pop B, a fourth base is tighter"
+    "Pop B, it has more bases behind it"
    ],
    "answer": "Pop A, early in the cycle",
    "why": "Pop A. Early in a new cycle beats the fourth base of an old one. A late-cycle base counts against the pop. DHI popped three sessions after SPY's 2023 low.",
@@ -2474,7 +2474,7 @@
    "wrong": {
     "Pop B, the trend is proven": "Our card wants early in a new cycle, not the fourth base of an old one. A late-cycle base counts against the pop.",
     "They are about equally strong": "They are not equal. Early in a new cycle beats the fourth base of an old one.",
-    "Pop B, a fourth base is tighter": "Tighter does not matter here. A fourth base of an old trend is late in the cycle, and that counts against it."
+    "Pop B, it has more bases behind it": "More bases is not more proof. The fourth base of an old trend is late in the cycle, and that counts against the pop."
    },
    "house": true,
    "story": "Pop A comes three sessions after the index's own low. Pop B comes in the index's fourth month up, on the stock's fourth base.",
@@ -2657,10 +2657,11 @@
     "Proof that the setup does not work"
    ],
    "answer": "A planned loss, the plan working",
-   "why": "A planned loss. The honest stop was 4.7% below the fill, wider than about 3%, so our rule is a smaller position or a pass. You took the smaller size, and the stop did its job. Under our current default, volume grades a pop and does not gate it.",
+   "why": "A planned loss. The honest stop was 4.7% below the fill, wider than about 3%, so our rule is a smaller position or a pass. You took the smaller size. The pop came on 1.24 times the base days' volume, so it passed our volume test, and the stop did its job.",
    "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
    "facts": [
     "c19",
+    "c22",
     "d20",
     "d21",
     "d26",
@@ -3199,13 +3200,13 @@
    "criterion": "wp.market_reading",
    "q": "What fits our guide?",
    "choices": [
-    "Pass; stay mostly in cash",
+    "Pass; leave the money in cash",
     "Short it; the market is Red",
     "Take it with full risk on",
     "Take it, smaller and fewer"
    ],
-   "answer": "Pass; stay mostly in cash",
-   "why": "Stay mostly in cash. Red means mostly cash, plus shorts below the 200-day. This stock is above its 200-day, so a short is out too, and the clean pop waits. The reading is a guide.",
+   "answer": "Pass; leave the money in cash",
+   "why": "Pass and leave the money in cash. Red means mostly cash, plus shorts below the 200-day. This stock is above its 200-day, so a short is out too, and the clean pop waits. The reading is a guide.",
    "lesson_line": "In a Red market the best trade is usually no trade.",
    "facts": [
     "h26",
@@ -3220,7 +3221,7 @@
    },
    "house": true,
    "story": "The market reading is Red. A clean pop sets up in a stock above its 200-day.",
-   "simple": "Stay mostly in cash, because a Red market means mostly cash, so even a clean pop waits.",
+   "simple": "Pass and stay in cash, because a Red market means mostly cash, so even a clean pop waits.",
    "deeper": {
     "trap": "The reading is a guide, not a hard cap. Red leans hard toward cash, plus shorts below the 200-day, so a clean long still waits. Green allows full risk and up to 10 positions; Yellow means smaller and fewer."
    },
@@ -3295,7 +3296,10 @@
    "facts": [
     "c35",
     "c02",
-    "y01"
+    "y01",
+    "c29",
+    "c44",
+    "c38"
    ],
    "wrong": {
     "An EMA Crossback that failed": "A crossback is a pullback that holds rising averages. This one sits under falling averages and broke down.",
@@ -3368,15 +3372,15 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.catalyst",
-   "q": "Two clean pops look alike. One follows real company news; the other has none. Which grades higher?",
+   "q": "Two clean pops look alike. One follows real company news; the other has none. On our card, which grades higher?",
    "choices": [
-    "The one backed by a real catalyst",
+    "The one with news behind it",
     "The one with no news at all",
     "They tie, since news is priced in",
     "Neither, only the chart grades it"
    ],
-   "answer": "The one backed by a real catalyst",
-   "why": "The one with the catalyst. A catalyst behind the pop, real news, is an A+ cue. The chart still comes first, and the other cues still count.",
+   "answer": "The one with news behind it",
+   "why": "The one with the news behind it. Our card counts a catalyst behind the pop, real news, as an A+ cue. Grading is a judgment, so the cue tips the grade and does not decide it. The chart still comes first, and the other cues still count.",
    "lesson_line": "A reason behind the move adds to the grade. The chart still comes first.",
    "facts": [
     "c25",
@@ -3388,7 +3392,7 @@
     "Neither, only the chart grades it": "The chart comes first, but the card counts a real catalyst as an A+ cue, so the chart is not the only thing that grades a pop."
    },
    "house": true,
-   "simple": "The pop with the real catalyst grades higher, because a real reason behind the move is an A+ cue.",
+   "simple": "The pop with news behind it grades higher on our card, because a real reason behind the move is an A+ cue.",
    "deeper": {
     "trap": "Trap: a catalyst is a plus, not a free pass. The pop still needs the tight base and the pivot, and the other cues still count."
    },
@@ -3668,14 +3672,14 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c11, 51.20 is 2.4% over 50.00). The deeper said 'The stop, 12.97 under the day's low', which reads as 12.97 below the low. Reworded: the stop sits a few cents under the low, at 12.97."
+   "fixed": false,
+   "notes": "Decided buy the open before the key. c11/h11 quotes verified in the card and rulebook; 51.20 is 2.4% over 50.00 so inside the 4% line. No second defensible choice (wait-for-dip is for a pop past 4%, pass-on-gap-fill has no support, half-and-half breaks A5/h30). RCL deeper example matches d03/d04 (stop 12.97 over the 12.95 pivot). No tell. Mild overlap with q12 is in post-answer explanations only."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c29). Story did not say it was the FIRST pullback, which c29 requires, so the key was under-supported; added 'for the first time'. The remount note said the stock 'never lost its 20 EMA', but it was under the averages before the pop; now says it has held the 20 EMA every close since the pop."
+   "fixed": false,
+   "notes": "Decided crossback before the key. 14 sessions is inside the 20-session window of c29, every close held the 20 EMA, first dip: unambiguous; remount and pop each have a clear refuting line. Quotes verified. Note q13 and q49 (not checked) state the Crossback definition in their stems, so q31 is recall plus application, not discovery."
   },
   "q32": {
    "status": "cut",
@@ -3711,7 +3715,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (A13/h04, A4/h02, d20/d21). The last why sentence was ungrammatical ('By our current default volume only grades a pop'); reworded. D-006 dependency stays, do not release before it is ruled."
+   "notes": "Key right (c19, A13, A4, d20/d21; 41% and 13-day verified in the dossier COIN row). Defect: the why says 'volume grades a pop and does not gate it', which contradicts q34 and the card's wp.inv_no_volume (a pop on volume no higher than the base days is invalid, a gate). Here 1.24x passes that test, so say that instead. The key still rests on D-006 option (a); keep depends_on D-006 (under 1.05x or 1.5x the 50-day, COIN would not qualify). Mild tell: the key is the lone positive framing against three negatives; left as is."
   },
   "q49": {
    "status": "cut",
@@ -3741,7 +3745,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c35). The 'Wedge Pop that has failed' wrong note said a pop closes up while this closed down, but a failed pop does close back down; that made it a second defensible answer. Now says a failed pop first closes up through the averages and this stock only rose to them."
+   "notes": "Key right (c35, Kell's Wedge Drop; y01 verified on the archived cycle page). Facts do not cover everything stated: wrong notes use the crossback (c29) and shakeout (c44) definitions and the deeper trap says we sell a big part into an Exhaustion Extension (c38). Added c29, c44, c38."
   },
   "q64": {
    "status": "pass",
@@ -3812,8 +3816,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "22.4 right. The stem gave a daily share count but the rule (c39) is on the 50-day average, so 'clears both tests' was not supported; stem now says averages over 50 days."
+   "fixed": false,
+   "notes": "14 x 1,600,000 = 22,400,000 = 22.4 million; calc args correct. h09/c39 quotes verified; $14 is over $10 and 22.4 over 20 so it clears both. No ambiguity (dollar volume is defined by the stem). Thresholds appear only in the why, and q15 (rung 2) comes first."
   },
   "q46": {
    "status": "pass",
@@ -3885,7 +3889,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (c24, c37, d11). One wrong note is an unsupported claim: 'A proven trend is an old trend' is in no cited fact. Rewrite it from c24/c37."
+   "notes": "Key right by c24/c37 and r03. Problems: the choice 'Pop B, a fourth base is tighter' invents a claim not in the story and its wrong note ('Tighter does not matter here') contradicts the setup, where tightening ranges is core. Grade comparison should be anchored to the card (E50: grading is discretionary). Replaced the silly choice and anchored the stem."
   },
   "q58": {
    "status": "pass",
@@ -3897,7 +3901,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (h26, h35, h10). The why lists all four colours, which gives away q42 (Orange is only A+). Keep only the Red line."
+   "notes": "Key right (F65, D46, B26; a long in Red waits, a short above the 200-day is out). Tell: 'mostly' is the only hedge among the four choices, copied from the rule. Reworded the key to remove the hedge; the why keeps the rulebook's 'mostly cash'."
   },
   "q60": {
    "status": "pass",
@@ -3981,7 +3985,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (k11, c11, d28). But the why and the third wrong note say 'we buy the open' and restate the 4% buy rule, which hands over q28's answer (a 2.4% gap, 'Buy the open'). Keep the 4% fact needed to kill 'too late to buy' but drop the buy-the-open sentences."
+   "notes": "Key right (k11, c11, d28; 3% is inside the 4% line). Tell: the key is the only choice with a hedge ('often') while the wrong ones carry absolutes. 'Strongest pop' is not the card's wording (it says the A+ pop; E50 makes grades discretionary). Reworded key and why."
   },
   "q13": {
    "status": "pass",
@@ -4005,7 +4009,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (E52). The 50-day wrong note said 'Too slow for a trail', which no cited fact supports and which attacks a real trail. Reworded to 'Not our trail'."
+   "notes": "Key right (E52/h21). The why says 'not on an intraday touch' and the simple says 'only on a close': both go past h21 ('sell on a close below it') and clash with the real broker stop (D41/h18). Removed the overreach."
   },
   "q22": {
    "status": "pass",
@@ -4028,8 +4032,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (h26, c28). But the why spells out all four colours, including 'Red is mostly cash and shorts', which answers q59, while q59's why spells out 'Orange is only A+', which answers q42. Cut the full list from both whys so the two stop answering each other."
+   "fixed": false,
+   "notes": "Decided A+ only before the key. F65 and c28 verified: Orange takes only A+ setups; the A10 guide wording is carried by 'The reading is a guide'. Half-size and full-size both contradict F65; 'bans all buys' is refuted. Key is not the longest and has no lone hedge. No cross-leak with q59/q64."
   },
   "q50": {
    "status": "pass",
@@ -4047,7 +4051,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c25). Wrong note 'No news is not a minus' has no source; replaced with the card's A+ cue wording. Deeper 'not a pass' could read as 'pass on the trade'; now 'not a free pass'. Key is tied for longest (33) with two distractors; acceptable."
+   "notes": "Key right under the card (c25 is an A+ cue). Problems: the why states the cue as fact though the owner's E50 says grading is discretionary with no fixed checklist taught as ours, and wp.catalyst is only 'proposed' on the card; stem should say 'on our card' and the why should say grading is a judgment. Key is also the longest choice and repeats the stem's 'real'. Reworded."
   },
   "w1": {
    "status": "pass",
