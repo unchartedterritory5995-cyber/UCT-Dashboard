@@ -302,8 +302,19 @@ def _rs_params() -> dict:
         "agree": _rsc.AGREE_WINDOW, "dp": _rsc.MANSFIELD_DP,
         "tol": _rs.DEFAULT_PRICE_TOLERANCE_PCT, "red": abs(_rs.DEFAULT_RED_DAY_PCT),
         "terms": _rsw.IBD_TERMS, "components": _rsw.IBD_COMPONENTS,
+        "long_terms": dict(_rsw.IBD_STYLE_COMPONENT_TERMS),
         "required": _rsw.IBD_REQUIRED_TERM, "max": _rsh.RATING_MAX,
     }
+
+
+def _long_blend_prose(terms) -> str:
+    """The recency weighting of a long component rank in words, READ FROM
+    `rs_weighted_return.IBD_STYLE_COMPONENT_TERMS` (one row of it): "the close
+    over the close 63 sessions earlier (weight 2) and 126 sessions earlier (weight 1)"."""
+    parts = [f"{n} sessions earlier (weight {w})" for n, w in terms]
+    if len(parts) == 1:
+        return "the close over the close " + parts[0]
+    return "the close over the close " + ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
 def _ibd_formula_prose(p: dict) -> str:
@@ -577,17 +588,35 @@ def _rs_column_methods() -> list:
              "m12": ("rs_rating_12m", "12M Return Rank", "twelve-month")}
     for key, bars in p["components"]:
         column, label, words = names[key]
+        blend = p["long_terms"].get(key)
+        if blend is None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"The close over the close {bars} sessions earlier, ranked across the "
+                        f"same cap universe minus ETFs as the IBD-style rating and scored the same "
+                        f"way, max(1, ceil(percentile x {top})). One window alone, where the "
+                        f"rating above weights four of them. " + _RS_RATING_NOTE),
+                "caveat": ("A single-window rank reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one "
+                           "is a young move, not a leader yet."),
+            })
+            continue
         out.append({
             "column": column, "label": label,
-            "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+            "one_line": f"Percentile rank of the recency-weighted {words} return, 1-{top}.",
             "scale": rating_scale,
-            "how": (f"The close over the close {bars} sessions earlier, ranked across the "
-                    f"same cap universe minus ETFs as the IBD-style rating and scored the same "
-                    f"way, max(1, ceil(percentile x {top})). One window alone, where the "
-                    f"rating above weights four of them. " + _RS_RATING_NOTE),
-            "caveat": ("A single-window rank reacts faster and flips more often than the "
-                       "weighted rating; a high short-window rank beside a low long-window one "
-                       "is a young move, not a leader yet."),
+            "how": (f"A weighted average of {_long_blend_prose(blend)}, so the newest quarter "
+                    f"counts double, ranked across the same cap universe minus ETFs as the "
+                    f"IBD-style rating and scored the same way, max(1, ceil(percentile x "
+                    f"{top})). A window the history cannot reach is dropped and the weights "
+                    f"renormalised; without the first term there is no value. " + _RS_RATING_NOTE),
+            "caveat": ("Not the plain {words} return: until 2026-11-11 this rank was taken over "
+                       "the plain return, so a chart or saved screen from before then reads on "
+                       "a different basis. It reacts faster than the weighted rating; a high "
+                       "short-window rank beside a low long-window one is a young move, not a "
+                       "leader yet.").replace("{words}", words),
         })
     # S1 (2026-11-10): the ninth-month window. NOT one of the four the rating
     # weights (`IBD_COMPONENTS`), so it gets its own entry and its own sentence.
@@ -595,18 +624,18 @@ def _rs_column_methods() -> list:
     _label9, bars9 = _rsw9.IBD_M9_COMPONENT
     out.append({
         "column": "rs_rating_9m", "label": "9M Return Rank",
-        "one_line": f"Percentile rank of the plain nine-month return, 1-{top}.",
+        "one_line": f"Percentile rank of the recency-weighted nine-month return, 1-{top}.",
         "scale": rating_scale,
-        "how": (f"The close over the close {bars9} sessions earlier, ranked across the "
-                f"same cap universe minus ETFs as the IBD-style rating and scored the same "
-                f"way, max(1, ceil(percentile x {top})). Unlike the other four windows it is "
-                f"NOT one of the terms the rating weights; it sits between the six- and "
-                f"twelve-month ranks so a long move can be read in five steps. "
+        "how": (f"A weighted average of {_long_blend_prose(p['long_terms']['m9'])}, so the "
+                f"newest quarter counts double, ranked across the same cap universe minus "
+                f"ETFs as the IBD-style rating and scored the same way, max(1, ceil(percentile "
+                f"x {top})). It is not one of the rating's own four terms; it sits between the "
+                f"six- and twelve-month ranks so a long move can be read in five steps. "
                 + _RS_RATING_NOTE),
-        "caveat": ("A single-window rank reacts faster and flips more often than the "
-                   "weighted rating. Blank until the rating history carries the nine-month "
-                   "figure for the session, which older stored sessions fill by a one-off "
-                   "backfill."),
+        "caveat": ("It reacts faster and flips more often than the weighted rating. Blank "
+                   "until the rating history carries the nine-month figure for the session, "
+                   "which older stored sessions fill by a one-off backfill. Until 2026-11-11 "
+                   "this rank was taken over the plain nine-month return."),
     })
     out.extend(_rs_phase3_methods())
     for m in out:

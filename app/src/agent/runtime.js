@@ -63,6 +63,12 @@ async function compensate(host, landed) {
   return ok
 }
 
+// ⛔ ONE PHRASING for "a write was left that could not be taken back" (`e.unreverted` / `dirty`),
+// shared by a failed plan (`commitPlan.fail`) and a failed Undo (`runUndoEntry`) so they cannot
+// drift: the tail after a reason, and the sentence after a kind's own complete one.
+const NOT_REVERSED_TAIL = ' — and some changes could not be reversed'
+const NOT_REVERSED_SAY = ' Some earlier changes could not be reversed.'
+
 export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const real = plan.plans.filter(p => p.changed && !p.virtual)
   const virt = plan.plans.filter(p => p.virtual)
@@ -89,11 +95,11 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   // said once, as-is; only a change that could not be reversed is added to it. `gate`: diagnostics only.
   const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null } = {}) => {
     const restored = (await compensate(host, landed)) && !dirty
-    const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : ' — and some changes could not be reversed')
+    const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : NOT_REVERSED_TAIL)
     return {
       ok: false, lines: [], undo: null, compensated: restored && !note,
       failed: [{ label, reason: `${reason}${tail}`,
-        ...(say ? { say: restored ? say : `${say} Some earlier changes could not be reversed.` } : {}), ...(gate ? { gate } : {}) }],
+        ...(say ? { say: restored ? say : `${say}${NOT_REVERSED_SAY}` } : {}), ...(gate ? { gate } : {}) }],
     }
   }
 
@@ -242,11 +248,14 @@ async function runUndoEntry(host, entry) {
     } catch (e) {
       // Say exactly what was and was not restored — never reject silently.
       const done = restores.map(r => r.it.label)
+      // ⛔ A step that wrote before it failed (`e.unreverted`, e.g. a re-save it could not read back)
+      // gets the same words `commitPlan.fail` gives a dirty step, never "Nothing was undone."
+      const left = !!e?.unreverted
       return {
         ok: false, lines: [], partial: done.length > 0,
         // PACKAGE 3: a kind's own complete sentence (it already says what happened) is said as it is
-        reason: e?.complete && e?.message && !done.length ? e.message
-          : `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
+        reason: e?.complete && e?.message && !done.length ? `${e.message}${left ? NOT_REVERSED_SAY : ''}`
+          : `${it.label} could not be undone (${e?.message || 'error'})${left ? NOT_REVERSED_TAIL : ''}.${done.length ? ` Already restored: ${done.join(', ')}.` : (left ? '' : ' Nothing was undone.')}`,
       }
     }
     restores.push({ it, kind, patch, lines: Array.isArray(res?.lines) ? res.lines : null })
