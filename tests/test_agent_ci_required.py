@@ -129,12 +129,14 @@ def test_combine_worst_wins():
 
 # ---- evaluate() over a fake API (no network) ------------------------------------------------------------------------
 class FakeApi:
-    def __init__(self, files=None, runs=None, jobs=None, fail=None):
-        self.files, self.runs, self.jobs, self.fail = files or [], runs, jobs, fail
+    def __init__(self, files=None, runs=None, jobs=None, fail=None, ref="agent/pl/x"):
+        self.files, self.runs, self.jobs, self.fail, self.ref = files or [], runs, jobs, fail, ref
 
     def get(self, path):
         if self.fail and self.fail in path:
             raise acr.ApiError(f"GET {path}: HTTP 500")
+        if path.startswith("pulls/") and "/files" not in path:
+            return {"head": {"ref": self.ref}}
         if path.startswith("pulls/"):
             page = int(path.rsplit("page=", 1)[1])
             return [{"filename": f} for f in self.files[(page - 1) * 100: page * 100]]
@@ -179,19 +181,39 @@ def test_newest_push_run_wins():
     assert acr.evaluate(api, SHA, [1], DOC)[0] == "success"
 
 
-# ── (2026-11-12, AUDIT gap) the agent ci PUSH trigger must cover every branch a PR can come from, or agent-ci-required
-#    stays pending forever for a PR from charts/* / fix/* / feat/* that touches an Agent path ─────────────────────────
-def _push_branches():
+# ── (2026-11-12, AUDIT option B) a PR from a NON-agent/** branch (charts/*, fix/*, feat/* …) that touches an Agent path is
+#    proven by its own PULL_REQUEST agent-ci run (path-filtered on the PR's own diff — merging master never starts one);
+#    agent/** heads keep push-run evidence. Without this the required status would stay pending forever for them.
+@pytest.mark.parametrize("ref,event", [("agent/pl/x", "push"), ("agent/int", "push"), ("charts/p3-legacy", "pull_request"),
+                                       ("fix/rs-line-polish", "pull_request"), ("feat/x", "pull_request"), (None, "pull_request")])
+def test_evidence_event_by_head_branch(ref, event):
+    assert acr.evidence_event(ref) == event
+
+
+def test_non_agent_head_is_proven_by_its_pull_request_run():
+    pr_green = dict(GREEN, event="pull_request")
+    assert acr.evaluate(FakeApi(files=[AGENT_FILE], runs=[pr_green], ref="charts/p3"), SHA, [1], DOC)[0] == "success"
+    # a push run alone does not prove a non-agent head (it is the PR run that ran the PR's own diff)
+    assert acr.evaluate(FakeApi(files=[AGENT_FILE], runs=[GREEN], ref="charts/p3"), SHA, [1], DOC)[0] == "pending"
+    skipped = [{"name": n, "conclusion": "skipped"} for n in JOBS]
+    assert acr.evaluate(FakeApi(files=[AGENT_FILE], runs=[pr_green], jobs=skipped, ref="fix/x"), SHA, [1], DOC)[0] == "failure"
+    # a non-agent PR whose OWN diff touches no Agent path is success with no run at all (merging master never pays)
+    assert acr.evaluate(FakeApi(files=[OTHER_FILE], runs=[], ref="charts/p3"), SHA, [1], DOC)[0] == "success"
+
+
+def test_agent_head_never_accepts_a_pull_request_run():
+    pr_green = dict(GREEN, event="pull_request")
+    assert acr.evaluate(FakeApi(files=[AGENT_FILE], runs=[pr_green], ref="agent/pl/x"), SHA, [1], DOC)[0] == "pending"
+
+
+def test_agent_ci_jobs_run_on_pull_request_for_non_agent_heads():
+    """agent-ci.yml: every Agent job's `if:` lets a same-repo PR from a non-agent/** head run (the evidence above), and the
+    push trigger stays agent/** only (option A's every-branch push would pay a full run whenever a branch merges master)."""
     doc = yaml.safe_load((pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/agent-ci.yml").read_text(encoding="utf-8"))
     on = doc.get("on", doc.get(True))
-    return on["push"]["branches"]
-
-
-@pytest.mark.parametrize("branch", ["agent/pl/x", "charts/p3-legacy", "fix/rs-line-polish", "feat/rs-universe", "land/abc", "perf/batch", "docs/x"])
-def test_agent_ci_push_covers_every_pr_branch(branch):
-    assert acr.matches(branch, _push_branches()), f"{branch} gets no agent ci push run → agent-ci-required pending forever"
-
-
-@pytest.mark.parametrize("branch", ["master", "production"])
-def test_agent_ci_push_leaves_master_and_production_to_the_gate(branch):
-    assert not acr.matches(branch, _push_branches())
+    assert on["push"]["branches"] == ["agent/**"]
+    conds = {name: str(job.get("if", "")) for name, job in doc["jobs"].items()}
+    gated = {n: c for n, c in conds.items() if "github.event.pull_request.head.repo.full_name" in c}
+    assert len(gated) == 5, gated
+    for n, c in gated.items():
+        assert "!startsWith(github.head_ref, 'agent/')" in c, n

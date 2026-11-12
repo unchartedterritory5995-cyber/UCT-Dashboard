@@ -22,11 +22,11 @@ on:
   # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
   # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
   # still runs the whole Agent suite on every master push, unfiltered.
-  # (2026-11-12, AUDIT gap before agent-ci-required is made a required check): EVERY branch but master / production —
-  # a PR from charts/*, fix/*, feat/* … that touches an Agent path must be able to earn its push run, or the required
-  # status stays pending forever. Still path-filtered (below), so non-Agent pushes cost nothing; master keeps the gate.
+  # (2026-11-12, agent-ci-required, AUDIT option B): a same-repo PR whose head is NOT under agent/** runs the Agent jobs on its
+  # pull_request event (the jobs' if: … || !startsWith(github.head_ref, 'agent/')). The PR trigger's paths: filter reads the PR's
+  # OWN diff, so a branch that only merges master never pays; agent/** heads keep the push-run evidence below.
   push:
-    branches: ['**', '!master', '!main', '!production']
+    branches: ['agent/**']
     paths:
       - 'app/src/agent/**'
       - 'app/src/components/chart/builder/agent*'
@@ -88,7 +88,7 @@ env:
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -113,7 +113,7 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
@@ -160,7 +160,7 @@ jobs:
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -211,7 +211,7 @@ jobs:
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -223,7 +223,7 @@ jobs:
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
