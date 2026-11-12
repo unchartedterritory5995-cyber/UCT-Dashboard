@@ -11,22 +11,28 @@
   "keyBuilders": {
     "components/StockChart.jsx": {
       "${sym}_${_barsTf}": {
-        "n": 21,
-        "at": "components/StockChart.jsx:8027"
+        "n": 3,
+        "at": "components/StockChart.jsx:8006"
       },
       "${sym}_${resolvedTf}": {
         "n": 11,
-        "at": "components/StockChart.jsx:10211"
+        "at": "components/StockChart.jsx:8801"
       },
       "${sym || 'chart'}_${resolvedTf || ''}": {
         "n": 1,
-        "at": "components/StockChart.jsx:10719"
+        "at": "components/StockChart.jsx:9309"
       }
     },
     "components/chart/engine/liveTail.js": {
       "${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}": {
         "n": 1,
         "at": "components/chart/engine/liveTail.js:301"
+      }
+    },
+    "components/chart/useLegacyChartBars.js": {
+      "${sym}_${_barsTf}": {
+        "n": 18,
+        "at": "components/chart/useLegacyChartBars.js:120"
       }
     },
     "floor2/ChartCard.jsx": {
@@ -80,30 +86,6 @@
   },
   "barsUrls": {
     "components/StockChart.jsx": {
-      "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
-        "n": 1,
-        "at": "components/StockChart.jsx:8773"
-      },
-      "/api/bars/${encodeURIComponent(sym || ": {
-        "n": 1,
-        "at": "components/StockChart.jsx:8791"
-      },
-      "/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
-        "n": 2,
-        "at": "components/StockChart.jsx:8865"
-      },
-      "/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&b": {
-        "n": 1,
-        "at": "components/StockChart.jsx:8973"
-      },
-      "/api/bars/${encodeURIComponent(compareSymbol.toUpperCase()": {
-        "n": 1,
-        "at": "components/StockChart.jsx:8995"
-      },
-      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${": {
-        "n": 1,
-        "at": "components/StockChart.jsx:9327"
-      },
       "/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${bar": {
         "n": 1,
         "at": "components/StockChart.jsx:9906"
@@ -133,6 +115,32 @@
       "/api/bars/": {
         "n": 1,
         "at": "components/chart/engine/secondaryBars.js:29"
+      }
+    },
+    "components/chart/useLegacyChartBars.js": {
+      "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
+        "n": 1,
+        "at": "components/chart/useLegacyChartBars.js:521"
+      },
+      "/api/bars/${encodeURIComponent(sym || ": {
+        "n": 1,
+        "at": "components/chart/useLegacyChartBars.js:539"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
+        "n": 2,
+        "at": "components/chart/useLegacyChartBars.js:613"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&b": {
+        "n": 1,
+        "at": "components/chart/useLegacyChartBars.js:721"
+      },
+      "/api/bars/${encodeURIComponent(compareSymbol.toUpperCase()": {
+        "n": 1,
+        "at": "components/chart/useLegacyChartBars.js:743"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${": {
+        "n": 1,
+        "at": "components/chart/useLegacyChartBars.js:1089"
       }
     },
     "data/barStore/network.js": {
@@ -241,10 +249,10 @@
     }
   },
   "freshness": {
-    "components/StockChart.jsx": {
+    "components/chart/useLegacyChartBars.js": {
       "_memTailStaleDaily": {
         "n": 1,
-        "at": "components/StockChart.jsx:8677"
+        "at": "components/chart/useLegacyChartBars.js:425"
       }
     },
     "components/chart/volumePaneDrag.js": {
