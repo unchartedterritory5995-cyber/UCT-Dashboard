@@ -198,7 +198,9 @@ describe('W34-I4: scope of the rewrite', () => {
       const s = src(CASCADE, `//@version=${v}` + NL + 'study("i4")')
       const { st, version } = stmtsOf(s)
       expect(v2SelfReferenceStatements(st, version)).toBe(st)
-      expect((refusalOf(s) || {}).guard).toBe('pine:state')
+      // ⭐ engine 49: the v3+ refusal is `pine:cycle` by name (a declaration that reads its own
+      // history does not compile in v3+); it was `pine:state`, the accumulator's sentence
+      expect((refusalOf(s) || {}).guard).toBe('pine:cycle')
     }
   })
   it('a read at offset 0, a self-referencing fill or any fill form is untouched', () => {

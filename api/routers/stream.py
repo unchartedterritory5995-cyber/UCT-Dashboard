@@ -550,6 +550,25 @@ def _kick_seed(fn, sym: str) -> bool:
     return True
 
 
+def _contract_event(bar_contract, msg: dict, session: str) -> dict:
+    """⭐ BAR CONTRACT on a stream frame (docs/architecture/bar-contract.md): the same
+    identity as the REST answer for this series (grid, session, cache_key, series_rev)
+    plus the frame's own `rev` (set by the broadcaster) and `final` lifted from `bar`.
+    `t_s` = the bucket start in unix SECONDS (REST's unit; `bar.t` stays ms for old
+    clients). Additive; a failure leaves the frame exactly as the broadcaster built it."""
+    try:
+        out = dict(msg)
+        out.update(bar_contract.stream_fields(msg.get("sym"), str(msg.get("tf")),
+                                              msg.get("session") or session))
+        bar = msg.get("bar") or {}
+        out["final"] = bool(bar.get("final"))
+        if isinstance(bar.get("t"), (int, float)):
+            out["t_s"] = int(bar["t"]) // 1000
+        return out
+    except Exception:                      # noqa: BLE001
+        return msg
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
@@ -623,6 +642,7 @@ async def stream_bars(
         return bb.subscribe(sym, tf, **kw)
 
     queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs]
+    from api.services import bar_contract as _bar_contract
     _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
     # D8: fold the day's stored/REST minute bars into each symbol's minute map
     # (once per upstream subscription) so a mid-bucket subscriber gets the true
@@ -653,7 +673,7 @@ async def stream_bars(
                     except asyncio.QueueEmpty:
                         continue
                     got_one = True
-                    yield _frame("bars", json.dumps(msg), "bar")
+                    yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
 
                 if not got_one:
                     # 250ms idle floor — MATCH stream_prices (deliberately slowed

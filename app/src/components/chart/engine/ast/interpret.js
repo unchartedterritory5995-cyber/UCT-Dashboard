@@ -779,9 +779,10 @@ export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u
  *      initializer): `var` runs its initializer once and the reassignment on
  *      every bar, bar 0 included;
  *    - `x = f(nz(x[1], na))`: bar 0 is `f(na)`, the update.
- *  The one spelling whose bar 0 IS its seed — `x = na(x[k]) ? na : U` — is `na`
- *  on EVERY bar in Pine and is translated as the constant `na`
- *  (`pine.js::naSeededSelfReference`), so it never reaches here.
+ *  The one spelling whose bar 0 IS its seed — `x = na(x[k]) ? na : U` — refuses
+ *  `pine:cycle` by name at the translator since engine 48 (it does not compile in
+ *  v3+, and its v1/v2 answer is unpinned: `pine.js::naSeededSelfReference`), so it
+ *  never reaches here.
  *  WITNESSED from the listing, NYSE:RDDT 1D (2026-10-02): `vw-ratchet-stops`
  *  R03 (`trend = 1`, `trend := nz(trend[1], trend)`, then a `?:` on it) reads 1
  *  on bar 0, and `optimized-keltner-channels-sltp-strategy-for-btc`'s
@@ -791,8 +792,8 @@ export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u
  *  every candidate they had: only the literal shape says which spelling wrote it.
  *  ⛔ Only the listing pass reads this (`opts.historyFromListing`), and only where
  *  bar 0's history is PINNED: for v1/v2 (`listingSeedIsUnpinned`, `opts.listingSeedUnpinned`)
- *  Pine's `x[1]` on bar 0 may be `na` or `0` and the `na(x[k]) ? na : U` spelling is not
- *  rewritten (`pine.js` gates it the same way), so every base candidate is kept there. */
+ *  Pine's `x[1]` on bar 0 may be `na` or `0`, so every base candidate is kept there (the
+ *  `na(x[k]) ? na : U` spelling refuses by name in every version, engine 48). */
 export const historySeedReading = (seedNode) => isZeroOverZero(seedNode)
 
 // --------------------------------------------------------------------------- //

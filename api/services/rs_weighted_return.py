@@ -85,6 +85,21 @@ IBD_COMPONENTS: Tuple[Tuple[str, int], ...] = (
 #: history columns read. 189 is ``IBD_TERMS``' third quarter, one lookback table.
 IBD_M9_COMPONENT: Tuple[str, int] = ("m9", 189)
 
+#: IBD-style recency weighting for the three LONG component ranks (owner decision
+#: 2026-11-11, from the 61-name Deepvue fit). ``(column, ((bars_back, weight), ...))``:
+#: the newest quarter counts double, each older quarter once, so ``m6`` blends the
+#: 63- and 126-bar ratios 2:1, ``m9`` adds the 189-bar ratio and ``m12`` the
+#: 252-bar one. ``m1`` and ``m3`` stay plain returns (``IBD_COMPONENTS``). A rank
+#: needs the component's WHOLE window (its last term): a 150-bar stock has no 9M or
+#: 12M rank, as before, and is not given its 6M blend under a longer label. Inside a
+#: covered window an unusable term (a non-positive reference close) is dropped and
+#: the weights renormalised, the composite's own rule.
+IBD_STYLE_COMPONENT_TERMS: Tuple[Tuple[str, Tuple[Tuple[int, int], ...]], ...] = (
+    ("m6", ((63, 2), (126, 1))),
+    ("m9", ((63, 2), (126, 1), (189, 1))),
+    ("m12", ((63, 2), (126, 1), (189, 1), (252, 1))),
+)
+
 
 def period_return(closes: Sequence[float], bars_back: int) -> Optional[float]:
     """Percentage return over ``bars_back`` trading bars, or ``None``.
@@ -102,6 +117,30 @@ def period_return(closes: Sequence[float], bars_back: int) -> Optional[float]:
     if current is None:
         return None
     return (current - ref) / ref * 100.0
+
+
+def ibd_style_component(closes: Sequence[float], terms: Sequence[Tuple[int, int]]) -> Optional[float]:
+    """The weighted close-ratio a long component rank is taken over, or ``None``.
+
+    ``terms`` is one row of :data:`IBD_STYLE_COMPONENT_TERMS`. Each term is the
+    ratio ``close / close[-n]`` (``1 + period_return / 100``); the weighted mean
+    over the terms the series can supply is returned, and ``None`` when the series
+    does not reach the LAST term's window (so a young stock has no 12M value built
+    from its 6M terms) or the first term (63 bars) is unusable. A rank only needs the
+    order, so the ratio, not a percentage, is the value ranked.
+    """
+    if not terms or len(closes or ()) <= terms[-1][0]:
+        return None
+    parts: List[Tuple[float, float]] = []
+    for i, (bars_back, weight) in enumerate(terms):
+        ret = period_return(closes, bars_back)
+        if ret is None:
+            if i == 0:
+                return None
+            continue
+        parts.append((1.0 + ret / 100.0, float(weight)))
+    total = sum(w for _v, w in parts)
+    return sum(v * w for v, w in parts) / total if total else None
 
 
 def period_returns(closes: Sequence[float]) -> Dict[str, Optional[float]]:
