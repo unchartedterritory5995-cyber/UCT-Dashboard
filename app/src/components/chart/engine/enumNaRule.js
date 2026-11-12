@@ -28,3 +28,19 @@ export const ENUM_NA_SENTENCE = 'the style, size or position of this drawing can
 export const ENUM_NAMED_CALL_SENTENCE = 'the style, size or position of this drawing is computed by a helper '
   + 'called with a named argument, which this door does not read; a documented default applies only '
   + 'when the argument is omitted, so the drawing is withheld rather than drawn with a default (Q-HS7)'
+
+// ⛔⛔ ENGINE 51 — an enum slot whose value this door cannot read at all: a constant the
+// vocabulary does not hold (`objectEnums.js`), or a computed word the reader cannot follow.
+// It used to DROP the prop, so the renderer drew its default (a table in the wrong corner, a
+// cell at the wrong size: ict-killzones-pivots-tfo before engine 51). Withheld by name.
+export const ENUM_UNREADABLE_SENTENCE = 'the style, size or position of this drawing is a value this door '
+  + 'cannot read (a constant it does not know, or a computation it cannot follow); the drawing is '
+  + 'withheld rather than drawn with a default style, size or position'
+
+/** The three ways an enum slot withholds its drawing — guard, drop reason, sentence — ONE table,
+ *  read by every converter in `ast/pine.js` (create, setter, cell). */
+export const ENUM_DROPS = Object.freeze({
+  na: Object.freeze({ guard: 'pine:enum-na', drop: 'enum:na', sentence: ENUM_NA_SENTENCE }),
+  named: Object.freeze({ guard: 'pine:enum-named-call', drop: 'enum:named-call', sentence: ENUM_NAMED_CALL_SENTENCE }),
+  unreadable: Object.freeze({ guard: 'pine:enum-unreadable', drop: 'enum:unreadable', sentence: ENUM_UNREADABLE_SENTENCE }),
+})

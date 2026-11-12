@@ -890,7 +890,8 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
-import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -19054,31 +19055,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
 // references. Inlining the trees here would work and would silently undo C2C's
 // ×48 compaction — a line whose y-coordinate is `close` must be an integer in
 // the saved document, not a second copy of a tree a plot already stores.
-const OBJECT_ENUM_VALUES = Object.freeze({
-  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
-  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
-  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
-  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
-  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
-  'line.style_arrow_both': 'arrow_both',
-  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
-  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
-  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
-  'text.align_top': 'top', 'text.align_bottom': 'bottom',
-  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
-  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
-  // are carried because a table that knew one of three would drop the other two
-  // with no trace, which is the failure this property was added to stop.
-  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
-  // does not resolve here — it falls to `valueRef`, which returns null, and the
-  // converter records it via `dropProp`. Counted, never half-applied.
-  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
-  'position.top_left': 'top_left', 'position.top_center': 'top_center',
-  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
-  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
-  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
-  'position.bottom_right': 'bottom_right',
-})
+// ⭐ Engine 51 — the vocabulary is ONE table, `../objectEnums.js` (every member of
+// the reference's namespaces and the witnessed legacy spellings), imported here.
 
 /**
  * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
@@ -19120,19 +19098,15 @@ export function canonicalTextFormat(flags) {
   return out.length ? out.join('_') : 'none'
 }
 
-/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
- *  decides what a style draws; this door only has to carry what was written. */
-const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
-const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
 // ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
 export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
 
 export function objectEnumValue(name) {
-  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
-  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
-  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
-  return undefined
+  // ⛔ Engine 51 — only a constant the table holds. `label.style_<anything>` used to
+  // pass by pattern, so `label.style_labeldown` (v4) reached the renderer as an
+  // unknown `labeldown` and drew centred with no pointer.
+  return Object.hasOwn(OBJECT_ENUM_VALUES, name) ? OBJECT_ENUM_VALUES[name] : undefined
 }
 
 /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
@@ -20896,7 +20870,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // parameter and render a cell that is confidently wrong — the one outcome a
     // dashboard must never produce.
     if (node.type === 'call' && node.name) {
-      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      const declared = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐ Engine 51 — a helper whose body is `name = switch …` (C47) is opaque to
+      // every lane but the drawing one, which reads it through `objectLane` (the
+      // Resolver's own door, `resolveCall`). The text reader takes the same door,
+      // so `text_size = get_size(input.string(…))` (ict-killzones-pivots-tfo) is the
+      // word the switch picks rather than an unreadable slot drawn at the default.
+      const bound = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
       // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
       //
       // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
@@ -22017,6 +21998,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `objectDiagnostics` counts the drop so it is visible rather than
       // silent.
       diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      // ⛔⛔ Engine 51 — AND THE DRAWING IS WITHHELD BY NAME (`pine:enum-unreadable`),
+      // read by the create / setter / cell converters. Dropping the prop drew the
+      // renderer's default in its place: a table in the wrong corner, a cell at the
+      // wrong size (ict-killzones-pivots-tfo: TradingView `small`, ours the default).
+      enumNaDrop = 'unreadable'
       return null
     }
     // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
@@ -22577,7 +22563,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     let regName = null
     let handleBack = 0
     if (OBJECT_NS.has(head)) {
-      if (args.length !== 1 || args[0].name) return null
+      // ⭐ Engine 51 — the handle may be NAMED (`line.get_y1(id=l)`, Pine's own
+      // parameter name); any other name is not this getter's and is not read.
+      if (args.length !== 1 || (args[0].name && args[0].name !== 'id')) return null
       const a = args[0].value
       // ⭐⭐ C48 — `line.get_y1(c[1])`: A GETTER ON THE HANDLE THE VARIABLE HELD n
       // BARS AGO (the register's own ring, `MAX_HANDLE_BACK`). Capture
@@ -24003,9 +23991,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v) {
           if (enumNaDrop) {
             // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
-            noteCreateDrop(op, k, enumNaDrop === 'named'
-              ? { guard: 'pine:enum-named-call', message: ENUM_NAMED_CALL_SENTENCE }
-              : { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
+            noteCreateDrop(op, k, { guard: ENUM_DROPS[enumNaDrop].guard, message: ENUM_DROPS[enumNaDrop].sentence })
             enumNa = enumNaDrop
             bad = true
             break
@@ -24027,7 +24013,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa === 'named') dropped('enum:named-call'); else if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa) dropped(ENUM_DROPS[enumNa].drop); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
@@ -24065,8 +24051,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         contentLostBy(op, target)
         stateLostBy(op, target)
         // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
-        if (enumNaDrop === 'named') dropped('enum:named-call')
-        else if (enumNaDrop) dropped('enum:na')
+        if (enumNaDrop) dropped(ENUM_DROPS[enumNaDrop].drop)
         else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
@@ -24139,10 +24124,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v && enumNaDrop) {
           // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
           // computed by a helper called with a named argument, is withheld by name.
-          noteWhy('cellTextWhy', enumNaDrop === 'named'
-            ? `cell@${op.line === undefined ? '?' : op.line}: pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 200)}`
-            : `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
-          badCell = enumNaDrop === 'named' ? 'enum:named-call' : 'enum:na'
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS[enumNaDrop].guard} ${ENUM_DROPS[enumNaDrop].sentence.slice(0, 200)}`)
+          badCell = ENUM_DROPS[enumNaDrop].drop
           break
         }
         if (!v) {
@@ -24165,8 +24148,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         props[k] = v
       }
-      if (badCell === 'enum:named-call') { dropped('enum:named-call'); continue }
-      if (badCell === 'enum:na') { dropped('enum:na'); continue }
+      if (typeof badCell === 'string' && badCell.startsWith('enum:')) { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
