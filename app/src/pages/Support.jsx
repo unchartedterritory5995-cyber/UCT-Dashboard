@@ -564,20 +564,22 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I get started with the Notebook?',
     keywords: 'notebook start begin first note new note thesis research write notes getting started tour',
-    a: <>Open the <Link to="/journal/notebook">Notebook</Link> and choose <strong>+ New note</strong>,
-      or start from a thesis. What you write saves as you type. Folders and tags are on the left,
-      and the Notebook home shows what you were working on, your favorites and your active
-      theses.<TourLink /></>,
+    a: <>Open the <Link to="/journal/notebook">Notebook</Link>: it opens on your notes. Choose{' '}
+      <strong>+ New</strong> for a blank note, or the arrow beside it to start from a template such as
+      a thesis. What you write saves as you type. Folders and tags are on the left, and{' '}
+      <strong>Daily brief</strong>, under All notes, shows today&apos;s plan, the setups near your entry
+      and the notes that need a review.<TourLink /></>,
   },
   {
     id: 'notebook-templates-daily-note',
     topic: 'notebook',
     q: 'How do templates and the daily note work?',
     keywords: 'template templates daily note today journal save as template your templates thesis',
-    a: <>Choose <strong>Templates</strong> in the Notebook's toolbar to start a note from a
-      layout — a thesis, a daily note and more. <strong>Today</strong> opens today's daily note,
-      and creates it the first time you open it each day. To reuse a layout of your own, open a
-      note and choose <strong>Save as template</strong> from its menu; it then appears under
+    a: <>On the notes list, open the arrow beside <strong>+ New</strong> and choose{' '}
+      <strong>From a template</strong> to start a note from a layout: a thesis, a daily note and more.{' '}
+      <strong>Today&apos;s note</strong> opens today&apos;s daily note, and creates it the first time you
+      open it each day. To reuse a layout of your own, open a note and choose{' '}
+      <strong>Save as template</strong> from its menu; it then appears under
       <strong> Your templates</strong>.</>,
   },
   {
@@ -698,14 +700,13 @@ export const FAQS = [
     when: onboardingOn,
     q: 'What is the sample notebook, and how do I remove it?',
     keywords: 'sample notebook example demo notes remove delete tour welcome practice',
-    a: <>When your Notebook is empty, its first screen offers <strong>Add a sample notebook</strong>:
-      five example notes in a folder called "Sample notebook" — a welcome note, a research note, a
-      thesis, a daily note and a checklist — to look around and practise on. It is only offered
-      while you have no notes. To remove it, choose <strong>Remove it</strong> on the strip at the top
-      of the Notebook home; the sample notes move to Trash, where you can still restore them. If you
-      hid that strip, open the "Sample notebook" folder, select its notes and choose{' '}
-      <strong>Move to Trash</strong>. Deleting the folder alone keeps its notes: they move to Unfiled.
-      <TourLink /></>,
+    a: <>When your Notebook is empty, the notes list offers <strong>Add a sample notebook</strong>:
+      five example notes in a folder called "Sample notebook" (a welcome note, a research note, a
+      thesis, a daily note and a checklist) to look around and practise on. It is only offered
+      while you have no notes. To remove it, open <strong>More notebook actions</strong> (the three
+      dots) on the notes list and choose <strong>Remove the sample notebook</strong>; the sample notes
+      move to Trash, where you can still restore them. Deleting the folder alone keeps its notes: they
+      move to Unfiled.<TourLink /></>,
   },
   {
     id: 'notebook-sharing-publishing',

@@ -325,8 +325,8 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, on
     rows.push(n.created
       ? `Watchlist "${MY_NAMES_LIST}" created with ${n.symbols.join(', ')}`
       : `Watchlist "${MY_NAMES_LIST}" now has ${n.symbols.join(', ')}`)
-  } else if (n && !n.ok) rows.push("Couldn't save your tickers. Add them anytime on Home.")
-  else rows.push('No tickers yet. Add them anytime on Home.')
+  } else if (n && !n.ok) rows.push("Couldn't save your tickers. Add them anytime in the Daily brief's Your names card.")
+  else rows.push("No tickers yet. Add them anytime in the Daily brief's Your names card.")
   const p = result.pack
   if (p?.ok) {
     const added = p.installed.map((i) => i?.title).filter(Boolean)
@@ -338,7 +338,7 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, on
   const plan = result.plan
   rows.push(plan?.ok
     ? { text: `Today's plan written${plan.created ? `. ${DAILY_FOLDER_NOTICE}` : ''}`, plan: true }
-    : "Couldn't write today's plan. Press Today on Home to try again.")
+    : "Couldn't write today's plan. Choose Today's note on the notes list to try again.")
   const sym = names[0] || 'NVDA'
   rows.push({ text: `Try it: draw entry, stop and target on ${sym}, and watch the setups board track it →`, tryIt: sym })
 

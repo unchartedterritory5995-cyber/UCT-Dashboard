@@ -53,7 +53,6 @@ vi.mock('../components/notebook/NotesTableView', () => ({ default: () => <p>Stan
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'

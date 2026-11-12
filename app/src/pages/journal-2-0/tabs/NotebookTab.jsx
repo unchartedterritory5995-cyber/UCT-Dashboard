@@ -65,7 +65,7 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
 import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
-import { REVIEW_PERIODS, draftReview, reviewDraftFailedSentence } from '../lib/reviewDraftRun'
+import { REVIEW_PERIODS, draftReview, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewDraftRun'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
@@ -902,8 +902,8 @@ export default function NotebookTab() {
   const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter || tickerFilter)
   // Notebook simplify, Task 5 ("open on your notes"): the Notebook opens on the notes list. A bare Notebook (no note,
   // no filter, no `?view=`) IS the list, and so is every `?view=` that is not the Daily brief's: `all`, a view mode
-  // (`?view=board`, `?view=tasks`, ...), `home` (Research home's old address; it is no longer routed) or one this build
-  // does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
+  // (`?view=board`, `?view=tasks`, ...), `home` (Research home's old address; Research home itself was deleted in go-live
+  // wave 1) or one this build does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
   // default Today), and opening Today MADE the day's note as a side effect of opening the Notebook. Now nothing is made
   // until the member opens the Daily brief (`?view=today`, its own read) or presses "Today's note".
   // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
@@ -1603,7 +1603,8 @@ export default function NotebookTab() {
   // Keep a notice on screen long enough to read and act on, then let it go.
   // An error stays until dismissed: it describes something the member has to do.
   useEffect(() => {
-    if (!bulkNotice || bulkNotice.tone === 'error') return undefined
+    // Go-live wave 1 (D4): a busy line ("Drafting today's recap…") stays until the work it describes is done.
+    if (!bulkNotice || bulkNotice.tone === 'error' || bulkNotice.busy) return undefined
     const t = setTimeout(() => setBulkNotice(null), 8000)
     return () => clearTimeout(t)
   }, [bulkNotice])
@@ -2232,8 +2233,8 @@ export default function NotebookTab() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // The New-note menu's other doors, ONE each for both menus (Research Home's split button and the
-  // notes list's caret): null while its gate is off, so a menu lists no door that opens nothing.
+  // The New-note menu's other doors, ONE each (the notes list's New menu, its phone rows in ⋯, the phone "+" sheet):
+  // null while its gate is off, so a menu lists no door that opens nothing.
   const openNewNoteSheet = () => setPickerOpen(true)
   const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
   const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null
@@ -2268,21 +2269,41 @@ export default function NotebookTab() {
   const reviewsOn = reviewDraftsEnabled()
   const { accountId: reviewAccountId } = useJ2SelectedAccount(reviewsOn)
   const reviewDraftBusy = useRef(false)
+  // Go-live wave 1 (D4): while a review drafts, the list's notice line says so ("Drafting today's recap…", held until
+  // the draft lands or fails) and the Reviews rows are disabled, so a second press cannot start a second draft.
+  const [reviewDrafting, setReviewDrafting] = useState(null)
   const runReviewDraft = async (period) => {
     if (reviewDraftBusy.current) return
     reviewDraftBusy.current = true
+    setReviewDrafting(period)
+    setBulkNotice({ message: reviewDraftingSentence(period), tone: 'info', busy: true })
     try {
       await draftReview(period, {
         accountId: reviewAccountId,
         onOpenNote: openNote,
         onNotice: (message) => setBulkNotice({ message, tone: 'info' }),
       })
+      // The busy line leaves with the draft; a sentence the draft said (where a new daily note went) stays.
+      setBulkNotice((n) => (n?.busy ? null : n))
     } catch (e) {
       setBulkNotice({ message: reviewDraftFailedSentence(period, e), tone: 'error' })
     } finally {
       reviewDraftBusy.current = false
+      setReviewDrafting(null)
     }
   }
+
+  // The Reviews rows, for the New menu (`anchored`: the walkthrough's three literal anchors) and the phone ⋯ group
+  // (plain: an anchor is written once). Disabled while a draft runs (D4).
+  const REVIEW_ROW_ANCHOR = {
+    daily: (p, c) => <button {...p} data-tour="review-drafts-daily">{c}</button>,
+    weekly: (p, c) => <button {...p} data-tour="review-drafts-weekly">{c}</button>,
+    monthly: (p, c) => <button {...p} data-tour="review-drafts-monthly">{c}</button>,
+  }
+  const reviewRows = ({ anchored }) => REVIEW_PERIODS.map(({ period, label }) => ({
+    key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
+    render: anchored ? REVIEW_ROW_ANCHOR[period] : undefined,
+  }))
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
@@ -2300,7 +2321,8 @@ export default function NotebookTab() {
   const sampleRecorded = notebookFlag('notebook_onboarding_enabled') === true && Boolean(readSamplePref(prefs?.[SAMPLE_PREF]))
   const [moreMenuAsked, setMoreMenuAsked] = useState(false)
   useEffect(() => { if (moreMenu.open) setMoreMenuAsked(true) }, [moreMenu.open])
-  const { data: sampleStatus } = useSWR(sampleRecorded && moreMenuAsked ? SAMPLE_URL : null, fetchSampleStatus, SAMPLE_STATUS_SWR)
+  const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
+    sampleRecorded && moreMenuAsked ? SAMPLE_URL : null, fetchSampleStatus, SAMPLE_STATUS_SWR)
   const sampleActiveIds = Array.isArray(sampleStatus?.activeIds) ? sampleStatus.activeIds : []
   const removingSampleRef = useRef(false)
   const removeSample = async ({ acceptUnchecked = false } = {}) => {
@@ -2374,27 +2396,47 @@ export default function NotebookTab() {
     // caret's door); with it off there are no note types, and it is the plain sheet. Notebook simplify, Task 3: the
     // "From an outline" row is gone -- it opened the same sheet (search first), one door too many.
     { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
-    recordVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote },
+    // Go-live wave 1 (C1): the voice-notes walkthrough points at this row (a literal anchor, MenuRows `render`).
+    recordVoiceNote && {
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote,
+      render: (p, c) => <button {...p} data-tour="new-note-voice">{c}</button>,
+    },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport },
     // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
     // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
+    // Go-live wave 1 (C2): the review-drafts walkthrough points at the three rows (literal anchors).
     reviewsOn && {
       key: 'reviews',
       group: 'Reviews',
       heading: true,
-      items: REVIEW_PERIODS.map(({ period, label }) => ({
-        key: period, label, icon: 'book', run: () => runReviewDraft(period),
-      })),
+      items: reviewRows({ anchored: true }),
     },
   ].filter(Boolean)
   // On a phone "+ New", Today and AI give way to the floating "+" (S12) and the row, so ⋯ carries them there (CSS shows
   // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
+  // Go-live wave 1 (D2): the toolbar's "AI" is desktop-only (>=1025px), so "Ask your Notebook" is a TOUCH-tier row
+  // (`touchOnlyItem`, <=1024px). (C1, C2) The New menu's Voice note and Reviews are phone rows here too: on a phone the
+  // "+ New" group is not drawn, and these two had no other door on the list there. They sit just under Import, high
+  // in the menu, so a walkthrough card at the foot of a phone screen never covers them.
   const phoneOnly = styles.phoneOnlyItem
+  const touchOnly = styles.touchOnlyItem
   const moreMenuItems = [
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
-    { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: phoneOnly },
+    { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly },
     { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    recordVoiceNote && {
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
+      render: (p, c) => <button {...p} data-tour="new-note-voice-phone">{c}</button>,
+    },
+    reviewsOn && {
+      key: 'reviews',
+      group: 'Reviews',
+      heading: true,
+      className: phoneOnly,
+      render: (p, c) => <div {...p} data-tour="review-drafts-phone">{c}</div>,
+      items: reviewRows({ anchored: false }),
+    },
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
     { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
@@ -2912,6 +2954,7 @@ export default function NotebookTab() {
                     onRenameView={onRenameView}
                     onDeleteView={onDeleteViewRequest}
                     onAddStarterViews={savedViewsLoading || savedViewsError ? null : addStarterThesisViews}
+                    loadFailed={Boolean(savedViewsError)}
                   />
                 </div>
               )}
@@ -3007,6 +3050,9 @@ export default function NotebookTab() {
                 disabled={creating}
                 data-tour="new-note"
                 data-guide="journal.newNote"
+                // Go-live wave 1: the voice tour's "Make a note first" card focuses this ("Show me where",
+                // tourStart.js UNREACHABLE_COPY.firstNote); it was Research Home's "Start a note". Not a tour anchor.
+                data-start-note=""
               >
                 + New
               </button>
@@ -3065,7 +3111,12 @@ export default function NotebookTab() {
         {/* Wave 10 F7 (Part A, 5d): without the property definitions the table's property
             columns, the board's groups and the calendar's date fields are missing -- said,
             not silently absent. */}
-        <LoadFailed failures={[{ what: 'your note properties', error: propertyDefsError, retry: refreshPropertyDefs }]} />
+        {/* Go-live wave 1 (A7): the sample's status read (asked for when ⋯ first opens) failing is said too: without it
+            ⋯ cannot offer "Remove the sample notebook". */}
+        <LoadFailed failures={[
+          { what: 'your note properties', error: propertyDefsError, retry: refreshPropertyDefs },
+          { what: "your sample notebook's status", error: sampleStatusError, retry: () => refreshSampleStatus() },
+        ]} />
 
         {selectionOn && selection.count > 0 && (
           <BulkActionBar
@@ -3349,11 +3400,10 @@ export default function NotebookTab() {
           </>
         )}
         {/* Notebook P1: the Styles manager is mounted OUTSIDE the pane's branches for the same reason as the
-            New-note sheet below: the Settings card's `?styles=1` lands on Research Home, where a manager
-            mounted inside the list branch opened nothing (found by the Task 15 walk). */}
+            New-note sheet below: a door can open it from a page that is not the list (found by the Task 15 walk,
+            when the Settings card's `?styles=1` landed on Research Home, since deleted). */}
         {/* Plan F Task 10 (concern 2): the import wizard is mounted OUTSIDE the pane's branches for the
-            same reason. Research Home's "Import notes" and the repair notice there both open it; mounted
-            inside the list branch, both were dead buttons on Home. */}
+            same reason (Research Home's "Import notes" and its repair notice were dead buttons there). */}
         <ImportWizard
           open={importOpen}
           initialRecover={importRecover}
@@ -3363,8 +3413,8 @@ export default function NotebookTab() {
         />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
-            branches. Research Home's "New note" menu opens them, and a sheet mounted inside the
-            list branch would make that door a dead button on Home (and beside an open note). */}
+            branches, so a door beside an open note (the phone "+" sheet) is never a dead button.
+            (Research Home's "New note" menu was the first such door; it went in go-live wave 1.) */}
         <Sheet
           open={!!pickerOpen}
           onClose={() => setPickerOpen(false)}

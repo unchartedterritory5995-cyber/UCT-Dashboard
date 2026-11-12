@@ -23,7 +23,8 @@ const CHART = { note: 'sample:plan', embed: 'chart' }
 const EXPECTED = {
   'plan-grading': ['notebook_plan_grading_enabled', { trade: 'recent' }, '/journal/trades'],
   'entry-context': ['notebook_entry_context_enabled', { trade: 'recent' }, '/journal/trades'],
-  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook?view=home', '/journal/notebook?view=home'],
+  // go-live wave 1: the notes list's New menu "Reviews" group (Research Home's box is gone)
+  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook?view=all', '/journal/notebook?view=all'],
   'my-playbook': ['notebook_playbook_enabled', '/journal-2-0/playbook', '/journal-2-0/playbook'],
   'chart-plan-basics': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
   'chart-plan-replay': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
@@ -70,7 +71,8 @@ describe.each(IDS)('tour %s', (id) => {
     expect(steps.length).toBeLessThanOrEqual(6)
     for (const s of steps) {
       // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
-      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
+      // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c, `${id} step ${s.id} has no copy`).toBeTruthy()
       expect(c.title.trim().length, `${id} ${s.id} title`).toBeGreaterThan(0)

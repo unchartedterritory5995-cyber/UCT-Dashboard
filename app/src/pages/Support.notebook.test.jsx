@@ -227,13 +227,14 @@ describe('the gated articles', () => {
     fireEvent.click(await quickAnswer(SAMPLE_Q))
     expect(screen.getByText(/five example notes in a folder called "Sample notebook"/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Take the tour' })).toHaveAttribute('href', '/journal/notebook')
-    // final review M-8: the strip can be hidden for good, so the article names the other way out --
-    // and says plainly that deleting the folder is NOT it (its notes move to Unfiled)
+    // Go-live wave 1: the strip is gone; the article names the one door (the notes list's More menu row) -- and
+    // still says plainly that deleting the folder is NOT it (its notes move to Unfiled), as final review M-8 asked.
     const article = screen.getByRole('button', { name: SAMPLE_Q }).parentElement
     expect(article).toHaveTextContent(
-      'If you hid that strip, open the "Sample notebook" folder, select its notes and choose Move to Trash. '
-      + 'Deleting the folder alone keeps its notes: they move to Unfiled.',
+      'open More notebook actions (the three dots) on the notes list and choose Remove the sample notebook',
     )
+    expect(article).toHaveTextContent('Deleting the folder alone keeps its notes: they move to Unfiled.')
+    expect(article).not.toHaveTextContent(/strip/)
   })
 
   it('rendered: the share question is absent from the page with the gates off', async () => {

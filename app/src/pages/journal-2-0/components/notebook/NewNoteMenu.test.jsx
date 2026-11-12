@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import NewNoteMenu, { MenuRows, useMenuButton } from './NewNoteMenu'
+import { MenuRows, useMenuButton } from './NewNoteMenu'
 
 // S11 (audit 2026-11-05): the notes list's own caret (NewNoteCaret) was retired into the list toolbar's
 // menus, which run the SAME engine (`useMenuButton` + `MenuRows`). "The list form" below is that engine as
@@ -22,35 +22,18 @@ function ListForm({ onFromOutline, onFromStyle, onToday, onVoice }) {
   )
 }
 
-describe('NewNoteMenu', () => {
-  it('the main button makes a blank note in one press', () => {
-    const onBlank = vi.fn()
-    render(<NewNoteMenu onBlank={onBlank} onFromOutline={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'New note' }))
-    expect(onBlank).toHaveBeenCalledTimes(1)
-  })
-  it('the menu lists only the doors that work (gatesOff)', () => {
-    render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    const items = screen.getAllByRole('menuitem').map((el) => el.textContent.trim())
-    expect(items).toEqual(['From an outline'])
-  })
-  it('voice and today appear when their handlers are given, and each fires', () => {
-    const onVoice = vi.fn(); const onToday = vi.fn()
-    render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} onVoice={onVoice} onToday={onToday} />)
-    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
-      .toEqual(['From an outline', 'Voice note', "Today's note"])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Voice note' }))
-    expect(onVoice).toHaveBeenCalledTimes(1)
-  })
+// Go-live wave 1: Research home's split button (NewNoteMenu's default export) was deleted with Research home. Its
+// cases that pinned the ENGINE (the tour card keeps the menu open, focus is on the trigger by the time an item runs,
+// Escape) now run on the list form; the cases that pinned only its own markup (the main button, which doors it listed,
+// "From a template") went with it.
+describe('the engine: presses, focus and Escape (list form)', () => {
   // P0.10: the voice-notes tour keeps this menu open while its card describes the voice item. The
   // card is portalled to document.body, so a press on its Next button is "outside" the menu;
   // without an exemption the menu closed on pointerdown and the tour ended before the click landed.
   it('a press on the tour card (data-tour-card) leaves the menu open; a press elsewhere closes it', () => {
     render(
       <div>
-        <NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} onVoice={vi.fn()} />
+        <ListForm onFromOutline={vi.fn()} onVoice={vi.fn()} />
         <div data-tour-card="non-modal"><button type="button">Next</button></div>
         <p>elsewhere</p>
       </div>,
@@ -64,41 +47,29 @@ describe('NewNoteMenu', () => {
   })
   // M2 (final review): `run` closed the menu but left focus on the item, which then unmounted, so
   // when the New-note sheet or the voice dialog closed, focus returned to a detached item (<body>).
-  // Focus goes back to the caret BEFORE the chosen item runs, so whatever opens and closes after
+  // Focus goes back to the trigger BEFORE the chosen item runs, so whatever opens and closes after
   // it hands focus back to a live control.
-  it('M2: focus is on the caret by the time a chosen item runs, for every item', () => {
+  it('M2: focus is on the trigger by the time a chosen item runs, for every item', () => {
     const seen = {}
     const spy = (name) => vi.fn(() => { seen[name] = document.activeElement })
     const onFromOutline = spy('outline'); const onVoice = spy('voice'); const onToday = spy('today')
-    render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={onFromOutline} onVoice={onVoice} onToday={onToday} />)
+    render(<ListForm onFromOutline={onFromOutline} onVoice={onVoice} onToday={onToday} />)
     const caret = screen.getByRole('button', { name: 'More ways to start a note' })
     for (const [name, label] of [['outline', 'From an outline'], ['voice', 'Voice note'], ['today', "Today's note"]]) {
       fireEvent.click(caret)
       fireEvent.click(screen.getByRole('menuitem', { name: label }))
       expect(screen.queryByRole('menu'), `${name}: menu closed`).toBeNull()
-      expect(seen[name], `${name}: focus was on the caret when the item ran`).toBe(caret)
+      expect(seen[name], `${name}: focus was on the trigger when the item ran`).toBe(caret)
       expect(document.activeElement, `${name}: and it is still there afterwards`).toBe(caret)
     }
   })
-  it('Escape closes the menu and returns focus to the caret', () => {
-    render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} />)
+  it('Escape closes the menu and returns focus to the trigger', () => {
+    render(<ListForm onFromOutline={vi.fn()} />)
     const caret = screen.getByRole('button', { name: 'More ways to start a note' })
     fireEvent.click(caret)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     expect(document.activeElement).toBe(caret)
-  })
-})
-
-describe('NewNoteMenu: From a template (Notebook P1)', () => {
-  it('lists "From a template" only when a handler is passed', () => {
-    const { rerender } = render(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    expect(screen.queryByRole('menuitem', { name: /From a template/ })).toBeNull()
-    const onFromStyle = vi.fn()
-    rerender(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} onFromStyle={onFromStyle} />)
-    fireEvent.click(screen.getByRole('menuitem', { name: /From a template/ }))
-    expect(onFromStyle).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -156,19 +127,8 @@ describe('the list form (useMenuButton + MenuRows)', () => {
 // Home's split button too (nothing around it roves, but a window-level Left/Right, such as the video
 // seek shortcuts, no longer sees them while a menu item holds focus). Home/End move to the first or
 // last item and do not scroll the page.
-describe('the open menu keeps Left/Right/Home/End (both forms)', () => {
-  it('Home\'s form: Left/Right do not escape the open menu', () => {
-    const outer = vi.fn()
-    render(<div onKeyDown={outer}><NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} onToday={vi.fn()} /></div>)
-    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    const [first] = screen.getAllByRole('menuitem')
-    fireEvent.keyDown(first, { key: 'ArrowLeft' })
-    fireEvent.keyDown(first, { key: 'ArrowRight' })
-    expect(outer).not.toHaveBeenCalled()
-    expect(document.activeElement).toBe(first)
-    expect(screen.getByRole('menu')).toBeTruthy()
-  })
-  it.each([['Home\'s form', (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />], ['the list form', (p) => <ListForm {...p} />]])(
+describe('the open menu keeps Left/Right/Home/End', () => {
+  it.each([['the list form', (p) => <ListForm {...p} />]])(
     '%s: Home and End focus the first and last item, and the page does not scroll', (_n, mount) => {
       render(mount({ onFromOutline: vi.fn(), onFromStyle: vi.fn(), onToday: vi.fn() }))
       fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
@@ -183,7 +143,7 @@ describe('the open menu keeps Left/Right/Home/End (both forms)', () => {
 
 // Review follow-up R1: the menu button's keyboard pattern. ArrowDown / ArrowUp on the caret open the
 // menu on its first / last item, and a Tab that takes focus out of the open menu closes it.
-describe.each([["Home's form", (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />], ['the list form', (p) => <ListForm {...p} />]])(
+describe.each([['the list form', (p) => <ListForm {...p} />]])(
   'keyboard: open from the caret, close on Tab-out (%s)', (_n, mount) => {
     const doors = () => ({ onFromOutline: vi.fn(), onFromStyle: vi.fn(), onToday: vi.fn() })
     const page = (p) => render(<div>{mount(p)}<button type="button">after</button></div>)
@@ -300,5 +260,50 @@ describe('rows with no box are skipped (Important 4)', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'My tools' }))
     fireEvent.keyDown(document.activeElement, { key: 'Home' })
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Export' }))
+  })
+})
+
+// Go-live wave 1: a caller can draw a row (or a group's box) itself, so a walkthrough anchor is a literal `data-tour`
+// in the caller's own file. The row it draws is the row MenuRows would have drawn: same role, class and press.
+describe('MenuRows `render`: a caller-drawn row is the same row', () => {
+  function Drawn({ onVoice, onDaily }) {
+    const menu = useMenuButton()
+    const items = [
+      { key: 'blank', label: 'Blank', run: () => {} },
+      { key: 'voice', label: 'Voice note', run: onVoice, render: (p, c) => <button {...p} data-tour="drawn-row">{c}</button> },
+      {
+        key: 'reviews', group: 'Reviews', heading: true,
+        render: (p, c) => <div {...p} data-tour="drawn-group">{c}</div>,
+        items: [{ key: 'daily', label: "Today's recap", run: onDaily }],
+      },
+    ]
+    return (
+      <div>
+        <button {...menu.triggerProps} type="button">New</button>
+        {menu.open && <div {...menu.menuProps} aria-label="Start a note"><MenuRows menu={menu} items={items} /></div>}
+      </div>
+    )
+  }
+  it('the drawn row is a menuitem with the engine class and runs its door; the drawn group is a named group', () => {
+    const onVoice = vi.fn(); const onDaily = vi.fn()
+    render(<Drawn onVoice={onVoice} onDaily={onDaily} />)
+    const trigger = screen.getByRole('button', { name: 'New' })
+    fireEvent.click(trigger)
+    const blank = screen.getByRole('menuitem', { name: 'Blank' })
+    const row = screen.getByRole('menuitem', { name: 'Voice note' })
+    expect(row).toHaveAttribute('data-tour', 'drawn-row')
+    expect(row.className).toBe(blank.className)
+    const group = screen.getByRole('group', { name: 'Reviews' })
+    expect(group).toHaveAttribute('data-tour', 'drawn-group')
+    expect(group.textContent).toContain('Reviews')
+    // ArrowDown walks into the drawn row: it is one of the menu's rows.
+    fireEvent.keyDown(blank, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(row)
+    fireEvent.click(row)
+    expect(onVoice).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(trigger)
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: "Today's recap" }))
+    expect(onDaily).toHaveBeenCalledTimes(1)
   })
 })

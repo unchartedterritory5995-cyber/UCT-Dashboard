@@ -473,11 +473,9 @@
       "scope": "cross-device",
       "surface": "Notebook",
       "kind": "state",
-      "label": "Sample notebook strip dismissed",
+      "label": "Sample notebook",
       "serverAllowlisted": true,
-      "files": [
-        "app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx"
-      ]
+      "files": []
     },
     {
       "key": "notebook_starter_pack",

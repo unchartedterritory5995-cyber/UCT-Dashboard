@@ -650,7 +650,7 @@ export const GUIDE_FEATURES = [
     id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New note button', title: 'Writing a new note', topic: 'journal',
     words: [/\b(new|add|create|write|make|start)\b.*\bnotes?\b/, /\bnotes?\b/],
     caps: ['journal.createNote'],
-    // pages/journal-2-0/tabs/NotebookTab.jsx (+ New note) · components/notebook/NewNoteMenu.jsx (Home's New note)
+    // pages/journal-2-0/tabs/NotebookTab.jsx (the notes list's + New, data-guide="journal.newNote")
     explain: '+ New note starts a blank note in your Notebook; the arrow beside it starts one from an outline or a template. Notes save as you type.',
     steps: [
       { target: 'journal.newNote', text: 'Click + New note to start a blank note — it saves as you type.' },

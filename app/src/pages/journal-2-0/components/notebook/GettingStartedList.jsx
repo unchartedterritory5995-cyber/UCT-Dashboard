@@ -1,5 +1,5 @@
-// The "get started" checklist on Research Home (wave 14, lane W14-D; plan section 4.4,
-// controller default D4) -- the LAZY half. Research Home mounts the small eager gate,
+// The "get started" checklist (wave 14, lane W14-D; plan section 4.4, controller default D4) -- the LAZY half. It
+// was Research Home's; since Notebook simplify Task 5 the notes list's zero-notes state mounts the small eager gate,
 // `GettingStartedChecklist.jsx`, which fetches this chunk only for a member the list is
 // for (the onboarding flag on, preferences loaded, the list not closed), so a member who
 // dismissed it never downloads it and none of it joins the Notebook's first-open bytes.
@@ -9,10 +9,10 @@
 //   * WHAT IT LISTS -- derived, never restated: write a note, start one from a template,
 //     the sample notebook (only where it can be had), then the Notebook basics tour while
 //     it is live (`deriveChecklistItems`, at most `CHECKLIST_MAX_ITEMS`). Every OTHER tour
-//     is in Research Home's "Learn" menu (onboarding/LearnMenu.jsx), not here.
+//     is in Help > Walkthroughs (Support.jsx), not here (Research Home's Learn menu went in go-live wave 1).
 //   * WHAT TICKS A STEP -- the member's real action or the tour's own seen-state, never
-//     a click here. A click only opens the door: the Notebook's own create, Research
-//     Home's own sample add (passed in, so there is one authority for that write), the
+//     a click here. A click only opens the door: the Notebook's own create, the
+//     Notebook's own sample add (passed in, so there is one authority for that write), the
 //     template picker, or the tour's own open door (`startTour`, learnTours.js -- the same
 //     door the Learn menu uses).
 //   * WHEN IT SHOWS -- while BOTH `notebook_onboarding_enabled` (the flag the base tour
@@ -87,7 +87,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
 
   // ⛔ A STEP NEVER UNTICKS. The first time the evidence shows a step done, its id joins
   // the recorded done-set, which deriveChecklistItems honours from then on -- so evidence
-  // that later drops out of view (Research Home's capped home read) cannot take it back.
+  // that later drops out of view (the capped home read, useNotebookHome) cannot take it back.
   // Each id is attempted at most once per mount (`attempted`): a write the server refuses
   // is reverted by usePreferences, and re-trying the same id on every render after that
   // would be the unbounded-write loop its settle note describes.

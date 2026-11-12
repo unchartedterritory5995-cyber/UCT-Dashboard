@@ -1,22 +1,7 @@
-/* Research Home's New note control (P0.1): a split button, the main half makes a blank note and
-   the caret lists the other doors. Tokens are the ones the sibling Learn menu uses (an undefined
-   var() is a silent no-op, styles/tokens.reachable.test.js). The touch tier is <=1024px (phone
-   AND tablet): every control gets the 44px floor there. */
-.split {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-}
-.main {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.caret {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  padding-inline: 8px;
-  border-left: 1px solid var(--bg);
-}
+/* The Notebook's one menu engine (useMenuButton + MenuRows, NewNoteMenu.jsx): the menu box and its rows. It began as
+   Research Home's New note split button (P0.1); go-live wave 1 deleted the split button and kept the engine. An
+   undefined var() is a silent no-op (styles/tokens.reachable.test.js). The touch tier is <=1024px (phone AND tablet):
+   every row gets the 44px floor there. */
 .menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -58,19 +43,14 @@
 }
 
 @media (max-width: 1024px) {
-  .main,
-  .caret,
   .item {
     min-height: var(--tap-min);
   }
-  .caret {
-    min-width: var(--tap-min);
-  }
 }
 
-/* On a phone Home's header row wraps (ResearchHome.module.css, P0.17) and this control lands on
-   the second row at the LEFT, so the menu hangs from the button's left edge: right-anchored it
-   would run off the left side of a 390px screen. */
+/* On a phone a menu hangs from its trigger's LEFT edge, so a trigger at the left of a row (the list's View) never runs
+   its menu off the left side of a 390px screen; a row-end trigger re-anchors it right (NotebookTab.module.css,
+   `.newWrap [role="menu"]`). */
 @media (max-width: 640px) {
   .menu {
     left: 0;

@@ -6,7 +6,7 @@
 // ⛔ AN ITEM IS TICKED BY WHAT THE MEMBER DID, NEVER BY A CLICK ON THE LIST. Each item's
 // `done` is read off an authority that already exists for that thing:
 //   note      a note of the member's own (not one of the sample's tracked ids) is on
-//             Research Home's one aggregated read (`/api/j2/notebook/home`);
+//             the Notebook's one aggregated home read (`/api/j2/notebook/home`);
 //   template  one of those own notes carries the walkthrough every catalog template
 //             ends with (`WALKTHROUGH_TITLE`, lib/templateBlocks.js -- the SAME constant
 //             the catalog builds the toggle from, and the toggle summary is plain text,
@@ -26,12 +26,11 @@
 // `CHECKLIST_MAX_ITEMS` is the ceiling and gettingStarted.test.js holds the derivation to it
 // with every flag armed.
 //
-// ⛔ THE OTHER TOURS ARE STILL DERIVED, NEVER LISTED -- in the LEARN MENU now, not here.
-// Research Home's "Learn" button (LearnMenu.jsx, rules in learnTours.js) lists one item per
-// REGISTERED, REPLAYABLE tour that is live for this member (`tourLive`), in registry order --
-// the same derivation Help > Walkthroughs makes. A tour W14-B adds tomorrow appears there the
-// day its flag arms, with no edit to either file. This list names only the base tour, and
-// reads it off the registry rather than restating it.
+// ⛔ THE OTHER TOURS ARE STILL DERIVED, NEVER LISTED -- in Help > Walkthroughs, not here.
+// Help (Support.jsx) lists one item per REGISTERED, REPLAYABLE tour that is live for this member
+// (`tourLive`), in registry order. A tour W14-B adds tomorrow appears there the day its flag arms,
+// with no edit to either file. This list names only the base tour, and reads it off the registry
+// rather than restating it. (Research Home's Learn menu made the same derivation until go-live wave 1.)
 //
 // ⛔ ONE PREFERENCE KEY, `notebook_getting_started` -- its reader and writer live in
 // `gettingStartedPref.js` (shared with the eager gate) and are re-exported here.
@@ -76,7 +75,7 @@ export const CHECKLIST_MAX_ITEMS = 5
 
 const HOME_SECTIONS = ['continueWorking', 'favorites', 'activeTheses', 'openPositionResearch', 'needsReview']
 
-/** Every note summary on Research Home's aggregated read that is the member's own
+/** Every note summary on the aggregated home read that is the member's own
  *  (not one of the sample's tracked ids), de-duplicated by id. */
 export function ownHomeNotes(home, sampleIds = []) {
   const skip = new Set(sampleIds)

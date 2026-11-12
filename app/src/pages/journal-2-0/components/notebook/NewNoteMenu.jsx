@@ -1,15 +1,14 @@
-// B/NewNoteMenu.jsx — Research Home's create door (spec P0.1). One press makes a blank note;
-// the caret lists the other ways in. An item appears only when its handler exists, so a gate
-// that is off leaves no door that opens nothing (plan Review Focus 1).
-// S11 (audit 2026-11-05): the notes list's own caret (NewNoteCaret, P1 follow-up) was retired into the
-// list toolbar's "+ New ▾"; that toolbar's three menus run the SAME engine as this caret (`useMenuButton`).
-import { useRef, useState, useEffect } from 'react'
+// NewNoteMenu.jsx -- the Notebook's ONE menu-button engine (`useMenuButton`) and the rows it draws (`MenuRows`).
+// The name is historical: it was Research Home's create door (spec P0.1), a split button whose caret listed the other
+// ways to start a note. S11 (audit 2026-11-05) moved the notes list's toolbar menus onto the same engine, and go-live
+// wave 1 deleted the split button itself with Research home. What is left is used by the list's View, New and More
+// menus (tabs/NotebookTab.jsx), the note's "AI" and "Aa" menus and the saved views group.
+import { Fragment, useRef, useState, useEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NewNoteMenu.module.css'
 
-// ONE menu-button engine (S11, audit 2026-11-05): the New note caret below AND the notes list's own
-// toolbar menus (View, New, More, in tabs/NotebookTab.jsx) run this hook, so the keyboard contract is
-// written once. Headless on purpose: a caller renders its own trigger <button> (a tour anchor is a
+// ONE menu-button engine (S11, audit 2026-11-05): the notes list's toolbar menus (View, New, More, in
+// tabs/NotebookTab.jsx) and the note's own menus run this hook, so the keyboard contract is written once. Headless on purpose: a caller renders its own trigger <button> (a tour anchor is a
 // LITERAL `data-tour` attribute on it, which tourAnchors.test.js reads by AST) and spreads
 // `triggerProps` onto it; `menuProps` go on the role="menu" element.
 export function useMenuButton() {
@@ -99,79 +98,43 @@ function rowsOf(menuEl) {
   return shown.length ? shown : all
 }
 
-/** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?}. A row whose
+/** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?, disabled?}. A row whose
  *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule.
  *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
  *  menu's "List layout" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
- *  Its rows are still the menu's rows, so the menu's Up and Down reach them. */
+ *  Its rows are still the menu's rows, so the menu's Up and Down reach them.
+ *  Go-live wave 1: `render(rowProps, content)` lets the caller draw a row (or a group's box) itself, from the props and
+ *  content MenuRows would have used. It exists for walkthrough anchors: a `data-tour` is a LITERAL attribute in the
+ *  file its tour step names (onboarding/tourAnchors.test.js reads it by AST and refuses an expression), so the caller
+ *  writes `<button {...rowProps} data-tour="...">{content}</button>` in its own file. */
 export function MenuRows({ menu, items }) {
   return items.map((it) => {
     if (it.separator) return <div key={it.key} role="separator" className={styles.separator} />
     if (it.group) {
-      return (
-        <div key={it.key} role="group" aria-label={it.group}
-          className={`${it.heading ? styles.group : ''} ${it.className || ''}`}>
+      const groupProps = {
+        role: 'group', 'aria-label': it.group, className: `${it.heading ? styles.group : ''} ${it.className || ''}`,
+      }
+      const groupContent = (
+        <>
           {it.heading && <div className={styles.groupLabel} aria-hidden="true">{it.group}</div>}
           <MenuRows menu={menu} items={it.items} />
-        </div>
+        </>
       )
+      if (it.render) return <Fragment key={it.key}>{it.render(groupProps, groupContent)}</Fragment>
+      return <div key={it.key} {...groupProps}>{groupContent}</div>
     }
     const radio = typeof it.checked === 'boolean'
-    return (
-      <button key={it.key} type="button" role={radio ? 'menuitemradio' : 'menuitem'}
-        aria-checked={radio ? it.checked : undefined}
-        className={`${styles.item} ${it.checked ? styles.itemChecked : ''} ${it.className || ''}`} onClick={menu.run(it.run)}>
-        {it.icon && <UIcon name={it.icon} size={14} gold={false} />} {it.label}
-      </button>
-    )
+    const rowProps = {
+      type: 'button',
+      role: radio ? 'menuitemradio' : 'menuitem',
+      'aria-checked': radio ? it.checked : undefined,
+      className: `${styles.item} ${it.checked ? styles.itemChecked : ''} ${it.className || ''}`,
+      onClick: menu.run(it.run),
+      // Go-live wave 1 (D4): a row whose door is busy (a review drafting) cannot be pressed again meanwhile.
+      disabled: it.disabled || undefined,
+    }
+    const content = <>{it.icon && <UIcon name={it.icon} size={14} gold={false} />} {it.label}</>
+    if (it.render) return <Fragment key={it.key}>{it.render(rowProps, content)}</Fragment>
+    return <button key={it.key} {...rowProps}>{content}</button>
   })
-}
-
-// The caret and its menu, as siblings: the caller's wrapper is the box the menu hangs from.
-function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onToday = null }) {
-  const menu = useMenuButton()
-  // ⛔ Tour anchors are LITERAL attributes in JSX (tourAnchors.test.js reads them by AST and
-  // refuses an expression), so the voice item's anchor is written on its own element below,
-  // not carried through this list as data. ("From a template" has no anchor: no tour points at it, and a
-  // branch of its own for one costs the Notebook's first open ~200 B.)
-  const items = [
-    { key: 'outline', label: 'From an outline', run: onFromOutline, icon: 'document' },
-    onFromStyle && { key: 'style', label: 'From a template', run: onFromStyle, icon: 'sliders' },
-    onVoice && { key: 'voice', label: 'Voice note', run: onVoice, icon: 'mic' },
-    onToday && { key: 'today', label: "Today's note", run: onToday, icon: 'sun' },
-  ].filter(Boolean)
-
-  return (
-    <>
-      <button {...menu.triggerProps} type="button" className={caretClass} aria-label="More ways to start a note">
-        <UIcon name="chevronDown" size={12} gold={false} />
-      </button>
-      {menu.open && (
-        <div {...menu.menuProps} aria-label="Start a note">
-          {items.map((it) => (it.key === 'voice' ? (
-            <button key={it.key} type="button" role="menuitem" className={styles.item}
-              data-tour="new-note-voice" onClick={menu.run(it.run)}>
-              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
-            </button>
-          ) : (
-            <button key={it.key} type="button" role="menuitem" className={styles.item}
-              onClick={menu.run(it.run)}>
-              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
-            </button>
-          )))}
-        </div>
-      )}
-    </>
-  )
-}
-
-export default function NewNoteMenu({ onBlank, ...doors }) {
-  return (
-    <div className={styles.split} data-tour="new-note-home">
-      <button type="button" className={`btn btn-primary ${styles.main}`} onClick={onBlank} data-guide="journal.newNote">
-        <UIcon name="plus" size={14} gold={false} /> New note
-      </button>
-      <CaretMenu caretClass={`btn btn-primary ${styles.caret}`} {...doors} />
-    </div>
-  )
 }

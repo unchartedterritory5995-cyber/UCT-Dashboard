@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Profiler, useEffect, useState } from 'react'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FolderSidebar, {
   buildFolderTree, renderSnippetMarks, matchReasonFor, MORE_FOLD_KEY, TAGS_FOLD_KEY,
 } from './FolderSidebar'
 import { SplitViewContext } from '../../lib/splitView'
-import { HomeSearch } from './ResearchHome'
 
 const removeMock = vi.fn()
 
@@ -2121,18 +2120,29 @@ describe('FolderSidebar: P0.13 search in place', () => {
 })
 
 // H14 (the 2026-09-10 app-wide navigation freeze came from a registration loop of exactly this
-// shape: a child reporting up, a parent re-rendering it). This mounts the REAL panel and the REAL
-// Home search box under the same wiring NotebookTab gives them -- the `#search` door bumping a
-// request and a seed, the panel reporting its mode into a setter the Home box reads -- and
-// counts commits across opening the search, typing in it, and leaving it.
-describe('FolderSidebar + Home search: H14, a bounded number of renders across a search open/close', () => {
+// shape: a child reporting up, a parent re-rendering it). This mounts the REAL panel under the wiring
+// the `#search` door gives it -- a request and a seed bumped from the address, the panel reporting its
+// mode into a setter the parent reads -- and counts commits across opening the search, typing in it,
+// and leaving it.
+// Go-live wave 1: Research home's search box (`HomeSearch`), which used to be the reader of that
+// report, was deleted with Research home. The reader here is a plain probe; what is pinned is the
+// panel's side of the contract (one report per change, bounded renders), which is what H14 is about.
+describe('FolderSidebar + the #search door: H14, a bounded number of renders across a search open/close', () => {
   // ⚠️ BOUND is deliberately LOOSE: it only catches a runaway (hundreds of commits). The real loop
   // catch is the exact `modeCalls` assertion below -- a callback in the effect's deps, or a report
   // per render, changes that list immediately, long before the commit count gets near this number.
   const BOUND = 30
   let sideCommits
-  let homeCommits
   let modeCalls
+
+  function Door() {
+    const navigate = useNavigate()
+    return (
+      <button type="button" onClick={() => navigate('/journal/notebook#search', { state: { q: 'nv' } })}>
+        open the search door
+      </button>
+    )
+  }
 
   function Wiring() {
     const location = useLocation()
@@ -2146,9 +2156,8 @@ describe('FolderSidebar + Home search: H14, a bounded number of renders across a
     }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
     return (
       <>
-        <Profiler id="home" onRender={() => { homeCommits += 1 }}>
-          <HomeSearch hidden={searching} />
-        </Profiler>
+        <Door />
+        <output data-testid="searching">{String(searching)}</output>
         <Profiler id="side" onRender={() => { sideCommits += 1 }}>
           {/* an unstable inline callback on purpose: the panel must not depend on its identity */}
           <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
@@ -2159,36 +2168,27 @@ describe('FolderSidebar + Home search: H14, a bounded number of renders across a
     )
   }
 
-  beforeEach(() => { sideCommits = 0; homeCommits = 0; modeCalls = [] })
+  beforeEach(() => { sideCommits = 0; modeCalls = [] })
 
-  it('one box on screen at a time, and the renders stay bounded', async () => {
+  it('the door opens the panel search seeded, Escape leaves it, each change reported once, renders bounded', async () => {
     render(<MemoryRouter initialEntries={['/journal/notebook']}><Wiring /></MemoryRouter>)
-    // at rest: the Home box is the only one
-    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
-    expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toBeTruthy()
+    expect(screen.getByTestId('searching').textContent).toBe('false')
 
-    // VIS-4 (audit 2026-11-05, issue 12): typing keeps the text in the Home box (results under it); its
-    // "Search by meaning" opens the panel's search holding that text, and Home steps aside.
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'nv' } })
-    fireEvent.click(await screen.findByRole('button', { name: 'Search by meaning' }))
+    fireEvent.click(screen.getByRole('button', { name: 'open the search door' }))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search your notes' }).value).toBe('nv'))
-    expect(screen.queryByRole('searchbox', { name: 'Search your notes' })).toBeNull()
-    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
+    await waitFor(() => expect(screen.getByTestId('searching').textContent).toBe('true'))
 
-    // typing on, then Escape twice: the panel leaves search and Home's box is back
+    // typing on, then Escape twice: the panel leaves search
     fireEvent.change(screen.getByRole('textbox', { name: 'Search your notes' }), { target: { value: 'nvda' } })
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search your notes' }), { key: 'Escape' })
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search your notes' }), { key: 'Escape' })
-    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toBeTruthy())
-    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
+    await waitFor(() => expect(screen.getByTestId('searching').textContent).toBe('false'))
 
     // let anything that was going to loop loop
     await act(async () => { await new Promise((r) => setTimeout(r, 120)) })
 
     expect(modeCalls).toEqual([false, true, false])   // each change reported once, not per render
     expect(sideCommits).toBeLessThan(BOUND)
-    expect(homeCommits).toBeLessThan(BOUND)
-    expect(sideCommits).toBeGreaterThan(0)            // non-vacuity: the counters were wired
-    expect(homeCommits).toBeGreaterThan(0)
+    expect(sideCommits).toBeGreaterThan(0)            // non-vacuity: the counter was wired
   })
 })

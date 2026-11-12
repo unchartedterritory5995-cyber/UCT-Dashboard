@@ -22,7 +22,7 @@ export const STEPS = Object.freeze([
 export const COPY = Object.freeze({
   add: {
     title: 'Add an image or a Word file',
-    body: 'Insert image and Attach a file are in this row (on a phone, under Format). A picture of a page, a Word file or a spreadsheet is read for its text.',
+    body: 'Insert image is in this row. Attach a file is here too, or under Aa on a wide screen (on a phone, both are under Format). A picture of a page, a Word file or a spreadsheet is read for its text.',
   },
   format: {
     title: 'Images and files are under Format',

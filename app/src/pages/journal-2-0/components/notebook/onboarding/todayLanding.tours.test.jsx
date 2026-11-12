@@ -5,22 +5,21 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
- * ⚰️ Notebook simplify, Task 5 (2026-11-11): Research Home is no longer routed; `?view=home` opens the notes list. The
- * four tours below that start on Research Home's boxes now land on the list, where their first anchor is not drawn
- * (the engine skips a step whose anchor is absent). Re-pointing them is the go-live pass's
- * (docs/notebook/simplify-2026-11-11-ledger.md, Task 5): `DEFERRED_TO_GO_LIVE` names them, and this rail pins that
- * list to exactly the tours whose first anchor lives in a Research Home file, so a re-pointed tour has to leave it.
- * What follows describes the rail as it was written:
+ * Every walkthrough that starts on the Notebook route is started AT ITS ROUTE through the real NotebookTab, and the
+ * page drawn there must be the one that holds its first anchor.
  *
- * Tier 3b fix round 1 (I2): with the Today home as the DEFAULT landing (the production setting, ON here --
- * test-setup.js turns it off for the older suites), every Learn tour that starts on the Notebook route is started AT
- * ITS ROUTE through the real NotebookTab, and the page drawn there must be the one that holds its first anchor.
- * Four tours start on Research Home's boxes (voice notes, earnings prep, passed setups, reviews); on the bare address
- * they would land on Today, find no anchor and skip every step. They start at `?view=home` now.
+ * Two pages answer on the Notebook route (Notebook simplify, Task 5): `?view=today` is the Daily brief (TodayHome.jsx);
+ * every other address is the notes list. The anchor's host is the step's own `file`. A file the Daily brief renders --
+ * TodayHome.jsx and the components it imports from its own folder, read from its own source below, never typed --
+ * must find the Daily brief on screen at the start; any other file must find the list.
  *
- * The anchor's host is the step's own `file` (each step file names where its anchor lives). A file Research Home
- * renders -- ResearchHome.jsx and the boxes it imports, read from its own source below, never typed -- must find
- * Research Home on screen at the start; any other file must find the page that is not a home (the list's views).
+ * ⚰️ Task 5 left four tours (voice-notes, review-drafts, earnings-prep, passed-setups) starting on Research Home, no
+ * longer routed, and named them in `DEFERRED_TO_GO_LIVE`. Go-live wave 1 re-pointed them (voice notes and reviews to
+ * the list's New menu, earnings prep and passed setups to the Daily brief), so the list is EMPTY and stays pinned to
+ * exactly the tours whose start page does not hold their first anchor.
+ *
+ * The first step is read as a desktop screen (tourTiers.js: with no matchMedia the desktop steps are kept), the one
+ * this jsdom page is.
  */
 vi.mock('../../../hooks/useJ2Notes', () => ({
   default: () => ({
@@ -32,7 +31,6 @@ vi.mock('../FolderSidebar', () => ({ default: () => <div data-testid="folder-sid
 vi.mock('../NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../../connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../TodayHome', () => ({ default: () => <div data-testid="today-home" /> }))
 vi.mock('../../../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
@@ -40,21 +38,23 @@ import NotebookTab from '../../../tabs/NotebookTab'
 import { __setTodayLandingForTests } from '../../../lib/todayHome'
 import { setCurrentAccountId } from '../../../lib/offline/currentAccount'
 import { NOTEBOOK_ROOT, TOUR_REGISTRY } from './tourRegistry'
+import { stepsForScreen } from './tourTiers'
 
 const T = { timeout: 20000 }
 vi.setConfig({ testTimeout: 40000 })
 
-// The files Research Home draws: itself, and every component it imports from its own folder (read, not typed).
-const RH_SRC = fs.readFileSync(path.join(path.resolve(__dirname), '..', 'ResearchHome.jsx'), 'utf8')
-const HOME_FILES = new Set(['components/notebook/ResearchHome.jsx',
-  ...[...RH_SRC.matchAll(/import\(\s*'\.\/(\w+)'\s*\)|from '\.\/(\w+)'/g)]
+// The files the Daily brief draws: itself, and every component it imports from its own folder (read, not typed).
+const BRIEF_SRC = fs.readFileSync(path.join(path.resolve(__dirname), '..', 'TodayHome.jsx'), 'utf8')
+const BRIEF_FILES = new Set(['components/notebook/TodayHome.jsx',
+  ...[...BRIEF_SRC.matchAll(/import\(\s*'\.\/(\w+)'\s*\)|from '\.\/(\w+)'/g)]
     .map((m) => `components/notebook/${m[1] || m[2]}.jsx`)])
 
-// The walkthroughs whose first anchor is on Research Home (no longer routed): re-pointed at go-live.
-const DEFERRED_TO_GO_LIVE = Object.freeze(['voice-notes', 'review-drafts', 'earnings-prep', 'passed-setups'])
+// The walkthroughs whose start page does not hold their first anchor. Empty since go-live wave 1.
+const DEFERRED_TO_GO_LIVE = Object.freeze([])
 
 const notebookStarts = TOUR_REGISTRY.filter((t) => typeof t.start === 'string'
   && new URL(t.start, 'http://x.invalid').pathname === NOTEBOOK_ROOT)
+const startsOnBrief = (t) => new URL(t.start, 'http://x.invalid').searchParams.get('view') === 'today'
 
 beforeEach(() => {
   __setTodayLandingForTests(true)
@@ -69,29 +69,39 @@ beforeEach(() => {
 })
 afterEach(() => { setCurrentAccountId(null) })
 
-describe('every Learn tour that starts on the Notebook lands on the notes list (Task 5; Today ON)', () => {
-  it('NON-VACUITY: the four Research Home tours are among them, and their hosts are Research Home files', async () => {
+describe('every walkthrough that starts on the Notebook lands on the page holding its first anchor', () => {
+  it('NON-VACUITY: the four re-pointed tours start on the Notebook, two on the Daily brief, whose files it reads', () => {
     const ids = notebookStarts.map((t) => t.id)
     for (const id of ['voice-notes', 'earnings-prep', 'passed-setups', 'review-drafts']) expect(ids).toContain(id)
-    expect(HOME_FILES.has('components/notebook/ReportingSoon.jsx')).toBe(true)
-    expect(HOME_FILES.has('components/notebook/PassedSetups.jsx')).toBe(true)
-    expect(HOME_FILES.has('components/notebook/NewNoteMenu.jsx')).toBe(true)
+    expect(notebookStarts.filter(startsOnBrief).map((t) => t.id).sort()).toEqual(['earnings-prep', 'passed-setups'])
+    expect(BRIEF_FILES.has('components/notebook/ReportingSoon.jsx')).toBe(true)
+    expect(BRIEF_FILES.has('components/notebook/PassedSetups.jsx')).toBe(true)
+    expect(BRIEF_FILES.has('tabs/NotebookTab.jsx')).toBe(false)
   })
 
-  it('the deferred list is exactly the tours whose first anchor lives in a Research Home file', async () => {
-    const onHome = []
+  it('the deferred list is exactly the tours whose start page does not hold their first anchor (none)', async () => {
+    const misplaced = []
     for (const t of notebookStarts) {
-      const { steps } = await t.load()
-      if (HOME_FILES.has(steps[0].file)) onHome.push(t.id)
+      const [first] = stepsForScreen((await t.load()).steps)
+      if (BRIEF_FILES.has(first.file) !== startsOnBrief(t)) misplaced.push(t.id)
     }
-    expect(onHome.sort()).toEqual([...DEFERRED_TO_GO_LIVE].sort())
+    expect(misplaced.sort()).toEqual([...DEFERRED_TO_GO_LIVE].sort())
+  })
+
+  it('CONTROL: a tour starting on the list whose first anchor is a Daily brief file is caught', () => {
+    const fake = { start: `${NOTEBOOK_ROOT}?view=all` }
+    expect(BRIEF_FILES.has('components/notebook/ReportingSoon.jsx') !== startsOnBrief(fake)).toBe(true)
   })
 
   it.each(notebookStarts.map((t) => [t.id, t]))('%s', async (_id, entry) => {
     render(<MemoryRouter initialEntries={[entry.start]}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('folder-sidebar', {}, T)
-    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
-    expect(screen.queryByTestId('research-home')).toBeNull()
-    expect(screen.queryByTestId('today-home')).toBeNull()
+    if (startsOnBrief(entry)) {
+      expect(await screen.findByTestId('today-home', {}, T)).toBeInTheDocument()
+      expect(screen.queryByRole('toolbar', { name: 'Notes list tools' })).toBeNull()
+    } else {
+      await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
+      expect(screen.queryByTestId('today-home')).toBeNull()
+    }
   })
 })

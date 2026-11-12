@@ -357,8 +357,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/FirstPlanAsk.jsx': { coveredBy: 'setups-board' },
   // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
   'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
-  // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
-  // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
+  // The Notebook's menu engine (useMenuButton + MenuRows). It began as P0.1's New note split button on Research Home,
+  // deleted in go-live wave 1; a11y/newNoteMenu.a11y.test.jsx reads the list's New menu closed and OPEN.
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
   // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
@@ -373,8 +373,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
   // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
   'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
-  // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
-  // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
+  // P0.4: the Notices box (Research Home's, on the Daily brief since go-live wave 1). The box reads nothing without a
+  // signed-in member; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
   // Plan F Task 10: the one-time notice above the list for imports that lost pictures. The tab's
   // rails answer "no notice", so it has its own; rail a11y/importRepairNotice.a11y.test.jsx.
@@ -390,13 +390,6 @@ export const SURFACES = Object.freeze({
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
   'components/notebook/FollowupOffer.jsx': { recipe: 'followup-card' },
   'components/notebook/FollowupOfferSlot.jsx': { coveredBy: 'followup-card' },
-  // P0.5: Research Home's Active setups box. ResearchHome's own rail runs with the setups board switch
-  // off (so the box is not on screen there); a11y/setupsBox.a11y.test.jsx reads it with a count,
-  // with none open, and with the read failed.
-  'components/notebook/SetupsBox.jsx': { recipe: 'setups-box' },
-  'components/notebook/ResearchHome.jsx': {
-    OTHER_LANES: { lane: '8C', railFile: 'components/notebook/ResearchHome.a11y.test.jsx' },
-  },
   'components/notebook/NoteExportControls.jsx': {
     OTHER_LANES: { lane: '8C', railFile: 'components/notebook/NoteExportControls.a11y.test.jsx' },
   },
@@ -440,19 +433,11 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // a11y/entryContext.a11y.test.jsx.
   'components/EntryContextCard.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
   'components/WhyPrompt.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
-  // Wave 14 lane W14-A: the first-run welcome's capability preview (a lazy chunk of
-  // ResearchHome, under components/notebook/onboarding/, so outside the derived population);
-  // rail a11y/capabilityPreview.a11y.test.jsx (with the first-run-welcome recipe).
-  'components/notebook/onboarding/CapabilityPreview.jsx': { recipe: 'capability-preview', railFile: 'a11y/capabilityPreview.a11y.test.jsx' },
   // Wave 14 lane W14-C2: the one-time "new in your Notebook" offer (a lazy chunk behind an
   // eager gate, both under components/notebook/onboarding/); rail a11y/tourOffer.a11y.test.jsx
   // (the card alone, and the real gate offering into a first-run slot).
   'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
   'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
-  // Notebook P0.12 / P0.15: Research Home's Learn menu, grouped, with the sample row and its
-  // refusal line, as the desktop popover (learn-menu-grouped) and as the phone's bottom Sheet
-  // (learn-menu-sheet); rail a11y/learnMenu.a11y.test.jsx.
-  'components/notebook/onboarding/LearnMenu.jsx': { recipe: 'learn-menu-grouped', railFile: 'a11y/learnMenu.a11y.test.jsx' },
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },

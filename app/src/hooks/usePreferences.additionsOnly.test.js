@@ -140,7 +140,8 @@ const BASELINE_KEYS = {
   // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
   // NotebookTour.jsx) made literal at the call site rather than baselined —
   // neither key is genuinely dynamic. Both store a multi-field object.
-  notebook_sample: 'structured',
+  // ⚰️ notebook_sample left with its only client write site (Research home's strip "dismiss", ResearchHome.jsx):
+  // go-live wave 1 (2026-11-12) deleted Research home. The server still writes the key when the sample is added.
   notebook_tour: 'structured',
   tag_labels: 'structured',
   // ⭐ TERMINAL-NEXT T2 (2026-10-03): the shell's versioned board layout and the named-board

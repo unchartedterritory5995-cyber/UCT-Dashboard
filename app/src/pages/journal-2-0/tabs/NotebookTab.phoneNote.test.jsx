@@ -69,9 +69,6 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
 })
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home">Research Home</div>,
-}))
 // D-7's own tests below switch view mode -- NotesTableView (an icon-row mode) and
 // NoteTasksView (reached by its own `?view=tasks` URL too) stand in for the six
 // content-first modes so switching doesn't try to lazy-load and render the real
@@ -158,7 +155,6 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
     fireEvent.click(backButton())
     await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
     expect(search()).toBe('?view=all')
-    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
   })
 
@@ -171,7 +167,6 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
     fireEvent.click(backButton())
     await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
     expect(search()).toBe('?view=all')
-    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
   })
 

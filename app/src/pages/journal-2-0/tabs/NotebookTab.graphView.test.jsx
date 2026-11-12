@@ -51,9 +51,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home" />,
-}))
 
 import NotebookTab from './NotebookTab'
 import { currentView, viewOption } from './__tests__/toolbarDoors'
@@ -203,14 +200,12 @@ describe('NotebookTab — graph view wiring', () => {
     it('?view=graph renders the graph, never Research Home', async () => {
       renderTab('/journal?view=graph')
       await screen.findByTestId('note-graph')
-      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
       expect(currentView()).toBe('Graph')
     })
 
     it('?view=table renders the table view directly (not just graph)', () => {
       renderTab('/journal?view=table')
       expect(screen.getByTestId('notes-table')).toBeInTheDocument()
-      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
       expect(currentView()).toBe('Table')
     })
 
@@ -218,7 +213,6 @@ describe('NotebookTab — graph view wiring', () => {
     it('a bare /journal (no view param) renders the notes list in List mode, never the graph', async () => {
       renderTab('/journal')
       await screen.findByRole('toolbar', { name: 'Notes list tools' })
-      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
       expect(screen.queryByTestId('note-graph')).not.toBeInTheDocument()
       expect(currentView()).toBe('List')
     })

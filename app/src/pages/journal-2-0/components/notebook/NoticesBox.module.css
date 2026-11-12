@@ -1,4 +1,4 @@
-/* Research Home's Notices box (P0.4). It matches its sibling home boxes (ResearchHome's HomeBox over
+/* The Notices box (P0.4; Research Home's, on the Daily brief since go-live wave 1). It matches its sibling home boxes (ResearchHome's HomeBox over
    CollapsibleSection): same width, margin, border, radius and header type. Tokens are the ones those
    use (an undefined var() is a silent no-op, styles/tokens.reachable.test.js). The touch tier is
    <=1024px (phone AND tablet): every control gets the 44px floor there; the summary always has it. */

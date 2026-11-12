@@ -17,12 +17,7 @@
 export const TODAY_VIEW = 'today'
 export const HOME_VIEW = 'home'
 export const LANDING_PREF = 'notebook_landing'
-/** The landings the old "Open the Notebook on" choice listed. Nothing offers the choice any more. */
-export const LANDINGS = Object.freeze([
-  { id: 'today', label: 'Today' },
-  { id: 'home', label: 'Research home' },
-  { id: 'all', label: 'All notes' },
-])
+// ⚰️ `LANDINGS` (the old choice's three labels, "Research home" among them) left in go-live wave 1: nothing read it.
 
 // Where the 60-second first run's Done lands: the Daily brief (it shows what Build made). test-setup.js turns this off
 // before each test, so suites written before the Daily brief existed keep Done opening today's note; a suite about the

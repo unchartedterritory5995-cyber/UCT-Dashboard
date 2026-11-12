@@ -49,3 +49,9 @@ export async function draftReview(period, { accountId = null, onOpenNote, onNoti
 export function reviewDraftFailedSentence(period, error) {
   return error?.memberMessage || `Could not draft the ${period} review — try again.`
 }
+
+/** Go-live wave 1 (D4): what the notes list's notice line says while a draft runs ("Drafting today's recap…"). */
+export function reviewDraftingSentence(period) {
+  const label = REVIEW_PERIODS.find((p) => p.period === period)?.label || 'the review'
+  return `Drafting ${label.charAt(0).toLowerCase()}${label.slice(1)}…`
+}

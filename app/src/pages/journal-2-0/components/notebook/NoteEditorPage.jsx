@@ -5070,28 +5070,35 @@ export default function NoteEditorPage({
   // Ask is offered on every note (AskPanel has no gate here), so that is exactly when Writing help is; with Writing
   // help absent, Ask stays the plain "Ask this note" button it was. The touch tier keeps both buttons as they were.
   const aiMenuOn = showWritingHelp
-  // Writing help's door, ONE element in the source so its walkthrough anchor (`data-tour="writing-help"`) is
-  // written exactly once (onboarding/tourAnchors.test.js): the header button (`menu` null; folded at desktop, the
-  // touch tier's), or the desktop "AI" menu's item (`menu` the AI menu). Both open the same panel, and focus comes
-  // back to the control that opened it.
-  const writingHelpDoor = (menu) => (
-    <button
-      type="button"
-      role={menu ? 'menuitem' : undefined}
-      className={menu ? menuStyles.item : `${styles.chromeBtn} ${styles.foldDesktop}`}
-      ref={menu ? undefined : writingHelpButtonRef}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={menu
-        ? menu.run(() => openWritingHelpFromButton(menu.triggerProps.ref.current))
-        : () => openWritingHelpFromButton()}
-      aria-label="Writing help"
-      data-tour="writing-help"
-      title="Writing help — summarize, rewrite, continue or translate"
-    >
-      <UIcon name="sparkle" {...TOOLBAR_ICON} style={menu ? undefined : { verticalAlign: '-2px', marginRight: 4 }} />
-      {menu ? 'Writing help' : <span className={styles.phoneIconLabel}>Writing help</span>}
+  // Writing help's door: the header button (`menu` null; folded at desktop, the touch tier's), or the desktop "AI"
+  // menu's item (`menu` the AI menu). Both open the same panel, and focus comes back to the control that opened it.
+  // Go-live wave 1 (C5): each form carries its OWN walkthrough anchor -- `writing-help` on the header button (the
+  // touch tier's step) and `writing-help-menu` on the menu item (the desktop step) -- written once each
+  // (onboarding/tourAnchors.test.js). With one anchor on both, the folded header button (first in the page) answered
+  // for both and the desktop step never found its item.
+  const writingHelpDoorProps = (menu) => ({
+    type: 'button',
+    role: menu ? 'menuitem' : undefined,
+    className: menu ? menuStyles.item : `${styles.chromeBtn} ${styles.foldDesktop}`,
+    ref: menu ? undefined : writingHelpButtonRef,
+    onMouseDown: (e) => e.preventDefault(),
+    onClick: menu
+      ? menu.run(() => openWritingHelpFromButton(menu.triggerProps.ref.current))
+      : () => openWritingHelpFromButton(),
+    'aria-label': 'Writing help',
+    title: 'Writing help — summarize, rewrite, continue or translate',
+  })
+  const writingHelpDoor = (menu) => (menu ? (
+    <button {...writingHelpDoorProps(menu)} data-tour="writing-help-menu">
+      <UIcon name="sparkle" {...TOOLBAR_ICON} />
+      Writing help
     </button>
-  )
+  ) : (
+    <button {...writingHelpDoorProps(null)} data-tour="writing-help">
+      <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+      <span className={styles.phoneIconLabel}>Writing help</span>
+    </button>
+  ))
   // The widget palette's two row doors (the touch row's "Insert widget", the desktop row's "Insert"): its Escape
   // and close hand focus back to whichever opened it.
   const togglePalette = (e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }
@@ -5392,6 +5399,7 @@ export default function NoteEditorPage({
                   className={`${styles.chromeBtn} ${styles.aiBtn}`}
                   aria-label="AI"
                   title="AI: ask about this note, or get writing help"
+                  data-tour="note-ai"
                 >
                   <UIcon name="sparkle" {...TOOLBAR_ICON} />
                   <span>AI</span>
