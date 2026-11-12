@@ -1115,7 +1115,7 @@
    "criterion": "kk.market_reading",
    "q": "In a Red market, a Kicker long waits while we stay mostly in cash.",
    "answer": "True",
-   "why": "True. In a Red market we hold mostly cash, plus shorts below the 200-day. A Kicker needs a Green or Yellow reading. A bounce in a Red market looks like a Kicker and is not. Red does not mean no trades at all: shorts below the 200-day stay open.",
+   "why": "True. In a Red market we hold mostly cash, plus shorts below the 200-day. A Kicker long needs a Green or Yellow reading, or Orange for an A+. A bounce in a Red market looks like a Kicker and is not. Red still allows shorts below the 200-day.",
    "lesson_line": "Check the market first. In a Red market the Kicker waits.",
    "facts": [
     "k_mkt",
@@ -1864,7 +1864,7 @@
     },
     "round": 1
    },
-   "why": "3.4%. The gap is the open minus the buy point, over the buy point: 86.00 against 83.20 is about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4% it is a chase, and chasing costs size, not risk: the stop stays put, the distance grows and the shares shrink.",
+   "why": "3.4%. Take the open minus the buy point, over the buy point: 86.00 against 83.20 is about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4% it is a chase.",
    "lesson_line": "Measure the open against your buy point. Past 4% over it, you are chasing.",
    "facts": [
     "h11",
@@ -2376,9 +2376,9 @@
     "Wait for a dip to 31.50",
     "Add a third; the gap shows strength"
    ],
-   "story": "Your plan takes the first third off at 3R, which is 31.50, and you have not trimmed yet. The next morning it opens at 32.20.",
+   "story": "Your plan takes the first trim at 3R, which is 31.50, and you have not trimmed yet. The next morning it opens at 32.20.",
    "answer": "Trim right at the open",
-   "why": "At the open. If a stock opens above a trim level (3R, 5R), we take that trim at the open. The 3R level here is 31.50 and the open is 32.20, already past it, so the trim comes at the open, not at 31.50. The first trim is a third.",
+   "why": "At the open. If a stock opens above a trim level (3R, 5R), we take that trim at the open. The 3R level here is 31.50 and the open is 32.20, already past it, so the trim comes at the open, not at 31.50.",
    "lesson_line": "Open past the level, take the trim at the open.",
    "facts": [
     "h25",
@@ -3037,7 +3037,7 @@
    ],
    "story": "A hard market-wide selloff took the stock down 5.9% in one day. The next day it gapped 8.7%, closed up 9.9%, then gave it all back. Your stop was the full 3.5%.",
    "answer": "A shock-day bar is no pullback",
-   "why": "A shock-day red bar is not an orderly pullback. On 10-10 AVGO's red day fell 5.9% in a one-day market shock, and the Kicker gapped 8.7%. It then gave it all back and was stopped the next session at 0.0R. A shock-day bar looks like a Kicker and is not.",
+   "why": "A shock-day red bar is not an orderly pullback. That was AVGO on 2025-10-13: the red day fell 5.9% in a one-day market shock, and the Kicker gapped 8.7%. The next day gave it all back and hit the stop. A shock-day bar looks like a Kicker and is not.",
    "lesson_line": "A one-day shock bar is not an orderly pullback.",
    "facts": [
     "dAVGO",
@@ -3052,7 +3052,7 @@
     "The gap was under the 1.5% line": "A gap of 8.7% is far over the 1.5% line. The problem was the shock behind the red day."
    },
    "house": true,
-   "simple": "The red day was a one-day market shock, not an orderly pullback on a base, so the Kicker failed.",
+   "simple": "The red day was a one-day market shock, not an orderly pullback, so it only looked like a Kicker.",
    "deeper": {
     "trap": "Trap: AVGO looked like a textbook pair. The red day fell 5.9% and closed at 2% of its range, then the Kicker gapped 8.7% and closed +9.9% on 2.0x. But a shock-day bar is not an orderly pullback, and the next day gave it all back."
    },
@@ -4041,15 +4041,15 @@
    "format": "scenario",
    "criterion": "kk.stop_broker",
    "q": "What about the stop?",
-   "story": "You bought a Kicker at 42.00. After 10:00 the broker stop sits at 41.30. At 1:00 pm the stock is at 41.50 and you feel it will bounce.",
+   "story": "You bought a Kicker at 75.00. The broker stop sits at 73.20. At 1:00 pm the stock is at 73.60 and you feel it will bounce.",
    "choices": [
     "Leave the order where it is",
-    "Lower it to 40.50 to give it room",
+    "Lower it to 72.40 to give it room",
     "Cancel it and watch the screen",
-    "Add a half position at 41.50"
+    "Add a half position at 73.60"
    ],
    "answer": "Leave the order where it is",
-   "why": "Leave it. The stop only moves up, never down or wider, and it stays a real order with the broker. At 41.50 the stock is above the 41.30 stop, so nothing has failed. Lowering it turns a planned loss into a bigger one.",
+   "why": "Leave it. The stop only moves up, never down or wider, and it stays a real order with the broker. At 73.60 the stock is above the 73.20 stop, so nothing has failed. Lowering it turns a planned loss into a bigger one.",
    "lesson_line": "A stop only moves up. If you want to lower it, the answer is no.",
    "facts": [
     "h02",
@@ -4059,14 +4059,14 @@
     "k_one"
    ],
    "wrong": {
-    "Lower it to 40.50 to give it room": "A stop never moves down or wider. Lowering it makes the planned loss bigger.",
     "Cancel it and watch the screen": "A real stop order stays with the broker. A stop in your head is not a stop.",
-    "Add a half position at 41.50": "We buy once, at one price with one stop. No adds."
+    "Lower it to 72.40 to give it room": "A stop never moves down or wider. Lowering it makes the planned loss bigger.",
+    "Add a half position at 73.60": "We buy once, at one price with one stop. No adds."
    },
    "house": true,
    "simple": "Leave the stop where it is. It only moves up, and lowering it turns a planned loss into a bigger one.",
    "deeper": {
-    "trap": "Trap: a hunch that it will bounce. The one exception to a stop that only moves up is the gap rule: when a stock gaps through the stop, the first 30-minute low becomes the new stop. A dip to 41.50, above the 41.30 stop, is not a gap."
+    "trap": "Trap: a hunch that it will bounce. The one exception to a stop that only moves up is the gap rule: when a stock gaps through the stop, the first 30-minute low becomes the new stop. A dip to 73.60, above the 73.20 stop, is not a gap."
    },
    "tier": "extended",
    "risk": {
@@ -4192,8 +4192,8 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "kk.trim_2",
-   "q": "By the plan, what is next at 24.22?",
-   "story": "You bought a Kicker at 22.17 with the stop at 21.76. You sold a third at 23.40 and lifted the stop to breakeven. Now it trades at 24.22, which is 5R.",
+   "q": "By the plan, what is next at 5R?",
+   "story": "You bought a Kicker and took the first trim at 3R, as planned. Now it reaches 5R.",
    "choices": [
     "Sell a third more, trail the last",
     "Sell all the rest and bank the 5R",
@@ -4201,7 +4201,7 @@
     "Add a third more at the higher price"
    ],
    "answer": "Sell a third more, trail the last",
-   "why": "Sell another third, then trail the last third. After the first third at 3R, the plan is another third at 5R, then trail the last, though that part is adjustable. You sold the first third at 23.40, and 24.22 is 5R, so the second third comes off now. Nothing is added.",
+   "why": "Sell another third, then trail the last third. After the first third at 3R, the plan is another third at 5R, then trail the last, though that part is adjustable. It has reached 5R, so the second third comes off now. Nothing is added.",
    "lesson_line": "After the first third at 3R, the plan is a third at 5R, then trail the last.",
    "facts": [
     "h20",
@@ -4382,8 +4382,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'A smaller gap is a plain breakout day' generalises from CEG (0.8%, dCEGn 'no gap') to any smaller gap. A 1.0% gap that trades through the high is not covered by a cited quote. Say only what k_gap supports."
+   "fixed": false,
+   "notes": "1.5 from cp2/k_gap; bank has one defensible word; no tell."
   },
   "q04": {
    "status": "pass",
@@ -4407,7 +4407,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True is right (k_mkt, D46, card no-trade row). The why gave away q91 ('Orange for an A+ only') and leaned on the card's Orange line, which the card contradicts elsewhere. Orange sentence removed."
+   "notes": "Key True is right, but the why says a Kicker 'needs a Green or Yellow reading', which contradicts k_mkt/h26 (Orange allows an A+) and the keys of q45 and q91. 'shorts ... stay open' is also unclear."
   },
   "q08": {
    "status": "pass",
@@ -4442,8 +4442,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 15 is right (k_struct). But the sentence says 'Before the red day' and the deeper trap says the count 'stops before the red day, the 20 closes are the ones before it'. The card measure is the 20 sessions ENDING ON the red day, so that trap is unsupported and contradicts the card. Sentence and trap reworded to what the quote says."
+   "fixed": false,
+   "notes": "15 from k_struct; bank clean; deeper trap grounded (dIDCC 44.1%)."
   },
   "q14": {
    "status": "pass",
@@ -4460,8 +4460,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is the extreme of the numeric choices ($10/$20M highest, both distractors lower), a mild tell. Replace $5/$5M with a higher pair so the key sits mid-range. Rest is supported (h09, h19, cDet)."
+   "fixed": false,
+   "notes": "$10 / $20 million from h09; app floor from cDet; distractor lengths balanced; no second defensible answer."
   },
   "q17": {
    "status": "pass",
@@ -4496,8 +4496,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'on day one' is never defined for the member (card says 'day-1 ... of the Kicker day'). Name the Kicker day so the statement cannot be read as the red day or a later day. The entry-B-also-needs-red-high question stays an owner flag (D-031); the statement itself matches k_eb."
+   "fixed": false,
+   "notes": "True per k_eb; kq1 used only for the 30-minute first bar. Note: q82's stem names 'entry B, the 30-minute break', which hints this key; inherent to the ladder, not fixable here."
   },
   "q23": {
    "status": "pass",
@@ -4527,7 +4527,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "86.00 / 83.20 - 1 = 3.37%, so 3.4, key right (C28). lesson_line says 'Up to 4% is fine', which overreaches: the open must also pass the 10% stretch test and every other rule. Reworded."
+   "notes": "Calc right (2.80/83.20 = 3.37, so 3.4). But the why calls the open-minus-buy-point distance 'the gap', which clashes with q36 (the gap is measured from the red close). The last sentence (distance grows) also overreaches for a Kicker open fill, whose stop is capped at 3.5% under the fill (k_stop, k_open)."
   },
   "q28": {
    "status": "pass",
@@ -4544,8 +4544,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (k_earn, h08). Fix the deeper trap: it says the trap is 'the strong close', which the story never mentions, and 'to 0R' is the dossier's best-R shorthand, which reads as a breakeven exit and is not a loss figure. Say only what the quotes support."
+   "fixed": false,
+   "notes": "A report two sessions out sits inside k_earn/h08's 3-session window; the earnings-gapper distractor is rightly wrong (l_peg needs the session after a report); GOOGL/AVGO trap grounded in dGOOGL/cGOOGL."
   },
   "q31": {
    "status": "pass",
@@ -4568,8 +4568,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer 'No' is right, but 'you miss the trade' (why, lesson_line, simple) rules on the held second-chance decision D-026. k_ea only says the red-high entry is Kicker day only, so say 'this entry is gone'."
+   "fixed": false,
+   "notes": "k_noclose, m_close, k_ea (Kicker day only) decide it; both No choices are distinct and only one holds; cc1 supports the strong-close line."
   },
   "q35": {
    "status": "pass",
@@ -4605,7 +4605,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key (trim at the open, F63) is right. But the distractor 'Skip it and wait for 5R' is defensible under the rulebook: B19 says the first trim is ideally anywhere from 3R to 6R and in practice he mostly waits for 5R, and the story never says the plan trims at 3R. Story now states the plan, the distractor is replaced by a clearly wrong add (k_one), and the 'may never fill' guess is removed."
+   "notes": "Key right (h25/F63). But the story's 'takes the first third off at 3R' gives away q18's key ('A third', the first trim at 3R). Reworded so the story names the 3R trim without its size."
   },
   "q41": {
    "status": "pass",
@@ -4646,14 +4646,14 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (E58, E57, k_ea). One wrong note said 'Nothing voids it', which overreaches: a filled gap does void a Kicker (k_fill). Reworded."
+   "fixed": false,
+   "notes": "k_hrs/h23 and h22 decide it; the gap-voids and limit-order distractors are cleanly wrong; no tell."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right on l_peg and dLUV. The Launchpad wrong note rests on l_lp0, which is not in the facts list. Add it. Held decision D-025 stays flagged."
+   "fixed": false,
+   "notes": "l_peg plus dLUV (6.2% gap, +18.7%, 3.8x); EP ruled out by l_ep's 10%; Launchpad by l_lp0. Single defensible key."
   },
   "q49": {
    "status": "pass",
@@ -4676,8 +4676,8 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two defects. (1) The story never rules out a report, so 'An earnings gap after a report' cannot be refuted from the story (l_peg grades any first session after a report as a PEG); the wrong note 'The story names no report' is a weak refutation. (2) The key is the only choice with a contrast clause ('not a Kicker'), a tell. Add the fact to the story and drop the clause."
+   "fixed": false,
+   "notes": "l_r2g defines the red-to-green entry exactly as the story plays out; k_hold/k_fill rule out the Kicker; EP and earnings distractors cleanly wrong."
   },
   "q53": {
    "status": "cut",
@@ -4700,20 +4700,20 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (k_ma50). Tell: it is the only choice naming the 50-day, which the story names, so matching words finds it. Make a Yes distractor also name the 50-day (wrong, since k_ma50 is a card test)."
+   "fixed": false,
+   "notes": "k_ma50 and cx1 decide it; the 200-day 'No' distractor is wrong (h10/cx1 only ask price above it); no tell."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and why match dAVGOw/dAVGOm. But the story gives no stop, so 'The stop was too tight for the day' cannot be refuted from it (the 3.5% in the note is outside the story). 'The red day was too small to matter' is silly against a 5.9% drop. Put the stop in the story and swap the silly choice for a number the story settles."
+   "notes": "Key right. The why says 'On 10-10' with no year, and 'stopped the next session at 0.0R' misreads the research column (0.0R is the best R reached; a 3.5% stop-out is a full loss), so a learner reads it as breakeven. The simple line's 'so the Kicker failed' overreaches; the card says it is not a Kicker."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (k_mkt, h33, cf2). Two defects: 'out at 0.0R' and 'stopped at 0.0R' misread the dossier's best-R column as an exit result (Monday opened under the stop, so it was a loss); and the key is the only choice naming Red, which the story states. Remove the 0.0R claims; swap the tight-stop distractor for one that names Red and is wrong by h26."
+   "fixed": false,
+   "notes": "k_mkt/h33 decide it; 'only size down' is the Yellow reading (h26); EP excluded by l_ep. LLY numbers grounded in dLLY/dLLYn. Overlaps q07 and q70 by design (Learn to Prove ladder)."
   },
   "q59": {
    "status": "cut",
@@ -4724,8 +4724,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h02, h28); numbers match dCDNS. 'stopped the next session at 0.0R' reads as a breakeven exit; 0.0R in the dossier is not the exit result. Drop it."
+   "fixed": false,
+   "notes": "h02 and h28 decide it; CDNS numbers from dCDNS/dCDNSn (low 175.34 under the 177.50 stop); distractors each break a named rule."
   },
   "q61": {
    "status": "pass",
@@ -4766,8 +4766,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (dGWW1, k_red). The 'no news' wrong note says the card calls the Kicker 'not a news event'; cx2 only says positioning and rarely earnings. Restate what cx2 supports."
+   "fixed": false,
+   "notes": "dGWW1/dGWWn and k_red decide it; the chart window ends on the red day (2024-10-10, Kicker day 2024-10-11 per dGWWd); the no-news distractor is answered by cx2. Pairs with q66 (opposite key)."
   },
   "q68": {
    "status": "pass",
@@ -4796,8 +4796,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (favor the growth stock, D40) is right. Tells: 'Stock A' appeared in two of four choices, and the key echoed the story's 'growth'. The k_earn and h01 citations were not used. Choices rebuilt with A once, B once and two neutral wrong options."
+   "fixed": false,
+   "notes": "h35 (D40): prefer growth, chart first; with matching charts A is favored; 'Either' and 'Neither' are cleanly wrong for 'favor'."
   },
   "q73": {
    "status": "pass",
@@ -4869,7 +4869,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Right answer (h02, k_brk, h37). The key is the only choice with a hedge ('for now') and repeats the story's 41.30. Use a plain action that avoids both."
+   "notes": "Logic right (h02, k_brk, h37). But the story's numbers (bought 42.00, stop at 41.30 after 10:00) are q31's exact case and give away q31's key ('Raise it to just under 41.30'). New numbers: the stop is 2.4% under the buy, inside the 3.5% cap."
   },
   "q85": {
    "status": "pass",
@@ -4893,7 +4893,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Math right (22.17 + 5 x 0.41 = 24.22). But h20 says the 5R third is adjustable, so 'What is next' leaves 'hold, skip the trim' defensible; ask for the plan. The 'no adds' note rests on k_one, which is not in the facts."
+   "notes": "Key right (h20/E51). But the story ('bought at 22.17, stop 21.76, sold a third at 23.40 and lifted the stop to breakeven') is q39's exact case and states q39's key ('Sell a third, stop to breakeven'); it also hints q85. The prices also carry computed 3R/5R levels with no calc. Story now names the levels only."
   },
   "q89": {
    "status": "pass",
@@ -4910,8 +4910,8 @@
   "q91": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h08: hold through a report only if up 5R; 2R is short, so False. Rule taught in the why and lesson line."
+   "fixed": true,
+   "notes": "Content right (h26, k_mkt). But it is pure recall marked rung 4 (Practise: use it on a case). Learn rung fits, and it also helps the unit's spread (Practise 33, Learn 29)."
   }
  }
 }

@@ -974,8 +974,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c08, h31). Two wrong notes assert things no cited fact says (\"Deciding live is how you chase\", \"a plan that bends\"). Reworded to what h31 and c08 support."
+   "fixed": false,
+   "notes": "Solved cold: a rule, not a price (c08 says so word for word; D39 h31 says the plan is written before the open). No second defensible choice, no tell, quotes verified in the card and sizing_rule.md s9. Stem and choices do not give away another item's key."
   },
   "q12": {
    "status": "pass",
@@ -1119,7 +1119,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The stem did not say \"by the hard rule\", and B19 says the owner in practice mostly waits for 5R, so \"Nowhere; hold out for the 5R\" was arguably a second answer. Stem now names the hard rule (h05) as q20 does."
+   "notes": "Key right by F63 (h25), and 'by the hard rule' correctly fences off B19's 'mostly waits for 5R'. But the stem asks 'where' while every choice answers 'when'; and the distractor 'Wait for a dip back to 3R exactly' names 3R as the trim level, handing q20 (when does the first third come off? At 3R) its key. Reworded the stem to 'when' and the two choices to drop the 3R level."
   },
   "q36": {
    "status": "pass",
@@ -1149,7 +1149,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two wrong notes carry ungrounded claims: 'the range low is already the stop' (the stop is a few cents under the day's low, c03/h24) and 'it was set before the fill' (c03 puts the stop at the moment of the fill). Key and why are right (c11, h02, d10, d11)."
+   "notes": "Key right (A4 h02, card c11). Breaks: (1) the story puts APA's own fill and stop (d11) on a reversal 'on heavy volume', and the why then says APA took its stop that day, but d10 never says the reversal came on heavy volume: an invented detail on a real record. Dropped it from the story; the why keeps c11's big-volume line as 'even a big-volume reversal'. (2) The 'Sell now' feedback leans on the broker stop order (D41) with no cited fact: added h18. (3) 'Widen the stop under the range' is near silly, since the stop already sits under the range low; replaced with a real temptation (move it lower"
   },
   "q41": {
    "status": "pass",
@@ -1203,7 +1203,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two sentences over 22 words (why, deeper.trap). Split; wording kept to u05 and c02."
+   "notes": "Key grounded: u05 verified on the live Substack page (the owner's own sentence, read in context as the index signal for the focus list) and card c17. Breaks: (1) the story is silent on the market reading, and in a Red reading (D46 h34, F65 h26) the index cue would not turn the list on; the card's best case is 'a Green market with the indexes themselves taking out their opening ranges'. Added a Green reading to the story and h26 to facts. (2) 'Bet against the index break' is a silly choice; replaced with a plausible one (buy the index, not the names)."
   },
   "q50": {
    "status": "pass",
@@ -1245,7 +1245,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c15, b03). One wrong note claims 'no honest stop', which no cited fact gives (the stop comes from the low, not the high). Replace with Bysshe's line b03."
+   "notes": "Key right by card c15 and Bysshe b03. One break: the 'Neither' feedback says 'Only a range with no clear high is skipped' as our rule, but our card grades a sloppy range B- (c24 sits in the card's b_minus list; D38 sizes B- down), it does not make it a skip; the skip is Bysshe's. Reworded to attribute the skip to Bysshe. The rest holds; E50 (grading is discretionary) is not contradicted by a single cue."
   },
   "q57": {
    "status": "pass",
@@ -1263,7 +1263,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h29, h28, c12). The why says 'each re-entry' counted, but Monday's buy was the first try, not a re-entry. The deeper line 'half of the month' is loose: three tries is half of the monthly six."
+   "notes": "Key right by E56 (h29). Breaks: (1) 'Wednesday's retake' implies a Wednesday stop-out before it (c12: a retake of the day's high follows a stop-out), so the story can be read as four tries already, which makes the why's 'Monday, Tuesday and Wednesday used the three' wrong on that reading. Restated as one try a day. (2) The 'Yes; a new trigger' feedback opens with a muddled 'True on the first retake'. (3) The deeper line 'so three tries is half of that' adds nothing. (4) The lesson line's 'waits for a new week' overreaches when the 6-a-month cap is also spent."
   },
   "q60": {
    "status": "pass",
@@ -2540,12 +2540,12 @@
    "format": "scenario",
    "criterion": "orb.trim_gap_open",
    "story": "Your ORB long closed Monday at 2.7R. Tuesday it gaps open at 3.5R.",
-   "q": "By the hard rule, where is the first trim taken?",
+   "q": "By the hard rule, when does the first trim come off?",
    "choices": [
     "At the open; the level is passed",
-    "Wait for a dip back to 3R exactly",
+    "Wait for a dip back to the level",
     "At the close, once it settles",
-    "Nowhere; hold out for the 5R"
+    "Not yet; hold out for 5R"
    ],
    "answer": "At the open; the level is passed",
    "why": "At the open. If a stock opens above a trim level, take that trim at the open. It opened at 3.5R, past the 3R level, so the first third comes off right there. The next third waits for 5R.",
@@ -2556,9 +2556,9 @@
     "h20"
    ],
    "wrong": {
-    "Wait for a dip back to 3R exactly": "3R is already behind you; it opened at 3.5R. The rule is to take the trim at the open, not to wait for a dip.",
     "At the close, once it settles": "The rule says take it at the open, not the close.",
-    "Nowhere; hold out for the 5R": "A third at 3R is the hard rule. 5R is the second third."
+    "Wait for a dip back to the level": "It opened at 3.5R, already past the 3R level. The rule is to take the trim at the open, not to wait for a dip.",
+    "Not yet; hold out for 5R": "A third at 3R is the hard rule. 5R is where the second third comes off."
    },
    "house": true,
    "simple": "Sell the first third at the open, since the stock opened past 3R. The next third waits for 5R.",
@@ -2744,29 +2744,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "orb.reversal_warning",
-   "story": "You bought the 10:00 break at 46.37 with the stop at 45.51. By 10:30 it is back inside the range on heavy volume, under VWAP, above your stop.",
+   "story": "You bought the 10:00 break at 46.37 with the stop at 45.51. By 10:30 it is back inside the range, under VWAP, still above your stop.",
    "q": "What now?",
    "choices": [
     "Hold; the stop is the exit",
     "Sell now; the reversal says so",
-    "Widen the stop under the range",
+    "Move the stop lower to give it room",
     "Hold, but sell it at the close"
    ],
    "answer": "Hold; the stop is the exit",
-   "why": "Hold. After the fill the stop decides. A big-volume reversal back into the range is the classic failure shape and a warning to watch, not a second exit rule. The stop only moves up. APA took its stop at 12:45 the same day, a planned loss.",
+   "why": "Hold. After the fill the stop decides. Even a big-volume reversal back into the range is the classic failure shape, a warning to watch, not a second exit rule. The stop only moves up. APA, with these numbers, took its stop at 12:45 the same day, a planned loss.",
    "lesson_line": "The warning tells you to watch. The stop tells you when to leave.",
    "facts": [
     "c11",
     "h02",
+    "h18",
     "d10",
     "d11",
     "d15",
     "c13"
    ],
    "wrong": {
-    "Sell now; the reversal says so": "The reversal is a warning. The stop is the exit, and it is already a real order with the broker.",
-    "Widen the stop under the range": "The stop only moves up, never down or wider. It already sits a few cents under the day's low.",
-    "Hold, but sell it at the close": "An exit at the close is a day-trade exit, not ours. The stop is the exit."
+    "Sell now; the reversal says so": "The reversal is a warning, not a second exit rule. The stop is the exit, and it sits with the broker as a real order.",
+    "Hold, but sell it at the close": "Crabel's exit at the close is not ours. The stop is the exit.",
+    "Move the stop lower to give it room": "The stop only moves up, never down or wider."
    },
    "house": true,
    "simple": "Hold, because after the fill the stop decides, and the reversal is only a warning to watch.",
@@ -3126,11 +3127,11 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "orb.index_orb",
-   "story": "10:15. The indexes are taking out their own opening ranges on buying. Three of your best setups are at their range highs.",
+   "story": "10:15, and the reading is Green. The indexes are taking out their own opening ranges on buying. Three of your best setups sit at their range highs.",
    "q": "What does that mean for those setups?",
    "choices": [
     "Execute the focus-list breaks",
-    "Bet against the index break",
+    "Buy the index instead of the names",
     "Wait for the close to decide",
     "Nothing; indexes are not a cue"
    ],
@@ -3140,12 +3141,13 @@
    "facts": [
     "c17",
     "u05",
-    "c02"
+    "c02",
+    "h26"
    ],
    "wrong": {
-    "Bet against the index break": "The cue is to execute the list, not to bet against the indexes.",
     "Wait for the close to decide": "The cue comes after the first 30 minutes, and it is already 10:15. Waiting for the close skips the trigger.",
-    "Nothing; indexes are not a cue": "They are the cue. Our notes name the indexes taking out their opening ranges as the sign to execute the list."
+    "Nothing; indexes are not a cue": "They are the cue. Our notes name the indexes taking out their opening ranges as the sign to execute the list.",
+    "Buy the index instead of the names": "The cue says execute on the focus list. The index break is the cue; the names are the trades."
    },
    "house": true,
    "simple": "Execute the focus-list breaks. When the indexes take out their opening ranges on buying, that is our cue.",
@@ -3401,7 +3403,7 @@
    "wrong": {
     "The second; it has more room to run": "No clear high gives no clear level to buy. Bysshe: with no well-defined support or resistance, don't waste your time watching it.",
     "Equal; any high is as good as another": "The grade cue is a well-defined high, tested more than once. The second range has none.",
-    "Neither; skip both of the ranges": "The first range has a clear, tested high, so it is worth watching. Only a range with no clear high is skipped."
+    "Neither; skip both of the ranges": "The first range has a clear, tested high, a level worth watching. Bysshe's skip is for the sloppy range only."
    },
    "house": true,
    "simple": "The first range grades higher, because its high is a clear level to buy and the other has no clear level.",
@@ -3514,7 +3516,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "orb.reentry",
-   "story": "Same stock, same week: stopped on Monday's ORB, Tuesday's, and Wednesday's retake. Thursday morning a fourth break prints.",
+   "story": "Same stock, same week: you were stopped out on Monday, Tuesday and Wednesday, one try each day. Thursday morning a new break prints.",
    "q": "Buy it?",
    "choices": [
     "No; three tries a week is the cap",
@@ -3523,22 +3525,22 @@
     "No; the cap is two tries a week"
    ],
    "answer": "No; three tries a week is the cap",
-   "why": "No. The same stock: at most 3 tries in a week and 6 in a month. Each buy was a new trade and counted, so Monday, Tuesday and Wednesday used the three. A fourth on Thursday is over the line.",
-   "lesson_line": "Three tries a week and six a month on one stock. A fourth break waits for a new week.",
+   "why": "No. The same stock: at most 3 tries in a week and 6 in a month. Each buy was a new trade and each one counted, so Monday, Tuesday and Wednesday used the three. A fourth on Thursday is over the line.",
+   "lesson_line": "Three tries a week and six a month on one stock. A fourth try in the same week is a pass.",
    "facts": [
     "h29",
     "h28",
     "c12"
    ],
    "wrong": {
-    "Yes; a new trigger is a new trade": "True on the first retake. The count still caps at 3 a week.",
+    "Yes; a new trigger is a new trade": "Each new trigger is a new trade, and each one counts. The cap is 3 a week.",
     "Yes, if you cut it to half size": "Size does not reset the count. Three is three.",
     "No; the cap is two tries a week": "The cap is 3 tries in a week and 6 in a month, not two."
    },
    "house": true,
    "simple": "No, because the same stock gets at most 3 tries a week, and Monday through Wednesday used all three.",
    "deeper": {
-    "trap": "'A new trigger is a new trade' is true, and that is why the count matters. Each retake had its own stop and every rule, and each buy counted as a try. Three tries in a week on one stock is the weekly cap. Six in a month is the monthly cap, so three tries is half of that."
+    "trap": "'A new trigger is a new trade' is true, and that is why the count matters. Each try had its own stop and every rule, and each one counted. Three in a week on one stock is the weekly cap; six in a month is the monthly cap."
    },
    "tier": "expert",
    "risk": {

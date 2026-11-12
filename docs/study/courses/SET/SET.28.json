@@ -932,7 +932,7 @@
    ],
    "answer": "The 50-day and the 200-day lines",
    "why": "The 50-day and the 200-day lines. If the stock lost and retook one of them, it is the moving-average form. The 10-day and the 21-day are our trail lines for selling.",
-   "lesson_line": "Fifty or two hundred. Those are the lines.",
+   "lesson_line": "The moving-average form: the 50-day or the 200-day.",
    "facts": [
     "m01",
     "k18",
@@ -945,7 +945,7 @@
     "The 10-day and the 21-day lines": "Those are our trail lines for selling the last third. The moving-average form is the 50-day and the 200-day."
    },
    "house": true,
-   "simple": "We use the 50-day and 200-day lines, because a stock that lost and retook one of them is a Remount.",
+   "simple": "The moving-average form uses the 50-day and the 200-day lines, not the short trail lines.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2186,26 +2186,24 @@
     "Buy half size and use a tight stop"
    ],
    "answer": "Pass; the retake lacks real buying",
-   "why": "Pass. A light-volume reclaim after a heavy-volume break is an invalidation on our card. IBD reads a weak, low-volume rise after a high-volume drop under the 50-day as your chance to sell. It takes a large boost of buying power to muscle back above a lost 50-day line.",
-   "lesson_line": "Heavy break, light retake: a sell, not a buy.",
+   "why": "Pass. The stock lost its 50-day on heavy volume and came back on light volume. Our card lists that light-volume reclaim after a heavy-volume break as an invalidation. Few buyers came with the close, and IBD notes stocks often need a large boost of buying power to muscle back above a lost 50-day line.",
+   "lesson_line": "Heavy break, light retake: no trade.",
    "facts": [
     "m09",
     "k13",
-    "i3",
     "i1",
-    "i2",
     "k18"
    ],
    "wrong": {
     "Buy; the line is retaken on the close": "The line is retaken, but a light-volume reclaim after a heavy-volume break is an invalidation.",
-    "Buy half size and use a tight stop": "Half size does not fix a reclaim IBD reads as a sell.",
+    "Buy half size and use a tight stop": "Half size does not fix it. A light retake after a heavy break is no trade.",
     "Pass; it was under too briefly": "Three weeks under the line is long enough to count as lost. The problem is light buying after a heavy break."
    },
    "house": true,
    "story": "A stock lost its 50-day on heavy volume and stayed under it for three weeks. It drifts back over the line and closes above it on light volume.",
-   "simple": "Pass, because a retake on light volume after a heavy-volume break is weak, and IBD reads it as a chance to sell.",
+   "simple": "Pass. The break came on heavy volume and the retake on light volume, so too few buyers came back to trust the line.",
    "deeper": {
-    "trap": "Heavy volume on the break and light volume on the retake is the pattern to fear. The close is back over the line, but few buyers came with it. IBD says institutions may use a lost 50-day line to mark a sell level. So the line can act as a sell level, not a floor."
+    "trap": "Heavy volume on the break and light volume on the retake is the pattern to fear. The close is back over the line, but few buyers came with it. A close over the line alone does not make a Remount."
    },
    "tier": "extended",
    "risk": {
@@ -3894,7 +3892,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (m01). But the 10-day and 21-day wrong note said flatly 'not Remount lines', while card 32 (rm.line, D-073 pending) lets a 20 EMA count above a rising 50-day. Softened to say only that they are our trail lines; the key rests on m01."
+   "notes": "Key right (m01). But the simple line overreaches: 'a stock that lost and retook one of them is a Remount' is false for a 1-4 close dip (a U&R or pullback, q13/q41). The 'because' is circular. The lesson_line 'Those are the lines' also ignores the level form (q02, q67). Both reworded; the key, choices and why are unchanged."
   },
   "q04": {
    "status": "pass",
@@ -3905,8 +3903,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 200 right (k01, m05, h10). But the sentence 'Whatever line it retakes, the remount close must be above...' states q08's answer outright (a 50-day reclaim needs the close above the 200-day). Reworded so it states the rule without naming the line."
+   "fixed": false,
+   "notes": "Only 200 fits (k01, m05, B26 h10). A 200-day remount can close under the 50-day, so 50 is not a second answer. A parabolic long is not a Remount, so 'never' holds. It overlaps q08/q57 as rule then application, which is fine."
   },
   "q06": {
    "status": "pass",
@@ -3995,8 +3993,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (m10, m11). The wrong note 'A red day proves nothing' is not supported by any cited fact; reword to the card line (pause is an inside day that closes above the line)."
+   "fixed": false,
+   "notes": "m10, m11 and card 32 rm.entry_pause support it. The distractors are clearly not quiet days. The key is not the longest choice. The red-to-green variant is not offered, so there is no second answer."
   },
   "q21": {
    "status": "pass",
@@ -4116,13 +4114,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (m09, k13, i3). The story says only 'drifts back over the line', yet the Buy choice, its wrong note and the deeper note all assume a close back over; state the close so no choice rests on a detail the story never gave."
+   "notes": "Key right (m09, k13). But the why's IBD sentence repeats q11's stem plus its key ('as your chance to sell'). The deeper trap gives q09's key ('mark a sell level'). The simple, the lesson_line and the half-size wrong note also say 'sell', and the why is a near-copy of q11's why. 'It takes a large boost' also hardens IBD's 'often need' (i1). Rewritten to stand on the card and i1's exact hedge."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (m03, 2 sessions after the undercut is inside 3). Why had a 27-word sentence (limit 22). Split."
+   "fixed": false,
+   "notes": "Two closes under, back on the third session, fits m03's 'within 3 sessions' and card 32's 'fewer than 5'. Oops is one session (k21), so it is excluded. I could not break it."
   },
   "q42": {
    "status": "pass",
@@ -4169,8 +4167,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'B minus' rested on card cues, but the rulebook (E50) says grading is discretionary with no fixed checklist taught as ours; the question asked the member to pick the grade from two cues. Rebuilt: the story gives the grade (B minus, the card's own cue story) and asks the size, which D38 settles (B minus or lower sized down). Not a ban."
+   "fixed": false,
+   "notes": "D38 (hfa1): B- or lower is sized down. The grade is given, so E50's discretion does not matter. 'No trade' is wrong by the rulebook. Choices are balanced."
   },
   "q50": {
    "status": "pass",
@@ -4211,14 +4209,14 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and notes grounded (d01, d02, m10, m11). Choices all 40 chars or fewer. Two why sentences are over 22 words (23 and 24); split them. Still depends on D-003 (held)."
+   "fixed": false,
+   "notes": "NKE 2020-08-05/06/07 matches dossier rows d01/d02 (verified in 32-remount.md line 1147). The +1.3 ATR close, the inside day, 101.19/99.98 and 1.2% (calc 1.196%) are all grounded. Two Take and two Pass choices. 'Buy now' is clearly anticipating the trigger."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Pass right (e05: close 274.51 under the 200-day 295.88; B26). Wrong note for 'the 50-day is above the 200-day' said 'the close sits under both', which is false: the close 274.51 is over the 50-day 267.88 (that is the reclaim). Deeper trap cited 'heavy volume' that no cited fact supports. Both fixed."
+   "fixed": false,
+   "notes": "e05 verified in 13-ma-reclaim.md line 1264 (274.51 under 295.88; the 50-day 267.88 under it too). B26 and m05 support Pass. The other Pass gives a wrong reason. The x5 quote is fine."
   },
   "q58": {
    "status": "pass",
@@ -4241,20 +4239,20 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right per y1. Two why sentences are 25 words each, the first nearly a verbatim copy of the quote. Lesson line says 'scare', which y1 does not say (it says induce). Shorten and restate."
+   "fixed": false,
+   "notes": "y1 verified on the ChartSchool Wyckoff page, and v2 on the VOSI page. The key follows from the quote. The distractors are plausible and wrong."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per h26/k02 and A10. In the deeper trap, 'Orange lowers the grade we accept' reads backwards (Orange raises the grade demanded). Reword."
+   "fixed": false,
+   "notes": "F65 (h26) and k02: Orange is A+ only, so a B waits. The 'no new trades' choice is clearly Red, not Orange. The why notes the guide, not a hard cap (A10). Minor: 'A+' and 'A plus' are mixed in one why."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Hold is consistent with A4 (the stop is the exit) and m06; B26 vs holding below the 200-day stays an owner flag (D-008 held). Wrong note 3 is flawed: at 45.60 a breakeven stop of 46.01 would sit above the market, and 'at the first trim' is not in h05. The 'no adding' note cites h31/m12 which this question did not list. Fix notes and facts."
+   "fixed": false,
+   "notes": "m06 (card 13, settled by D-136) covers a 200-day remount exactly. A4 and C33 hold. Breakeven at 2R to 5R (h05) rules out 46.01. 45.60 is above the 44.80 stop. I could not break it."
   },
   "q64": {
    "status": "cut",
@@ -4277,20 +4275,20 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True right (k27, k14; proposed card number worded as 'our card proposes'). Why had a 27-word sentence and simple a 23-word one (limit 22). Split and shortened."
+   "fixed": false,
+   "notes": "k27 proposes a necessary condition, so 'only if' is true. The why hedges 'proposes'. Its overlap with q02/q68 is principle then application, not a giveaway of a key in a stem."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per k27/k14 (5 of 15 vs 10 of 15). Why has a 24-word sentence; split it. Rule is taught in q67."
+   "fixed": false,
+   "notes": "5 of 15 is under k27's 10 of 15. The other No choice ('averages only') is wrong. Minor: the key says 'above' where the rule says 'at or above'. It is still true, since at most 5 were above."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (k28, h22, h24). simple had a 24-word sentence (limit 22). Shortened."
+   "fixed": false,
+   "notes": "k28 is the variant. Market and a few cents come from E57/F62 (h22, h24). The distractors are wrong and the key is not the longest."
   },
   "q70": {
    "status": "pass",
@@ -4301,8 +4299,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per new fact h31 (A5, verbatim in the rulebook) and k30. The simple line is 23 words; split it."
+   "fixed": false,
+   "notes": "A5 (h31), m12, k30. The trims at 3R and 5R are cited by h20. 'Sell half' is not the plan. I could not break it."
   },
   "q72": {
    "status": "pass",
@@ -4313,8 +4311,8 @@
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Arithmetic right (300 shares, 100 sold, third = 100). E51 is marked adjustable, so the stem must say default or a trader who adjusts has a second defensible answer."
+   "fixed": false,
+   "notes": "E51 (h20): a third of 300 = 100 at 5R, then trail 100. Arithmetic is from the story. It is stated as the default and adjustable."
   },
   "q74": {
    "status": "pass",
@@ -4331,8 +4329,8 @@
   "q76": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key B rests on card cues k32/k33 (not an owner ruling; E50 says grading is discretionary), kept with the cue-not-score caveat and owner flag. The story compares two picks on the line alone with no 'all else equal', so a thin-story objection stands. Add that."
+   "fixed": false,
+   "notes": "k32/k33: best when an average and a level sit together. The story says 100.00 held for months (k27). It is framed as a cue, not a score (E50). Mild: B is the lone B among two A choices, but not decisive."
   },
   "q77": {
    "status": "pass",

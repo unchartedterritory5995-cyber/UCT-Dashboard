@@ -1254,7 +1254,7 @@
    },
    "simple": "The target is the daily 9 EMA, from below. It is Bracco's short target, kept in our card for the long.",
    "deeper": {
-    "counter": "Bracco calls the 9 EMA a magnet for his short. In our plan the 9 EMA is the finish line for the long. Price has to get there; nothing pulls it."
+    "counter": "Bracco calls the 9 EMA a magnet for his short. Our card keeps it for the long as the finish line: the trade is done when price gets there."
    },
    "tier": "core",
    "risk": {
@@ -2567,8 +2567,8 @@
     "Only the broad index ETF itself"
    ],
    "answer": "Mid and large caps, plus ETFs",
-   "why": "Mid and large caps, plus broad or sector ETFs. Bracco prefers mid to large caps even though the setup is more common in small caps. ETFs are fine for the index version. Every name still needs a $10 price and $20 million a day.",
-   "lesson_line": "Trade the panic in something you can get out of.",
+   "why": "Mid and large caps, plus broad or sector ETFs. The card prefers them over small caps. Bracco says the setup is more common in small caps, but he prefers mid to large caps. Every name still needs a $10 price and $20 million a day.",
+   "lesson_line": "Pick the name too: mid and large caps and ETFs come first.",
    "facts": [
     "c28",
     "p14",
@@ -2578,11 +2578,11 @@
    ],
    "house": true,
    "wrong": {
-    "Only the broad index ETF itself": "The index is one context. Mid and large stocks and sector ETFs qualify too.",
+    "Only the broad index ETF itself": "The card names mid and large caps and sector ETFs too, not just the index ETF.",
     "Small caps, where it is most common": "Bracco says it is more common in small caps, but he prefers mid to large caps, and so does our card.",
     "Any cheap stock that gapped down": "Price and dollars traded matter: $10 or more and $20 million a day."
    },
-   "simple": "We prefer mid and large caps and ETFs, because they trade enough volume to get out of fast.",
+   "simple": "We prefer mid and large caps and broad or sector ETFs over small caps.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3164,7 +3164,7 @@
     "forward": 20
    },
    "wrong": {
-    "Take it; the boxes are ticked": "Four boxes and a stretch were there. Volume is its own gate and it missed.",
+    "Take it; the boxes are ticked": "Four of five boxes were there. Volume is its own gate and it missed.",
     "Take it; the gap is enough": "The gap is box five. The climax volume is a separate rule.",
     "Pass; the whole market is falling": "A falling market is not a reason to pass. An index capitulating too is the best setting. The fault here is this stock's own volume."
    },
@@ -3465,7 +3465,7 @@
    "format": "scenario",
    "criterion": "pl.retries",
    "q": "Buy again?",
-   "story": "You were stopped out of a parabolic long on Tuesday. Thursday the same stock prints a new low, turns, and reclaims VWAP again, with the burst boxes still ticked. It would be your second try this week.",
+   "story": "You were stopped out of a parabolic long on Tuesday. Thursday the same stock prints a new low, turns, and reclaims VWAP again, with every box and rule still met. It would be your second try this week.",
    "choices": [
     "Yes; a new trade with its own stop",
     "No; a stop-out ends that setup",
@@ -3908,7 +3908,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The why and the deeper counter say the card finds Bracco's magnet claim does not hold for longs. That gives away q57 (False) and q58. Keep the target as the finish line only."
+   "notes": "Key right (c18, p12, h16). But deeper.counter 'Price has to get there; nothing pulls it' gives away q57 (False) and q58 (do not count on the 9 EMA), and 'nothing pulls it' is in no quote (c19 says about 4 in 10 longs reached it). Keep the 9 EMA as the finish line only."
   },
   "q04": {
    "status": "pass",
@@ -3925,14 +3925,14 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and why are right (h14, c10). The unchanged lesson_line 'The burst is the whole story' overreaches: stops, context and the market reading also matter, and the resolver dropped that claim from the why."
+   "fixed": false,
+   "notes": "False is right (h14 C31, c10). No second answer; lesson_line and simple stay inside the quotes; no other RS question in the lesson."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (c13, h22, h03b). But the stem says 'The VWAP reclaim prints', which hands over q08's answer (the trigger). Say 'The trigger prints'."
+   "fixed": false,
+   "notes": "Key from c13, h22, h03b (A5); p19 grounds Bracco's second entry. Choices balanced in length; wrong notes grounded. Teaches no-adding before q28 but does not reveal any stem."
   },
   "q08": {
    "status": "pass",
@@ -3985,8 +3985,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Odd-one-out tell: the key was the only volume choice among three price/gap choices and the only one with digits. Add the real box four (rising volume) as a distractor so the member must know the 2x test is separate (c06 vs c03b)."
+   "fixed": false,
+   "notes": "Three distractors are boxes 1, 2 and 4 (c03, c03b); the 2x volume is the separate pl.volume_climax gate (c06). No count rule keyed, so D-002 is respected."
   },
   "q17": {
    "status": "pass",
@@ -4063,8 +4063,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 3% to 8% sizing band and the 8% skip line are the card's proposal (c17), not an owner rule (risk note). The stem 'What now?' reads as a general rule, and h01 alone says 'skip if the stop does not fit', so a member could defend Skip. Ask what our card says."
+   "fixed": false,
+   "notes": "7.3% (plus a few cents) sits between 3% and 8%: keep the stop, fewer shares (c17; card note 'fewer shares, the same account risk (A5)'). Consistent with A3/A13 (3% is 'usually', not a wall). AGQ numbers match d07."
   },
   "q30": {
    "status": "pass",
@@ -4124,7 +4124,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (c28, p14, h21). The why states the 1% of average daily volume rule, which hands over q46 and drags in the held ETF question (D-018, h19 says 'a stock's'). Drop that sentence."
+   "notes": "Key right (c28, p14). But 'ETFs are fine for the index version' is in no quote, and the simple line's reason ('because they trade enough volume to get out of fast') is not in any cited fact and says more than the why. Rewritten to the quotes."
   },
   "q40": {
    "status": "pass",
@@ -4165,8 +4165,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rule h19 is worded for a stock; applying it to an ETF leans on the held decision D-018. Use a stock; the arithmetic (1% of 500,000 = 5,000) and wrong notes stay valid."
+   "fixed": false,
+   "notes": "1% of 500,000 = 5,000 (h19 D42, calc). Distractors are 2x, 0.5x, 10x with correct wrong notes. Only the volume ceiling can be computed from the stem, so no second answer."
   },
   "q47": {
    "status": "pass",
@@ -4208,7 +4208,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key from c06/d20/d21. Fix: the Pass-market wrong note said a market-wide panic is the best setting, which clashes with c24/q59 (start of a crash is the worst); reworded to the index capitulating case."
+   "notes": "Key right: pl.volume_climax is a gate (card) and APD ran 1.5x against 2x (c06, d20, d21). But the wrong note 'Four boxes and a stretch were there' cites a stretch that is in none of the cited quotes (d21 starts at '4/5 boxes'). Dropped."
   },
   "q54": {
    "status": "pass",
@@ -4256,7 +4256,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (h28, h29). One wrong note claims a wider stop 'breaks the sizing', which no fact supports (h01 says a wider stop means fewer shares). Replace with the stop rule from h24."
+   "notes": "Key right (h28 B21, h29 E56, c39). But B21 says a new try needs every rule, and the story only says the burst boxes are ticked; the 2x volume gate and the context are not stated, so a careful member cannot fully decide. State that every box and rule is met."
   },
   "q62": {
    "status": "pass",
@@ -4273,8 +4273,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two problems. (1) 'Late morning' is an invented detail: the card's data uses the daily close as the fill and has no VWAP-reclaim time. (2) Majority tell: the key matched the most common value in each slot. Make each slot value appear in two choices and give each wrong choice two errors."
+   "fixed": false,
+   "notes": "Entry, stop and target from c12, c16, c18, h22; BABA numbers match d01/d02. Each key part is shared with exactly one distractor, so no tell. D-003 pending is flagged in risk."
   },
   "q65": {
    "status": "pass",
@@ -4291,8 +4291,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Majority tell: the key was the hub choice (44.50 appears in two, '3R first' in two), so a pattern reader finds it without computing. Rebuild with four distinct levels (2R, 3R, 4R, 5R from the question numbers) and a below/above relation to the 9 EMA, two each."
+   "fixed": false,
+   "notes": "R = 1.50, 3R = 44.50 (calc), under 45.10; 9 EMA is 3.4R away, over the 2R floor (c08). Distractors are 2R, 4R, 5R with correct notes."
   },
   "q68": {
    "status": "cut",

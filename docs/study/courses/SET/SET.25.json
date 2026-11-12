@@ -1466,7 +1466,8 @@
     "h04",
     "dACN",
     "dDELL",
-    "h12"
+    "h12",
+    "o_stop"
    ],
    "house": true,
    "suffix": "%",
@@ -1502,7 +1503,7 @@
    ],
    "story": "Yesterday: high 50.60, low 49.40, close 50.00. Today: open 49.70, low 49.10, close 50.30.",
    "answer": "Yes, it passes all three tests",
-   "why": "Yes. It opened at 49.70, under the prior close of 50.00. It traded down to 49.10, under the prior low of 49.40. It closed at 50.30, over the prior close. That is the main version. It closed under the prior high of 50.60, so it is not a Super Oops. It opened over the prior low, so it is not Williams' stricter version.",
+   "why": "Yes. Test one: the 49.70 open is under the 50.00 prior close. Test two: the 49.10 low is under the 49.40 prior low. Test three: the 50.30 close is over the 50.00 prior close. The close stays under the 50.60 prior high, so it is a plain Oops, not a Super. Williams' version would also need an open under 49.40.",
    "lesson_line": "Check the three tests one by one against yesterday.",
    "facts": [
     "o_main",
@@ -1627,12 +1628,11 @@
    ],
    "story": "The prior close is 50.00. You missed the reclaim. At 11:30 the stock is at 52.30.",
    "answer": "No, over 4% above the prior close",
-   "why": "No. 52.30 is more than 4% above the prior close of 50.00, so it is a chase. We never buy more than 4% above the prior close. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "why": "No. 52.30 is more than 4% above the prior close of 50.00, so buying now is a chase. Our rule is no buy more than 4% above the prior close. You missed this one, so let it go.",
    "lesson_line": "Past 4% over the prior close, you missed it. Let it go.",
    "facts": [
     "o_chase",
     "h11",
-    "h12",
     "o_super",
     "o_stop",
     "dAMATw"
@@ -2443,7 +2443,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "oops.scanner_oops",
-   "q": "Oops or Red to Green?",
+   "q": "Which setup does this day show?",
    "choices": [
     "A Red to Green, not an Oops",
     "An Oops, it closed over the close",
@@ -2452,14 +2452,14 @@
    ],
    "story": "The stock opens under the prior close and closes over it. Its low stays 0.48% above the prior day's low.",
    "answer": "A Red to Green, not an Oops",
-   "why": "A Red to Green. The day opened under the prior close and closed over it. Its low stayed 0.48% above the prior day's low, so it never undercut yesterday's low. An Oops requires that the day first traded under the prior low. Every Oops is a red to green, but not the reverse. This was GOOGL on 2026-02-27.",
+   "why": "A Red to Green. The day opened under the prior close and closed over it. Its low stayed 0.48% above the prior day's low, so it never undercut yesterday's low. An Oops requires that the day first traded under the prior low. This was GOOGL on 2026-02-27.",
    "lesson_line": "Check if it traded under yesterday's low first. If not, it is a Red to Green.",
    "facts": [
     "l_rg1",
-    "l_rg2",
     "dGOOGL",
     "dGOOGLn",
-    "l_k1"
+    "l_k1",
+    "l_tb2"
    ],
    "wrong": {
     "An Oops, it closed over the close": "An Oops needs a trade under the prior low first.",
@@ -3171,7 +3171,8 @@
    "lesson_line": "Over 10% above the 10-day average, skip the long, even a clean Oops.",
    "facts": [
     "h13",
-    "o_stretch"
+    "o_stretch",
+    "o_red"
    ],
    "wrong": {
     "No, it needs a red prior day": "A red prior day is preferred, not required. The stretch rule is what stops this buy.",
@@ -3241,12 +3242,11 @@
    ],
    "story": "You sold a third at 3R. Now the Oops reaches 5R.",
    "answer": "Sell a second third, trail the rest",
-   "why": "Sell a second third and trail the last third. After the first third at 3R comes another third at 5R. Then the last third rides the trail. Trail the 10-day for fast movers and the 21-day for steadier ones, and sell on a close below it. The plan is adjustable. We buy the full size once, so there is no adding.",
+   "why": "Sell a second third and trail the last third. After the first third at 3R comes another third at 5R. Then the last third rides the trail. The plan is adjustable. We buy the full size once, so there is no adding.",
    "lesson_line": "At 5R the second third comes off. The last third rides the trail.",
    "facts": [
     "h20",
-    "h31",
-    "h21"
+    "h31"
    ],
    "wrong": {
     "Hold it all; the trail does the work": "The second third comes off at 5R. The trail handles the last third.",
@@ -3367,8 +3367,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Mid-air, where no level is nearby' and 'prior day's high' are silly/impossible choices. Replaced with plausible averages not on the card's list (card names rising 21-day EMA, 50-day SMA, or a visible level)."
+   "fixed": false,
+   "notes": "Key matches o_loc (rising 21-day EMA or 50-day SMA). No second defensible choice; 10-day wrong note grounded in h21. No cross-answer."
   },
   "q13": {
    "status": "pass",
@@ -3439,13 +3439,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "lesson_line 'A close stop is what the Oops gives you' generalises from a few examples; no fact says Oops stops are close. Replaced with a measure-only line. Key 1.24 verified: (31.51-31.12)/31.51*100 = 1.2377."
+   "notes": "Calc (31.51-31.12)/31.51*100 = 1.24 matches dACN; DELL 1.81% matches dDELL. But the why says the Oops-day low sets the stop and the deeper note says a deeper undercut made the stop wider: both rest on o_stop, which is not cited. Add o_stop."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Math is right (49.70 < 50.00, 49.10 < 49.40, 50.30 > 50.00). But q05 just taught that Williams' Oops opens under the prior low, so 'No, it opened over the prior low' is defensible for a plain 'Is it an Oops day?'. Name the main test in the stem."
+   "notes": "Key right (open 49.70<50.00, low 49.10<49.40, close 50.30>50.00; close under 50.60 so not Super). But the why is a near word-for-word copy of q26's why (same opening three sentences). Rewritten as the test-by-test check its lesson_line promises."
   },
   "q26": {
    "status": "pass",
@@ -3463,7 +3463,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (52.30 is 4.6% over 50.00, past the 4% limit in o_chase/h11). The wrong note calls a Super close 'only an extra mark', which o_super does not support; the grade-mark wording is in dAMATw, which is not cited. Cite it and use its wording."
+   "notes": "Key right (52.30 is over 52.00, 4% above 50.00; C28 and o_chase agree). But the why copies q20's why sentence for sentence, and its last line (distance grows, shares shrink) talks about sizing a buy the key says not to make. Rewritten; h12 dropped."
   },
   "q29": {
    "status": "pass",
@@ -3504,8 +3504,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The story's 3R level 157.32 is q17's answer, so q35 answers q17. Also 'Wait for 5R' is a defensible second answer, since B19 says the owner in practice mostly waits for 5R. New numbers and a non-rulebook distractor."
+   "fixed": false,
+   "notes": "F63 decides it: a trim level the day opens past is taken at the open. 53.10 is past the 52.40 3R level. No second defensible choice; 30-minute wrong note grounded in h06."
   },
   "q36": {
    "status": "pass",
@@ -3589,7 +3589,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (GOOGL near-miss: low 0.48% above the prior low, so no undercut). The 2B wrong note says 'This broke nothing', which the story does not support (an older swing low could sit above yesterday's low). Use the unclaimed wording from q48."
+   "notes": "Key right (low held 0.48% above the prior low, dGOOGL). Breaks: the why repeats q62's why word for word ('Every Oops is a red to green, but not the reverse'), which answers q62; the stem 'Oops or Red to Green?' makes the 2B and Kicker choices silly; the 2B wrong note cites no fact (l_tb2 exists). Stem neutralised, sentence removed, l_tb2 cited."
   },
   "q50": {
    "status": "pass",
@@ -3703,7 +3703,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (56.00 is 12% over 50.00; h13/o_stretch). But the why and a wrong note say the 'Oops tests pass' and the stretch rule is 'separate', while o_stretch sits on the Oops card itself. Say the candle tests pass and the stretch rule is a separate gate."
+   "notes": "Key right (56.00 is over 55.00, 10% above 50.00; C29 and o_stretch agree). The red-prior-day wrong note ('preferred, not required') cites no fact; o_red is the card quote. Add it."
   },
   "q69": {
    "status": "pass",
@@ -3715,7 +3715,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (h20, h21, h31). The story repeats q34's whole key ('sold a third at 3R and lifted the stop to breakeven'), so q70's stem answers q34 and leans on the held breakeven decision (D-019) for no reason. The breakeven clause is not needed for this question; drop it."
+   "notes": "Key right (E51: another third at 5R, then trail the last third). The why's trail sentence copies q39's why and hands over q39's key (21-day for steadier names, same rung 6) while adding nothing to this answer. Sentence and h21 dropped."
   }
  }
 }

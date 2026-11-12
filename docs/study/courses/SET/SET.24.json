@@ -1646,7 +1646,7 @@
     "No, wait for a pullback to the old low",
     "Yes, but only at half the normal size"
    ],
-   "story": "The break day undercut the 64.00 low and closed back above it. The next morning it opens at 65.30. Your stop sits a few cents under the undercut low.",
+   "story": "The break day undercut the 64.00 low, then closed near its high, back above 64.00. The next morning it opens at 65.30. Your stop sits a few cents under the undercut low.",
    "answer": "Yes, it is inside 4% above the low",
    "why": "Yes. The open, 65.30, is inside the 4% limit above the broken low, 64.00, so a market order at the open is fine. The 4% limit is the gap test. Size comes from the stop, not from the gap.",
    "lesson_line": "Inside 4% over the low, the open is a fair fill.",
@@ -2110,29 +2110,29 @@
    "criterion": "tb.market_reading",
    "q": "How many do you buy?",
    "choices": [
-    "A few, then add as they work",
-    "A few, then add the rest tomorrow",
+    "A few, then more as they work",
+    "A few, then the rest tomorrow",
     "All eight at once, at full size",
     "All eight at once, at half size"
    ],
    "story": "After a correction the market reading turns Green again. Eight 2Bs reclaim their lows in one morning.",
-   "answer": "A few, then add as they work",
-   "why": "A few. After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work. Green allows full risk per grade, but the limit here is how many to open at once.",
-   "lesson_line": "Back from a correction, start with a few and add as they work.",
+   "answer": "A few, then more as they work",
+   "why": "A few. After a market correction, when the reading turns Green again, start with a few positions and add more positions only as the first ones work. Green allows full risk per grade, but the limit here is how many to open at once.",
+   "lesson_line": "Back from a correction, start with a few positions and open more as they work.",
    "facts": [
     "h27",
     "t_mkt",
     "h26"
    ],
    "wrong": {
-    "A few, then add the rest tomorrow": "Add more only as the first ones work, not on a schedule.",
-    "All eight at once, at full size": "Start with a few positions and add only as they work.",
-    "All eight at once, at half size": "Half size does not change it. Start with a few positions and add only as they work."
+    "All eight at once, at full size": "Start with a few positions and add more only as they work.",
+    "All eight at once, at half size": "Half size does not change it. Start with a few positions and add more only as they work.",
+    "A few, then the rest tomorrow": "Add more positions only as the first ones work, not on a schedule."
    },
    "house": true,
-   "simple": "A few. After a correction we start with a few positions and add more only as the first ones work.",
+   "simple": "A few. After a correction we start with a few positions and open more only as the first ones work.",
    "deeper": {
-    "trap": "The trap is reading Green as all in. Green allows full risk per grade and up to 10 positions, but right after a correction we start with a few and add only as they work."
+    "trap": "The trap is reading Green as all in. Green allows full risk per grade and up to 10 positions, but right after a correction we start with a few positions and open more only as the first ones work."
    },
    "tier": "extended",
    "risk": {
@@ -2150,16 +2150,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "tb.trim_gap_open",
-   "q": "When do you take the first trim, a third at 3R?",
+   "q": "When do you take your 3R trim?",
    "choices": [
     "At the start of trading",
     "At the close of that day",
-    "On a fall back to 50.87",
+    "On a fall back to 62.40",
     "Wait until it reaches 5R"
    ],
-   "story": "Your 3R level is 50.87. The next morning the 2B opens at 51.40.",
+   "story": "Your 3R level is 62.40. The next morning the stock opens at 63.10.",
    "answer": "At the start of trading",
-   "why": "At the open. If a stock opens above a trim level, take that trim at the open. The 3R level was 50.87 and the open, 51.40, is already past it. Do not wait for a fall back to 50.87, and do not wait for 5R, since the hard rule takes the first third at 3R.",
+   "why": "At the open. If a stock opens above a trim level, take that trim at the open. The 3R level was 62.40 and the open, 63.10, is already past it. Do not wait for a fall back to 62.40, and do not wait for 5R: the hard rule takes the first trim at 3R.",
    "lesson_line": "Open past the level, take the trim at the open.",
    "facts": [
     "h25",
@@ -2167,11 +2167,11 @@
    ],
    "wrong": {
     "At the close of that day": "The rule is to take the trim at the open.",
-    "On a fall back to 50.87": "The rule is to take it at the open, not to wait for a fall back.",
-    "Wait until it reaches 5R": "The hard rule takes a third at 3R. The open is past it."
+    "Wait until it reaches 5R": "The hard rule takes the first trim at 3R. The open is past it.",
+    "On a fall back to 62.40": "The rule is to take it at the open, not to wait for a fall back."
    },
    "house": true,
-   "simple": "At the open. If a day opens above a trim level, we take that trim at the open.",
+   "simple": "At the open. If a stock opens above a trim level, we take that trim at the open.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3543,8 +3543,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (t_close). But 'the buyers did not hold' is not in any cited fact (the GOOG note that said it was removed). Rest simple and lesson_line on t_close alone."
+   "fixed": false,
+   "notes": "Key False matches t_close (card tb.reclaim_close, quote verified at criteria/28-2b-reversal.json line 399). why, simple, deeper agree and say no more than the fact. No tell. Overlaps q55/q61 only as the recall rung of the same rule (by design), it does not give their keys away."
   },
   "q10": {
    "status": "pass",
@@ -3651,7 +3651,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: 65.30 is 2.0 percent over 64.00, inside 4 percent. The note 'Waiting can miss it' is not supported by any fact. Rest it on the 4 percent test and cite the open fill (h22, dPYPL)."
+   "notes": "Key right: 65.30 is about 2% over 64.00, inside C28/t_chase 4%; E57 market order, A3 size from stop. Story too thin: it never says the break day closed well, and q09 teaches that a bottom-half close invalidates the reclaim, so a careful student cannot be sure the setup is live. Added that it closed near its high. Rest unchanged."
   },
   "q28": {
    "status": "pass",
@@ -3723,13 +3723,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h27). The deeper line 'Eight 2Bs in one morning is a reason to be choosy' is not supported by any cited fact. Removed."
+   "notes": "Key right per F68/h27. Break: 'add as they work' reads as adding shares to open trades, which A5 ('no adding') and q32's key ('do not add') forbid, so a student taught those can reject the right choice. F68 means more positions. Reworded the key and its echoes to 'more' positions; parallel wrong choice trimmed so the key is not the longest."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h25). The key 'As soon as it opens' repeats the story's 'opens' and is a tell. Reworded, similar length to the other choices."
+   "notes": "Key right per F63/h25. But it answers two other questions: the story's 'Your 3R level is 50.87' is q18's numeric key (49.58/49.15 -> 50.87), and the stem 'the first trim, a third at 3R' is q17's key ('A third'). New numbers come from the question itself; stem no longer names the third. 'the 2B opens' -> 'the stock opens'."
   },
   "q41": {
    "status": "cut",
@@ -3920,8 +3920,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (t_res). Three defects: key repeats the story's 'rallied'; the note 'where your stop sits' is off (the stop sits a few cents under it); the 60.00 note and lesson_line say the first sellers ARE at the rally high, but the card says 'often'."
+   "fixed": false,
+   "notes": "Key matches t_res (card tb.first_resistance, line 772; evidence line 790 ties it to the first sellers). 'often' kept in stem and why. 56.00 is met before 60.00, both lows sit under price. q 129 chars, key not the longest, no leak to or from another question."
   },
   "q73": {
    "status": "pass",

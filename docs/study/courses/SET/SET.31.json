@@ -1524,7 +1524,7 @@
     "b11"
    ],
    "house": true,
-   "simple": "False. On a daily chart the crack shows as a close under the open, and a green climax day won only 23% of the time.",
+   "simple": "False. On a daily chart the crack is a close under the open, and shorting a green climax day won only 23% of the time.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2775,7 +2775,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.parabolic_not_linear",
-   "q": "Our card's read?",
+   "q": "Our card checks the last three weekly ranges. What is its read?",
    "choices": [
     "Not parabolic; ranges did not expand",
     "Parabolic; the red close is the crack",
@@ -2783,7 +2783,7 @@
     "Not parabolic; it is above its 200-day"
    ],
    "answer": "Not parabolic; ranges did not expand",
-   "why": "Not parabolic. Our card wants the last 2 to 3 weekly ranges each larger than the one before. Bracco calls consecutive weeks of range expansion extremely important. Here the last three ranges were 12.33, 5.27 and 13.33, so the middle week shrank. This was a steady leader's one-day reversal, the linear case. NVDA gave 1.19R, then stopped. The 200-day is not the test, because our rule lets a parabolic short sit above it.",
+   "why": "Not parabolic. Our card wants the last 2 to 3 weekly ranges each larger than the one before. Here all three are given: 12.33, 5.27 and 13.33, so the middle week shrank. Bracco calls consecutive weeks of range expansion extremely important. This was a steady leader's one-day reversal, the linear case. NVDA gave 1.19R, then stopped. The 200-day is not the test, because our rule lets a parabolic short sit above it.",
    "lesson_line": "A leader's one bad day is not a climax. The weeks before it decide.",
    "facts": [
     "d26",
@@ -3080,9 +3080,9 @@
     "c48"
    ],
    "wrong": {
-    "The stop over the high was too tight": "The stop was the rule's stop. The mistake was the entry: a green day with no burst.",
+    "The stop over the high was too tight": "Nothing in the story says the stop was wrong. The mistake was the entry: a green day with one box.",
     "None; any gap up counts as a climax": "A gap up that closes green has not cracked. The gap is the setup, the crack is the trigger.",
-    "Entered late; the open was the entry": "The open was not the entry here. You shorted the close, and the mistake was a green close with one box."
+    "Entered late; the open was the entry": "Nothing at the open on the climax day. The mistake was what you shorted: a green close with one box."
    },
    "house": true,
    "story": "The stock gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway.",
@@ -3611,8 +3611,8 @@
     "Market now; stop at the VWAP; 9 EMA"
    ],
    "answer": "Market now; stop over the high; 9 EMA",
-   "why": "Market at the VWAP break, a few cents over the day's high, target the daily 9 EMA. Our entries are market orders. The trigger is the break back under VWAP after the high is set. The stop sits a few cents over the climax day's high at entry. GDS: the daily stand-in short was 48.50 with the stop at 52.56, and the 9 EMA came in 2 sessions.",
-   "lesson_line": "Entry at the turn, stop over the high, out at the 9 EMA. Write it before the open.",
+   "why": "Market now, stop a few cents over the day's high, target the daily 9 EMA. Our entries are market orders. The trigger is the break back under VWAP after the high is set. The stop sits a few cents over the climax day's high at entry. GDS: the daily stand-in short was 48.50 with the stop at 52.56, and the 9 EMA came in 2 sessions.",
+   "lesson_line": "Entry at the VWAP break, stop over the high, out at the 9 EMA.",
    "facts": [
     "c04",
     "c05",
@@ -3630,7 +3630,7 @@
     "Market now; stop at the VWAP; 9 EMA": "A VWAP reclaim is Kullamagi's exit for a VWAP-fail entry. For the VWAP-break entry the stop sits a few cents over the day's high."
    },
    "house": true,
-   "story": "GDS, February 2025: a 13-session run from a flat base, four of four boxes, a 15.4% gap on record volume. On the 5-minute chart it runs, then breaks VWAP.",
+   "story": "GDS, February 2025: a 13-session run from a flat base, four of four boxes, a 15% gap on record volume. On the 5-minute chart it runs, then breaks VWAP.",
    "simple": "Enter at market on the VWAP break, put the stop just over the day's high, and aim for the daily 9 EMA.",
    "deeper": {
     "example": "GDS gapped up 15.4% on 2025-02-20 on record volume and closed red. Our daily stand-in for the plan was a short at 48.50 with the stop at 52.56. On the 5-minute chart the same plan starts earlier, at the VWAP break."
@@ -3660,7 +3660,7 @@
     "Pass; there was no gap up today"
    ],
    "answer": "Take it; a gap up that closed red",
-   "why": "Take it. The last bar opened above the prior close and closed red, in the lower half of its range. It came after a 13-session run with four of four boxes. The gap was 15.4%, on record volume. Our rule needs a climax day that opens above the prior close. On daily bars the crack is a close under the open. The 9 EMA came in 2 sessions.",
+   "why": "Take it. The last bar opened above the prior close and closed red, in the lower half of its range. It came after a 13-session run with four of four boxes. The gap was about 15%, on record volume. Our rule needs a climax day that opens above the prior close. On daily bars the crack is a close under the open. The 9 EMA came in 2 sessions.",
    "lesson_line": "Gap up, record volume, red close after a burst: that is the climax day.",
    "facts": [
     "c01",
@@ -3673,7 +3673,7 @@
    "wrong": {
     "Pass; the day closed green, not red": "Look again: the last bar opened higher and closed lower, in the lower half of its range.",
     "Pass; there was no gap up today": "The last bar opened well above the prior close. The gap is there.",
-    "Take it; short the next day's open": "A Parabolic Short is taken on the climax day itself, and we do nothing at the open."
+    "Take it; short the next day's open": "This bar already cracked, so the short belongs to this climax day itself. Nothing at the open."
    },
    "house": true,
    "chart": {
@@ -3710,7 +3710,7 @@
     "Pass; the climb was too steady"
    ],
    "answer": "Pass; it closed near its high",
-   "why": "Pass. The day closed 15.8% above its open, at 95% of its range: a green climax day with no crack. On daily bars the crack is a close under the open, and shorting a green climax day won 23% of the time. The real top came the next day. A short at the green close was stopped out the next session.",
+   "why": "Pass. Read where the bar closed against where it opened: 15.8% above its open, at 95% of its range. That is a green climax day with no crack, and on daily bars the crack is a close under the open. The top did come the next day, yet a short at this close was stopped out the next session.",
    "lesson_line": "A gap that never looks back has not cracked. Wait for the red one.",
    "facts": [
     "c02",
@@ -4007,14 +4007,14 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct. The wrong note and why say nothing at the open (c03) and name the U-Turn (b26), but neither fact is cited. Add them."
+   "fixed": false,
+   "notes": "Key = card trigger (c04) and Bracco b11/b12; Kullamagi's first RED candle (k06) is not among the choices, so no second answer. Same rule as q27 at a lower rung; stems of q14/q30 presuppose the VWAP break but do not ask for the first entry. Accepted overlap."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct (c02). simple has a 24-word sentence; split."
+   "notes": "Key correct (straight negation of c02). The simple line says 'a green climax day won only 23%': it was SHORTING the green day that won 23%, not the day. Reworded."
   },
   "q10": {
    "status": "pass",
@@ -4079,8 +4079,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (h17, c13). The wrong note says a new trade stops over the new day's high, but c05 says over the climax day's high at entry; no fact supports the new-day claim. Reword to what h17 says."
+   "fixed": false,
+   "notes": "One failed trigger, Wednesday is session 1 after the climax, inside the card's 1 to 2 session window (c13, measure <= 2 sessions after the setup day); B21 + E56 allow a new trigger. Consistent with q68. Two Yes, two No, equal lengths."
   },
   "q21": {
    "status": "pass",
@@ -4169,8 +4169,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (h20, c41, owner range 2R to 5R). simple has a 23-word sentence; split."
+   "fixed": false,
+   "notes": "Both halves true: B19 (h20) and card c41. 'Moves in your favor' is the D47 mirror of A4. No conflict with q46/q37."
   },
   "q36": {
    "status": "pass",
@@ -4218,7 +4218,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct (d26, c10, s09). why had a 26-word sentence; split. No choice states a rival reading of 'last 2 weeks', so no second answer."
+   "notes": "c10 says 'the last 2 to 3 weekly ranges'. Reading only the last 2 (5.27 then 13.33) they DID expand, so a learner can defend 'Parabolic'. The card's measure and the dossier row (d26) use the last three. The stem now names the three-range test so the key is the only read."
   },
   "q44": {
    "status": "pass",
@@ -4260,7 +4260,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct (c43, c02, c48). why had a 25-word sentence. Wrong note D said 'Nothing at the open is the rule too', which hands out q06's answer; reworded."
+   "notes": "Key right (c43, c48, c02). Two wrong-choice notes overreach: 'The stop was the rule's stop' asserts a fact the story never gives, and 'The open was not the entry here' is muddled. Rewritten from c03/c43."
   },
   "q51": {
    "status": "pass",
@@ -4337,8 +4337,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (h14, h13, c07: 4R at the open is past the 2R ceiling). why had a 27-word sentence; split."
+   "fixed": false,
+   "notes": "R = 3.00; the open 72.00 is (72-60)/3 = 4R and the 30-minute high 74.00 is 4.67R, both past the B20 2R ceiling (h14, c07), in line with c29's 4R to 5R squeeze. Key unique; does not answer q28 (inside-2R case)."
   },
   "q64": {
    "status": "pass",
@@ -4350,19 +4350,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct. The VWAP-stop wrong note rests on k03 and c15, which are not in the facts list. Add them."
+   "notes": "Key right (E57 h08, c04, c05, D47 h05). Three repairs: (1) the story's '15.4% gap' hands out q19's numeric answer (15.4) in a stem; d03 grounds '15% gap'. (2) The why's first sentence drops the word stop ('Market at the VWAP break, a few cents over the day's high'). (3) The lesson_line adds 'Write it before the open', a rule (D39) not cited and not in the why."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct. The wrong note for shorting the next open says waiting a day misses it, which clashes with the 1 to 2 day window (c13, q20). Keep only what c20 and c03 support, and cite c03."
+   "notes": "Key right (c01, c02, d01, d03). The wrong note for 'short the next day's open' says only 'taken on the climax day itself', which clashes with q20 (a new trigger next day is allowed) and with the card's pending P2 day-2 version. Reworded to say this bar already cracked. Also the why's exact '15.4%' gives away q19's numeric answer if q66 comes first; d03 grounds 'a 15% gap'."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct. The why says a short at that close was stopped out, placed right after the 2020-02-04 top, so it reads as the 02-04 close. d25 means the 02-03 green close. Name the date."
+   "notes": "Key right (d24, d25, c02). But q67 is the same TSLA 2020-02-03 bar as q32's text scenario, and its why is a near copy of q32's (and repeats the 23% line also in q09 and q50). Rewritten to teach the bar read itself; same grounded facts, no copied sentence."
   },
   "q68": {
    "status": "pass",
@@ -4379,8 +4379,8 @@
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (b34). why had a 30-word sentence; shortened to the b34 claim."
+   "fixed": false,
+   "notes": "Key is b34 nearly word for word; b07 and c49 support the why. Asks for Bracco's view, so the pending D-040 does not change the key. Distinct from q12/q52 (fresh out of a base, no expansion)."
   },
   "q71": {
    "status": "cut",

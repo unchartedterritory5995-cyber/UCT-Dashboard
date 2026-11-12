@@ -3066,7 +3066,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "id.not_setup_alone",
-   "q": "A leader breaks out of a base on Friday and you are not in. What do you watch for?",
+   "q": "What do you watch for?",
    "choices": [
     "An inside day or two after it",
     "Buy at once, even 6% over the buy point",
@@ -3271,6 +3271,7 @@
    "facts": [
     "c06",
     "c48",
+    "c04",
     "u02",
     "h22",
     "d07",
@@ -3284,7 +3285,7 @@
     "Take it, at half the usual size": "The market is Green and the stock, spot and market agree. Green means full risk for the grade. Nothing here calls for half.",
     "Take it; stop at the mother low": "Never use the mother low just to give it room. The stop stays a few cents under the inside day's low."
    },
-   "story": "A clean inside day at a rising 20-day in a leader above its 200-day. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades.",
+   "story": "A clean inside day at a rising 20-day in a leader above its 200-day, its 50-day above the 200. Green market, no earnings for weeks, the stop 1.5% under the trigger. The next day at 10:20, the high trades.",
    "simple": "Take it, because the stock, the spot and the market all agree, even though the bar alone is near random.",
    "deeper": {
     "trap": "The trap is to read 'near random' as 'never'. In our test, only 26.7% reached 3R and 88.2% were eventually stopped. The rule set is a filter, not an edge by itself. We buy it where the stock, the spot and the market agree, and manage it with the stop, trims and trail."
@@ -3453,8 +3454,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d17). The why says 'Our dossier', internal jargon that clashes with the stem's 'Our research'. Reworded."
+   "fixed": false,
+   "notes": "Key matches d17 verbatim in the dossier (line 1004: a loser on average unless the winners are trailed). 88.2% in the why is d07. Trims are excluded by the stem's premise and are not a choice, so no second answer. The trap note honestly says the trail was never tested. q38 and q56 also mention a trail, but as house rules, not as this research finding."
   },
   "q09": {
    "status": "pass",
@@ -3483,8 +3484,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Teaches the 0.4 ATR cut-off through a 0.3 ATR story, against rulebook E50 (no fixed grading checklist taught as ours). The key reason 'its low sits in the noise' is not in the story, ATR is undefined, 'always' is a lone absolute, and the key is the lone No. Rebuilt without numbers on c08's plain first sentence; choices no longer split Yes/No."
+   "fixed": false,
+   "notes": "c08 carries the key (do not treat a tiny inside day as better). 'The same' could look half-right from the scan (stops of 2% or tighter: 27.1% vs 25.9%), but its clause 'only the shape counts' is false, so the key is the only fully true choice. The 'simple' line generalises the 0.4 ATR sliver noise point a little, but the stem says 'very narrow', so it holds."
   },
   "q14": {
    "status": "pass",
@@ -3495,8 +3496,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h22/h23). Tell: the key is the longest choice (36 chars against 34, 34, 31). Shortened to 33 so it sits mid-pack. The wrong-note keys are unchanged."
+   "fixed": false,
+   "notes": "E57, E58 and the card's trigger (a cent over, bought at market) carry the key. D-038 accepts a resting buy-stop, and the distractor is a LIMIT order a cent over, so it is still wrong under E57. Choice lengths are even."
   },
   "q16": {
    "status": "pass",
@@ -3561,14 +3562,14 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h25, 3.5R is past 3R). One wrong note says 'Breakeven is a separate step, between 2R and 5R', which hands q29 its whole answer. Rewrote that note."
+   "fixed": false,
+   "notes": "F63 (h25) decides it, and the B19 hard rule (h05) gives a third at 3R. The owner 'mostly waits for 5R', but F63 is explicit, and declined rule 73 shows the 3R trim is forced, so 'raise the stop; no trim' is not defensible."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d20, c04, c38). Tell: the stem says 'under its 200-day' and the key repeats '200-day', the only choice that echoes it. Stem now says 'long-term average'; the 200-day is named only in the key and why."
+   "fixed": false,
+   "notes": "c38 and d20 give the 17% under the 200-day and say it fails. B26 is a hard rule. The parabolic exception does not apply to an inside-day buy. The distractors are real misreadings. The Bulkowski 53% in the deeper section restates q53, but only after the answer."
   },
   "q28": {
    "status": "pass",
@@ -3699,8 +3700,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The key repeated the story's words (weak red day, gap), so a learner could match words without knowing the Kicker. Reworded the key to carry no story vocabulary; the story keeps c32's conditions (35%, 1.5%, 3% from the story) and elimination still works."
+   "fixed": false,
+   "notes": "c32 thresholds are met (lowest 35%, gap of 3% is at least 1.5%). The story rules out an inside day both ways (yesterday's lower low; today trades over yesterday's high). The distractor's 'gap is over 4%' is false on the story's own 3%. Minor: the visible 4% hints q09, but q52 already shows the 4% line."
   },
   "q50": {
    "status": "pass",
@@ -3741,8 +3742,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Yes, when the volume is light' is a silly non-sequitur (volume has no link to the exit). Replaced with Crabel's other exit from sc06 (the first profitable close), which is a real temptation. Key stays; Bulkowski choice is the longest, not the key."
+   "fixed": false,
+   "notes": "sc06 quote is verbatim (usually at the close of the first trading day or on the first profitable close). c49 lists Crabel's and Bulkowski's exits as not ours. h05, h20 and h15 carry the house exit. Only one 'No' choice is right."
   },
   "q57": {
    "status": "pass",
@@ -3759,14 +3760,14 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why says this is the second try this week, but the story never says Monday was the first try; with earlier tries the 3-a-week limit could apply. Story now states it so the count is grounded in the question."
+   "fixed": false,
+   "notes": "B21 (h28) and E56 (h29) decide it. The story gives try one, so this is try two of three. The Monday-low and double-size distractors are real temptations and are covered by c14 and h03. The story does not restate the context, but 'every rule' is in the key's fact and no choice argues the context failed."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'A buy at Monday's open, at market' is defensible (no chasing only bars buys over 4%) and the note's 4% reason is not in the story; the question asks what to watch for. Replaced with a choice that plainly breaks C28 (h11)."
+   "notes": "The scenario repeats its whole story inside the question ('A leader breaks out of a base on Friday and you are not in' appears twice). Trimmed q to the decision only. The key (u05, the owner's SHOP words) and the choices are sound."
   },
   "q61": {
    "status": "pass",
@@ -3790,7 +3791,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c06, c48, h26). 'Wait for the close to confirm' is a second defensible answer while D-003 (entry timing) is held; the Resolver removed that same choice from q15 for this reason. Replaced it with a mother-low stop choice that c15 rules out."
+   "notes": "Story too thin for a 'take it' key under the card: c04 also needs the 50-day above the 200-day, and the trigger must come within the next sessions. Added both, and cited c04. Key, choices and why unchanged."
   },
   "q65": {
    "status": "pass",

@@ -1256,7 +1256,7 @@
     "30 or more sessions"
    ],
    "answer": "2 to 8 sessions",
-   "why": "2 to 8 sessions from the swing high to the touch day. One session is below the 2 session minimum. Anything past 8 is longer than this card allows. The 20 EMA Pullback card has its own 2 to 15 window.",
+   "why": "2 to 8 sessions from the swing high to the touch day. One session is below the 2 session minimum. Anything past 8 is longer than this card allows. On the 20 EMA, the 20 EMA Pullback card has its own 2 to 15 window.",
    "lesson_line": "Two to eight sessions of drift. One day is a drop, not a drift.",
    "facts": [
     "c11",
@@ -1264,7 +1264,7 @@
    ],
    "wrong": {
     "1 session": "The minimum is 2 sessions. A one-day drop is below it.",
-    "10 to 15 sessions": "That is longer than this card allows. A drift that long is judged on the 20 EMA Pullback card instead.",
+    "10 to 15 sessions": "That is longer than this card allows. On the 20 EMA, a drift that long is judged on the 20 EMA Pullback card.",
     "30 or more sessions": "That is far past the 8 session limit on this card."
    },
    "house": true,
@@ -1454,13 +1454,12 @@
     },
     "round": 2
    },
-   "why": "90.26. One R is the buy minus the stop. Add three of those to the buy. The first third comes off there. MOH reached 3R in one session.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "90.26. One R is the buy minus the stop. Add three of those to the buy. The first third comes off there.",
+   "lesson_line": "3R is the buy plus three R. The first third comes off there.",
    "facts": [
     "hB19",
-    "dMOH",
-    "dMOHw",
-    "c24"
+    "c24",
+    "dMOH"
    ],
    "house": true,
    "prefix": "$",
@@ -3044,7 +3043,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "map.tries",
-   "q": "After a stop-out like this, the same stock gets at most how many tries?",
+   "q": "In the same stock, what is our cap on tries?",
    "choices": [
     "3 in a week and 6 in a month",
     "2 in a week and 4 in a month",
@@ -3247,14 +3246,13 @@
     "Pass; the dip is too shallow to count"
    ],
    "answer": "Take it; a calm dip held its line",
-   "why": "Take it. A leader that had ridden its 10 EMA since February drifted four quiet days onto the line. The dip was 1.42 ATR deep, past the 1 ATR minimum. The touch day ran on only 0.60x volume. 3R came the next day. A clean read is not a promise of the result.",
+   "why": "Take it. A stock that had ridden its 10 EMA since February drifted four quiet days onto the line. The dip was 1.42 ATR deep, past the 1 ATR minimum. The touch day ran on only 0.60x volume. 3R came the day after the buy. A clean read is not a promise of the result.",
    "lesson_line": "Rising line, quiet dip, a hold. That is the picture.",
    "facts": [
     "dYELPw",
     "dYELP",
     "c10",
     "c09",
-    "dYELPs",
     "c14",
     "c38",
     "c05",
@@ -3272,9 +3270,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. A leader drifted four quiet days onto its rising 10 EMA and held, which is the picture we want.",
+   "simple": "Take it. A stock drifted four quiet days onto its rising 10 EMA and held, which is the picture we want.",
    "deeper": {
-    "trap": "Hindsight makes this easy, since 3R came the next day. The day before, the test is the checklist. Look for a rising line, a dip of at least 1 ATR, quiet volume and a close at or above the line. The stop was 3.6% under the buy, above our 3%, so the size comes down even on a clean setup."
+    "trap": "Hindsight makes this easy, since 3R came the day after the buy. The day before, the test is the checklist. Look for a rising line, a dip of at least 1 ATR, quiet volume and a close at or above the line."
    },
    "tier": "expert",
    "risk": {
@@ -3789,7 +3787,7 @@
    "criterion": "map.stop_broker",
    "q": "If a pullback needs more room, you can move the stop lower to keep the trade open.",
    "answer": "False",
-   "why": "False. The stop is the exit, and it only moves up, never down or wider. Only the gap rule bends that, and it sets the new stop by a fixed rule, not by a wish for room.",
+   "why": "False. The stop is the exit, and it only moves up, never down or wider. Needing room is no reason to lower it. If the honest stop does not fit the risk, skip the trade. A gap against the stop has its own rule: the low of the first 30-minute bar is the new stop.",
    "lesson_line": "The stop only moves up. Never lower it to keep a trade alive.",
    "facts": [
     "hA4",
@@ -4152,7 +4150,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The reveal and the 10-15 note say 'Ten sessions is longer than this card allows' and 'A 10-session drift', which hands q54 (META, 10 sessions) its answer. Removed the ten-session specifics."
+   "notes": "Key right (c11). The '10 to 15 sessions' rebuttal says any drift that long goes to the 20 EMA Pullback card; dMETAw and the card only say that for the 20 EMA form, so a 12-session drift onto the 10-day or 50-day would be misfiled. Scoped to the 20 EMA."
   },
   "q11": {
    "status": "pass",
@@ -4188,7 +4186,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Arithmetic and facts were right, but q85 shows 'fall back to 35.19' in its story and a choice, which is this question's answer, before q85 is answered. Switched to the MOH example from walkthrough w3 (dMOH: buy 86.93, stop 85.82, 3R on the next session). 86.93 + 3 x 1.11 = 90.26."
+   "notes": "Calc right: 86.93 + 3 x 1.11 = 90.26. But the why says 'MOH reached 3R in one session' when the question never names MOH, and the lesson line 'Know your 3R before the open' is in no cited quote. Dropped the MOH line and dMOHw, and rewrote the lesson line."
   },
   "q17": {
    "status": "cut",
@@ -4199,8 +4197,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The answer 3.6 is already printed in walkthrough w1 ('Stop 3.6% wide') and in the stem of q28 ('If the honest stop is 3.6% wide'), so the question tests recall, not the percent arithmetic. Switched to fresh numbers: (64.00 - 61.50) / 64.00 = 3.906 -> 3.9; dividing by the stop gives 4.1, so the trap still works. A13 (about 3% of the buy) verbatim."
+   "fixed": false,
+   "notes": "(64-61.5)/64 = 3.906, so 3.9. hA13 grounds the 3% measured against the buy. The trap (dividing by the stop gives 4.1) is real. Could not break it."
   },
   "q19": {
    "status": "pass",
@@ -4217,14 +4215,14 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and numbers are right (hB19, c24). But choices and why put 'stop to breakeven' beside the first trim, which hands out q82's key (breakeven by default at the first trim). Trimmed to the third only; q82 and q83 keep breakeven. Also the choice lengths are balanced so the Sell-half pair is not a short-key tell."
+   "fixed": false,
+   "notes": "B19 hard rule a third at 3R; declined item 73 confirms no skipping the 3R trim. 'Wait for 5R' is his practice, not the rule, and the stem asks for the rules. No tell."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The stem was q68's key word for word (fast mover, last third, 10-day, sold on a close below), so the two answered each other. Re-aimed at the steadier mover and the 21-day (hE52, c26), which q68 does not test. Still True, every term from the cited facts."
+   "fixed": false,
+   "notes": "E52 and c26 say it word for word. It restates the rule q68 applies, which is reinforcement, not a giveaway."
   },
   "q23": {
    "status": "pass",
@@ -4265,8 +4263,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and notes are right (c34, hA3, hD41, hA4, c22). Choice 3 never names the stop and the stem does not either, so the item reads loosely. Stem now says 'stop mistake'. Choices unchanged."
+   "fixed": false,
+   "notes": "Only the cushion choice is a mistake (c34). The other three are A3/F62, D41 and A4. Rebuttals are grounded. No tell."
   },
   "q30": {
    "status": "pass",
@@ -4307,8 +4305,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The deeper trap cites ADI's 3 closes in an 8-session pullback, which is q53's whole story and answer (q53 is later at rung 7). Replaced with a volume line already in the notes."
+   "fixed": false,
+   "notes": "Seven straight closes, one past 0.5 ATR, matches l2b's Remount. U&R is ruled out because the card's undercut window is 2 sessions. Volume is a decoy. Could not break it."
   },
   "q34": {
    "status": "pass",
@@ -4379,8 +4377,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Ticking every box does not make an A+' is in no cited quote (hE50 says discretionary and hard to define; g3 is one cue). Removed. Statement stays True. The criterion map.market_reading is wrong for this item (integrator should relabel)."
+   "fixed": false,
+   "notes": "E50 says it word for word. The g3 cue example is grounded."
   },
   "q48": {
    "status": "pass",
@@ -4446,7 +4444,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Same fact the same way as q57 (stop-out, buy again only on a new trigger, B21): q57's key answered q59 and q59 was the only map.tries item that never tested tries. Re-aimed at hE56 (3 tries a week, 6 a month), still on the PLTR story; B21 stays in the why. Distractor numbers are wrong options only."
+   "notes": "Key matches E56, but 'After a stop-out like this, the same stock gets at most how many tries?' can be read as tries remaining after the first one is used (2 a week, 5 a month), not the total cap. Reworded the stem to ask for the cap."
   },
   "q60": {
    "status": "pass",
@@ -4476,31 +4474,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (dYELP, dYELPw, c09, c10, c14, c38). The deeper note lists a rising line and quiet volume as the checklist but c05 and c13 are not cited; added to facts. Nothing else changed."
+   "notes": "Take it is right on the YELP data. Three defects: (1) 'A leader' is not in dYELPw, which says 'a stock'; (2) '3R came the next day', placed after the touch-day sentence, reads as the day after the touch, but dYELP has the trigger on 06-26 and 3R on 06-27, the day after the buy; (3) the deeper's stop line (3.6%, so the size comes down) gives away q48's YELP answer. Fixed all three and dropped dYELPs. Lesson-level: q48's named YELP story still makes this hidden chart recognizable."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "dAMD, dAMDw and c03 support the key (32.7% under 34.14 vs the 25% limit). But 'Every other check passed' and 'Quiet volume ... it passes' overclaim: dNear covers only GATE criteria, and map.volume is not a gate on the card. Reworded those two notes; key, choices and facts unchanged."
+   "fixed": false,
+   "notes": "32.7% under 34.14 fails the 25% rule. It still fails at the floated 10% or 15%, so the answer holds whatever he rules. dNear grounds 'only that one check fails'. Lesson-level: this is the same AMD example and numbers as q55, so a student who saw q55 may recognize the hidden chart. Recommend separating them in the run order."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "c35 supports the key. The why ('so the test proves nothing') and the trap ('the low always touched some average') add claims no cited fact supports, and 'always' is an overclaim. Trimmed to what c35 says plus plain logic."
+   "fixed": false,
+   "notes": "c35 card mistake, stated directly. No second reading."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and numbers (60,464 hits, 27.7% to 3R, 17.5% to 5R, fixed stop with no trims) match dBase, dBase2, dEdge and D45. One wrong note overclaims: 'it measures no edge for our plan' contradicts dEdge, which says the data does show an edge of about one in four for 3R. Reworded to 'cannot prove an exact edge'."
+   "fixed": false,
+   "notes": "Size from the stop (A3, A5). 27.7% and 17.5% are in dBase, one-in-four and one-in-six in dEdge, and fixed stop with no trims in dBase2. The skip and size-up distractors are rebutted from facts. D45 is a slight stretch but not load-bearing."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "E51, E52 and c26 support Hold. But the key 'we sell only on a close below' is an absolute: the last third also leaves on its stop (at breakeven by then) and on a climax run (C34). Reworded the key to say the trail sells on a close below. Still 'Hold', still not the longest choice (38 vs 40)."
+   "fixed": false,
+   "notes": "E52 sells on a close below the 10-day for a fast mover. An intraday dip does not count. The 21-day choice is rebutted by fast versus steadier. Could not break it."
   },
   "w1": {
    "status": "pass",
@@ -4578,7 +4576,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'It is not about giving a trade room' is an inference no cited quote supports (B20 sets the new stop by a fixed first-30-minute rule). Reworded to what B20 says, without naming the 30 minutes (q15's answer)."
+   "notes": "False is right (A4). But 'Only the gap rule bends that' claims an exclusive exception, which only A4's last sentence states, and the cited hA4 quote stops before it. Reworded so the why stays inside the cited quotes (hA4, hA3, hB20)."
   },
   "q82": {
    "status": "cut",
@@ -4619,8 +4617,8 @@
   "q88": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Quotes atr1-atr3 verified on both pages. Stem 'the unit in our touch and depth rules' and the why/lesson line 'we measure the dip in it' hand q09 its key (ATR over percent). Stem and reveal now teach only the definition."
+   "fixed": false,
+   "notes": "atr1 and atr2 checked on the live ChartSchool page and atr3 on the live Fidelity page: all verbatim. Distractors are distinct. No tell."
   }
  }
 }

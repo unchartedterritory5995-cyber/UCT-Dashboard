@@ -1234,7 +1234,7 @@
     "c12"
    ],
    "wrong": {
-    "A crash low, then a sharp rebound": "That is the V Bulkowski says to avoid: price drops hard into the start of the pole. A rebound off a crash is not a fresh pole.",
+    "A crash low, then a sharp rebound": "That is the V Bulkowski says to avoid: price drops hard into the start of the pole.",
     "A third leg in a run already huge": "Late legs break down. Our card wants the first or second big leg, and Bonde says a tight flag late in the move breaks down.",
     "A slow slide to lower lows all year": "Kuhn describes a well-contained base first, not a slide."
    },
@@ -1284,14 +1284,14 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "htf.pole_size",
-   "q": "IBD says how many of these you might find in a whole bull market?",
+   "q": "IBD says how many of these you might spot, if you are lucky?",
    "choices": [
-    "One or two in a whole bull market",
+    "One or two in a bull market",
     "A handful of new ones each month",
     "About one new one every week",
-    "A couple of dozen in a bull market"
+    "Two dozen in a bull market"
    ],
-   "answer": "One or two in a whole bull market",
+   "answer": "One or two in a bull market",
    "why": "One or two, if you are lucky. IBD, quoted by Bonde: you may spot one or two in a bull market. Bonde adds that finding too many means your reading is wrong. Our own scan found only 12 liquid hits in 36 years before 2020. Seeing one every week means ordinary flags are getting this name.",
    "lesson_line": "If you see one every week, you are calling ordinary flags by the wrong name.",
    "facts": [
@@ -1303,7 +1303,7 @@
    "wrong": {
     "A handful of new ones each month": "Too many. Bonde: if you find too many high tight flags, your reading is wrong.",
     "About one new one every week": "Far too many. Bonde: it is rare, and seeing too many means a misreading.",
-    "A couple of dozen in a bull market": "Far too many. Our scan found only 12 liquid hits in 36 years before 2020."
+    "Two dozen in a bull market": "Far too many. Our scan found only 12 liquid hits in 36 years before 2020."
    },
    "house": true,
    "simple": "One or two, because the pattern is rare and finding many means you are misreading it.",
@@ -1570,7 +1570,7 @@
     "60% of the pole's volume or less",
     "About 80% of the pole's volume",
     "A bit above the pole's volume",
-    "Exactly equal to the pole's volume"
+    "Any volume below the pole's"
    ],
    "answer": "60% of the pole's volume or less",
    "why": "60% of the pole's volume or less is the A grade on our card. Any flag volume below the pole's average passes the gate, and the lighter the better. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
@@ -1579,6 +1579,7 @@
     "c08",
     "c07",
     "i03",
+    "b03",
     "c17",
     "d08",
     "d09"
@@ -1586,7 +1587,7 @@
    "wrong": {
     "About 80% of the pole's volume": "That passes the gate but grades below A. The A grade is at most 60% of the pole's.",
     "A bit above the pole's volume": "That is above the pole's average, so it fails the gate.",
-    "Exactly equal to the pole's volume": "The gate is below the pole's. Equal is not drying up."
+    "Any volume below the pole's": "That is the gate, the pass line. The A grade needs 60% of the pole's or less."
    },
    "house": true,
    "simple": "60% of the pole's volume or less, because our card gives the A grade to the quietest flags.",
@@ -2792,7 +2793,7 @@
    "format": "scenario",
    "criterion": "htf.inv_parabolic_top",
    "q": "Buy the pause, or not?",
-   "story": "The pole's last three days each opened on a gap up, on rising volume and wider ranges. The last one, the climax day, closed below its open. Now it pauses.",
+   "story": "The pole's last three days were all up days, each a gap up on rising volume and a wider range. The last one, the climax day, closed below its open. Now it pauses.",
    "choices": [
     "Not; it reads as a parabolic top",
     "Not; a gap means the move is over",
@@ -2968,7 +2969,7 @@
    "format": "scenario",
    "criterion": "htf.no_chase",
    "q": "The next morning it takes your stop. Was buying the gap a mistake?",
-   "story": "A 101% pole, then a nine-day flag 8.8% deep. The stock gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled. It closes at 121.75, the low of its day.",
+   "story": "A high tight flag passes every gate. The stock gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled. It closes at 121.75, the low of its day.",
    "choices": [
     "No; a planned loss at the stop",
     "Yes; skip gaps next time",
@@ -2986,10 +2987,11 @@
     "h02",
     "h01",
     "h24",
-    "d03"
+    "d03",
+    "c31"
    ],
    "wrong": {
-    "Yes; volume was too light": "It broke out on 1.47x volume. A weak close is not why the buy was wrong; the stop is the exit.",
+    "Yes; volume was too light": "It broke out on 1.47x volume, well above average. The buy followed the rules, and the stop is the exit.",
     "Yes; skip gaps next time": "A gap over the high is bought at the open when it is inside 4%. SOFI was, and ran.",
     "No; but widen the stop next time": "Our stop sits a few cents under the day's low. A wider stop means fewer shares, not a better trade."
    },
@@ -4070,7 +4072,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key says 'real news', but q57 teaches that a news-only story with no earnings is B- (c12). Rename the key to 'a real change' (c01/c12 wording) so the two do not clash. Everything else (V b10, late leg p03/c11, base g01) is grounded."
+   "notes": "Key right; Kuhn g01 and Bulkowski b10/b11 verified on the live pages. The crash-choice explanation adds an unsupported claim ('A rebound off a crash is not a fresh pole'), not in any quote. Trimmed to what b10 says."
   },
   "q06": {
    "status": "pass",
@@ -4082,7 +4084,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "(1) 'IBD calls it rare' in a wrong note has no cited IBD quote; the 'rare' quote is Bonde's (p01). (2) 'over the whole span' has no antecedent beside the stem's 'bull market'; tie the choices to the bull market. Lengths 28 to 34, key mid."
+   "notes": "Key right (i15 verified on the Stockbee page). Tell: the key repeats the stem's exact words 'in a whole bull market'. Stem reworded so no choice echoes it; distractors kept parallel."
   },
   "q08": {
    "status": "cut",
@@ -4099,8 +4101,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 1% wrong note says a pause that tight 'is rare', which no cited fact supports. Reword to the card line only. Key, 8% story and the 10% rule (c09) are grounded; 2 Yes / 2 No."
+   "fixed": false,
+   "notes": "c09 gives the 10% closes line; 8% is from the story; the volume caveat choice is wrong because the tightness test reads closes only (c07 is a separate line). Could not break it."
   },
   "q11": {
    "status": "pass",
@@ -4130,7 +4132,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong note for 'A bit above' still says 'supply is coming in, not drying up', which is q54's key line; reword to the gate fact only. 60% A grade (c08), 80% note (c07/c08), CRNC 0.95x (d08/d09) are grounded."
+   "notes": "Key right per c08. 'Exactly equal to the pole's volume' is a lone absolute and a near-silly choice; replaced with the gate line as a real distractor. The why cites Bulkowski ('recedes for best performance') but b03 was not in the facts list; added."
   },
   "q16": {
    "status": "pass",
@@ -4159,8 +4161,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 30.23 is correct (27.50 + 3 x 0.91). But the why says one R is the fill minus the stop and no cited quote states that; h03 (entry minus stop in the sizing formula) does."
+   "fixed": false,
+   "notes": "27.50 + 3 x 0.91 = 30.23, calc matches; SRPT buy/stop and 3R on day 5 in d01; 3R first trim per B19 (h05). Could not break it."
   },
   "q21": {
    "status": "pass",
@@ -4237,8 +4239,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Hold is right (h02, c25). But the why and a wrong note lean on c27 (two in three winners come back), which the owner flagged as not sourced as the card states it. Dropped the stat and rebuilt the note and glosses on the stop rule alone."
+   "fixed": false,
+   "notes": "A4 (h02): the stop is the exit, only moves up; A5/c24: no adding. Day 4 is inside the 10-day time stop, so Hold is the only defensible answer."
   },
   "q34": {
    "status": "pass",
@@ -4279,8 +4281,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (80 or more) is right (h14). But the why and the 99 wrong note teach the 90-plus A+ cue from the card; E50 says grades (A+) are discretionary with no checklist taught as ours. Removed the A+ cue and c46."
+   "fixed": false,
+   "notes": "C31 (h14): RS 80 or more; Taser 98 RS in i12. Distractors plausible, no tell."
   },
   "q41": {
    "status": "pass",
@@ -4322,7 +4324,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The reveal says 'three straight up days' and the story only says the last three days gapped up on rising volume (no up days, no wider ranges), so the reveal states details the story never gives. Put the burst details in the story so the key is derivable from c42."
+   "notes": "Key right per c18/c42/B26, but the card's burst test needs three straight up days and the story only said each day gapped up (a gap-up day can still close down). Story now states three up days so the burst is decidable."
   },
   "q48": {
    "status": "pass",
@@ -4346,7 +4348,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (2.9% gap, inside 4%, loss at the stop is planned). The volume wrong note says the weak close 'graded the bar lower', teaching card grades E50 says are not taught as ours (c31). Reworded on the stop rule and dropped c31."
+   "notes": "Key right (gap 2.9% over the buy point, inside C28's 4%; A4 the stop is the exit). But the story's '101% pole, nine-day flag 8.8% deep' are not in any cited quote (d11/d12 omit them; they sit only in the dossier row text outside the quotes). The deeper trap's 'wicky bar grades B-' needs c31, which was not cited. The volume-choice explanation ('A weak close is not why the buy was wrong') reads as if the buy was wrong."
   },
   "q52": {
    "status": "pass",
@@ -4411,8 +4413,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The stem asserts 'a reader's scan found them a good short' with no cited fact (the source note says the reader's test itself is not used). Reword the stem to what s6 says: Bonde replied to a reader's mechanical test. Key and notes rest on p03, p04, p05, p01. Single-publisher risk is already an owner flag; reveal overlaps q42's Bonde line (minor)."
+   "fixed": false,
+   "notes": "p03/p04/p05 verified verbatim on the Stockbee page; the reader's scan matches the page. Key is Bonde's reply; distractors clearly contradicted by his words."
   },
   "q63": {
    "status": "pass",
@@ -4435,8 +4437,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: a 78% pole with a tight flag is a good bull flag (setup 02), so 'Take it' could be right as a different setup. Stem now asks about the high tight flag. Key unchanged."
+   "fixed": false,
+   "notes": "d17/d18/c47/c48: +78% in 40 sessions under the 90% line; flag 0.78x volume kills the volume choice. Stem 131 chars. Chart TSLA 2023-07-13 consistent with the 2023-07-14 trigger. Held decision D-048 noted in depends_on."
   },
   "q67": {
    "status": "pass",
@@ -4502,7 +4504,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5R is right: B19 says breakeven at 2R to 5R, ideally (h05). Bank has one correct value; 3R is inside the window, not its end. Grounded, house, risk noted."
+   "notes": "60.00 - 57.50 = 2.50, calc matches; r01 verified verbatim on the Van Tharp page. Does not give away q20's number."
   }
  }
 }

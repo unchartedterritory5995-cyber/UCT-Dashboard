@@ -1734,10 +1734,11 @@
     "g15",
     "h01",
     "h02",
-    "g13"
+    "g01",
+    "g40"
    ],
    "wrong": {
-    "Put the stop at the gap-fill spot": "The gap-fill spot is a median 6% away. That is wider than this 5% stop, not a way to fit it.",
+    "Put the stop at the gap-fill spot": "The gap-fill spot sits below the line, so a stop there is even wider. It does not fit the size.",
     "Pull the stop in to 1.5% under the fill": "Pulling the stop in to fit the size is the mistake, not the plan.",
     "Buy the usual share count anyway": "The usual count on a 5% stop risks more than the plan allows. The size comes from the stop."
    },
@@ -2417,7 +2418,7 @@
    "story": "AVGO. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly, and you buy the close with the stop a few cents under the test day's low. The stop trades without any gain.",
    "choices": [
     "A planned loss; a clean test can lose",
-    "A mistake; you should have waited a day",
+    "A sign the setup no longer works",
     "A mistake; you should have held on",
     "A broken rule; the stop was too tight"
    ],
@@ -2431,9 +2432,9 @@
     "h02"
    ],
    "wrong": {
-    "A mistake; you should have waited a day": "Waiting a day would not change the stop. The stop is the exit.",
     "A broken rule; the stop was too tight": "The stop sat a few cents under the test day's low, as the rules say.",
-    "A mistake; you should have held on": "The stop is the exit. It only moves up, never wider."
+    "A mistake; you should have held on": "The stop is the exit. It only moves up, never wider.",
+    "A sign the setup no longer works": "One loss does not show that. AVGO held near perfectly and still lost. A clean test can lose."
    },
    "house": true,
    "simple": "A planned loss. A near perfect test can still lose, and the stop is the exit, so taking it is the system working.",
@@ -2754,7 +2755,7 @@
    "choices": [
     "No; the weekly limit is reached",
     "Yes; a new trigger is a new trade",
-    "Yes, at double size to make it back",
+    "No; never rebuy after a stop-out",
     "Yes, with a wider stop this time"
    ],
    "answer": "No; the weekly limit is reached",
@@ -2764,13 +2765,12 @@
     "g36",
     "h29",
     "h28",
-    "h03",
     "h01"
    ],
    "wrong": {
     "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped at 3.",
-    "Yes, at double size to make it back": "The size comes from the risk percent and the stop, not from the loss you want back.",
-    "Yes, with a wider stop this time": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade."
+    "Yes, with a wider stop this time": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade.",
+    "No; never rebuy after a stop-out": "After a stop-out we may buy again on a new trigger. Here the weekly cap is what says no."
    },
    "house": true,
    "simple": "No, because we allow at most 3 tries a week on one line and you have used all of them.",
@@ -3107,7 +3107,7 @@
    "story": "DKS, 2021. You bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has run far higher.",
    "choices": [
     "Nothing; wait for a new trigger",
-    "Chase it; you were right all along",
+    "Buy now; the reclaim was a new trigger",
     "Rebuy now at double size to catch up",
     "Widen your stops on the next buy"
    ],
@@ -3123,9 +3123,9 @@
     "h01"
    ],
    "wrong": {
-    "Chase it; you were right all along": "The stock is far above the buy point now, and we never buy more than 4% above it.",
     "Widen your stops on the next buy": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade.",
-    "Rebuy now at double size to catch up": "A re-entry needs a new trigger, and the size comes from the risk percent and the stop, not from catching up."
+    "Rebuy now at double size to catch up": "A re-entry needs a new trigger, and the size comes from the risk percent and the stop, not from catching up.",
+    "Buy now; the reclaim was a new trigger": "The reclaim was weeks ago. The stock is far above the buy point now, and we never buy more than 4% above it."
    },
    "house": true,
    "simple": "Do nothing now. The stop was the exit, and a new buy needs a new trigger, even though the stock ran.",
@@ -3874,7 +3874,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (g15, h01, h02). Wrong note on the gap-fill spot said 'usually farther out than this 5% stop', which g13 (median 6%) does not state. Reworded to the median only."
+   "notes": "Key is right (A5 sizes from the stop; card says size down or skip). Broken wrong note: 'a median 6% away... wider than this 5% stop' argues from a median across examples, which says nothing about this case. The real reason is structural: the gap-fill spot (prior day's high) sits below the line, so a stop there is wider still. Swapped g13 for g01/g40."
   },
   "q30": {
    "status": "pass",
@@ -3885,8 +3885,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (g32/h26). The claim that the reading 'applies to every long, even a clean test on a leader' is in no cited fact and sits against A10 (readings are guides, not hard caps). Removed it from simple, why and lesson_line."
+   "fixed": false,
+   "notes": "Red = mostly cash and shorts per g32/h26 (and D46). Each distractor maps to a different reading. Story's clean test is a fair temptation. No cross-answer with q05 beyond feedback text."
   },
   "q32": {
    "status": "pass",
@@ -3909,8 +3909,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (g42). Wrong note called a PEG 'a report's reaction day', which no cited fact says; g38/g02 say a PEG is the gap day itself or its first pause. Note reworded and g38 added to facts."
+   "fixed": false,
+   "notes": "Base low reclaimed within 3 sessions = U&R per g42; gap-up low far below rules out Gap Support; PEG and one-day distractors answered by g38/g42. Could not find a second defensible answer."
   },
   "q36": {
    "status": "pass",
@@ -3976,7 +3976,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right. Story said the stop trades 'the next session', but the cited e15 quote only says the stop traded without any gain. Dropped the unsupported timing."
+   "notes": "Key right (card: 16% gap is not banned, over 30% is only a lower grade). Two problems. (1) Wrong note for 'you should have waited a day' says waiting would not change the stop; that is false in hindsight: the stop traded the very next session (dossier table: 2025-09-25), so waiting a day would have dodged it. Replaced that choice. (2) Lone non-blame key against three 'mistake/broken rule' choices is a tell; the new distractor is also non-blame. FACT ISSUE outside this question: e15 cites d1 but its quote is verbatim only in c1 (25-gap-support.json, failures AVGO entry); in d1 the text has '(20"
   },
   "q49": {
    "status": "pass",
@@ -3999,14 +3999,14 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: R = 0.60, low 18.50 is 1.50 under the fill = 2.5R, past the 2R ceiling (h07), so get out. Only defect: the 'Add' wrong note (one buy, one price, one stop) rests on h31, which is not in the cited facts. Add h31."
+   "fixed": false,
+   "notes": "Calc: 1R = 20.00 - 19.40 = 0.60; 2R = 1.20 (18.80). Open 18.70 and first-30 low 18.50 (2.5R) are both past 2R, so B20's ceiling says get out. Distractors grounded (h06/h07/h31)."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key No is right: three stop-outs this week use up the 3-a-week cap (h29, g36). Defect: wrong notes 'Doubling size... breaks the sizing rule' and 'A wider stop breaks the stop rule' are not supported by the cited facts (g36, h29, h28). Rewrite them to rest on h03/h01 and cite those."
+   "notes": "Key right (E56: at most 3 tries a week). Tell: lone 'No' against three 'Yes' choices. Replaced the weakest Yes (double size) with a wrong No that tests B21, so the cue no longer gives it away. Dropped h03 with that choice."
   },
   "q57": {
    "status": "cut",
@@ -4042,7 +4042,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 'Nothing; wait for a new trigger' is right (e18c, h28). Defects: the 'Rebuy at double size next time' choice is not clearly wrong by a cited rule (a bigger risk percent can be inside A1), and its note ('breaks the sizing rule') and the widen-stops note cite no fact in the list. Reword the choice to a rebuy with no trigger, and rest the notes on h28/h03/h01."
+   "notes": "Key right (B21, C28). But all three distractors were plainly rule-breaking and 'Chase it; you were right all along' is a silly, emotional choice, so the lone calm key was guessable. Replaced it with a plausible wrong buy that a student might believe (the reclaim as a trigger)."
   },
   "q66": {
    "status": "pass",
@@ -4071,8 +4071,8 @@
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer 'the grower' is right (D40, g56). Defect: the key asserts 'the charts are equal' but the story only says both hold the line with strong closes, so the premise is not given. State it in the story. Also note: q70's why and its 'chart no longer matters' choice overlap q71 (False), but that is reinforcement at a different rung."
+   "fixed": false,
+   "notes": "D40/g56: prefer growth, chart first; equal charts make growth the decider. Second grower choice tests 'chart no longer matters'. Overlaps q71 only in feedback, not in the stem."
   },
   "q71": {
    "status": "cut",
@@ -4125,8 +4125,8 @@
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 5R is right (h08), but 'only if it is up 3R' can be read as a necessary condition, which is technically true when the bar is 5R. Restated as the bar."
+   "fixed": false,
+   "notes": "B22: hold through a report only if up 5R; 3 is the days-before number, a fair trap. Single fact, no other question states it."
   }
  }
 }

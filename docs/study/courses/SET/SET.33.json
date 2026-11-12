@@ -1191,8 +1191,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False is right (h21, c48: sell on a close below). But 'at any point in the day' is an absolute that tips the statement to False. Reword as an intraday dip, which is the real misconception, with no absolute."
+   "fixed": false,
+   "notes": "Decided False before the key: E52 (h21) and the card (c48) both sell the trail on a close below the average, not an intraday dip. Both quotes verified in sizing_rule.md and the card. No second answer, no tell; simple line matches the why. Stem does not answer q22, q23 or q60."
   },
   "q30": {
    "status": "pass",
@@ -1323,14 +1323,14 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (c22: a red to green buys yesterday's close, a pivot buys its own high, which can sit under it). The choice 'The pivot candle high, 49.84' and the why use 49.84, a number the story never gives (it is derived from 'a cent over its high'). Ground it by stating the high in the story."
+   "fixed": false,
+   "notes": "Decided 'Yesterday's close, 50.40' before the key from c22 (verified on card line 946). Distractors are clean; 50.40 and 51.10 come from the story. c17 is cited but unused (harmless). Mild overlap with q46 (a pivot can sit under yesterday's close), but the same card tell is taught at the same rung on purpose and q51 does not resolve q46's Go Signal or ORB choices."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right on the card's cues (c13 string of 3 or more, c29 shake, c31 B- row). But E50 says grading is discretionary and no fixed checklist is taught as ours, and this item asks 'Which grades higher?' and keys 'it has the A+ shape' as plain fact. Ask it as the card's cues, as q18 and q36 do."
+   "notes": "Key B is right on the card's a_plus rows (c13 string, c29 shake). Problems: (1) the story never says B's 6 reds are clean, yet the why and simple lean on 'a clean string'; (2) the simple line garbles the cue ('a clean string ... that undercuts and closes back above': the candle undercuts, not the string); (3) the trap and the 'Equal' note use D38 (grades set the size) but h35 is not cited, while c04 (stop skip) is cited and unused; (4) the 'fewer reds, less risk' note asserts 'Fewer reds do not mean less risk' with no quote behind it. Fixed: story says 'a clean string of 6 reds', why and simpl"
   },
   "q53": {
    "status": "cut",
@@ -1347,8 +1347,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (hard rule, a third at 3R, B19 and E51; day-trade exit is a named mistake, c24). But the choice 'Hold it all until 5R, no trims' is a second defensible answer: B19 says the owner mostly waits for 5R in practice and the first trim is ideally 3R to 6R, yet the wrong note calls it wrong. Reword the choice to the real error, skipping the trims altogether."
+   "fixed": false,
+   "notes": "Decided 'Hold to 3R; then sell a third' before the key: B19 (h05) hard rule a third at 3R, c24 names selling it all at 1R to 2R as a day-trade mistake, C35 (h16) swing trade. All quotes verified. Choices are balanced, no second defensible answer (breakeven at 2R to 5R does not conflict with any choice). Minor: the deeper line's 'when the day-trade urge is strongest' is framing with no quote, not a number or key. The key overlaps q22's trim fact, but only after answering, as an explanation would."
   },
   "q56": {
    "status": "pass",
@@ -3280,7 +3280,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "pvt.red_string_three",
-   "story": "Two pivots at the rising 10-day EMA. Pivot A follows two small reds. Pivot B follows 6 reds, and its candle undercuts the average and closes back over it.",
+   "story": "Two pivots at the rising 10-day EMA. Pivot A follows two small reds. Pivot B follows a clean string of 6 reds, and its candle undercuts the average and closes back over it.",
    "q": "Which grades higher on our card?",
    "choices": [
     "Pivot B; it has the A+ cues",
@@ -3289,22 +3289,22 @@
     "Pivot A; fewer reds, less risk"
    ],
    "answer": "Pivot B; it has the A+ cues",
-   "why": "Pivot B. On our card a clean string of 3 or more is the top cue. A shake, a low under the average with a close back above it, is the A+ shape. Two small reds fall short of that string. Our LITE trade was a 20-day EMA shake like this.",
+   "why": "Pivot B. On our card a clean red string of 3 or more is an A+ cue. So is a shake: the low undercuts the average and the candle closes back above it. Two small reds fall short of that string. Our LITE trade was a 20-day EMA shake.",
    "lesson_line": "On the card, a long string into a shake of the average is the top version.",
    "facts": [
     "c13",
     "c29",
     "u03",
     "c31",
-    "c04"
+    "h35"
    ],
    "wrong": {
     "Equal; both are good pivots": "Both may trigger. The grade, and so the size, differs.",
     "Pivot A; two reds are enough": "Two small reds fall short of the 3-or-more string. The longer string grades higher.",
-    "Pivot A; fewer reds, less risk": "Fewer reds do not mean less risk. A clean string of 3 or more is the top cue."
+    "Pivot A; fewer reds, less risk": "Fewer reds is not a cue on the card. A clean string of 3 or more is the A+ cue."
    },
    "house": true,
-   "simple": "Pivot B grades higher on the card, because a clean string of 3 or more that undercuts and closes back above has the A+ cues.",
+   "simple": "Pivot B grades higher on the card: a clean string of 3 or more reds and a shake of the average are both A+ cues.",
    "deeper": {
     "trap": "Calling both good and sizing them the same. Setup grades set the size: A and B setups at normal size, A+ sized up, B- or lower sized down. The card's B- row is the thin end: a tiny midday doji after two small red candles."
    },

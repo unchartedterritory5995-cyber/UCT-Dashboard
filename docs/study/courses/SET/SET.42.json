@@ -930,12 +930,11 @@
    "criterion": "w4b.stage4",
    "q": "Before a 4B-, there was a Stage 4 decline: the 30-week line fell and price sat under it.",
    "answer": "True",
-   "why": "True. A Stage 4 decline comes first. At the cycle low, the 150-day line (the 30-week line) was lower than 20 sessions earlier, and price was under it. If the 150-day was rising at the low, it is not a 4B-.",
+   "why": "True. A Stage 4 decline comes first. At the cycle low, the 30-week line was lower than 20 sessions earlier, and price was under it.",
    "lesson_line": "No decline first, no 4B-. The 30-week line was falling at the low.",
    "facts": [
     "c02",
-    "x04",
-    "l1"
+    "x01"
    ],
    "house": true,
    "simple": "True. A Stage 4 decline comes first, with the 30-week line falling and price under it at the low.",
@@ -1559,7 +1558,7 @@
    "choices": [
     "The low call failed; still falling",
     "A bargain; buy it on the pullback",
-    "A higher low; the setup is now on",
+    "A longer base; still a 4B-",
     "Just noise; the low call still holds"
    ],
    "answer": "The low call failed; still falling",
@@ -1572,14 +1571,14 @@
     "c05"
    ],
    "wrong": {
-    "A higher low; the setup is now on": "A higher low sits above the cycle low. This closed under it.",
     "A bargain; buy it on the pullback": "A close under the cycle low is no bargain. The low was not the low.",
-    "Just noise; the low call still holds": "The test is the close. A close under the cycle low means the low call was wrong."
+    "Just noise; the low call still holds": "The test is the close. A close under the cycle low means the low call was wrong.",
+    "A longer base; still a 4B-": "A 4B- has no close under its cycle low since it was set. This close says it is still a 4B or a 4."
    },
    "house": true,
    "simple": "A close under the cycle low means the low was not in, so the stock is still in the decline.",
    "deeper": {
-    "counter": "A close under the low ends the call, not the stock. The cycle low is the lowest low of the 252 sessions before the trigger. So a new low becomes the new cycle low. The card then wants at least 15 sessions from it to the trigger."
+    "counter": "A close under the low ends the call, not the stock. The new low becomes the new cycle low, and the count starts over from it."
    },
    "tier": "core",
    "risk": {
@@ -1725,28 +1724,27 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "w4b.group",
-   "q": "Which group reading helps a 4B-?",
+   "q": "Which group reading does our 4B- card want?",
    "choices": [
     "The group ETF closes above its 50-day",
-    "The group ETF falls hardest on the day",
+    "One big up day in the group ETF",
     "The group is not part of the 4B- call",
     "The group ETF just made a new low"
    ],
    "answer": "The group ETF closes above its 50-day",
-   "why": "The stock's group ETF or index closes above its own 50-day. A stronger cue: the group is basing too and the stock is among the first in it to reclaim its 50-day. Buying against a weak group is a named mistake.",
-   "lesson_line": "A turning group lifts a turning stock.",
+   "why": "The group ETF closes above its 50-day. Our card wants the stock's group ETF or index closing above its own 50-day. Buying against a weak group is a named mistake.",
+   "lesson_line": "Check the group's 50-day, not just the stock's.",
    "facts": [
     "c12",
-    "c13",
     "m08"
    ],
    "wrong": {
-    "The group ETF falls hardest on the day": "A group falling hardest is the weak end. We want the group turning up too.",
-    "The group is not part of the 4B- call": "A weak group is a named mistake. The group turning up helps.",
-    "The group ETF just made a new low": "A group making new lows is the weak end. Buying against a weak group is a named mistake."
+    "The group is not part of the 4B- call": "The group is part of it. Buying against a weak group is a named mistake.",
+    "The group ETF just made a new low": "A group making new lows is the weak end. Buying against a weak group is a named mistake.",
+    "One big up day in the group ETF": "One day is not the test. The card wants the group ETF or index closing above its own 50-day."
    },
    "house": true,
-   "simple": "The group ETF closing above its own 50-day helps, since buying against a weak group is a named mistake.",
+   "simple": "The card wants the group ETF or index closing above its own 50-day. Buying against a weak group is a named mistake.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1803,7 +1801,7 @@
    "format": "scenario",
    "criterion": "w4b.base_length",
    "q": "Is that a 4B-?",
-   "story": "A stock closes under its low, then reclaims it two sessions later. You want to buy the reclaim.",
+   "story": "A stock closes under its cycle low, then closes back over it two sessions later. You want to buy that reclaim.",
    "choices": [
     "No; a 4B- waits for a higher low",
     "Yes; it reclaimed the old low fast",
@@ -1811,14 +1809,13 @@
     "No; a 4B- needs a rising 150-day"
    ],
    "answer": "No; a 4B- waits for a higher low",
-   "why": "No. A 4B- never closes under its cycle low. It waits 15 or more sessions for a higher low, a 50-day reclaim and a pause before the buy. A quick reclaim has none of that.",
+   "why": "No. A 4B- never closes under its cycle low. It waits weeks after the low for a higher low on drying volume and a 50-day reclaim. Two sessions after a new low, none of that exists.",
    "lesson_line": "An undercut and reclaim is quick. A 4B- takes weeks.",
    "facts": [
     "l2",
-    "c05",
-    "l1",
     "l3",
     "c35",
+    "l1",
     "c02"
    ],
    "wrong": {
@@ -2433,7 +2430,7 @@
    "format": "scenario",
    "criterion": "w4b.short_term",
    "q": "What do you do?",
-   "story": "Your 4B- stalls under the falling 200-day and slides toward the old low. A friend says to hold it as an investment.",
+   "story": "Your 4B- stalls after the buy and drifts back toward the old low. A friend says to hold it as an investment.",
    "choices": [
     "Sell by the rules; it is a trade",
     "Hold it; it is a long-term bottom",
@@ -2441,17 +2438,21 @@
     "Move the stop lower for more room"
    ],
    "answer": "Sell by the rules; it is a trade",
-   "why": "Sell by the rules. A 4B- is a short-term trade on our trims, not an investment. Holding it back down into Stage 4 is the named mistake. The exits for a stalled trade are the stop, and a time stop for a trade still under 1R after 10 trading days.",
+   "why": "Sell by the rules. A 4B- is a short-term trade on our trims, not an investment. Holding it back down into Stage 4 is the named mistake. A stalled trade exits on its stop or its time stop.",
    "lesson_line": "Do not turn a short-term trade into an investment.",
    "facts": [
     "m09",
     "c33",
-    "c32"
+    "c32",
+    "c40",
+    "m05",
+    "c26",
+    "h02"
    ],
    "wrong": {
     "Hold it; it is a long-term bottom": "Holding a short-term trade back down into Stage 4 is the named mistake.",
-    "Add more shares; it is cheaper": "Adding is the named mistake, and the stop is the exit.",
-    "Move the stop lower for more room": "The stop only moves up, never down or wider. Moving it lower to avoid the exit turns a planned loss into a hope."
+    "Add more shares; it is cheaper": "Adding to it is a named mistake. One price, one stop, no adds.",
+    "Move the stop lower for more room": "The stop only moves up, never down or wider. Moving it lower turns a planned loss into a hope."
    },
    "house": true,
    "simple": "Sell by the rules, because a 4B- is a short-term trade and we never hold a stock back in Stage 4.",
@@ -2475,12 +2476,12 @@
    "format": "scenario",
    "criterion": "w4b.after_entry_stop",
    "q": "The stop traded. How should we read that loss?",
-   "story": "You bought a 4B- at 12.99 with the stop at 12.59. A 37.5% decline, a higher low, a 12-day pause. The next session fell to 12.48.",
+   "story": "You bought a 4B- on the trigger at 12.99, stop 12.59. It followed a 37.5% decline, a higher low and a 12-day pause. The next session fell to 12.48.",
    "choices": [
     "A planned loss; the stop worked",
     "A stop that was set too tight",
     "A buy that came in too late",
-    "A setup that is now broken"
+    "Proof the 4B- does not work"
    ],
    "answer": "A planned loss; the stop worked",
    "why": "A planned loss. The stop is the plan, and the stop-out was the planned loss of 3.1% (12.99 to 12.59). The next session fell to 12.48 and took the stop. Judge the plan, not the outcome.",
@@ -2495,9 +2496,9 @@
     "h01"
    ],
    "wrong": {
-    "A stop that was set too tight": "The stop sat at the day's low, near our default a few cents under it, and it only moves up. Widening it after a loss is the mistake.",
+    "A stop that was set too tight": "The stop came from the day's low, as our stop rule says, and it only moves up. Calling it too tight after a loss is how stops get widened.",
     "A buy that came in too late": "The buy was on the trigger, the trade over the pause high. That is not a chase.",
-    "A setup that is now broken": "One stop-out says nothing against the setup. A trade taken by the rules that loses is the plan working."
+    "Proof the 4B- does not work": "One loss proves nothing. Our dossier calls this the plain case of a correct 4B- that lost."
    },
    "house": true,
    "simple": "It was a planned loss, because the stop did its job and kept the loss small.",
@@ -2669,7 +2670,7 @@
    "format": "scenario",
    "criterion": "w4b.higher_low",
    "q": "Is that a real higher low?",
-   "story": "A stock rallies off its cycle low. The higher low sits 3.5% above the cycle low, but the best high off the low was only 4.1% above it.",
+   "story": "A stock rallies off its cycle low to a high 4.1% above it. It then pulls back to a low 3.5% above the cycle low.",
    "choices": [
     "No; too small a rally before it",
     "Yes; 3.5% clears the 3% step",
@@ -2690,7 +2691,7 @@
    "house": true,
    "simple": "No. The rally before the higher low was only 4.1%, under the 5% we want, even though the 3.5% step clears 3%.",
    "deeper": {
-    "trap": "These numbers are made up on purpose. A step of 3.5% passes one test, but the rally before it is missing, since the best high off the low was just 4.1% above it."
+    "trap": "These numbers are made up on purpose. A step of 3.5% passes one test. The rally before it is missing: the best high off the low was just 4.1% above it."
    },
    "tier": "extended",
    "risk": {
@@ -2858,24 +2859,24 @@
     "Bad luck; a good setup wins most"
    ],
    "answer": "Normal; this setup loses often",
-   "why": "Normal. In our test above the 200-day, 22.2% of 1,110 hits reached 3R before a fixed stop, and 13.9% reached 5R. So most hits do not reach 3R, and four stops in five is ordinary. Keep stops small and take the trims when one works. The hit rate is a base rate for the rule, not a promise for any one setup.",
-   "lesson_line": "A 4B- loses often. Small stops and trims keep it alive.",
+   "why": "Normal. In our test above the 200-day, 22.2% of 1,110 hits reached 3R and 13.9% reached 5R. So most hits never reached 3R, and four stops in five is ordinary. That is a base rate for the rule, not a promise for any one trade.",
+   "lesson_line": "Most 4B- hits never reach 3R. Judge the setup over many trades.",
    "facts": [
     "d25",
-    "d26",
+    "h01",
+    "h03",
     "h05",
-    "h20",
-    "h01"
+    "h20"
    ],
    "wrong": {
-    "Broken; the setup does not work": "A low hit rate with small stops and trims is the design, not a failure.",
-    "Wrong stops; they should be wider": "A wider stop only shrinks the shares, since the size comes from the stop. A small, fixed stop keeps each loss small.",
-    "Bad luck; a good setup wins most": "Our test shows the base rate: about one in five hits reached 3R. This setup loses often by design, so it is not bad luck."
+    "Broken; the setup does not work": "Four stops in five fits our test, where only 22.2% of hits reached 3R. That is the base rate, not a broken setup.",
+    "Wrong stops; they should be wider": "Our stop sits a few cents under the day's low, set before the buy. Widening it to dodge stop-outs breaks that rule, and the shares shrink.",
+    "Bad luck; a good setup wins most": "Our test shows the base rate: only 22.2% of hits reached 3R. Losing often is normal for this setup, not bad luck."
    },
    "house": true,
-   "simple": "That is normal, because in our test only about one in five hits reached 3R, so four stops out of five is ordinary.",
+   "simple": "That is normal: in our test only 22.2% of hits reached 3R, so four stops in five is ordinary.",
    "deeper": {
-    "counter": "Win rate alone says little. With small fixed stops and trims at 3R and 5R, a few winners can pay for many small losses. Nothing here proves they do, so check the stop size before blaming the setup."
+    "counter": "The hit rate alone says little. Winners are trimmed at 3R and 5R, and each loss is held to the stop. Judge the setup over many trades, not five."
    },
    "tier": "expert",
    "risk": {
@@ -3590,7 +3591,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why has a 23-word sentence (limit 22). Split it."
+   "notes": "Key right (c02). But the why says 'the 150-day line (the 30-week line)' and cites x04 and l1, so it hands over q04's blank (30-week = 150-day, the very next item) and q52's key (a rising 150-day at the low is not a 4B-). The reveal also prints every cited fact's claim. Why now names only the 30-week line; facts c02 plus x01 (4B sits in the downtrend)."
   },
   "q04": {
    "status": "pass",
@@ -3710,7 +3711,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key was the longest choice by one character; deeper had a 23-word sentence. Shorten the key and split the sentence."
+   "notes": "Key right (c35, c03). Distractor 'A higher low; the setup is now on' is silly: a close UNDER the cycle low cannot be a higher low. Replaced with a real misreading (the base just got longer). Deeper restated q08's 252-session key and q13's 15-session key; trimmed to the reset itself."
   },
   "q24": {
    "status": "cut",
@@ -3733,14 +3734,14 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'with a fixed stop' and 'one stop rule' are not in any cited quote (d27 and d25 say only 'before the stop'). Drop them."
+   "fixed": false,
+   "notes": "Decided cold: the 2 to 4 session pause (15.7% to 3R, d27, the splits inside Version H). Every number is in d27; 5 to 10 is best at 3R (25.9%). No second answer, no length tell, choices in natural order. Leaks nothing another item asks (q10's why is scan-free)."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why has a 23-word sentence. Split it."
+   "notes": "Key right (c12), but (1) the why calls c13 'a stronger cue' than c12; c12 is a gate on the card and c13 only a cue, so 'stronger' is unsupported; (2) that c13 sentence plus the c13 claim hands over q64's key (the stock among the first in its group to reclaim the 50-day); (3) 'The group ETF falls hardest on the day' is near silly; (4) 'helps' undersells a card gate. Reworded the stem, swapped the distractor, dropped c13."
   },
   "q29": {
    "status": "pass",
@@ -3752,7 +3753,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper has a 25-word sentence. Split it."
+   "notes": "Key right (l2, l3). Story said 'closes under its low' without saying which low, so the rule it rests on (no close under the CYCLE low) did not clearly apply; now 'its cycle low'. The why repeated q23's point; it now carries this item's own lesson, the clock (l3: weeks, not 2 sessions), so the two items no longer test the same fact the same way."
   },
   "q31": {
    "status": "cut",
@@ -3781,8 +3782,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note claims the stretch rule 'comes before the break'; no cited rule orders them. Restate from h13."
+   "fixed": false,
+   "notes": "Decided cold: No, 12% over the 10-day breaks C29's 10% line (h13, c22). Two Yes, two No; the slope distractor is a real misreading and its note restates the distance rule. No tell; no other item asks C29."
   },
   "q36": {
    "status": "pass",
@@ -3811,8 +3812,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Waiting gives the gap time to fill' is unsupported. Use F63/c30 instead."
+   "fixed": false,
+   "notes": "Decided cold: take a third at the open (F63 h25, c30; B19 a third at 3R, c28). 3R is given in the story. Half, all and wait are each refuted by a cited rule. The owner's 'mostly waits for 5R' does not apply: F63 is explicit for an open past a trim level."
   },
   "q41": {
    "status": "pass",
@@ -3852,19 +3853,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (m09, c33). The why and deeper say 'The exits are the stop, and a time stop', which overstates it: trims and the trail are exits too. Scope it to a stalled trade."
+   "notes": "Key right (m09, c33). (1) Story put our 4B- 'under the falling 200-day', but B26 bars a long under the 200-day, so the story contradicts the rulebook the unit teaches; (2) the why spelled out the time stop (under 1R after 10 trading days), which is q36's key; (3) wrong notes leaned on uncited facts (adding mistake m05, stop only moves up h02). Story fixed, time-stop numbers dropped, facts added."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (d06, d07, h01). The wrong note for 'setup is now broken' states the buy-again rule, which is q49's key, so q48 answers q49. Replace it with a note on d08 (a correct 4B- that lost). Also the stop note said the day's low was 'our default'; the default is a few cents under it (h01)."
+   "notes": "Key right (d06, d08, c40). (1) 'A setup that is now broken' is a second reading: after a stop-out this chart's setup IS off until it triggers again (B21), so a careful member can defend it; replaced with an unambiguous misread, refuted by d08. (2) The 'too late' note claimed the buy was on the trigger, which the story never said; the story now says so. (3) The 'too tight' note said the stop 'sat at the day's low, near our default'; d06 says only 'day low', so it now says the stop came from the day's low, per our rule (h01)."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h28). Lesson line calls META a 'V bottom', but META had a higher low and a 13-day pause (d10), and the card's V means no higher low (g7). Unsupported label; reword."
+   "fixed": false,
+   "notes": "Decided cold: only on a new trigger (B21, h28). Story numbers are d09/d10 (39%, 13-day pause, 1.4% stop). Wrong choices each refuted (no price rule; E56 caps tries but sets no wait). Lesson line no longer calls META a V. Leaks no other key."
   },
   "q50": {
    "status": "cut",
@@ -3888,13 +3889,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Logic right (c04, d21). The story opens 'A V off a low' but the card's V means no higher low (g7) and then gives a higher low: mixed signals. Say what happened plainly."
+   "notes": "Key right (c04). The story led: 'but the best high off the low was ONLY 4.1%' points straight at the flaw (rule 10, ask not lead). Neutral wording now gives the same two numbers without a 'but' or 'only'. Numbers are the story's own (hypothetical, as the deeper says)."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer right under any reading. But 'a vendor's example buys ... on 2022-07-18' is ungrounded: d23/d24 give only that the $189 entry came one to two sessions before the report, and $189 matches the 07-15 close, not 07-18. Make the story the plain case the quotes do support: a close back over the 50-day on 07-18, report after the close on 07-19."
+   "fixed": false,
+   "notes": "Decided cold: No (B22 h08, c23: no new buy in the 3 days before a report). Dates are d23 verbatim; a buy on 07-18 is one session before the 07-19 after-close report. 'Before the report' is a real misconception; the 200-day choice is a No with an unsupported reason, refuted. q34 (same fact) is already cut."
   },
   "q55": {
    "status": "pass",
@@ -3912,7 +3913,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key is the longest choice (37 vs 31-33) and the only one with a number. Reword the key without the number and balance lengths. Also the 'wider stops' note overreaches (A3 sets the stop from the chart; the rule against widening is for after entry); rebase it on A5 (size comes from the stop). 'Most hits do not reach 3R' follows from 22.2%."
+   "notes": "Key right (d25: 22.2% of 1,110 reached 3R). (1) 'before a fixed stop' is not in d25; (2) 'about one in five' rounds the quoted 22.2% into a different number (README 3); (3) 'small stops and trims keep it alive' and 'a small, fixed stop keeps each loss small' are unsupported and wrong under A5, where each loss is the same risk percent whatever the stop width; (4) the deeper's 'check the stop size before blaming the setup' does not follow. Rewritten from d25, h01, h03, h05, h20."
   },
   "q58": {
    "status": "cut",
@@ -3929,14 +3930,14 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why has a 27-word sentence. Split it. Key follows B26; chart must draw the 200-day (owner flag stands)."
+   "fixed": false,
+   "notes": "Decided cold: Pass, B26 (h10); d17 close 10.2% under the 200-day the day before the trigger, chart asof 2020-06-03 is that day; d18 gives the shape. Distractors refuted. Open flag carried: the importer sends only window_bars and tf (courses_lib.py:729), so the member infers the 200-day from 120 bars unless the chart draws it; same for twin q59."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper trap has a 28-word sentence. Split it."
+   "fixed": false,
+   "notes": "Decided cold: C, the only one failing no named gate (A c38, B h10, D c23). Every choice echoes its own story line, so no differential tell; lengths balanced. The why admits C still has gates to clear. Minor: criterion tag w4b.market_reading does not match the item; metadata only."
   },
   "q62": {
    "status": "cut",

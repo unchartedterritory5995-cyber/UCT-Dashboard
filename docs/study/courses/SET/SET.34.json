@@ -1082,19 +1082,17 @@
    "facts": [
     "g31",
     "g29",
-    "g21",
-    "d16",
     "g04"
    ],
    "wrong": {
     "The hour the turn comes in": "The two-candle window is a gate, but the card says the stock and the level are the edge.",
     "The size of the candle": "The card names the stock and the level as the edge, not the size of one candle.",
-    "Heavy volume on the reclaim": "Volume is not a rule. More volume on the reclaim than on the flag's first hours is only a plus for grading."
+    "Heavy volume on the reclaim": "Volume on the reclaim is not what the card calls the edge. The stock and the level are."
    },
    "house": true,
    "simple": "The stock and the level, because the turn itself is common and the card calls them the edge.",
    "deeper": {
-    "trap": "The clock is only a gate. A turn inside the first two hourly candles on a stock with no tight flag, like SNOW in a wild post-earnings range, is still a bare red to green."
+    "trap": "A big, fast turn feels like the edge. The card says the turn itself is common. The stock and the level behind it are what count."
    },
    "tier": "core",
    "risk": {
@@ -1714,11 +1712,13 @@
     "The low of the entry day"
    ],
    "answer": "A close under the 10-day line",
-   "why": "A close under the 10-day average. After the trims at 3R and 5R, the last third trails the 10-day for fast movers. Steadier ones use the 21-day. You sell on a close below it.",
+   "why": "A close under the 10-day average. The last third trails the 10-day for fast movers and the 21-day for steadier ones. You sell on a close below it.",
    "lesson_line": "Fast stock, 10-day. Steady stock, 21-day.",
    "facts": [
     "h21",
-    "h20"
+    "h20",
+    "h01",
+    "h02"
    ],
    "wrong": {
     "A close under the 200-day line": "That is not our trail. We trail the 10-day for fast movers and the 21-day for steadier ones.",
@@ -2062,7 +2062,7 @@
     "Pass; it is under the 50-day",
     "Take it; the turn looks clean",
     "Take it; the 200-day still holds",
-    "Pass; it needs a gap down first"
+    "Pass; the 200-day rule blocks it"
    ],
    "answer": "Pass; it is under the 50-day",
    "why": "Pass. The card wants the price above the 50-day, and this stock is under it. The card also lists a Go Signal taken in a downtrend, under the 50-day or 200-day, as a mistake. The Go Signal needs the setup around the turn, so a clean turn alone does not change the answer.",
@@ -2072,12 +2072,12 @@
     "g12",
     "g11",
     "g31",
-    "g02"
+    "h10"
    ],
    "wrong": {
     "Take it; the turn looks clean": "A clean turn under the 50-day is a listed mistake.",
     "Take it; the 200-day still holds": "The 200-day is one line. The card also wants the price above the 50-day.",
-    "Pass; it needs a gap down first": "No gap is needed. The first hourly candle only has to trade under the prior close."
+    "Pass; the 200-day rule blocks it": "The stock is above its 200-day, so that rule passes. The 50-day is the problem."
    },
    "house": true,
    "story": "A first-hour reclaim of the prior close in a stock under its 50-day but above its 200-day.",
@@ -2669,14 +2669,14 @@
    "criterion": "go.climax",
    "q": "What do you do?",
    "choices": [
-    "Sell a big part into the run",
+    "Sell a big part of it now",
     "Hold it all, it is working",
     "Add, momentum is strong",
     "Move the stop below the 50-day"
    ],
-   "answer": "Sell a big part into the run",
-   "why": "Sell a big part into the run. On a climax run in your own long, sell a big part into it. How big is a judgment call. You do not add. The stop only moves up.",
-   "lesson_line": "Sell into the vertical run.",
+   "answer": "Sell a big part of it now",
+   "why": "Sell a big part now. On a climax run in your own long, sell a big part into it. How big is a judgment call. You do not add. The stop only moves up.",
+   "lesson_line": "Sell a big part into a climax run.",
    "facts": [
     "g26",
     "h31",
@@ -2691,7 +2691,7 @@
    },
    "house": true,
    "story": "Three days after the buy, your stock is in a climax run. It has risen three days straight, gapped up twice, and shows its widest range and highest volume of the run.",
-   "simple": "Sell a big part into the run, because the card says to sell into a climax run in your own long.",
+   "simple": "Sell a big part now, because the card says to sell into a climax run in your own long.",
    "deeper": {
     "trap": "'It is working' is the reason people hold everything. The card names a climax run in your own long as the moment to sell a big part, and how big is a judgment call."
    },
@@ -2935,11 +2935,11 @@
    "choices": [
     "A rising 20-day EMA line",
     "A report in two sessions",
-    "A gap up that never dipped",
+    "A gap up, green all morning",
     "A close under the 200-day"
    ],
    "answer": "A rising 20-day EMA line",
-   "why": "A rising 20-day EMA. That is a point in its favor: the card wants it higher than it was 5 sessions ago. The other three are passes. A report in two sessions falls inside the 3-session no-buy window. A gap up that never dipped is not a Go Signal. A stock under its 200-day gets no long.",
+   "why": "A rising 20-day EMA. That is a point in its favor: the card wants it higher than it was 5 sessions ago. The other three are passes. A report in two sessions falls inside the 3-session no-buy window. A gap up that stays green all morning never trades under the prior close, so it is not a Go Signal. A stock under its 200-day gets no long.",
    "lesson_line": "A rising 20-day helps. The other three block the trade.",
    "facts": [
     "g13",
@@ -2950,13 +2950,13 @@
    ],
    "wrong": {
     "A report in two sessions": "No new buy in the 3 sessions before an earnings report.",
-    "A gap up that never dipped": "A gap up that never trades under the prior close is not a Go Signal.",
-    "A close under the 200-day": "No longs below the 200-day simple moving average."
+    "A close under the 200-day": "No longs below the 200-day simple moving average.",
+    "A gap up, green all morning": "A gap up that never trades under the prior close is not a Go Signal."
    },
    "house": true,
    "simple": "A rising 20-day EMA helps the trade, while the other three each rule it out.",
    "deeper": {
-    "trap": "A rising 20-day EMA is a plus, but it is not a rescue. It cannot fix a stock under its 200-day. It cannot fix a buy inside the 3 sessions before a report, or a gap up that never dipped. Each of those three rules the trade out, whatever the average does."
+    "trap": "A rising 20-day EMA is a plus, but it is not a rescue. It cannot fix a stock under its 200-day. It cannot fix a buy inside the 3 sessions before a report, or a gap up that stays green and never dips under the prior close. Each of those three rules the trade out, whatever the average does."
    },
    "tier": "expert",
    "risk": {
@@ -3512,7 +3512,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (g29/g31). Wrong note for candle size leaned on CRS facts not cited here; replaced with a note the cited facts support."
+   "notes": "Key right (g29 verbatim: 'the stock and the level are the edge'; g31 for the setup). Breaks: (1) the deeper trap is q45's story nearly word for word (a turn in the window, no tight flag, wild post-earnings range, 'still a bare red to green'), so this rung-2 item answers q45 (rung 7); (2) the volume wrong note 'Volume is not a rule' is q39's answer (rung 6 true/false). Fix rewrites both from g29 only and drops d16 and g21. Not fixable from q13's side: q14 (same rung) has 'The edge is the stock and the level' in its why, which gives q13's key; suggest trimming that sentence from q14's why."
   },
   "q14": {
    "status": "pass",
@@ -3620,7 +3620,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h21, h20). The 200-day note says \"far too slow\", which no cited fact supports. Reword from h21 only."
+   "notes": "Key right (h21: 10-day for fast movers, sell on a close below it; h20: the last third is trailed). Breaks: the why's 'After the trims at 3R and 5R' gives q75's answer (rung 7: another third at 5R, trail the rest) and q74's 5R level; the 'entry day low' wrong note says the stop 'only moves up', which no cited fact supports. Fix drops the trims from the why and cites h01/h02 for the stop note."
   },
   "q32": {
    "status": "cut",
@@ -3679,7 +3679,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (g12, g38). The why says the Go Signal needs a leader that already moved, \"so\" a clean turn does not change the answer: no cited fact says an under-50-day stock is not a leader. Tie it to g31 as written. Lesson line also paraphrased past g38."
+   "notes": "Key right (g12 proposed, g38 mistake, card no_trade line). Break: the distractor 'Pass; it needs a gap down first' and its note 'No gap is needed' key the open shape, which is pending-owner D-128 (option c is 'a gap down'); the unit's conflicts say pending criteria stay out of every key, and under option c that distractor is a second defensible Pass (the story never says how it opened). Replaced with a 200-day distractor the story itself rules out (above its 200-day), grounded in h10/g11; g02 dropped."
   },
   "q42": {
    "status": "pass",
@@ -3769,7 +3769,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story never said this was a climax, and no cited fact defines one, so the key rested on an ungrounded classification. Story now names the climax run (g26/h31)."
+   "notes": "Key right (g26 card, h31 C34: sell a big part into a climax run, a judgment call). Break: a tell, the key is the only choice that repeats the story's word 'run' (story says 'climax run' and 'of the run'). Key reworded to 'Sell a big part of it now'; why, simple and lesson_line follow. Lesson line 'vertical run' also used a word no cited fact or the story has; now 'a climax run'. Distractors and their notes unchanged (g18, h01, h02 support them)."
   },
   "q57": {
    "status": "pass",
@@ -3811,7 +3811,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right. The deeper says \"Those three are rules. The rising average is only a good sign\", implying g13 is not a rule, but g13 is a card criterion the card wants (q21 teaches it as wanted). Reword so it only claims it cannot rescue the others."
+   "notes": "Key right (g13 rising 20-day EMA is wanted; g15/h08 report window, g03 gap up, h10 B26 block the rest). Break: a tell, the key is the only choice that sounds good ('rising') while every distractor reads as bad ('never dipped', 'close under'), so a guesser gets it at an expert rung. Gap-up distractor reworded to sound strong but stay clearly blocked (green all morning = never under the prior close inside the window, g03); why, wrong note and deeper follow."
   },
   "q64": {
    "status": "pass",

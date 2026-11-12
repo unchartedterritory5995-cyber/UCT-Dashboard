@@ -1422,7 +1422,7 @@
     "Wait, then buy the neckline break": "Nothing has failed at the break. The buy waits for the failure, over the right-shoulder high."
    },
    "house": true,
-   "simple": "Do not short yet. The top is not finished until the neckline breaks, and the uptrend may simply resume.",
+   "simple": "Do not short. The top is not complete until the neckline breaks, and the uptrend may simply resume.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2658,7 +2658,7 @@
    "format": "scenario",
    "criterion": "fh.rounded_top",
    "story": "A stock rolled over in a slow curve for eight weeks, dipped under the curve's lowest low, and recovered. Now it trades over the curve's high.",
-   "q": "Which is it, and where was the trigger?",
+   "q": "Which is it, and where is the trigger?",
    "choices": [
     "Failed rounded top; the dome high",
     "A flat base; the top of the box",
@@ -2666,7 +2666,7 @@
     "Failed H&S; the right-shoulder high"
    ],
    "answer": "Failed rounded top; the dome high",
-   "why": "A failed rounded top. It is a dome that first broke its lower rim, then recovered. By our current default, the buy comes as price trades over the dome high. A flat base holds one range 15% deep or less with a flat top tapped twice and breaks out over it.",
+   "why": "A failed rounded top. The dome first broke its lower rim, the lowest low of the arc, then recovered. By our current default, the buy comes as price trades over the dome high. A slow curve is not a box, so it is not a flat base.",
    "lesson_line": "A box that breaks up is a flat base. A dome that lost its rim and came back is ours.",
    "facts": [
     "c18",
@@ -3474,7 +3474,9 @@
     "d03",
     "d04",
     "h20",
-    "h21"
+    "h21",
+    "h23",
+    "h18"
    ],
    "wrong": {
     "Limit 21.22; stop 19.80; sell all at 2R": "A limit at the neckline sits well under price and does not buy the trigger. 19.80 is the undercut low, the invalidation line, not the stop. The hard rule is a third at 3R, not all at 2R.",
@@ -3895,7 +3897,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is the lone passive answer against three action choices (two near-duplicate shorts), a tell. 'A named mistake' for the short is not supported (c16 is a rule, not a listed mistake). Replaced the half-size short with a wrong 'wait, then buy the break' so there are two waiting choices and no cluster."
+   "notes": "Key right (m02 in context: Murphy at the right shoulder, trend only sideways; m01, sc02 verified on the pages). But the simple line 'Do not short yet' implies a short after the break, which contradicts c16/D-001 and the why ('we do not teach the break as a short setup'). Drop 'yet'."
   },
   "q09": {
    "status": "pass",
@@ -3960,8 +3962,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why says the levels are adjustable, which only h20 (E51) says, but h20 is not cited. Added h20. Note: q22 (outside chunk) opens 'After a third at 3R', which gives q19 away; q22 should be reworded."
+   "fixed": false,
+   "notes": "True matches h05/B19 hard rule and c55; declined item 73 keeps the 3R trim. Why's 'levels are adjustable' leans on h20 (E51), a mild stretch but not wrong. Overlaps q62 (same rule keyed), acceptable."
   },
   "q20": {
    "status": "pass",
@@ -4086,8 +4088,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The key repeats the story's words ('trades ... a day'), a tell. Reword the key so it does not echo the story and keep it from tying for the longest choice. Numbers are all in c49/h09 and the story."
+   "fixed": false,
+   "notes": "$12 passes, $6M fails h09/B23 $20M; numbers from question and h09. No tell, distractors handled."
   },
   "q41": {
    "status": "pass",
@@ -4099,7 +4101,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'A cup with handle' is a second defensible reading of a curve that dips and recovers, and no cited fact describes a cup, so its wrong note only restates the answer. Replaced it with a mean-reversion lure grounded in c21 (flush day, out in 1 to 5 sessions; this curve took eight weeks)."
+   "notes": "Key sound (c17, c18, b09; D-002/D-003 provisional as recorded). The why's last sentence is the c18 flat-base line copied verbatim from its own wrong note and q48's wrong note, and does not explain the key; stem says 'where was the trigger' while the story's trigger is now."
   },
   "q43": {
    "status": "pass",
@@ -4134,8 +4136,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two of the three wrong choices were failed-top variants (H&S and Version A), so the mean-reversion key was the odd one out, a tell. Replaced 'Version A of the failed top' with a flat-base lure grounded in c18. Story already rules out a 2B."
+   "fixed": false,
+   "notes": "Mean reversion per c21 (flush day into a level, out in 1 to 5 sessions at the average); 2B excluded by 'above every prior swing low'. d12 is ICLR per dossier row 6. Note: the why's 2B line gives q70's answer ('within 1 to 3 sessions'), but q21's why already does the same, so it is shared teaching, not a q48-only leak."
   },
   "q49": {
    "status": "cut",
@@ -4219,19 +4221,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The stem's parenthetical '(a few cents under the day's low)' states the rule that q03 asks as True/False, so the two questions answer each other. Removed it; the day's low 22.35 is still in the story and the 19.80 lure is wrong by the invalidation-line rule."
+   "notes": "Key right: d03 fill 22.71, stop 22.30 = 5 cents under 22.35, third at 3R (h05); '23.7R at best' matches the dossier's Best R definition. But the why says 'in regular hours' and 'with a real stop order' and neither is in the cited facts; h23 (E58) and h18 (D41) are in the lesson and must be cited."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note says price sits 'well above' the 200-day, which no cited fact states (d15, d16 give only the 50-day for TOL). Softened. Also unverified: that TOL closed above the 50-day on 2024-07-11, the day before the trigger (d16 says the trigger was above it). Someone should confirm on the member's chart; if the 50-day was reclaimed only on the trigger day, move asof to 2024-07-12."
+   "fixed": false,
+   "notes": "Checked TOL daily bars: 2024-07-11 close 121.47, 50-day SMA 120.20, 200-day 103.91, high 121.87 under the 123.68 shoulder; 7-12 trigger low 122.30 (stop 122.25), volume 1.32x. Key holds; margin over the 50-day is thin (about 1%). deeper.counter tells the AMZN near-miss that q64 shows, but q64 hides the ticker and date, so no practical leak."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "One Pass against three Takes is a lone-odd-one tell. Replace the weakest Take with a second Pass whose reason is false on any chart (no volume gate, c08). The 'failure is complete' wrong note also contradicted the stem (the trigger has not happened yet), so it is reworded. Chart dependence (200-day drawn on the 2014-06-10 chart) stays an owner flag."
+   "fixed": false,
+   "notes": "Checked AMZN split-adjusted bars: 2014-06-10 close 16.62 under 200-day 17.20; 6-11 close 16.76 vs 17.21 = 2.6% under (d32). The 200-day was rising slightly, so 'turning up' is a true but irrelevant trap, and its wrong note handles that correctly. c08 supports the volume note."
   },
   "q65": {
    "status": "cut",

@@ -1689,7 +1689,7 @@
    "criterion": "ss.after_entry_stop",
    "q": "To stay in a losing Slingshot, we never move the stop wider by choice.",
    "answer": "True",
-   "why": "True. A trade under the stop ends it; no widening. The stop only moves up, never down or wider.",
+   "why": "True. A trade under the stop ends it; no widening. Widening the stop is a named mistake.",
    "lesson_line": "My stop is my stop. Widening it is the mistake with a name.",
    "facts": [
     "h02",
@@ -1991,7 +1991,7 @@
    "wrong": {
     "Yes; the trigger fired again": "Re-buying the same pullback again and again is a named mistake. The pullback has to form again first.",
     "Yes, but with a wider stop this time": "A wider stop to avoid a repeat is the mistake, not the fix. And the setup has not formed again.",
-    "No; the stock is out for the month": "Nothing bars the stock after a stop-out. A new Slingshot is allowed, with its own stop."
+    "No; the stock is out for the month": "One stop-out does not bar the stock. A new Slingshot is allowed, with its own stop."
    },
    "house": true,
    "story": "Your Slingshot stopped out the day after the trigger. That day and the next both closed under the line. Today it closes back over it.",
@@ -2730,7 +2730,8 @@
     "o05",
     "v01",
     "c19",
-    "c05"
+    "c05",
+    "h31"
    ],
    "wrong": {
     "Yes; the first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
@@ -3590,8 +3591,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leaks into q36: the why lists Red = mostly cash and shorts and the third wrong note says 'closer to Red, which is mostly cash and shorts', which is q36's key. Trimmed the why and the note to Yellow only."
+   "fixed": false,
+   "notes": "Yellow = smaller and fewer (h26, c43). Distractors map to Green, Orange and a stricter-than-guide rule. No tell, no length issue."
   },
   "q10": {
    "status": "pass",
@@ -3656,8 +3657,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why gives away q69 (another third at 5R, last third trails). Trimmed to the half-versus-third point, which h05 and c33 support. Lesson line was identical to q69's."
+   "fixed": false,
+   "notes": "False: the first trim is a third at 3R (h05, c33). Statement is wrong on two counts (half, and the rest does not ride the trail at once), both point to False. Its why restates the core trim rule that q63 also uses; accepted as lesson reinforcement, not a giveaway."
   },
   "q21": {
    "status": "pass",
@@ -3669,7 +3670,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The why says 'The gap rule is the one exception', which answers q65 (True) and sets up q29. Removed it; the 'by choice' statement stays true under A4."
+   "notes": "Key True is right. But the why says the stop 'only moves up, never down or wider' with no exception, while h02 itself names the gap rule as the one exception and q65 keys True on exactly that exception. The why contradicts q65 and the cited quote. Drop the absolute line; keep the no-widening point, which c42 and c22 support."
   },
   "q23": {
    "status": "cut",
@@ -3704,8 +3705,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Buy half size, stop under the low' is defensible under the card's own B- row (c24: a gap of 2% or more, a weak close) and D38/E49 (B- sized down), and the wrong note takes a stand the owner has not settled. Replaced that choice with a plain misconception (a gap shows strength) that c19 rules out, and rewrote the deeper trap."
+   "fixed": false,
+   "notes": "Pass is right: the 3% open fails the under-2% open test and 0.54 fails the top-30% close (c04, c19). Four closes is inside the card's range. Numbers come from the story and c04. Overlaps q16/q39 by teaching the same rule, but no stem gives another key away."
   },
   "q29": {
    "status": "pass",
@@ -3717,7 +3718,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second reading: 'Since then the stock has closed under the line twice' can include the stop-out day's own close, which would make 3 closes and flip the key to Yes. Story rewritten so the count is exactly two closes under the line since the trigger."
+   "notes": "Key right: only two closes under the line since the stop-out, and a new Slingshot needs at least 3 (c11, c22, h28). But the wrong note 'Nothing bars the stock after a stop-out' is false in general: c11 caps tries at 3 a week and 6 a month, which q56 keys True. Reword so it does not contradict the cap."
   },
   "q31": {
    "status": "pass",
@@ -3740,8 +3741,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Lesson line says 'never as early as 1R'; B19 says 2R to 5R 'ideally' and the card says 2R to 5R is allowed. Softened the absolute."
+   "fixed": false,
+   "notes": "False: breakeven at 2R, 2R to 5R allowed (h05, c32). Clean."
   },
   "q35": {
    "status": "pass",
@@ -3752,8 +3753,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leaks into q09: the Yellow choice 'Go smaller, with fewer positions' and the why 'Yellow smaller and fewer' are q09's key. Replaced that choice with a chart-over-reading misconception and trimmed the why. Key (D46, F65) is right."
+   "fixed": false,
+   "notes": "Red = mostly cash, plus shorts (h26, c43). The question asks what the guide says, so the key is the guide's own words; distractors are Green, Orange and chart-over-reading. No second answer."
   },
   "q37": {
    "status": "pass",
@@ -3764,8 +3765,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and notes fine (c12, d14, d15). The deeper counter 'A perfect trigger day does not make up for a poor location' is an unsupported causal claim from one example, and d15 itself blames the 2008 market. Reworded."
+   "fixed": false,
+   "notes": "LOW 2008-08-28 matches d14/d15 (8.8% drive, 3 closes, 6.9%, DCR 1.0, 24.90/24.53, 50-day under 200-day). Every choice mirrors a story fact, so the key is not a lone echo; the student must know which three the card wants and which one was missed (c12). Grounded."
   },
   "q39": {
    "status": "cut",
@@ -3782,8 +3783,8 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The ATR wrong note says an ATR 'is a distance, not a level', which is false (a full ATR under the trigger low is a level). Rewritten to rest on c08 (a few cents under a low)."
+   "fixed": false,
+   "notes": "Card c08: wider choice = a few cents under the lower of the trigger day's and prior day's lows, never past the pullback bottom. Distractors clearly off-card. Why grounded in c08, t04, h03."
   },
   "q42": {
    "status": "pass",
@@ -3843,7 +3844,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key was the unique longest choice (36 chars against 35, 35, 31). Shortened to 34 so it is no longer longest."
+   "notes": "Key right (c20 named mistake, o05). But the wrong note for 'Yes; buy half now, half on the turn' says 'We buy full size at one price with one stop, with no adding', and none of the cited facts carries that; h31 (A5) does. Add h31 to facts."
   },
   "q52": {
    "status": "pass",
@@ -3878,8 +3879,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'Sell before the report unless up 5R' was the only choice carrying a number and the rule itself, so it gave the rule away. Key made plain; the 5R rule stays in the why and wrong notes."
+   "fixed": false,
+   "notes": "B22: hold through a report only if up 5R; 1.5R and two sessions come from the story (h08). Gap-rule ceiling grounded (h06, h07). The c37 'case that binds' line is about entries but reads true here (a rally Slingshot is the one near a report). Could not break it."
   },
   "q59": {
    "status": "pass",
@@ -3920,8 +3921,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note on 'hold to 5R' said the first third comes off at 3R, not 5R. B19 says the first trim is ideally anywhere from 3R to 6R and he mostly waits for 5R, so that note overreaches. The choice is wrong because of its stop; note rewritten to say that. The 2R note now rests on the hard rule."
+   "fixed": false,
+   "notes": "60.85 low minus a few cents = 60.82 (h24, calc); market at the close 62.40 (h22); a third at 3R, a third at 5R, trail the rest (h05, h20). Each wrong choice fails on a clear part. Lengths fine."
   },
   "q64": {
    "status": "pass",
@@ -3938,8 +3939,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the key 'Nothing; ...' is the lone non-Buy against three 'Buy' choices. Reworded the key to start with 'Buy' like the rest. Facts h32, c04, h26 are right."
+   "fixed": false,
+   "notes": "D44 no setup, no trade; a mid-range trigger fails c04; Green sets risk for a passing setup only (h26). The odd-one-out risk (one no-buy against three buys) is softened by phrasing the key as 'Buy nothing'; no non-buy distractor exists that would not be a second defensible answer (waiting for a new trigger is also right), so kept."
   },
   "q68": {
    "status": "cut",
