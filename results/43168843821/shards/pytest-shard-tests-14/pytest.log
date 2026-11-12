@@ -1,0 +1,1057 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...........................................................F............ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+.................................
+[txn latency, in-process, n=200] webhook->subscriber p50=1.79ms p95=2.35ms p99=3.95ms max=8.24ms | ack incl. journal fsync p50=2.01ms p95=2.71ms | store commit last=0.79ms
+....................................... [  4%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+.........F.............................................................. [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........F.................F..........................F................F. [ 94%]
+........................................................................ [ 96%]
+...........................................F............................ [ 97%]
+........................................................................ [ 98%]
+..................................................................F.F... [ 99%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+____ test_the_warmer_derives_the_archive_in_the_background_and_never_raises ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716c48bda150>
+
+    async def test_the_warmer_derives_the_archive_in_the_background_and_never_raises(monkeypatch):
+        monkeypatch.setattr(arc, "WARM_ENABLED", True)
+        monkeypatch.setattr(arc, "WARM_PAUSE_S", 0)
+        await _fill_day(n=60)
+        await _day({"date": DAY.isoformat(), "limit": 5})
+        assert arc.warm_wait(10)
+>       assert arc.cache_stats()["derived_full"] == len({_content(i) for i in range(60)})
+E       AssertionError: assert 43 == 51
+E        +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+
+tests/test_trade_exchange_news_archive.py:404: AssertionError
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+_ test_just_over_the_cap_with_no_length_is_refused_and_nothing_survives[indicator] _
+
+door = Door(id='indicator', path='/api/indicator-vision/candidates', field='file', filename='i.png', ctype='image/png', limit...\xa8\x99\x00\x00\x00\x00IEND\xaeB`\x82", extra=2097152, over_status=200, ok=<function Door.<lambda> at 0x716c4ade0900>)
+db_path = '/tmp/tmpjbxa9bvo.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716c400f2d50>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_just_over_the_cap_with_no4')
+spools = <tests.test_notebook_upload_cap._Recorder object at 0x716c3b572c30>
+
+    def test_just_over_the_cap_with_no_length_is_refused_and_nothing_survives(door, db_path, monkeypatch, tmp_path, spools):
+        app, written, calls = _app(door, monkeypatch, tmp_path)
+>       dd = _post(app, door.path, _body(door, door.limit() + 1))
+
+tests/test_upload_cap_member_doors.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_upload_cap.py:137: in _post
+    return Drive(app, path, body, headers=headers).run()
+tests/test_notebook_upload_cap.py:94: in run
+    asyncio.run(self._run())
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+tests/test_notebook_upload_cap.py:125: in _run
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:214: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/concurrency.py:39: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2779: in run_sync_in_worker_thread
+    return await future
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124: in run
+    result = context.run(func, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user = {'email': 'u@test.local', 'id': 'u-cap3', 'plan': 'pro', 'role': 'member'}
+parts = CappedMultipart(file=UploadFile(filename='i.png', size=5242881, headers=Headers({'content-disposition': 'form-data; name="file"; filename="i.png"', 'content-type': 'image/png'})), fields={'note': 'rsi', 'bars': '[]'})
+
+    @router.post("/candidates")
+    def candidates_from_screenshot(
+        user: dict = Depends(require_paid),
+        parts: body_cap.CappedMultipart = Depends(_SCREENSHOT_UPLOAD),
+    ):
+        """A picture of somebody else's indicator; this engine's own candidates back.
+    
+        ⛔ IT STORES NOTHING. A candidate is a suggestion the member has not confirmed
+        — and unlike a typed formula, nobody has even claimed it is the right one.
+        Persisting it would make a model's guess at a picture into a definition the
+        alert lane could bind to. The member accepts one, and the ordinary
+        `POST /api/user-definitions` door does the writing, through the same
+        validation everything else goes through.
+    
+        ⭐ THE FLAG IS CHECKED HERE, IN THE HANDLER, and it is checked BEFORE the rate
+        limiter charges anybody: a member who cannot use the feature should not be
+        spending their hourly allowance discovering that.
+        """
+        file = parts.file
+        note = parts.fields["note"] or ""
+        bars = parts.fields["bars"] or ""
+        if not svc.vision_enabled():
+            return svc.disabled_refusal()
+    
+        # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+        # the plain-language door: submission and compile happen in one call here,
+        # so there is no earlier client-side moment to correlate with.
+        import uuid
+        import_id = str(uuid.uuid4())
+        telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                            dialect="screenshot")
+    
+        parsed_bars = _bars_from(bars)
+        # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+        # `_bars_from`, specifically so this ONE case — well-formed input that is
+        # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+        # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+        # malformed input. Before the fix on Save, before charging the member's
+        # hourly allowance for a request that was always going to be refused.
+        if len(parsed_bars) > MAX_PROPOSE_BARS:
+            telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                                dialect="screenshot", success=False, stage="gate",
+                                gate="bars:too-large")
+            refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+            refusal["import_id"] = import_id
+            return refusal
+        _charge(str(user["id"]))
+    
+        # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
+        # reading the whole of an oversized upload into memory to then reject it is the
+        # DoS the ceiling exists to prevent. The service owns the refusal sentence.
+        data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
+>       result = svc.candidates_from_image(
+            image_bytes=data,
+            media_type=(file.content_type or "").split(";")[0].strip().lower(),
+            user_id=user["id"],
+            bars=parsed_bars,
+            note=note,
+            max_per_hour=VISION_MAX_PER_HOUR,
+        )
+E       TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+
+api/routers/indicator_vision.py:198: TypeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpjbxa9bvo.db
+____________________ test_at_the_cap_is_accepted[indicator] ____________________
+
+door = Door(id='indicator', path='/api/indicator-vision/candidates', field='file', filename='i.png', ctype='image/png', limit...\xa8\x99\x00\x00\x00\x00IEND\xaeB`\x82", extra=2097152, over_status=200, ok=<function Door.<lambda> at 0x716c4ade0900>)
+db_path = '/tmp/tmplfzp3y4g.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716c24ad6390>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_at_the_cap_is_accepted_in0')
+spools = <tests.test_notebook_upload_cap._Recorder object at 0x716c3bf050d0>
+
+    def test_at_the_cap_is_accepted(door, db_path, monkeypatch, tmp_path, spools):
+        app, written, calls = _app(door, monkeypatch, tmp_path)
+>       dd = _post(app, door.path, _body(door, door.limit()))
+
+tests/test_upload_cap_member_doors.py:300: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_notebook_upload_cap.py:137: in _post
+    return Drive(app, path, body, headers=headers).run()
+tests/test_notebook_upload_cap.py:94: in run
+    asyncio.run(self._run())
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+tests/test_notebook_upload_cap.py:125: in _run
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:214: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/concurrency.py:39: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2779: in run_sync_in_worker_thread
+    return await future
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124: in run
+    result = context.run(func, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user = {'email': 'u@test.local', 'id': 'u-cap3', 'plan': 'pro', 'role': 'member'}
+parts = CappedMultipart(file=UploadFile(filename='i.png', size=5242880, headers=Headers({'content-disposition': 'form-data; name="file"; filename="i.png"', 'content-type': 'image/png'})), fields={'note': 'rsi', 'bars': '[]'})
+
+    @router.post("/candidates")
+    def candidates_from_screenshot(
+        user: dict = Depends(require_paid),
+        parts: body_cap.CappedMultipart = Depends(_SCREENSHOT_UPLOAD),
+    ):
+        """A picture of somebody else's indicator; this engine's own candidates back.
+    
+        ⛔ IT STORES NOTHING. A candidate is a suggestion the member has not confirmed
+        — and unlike a typed formula, nobody has even claimed it is the right one.
+        Persisting it would make a model's guess at a picture into a definition the
+        alert lane could bind to. The member accepts one, and the ordinary
+        `POST /api/user-definitions` door does the writing, through the same
+        validation everything else goes through.
+    
+        ⭐ THE FLAG IS CHECKED HERE, IN THE HANDLER, and it is checked BEFORE the rate
+        limiter charges anybody: a member who cannot use the feature should not be
+        spending their hourly allowance discovering that.
+        """
+        file = parts.file
+        note = parts.fields["note"] or ""
+        bars = parts.fields["bars"] or ""
+        if not svc.vision_enabled():
+            return svc.disabled_refusal()
+    
+        # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+        # the plain-language door: submission and compile happen in one call here,
+        # so there is no earlier client-side moment to correlate with.
+        import uuid
+        import_id = str(uuid.uuid4())
+        telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                            dialect="screenshot")
+    
+        parsed_bars = _bars_from(bars)
+        # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+        # `_bars_from`, specifically so this ONE case — well-formed input that is
+        # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+        # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+        # malformed input. Before the fix on Save, before charging the member's
+        # hourly allowance for a request that was always going to be refused.
+        if len(parsed_bars) > MAX_PROPOSE_BARS:
+            telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                                dialect="screenshot", success=False, stage="gate",
+                                gate="bars:too-large")
+            refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+            refusal["import_id"] = import_id
+            return refusal
+        _charge(str(user["id"]))
+    
+        # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
+        # reading the whole of an oversized upload into memory to then reject it is the
+        # DoS the ceiling exists to prevent. The service owns the refusal sentence.
+        data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
+>       result = svc.candidates_from_image(
+            image_bytes=data,
+            media_type=(file.content_type or "").split(";")[0].strip().lower(),
+            user_id=user["id"],
+            bars=parsed_bars,
+            note=note,
+            max_per_hour=VISION_MAX_PER_HOUR,
+        )
+E       TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+
+api/routers/indicator_vision.py:198: TypeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmplfzp3y4g.db
+_________ test_an_ordinary_request_through_the_test_client[indicator] __________
+
+door = Door(id='indicator', path='/api/indicator-vision/candidates', field='file', filename='i.png', ctype='image/png', limit...\xa8\x99\x00\x00\x00\x00IEND\xaeB`\x82", extra=2097152, over_status=200, ok=<function Door.<lambda> at 0x716c4ade0900>)
+db_path = '/tmp/tmpfa3q3lig.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716c2440b380>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_ordinary_request_throu4')
+
+    def test_an_ordinary_request_through_the_test_client(door, db_path, monkeypatch, tmp_path):
+        app, written, calls = _app(door, monkeypatch, tmp_path)
+        payload = (PNG + b"\x00" * 64) if door.head else b"hello world " * 64
+>       r = TestClient(app).post(door.path, files={door.field: (door.filename, payload, door.ctype)},
+                                 data=door.fields)
+
+tests/test_upload_cap_member_doors.py:328: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:593: in post
+    return super().post(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: in request
+    return super().request(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:377: in handle_request
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:374: in handle_request
+    portal.call(self.app, scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/from_thread.py:347: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/from_thread.py:272: in _call_func
+    retval = await retval_or_awaitable
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:214: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/concurrency.py:39: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2779: in run_sync_in_worker_thread
+    return await future
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124: in run
+    result = context.run(func, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user = {'email': 'u@test.local', 'id': 'u-cap3', 'plan': 'pro', 'role': 'member'}
+parts = CappedMultipart(file=UploadFile(filename='i.png', size=141, headers=Headers({'content-disposition': 'form-data; name="file"; filename="i.png"', 'content-type': 'image/png'})), fields={'note': 'rsi', 'bars': '[]'})
+
+    @router.post("/candidates")
+    def candidates_from_screenshot(
+        user: dict = Depends(require_paid),
+        parts: body_cap.CappedMultipart = Depends(_SCREENSHOT_UPLOAD),
+    ):
+        """A picture of somebody else's indicator; this engine's own candidates back.
+    
+        ⛔ IT STORES NOTHING. A candidate is a suggestion the member has not confirmed
+        — and unlike a typed formula, nobody has even claimed it is the right one.
+        Persisting it would make a model's guess at a picture into a definition the
+        alert lane could bind to. The member accepts one, and the ordinary
+        `POST /api/user-definitions` door does the writing, through the same
+        validation everything else goes through.
+    
+        ⭐ THE FLAG IS CHECKED HERE, IN THE HANDLER, and it is checked BEFORE the rate
+        limiter charges anybody: a member who cannot use the feature should not be
+        spending their hourly allowance discovering that.
+        """
+        file = parts.file
+        note = parts.fields["note"] or ""
+        bars = parts.fields["bars"] or ""
+        if not svc.vision_enabled():
+            return svc.disabled_refusal()
+    
+        # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+        # the plain-language door: submission and compile happen in one call here,
+        # so there is no earlier client-side moment to correlate with.
+        import uuid
+        import_id = str(uuid.uuid4())
+        telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                            dialect="screenshot")
+    
+        parsed_bars = _bars_from(bars)
+        # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+        # `_bars_from`, specifically so this ONE case — well-formed input that is
+        # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+        # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+        # malformed input. Before the fix on Save, before charging the member's
+        # hourly allowance for a request that was always going to be refused.
+        if len(parsed_bars) > MAX_PROPOSE_BARS:
+            telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                                dialect="screenshot", success=False, stage="gate",
+                                gate="bars:too-large")
+            refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+            refusal["import_id"] = import_id
+            return refusal
+        _charge(str(user["id"]))
+    
+        # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
+        # reading the whole of an oversized upload into memory to then reject it is the
+        # DoS the ceiling exists to prevent. The service owns the refusal sentence.
+        data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
+>       result = svc.candidates_from_image(
+            image_bytes=data,
+            media_type=(file.content_type or "").split(";")[0].strip().lower(),
+            user_id=user["id"],
+            bars=parsed_bars,
+            note=note,
+            max_per_hour=VISION_MAX_PER_HOUR,
+        )
+E       TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+
+api/routers/indicator_vision.py:198: TypeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpfa3q3lig.db
+________________ test_indicator_bars_and_note_reach_the_service ________________
+
+db_path = '/tmp/tmp77d2x7rd.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716c24748b30>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_indicator_bars_and_note_r0')
+
+    def test_indicator_bars_and_note_reach_the_service(db_path, monkeypatch, tmp_path):
+        app, _, calls = _build_indicator(monkeypatch, tmp_path, True)
+>       r = TestClient(app).post("/api/indicator-vision/candidates",
+                                 files={"file": ("i.png", PNG, "image/png")},
+                                 data={"note": "my rsi", "bars": '[{"t": 1, "c": 2}]'})
+
+tests/test_upload_cap_member_doors.py:378: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:593: in post
+    return super().post(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: in request
+    return super().request(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:377: in handle_request
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:374: in handle_request
+    portal.call(self.app, scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/from_thread.py:347: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/from_thread.py:272: in _call_func
+    retval = await retval_or_awaitable
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/routing.py:214: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/concurrency.py:39: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2779: in run_sync_in_worker_thread
+    return await future
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124: in run
+    result = context.run(func, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+user = {'email': 'u@test.local', 'id': 'u-cap3', 'plan': 'pro', 'role': 'member'}
+parts = CappedMultipart(file=UploadFile(filename='i.png', size=77, headers=Headers({'content-disposition': 'form-data; name="file"; filename="i.png"', 'content-type': 'image/png'})), fields={'note': 'my rsi', 'bars': '[{"t": 1, "c": 2}]'})
+
+    @router.post("/candidates")
+    def candidates_from_screenshot(
+        user: dict = Depends(require_paid),
+        parts: body_cap.CappedMultipart = Depends(_SCREENSHOT_UPLOAD),
+    ):
+        """A picture of somebody else's indicator; this engine's own candidates back.
+    
+        ⛔ IT STORES NOTHING. A candidate is a suggestion the member has not confirmed
+        — and unlike a typed formula, nobody has even claimed it is the right one.
+        Persisting it would make a model's guess at a picture into a definition the
+        alert lane could bind to. The member accepts one, and the ordinary
+        `POST /api/user-definitions` door does the writing, through the same
+        validation everything else goes through.
+    
+        ⭐ THE FLAG IS CHECKED HERE, IN THE HANDLER, and it is checked BEFORE the rate
+        limiter charges anybody: a member who cannot use the feature should not be
+        spending their hourly allowance discovering that.
+        """
+        file = parts.file
+        note = parts.fields["note"] or ""
+        bars = parts.fields["bars"] or ""
+        if not svc.vision_enabled():
+            return svc.disabled_refusal()
+    
+        # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+        # the plain-language door: submission and compile happen in one call here,
+        # so there is no earlier client-side moment to correlate with.
+        import uuid
+        import_id = str(uuid.uuid4())
+        telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                            dialect="screenshot")
+    
+        parsed_bars = _bars_from(bars)
+        # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+        # `_bars_from`, specifically so this ONE case — well-formed input that is
+        # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+        # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+        # malformed input. Before the fix on Save, before charging the member's
+        # hourly allowance for a request that was always going to be refused.
+        if len(parsed_bars) > MAX_PROPOSE_BARS:
+            telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                                dialect="screenshot", success=False, stage="gate",
+                                gate="bars:too-large")
+            refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+            refusal["import_id"] = import_id
+            return refusal
+        _charge(str(user["id"]))
+    
+        # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
+        # reading the whole of an oversized upload into memory to then reject it is the
+        # DoS the ceiling exists to prevent. The service owns the refusal sentence.
+        data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
+>       result = svc.candidates_from_image(
+            image_bytes=data,
+            media_type=(file.content_type or "").split(";")[0].strip().lower(),
+            user_id=user["id"],
+            bars=parsed_bars,
+            note=note,
+            max_per_hour=VISION_MAX_PER_HOUR,
+        )
+E       TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+
+api/routers/indicator_vision.py:198: TypeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmp77d2x7rd.db
+_ test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one _
+
+    def test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one():
+        """⛔ THE NON-MEASUREMENT ASSERTION, AS A DURABLE RAIL.
+    
+        `require_paid` is defined LOCALLY, once per router, each with its OWN 402
+        sentence — that is the shipped pattern (`api/routers/signature.py:174`), and
+        inventing a shared one for a Phase D task would change TWO OTHER ROUTERS'
+        behaviour as a side effect of tiering the builder. So:
+    
+          * every module that gates on it DEFINES it (a module that IMPORTS one from
+            a sibling is the shared gate wearing a different hat);
+          * the 402 sentences are DISTINCT, which is what makes a support question
+            answerable — "which surface refused me" is readable off the message;
+          * and `user_definitions.py` is among the definers, which is the half that
+            would go red if this task had taken the tidy route.
+        """
+        definers: dict[str, list[str]] = {}
+        importers: list[str] = []
+    
+        for path in _router_modules():
+            tree = pyast.parse(path.read_text(encoding="utf-8"))
+            defs = _require_paid_defs(tree)
+            if defs:
+                assert len(defs) == 1, f"{path.name} defines require_paid twice"
+                details = [
+                    kw.value.value
+                    for n in pyast.walk(defs[0])
+                    if isinstance(n, pyast.Call)
+                    and isinstance(n.func, pyast.Name) and n.func.id == "HTTPException"
+                    for kw in n.keywords
+                    if kw.arg == "detail" and isinstance(kw.value, pyast.Constant)
+                ]
+                definers[path.name] = details
+            for n in pyast.walk(tree):
+                if isinstance(n, pyast.ImportFrom) and any(
+                        a.name == "require_paid" for a in (n.names or [])):
+                    importers.append(path.name)
+    
+        assert "user_definitions.py" in definers, (
+            "this router no longer defines its own require_paid — the tidy refactor "
+            "this task was told not to make")
+        assert definers["user_definitions.py"] == [PAID_DETAIL], definers["user_definitions.py"]
+        # ⛔ ONE RECORDED IMPORTER, AND IT IS A DISAGREEMENT RATHER THAN AN
+        # OVERSIGHT. `indicator_vision.py` imports this router's `require_paid`
+        # deliberately, and says so in its own module docstring: "It is the same
+        # gate on the same product surface, and `tests/test_exposed_routes_gated`
+        # reads gates BY OBJECT IDENTITY — sharing the object is what makes this
+        # route's gate the very thing that file already measures, rather than a
+        # look-alike."
+        #
+        # ⭐ THE HARM THIS ASSERTION NAMES DOES NOT OCCUR HERE. The concern is a
+        # SHARED gate "which would change other routers' behaviour as a side
+        # effect" — importing an existing object changes nothing about the router
+        # that defines it. What IS lost is the other half: a member refused at the
+        # vision door reads the DEFINITIONS door's 402 sentence, so "which surface
+        # locked me out" is not answerable for that one route. That cost is real,
+        # it is small, and it belongs to the owner of that file rather than to this
+        # rail.
+        #
+        # ⚠️ AN ENTRY HERE IS A COUNTDOWN, NOT A PARKING SPACE. The assertion below
+        # deletes the excuse the moment it stops being true: if that module ever
+        # defines its own gate, this goes red and the entry must be removed.
+        ALLOWED_IMPORTERS = {"indicator_vision.py"}
+        assert set(importers) <= ALLOWED_IMPORTERS, (
+            f"{sorted(set(importers) - ALLOWED_IMPORTERS)} import require_paid from "
+            "somewhere else — the shared gate this task was told not to invent, "
+            "which would change other routers' behaviour as a side effect")
+        assert ALLOWED_IMPORTERS <= set(importers), (
+            f"{sorted(ALLOWED_IMPORTERS - set(importers))} no longer imports "
+            f"require_paid — it presumably defines its own now, which is what this "
+            f"rail wants. Delete it from ALLOWED_IMPORTERS.")
+    
+        # Every definer speaks for itself: one sentence each, all distinct.
+        sentences = [d for details in definers.values() for d in details]
+        assert all(len(d) == 1 for d in definers.values()), definers
+>       assert len(set(sentences)) == len(sentences), (
+            f"two routers refuse with the SAME sentence — a member cannot tell which "
+            f"surface locked them out: {sentences}")
+E       AssertionError: two routers refuse with the SAME sentence — a member cannot tell which surface locked them out: ['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data require a paid plan', 'The analyst revision history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', 'Calendar personalization requires a paid plan', 'Calendar depth requires a paid plan', 'Full catalyst history requires a paid plan', 'Chart IQ requires a paid plan', 'Congressional trades require a paid plan', 'COT data requires a paid plan', 'Data export requires a paid plan', 'The decision record requires a paid plan', "A definition's forward record requires a paid plan", 'The delisted registry requires a paid plan', 'The Desk requires a paid plan', 'Earnings intelligence requires a paid plan', 'Educational Videos require a paid plan', 'The daily wire surface requires a paid plan', 'Entity resolution requires a paid plan', 'Expected-move research requires a paid plan', 'Filing changes require a paid plan', 'The earnings table requires a paid plan', 'Group and peer data requires a paid plan', 'The TradingView alert receiver requires a paid plan', 'Insider activity requires a paid plan', 'The Compass knowledge base requires a paid plan', 'The IV history requires a paid plan', 'Notebook Ask requires a paid plan', 'The Market Indicators library requires a paid plan', 'Member interest requires a paid plan', 'The Model Book requires a paid plan', 'The news & catalysts feed requires a paid plan', 'The news desk requires a paid plan', 'The NH-NL scanner requires a paid plan', 'Notebook AI changes require a paid plan', 'Chart plans require a paid plan', 'Earnings prep requires a paid plan', 'The entry context requires a paid plan', 'The technical fingerprint requires a paid plan', 'Email to Notebook requires a paid plan', 'Journal styles require a paid plan', 'The sample notebook is part of a paid plan.', 'Personal API tokens require a paid plan', 'Plan grades require a paid plan', 'My Playbook requires a paid plan', 'Publishing to the web requires a paid plan', 'Research capture requires a paid plan', 'Review drafts require a paid plan', 'Routines and trackers require a paid plan', 'The setups board and Find more like this require a paid plan', 'Share links require a paid plan', 'Ready-made widgets require a paid plan', 'Smart chips require a paid plan', 'The community template gallery requires a paid plan', 'Thesis chips require a paid plan', 'Importing tweets requires a paid plan', 'The visual playbook requires a paid plan', 'Voice notes are part of a paid plan.', 'Built widgets require a paid plan', 'Notebook widgets require a paid plan', 'Checklist from my winners requires a paid plan', 'Your trading year requires a paid plan', 'Writing help requires a paid plan', 'Options analytics require a paid plan', 'The option chain requires a paid plan', 'The option screener requires a paid plan', 'The pattern engine requires a paid plan', 'Strategy backtesting requires a paid plan', 'Portfolio risk requires a paid plan', 'The regime classifier requires a paid plan', 'Call replay requires a paid plan', 'This Research tab requires a paid plan', 'Research depth panels require a paid plan', 'Research notices require a paid plan', 'RS rankings require a paid plan', 'Live scans require a paid plan', 'Saved scans require a paid plan', 'On-demand scans require a paid plan', 'Scanner presets require a paid plan', 'The Market Map requires a paid plan', 'The screener requires a paid plan', 'The screener requires a paid plan', 'Screen backtesting requires a paid plan', 'The screener requires a paid plan', 'The screener requires a paid plan', 'Seasonality requires a paid plan', 'Sector strength requires a paid plan', 'UCT Signature indicators require a paid plan', 'Single-stock ETF families require a paid plan', 'Stock profiles require a paid plan', 'Study requires a paid plan', 'Thematic indexes require a paid plan', 'Theme performance requires a paid plan', 'Custom theme sets require a paid plan', 'Ticker history requires a paid plan', 'Time and Sales requires a paid plan', 'The Traders surface requires a paid plan', 'UCT Agent requires a paid plan', 'Custom indicators require a paid plan', 'The Volume Surge scanner requires a paid plan', 'Push notifications require a paid plan', 'The trader archive requires a paid plan', 'Team call history requires a paid plan']
+E       assert 102 == 105
+E        +  where 102 = len({"A definition's forward record requires a paid plan", 'AI Search requires a paid plan', 'Alert routing and webhooks r... and ownership data require a paid plan', 'Backtesting requires a paid plan', 'Built widgets require a paid plan', ...})
+E        +    where {"A definition's forward record requires a paid plan", 'AI Search requires a paid plan', 'Alert routing and webhooks r... and ownership data require a paid plan', 'Backtesting requires a paid plan', 'Built widgets require a paid plan', ...} = set(['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data requi...ion history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', ...])
+E        +  and   105 = len(['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data requi...ion history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', ...])
+
+tests/test_user_definitions_auth.py:352: AssertionError
+__ test_the_committed_manifest_matches_the_corpus_and_skips_what_is_captured ___
+
+    def test_the_committed_manifest_matches_the_corpus_and_skips_what_is_captured():
+        m = json.loads((REPO / "docs" / "pine" / "vendor-harness" / "batch-manifest.json").read_text(encoding="utf-8"))
+        assert m["schema"] == "uct.vendor-batch-manifest/v1" and m["scripts"]
+        captured = bm.captured_shas([REPO / "tests" / "fixtures" / "vendor" / "harness"])
+        assert captured, "non-vacuity: the harness fixtures hold captures"
+        for s in m["scripts"]:
+            assert hashlib.sha256((REPO / s["path"]).read_bytes()).hexdigest() == s["sha256"], s["path"]
+>           assert s["sha256"] not in captured, s["path"]
+E           AssertionError: corpus/committed/cdc-btc-rainbow-road__d880789793.pine
+E           assert '2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06' not in {'01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150': 'tests/fixtures/vendor/harness/liquidity-engulfin...bd8753dd45ee5bba644bf12e3cc8fb20af41': 'tests/fixtures/vendor/harness/vw-getter-history-2-spy-1d-2026-10-02.json', ...}
+
+tests/test_vendor_batch_capture.py:280: AssertionError
+________________ test_the_real_tree_matches_the_ratchet_exactly ________________
+
+    def test_the_real_tree_matches_the_ratchet_exactly():
+        counts = cen.counts(cen.census(BASE))
+        baseline = cen.load_baseline(BASE)
+        grew, new, slack = cen.compare(counts, baseline)
+>       assert new == [], (
+            "a NEW file reaches a vendor outside its adapter -- route it through the "
+            f"adapter (api/services/massive_adapter.py for Massive): {new}")
+E       AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/declared_splits.py', 0, 1), ('fmp', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/ticker_ipo.py', 0, 1), ('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4), ('yfinance', 'api/services/breadth_eod_extras.py', 0, 1), ('yfinance', 'api/services/earnings_session_resolver.py', 0, 1)]
+E       assert [('finnhub', ...', 0, 2), ...] == []
+E         
+E         Left contains 10 more items, first extra item: ('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1)
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'finnhub',
+E         +         'api/services/journal_two/earnings_followup.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'fmp',
+E         +         'api/services/declared_splits.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'fmp',
+E         +         'api/services/journal_two/earnings_followup.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'fmp',
+E         +         'api/services/ticker_ipo.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/breadth_v2_producer.py',
+E         +         0,
+E         +         3,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/options_universe_log.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'polygon_direct',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         4,
+E         +     ),
+E         +     (
+E         +         'yfinance',
+E         +         'api/services/breadth_eod_extras.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'yfinance',
+E         +         'api/services/earnings_session_resolver.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         + ]
+
+tests/test_vendor_callsite_census.py:58: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_trade_exchange_news_stream.py::test_the_stream_path_is_gzip_exempt
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_trader_blocks_no_note_door.py::test_the_writer_derivation_reaches_the_floor
+tests/test_user_definition_edit_forget.py::test_forget_has_a_PRODUCTION_call_site_and_it_is_the_write_path
+tests/test_user_definition_edit_forget.py::test_user_value_functions_docstring_claim_about_forget_is_TRUE_now
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_uct_agent_qa_member_refused.py: 20 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  tests/test_uct_agent_v2_cost_measure.py:62: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off(record_property):
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_uct_agent_v2_cost_measure.py:73: UserWarning: planner v2 flagship worst case $0.3509 is over the $0.25 cap: v2 cannot be enabled until an owner decision
+    warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "
+
+tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_vendor_callsite_census.py::test_the_census_is_not_blind_on_the_real_tree
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_trade_exchange_news_archive.py::test_the_warmer_derives_the_archive_in_the_background_and_never_raises - AssertionError: assert 43 == 51
+ +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+FAILED tests/test_upload_cap_member_doors.py::test_just_over_the_cap_with_no_length_is_refused_and_nothing_survives[indicator] - TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+FAILED tests/test_upload_cap_member_doors.py::test_at_the_cap_is_accepted[indicator] - TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+FAILED tests/test_upload_cap_member_doors.py::test_an_ordinary_request_through_the_test_client[indicator] - TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+FAILED tests/test_upload_cap_member_doors.py::test_indicator_bars_and_note_reach_the_service - TypeError: _build_indicator.<locals>.candidates() got an unexpected keyword argument 'max_per_hour'
+FAILED tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one - AssertionError: two routers refuse with the SAME sentence — a member cannot tell which surface locked them out: ['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data require a paid plan', 'The analyst revision history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', 'Calendar personalization requires a paid plan', 'Calendar depth requires a paid plan', 'Full catalyst history requires a paid plan', 'Chart IQ requires a paid plan', 'Congressional trades require a paid plan', 'COT data requires a paid plan', 'Data export requires a paid plan', 'The decision record requires a paid plan', "A definition's forward record requires a paid plan", 'The delisted registry requires a paid plan', 'The Desk requires a paid plan', 'Earnings intelligence requires a paid plan', 'Educational Videos require a paid plan', 'The daily wire surface requires a paid plan', 'Entity resolution requires a paid plan', 'Expected-move research requires a paid plan', 'Filing changes require a paid plan', 'The earnings table requires a paid plan', 'Group and peer data requires a paid plan', 'The TradingView alert receiver requires a paid plan', 'Insider activity requires a paid plan', 'The Compass knowledge base requires a paid plan', 'The IV history requires a paid plan', 'Notebook Ask requires a paid plan', 'The Market Indicators library requires a paid plan', 'Member interest requires a paid plan', 'The Model Book requires a paid plan', 'The news & catalysts feed requires a paid plan', 'The news desk requires a paid plan', 'The NH-NL scanner requires a paid plan', 'Notebook AI changes require a paid plan', 'Chart plans require a paid plan', 'Earnings prep requires a paid plan', 'The entry context requires a paid plan', 'The technical fingerprint requires a paid plan', 'Email to Notebook requires a paid plan', 'Journal styles require a paid plan', 'The sample notebook is part of a paid plan.', 'Personal API tokens require a paid plan', 'Plan grades require a paid plan', 'My Playbook requires a paid plan', 'Publishing to the web requires a paid plan', 'Research capture requires a paid plan', 'Review drafts require a paid plan', 'Routines and trackers require a paid plan', 'The setups board and Find more like this require a paid plan', 'Share links require a paid plan', 'Ready-made widgets require a paid plan', 'Smart chips require a paid plan', 'The community template gallery requires a paid plan', 'Thesis chips require a paid plan', 'Importing tweets requires a paid plan', 'The visual playbook requires a paid plan', 'Voice notes are part of a paid plan.', 'Built widgets require a paid plan', 'Notebook widgets require a paid plan', 'Checklist from my winners requires a paid plan', 'Your trading year requires a paid plan', 'Writing help requires a paid plan', 'Options analytics require a paid plan', 'The option chain requires a paid plan', 'The option screener requires a paid plan', 'The pattern engine requires a paid plan', 'Strategy backtesting requires a paid plan', 'Portfolio risk requires a paid plan', 'The regime classifier requires a paid plan', 'Call replay requires a paid plan', 'This Research tab requires a paid plan', 'Research depth panels require a paid plan', 'Research notices require a paid plan', 'RS rankings require a paid plan', 'Live scans require a paid plan', 'Saved scans require a paid plan', 'On-demand scans require a paid plan', 'Scanner presets require a paid plan', 'The Market Map requires a paid plan', 'The screener requires a paid plan', 'The screener requires a paid plan', 'Screen backtesting requires a paid plan', 'The screener requires a paid plan', 'The screener requires a paid plan', 'Seasonality requires a paid plan', 'Sector strength requires a paid plan', 'UCT Signature indicators require a paid plan', 'Single-stock ETF families require a paid plan', 'Stock profiles require a paid plan', 'Study requires a paid plan', 'Thematic indexes require a paid plan', 'Theme performance requires a paid plan', 'Custom theme sets require a paid plan', 'Ticker history requires a paid plan', 'Time and Sales requires a paid plan', 'The Traders surface requires a paid plan', 'UCT Agent requires a paid plan', 'Custom indicators require a paid plan', 'The Volume Surge scanner requires a paid plan', 'Push notifications require a paid plan', 'The trader archive requires a paid plan', 'Team call history requires a paid plan']
+assert 102 == 105
+ +  where 102 = len({"A definition's forward record requires a paid plan", 'AI Search requires a paid plan', 'Alert routing and webhooks r... and ownership data require a paid plan', 'Backtesting requires a paid plan', 'Built widgets require a paid plan', ...})
+ +    where {"A definition's forward record requires a paid plan", 'AI Search requires a paid plan', 'Alert routing and webhooks r... and ownership data require a paid plan', 'Backtesting requires a paid plan', 'Built widgets require a paid plan', ...} = set(['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data requi...ion history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', ...])
+ +  and   105 = len(['AI Search requires a paid plan', 'Alert routing and webhooks require a paid plan', 'Analyst and ownership data requi...ion history requires a paid plan', 'Backtesting requires a paid plan', 'The breadth monitor requires a paid plan', ...])
+FAILED tests/test_vendor_batch_capture.py::test_the_committed_manifest_matches_the_corpus_and_skips_what_is_captured - AssertionError: corpus/committed/cdc-btc-rainbow-road__d880789793.pine
+assert '2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06' not in {'01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150': 'tests/fixtures/vendor/harness/liquidity-engulfin...bd8753dd45ee5bba644bf12e3cc8fb20af41': 'tests/fixtures/vendor/harness/vw-getter-history-2-spy-1d-2026-10-02.json', ...}
+FAILED tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly - AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/declared_splits.py', 0, 1), ('fmp', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/ticker_ipo.py', 0, 1), ('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4), ('yfinance', 'api/services/breadth_eod_extras.py', 0, 1), ('yfinance', 'api/services/earnings_session_resolver.py', 0, 1)]
+assert [('finnhub', ...', 0, 2), ...] == []
+  
+  Left contains 10 more items, first extra item: ('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1)
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'finnhub',
+  +         'api/services/journal_two/earnings_followup.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'fmp',
+  +         'api/services/declared_splits.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'fmp',
+  +         'api/services/journal_two/earnings_followup.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'fmp',
+  +         'api/services/ticker_ipo.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/breadth_v2_producer.py',
+  +         0,
+  +         3,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/options_universe_log.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'polygon_direct',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         4,
+  +     ),
+  +     (
+  +         'yfinance',
+  +         'api/services/breadth_eod_extras.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'yfinance',
+  +         'api/services/earnings_session_resolver.py',
+  +         0,
+  +         1,
+  +     ),
+  + ]
+9 failed, 5981 passed, 33 warnings in 642.31s (0:10:42)

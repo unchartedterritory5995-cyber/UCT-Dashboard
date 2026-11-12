@@ -1,0 +1,22 @@
+{
+  "suite": "pytest",
+  "collected": 3842,
+  "passed": 3793,
+  "failed": 17,
+  "errored": 1,
+  "skipped": 31,
+  "wall_s": 430.86,
+  "failed_files": [
+    "tests/test_budget_isolation.py",
+    "tests/test_c45_withheld_doors.py",
+    "tests/test_cadence_heartbeat.py",
+    "tests/test_calendar_week_post.py",
+    "tests/test_canonical_indicator_axis.py",
+    "tests/test_concept_vocabulary.py",
+    "tests/test_converse_eval_runner.py",
+    "tests/test_corp_actions_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "17 failed, 3793 passed, 31 skipped, 1 xfailed, 236 warnings, 1 error in 430.86s (0:07:10)",
+  "ok": true
+}

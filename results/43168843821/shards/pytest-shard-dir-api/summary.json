@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 351,
+  "passed": 348,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 49.04,
+  "failed_files": [
+    "tests/api/test_delta_snapshot.py",
+    "tests/api/test_sse_gzip_exempt.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 348 passed, 1 skipped, 7 warnings in 49.04s",
+  "ok": true
+}

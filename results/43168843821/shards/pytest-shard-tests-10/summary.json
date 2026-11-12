@@ -1,0 +1,24 @@
+{
+  "suite": "pytest",
+  "collected": 3690,
+  "passed": 3672,
+  "failed": 14,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 633.42,
+  "failed_files": [
+    "tests/test_rate_limit_policy.py",
+    "tests/test_reencrypt_at_rest.py",
+    "tests/test_registry_string_inputs.py",
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py",
+    "tests/test_rs_columns_provider.py",
+    "tests/test_rs_discord_post.py",
+    "tests/test_rs_split_rows.py",
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "14 failed, 3672 passed, 4 skipped, 3 xfailed, 22 warnings in 633.42s (0:10:33)",
+  "ok": true
+}

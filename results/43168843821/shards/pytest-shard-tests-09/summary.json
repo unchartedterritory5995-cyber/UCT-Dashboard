@@ -1,0 +1,26 @@
+{
+  "suite": "pytest",
+  "collected": 4786,
+  "passed": 4767,
+  "failed": 16,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 591.5,
+  "failed_files": [
+    "tests/test_ocr_build_isolation.py",
+    "tests/test_open_reads_gate.py",
+    "tests/test_options_l3.py",
+    "tests/test_p0_truth_conc.py",
+    "tests/test_p2x_truth_converse.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_pattern_scan_depth_and_sym.py",
+    "tests/test_paywall_gate_free_tier.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_persistence_manifest_server_keys.py",
+    "tests/test_pine_strategy_backtest.py",
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "16 failed, 4767 passed, 3 skipped, 17 warnings in 591.50s (0:09:51)",
+  "ok": true
+}

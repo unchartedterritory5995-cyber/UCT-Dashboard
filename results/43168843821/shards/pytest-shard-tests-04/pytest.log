@@ -1,0 +1,801 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  2%]
+...............................................................sssssssss [  3%]
+ssss.................................................................... [  4%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+...................s.................................................... [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+.....FFF...F......................................F..................... [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 17%]
+......................................................................FF [ 18%]
+.....................................................F.................. [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+..............F.............................F........................... [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+.............................................................sss........ [ 53%]
+.F...........sss........................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+.....F.................................................................. [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+...........................F............................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+.......                                                                  [100%]
+=================================== FAILURES ===================================
+__ test_the_BUDGET_is_consulted_BEFORE_the_linter_which_is_how_M6_is_visible ___
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+model = <function model.<locals>.arm at 0x7d8206aae980>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d822d3e1d60>
+
+    def test_the_BUDGET_is_consulted_BEFORE_the_linter_which_is_how_M6_is_visible(
+            concierge, model, monkeypatch):
+        """⭐ ORDER IS ATTRIBUTION. The corpus tree here is over the node budget AND
+        unreadable to the linter. With `check_budget` in place it is a `budget:nodes`
+        refusal; with that ONE call removed the SAME input comes back as a REPAINT
+        refusal — the right answer from the wrong door, which is this branch's most
+        expensive defect and the only behavioural way to see a skipped budget check
+        (`interpret` runs one of its own, so deleting this call is otherwise silent).
+        """
+        tree = over_budget_and_repainting()
+    
+        model([tool_use(tree), tool_use(tree)])
+        res = concierge.propose("something enormous", user_id=USER, bars=bars())
+        assert res["ok"] is False and res["gate"] == "budget:nodes", res
+    
+        monkeypatch.setattr(concierge, "check_budget", lambda tree, budget=None: None)
+        model([tool_use(tree), tool_use(tree)])
+        moved = concierge.propose("something enormous", user_id=USER, bars=bars())
+>       assert moved["ok"] is False and moved["gate"] == "lint:repaint", (
+            "with the concierge's own budget call gone the refusal arrives from the "
+            f"linter — got {moved['gate']}")
+E       AssertionError: with the concierge's own budget call gone the refusal arrives from the linter — got budget:nodes
+E       assert (False is False and 'budget:nodes' == 'lint:repaint'
+E         
+E         - lint:repaint
+E         + budget:nodes)
+
+tests/test_definition_concierge.py:1936: AssertionError
+___ test_a_proposal_that_LINTS_repainting_gets_ONE_repair_and_then_a_REFUSAL ___
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+model = <function model.<locals>.arm at 0x7d8206aaf060>
+
+    def test_a_proposal_that_LINTS_repainting_gets_ONE_repair_and_then_a_REFUSAL(
+            concierge, model):
+        """⭐ THE PIPELINE IS generate → parse → lint → compute → read back, and the
+        MODEL sees the linter's verdict BEFORE THE USER DOES.
+    
+        An LLM that emits a formula the linter then brands `repaints` is a bad
+        experience. One that ships it with the badge attached is worse, because the
+        badge reads as a disclosure and the brand's whole claim is that badges are
+        machine-assigned rather than self-disclosed (spec §1.3).
+    
+        ⛔ AND THE SECOND FAILURE IS A REFUSAL, NOT A THIRD ATTEMPT. An unbounded
+        repair loop is an unbounded bill and an unbounded wait, and `cost_guard` is a
+        cap on spend, not on patience.
+    
+        ⚠️ SEE `repainting_tree`'s NOTE for why this particular tree: with the shipped
+        manifest the only reachable route to a repaint verdict is the linter's
+        fail-closed branch, and the obvious construction is refused one door earlier.
+        """
+        repainting = repainting_tree()
+        client = model([tool_use(repainting, tool_id="a"), tool_use(repainting, tool_id="b")])
+    
+        res = concierge.propose("show me tomorrow's close", user_id=USER, bars=bars())
+    
+>       assert len(client.calls) == 2, "the repair attempt did not happen, or happened twice"
+E       AssertionError: the repair attempt did not happen, or happened twice
+E       assert 1 == 2
+E        +  where 1 = len([{'max_tokens': 8192, 'messages': [{'content': 'The blocks below are delimited by tags. Each block\'s body is a JSON v...ound it, do not replace it with a threshold of your own, and do not add a threshold the member did not write.\n", ...}])
+E        +    where [{'max_tokens': 8192, 'messages': [{'content': 'The blocks below are delimited by tags. Each block\'s body is a JSON v...ound it, do not replace it with a threshold of your own, and do not add a threshold the member did not write.\n", ...}] = <tests.test_definition_concierge.FakeClient object at 0x7d822d3c6000>.calls
+
+tests/test_definition_concierge.py:1964: AssertionError
+_ test_the_REPAINT_refusal_is_the_LINTERS_and_disappears_when_the_LINTER_alone_goes _
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+model = <function model.<locals>.arm at 0x7d820989c720>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d822d1b6480>
+
+    def test_the_REPAINT_refusal_is_the_LINTERS_and_disappears_when_the_LINTER_alone_goes(
+            concierge, model, monkeypatch):
+        """⭐⭐ ATTRIBUTION FOR THE LINT GATE. The case above proves a refusal happened;
+        this proves WHICH mechanism produced it. Neuter `lint_repaint` alone and the
+        SAME tree, through the SAME pipeline, comes back accepted — so the refusal was
+        the linter's and not the budget's, the table's or the compute's.
+    
+        ⛔ AND THE MEASUREMENT IS BOTH RUNS. A test that only removed the guard and
+        watched the refusal vanish could not tell a real gate from a pipeline that
+        refuses everything; a test that only kept it could not tell the linter from
+        any other door.
+        """
+        from api.services import ast_lint
+        tree = repainting_tree()
+    
+        model([tool_use(tree), tool_use(tree)])
+        refused = concierge.propose("show me tomorrow's close", user_id=USER, bars=bars())
+>       assert refused["ok"] is False and refused["gate"] == "lint:repaint"
+E       assert (True is False)
+
+tests/test_definition_concierge.py:1999: AssertionError
+__________ test_EVERY_refusal_names_a_door_and_hands_back_NO_formula ___________
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+model = <function model.<locals>.arm at 0x7d820989dd00>
+
+    def test_EVERY_refusal_names_a_door_and_hands_back_NO_formula(concierge, model):
+        """⛔ THE SHAPE, ACROSS EVERY GATE THIS MODULE CAN REACH. `{ok: False, reason,
+        gate}` — `brain_service`'s shape — and never an `ast`, because a formula beside
+        a refusal is a formula somebody eventually uses.
+        """
+        real_bars = bars()[:30]
+        cases = {
+            "schema:name": {"type": "call", "name": "zzNope", "args": [s(), n(5)]},
+            "schema:node": {"type": "num", "value": 1, "extra": 2},
+            "schema:number": n(-5),
+            "resolve:arity": {"type": "call", "name": WINDOWED, "args": [s()]},
+            "resolve:window": {"type": "call", "name": WINDOWED, "args": [s(), s()]},
+            "lint:repaint": repainting_tree(),
+            "compute:empty": windowed(100),
+            "budget:nodes": over_budget_and_repainting(),
+        }
+        seen = 0
+        for gate, tree in cases.items():
+            model([tool_use(tree), tool_use(tree)])
+            res = concierge.propose("x", user_id=USER, bars=real_bars)
+>           assert res["ok"] is False, (gate, res)
+E           AssertionError: ('lint:repaint', {'ast': {'args': [{'name': 'close', 'type': 'series'}, {'type': 'num', 'value': 5.0}], 'name': 'dev', 'type': 'call'}, 'attempts': 1, 'cadence': None, 'concepts': [], ...})
+E           assert True is False
+
+tests/test_definition_concierge.py:2085: AssertionError
+_____ test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW _____
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+
+    def test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW(concierge):
+        """🔴 THE GATE. For every real member phrasing: what the door understood, or
+        the part it NAMES as not understood. ⛔ A ROW THAT PRODUCES NEITHER IS A
+        PHRASING THIS DOOR IS SILENTLY BLIND TO — it reaches the model as bare English
+        with nothing anchored, which is exactly the "21 pre-written concepts" ceiling
+        this task exists to lift.
+    
+        ⚠️ `unanchored` IS NOT A FAILURE IN GENERAL — "a twenty bar average" is a
+        perfectly good request the model composes freely. What is asserted here is
+        narrower and harder: the phrasings the FIRM ITSELF publishes are anchored,
+        because those are the words a member has already been taught to use.
+        """
+        rows = _corpus()
+        assert len(rows) >= 200, f"{len(rows)} rows is not a corpus"
+    
+        # ⭐ THE SETUP TAXONOMY IS THE ONE SOURCE THIS DOOR DOES NOT OWN. `setupGroups`
+        # / `setupCatalog` name the firm's SETUPS ("Bull Flag", "Cup & Handle"), and
+        # nothing in the manifest or the concept vocabulary grounds those words into a
+        # tree. ⛔ WRITING ONE HERE WOULD BE THE VERY DEFECT THIS TASK GUARDS: a
+        # definition of "Bull Flag" that nobody at the firm reviewed. So they are
+        # measured with a ratchet and NAMED, and the gap is stated rather than papered
+        # over — E-8's starter library is where a setup becomes sayable.
+        TAXONOMY = {"setup_name", "setup_essence"}
+    
+        blind, outcomes = [], {}
+        for row in rows:
+            got = concierge.plan(row["text"], "scan")
+            outcomes[got["path"]] = outcomes.get(got["path"], 0) + 1
+            if not (got["concepts"] or got["terms"] or got["not_understood"]
+                    or got["unavailable"]):
+                blind.append((row["source"], row["key"], row["text"]))
+    
+        owned = [b for b in blind if b[0] not in TAXONOMY]
+>       assert not owned, (
+            f"{len(owned)} of {len(rows)} firm phrasings anchored NOTHING, and every "
+            "one of them is worded by an artifact this door READS:\n"
+            + "\n".join(f"  [{s}] {k}: {t}" for s, k, t in owned[:25]))
+E       AssertionError: 5 of 1515 firm phrasings anchored NOTHING, and every one of them is worded by an artifact this door READS:
+E           [starter_screen] starter_uct_50: UCT 50
+E           [starter_screen] starter_base_pocket_pivot: Pocket pivots
+E           [starter_screen] starter_anticipation: Anticipation
+E           [starter_screen] starter_stage2_breakout: Stage-2 breakouts
+E           [starter_screen] starter_three_weeks_tight: Three weeks tight
+E       assert not [('starter_screen', 'starter_uct_50', 'UCT 50'), ('starter_screen', 'starter_base_pocket_pivot', 'Pocket pivots'), ('s... 'starter_stage2_breakout', 'Stage-2 breakouts'), ('starter_screen', 'starter_three_weeks_tight', 'Three weeks tight')]
+
+tests/test_definition_concierge.py:3597: AssertionError
+___________________ test_weekly_purge_never_scans_the_table ____________________
+
+fresh_bars = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d8204a7b080>
+
+    def test_weekly_purge_never_scans_the_table(fresh_bars, monkeypatch):
+        _put_weekly("MSTR", ["2020-10-05", "2020-10-09"])
+        plans = []
+        real = bars_sqlite._conn()
+        monkeypatch.setattr(bars_sqlite, "_conn", lambda: _PlanSpy(real, plans))
+>       assert bars_sqlite.purge_mis_keyed_weekly_rows() == 1
+E       assert 0 == 1
+E        +  where 0 = <function purge_mis_keyed_weekly_rows at 0x7d8227befec0>()
+E        +    where <function purge_mis_keyed_weekly_rows at 0x7d8227befec0> = bars_sqlite.purge_mis_keyed_weekly_rows
+
+tests/test_delta_export_index_seek.py:200: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+----------------------------- Captured stderr call -----------------------------
+2026-11-12 06:46:18,623 WARNING api.services.bars_sqlite: [sqlite] put_bars refused 1/2 impossible bars for MSTR tf=W; first: t='2020-10-05' ['W key is not the ISO-week Friday']
+2026-11-12 06:46:18,624 INFO api.services.bars_sqlite: [sqlite] 60m grid: 0 old-layout ticker(s), 0 rebuilt this pass
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.bars_sqlite:bars_sqlite.py:2377 [sqlite] put_bars refused 1/2 impossible bars for MSTR tf=W; first: t='2020-10-05' ['W key is not the ISO-week Friday']
+INFO     api.services.bars_sqlite:bars_sqlite.py:1484 [sqlite] 60m grid: 0 old-layout ticker(s), 0 rebuilt this pass
+____________________ test_weekly_purge_reaches_every_ticker ____________________
+
+fresh_bars = None
+
+    def test_weekly_purge_reaches_every_ticker(fresh_bars):
+        _put_weekly("AAPL", ["2020-10-05", "2020-10-09"])
+        _put_weekly("ZZZZ", ["2020-10-12", "2020-10-16"])
+>       assert bars_sqlite.purge_mis_keyed_weekly_rows() == 2
+E       assert 0 == 2
+E        +  where 0 = <function purge_mis_keyed_weekly_rows at 0x7d8227befec0>()
+E        +    where <function purge_mis_keyed_weekly_rows at 0x7d8227befec0> = bars_sqlite.purge_mis_keyed_weekly_rows
+
+tests/test_delta_export_index_seek.py:207: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+----------------------------- Captured stderr call -----------------------------
+2026-11-12 06:46:18,641 WARNING api.services.bars_sqlite: [sqlite] put_bars refused 1/2 impossible bars for AAPL tf=W; first: t='2020-10-05' ['W key is not the ISO-week Friday']
+2026-11-12 06:46:18,641 WARNING api.services.bars_sqlite: [sqlite] put_bars refused 1/2 impossible bars for ZZZZ tf=W; first: t='2020-10-12' ['W key is not the ISO-week Friday']
+2026-11-12 06:46:18,642 INFO api.services.bars_sqlite: [sqlite] 60m grid: 0 old-layout ticker(s), 0 rebuilt this pass
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.bars_sqlite:bars_sqlite.py:2377 [sqlite] put_bars refused 1/2 impossible bars for AAPL tf=W; first: t='2020-10-05' ['W key is not the ISO-week Friday']
+WARNING  api.services.bars_sqlite:bars_sqlite.py:2377 [sqlite] put_bars refused 1/2 impossible bars for ZZZZ tf=W; first: t='2020-10-12' ['W key is not the ISO-week Friday']
+INFO     api.services.bars_sqlite:bars_sqlite.py:1484 [sqlite] 60m grid: 0 old-layout ticker(s), 0 rebuilt this pass
+_____ test_the_real_boundary_resolve_and_run_railway_status_json_for_real ______
+
+    def test_the_real_boundary_resolve_and_run_railway_status_json_for_real():
+        """⛔ RULE 10: the fake-`run` cases above CANNOT see a PATH-resolution defect. This one can."""
+>       exe = resolve_railway()                     # real shutil.which — raises if absent
+
+tests/test_deploy_watch.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+which = <function which at 0x7d822f1311c0>
+
+    def resolve_railway(which=shutil.which) -> str:
+        """The resolved absolute path to the CLI, or raise. This is the whole 2026-09-10 defect."""
+        exe = which("railway")
+        if not exe:
+>           raise RailwayNotFound(
+                "`railway` is not on PATH. shutil.which found nothing, so every probe would raise "
+                "FileNotFoundError and the watch would report nothing while looking healthy."
+            )
+E           deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+
+scripts/deploy_watch.py:47: RailwayNotFound
+_________ test_build_commands_has_chart_alias_and_settings_subcommands _________
+
+    def test_build_commands_has_chart_alias_and_settings_subcommands():
+        from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
+        cmds = {c["name"]: c for c in build_commands()}
+>       assert set(cmds) == {"chart", "c", "chartsettings", "buzz", "flow", "lesson"}  # six doors since /lesson
+E       AssertionError: assert {'buzz', 'c',..., 'flow', ...} == {'buzz', 'c',...ow', 'lesson'}
+E         
+E         Extra items in the left set:
+E         'news'
+E         'study'
+E         'cot'
+E         
+E         Full diff:
+E           {
+E               'buzz',
+E               'c',
+E               'chart',
+E               'chartsettings',
+E         +     'cot',
+E               'flow',
+E               'lesson',
+E         +     'news',
+E         +     'study',
+E           }
+
+tests/test_discord_chart_prefs.py:85: AssertionError
+_____________ test_a_weekly_strip_is_the_developing_weeks_numbers ______________
+
+    def test_a_weekly_strip_is_the_developing_weeks_numbers():
+        b = _daily()
+        st = compute_stats(b, "W")
+        week = b[-5:]
+        assert st["period"] == "W" and st["avg_bars"] == 10
+        assert (st["open"], st["high"], st["low"], st["close"]) == (
+            week[0]["o"], max(x["h"] for x in week), min(x["l"] for x in week), week[-1]["c"])
+        assert st["volume"] == sum(x["v"] for x in week) == 5 * 14_000_000
+        prev_close = b[-6]["c"]
+        assert abs(st["day_pct"] - (week[-1]["c"] / prev_close - 1) * 100) < 1e-9, "the change is the WEEK's"
+        assert abs(st["gap_pct"] - (week[0]["o"] / prev_close - 1) * 100) < 1e-9
+        prior = [5 * 1_000_000 * (w + 1) for w in range(3, 13)]                 # the 10 completed weeks before
+>       assert st["avg_vol"] == sum(prior) / 10 and st["avg_vol_50"] is None
+E       assert (41300000.0 == (425000000 / 10))
+E        +  where 425000000 = sum([20000000, 25000000, 30000000, 35000000, 40000000, 45000000, ...])
+
+tests/test_discord_chart_weekly_stats.py:41: AssertionError
+_ TestAClaimNobodyCanServeIsNotProcessing.test_the_member_facing_chain_ends_at_a_navigable_page _
+
+self = <tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing object at 0x7d820a4b8bf0>
+env = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d8204649df0>
+
+    def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
+        # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
+        # pipeline; this one proves the DOOR — the member searches, and what
+        # comes back is a document at a page they can open, carrying the fact
+        # that its words were read off an image.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+>       assert tess.install_if_enabled()["active"] is True
+E       assert False is True
+
+tests/test_document_ocr.py:835: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_yfhq628s/auth.db
+----------------------------- Captured stderr call -----------------------------
+2026-11-12 06:50:32,336 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.journal_two.document_ocr_tesseract:document_ocr_tesseract.py:128 [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+______________ test_forward_includes_ended_but_unreported_quarter ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d820f676810>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_forward_includes_ended_bu0')
+
+    def test_forward_includes_ended_but_unreported_quarter(monkeypatch, tmp_path):
+        # THE 2026-07-02 MXL bug: two days after the Jun-30 quarter END (weeks
+        # before its REPORT), the old `period_end < today` filter dropped the
+        # Jun-quarter estimate row and the blind-sequential labels pinned the
+        # Sep-quarter numbers under the "2026 Q2" label — all four forward cards
+        # shifted one quarter, and every YoY % compared the wrong quarters.
+        et = _mod(monkeypatch, tmp_path)
+        import api.services.earnings_table as etmod
+    
+        fake_year = _realistic_year({
+            2025: {1: (0.10, 1.0e8), 2: (0.20, 1.2e8), 3: (0.30, 1.4e8), 4: (0.40, 1.6e8)},
+            2026: {1: (0.22, 1.37e8)},          # only Q1 reported as of early July
+        })
+    
+        def fake_fmp(path, params, timeout=10):
+            if "analyst-estimates" in path:
+                return [
+                    {"date": "2026-03-31", "epsAvg": 0.18, "revenueAvg": 1.35e8},  # reported → skip
+                    {"date": "2026-06-30", "epsAvg": 0.30, "revenueAvg": 1.60e8},  # ended, unreported → KEEP
+                    {"date": "2026-09-30", "epsAvg": 0.38, "revenueAvg": 1.74e8},
+                    {"date": "2026-12-31", "epsAvg": 0.41, "revenueAvg": 1.81e8},
+                    {"date": "2027-03-31", "epsAvg": 0.38, "revenueAvg": 1.78e8},
+                    {"date": "2027-06-30", "epsAvg": 0.44, "revenueAvg": 1.92e8},
+                ]
+            if "stable/earnings" in path:   # the next scheduled report
+                return [{"date": "2026-07-28", "epsActual": None, "revenueActual": None}]
+            return None
+    
+        monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+        monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+        route_fmp(monkeypatch, fake_fmp)
+        import calendar, time
+        now = calendar.timegm(time.strptime("2026-07-02", "%Y-%m-%d"))
+        q = et._build_quarterly("ZZMXL", now)
+        fwd = [r for r in q if not r["reported"]]
+>       assert [r["label"] for r in fwd] == ["2026 Q2", "2026 Q3", "2026 Q4", "2027 Q1"]
+E       AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+E         
+E         At index 0 diff: '2026 Q3' != '2026 Q2'
+E         
+E         Full diff:
+E           [
+E         -     '2026 Q2',
+E               '2026 Q3',
+E               '2026 Q4',
+E               '2027 Q1',
+E         +     '2027 Q2',
+E           ]
+
+tests/test_earnings_table.py:129: AssertionError
+_________ test_the_checked_in_manifest_IS_what_the_declarations_derive _________
+
+    def test_the_checked_in_manifest_IS_what_the_declarations_derive():
+        r = subprocess.run([sys.executable, str(_BUILDER), "--check"],
+                           cwd=str(_REPO), capture_output=True, text=True)
+>       assert r.returncode == 0, (
+            "the checked-in entitlements manifest is not what the declarations "
+            "derive:\n" + r.stdout + r.stderr)
+E       AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+E         [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+E         <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...eclarations derive. Re-run without --check.\n', stderr="<unknown>:964: SyntaxWarning: invalid escape sequence '\\`'\n").returncode
+
+tests/test_entitlements_manifest.py:70: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-12 06:52:13,760 INFO api.services.discord_interactions: [discord-chart] UCTA50 D: stand-in heal gave_up
+------------------------------ Captured log call -------------------------------
+INFO     api.services.discord_interactions:discord_interactions.py:2028 [discord-chart] UCTA50 D: stand-in heal gave_up
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_definition_record.py:262
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_definition_sharing.py:55
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_cream_selection_audit_1009.py::test_card_still_renders_with_two_contracts_per_name
+tests/test_discord_render_symbols.py::test_the_pre_v2_dispatch_chooses_the_partition_from_the_symbol
+tests/test_discord_render_symbols.py::test_an_equity_still_reads_the_stocks_partition
+tests/test_discord_render_symbols.py::test_an_unknown_symbol_takes_flow_sources_documented_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_cross_module_imports_resolve.py: 5 warnings
+tests/test_d3_cp3_staleness_reader.py: 1 warning
+tests/test_d3_realtime_topology_rail.py: 1 warning
+tests/test_d4_cp3_theme_groups_per_entity_cache.py: 1 warning
+tests/test_definition_concierge.py: 1 warning
+tests/test_definition_record.py: 1 warning
+tests/test_entitlements.py: 2 warnings
+tests/test_entitlements_manifest.py: 1 warning
+tests/test_feature_flag_ledger.py: 4 warnings
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2534: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_darkpool_bigblock.py: 14 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_bigblock.py:269: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().isoformat()
+
+tests/test_darkpool_eod_card.py::test_render_card_accepts_record_and_tier_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_eod.py:251: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+tests/test_data_sync_bounded_reads.py::test_merge_snapshot_streams_and_still_merges
+tests/test_data_sync_bounded_reads.py::test_apply_delta_streams_and_still_merges
+tests/test_delta_export_index_seek.py::test_a_daily_bar_reaches_the_web_through_a_delta
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:316: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(dest)
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2851: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    gap_days = max(0, (datetime.utcnow().date() - _last_et_day).days)
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2864: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2871: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+tests/test_deep_backfill_sync.py::test_deep_intraday_marks_history_complete
+tests/test_deep_backfill_sync.py::test_shallow_intraday_request_still_uses_swr_path
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2239: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_deep_backfill_sync.py::test_deep_daily_request_keeps_background_path
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:539: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_recap_poster.py:92: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    return list(img.crop((0, H - 108, rp._W, H - 82)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_draws_both_up_and_down_candles
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:337: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    px = list(img.crop((0, 300, t._W, 518)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_wicks_rise_above_every_body
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:350: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    lit = sum(1 for r, g, b in band.getdata() if max(r, g, b) > 60)
+
+tests/test_desk_thumbnail.py::test_candle_skyline_bodies_are_rooted_at_the_waterline
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:358: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    row = list(img.crop((0, 512, t._W, 513)).getdata())      # just above waterline 518
+
+tests/test_desk_thumbnail.py::test_evening_card_carries_green_candles_over_the_sunset
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:367: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    (0, 300, t._W, 518)).getdata())
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_document_ocr.py:834: PytestWarning: Value of environment variable TESSERACT_BINARY type should be str, but got None (type: NoneType); converted to str implicitly
+    monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+
+tests/test_earnings_warm_row_adapter.py::test_run_submits_stale_names_and_reports_what_topn_dropped
+tests/test_earnings_warm_row_adapter.py::test_companions_are_submitted_for_a_name_the_preview_filter_drops
+tests/test_earnings_warm_row_adapter.py::test_companions_off_leaves_the_brief_budget_exactly_as_it_was
+tests/test_earnings_warm_row_adapter.py::test_a_brief_still_rides_its_own_row_not_a_board_row
+tests/test_earnings_warm_row_adapter.py::test_companions_look_further_ahead_than_the_briefs
+tests/test_earnings_warm_row_adapter.py::test_the_census_counts_coverage_from_artifacts_not_from_its_own_queue
+tests/test_earnings_warm_row_adapter.py::test_a_broken_warm_says_so_at_warning
+tests/test_earnings_warm_row_adapter.py::test_a_fully_covered_board_stays_silent
+tests/test_earnings_warm_row_adapter.py::test_coverage_does_not_demand_a_brief_the_pass_never_promised
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread earn-warm-batch-preview
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/earnings_preview_warm.py", line 540, in _close_after
+      wait(futures, timeout=6 * 3600)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 289, in wait
+      with _AcquireFutures(fs):
+           ^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 149, in __enter__
+      future._condition.acquire()
+      ^^^^^^^^^^^^^^^^^
+  AttributeError: 'NoneType' object has no attribute '_condition'
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_econ_search.py: 91 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:330: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7280 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7280 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=calendar_days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1968: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1969: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:144: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:161: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:167: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:187: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:204: UCT_LAB_CUP_TIER unset
+SKIPPED [6] tests/test_cup_tier_lab_parity.py:223: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:248: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:278: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_deal_status.py:352: no local bars.db
+SKIPPED [1] tests/test_document_ocr.py:642: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:668: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:683: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:1054: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1078: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1106: no tesseract binary on this machine
+FAILED tests/test_definition_concierge.py::test_the_BUDGET_is_consulted_BEFORE_the_linter_which_is_how_M6_is_visible - AssertionError: with the concierge's own budget call gone the refusal arrives from the linter — got budget:nodes
+assert (False is False and 'budget:nodes' == 'lint:repaint'
+  
+  - lint:repaint
+  + budget:nodes)
+FAILED tests/test_definition_concierge.py::test_a_proposal_that_LINTS_repainting_gets_ONE_repair_and_then_a_REFUSAL - AssertionError: the repair attempt did not happen, or happened twice
+assert 1 == 2
+ +  where 1 = len([{'max_tokens': 8192, 'messages': [{'content': 'The blocks below are delimited by tags. Each block\'s body is a JSON v...ound it, do not replace it with a threshold of your own, and do not add a threshold the member did not write.\n", ...}])
+ +    where [{'max_tokens': 8192, 'messages': [{'content': 'The blocks below are delimited by tags. Each block\'s body is a JSON v...ound it, do not replace it with a threshold of your own, and do not add a threshold the member did not write.\n", ...}] = <tests.test_definition_concierge.FakeClient object at 0x7d822d3c6000>.calls
+FAILED tests/test_definition_concierge.py::test_the_REPAINT_refusal_is_the_LINTERS_and_disappears_when_the_LINTER_alone_goes - assert (True is False)
+FAILED tests/test_definition_concierge.py::test_EVERY_refusal_names_a_door_and_hands_back_NO_formula - AssertionError: ('lint:repaint', {'ast': {'args': [{'name': 'close', 'type': 'series'}, {'type': 'num', 'value': 5.0}], 'name': 'dev', 'type': 'call'}, 'attempts': 1, 'cadence': None, 'concepts': [], ...})
+assert True is False
+FAILED tests/test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW - AssertionError: 5 of 1515 firm phrasings anchored NOTHING, and every one of them is worded by an artifact this door READS:
+    [starter_screen] starter_uct_50: UCT 50
+    [starter_screen] starter_base_pocket_pivot: Pocket pivots
+    [starter_screen] starter_anticipation: Anticipation
+    [starter_screen] starter_stage2_breakout: Stage-2 breakouts
+    [starter_screen] starter_three_weeks_tight: Three weeks tight
+assert not [('starter_screen', 'starter_uct_50', 'UCT 50'), ('starter_screen', 'starter_base_pocket_pivot', 'Pocket pivots'), ('s... 'starter_stage2_breakout', 'Stage-2 breakouts'), ('starter_screen', 'starter_three_weeks_tight', 'Three weeks tight')]
+FAILED tests/test_delta_export_index_seek.py::test_weekly_purge_never_scans_the_table - assert 0 == 1
+ +  where 0 = <function purge_mis_keyed_weekly_rows at 0x7d8227befec0>()
+ +    where <function purge_mis_keyed_weekly_rows at 0x7d8227befec0> = bars_sqlite.purge_mis_keyed_weekly_rows
+FAILED tests/test_delta_export_index_seek.py::test_weekly_purge_reaches_every_ticker - assert 0 == 2
+ +  where 0 = <function purge_mis_keyed_weekly_rows at 0x7d8227befec0>()
+ +    where <function purge_mis_keyed_weekly_rows at 0x7d8227befec0> = bars_sqlite.purge_mis_keyed_weekly_rows
+FAILED tests/test_deploy_watch.py::test_the_real_boundary_resolve_and_run_railway_status_json_for_real - deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+FAILED tests/test_discord_chart_prefs.py::test_build_commands_has_chart_alias_and_settings_subcommands - AssertionError: assert {'buzz', 'c',..., 'flow', ...} == {'buzz', 'c',...ow', 'lesson'}
+  
+  Extra items in the left set:
+  'news'
+  'study'
+  'cot'
+  
+  Full diff:
+    {
+        'buzz',
+        'c',
+        'chart',
+        'chartsettings',
+  +     'cot',
+        'flow',
+        'lesson',
+  +     'news',
+  +     'study',
+    }
+FAILED tests/test_discord_chart_weekly_stats.py::test_a_weekly_strip_is_the_developing_weeks_numbers - assert (41300000.0 == (425000000 / 10))
+ +  where 425000000 = sum([20000000, 25000000, 30000000, 35000000, 40000000, 45000000, ...])
+FAILED tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page - assert False is True
+FAILED tests/test_earnings_table.py::test_forward_includes_ended_but_unreported_quarter - AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+  
+  At index 0 diff: '2026 Q3' != '2026 Q2'
+  
+  Full diff:
+    [
+  -     '2026 Q2',
+        '2026 Q3',
+        '2026 Q4',
+        '2027 Q1',
+  +     '2027 Q2',
+    ]
+FAILED tests/test_entitlements_manifest.py::test_the_checked_in_manifest_IS_what_the_declarations_derive - AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+  [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...eclarations derive. Re-run without --check.\n', stderr="<unknown>:964: SyntaxWarning: invalid escape sequence '\\`'\n").returncode
+13 failed, 6598 passed, 20 skipped, 14795 warnings in 912.64s (0:15:12)

@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 5381,
+  "passed": 5325,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 49,
+  "wall_s": 849.8,
+  "failed_files": [
+    "tests/test_async_routes_do_not_block.py",
+    "tests/test_auth_surface_reads.py",
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_bars_server_include_today.py",
+    "tests/test_bars_server_timing.py",
+    "tests/test_breadth_pipeline_current.py",
+    "tests/test_breadth_sampler.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 5325 passed, 49 skipped, 1 xfailed, 8304 warnings in 849.80s (0:14:09)",
+  "ok": true
+}
