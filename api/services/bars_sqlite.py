@@ -1751,6 +1751,38 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_bars_table_order(ticker: str, tf: str, max_bars: int, stop_at: float | None = None) -> list[tuple]:
+    """The same rows as `get_bars`, fetched in TABLE order, for a long read on a cold store.
+
+    `ohlcv` is a rowid table and no index carries a price column, so every bar costs a table
+    lookup whichever columns or index the query names. `get_bars` does those lookups newest
+    first, which walks a bulk-written history BACKWARDS through the file; this reads the
+    (ts, rowid) pairs from the index alone, then visits the rows in ascending rowid order.
+    Pages of one symbol are reached forward, so OS readahead can work. One statement, so one
+    snapshot. Read-only. Returns oldest-first, exactly like `get_bars`.
+
+    `stop_at` (time.monotonic()): the read aborts with sqlite3.OperationalError("interrupted")
+    once it passes. Pages already read stay in the OS page cache, so a later read resumes
+    cheaply. Checked between VM steps, so one blocked page read can overrun it, never more.
+    """
+    c = _conn()
+    if stop_at is not None:
+        c.set_progress_handler(lambda: time.monotonic() >= stop_at, 2000)
+    try:
+        rows = c.execute(
+            """SELECT ts,o,h,l,c,v FROM ohlcv WHERE rowid IN (
+                   SELECT rowid FROM ohlcv WHERE ticker=? AND tf=?
+                   ORDER BY ts DESC LIMIT ?
+               )""",
+            (ticker.upper(), tf, max_bars),
+        ).fetchall()
+    finally:
+        if stop_at is not None:
+            c.set_progress_handler(None, 0)
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
     """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
     by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even

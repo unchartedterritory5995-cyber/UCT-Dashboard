@@ -143,7 +143,7 @@ def test_gap_pct_is_the_opening_gap_vs_the_previous_close_from_the_stored_opens(
 def test_price_reads_daily_open_close_uses_the_same_read_only_loader(monkeypatch):
     from api.services import bars_fetch, bars_sanitize
     seen = {}
-    monkeypatch.setattr(bars_sqlite, "get_bars", lambda t, tf, n: seen.setdefault("get", (t, tf, n)) and [(20240102, 9.0, 11, 8, 10.0, 5), (20240103, 10.5, 12, 9, 11.0, 5)])
+    monkeypatch.setattr(bars_sqlite, "get_bars_table_order", lambda t, tf, n, stop_at=None: seen.setdefault("get", (t, tf, n)) and [(20240102, 9.0, 11, 8, 10.0, 5), (20240103, 10.5, 12, 9, 11.0, 5)])
     real = bars_fetch._fmt_sqlite_bars
 
     def spy(rows, tf, ticker=None):

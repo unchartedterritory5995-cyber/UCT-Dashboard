@@ -44,9 +44,21 @@ export function historyServed() {
 const NO_STUDY = {
   refused: "that request wasn't allowed for this question, so no study was run",
   unavailable: "UCT's stored daily history could not answer it",
+  loading: 'UCT is still loading that stored daily history. Ask again in a moment',
+  busy: 'UCT is running too many studies right now. Ask again in a moment',
+  none: 'UCT has no stored daily history for that symbol',
+  failed: "UCT's stored daily history could not be read just now",
+}
+// The server's own reason, from notes[0], in OUR fixed words: the note picks a sentence and is never shown.
+const NOTE_REASONS = [[/still loading/i, 'loading'], [/too many studies/i, 'busy'], [/no stored daily history/i, 'none'], [/could not be read/i, 'failed']]
+function noStudyReason(env) {
+  if (env?.status === 'refused') return 'refused'
+  const note = Array.isArray(env?.notes) && typeof env.notes[0] === 'string' ? env.notes[0] : ''
+  const hit = NOTE_REASONS.find(([re]) => re.test(note))
+  return hit ? hit[1] : 'unavailable'
 }
 export function noStudySentence(env, sym) {
-  const why = NO_STUDY[env?.status] || NO_STUDY.unavailable
+  const why = NO_STUDY[noStudyReason(env)]
   return `I couldn't run that study for ${sym || 'that'}: ${why}. No figure is stated.`
 }
 const usable = (env) => !!env && env.status === 'ok' && env.data && typeof env.data === 'object' && env.data.study && typeof env.data.study === 'object'

@@ -30,11 +30,19 @@ DEFINITIONS (stated in every result's `method`):
   • `non_overlapping`: an event is skipped while the previous kept event's longest window is still
     open, so samples are independent. Otherwise overlapping windows are counted and disclosed.
   • Baseline: the same horizons from EVERY trading session in the same span — what "normal" looked like.
+
+READS: a study needs a symbol's WHOLE stored history whatever its `start`: RSI and MACD are seeded from the first bar
+and the serve-time sanitize works over the full series, so a window-bounded read would change which sessions qualify.
 """
 from __future__ import annotations
 
 import concurrent.futures as _cf
+import copy
+import json
+import logging
 import math
+import threading
+import time
 from datetime import date as _date, timedelta as _td
 from statistics import median
 from typing import Any, Iterable, Optional
@@ -51,9 +59,32 @@ MAX_SESSIONS_HORIZON = 504          # ~2 years of trading sessions
 MAX_MONTHS_HORIZON = 24
 MAX_EVENTS_LISTED = 60
 SMALL_SAMPLE = 10
-DEADLINE_S = 5.0
+#: How long one request waits for its study. MEASURED on a synthetic production-schema store, local NVMe: 60,000 rows
+#: per symbol, 7.0 s worst with the OS cache dropped, 1.2 s warm (0.3 s at 12,500 rows, a very deep real symbol).
+#: Production disk is slower and unmeasured here, so a cold read is NOT expected to fit: see JOB_BUDGET_S.
+DEADLINE_S = 8.0
+#: How long one job may spend in the store. `ohlcv` is a rowid table with no price-carrying index, so a symbol written
+#: a session at a time costs about one page per row: 12,667 pages at 12,500 rows, which is 13-63 s at an assumed 1-5 ms
+#: per page. A job that runs out stops and the pages it read stay in the OS cache, so the next job resumes cheaply.
+JOB_BUDGET_S = 180.0
+#: A finished answer is kept this long, so the request after a "still loading" returns it.
+RESULT_KEEP_S = 300.0
+MAX_ACTIVE_JOBS = 4
+MAX_KEPT_RESULTS = 16
 
+_log = logging.getLogger(__name__)
 _pool = _cf.ThreadPoolExecutor(max_workers=2, thread_name_prefix="mi-event-study")
+
+
+class _Job:
+    __slots__ = ("fut", "done_at")
+
+    def __init__(self, fut: _cf.Future):
+        self.fut, self.done_at = fut, None
+
+
+_jobs: dict[str, _Job] = {}
+_jobs_lock = threading.Lock()
 
 
 def _refused(reason: str, detail: str, **extra) -> dict:
@@ -550,14 +581,68 @@ def request_note(raw: Any) -> str:
             f"entry {ok['entry'].replace('_', ' ')}{', non-overlapping' if ok['non_overlapping'] else ''}{span})")
 
 
+def _run_job(req: dict) -> dict:
+    """One study on a pool thread. The store read is bounded by JOB_BUDGET_S; what follows is arithmetic over rows
+    already in memory. Times and row counts only in the log line, never a value."""
+    t0 = time.monotonic()
+    with _pr.read_scope(JOB_BUDGET_S) as stats:
+        res = _study(req)
+    _log.info("event study finished status=%s reason=%s read_s=%.2f total_s=%.2f rows=%d", res.get("status"),
+              res.get("reason"), stats["read_s"], time.monotonic() - t0, stats["rows"])
+    return res
+
+
+def _kept(job: _Job) -> bool:
+    """A finished job worth returning to a later request: a real answer only. A failure is retried, never remembered."""
+    return job.fut.done() and job.fut.exception() is None and job.fut.result().get("status") == "ok"
+
+
+def _prune(now: float) -> None:
+    for k, j in list(_jobs.items()):
+        if j.fut.done() and (not _kept(j) or (j.done_at is not None and now - j.done_at > RESULT_KEEP_S)):
+            del _jobs[k]
+    done = sorted((j.done_at or now, k) for k, j in _jobs.items() if j.fut.done())
+    for _at, k in done[:max(0, len(done) - MAX_KEPT_RESULTS)]:
+        del _jobs[k]
+
+
+def _join(req: dict) -> Optional[_Job]:
+    """The job for this exact study: running, finished moments ago, or started now. None when the pool is full."""
+    key = json.dumps(req, sort_keys=True, default=str)
+    with _jobs_lock:
+        _prune(time.monotonic())
+        job = _jobs.get(key)
+        if job is not None:
+            return job
+        if sum(1 for j in _jobs.values() if not j.fut.done()) >= MAX_ACTIVE_JOBS:
+            return None
+        job = _jobs[key] = _Job(_pool.submit(_run_job, req))
+
+    def _stamp(_f, j=job):
+        j.done_at = time.monotonic()
+    job.fut.add_done_callback(_stamp)
+    return job
+
+
+def _reset_for_test() -> None:
+    with _jobs_lock:
+        _jobs.clear()
+
+
 def run(request: Any, *, deadline_s: float = DEADLINE_S, allowed_kinds: Optional[Iterable[str]] = None) -> dict:
-    """Validate and run one event study. Never raises. `allowed_kinds`: see validate()."""
+    """Validate and run one event study. Never raises. `allowed_kinds`: see validate().
+
+    The request waits `deadline_s` for the job, and the job does not end with the request. Repeats of one study share
+    one job, so a cold store costs one read however often the member asks, and a finished answer is kept for
+    RESULT_KEEP_S: the first request on a cold store can answer "warming" and a later one returns the result."""
     req, refusal = validate(request, allowed_kinds=allowed_kinds)
     if refusal:
         return refusal
-    fut = _pool.submit(_study, req)
+    job = _join(req)
+    if job is None:
+        return _unavailable("busy", "Too many studies are running. Run this one again in a moment.", request=req)
     try:
-        return fut.result(timeout=deadline_s)
+        return copy.deepcopy(job.fut.result(timeout=deadline_s))
     except _cf.TimeoutError:
         return _unavailable("warming", "The history is still loading. Run the study again in a moment.", request=req)
     except Exception:

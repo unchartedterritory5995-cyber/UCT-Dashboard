@@ -315,6 +315,17 @@ def _no_live_tbd_session_resolver(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_event_study_jobs():
+    """Finished event studies are kept briefly by request, so one test's faked store would answer the next test's
+    identical request. Looked up via sys.modules so the fixture never imports the module into an unrelated test."""
+    import sys
+    mod = sys.modules.get("api.services.market_intel.event_study")
+    if mod is not None:
+        mod._reset_for_test()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_snapshot_movers_serve_stale():
     """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
 

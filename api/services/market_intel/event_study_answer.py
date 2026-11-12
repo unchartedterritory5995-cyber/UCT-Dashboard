@@ -34,6 +34,7 @@ _REASON_TEXT = {
     "no_price_history": "UCT has no stored daily history for that symbol.",
     "no_overlap": "The price history and the breadth history don't overlap in that window.",
     "warming": "The history is still loading. Run the study again in a moment.",
+    "busy": "Too many studies are running. Run this one again in a moment.",
     "failed": "The study couldn't be computed.",
 }
 
