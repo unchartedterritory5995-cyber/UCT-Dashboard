@@ -10825,18 +10825,7 @@
         "refusal": false
       },
       "phrasings": [
-        {
-          "text": "how is that one set right now",
-          "gaps": {
-            "a": {
-              "id": "GAP-WIDGET-READ-ROUTE",
-              "router": "v1",
-              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
-              "owner": "agent-lead",
-              "mode": "\"how is that one set right now\" → widget.readOptions"
-            }
-          }
-        }
+        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
       ]
     },
     {
