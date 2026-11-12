@@ -153,8 +153,9 @@ describe('viewDevelopingOf — the developing bar a VIEW paints', () => {
     expect(viewDevelopingOf(snap, snap, {})).toMatchObject({ t: et(13, 15) })
     expect(viewDevelopingOf(snap, snap, { frozen: true })).toBeNull()
     expect(viewDevelopingOf({ ...snap, restSeen: false }, snap, {})).toBeNull()
-    // P3-S2b: a live gap (the store's liveGapFrom) — a detached developing bar is never painted
-    expect(viewDevelopingOf({ ...snap, liveGapFrom: et(13, 5) }, snap, {})).toBeNull()
+    // P3-S2b review: a live gap (the store's liveGapFrom) only asks the server; the forming candle
+    // still paints (LWC draws no slot for an absent bucket — hiding it would blank the live edge).
+    expect(viewDevelopingOf({ ...snap, liveGapFrom: et(13, 5) }, snap, {})).toMatchObject({ t: et(13, 15) })
   })
 
   // INVARIANT: a custom tf's developing bar = the last bucket of resampleForSpec(sealed + developing)

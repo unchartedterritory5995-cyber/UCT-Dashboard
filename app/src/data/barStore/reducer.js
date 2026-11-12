@@ -54,7 +54,7 @@ import {
 import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
-import { deriveStatus } from './status'
+import { deriveStatus, tickClosedTail } from './status'
 import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
@@ -81,6 +81,7 @@ export function initialState(key, ctx = {}) {
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
+    tailUnverified: false,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -219,14 +220,15 @@ function _deltaFromHeld(st) {
 }
 
 // ── the live gap (P3-S2b) ────────────────────────────────────────────────────
-// A LIVE source (push frame / tick) can open a developing bucket while EXPECTED buckets between
-// the newest closed row and it are missing (the closed-bar read stalled, a cold or switched key,
-// a dropped stream). That developing bar is DETACHED from the series: it is not a candle to show
-// next to a hole, it is proof the base is behind. The entry records the first missing bucket
-// (`liveGapFrom`): status `updating`, the delta starts at it (computeDeltaFrom), the store kicks a
-// read (index.js), and the view paints no developing bar while it is set. ANY server answer clears
-// it — what the server then still lacks is its own truth (a thin name's empty bucket), never
-// re-flagged by the same bar. Only a live action that OPENS a new bucket sets it.
+// A LIVE source (push frame / tick) can open a developing bucket while buckets the SERVER NEVER
+// VOUCHED FOR lie between the newest closed row and it (the closed-bar read stalled, a cold or
+// switched key, a dropped stream). A bucket is missing only if it starts at or after
+// max(verifiedThrough, end of the newest row): a thin name's quiet buckets that the server's
+// verified_through covers are proven EMPTY, not missing. The entry records the first missing
+// bucket (`liveGapFrom`); the delta starts at it (computeDeltaFrom) and the store kicks ONE read
+// (index.js). Nothing else: status is untouched and the forming candle still paints (the chart
+// draws no slot for an absent bucket). ANY server answer clears it. Only a live action that OPENS
+// a new bucket sets it.
 
 /** Is `sec` a minute of the key's session on an exchange trading day? */
 function _sessionMinute(state, sec) {
@@ -243,11 +245,17 @@ function _sessionOf(state) {
 /** First EXPECTED bucket start strictly between closed row `lastT` and bucket `devT`, or null. */
 export function liveGapStart(state, lastT, devT) {
   if (isDateTf(state.tf) || !finite(lastT) || !finite(devT) || devT <= lastT) return null
-  let cur = bucketEnd(lastT, state)
+  // ⭐ SERVER PROOF FIRST (bar-contract.md §verified_through). A bucket the server VOUCHED for is
+  // not missing when it holds no row — it is a proven-empty bucket (a thin name's quiet minute).
+  // So a bucket is missing only if it starts at or after max(verifiedThrough, end of the newest row).
+  const vt = numOrNull(state.verifiedThrough)
+  const floor = Math.max(bucketEnd(lastT, state), vt != null ? vt : -Infinity)
+  let cur = floor
   // Bounded walk (a long weekend is ~6k minutes): out-of-session minutes step by one minute.
   for (let n = 0; cur < devT && n < 8000; n++) {
     if (_sessionMinute(state, cur)) {
       const b = bucketOf(cur, state)
+      if (b < floor) { cur = bucketEnd(b, state); continue }   // vouched for by the server
       return b >= devT ? null : b
     }
     cur += 60
@@ -360,7 +368,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'tailUnverified']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -404,6 +412,9 @@ function finalize(prev, next, ctx) {
     if (g != null) n.liveGapFrom = g
   }
   n.deltaFrom = computeDeltaFrom(n)
+  // A closed row the TICK fallback produced (after the newest REST row) is the client's observation,
+  // not the server's: a separate flag, NOT a status downgrade (status stays stable across tick rolls).
+  n.tailUnverified = tickClosedTail(n)
   // ⛔ A LOCAL HOLE OLDER THAN THE DELTA START IS NEVER RE-READ by a since= delta (it asks only
   // from deltaFrom): the next request must be a FULL read — a status rule on what is held, not
   // a timer. Cleared by the full answer (applyRest), which re-proves the region it carries.

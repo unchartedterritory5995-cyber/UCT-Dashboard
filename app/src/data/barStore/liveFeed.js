@@ -84,20 +84,21 @@ export function foldMinute(st, m, tf, rev) {
 
 /**
  * ⭐ THE PERIOD BAR'S VOLUME FROM THE LIVE DAY-VOLUME SOURCE (P3-S2b) — when push is not the
- * live source (prod: VITE_REALTIME_BARS=0), the D/W/M developing bar's volume comes from the
- * live-price feed's cumulative DAY volume, the source the legacy chart overlaid. One owner:
- *   D    the day's volume IS the bar's: max(base.v, dayVol);
- *   W/M  base.v + the day volume added SINCE the base arrived (dayVol − dayVol at arrival) —
- *        the base already holds the earlier part, so nothing is counted twice; an unknown
- *        arrival reading, or another trading day than the base's arrival, adds nothing (v ≤ truth,
- *        settled by the next REST answer, as the 1m fold).
+ * live source (prod: VITE_REALTIME_BARS=0), the D/W/M developing bar's volume moves with the
+ * live-price feed's cumulative DAY volume — but the SERVER's period bar is the definition:
+ *   the server's D bar is the Massive DAILY aggregate (all of the day's trades, extended hours
+ *   included); the feed's day volume is the snapshot's regular-session `day.v` during RTH and a
+ *   summed-aggregates total outside it. Two different definitions — so the feed never REPLACES
+ *   the server's number. It only adds what traded SINCE the server's bar arrived:
+ *   v = base.v + (dayVol − dayVol at arrival), for D, W and M alike. An unknown arrival reading,
+ *   or another trading day than the arrival's, adds nothing (v ≤ truth until the next REST answer,
+ *   as the 1m fold); the reducer never lowers the bar's volume within its period (S4).
  * Pure; `st` = the fold state ({base, dayVol0, day0}). Returns the volume or null.
  */
 export function periodTickVolume(st, tf, dayVol, day) {
   if (!st?.base || !finite(dayVol) || dayVol <= 0) return null
-  const bv = finite(st.base.v) ? st.base.v : 0
-  if (tf === 'D') return Math.max(bv, dayVol)
   if (!finite(st.dayVol0) || st.day0 !== day) return null
+  const bv = finite(st.base.v) ? st.base.v : 0
   return bv + Math.max(0, dayVol - st.dayVol0)
 }
 

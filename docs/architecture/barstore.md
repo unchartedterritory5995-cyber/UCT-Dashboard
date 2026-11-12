@@ -321,21 +321,26 @@ rolled candle = the store's closed row, HA, R1 at runtime with a quote that only
   period bar + its arrival) is tracked whether or not push is on. Push gated off (prod:
   `VITE_REALTIME_BARS=0`): the tick fallback drives the period bar — price (H/L union, close; RTH
   ticks only, as the 1m fold) and VOLUME from the live-price feed's cumulative day volume
-  (`periodTickVolume`, the one owner): D = max(base.v, dayVol); W/M = base.v + the day volume added
-  since the base arrived (unknown arrival / another day ⇒ nothing: v ≤ truth until REST). The reducer
+  (`periodTickVolume`, the one owner). The SERVER's period bar defines the volume (D = the Massive
+  daily aggregate, extended hours included; the feed's day volume is the snapshot's regular-session
+  `day.v` in RTH and a summed-aggregates total outside it — a different definition), so the feed only
+  ADDS what traded since the server's bar arrived: v = base.v + (dayVol − dayVol at arrival), for D/W/M
+  alike (unknown arrival / another day ⇒ nothing: v ≤ truth until REST). S4: within a period the
+  developing volume never falls (a non-final REST answer merges by max — liveBarMerge.mergePushBar). The reducer
   takes it on `tick-fallback` as `event.v` (period keys only), never lowering the volume. Push is not
   enabled by this.
 - **Legend (BARSTORE)**: reads the bar the store paint painted (every tick → dev channel → paint;
-  the off-cursor legend re-reads it ≤ 500 ms); the D % is against the series' own prior bar close,
-  never the feed's prev_close / change_pct (another day's reference before today's bar exists).
-- **Live gap** (`reducer.liveGapStart`, `liveGapFrom`): a LIVE action that opens a developing bucket
-  past MISSING expected buckets (session- and trading-day-aware walk; the overnight / weekend /
-  holiday jump is no gap) records the first missing bucket. Status `updating`, `deltaFrom` ≤ it, the
-  store kicks ONE read per gap (index.js), and `viewDevelopingOf` paints no developing bar while it is
-  set. Any server answer clears it (what the server still lacks is its truth — a thin name's empty
-  bucket — never re-flagged by the same bar).
-- **Tick-closed rows** (`status.tickClosedTail`): a closed row the tick fallback produced (src
-  `tick`) after the newest REST row keeps status below `current` until a REST answer replaces it
-  (closed-row precedence: rest > tick); `verifiedThrough` is only ever the server's claim.
+  the off-cursor legend re-reads it ≤ 500 ms). **Decision (intentional difference from legacy):**
+  the D % is the SHOWN bar vs the PREVIOUS daily bar's close — it matches the candle
+  (TradingView-style). Legacy used the feed's change_pct / prev_close, which outside RTH (pre-market,
+  before today's bar exists; after hours) names another day's move than the bar on screen.
+- **Live gap** (`reducer.liveGapStart`, `liveGapFrom`): a bucket is MISSING only if it starts at or
+  after max(verifiedThrough, end of the newest row) — the server never vouched for it (bar-contract.md
+  §verified_through); a thin name's proven-empty buckets are not a gap. A live action opening a bucket
+  past a missing one records it: `deltaFrom` ≤ it and the store kicks ONE read (index.js). Status is
+  untouched and the forming candle still paints. Any server answer clears it.
+- **Tick-closed rows**: a closed row the tick fallback produced (src `tick`) after the newest REST row
+  sets `snapshot.tailUnverified` (`status.tickClosedTail`) until a REST answer replaces it (rest >
+  tick). It is a FLAG, not a status: the status never flaps across tick bucket rolls.
 - **R1 census widened**: candle AND volume write sites, per (statement, method); updateChart's
   `_applyData` incremental `update()` is its own row.

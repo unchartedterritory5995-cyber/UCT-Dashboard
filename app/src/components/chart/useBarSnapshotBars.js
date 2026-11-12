@@ -64,10 +64,6 @@ export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOv
  */
 export function viewDevelopingOf(s, base, view = {}) {
   if (!s?.restSeen || view?.frozen) return null
-  // P3-S2b: a developing bar opened past MISSING buckets is detached from the series (the store's
-  // live gap, reducer.liveGapStart: status updating, a read in flight) — not a candle to draw
-  // beside a hole. It shows again once the server answers.
-  if (s.liveGapFrom != null) return null
   const d = legacyDevelopingOf(s)
   if (!d) return null
   if (!view?.spec) return { ...d, devRev: s.devRev }
