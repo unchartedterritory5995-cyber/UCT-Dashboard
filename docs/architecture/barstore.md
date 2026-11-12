@@ -314,3 +314,54 @@ base paint, two static Model Book repaints and the store paint; every legacy exp
 BARSTORE), `singleWriterIndex.test.js` (derives writers in both files; StockChart holds only writer S),
 `StockChart.barStoreLive.test.jsx` (painted P1 H↑ L↓ open-once V↑ per bucket, P2 painted = newest, P3 a
 rolled candle = the store's closed row, HA, R1 at runtime with a quote that only the legacy source paints).
+
+## P3-S2b — the live input is whichever live source is active; gaps and tick rows are statuses
+
+- **One D/W/M fold base, two live sources** (`liveFeed.js`). The fold state (the server's developing
+  period bar + its arrival) is tracked whether or not push is on. Push gated off (prod:
+  `VITE_REALTIME_BARS=0`): the tick fallback drives the period bar — price (H/L union, close; RTH
+  ticks only, as the 1m fold) and VOLUME from the live-price feed's cumulative day volume
+  (`periodTickVolume`, the one owner). The SERVER's period bar defines the volume (D = the Massive
+  daily aggregate, extended hours included; the feed's day volume is the snapshot's regular-session
+  `day.v` in RTH and a summed-aggregates total outside it — a different definition), so the feed only
+  ADDS what traded since the server's bar arrived: v = base.v + (dayVol − dayVol at arrival), for D/W/M
+  alike (unknown arrival / another day ⇒ nothing: v ≤ truth until REST). S4: within a period the
+  developing volume never falls (a non-final REST answer merges by max — liveBarMerge.mergePushBar). The reducer
+  takes it on `tick-fallback` as `event.v` (period keys only), never lowering the volume. Push is not
+  enabled by this.
+- **Legend (BARSTORE)**: reads the bar the store paint painted (every tick → dev channel → paint;
+  the off-cursor legend re-reads it ≤ 500 ms). **Decision (intentional difference from legacy):**
+  the D % is the SHOWN bar vs the PREVIOUS daily bar's close — it matches the candle
+  (TradingView-style). Legacy used the feed's change_pct / prev_close, which outside RTH (pre-market,
+  before today's bar exists; after hours) names another day's move than the bar on screen.
+- **Live gap** (`reducer.liveGapStart`, `liveGapFrom`): a bucket is MISSING only if it starts at or
+  after max(verifiedThrough, end of the newest row) — the server never vouched for it (bar-contract.md
+  §verified_through); a thin name's proven-empty buckets are not a gap. A live action opening a bucket
+  past a missing one records it: `deltaFrom` ≤ it and the store kicks ONE read (index.js). Status is
+  untouched and the forming candle still paints. Any server answer clears it.
+- **Tick-closed rows**: a closed row the tick fallback produced (src `tick`) after the newest REST row
+  sets `snapshot.tailUnverified` (`status.tickClosedTail`) until a REST answer replaces it (rest >
+  tick). It is a FLAG, not a status: the status never flaps across tick bucket rolls.
+- **R1 census widened**: candle AND volume write sites, per (statement, method); updateChart's
+  `_applyData` incremental `update()` is its own row.
+
+## P3-S2c — the open / close switch of the feed's volume; no `tailUnverified`
+
+- The live-price feed's day volume changes DEFINITION at 09:30 (pre-market summed aggregates →
+  regular-session `day.v`, which restarts below the pre-market total) and at 16:00. The D/W/M fold
+  anchor now records that definition (`def0`: the snapshot's `ext_session`, else the clock), and
+  `liveFeed.anchorTick` re-anchors ONLY when the definition or the day changes: `dayVol0` = the
+  reading now, `vBase` = the volume already shown (never lower). Within one definition and day a
+  falling (stale) reading never re-anchors: the fold keeps the reading's high-water mark and
+  v = vBase + (hwm − dayVol0), so a dip-and-recover is never counted twice. The definition is the
+  wire `ext_session` ('pre_market' | 'post_market' ⇒ extended; null ⇒ the clock decides).
+  The first RTH tick after a pre-market anchor asks the server for the period bar once
+  (`onReanchor` → `network.kick`) for what traded between 09:30 and that tick. Railed (seeded,
+  across both boundaries): painted v never falls and never under-counts the feed's RTH gain after
+  the first post-open tick.
+- `snapshot.tailUnverified` is REMOVED. Its only candidate reader, the live badge
+  (`intradayTailPoll.liveBadgeState`: live / updating / delayed / stale / unavailable, fed by
+  `network.tailExhausted` → `_tailCatchupRef`), cannot express "a tick-closed row awaits the next
+  poll" without flapping at every tick bucket roll with push off — the flap the status rule just
+  removed — and nothing is late or missing: the next delta re-reads those rows (`deltaFrom` starts at
+  or before every unsealed row) and REST replaces them. `status.tickClosedTail` stays as the predicate.

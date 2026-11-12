@@ -75,7 +75,8 @@ function run(sim, events, { nowMs, stepClock = false } = {}) {
     }
     // S10: a change ⇒ new identity with bumped revs; no change ⇒ same identity.
     if (s !== prev) check(s.baseRev > prev.baseRev || s.devRev > prev.devRev || s.status !== prev.status
-      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull || s.gen !== prev.gen, 'S10 new identity without a change')
+      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull || s.gen !== prev.gen
+      || s.liveGapFrom !== prev.liveGapFrom, 'S10 new identity without a change')
     // S10 idempotence: re-applying the same action is a no-op.
     if (e.action.type !== 'invalidate' && e.action.type !== 'tick-fallback') {
       check(reduce(s, e.action, ctx) === s, () => `S10 re-applying ${e.action.type} changed the snapshot`)
