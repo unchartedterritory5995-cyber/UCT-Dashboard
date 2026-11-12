@@ -754,7 +754,7 @@
    "choices": [
     "Victor Sperandeo",
     "Larry Williams",
-    "Thomas Bulkowski",
+    "T. Bulkowski",
     "Linda Raschke"
    ],
    "answer": "Victor Sperandeo",
@@ -767,7 +767,7 @@
    ],
    "wrong": {
     "Larry Williams": "Bulkowski's page names Sperandeo as the source of the 2B, not Williams.",
-    "Thomas Bulkowski": "Bulkowski wrote the pattern up on his page, but he credits Sperandeo with it.",
+    "T. Bulkowski": "Bulkowski wrote the pattern up on his page, but he credits Sperandeo with it.",
     "Linda Raschke": "The page that records the 2B credits Sperandeo, not Raschke."
    },
    "house": true,
@@ -1686,9 +1686,9 @@
    "q": "Can you buy the open?",
    "choices": [
     "No, it is over 4% above the low",
-    "Yes, a gap up shows real strength",
-    "Yes, with a smaller stop to fit",
-    "No, a gap open is not a fair fill"
+    "Yes, a gap up shows strength",
+    "Yes, with a smaller stop",
+    "No, a gap is not a fair fill"
    ],
    "story": "The broken low is 40.00. The stock closed back above it yesterday. Now it gaps open at 42.00.",
    "answer": "No, it is over 4% above the low",
@@ -1701,9 +1701,9 @@
     "h01"
    ],
    "wrong": {
-    "Yes, a gap up shows real strength": "Strength is not a reason to chase.",
-    "Yes, with a smaller stop to fit": "If the honest stop does not fit the risk, you skip the trade.",
-    "No, a gap open is not a fair fill": "Right verdict, wrong reason. A gap inside the 4% limit is a fair fill. This one fails the 4% test."
+    "Yes, a gap up shows strength": "Strength is not a reason to chase.",
+    "Yes, with a smaller stop": "If the honest stop does not fit the risk, you skip the trade.",
+    "No, a gap is not a fair fill": "Right verdict, wrong reason. A gap inside the 4% limit is a fair fill. This one fails the 4% test."
    },
    "house": true,
    "simple": "No. 42.00 is more than 4 percent above the 40.00 broken low, so buying there is chasing.",
@@ -1889,8 +1889,8 @@
    "q": "Your plan from here?",
    "choices": [
     "Accept the loss; retry on a trigger",
-    "Buy back at once with the same stop",
-    "Buy back at once with a wider stop",
+    "Buy back now with the same stop",
+    "Buy back now with a wider stop",
     "Drop this stock from your list"
    ],
    "story": "You bought at 30.83 with the stop at 30.26. The next day's low touches the stop to the cent and you are out. Twenty sessions later the stock is higher.",
@@ -1904,8 +1904,8 @@
     "h28"
    ],
    "wrong": {
-    "Buy back at once with the same stop": "Buy again only if the setup triggers again, as a new trade.",
-    "Buy back at once with a wider stop": "A new try needs a new trigger, with its own stop and every rule.",
+    "Buy back now with the same stop": "Buy again only if the setup triggers again, as a new trade.",
+    "Buy back now with a wider stop": "A new try needs a new trigger, with its own stop and every rule.",
     "Drop this stock from your list": "The stop did its job. A new try is allowed, on a new trigger."
    },
    "house": true,
@@ -2111,9 +2111,9 @@
    "q": "How many do you buy?",
    "choices": [
     "A few, then more as they work",
-    "A few, then the rest tomorrow",
-    "All eight at once, at full size",
-    "All eight at once, at half size"
+    "A few, the rest tomorrow",
+    "All eight now, at full size",
+    "All eight now, at half size"
    ],
    "story": "After a correction the market reading turns Green again. Eight 2Bs reclaim their lows in one morning.",
    "answer": "A few, then more as they work",
@@ -2125,9 +2125,9 @@
     "h26"
    ],
    "wrong": {
-    "All eight at once, at full size": "Start with a few positions and add more only as they work.",
-    "All eight at once, at half size": "Half size does not change it. Start with a few positions and add more only as they work.",
-    "A few, then the rest tomorrow": "Add more positions only as the first ones work, not on a schedule."
+    "A few, the rest tomorrow": "Add more positions only as the first ones work, not on a schedule.",
+    "All eight now, at full size": "Start with a few positions and add more only as they work.",
+    "All eight now, at half size": "Half size does not change it. Start with a few positions and add more only as they work."
    },
    "house": true,
    "simple": "A few. After a correction we start with a few positions and open more only as the first ones work.",
@@ -2153,9 +2153,9 @@
    "q": "When do you take your 3R trim?",
    "choices": [
     "At the start of trading",
-    "At the close of that day",
-    "On a fall back to 62.40",
-    "Wait until it reaches 5R"
+    "At that day's close",
+    "On a fall to 62.40",
+    "Wait until it hits 5R"
    ],
    "story": "Your 3R level is 62.40. The next morning the stock opens at 63.10.",
    "answer": "At the start of trading",
@@ -2166,9 +2166,9 @@
     "h05"
    ],
    "wrong": {
-    "At the close of that day": "The rule is to take the trim at the open.",
-    "Wait until it reaches 5R": "The hard rule takes the first trim at 3R. The open is past it.",
-    "On a fall back to 62.40": "The rule is to take it at the open, not to wait for a fall back."
+    "At that day's close": "The rule is to take the trim at the open.",
+    "On a fall to 62.40": "The rule is to take it at the open, not to wait for a fall back.",
+    "Wait until it hits 5R": "The hard rule takes the first trim at 3R. The open is past it."
    },
    "house": true,
    "simple": "At the open. If a stock opens above a trim level, we take that trim at the open.",
@@ -3496,7 +3496,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Quotes bk1 and sp1 verified live on thepatternsite.com/2B.html. Key Sperandeo; decoys are real traders; no tell."
+   "notes": "Quotes bk1 and sp1 verified live on thepatternsite.com/2B.html. Key Sperandeo; decoys are real traders; no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3657,7 +3658,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "42.00 is 5 percent above 40.00, past 4 percent. Second No is a stated wrong reason (4 percent rule makes a gap inside the limit fair). Acceptable, owner flagged."
+   "notes": "42.00 is 5 percent above 40.00, past 4 percent. Second No is a stated wrong reason (4 percent rule makes a gap inside the limit fair). Acceptable, owner flagged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "cut",
@@ -3687,7 +3689,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches h28 and dMGMw. All numbers from dMGM and dMGMn."
+   "notes": "Matches h28 and dMGMw. All numbers from dMGM and dMGMn.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -3723,13 +3726,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right per F68/h27. Break: 'add as they work' reads as adding shares to open trades, which A5 ('no adding') and q32's key ('do not add') forbid, so a student taught those can reject the right choice. F68 means more positions. Reworded the key and its echoes to 'more' positions; parallel wrong choice trimmed so the key is not the longest."
+   "notes": "Key right per F68/h27. Break: 'add as they work' reads as adding shares to open trades, which A5 ('no adding') and q32's key ('do not add') forbid, so a student taught those can reject the right choice. F68 means more positions. Reworded the key and its echoes to 'more' positions; parallel wrong choice trimmed so the key is not the longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right per F63/h25. But it answers two other questions: the story's 'Your 3R level is 50.87' is q18's numeric key (49.58/49.15 -> 50.87), and the stem 'the first trim, a third at 3R' is q17's key ('A third'). New numbers come from the question itself; stem no longer names the third. 'the 2B opens' -> 'the stock opens'."
+   "notes": "Key right per F63/h25. But it answers two other questions: the story's 'Your 3R level is 50.87' is q18's numeric key (49.58/49.15 -> 50.87), and the stem 'the first trim, a third at 3R' is q17's key ('A third'). New numbers come from the question itself; stem no longer names the third. 'the 2B opens' -> 'the stock opens'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "cut",

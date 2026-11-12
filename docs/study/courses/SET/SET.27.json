@@ -1853,9 +1853,9 @@
    "q": "What now?",
    "choices": [
     "Hold; the stop decides, not the line",
-    "Sell at the close; the reclaim failed",
-    "Widen the stop under the pullback low",
-    "Add more shares; it is cheaper now"
+    "Sell at the close; reclaim failed",
+    "Widen the stop under the pullback",
+    "Add shares; it is cheaper now"
    ],
    "answer": "Hold; the stop decides, not the line",
    "why": "Hold. A close back under the line on the next session is a warning, not an exit. The stop is the exit, and 20.30 is still above 19.96.",
@@ -1866,9 +1866,9 @@
     "h31"
    ],
    "wrong": {
-    "Sell at the close; the reclaim failed": "One close back under the line is a warning. The stop is the exit, not the line.",
-    "Widen the stop under the pullback low": "The stop only moves up, never down or wider.",
-    "Add more shares; it is cheaper now": "Full size at one price with one stop. No adding."
+    "Sell at the close; reclaim failed": "One close back under the line is a warning. The stop is the exit, not the line.",
+    "Widen the stop under the pullback": "The stop only moves up, never down or wider.",
+    "Add shares; it is cheaper now": "Full size at one price with one stop. No adding."
    },
    "house": true,
    "story": "You bought the trigger close at 20.46 with the stop at 19.96. The next day closes at 20.30, back under the line, above the stop.",
@@ -2042,7 +2042,7 @@
     "No; the report is inside 3 sessions",
     "Yes; the trigger is decisive",
     "Yes; a huge drive protects it",
-    "No; buy tomorrow, before the report"
+    "No; buy tomorrow before earnings"
    ],
    "answer": "No; the report is inside 3 sessions",
    "why": "No. We make no new buys within 3 sessions before an earnings report, and this report lands tomorrow. A decisive trigger and a huge drive do not override the calendar. FSLR in 2013 reversed the session after the buy, and that was the earnings reaction, not a failure of the setup. A rally Slingshot near a report is the case that binds.",
@@ -2056,7 +2056,7 @@
    "wrong": {
     "Yes; the trigger is decisive": "The trigger is fine and the calendar still says no. The earnings rule is a hard line.",
     "Yes; a huge drive protects it": "A giant drive does not make the trigger safer. The next session was the earnings reaction.",
-    "No; buy tomorrow, before the report": "Tomorrow is inside the same 3 sessions, so waiting a day fixes nothing. The rule is no new buys within 3 sessions before a report."
+    "No; buy tomorrow before earnings": "Tomorrow is inside the same 3 sessions, so waiting a day fixes nothing. The rule is no new buys within 3 sessions before a report."
    },
    "house": true,
    "story": "The drive was a 45.5% day. The pullback is 3 closes and 7.1% deep, and the trigger closed at 0.94 of its range. The report lands tomorrow.",
@@ -2503,8 +2503,8 @@
    "q": "Was the second try allowed?",
    "choices": [
     "Yes; a new trigger with its own stop",
-    "No; only one try per drive is allowed",
-    "No; the first stop-out ends the stock",
+    "No; one try per drive is allowed",
+    "No; a stop-out ends the stock",
     "Yes; but only at half the size"
    ],
    "answer": "Yes; a new trigger with its own stop",
@@ -2518,8 +2518,8 @@
     "h30"
    ],
    "wrong": {
-    "No; the first stop-out ends the stock": "A stop-out ends the trade. A new run of closes under the line and a new close over it is a new setup.",
-    "No; only one try per drive is allowed": "The rule does not cap a drive at one try. The test is a new Slingshot with its own stop.",
+    "No; one try per drive is allowed": "The rule does not cap a drive at one try. The test is a new Slingshot with its own stop.",
+    "No; a stop-out ends the stock": "A stop-out ends the trade. A new run of closes under the line and a new close over it is a new setup.",
     "Yes; but only at half the size": "No rule halves the size of a second try. It is a new trade with its own stop and every rule, so the size comes from its grade."
    },
    "house": true,
@@ -2717,8 +2717,8 @@
    "q": "Buy now?",
    "choices": [
     "No; wait for a close over the line",
-    "Yes; the first red day is the entry",
-    "Yes; buy half now, half on the turn",
+    "Yes; first red day is the entry",
+    "Yes; buy half now, half later",
     "No; wait for a gap up on volume"
    ],
    "answer": "No; wait for a close over the line",
@@ -2734,8 +2734,8 @@
     "h31"
    ],
    "wrong": {
-    "Yes; the first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
-    "Yes; buy half now, half on the turn": "We buy full size at one price with one stop, with no adding. And momentum has not resumed.",
+    "Yes; first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
+    "Yes; buy half now, half later": "We buy full size at one price with one stop, with no adding. And momentum has not resumed.",
     "No; wait for a gap up on volume": "Buying a trigger day that gaps up 2% or more is a named mistake, and no volume surge is needed. Ordinary volume is the picture. The trigger is the close back over the line."
    },
    "house": true,
@@ -3313,9 +3313,9 @@
    "q": "Slingshot?",
    "choices": [
     "No; no drive to sling from",
-    "Yes; the shape is the setup",
-    "Yes; the close is decisive",
-    "No; four closes is too few"
+    "Yes; the shape is enough",
+    "Yes; a decisive close",
+    "No; four closes too few"
    ],
    "answer": "No; no drive to sling from",
    "why": "No. The drive comes first, and this stock never had one. Scot1and wants a stock that recently made a strong move. The shape and a decisive close cannot stand in for a drive.",
@@ -3329,9 +3329,9 @@
     "v01"
    ],
    "wrong": {
-    "Yes; the shape is the setup": "The shape alone is not the setup. The drive comes first, and it is missing.",
-    "Yes; the close is decisive": "A decisive close is only the trigger. The drive has to come first.",
-    "No; four closes is too few": "Three closes is the minimum, and this pullback has four. The missing piece is the drive."
+    "Yes; the shape is enough": "The shape alone is not the setup. The drive comes first, and it is missing.",
+    "Yes; a decisive close": "A decisive close is only the trigger. The drive has to come first.",
+    "No; four closes too few": "Three closes is the minimum, and this pullback has four. The missing piece is the drive."
    },
    "house": true,
    "story": "A stock has gone sideways for four months: no gap, no strong move up, no big volume day. Then it closes four times under its 4-day line and closes decisively back over it.",
@@ -3391,9 +3391,9 @@
    "q": "What do you do?",
    "choices": [
     "Buy nothing; no setup, no trade",
-    "Buy the near one; Green allows it",
-    "Buy it small, with a tight stop",
-    "Buy a weaker name that triggers"
+    "Buy the near one; it is Green",
+    "Buy it small, tight stop",
+    "Buy a weaker name that fires"
    ],
    "answer": "Buy nothing; no setup, no trade",
    "why": "Buy nothing. No setup, no trade; cash is a position. A mid-range close is not a decisive trigger, and a near-miss is a miss. Green is full risk per grade for a setup that passes; it does not create one.",
@@ -3405,9 +3405,9 @@
     "h14"
    ],
    "wrong": {
-    "Buy it small, with a tight stop": "Small is a size, not a setup. Never force a trade to have something on.",
-    "Buy the near one; Green allows it": "Green sets the size for a setup that passes. It does not create one.",
-    "Buy a weaker name that triggers": "We buy leaders, and a weaker name is still forcing a trade. Never force a trade to have something on."
+    "Buy the near one; it is Green": "Green sets the size for a setup that passes. It does not create one.",
+    "Buy it small, tight stop": "Small is a size, not a setup. Never force a trade to have something on.",
+    "Buy a weaker name that fires": "We buy leaders, and a weaker name is still forcing a trade. Never force a trade to have something on."
    },
    "house": true,
    "story": "Earnings season, and the reading is Green. Your list shows no Slingshot that passes every gate. One is close, but its trigger closed mid-range.",
@@ -3471,9 +3471,9 @@
    "q": "What comes off now?",
    "choices": [
     "Another 30; trail the last 30",
-    "Another 45; trail the last 15",
-    "The last 60 shares, all of it",
-    "Nothing; wait for the 21-day"
+    "Another 45; trail 15",
+    "The last 60, all of it",
+    "Nothing; await the 21-day"
    ],
    "answer": "Another 30; trail the last 30",
    "why": "Another 30, a third of the position. The first third came off at 3R, the second comes off at 5R, and you trail the last third. The trail is the 10-day for a fast mover or the 21-day for a steadier one.",
@@ -3485,9 +3485,9 @@
     "c40"
    ],
    "wrong": {
-    "Another 45; trail the last 15": "A third of 90 is 30, not 45. The last third, 30 shares, trails.",
-    "The last 60 shares, all of it": "The plan keeps the last third on the trail, not out at 5R.",
-    "Nothing; wait for the 21-day": "The trail starts after both trims. At 5R the second third comes off."
+    "Another 45; trail 15": "A third of 90 is 30, not 45. The last third, 30 shares, trails.",
+    "The last 60, all of it": "The plan keeps the last third on the trail, not out at 5R.",
+    "Nothing; await the 21-day": "The trail starts after both trims. At 5R the second third comes off."
    },
    "house": true,
    "story": "You bought 90 shares of a Slingshot at the trigger close. You sold a third at 3R. Today the stock reaches 5R.",
@@ -3742,7 +3742,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c10 verbatim: a warning, not an exit; h02 and h31 support the wrong notes. 20.30 is above 19.96."
+   "notes": "c10 verbatim: a warning, not an exit; h02 and h31 support the wrong notes. 20.30 is above 19.96.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -3772,7 +3773,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows B22/c37 (no buys within 3 sessions of a report); FSLR facts c46/c47 support the why. Choices balanced two No, two Yes; D-003 dependency declared."
+   "notes": "Key follows B22/c37 (no buys within 3 sessions of a report); FSLR facts c46/c47 support the why. Choices balanced two No, two Yes; D-003 dependency declared.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3850,7 +3852,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PLTR 08-21 first (stopped next day), 08-27 second, 0.31R, gap under stop day 4: matches dossier and d18/d19. Key follows B21/c11. Largely restates q30's lesson, but from the other side; acceptable."
+   "notes": "PLTR 08-21 first (stopped next day), 08-27 second, 0.31R, gap under stop day 4: matches dossier and d18/d19. Key follows B21/c11. Largely restates q30's lesson, but from the other side; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3886,7 +3889,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c20 named mistake, o05). But the wrong note for 'Yes; buy half now, half on the turn' says 'We buy full size at one price with one stop, with no adding', and none of the cited facts carries that; h31 (A5) does. Add h31 to facts."
+   "notes": "Key right (c20 named mistake, o05). But the wrong note for 'Yes; buy half now, half on the turn' says 'We buy full size at one price with one stop, with no adding', and none of the cited facts carries that; h31 (A5) does. Add h31 to facts.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "pass",
@@ -3970,7 +3974,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c44, t05, t02. Story has no strong move so no D-106 number is needed. Easy for rung 9 but not wrong."
+   "notes": "c44, t05, t02. Story has no strong move so no D-106 number is needed. Easy for rung 9 but not wrong.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "pass",
@@ -3982,7 +3987,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D44 no setup, no trade; a mid-range trigger fails c04; Green sets risk for a passing setup only (h26). The odd-one-out risk (one no-buy against three buys) is softened by phrasing the key as 'Buy nothing'; no non-buy distractor exists that would not be a second defensible answer (waiting for a new trigger is also right), so kept."
+   "notes": "D44 no setup, no trade; a mid-range trigger fails c04; Green sets risk for a passing setup only (h26). The odd-one-out risk (one no-buy against three buys) is softened by phrasing the key as 'Buy nothing'; no non-buy distractor exists that would not be a second defensible answer (waiting for a new trigger is also right), so kept.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q68": {
    "status": "cut",
@@ -3994,7 +4000,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "One third of 90 is 30 (calc from the stem); E51 gives the 5R trim and the trail; distractor notes are correct."
+   "notes": "One third of 90 is 30 (calc from the stem); E51 gives the 5R trim and the trail; distractor notes are correct.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q70": {
    "status": "pass",

@@ -13,7 +13,7 @@
     "Trade only at a price you set",
     "Trade now at the best price available",
     "Trade at today's closing price",
-    "Trade once the stock hits a set price"
+    "Trade once a set price is hit"
    ],
    "kind": "mcq",
    "q": "What does a market order tell your broker to do?",
@@ -82,7 +82,7 @@
     "summary": "A market order buys or sells at the best price available right now. A market order usually fills right away, but its price is not promised. A market order is the surest way to get filled, because it carries no price restriction. A market order almost always fills, as long as there are willing buyers and sellers. In a fast market, a market order can fill away from the price you saw. A limit order trades only at your price or a better one. A limit order may never fill, and it can only fill once the stock reaches your price. A buy stop sits above the current price and turns into a market order when that price is reached."
    },
    "facts": {
-    "given": "What does a market order tell your broker to do? Trade now at the best price available Trade only at a price you set Trade at today's closing price Trade once the stock hits a set price"
+    "given": "What does a market order tell your broker to do? Trade now at the best price available Trade only at a price you set Trade at today's closing price Trade once a set price is hit"
    },
    "lesson_line": "A market order buys you speed. It doesn't buy you a price.",
    "simple": "A market order tells your broker to trade now at the best price available, without waiting for a price you name.",
@@ -91,7 +91,7 @@
    "why": "Trade now at the best price available. A market order generally fills right away, and FINRA calls it the most certain way to get filled. What it does not promise is the price. The fill can land away from the quote you saw.",
    "wrong": {
     "Trade at today's closing price": "A plain market order doesn't wait for the close. It trades at the best price available as soon as it can be filled.",
-    "Trade once the stock hits a set price": "A market order doesn't wait for any price. Stop orders and resting limit orders are the ones that wait.",
+    "Trade once a set price is hit": "A market order doesn't wait for any price. Stop orders and resting limit orders are the ones that wait.",
     "Trade only at a price you set": "That's a limit order. It trades at your price or better, or not at all."
    }
   },
@@ -717,9 +717,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A buy stop at $58",
+    "A $58 buy stop",
     "A market buy now",
-    "A buy limit at $62",
+    "A $62 buy limit",
     "A buy limit at $58"
    ],
    "kind": "mcq",
@@ -790,7 +790,7 @@
     "summary": "A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. To buy only on a dip to a level, you rest a buy limit at that level. A limit order may never fill, and it can only fill once the stock reaches your price. A market order buys or sells at the best price available right now. A market order usually fills right away, but its price is not promised. A buy stop sits above the current price and turns into a market order when that price is reached. Under the SEC's rule, a buy limit at or above the best ask, or a sell limit at or below the best bid, is a marketable limit order. A limit priced away from the market can't trade right away; it waits."
    },
    "facts": {
-    "given": "Which order can fill only if the stock dips to $58 or lower? A stock you like trades at $62. Support sits near $58. A buy limit at $58 A market buy now A buy stop at $58 A buy limit at $62"
+    "given": "Which order can fill only if the stock dips to $58 or lower? A stock you like trades at $62. Support sits near $58. A buy limit at $58 A market buy now A $58 buy stop A $62 buy limit"
    },
    "lesson_line": "A buy limit below the market waits. It fills only if the stock comes down to it.",
    "simple": "A buy limit at $58, because it waits below the price and can only fill at $58 or lower.",
@@ -798,8 +798,8 @@
    "unit": "F10.01",
    "why": "A buy limit at $58. It rests below the market and can only fill at $58 or lower, so it fills only if the dip comes. A market buy fills now, near $62. A buy stop is entered above the current price, not below it.",
    "wrong": {
-    "A buy limit at $62": "That is where the stock trades now. A buy limit there can fill near $62 right away, before any dip.",
-    "A buy stop at $58": "A buy stop is entered above the current price and turns into a market order there. It isn't the order that waits below.",
+    "A $58 buy stop": "A buy stop is entered above the current price and turns into a market order there. It isn't the order that waits below.",
+    "A $62 buy limit": "That is where the stock trades now. A buy limit there can fill near $62 right away, before any dip.",
     "A market buy now": "That fills now, at about $62. It doesn't wait for the stock to dip to $58."
    }
   },
@@ -886,10 +886,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "It waits until the stock hits $50",
+    "It waits until it hits $50",
     "It can fill right away, under $50",
-    "It can't fill above the $49.71 ask",
-    "It fills only at exactly $50.00"
+    "It can't fill above the ask",
+    "It fills only at $50.00"
    ],
    "kind": "mcq",
    "q": "What happens to your order?",
@@ -948,7 +948,7 @@
     "summary": "Under the SEC's rule, a buy limit at or above the best ask, or a sell limit at or below the best bid, is a marketable limit order. A marketable limit is a buy limit at or above the market, or a sell limit at or below it. A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. Fidelity's example: with the ask at $50.00, a buy limit at $50.02 filled at $49.97, below both the ask and the limit. A buy stop sits above the current price and turns into a market order when that price is reached. An order bigger than the size showing at the ask should expect part of it to fill at worse prices."
    },
    "facts": {
-    "given": "What happens to your order? A stock is quoted $49.69 bid, $49.71 ask, just under its $50 breakout level. To catch the breakout, you enter a buy limit at $50.00. It can fill right away, under $50 It waits until the stock hits $50 It fills only at exactly $50.00 It can't fill above the $49.71 ask"
+    "given": "What happens to your order? A stock is quoted $49.69 bid, $49.71 ask, just under its $50 breakout level. To catch the breakout, you enter a buy limit at $50.00. It can fill right away, under $50 It waits until it hits $50 It fills only at $50.00 It can't fill above the ask"
    },
    "lesson_line": "A buy limit above the ask can fill now. It doesn't wait for the breakout.",
    "simple": "It can fill right away, because a buy limit at or above the ask can trade now against the sellers there.",
@@ -956,9 +956,9 @@
    "unit": "F10.01",
    "why": "It can fill right away, under $50. Your $50.00 limit is above the $49.71 ask, so under the SEC's definition it is marketable. It fills at the best prices there, up to your limit. It does not wait for the breakout. A buy stop is the order that waits above the price.",
    "wrong": {
-    "It can't fill above the $49.71 ask": "The ask can move, and your order can be bigger than the size showing there. Your cap is your $50.00 limit, not the quote.",
-    "It fills only at exactly $50.00": "A limit is your price or better. With sellers under $50 right now, you get their price.",
-    "It waits until the stock hits $50": "That's what a buy stop does. It sits above the price and turns into a market order when the price gets there."
+    "It can't fill above the ask": "The ask can move, and your order can be bigger than the size showing there. Your cap is your $50.00 limit, not the quote.",
+    "It fills only at $50.00": "A limit is your price or better. With sellers under $50 right now, you get their price.",
+    "It waits until it hits $50": "That's what a buy stop does. It sits above the price and turns into a market order when the price gets there."
    }
   },
   "review_status": "draft",
@@ -980,9 +980,9 @@
   "prompt_json": {
    "choices": [
     "Around $110, at the open",
-    "At $104, the prior close",
-    "At exactly $105, your limit",
-    "No fill, the gap skipped it"
+    "At $104, prior close",
+    "At $105, your limit",
+    "No fill, gap skipped it"
    ],
    "kind": "mcq",
    "q": "Where does your sell limit most likely fill?",
@@ -1034,7 +1034,7 @@
     "summary": "A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. Schwab's example: a sell limit at $105, with the prior close at $104. If good news opens that stock at $110, the $105 sell limit fills at the open at $110. A buy limit can fill below your limit, and a sell limit can fill above it. A limit order may never fill, and it can only fill once the stock reaches your price."
    },
    "facts": {
-    "given": "Where does your sell limit most likely fill? You hold a stock that closed at $104. You leave a good-'til-canceled sell limit at $105. Good news comes out overnight, and it opens at $110. Around $110, at the open At exactly $105, your limit No fill, the gap skipped it At $104, the prior close"
+    "given": "Where does your sell limit most likely fill? You hold a stock that closed at $104. You leave a good-'til-canceled sell limit at $105. Good news comes out overnight, and it opens at $110. Around $110, at the open At $105, your limit No fill, gap skipped it At $104, prior close"
    },
    "lesson_line": "A gap through your limit fills you at the better price. Your limit is a floor, not a target.",
    "simple": "Around $110, because a sell limit fills at your price or higher, and the open at $110 is higher.",
@@ -1042,9 +1042,9 @@
    "unit": "F10.01",
    "why": "Around $110, at the open. A sell limit can only fill at the limit or higher. The stock opened above your $105 limit, so the order fills at the open at about that price. This is Schwab's own example. Your limit is a floor, not a target.",
    "wrong": {
-    "At $104, the prior close": "A sell limit can't fill below your $105 limit. The close is old news once the stock opens at $110.",
-    "At exactly $105, your limit": "Your limit is the least you'll take. When the market offers more, you get more.",
-    "No fill, the gap skipped it": "A gap doesn't skip a limit order. The price went past it in your favor, so it fills."
+    "At $104, prior close": "A sell limit can't fill below your $105 limit. The close is old news once the stock opens at $110.",
+    "At $105, your limit": "Your limit is the least you'll take. When the market offers more, you get more.",
+    "No fill, gap skipped it": "A gap doesn't skip a limit order. The price went past it in your favor, so it fills."
    }
   },
   "review_status": "draft",
@@ -1065,10 +1065,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A fill at exactly $50.30, no better",
-    "A wait until the stock trades $50.30",
+    "A fill at $50.30, no better",
+    "A wait until it trades $50.30",
     "A missed fill if it runs past $50.30",
-    "A fill far above the quote you saw"
+    "A fill far above the quote"
    ],
    "kind": "mcq",
    "q": "What risk does the buy limit carry that the market buy does not?",
@@ -1169,7 +1169,7 @@
     "summary": "A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. A limit order never fills worse than your limit, but it may not fill. A limit order may never fill, and it can only fill once the stock reaches your price. If a limit order fills, you get your limit price or better; it may not fill at all. A market order almost always fills, as long as there are willing buyers and sellers. A market order has no price protection and can fill far from the bid or ask on your screen. In a fast market, a market order can fill away from the price you saw. Under the SEC's rule, a buy limit at or above the best ask, or a sell limit at or below the best bid, is a marketable limit order. A marketable limit is a buy limit at or above the market, or a sell limit at or below it. A buy limit can fill below your limit, and a sell limit can fill above it. A limit priced away from the market can't trade right away; it waits. Our rule E57: we enter every trade with a market order, and the stop stays with the broker."
    },
    "facts": {
-    "given": "What risk does the buy limit carry that the market buy does not? A stock clears its $50 breakout level on heavy volume. It's moving fast, quoted $50.04 bid, $50.08 ask. You weigh a market buy against a buy limit at $50.30. A missed fill if it runs past $50.30 A fill far above the quote you saw A wait until the stock trades $50.30 A fill at exactly $50.30, no better"
+    "given": "What risk does the buy limit carry that the market buy does not? A stock clears its $50 breakout level on heavy volume. It's moving fast, quoted $50.04 bid, $50.08 ask. You weigh a market buy against a buy limit at $50.30. A missed fill if it runs past $50.30 A fill far above the quote A wait until it trades $50.30 A fill at $50.30, no better"
    },
    "lesson_line": "A limit risks a missed fill. A market order risks a worse price.",
    "simple": "A missed fill, because a buy limit can't fill above $50.30, so a fast run past it leaves you out.",
@@ -1177,9 +1177,9 @@
    "unit": "F10.01",
    "why": "A missed fill if it runs past $50.30. A buy limit can never fill worse than its limit, so in a fast move it can be left behind. A market buy almost always fills, but it has no price protection. It can fill away from the quote, especially in a fast market.",
    "wrong": {
-    "A fill at exactly $50.30, no better": "A buy limit fills at your limit or lower. With sellers at $50.08, it can fill below $50.30.",
-    "A fill far above the quote you saw": "That's the market buy's risk: no price protection. A buy limit at $50.30 can never fill above $50.30.",
-    "A wait until the stock trades $50.30": "$50.30 is above the $50.08 ask, so the limit is marketable. It can fill right away, at $50.30 or lower."
+    "A fill at $50.30, no better": "A buy limit fills at your limit or lower. With sellers at $50.08, it can fill below $50.30.",
+    "A fill far above the quote": "That's the market buy's risk: no price protection. A buy limit at $50.30 can never fill above $50.30.",
+    "A wait until it trades $50.30": "$50.30 is above the $50.08 ask, so the limit is marketable. It can fill right away, at $50.30 or lower."
    }
   },
   "review_status": "draft",
@@ -3365,9 +3365,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "The gap canceled the order",
-    "It sold at the $47.50 limit",
-    "It sold near the $44 open",
+    "Gap canceled the order",
+    "It sold at $47.50",
+    "It sold near $44",
     "Triggered, but nothing sold"
    ],
    "kind": "mcq",
@@ -3417,7 +3417,7 @@
     "summary": "Once triggered, a stop-limit becomes a limit order that fills only at its limit price or better. If the price moves away from the limit, a stop-limit order may not fill at all. In the same gap, a stop-limit with a $34 stop and a $33 limit does not sell; the trader waits for $33 while the stock trades lower. A triggered stop-limit may not execute, and the stock can keep falling. A stop-limit removes the fill-price risk of a stop but adds the risk of no fill at all."
    },
    "facts": {
-    "given": "What happened to your order? You bought a stock at $50. Your exit is a sell stop-limit: stop $48, limit $47.50. Bad news hits overnight. It opens at $44 and keeps sliding. Triggered, but nothing sold It sold at the $47.50 limit It sold near the $44 open The gap canceled the order"
+    "given": "What happened to your order? You bought a stock at $50. Your exit is a sell stop-limit: stop $48, limit $47.50. Bad news hits overnight. It opens at $44 and keeps sliding. Triggered, but nothing sold It sold at $47.50 It sold near $44 Gap canceled the order"
    },
    "lesson_line": "On an exit, a stop-limit can leave you holding the stock all the way down.",
    "simple": "It triggered but nothing sold, because the stock opened under your $47.50 limit and a sell limit will not fill below it.",
@@ -3425,9 +3425,9 @@
    "unit": "F10.02",
    "why": "Triggered, but nothing sold. The $44 open is below the $48 stop, so the stop triggered. The order then became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill. It stays working and fills only if the stock trades back up to $47.50. Meanwhile you still own a falling stock.",
    "wrong": {
-    "It sold at the $47.50 limit": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
-    "It sold near the $44 open": "That's what a plain stop does. A stop-limit won't sell below its limit.",
-    "The gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
+    "Gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there.",
+    "It sold at $47.50": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
+    "It sold near $44": "That's what a plain stop does. A stop-limit won't sell below its limit."
    }
   },
   "review_status": "draft",
@@ -3779,7 +3779,7 @@
   "prompt_json": {
    "choices": [
     "Buy stop-limit: stop $50, limit $50.50",
-    "Buy stop-limit: stop $50.50, limit $50",
+    "Stop-limit: stop $50.50, limit $50",
     "Plain buy stop at $50, no limit",
     "Plain buy limit at $50.50, no stop"
    ],
@@ -3854,7 +3854,7 @@
     "summary": "Schwab's buy stop-limit example: buy when the price reaches $125, but not above $130. Once triggered, a stop-limit becomes a limit order that fills only at its limit price or better. A buy limit fills at its limit or lower; a sell limit fills at its limit or higher. A buy stop goes in above the current price. Once the stop price is reached, a stop order turns into a market order. Stop orders are exposed to gaps between sessions or around trading halts. E57: our entries are market orders. C28: we never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "Which order does exactly that? A stock closed at $49.20, just under a $50 ceiling. A trader wants to buy a break over $50, but pay no more than $50.50. Buy stop-limit: stop $50, limit $50.50 Plain buy stop at $50, no limit Plain buy limit at $50.50, no stop Buy stop-limit: stop $50.50, limit $50"
+    "given": "Which order does exactly that? A stock closed at $49.20, just under a $50 ceiling. A trader wants to buy a break over $50, but pay no more than $50.50. Buy stop-limit: stop $50, limit $50.50 Plain buy stop at $50, no limit Plain buy limit at $50.50, no stop Stop-limit: stop $50.50, limit $50"
    },
    "lesson_line": "A buy stop-limit finds the break, and its limit caps the price paid.",
    "simple": "A buy stop-limit with a $50 stop and a $50.50 limit, because it buys the break but caps the price paid.",
@@ -3862,9 +3862,9 @@
    "unit": "F10.02",
    "why": "Stop $50, limit $50.50. The stop waits above the price for the break through $50. Once triggered, the limit caps the price at $50.50 or lower. A plain buy stop becomes a market order and can pay any gap. The reversed order triggers late and then only buys on a pullback.",
    "wrong": {
-    "Buy stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run.",
     "Plain buy limit at $50.50, no stop": "A buy limit fills at $50.50 or lower. With the stock at $49.20, it buys right away, before any break.",
-    "Plain buy stop at $50, no limit": "That gets you in on the break, but as a market order. If it gaps well past $50, you pay the gap."
+    "Plain buy stop at $50, no limit": "That gets you in on the break, but as a market order. If it gaps well past $50, you pay the gap.",
+    "Stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run."
    }
   },
   "review_status": "draft",
@@ -5120,17 +5120,17 @@
  },
  {
   "answer_json": {
-   "answer": "Buy stop, sell limit, sell stop"
+   "answer": "Buy stop, sell limit and sell stop"
   },
   "difficulty": 2,
   "id": "si_5e805ee2c7ae",
   "lesson_origin": "session",
-  "lesson_text": "Buy stop, sell limit, sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20. Breakout entry: buy stop. Target: sell limit. Stop: sell stop.",
+  "lesson_text": "Buy stop, sell limit and sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20. Breakout entry: buy stop. Target: sell limit. Stop: sell stop.",
   "module": "F10",
   "prompt_json": {
    "choices": [
     "Buy limit, sell limit, sell stop",
-    "Buy stop, sell limit, sell stop",
+    "Buy stop, sell limit and sell stop",
     "Buy stop, sell stop, sell limit",
     "Market buy, sell limit, sell stop"
    ],
@@ -5195,13 +5195,13 @@
     "summary": "A buy stop is the order for buying a break above a level. A buy stop sits above the market; on a short, it limits the loss. A long bracket has a sell limit above and a sell stop below; a short bracket has a buy stop above and a buy limit below. A bracketed buy is a buy order with a sell limit above it and a sell stop below it. A sell limit fills only at its price or higher; a buy limit only at its price or lower. A stop price is a trigger for a market order, not a guaranteed fill price. A resting stop order means you don't have to watch the price all day."
    },
    "facts": {
-    "given": "Which three orders make the bracket, listed as entry, target, stop? Your plan: buy the breakout over $50.20. Stop at $48.90. Target at $52.80. The stock trades at $49.80, and you'll be away all day. Buy stop, sell limit, sell stop Buy limit, sell limit, sell stop Buy stop, sell stop, sell limit Market buy, sell limit, sell stop"
+    "given": "Which three orders make the bracket, listed as entry, target, stop? Your plan: buy the breakout over $50.20. Stop at $48.90. Target at $52.80. The stock trades at $49.80, and you'll be away all day. Buy stop, sell limit and sell stop Buy limit, sell limit, sell stop Buy stop, sell stop, sell limit Market buy, sell limit, sell stop"
    },
    "lesson_line": "Breakout entry: buy stop. Target: sell limit. Stop: sell stop.",
    "simple": "Use a buy stop to get in only on the break, a sell limit above for the target and a sell stop below.",
    "tier": "core",
    "unit": "F10.03",
-   "why": "Buy stop, sell limit, sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20.",
+   "why": "Buy stop, sell limit and sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20.",
    "wrong": {
     "Buy limit, sell limit, sell stop": "A buy limit at $50.20 with the stock at $49.80 can fill right away, at or below $50.20. You'd own it before the breakout.",
     "Buy stop, sell stop, sell limit": "The exits are swapped. The sell stop belongs below the price and the sell limit above it.",
@@ -5944,7 +5944,7 @@
   "prompt_json": {
    "choices": [
     "A loss on 1,000 shares below $8",
-    "None, the shares are already sold",
+    "None, the shares are sold",
     "A 1,000-share short if it hits $8",
     "Only missing gains above $13"
    ],
@@ -5984,7 +5984,7 @@
     "summary": "Place the two exits as separate orders and a forgotten stop can later sell shares you no longer own, leaving you short. Investopedia's example: 1,000 shares with an OCO of a $8 stop and a $13 limit, each for all 1,000 shares. Selling shares you don't own is a short position."
    },
    "facts": {
-    "given": "What risk have you left open? You own 1,000 shares at $10. You set two separate orders, not an OCO: sell limit $13 and sell stop $8. The $13 order fills. You forget the stop. A 1,000-share short if it hits $8 None, the shares are already sold Only missing gains above $13 A loss on 1,000 shares below $8"
+    "given": "What risk have you left open? You own 1,000 shares at $10. You set two separate orders, not an OCO: sell limit $13 and sell stop $8. The $13 order fills. You forget the stop. A 1,000-share short if it hits $8 None, the shares are sold Only missing gains above $13 A loss on 1,000 shares below $8"
    },
    "lesson_line": "Exits that protect the same shares belong in one OCO, never in two loose orders.",
    "simple": "The loose stop can still sell 1,000 shares you no longer own, and that leaves you short.",
@@ -5993,7 +5993,7 @@
    "why": "A 1,000-share short if it hits $8. The two orders aren't linked, so the $13 fill does not cancel the stop. The stop still waits at $8. If the stock trades down to $8, it can sell 1,000 shares you no longer own. Selling shares you don't own is a short position. Cancel the loose stop, or link exits in an OCO next time.",
    "wrong": {
     "A loss on 1,000 shares below $8": "Those shares were sold at $13. A stop-out now sells shares you don't own, which opens a short, not a loss on shares you hold.",
-    "None, the shares are already sold": "That's the trap. The loose stop doesn't know your shares are gone, so it can still sell 1,000 you don't have.",
+    "None, the shares are sold": "That's the trap. The loose stop doesn't know your shares are gone, so it can still sell 1,000 you don't have.",
     "Only missing gains above $13": "That's a cost, but the bigger risk is the loose stop selling shares you don't own."
    }
   },
@@ -6110,8 +6110,8 @@
    "choices": [
     "Leave it where the plan put it",
     "Move it down to $46 for room",
-    "Turn it into a stop-limit order",
-    "Cancel it and watch the bounce"
+    "Make it a stop-limit order",
+    "Cancel it, watch the bounce"
    ],
    "kind": "mcq",
    "q": "What do you do with the stop leg?",
@@ -6191,7 +6191,7 @@
     "summary": "A bracket fits when you decided the stop and target before the trade. A bracket helps you plan and avoid emotional decisions once the trade is on. A bracket makes it easier to stick to your plan. A resting target means no second-guessing the exit in the moment. With the bracket attached, you don't have to come back and re-decide the risk once the entry fills. Decide your exits before you place the trade. Our rule: the stop is the exit, and it only moves up, never down or wider. At Fidelity, cancel one exit of a bracket and the other orders stay open. Once its stop price is reached, a stop-limit order becomes a limit order, filled only at its set price or better."
    },
    "facts": {
-    "given": "What do you do with the stop leg? Your bracket has a stop at $47.50 and a target at $56. The stock slides to $48. You feel sure it will bounce. Leave it where the plan put it Cancel it and watch the bounce Move it down to $46 for room Turn it into a stop-limit order"
+    "given": "What do you do with the stop leg? Your bracket has a stop at $47.50 and a target at $56. The stock slides to $48. You feel sure it will bounce. Leave it where the plan put it Cancel it, watch the bounce Move it down to $46 for room Make it a stop-limit order"
    },
    "lesson_line": "The bracket made the call when you were calm. Let it keep it.",
    "simple": "Leave the stop where it is, because you chose it calmly before the trade and a hunch is no reason to risk more.",
@@ -6199,9 +6199,9 @@
    "unit": "F10.03",
    "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Our rule: the stop only moves up, never down or wider. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
    "wrong": {
-    "Cancel it and watch the bounce": "Cancel the stop leg and the target stays open, but nothing protects you if the bounce never comes.",
-    "Move it down to $46 for room": "That's widening the stop because you feel sure. Your loss grows past what you planned.",
-    "Turn it into a stop-limit order": "A stop-limit fills only at its set price or better. In a fast slide it can sit unfilled while you keep the falling shares."
+    "Cancel it, watch the bounce": "Cancel the stop leg and the target stays open, but nothing protects you if the bounce never comes.",
+    "Make it a stop-limit order": "A stop-limit fills only at its set price or better. In a fast slide it can sit unfilled while you keep the falling shares.",
+    "Move it down to $46 for room": "That's widening the stop because you feel sure. Your loss grows past what you planned."
    }
   },
   "review_status": "draft",
@@ -10024,9 +10024,9 @@
   "prompt_json": {
    "choices": [
     "Sell a portion, trail the rest",
-    "Lower the stop to give it room",
+    "Lower the stop for room",
     "Add more while it's running",
-    "Sell it all, it can't go higher"
+    "Sell all, it can't go higher"
    ],
    "kind": "mcq",
    "q": "What's your move?",
@@ -10099,7 +10099,7 @@
     "summary": "When a holding gets extended short term, Hirsch trims it to a two-thirds or even one-third position. When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Buying a stock that is already extended gets you shaken out on normal pullbacks far more often. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. After the first third at 3R, we sell another third at 5R and trail the last third. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our stop only moves up, never down or wider; the gap rule is the one exception."
    },
    "facts": {
-    "given": "What's your move? You hold a full position in a leader. It has run hard for two weeks and sits far above its moving averages. Your stop is well below. Sell a portion, trail the rest Add more while it's running Lower the stop to give it room Sell it all, it can't go higher"
+    "given": "What's your move? You hold a full position in a leader. It has run hard for two weeks and sits far above its moving averages. Your stop is well below. Sell a portion, trail the rest Add more while it's running Lower the stop for room Sell all, it can't go higher"
    },
    "lesson_line": "When it's stretched, sell some into strength. Let the rest show how far it can go.",
    "simple": "Sell part of it and trail the rest. You bank some of the run and keep shares on for more.",
@@ -10108,8 +10108,8 @@
    "why": "Sell a portion, trail the rest. You lock in some of the run while it's strong and keep shares on for more. Our rule: sell some into strength and trail the rest under the rising averages. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term. Schwab's version: sell a portion and let the remainder ride.",
    "wrong": {
     "Add more while it's running": "We never add to a position. And buying an extended stock is chasing: O'Neil warns those buys get shaken out on normal pullbacks.",
-    "Lower the stop to give it room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
-    "Sell it all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
+    "Lower the stop for room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
+    "Sell all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
    }
   },
   "review_status": "draft",
@@ -10451,10 +10451,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Sell everything at the open",
-    "Wait for a pullback to $23",
+    "Sell all at the open",
+    "Wait for a pullback",
     "Sell it right at the open",
-    "Hold all of it, it's running"
+    "Hold all, it's running"
    ],
    "kind": "mcq",
    "q": "What do you do with the first third?",
@@ -10496,7 +10496,7 @@
     "summary": "If the stock opens above a trim level, we take that trim at the open. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
-    "given": "What do you do with the first third? You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news. Sell it right at the open Wait for a pullback to $23 Hold all of it, it's running Sell everything at the open"
+    "given": "What do you do with the first third? You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news. Sell it right at the open Wait for a pullback Hold all, it's running Sell all at the open"
    },
    "lesson_line": "When the stock opens above a trim level, take that trim at the open.",
    "simple": "Sell the first third at the open. The stock opened above the 3R trim, so our rule takes it there.",
@@ -10504,9 +10504,9 @@
    "unit": "F10.05",
    "why": "Sell it right at the open. The stock opened at $24.10, above the $23 trim level. Our rule: if a stock opens above a trim level, take that trim at the open. Waiting for $23 is not part of the rule. The stop on the other two thirds moves to breakeven, $20.",
    "wrong": {
-    "Hold all of it, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
-    "Sell everything at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail.",
-    "Wait for a pullback to $23": "The level is already behind you. Our rule takes the trim at the open, not on a pullback."
+    "Hold all, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
+    "Sell all at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail.",
+    "Wait for a pullback": "The level is already behind you. Our rule takes the trim at the open, not on a pullback."
    }
   },
   "review_status": "draft",

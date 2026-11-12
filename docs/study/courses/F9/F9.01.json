@@ -1083,8 +1083,8 @@
    "choices": [
     "It fell to 0.4% of the account",
     "It's still 1% of the account",
-    "It grew along with the account",
-    "It depends on where the stop is"
+    "It grew with the account",
+    "It depends on the stop"
    ],
    "answer": "It fell to 0.4% of the account",
    "calc": {
@@ -1104,8 +1104,8 @@
    ],
    "wrong": {
     "It's still 1% of the account": "$400 was 1% of $40,000. Against $100,000, the same $400 is a smaller slice.",
-    "It grew along with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
-    "It depends on where the stop is": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits."
+    "It grew with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
+    "It depends on the stop": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits."
    },
    "simple": "It fell to 0.4%, because the same $400 is a much smaller slice of a $100,000 account.",
    "deeper": {
@@ -1464,7 +1464,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 400/100000*100=0.4. Silly '4%' choice replaced; merged wrong map matches choices exactly (final.json's stale 'dropped to 4%' entry did not survive the merge). f09 + h6 ground the why."
+   "notes": "Calc 400/100000*100=0.4. Silly '4%' choice replaced; merged wrong map matches choices exactly (final.json's stale 'dropped to 4%' entry did not survive the merge). f09 + h6 ground the why.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",

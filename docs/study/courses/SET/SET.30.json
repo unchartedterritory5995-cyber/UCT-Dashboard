@@ -1161,9 +1161,9 @@
    "q": "In one line, what is a parabolic long?",
    "choices": [
     "The turn after a 3 to 5 day drop",
-    "Riding a stock up its vertical run",
-    "A breakout after 3 to 5 quiet days",
-    "A bottom built slowly over months"
+    "Riding a stock up its run",
+    "A breakout from a quiet base",
+    "A bottom built over months"
    ],
    "answer": "The turn after a 3 to 5 day drop",
    "why": "The turn after a 3 to 5 day panic drop. We trade Bracco's parabolic burst turned upside down: a stock falls straight down for days, then snaps back. We buy only after the turn, never during the fall. It is the opposite of riding a stock up its run.",
@@ -1180,9 +1180,9 @@
    ],
    "house": true,
    "wrong": {
-    "A bottom built slowly over months": "The card describes a straight-down fall of 3 to 5 days, not a slow bottom.",
-    "Riding a stock up its vertical run": "That is buying the run up, the opposite trade. Ours is the mirror of a burst down.",
-    "A breakout after 3 to 5 quiet days": "A quiet base is a rest. This setup has no rest; it is a panic fall and a turn."
+    "Riding a stock up its run": "That is buying the run up, the opposite trade. Ours is the mirror of a burst down.",
+    "A breakout from a quiet base": "A quiet base is a rest. This setup has no rest; it is a panic fall and a turn.",
+    "A bottom built over months": "The card describes a straight-down fall of 3 to 5 days, not a slow bottom."
    },
    "simple": "A parabolic long buys the snap back after a fast 3 to 5 day panic drop, not the drop itself.",
    "tier": "core",
@@ -1775,9 +1775,9 @@
    "q": "The trigger prints at 20.00. Three minutes later it trades 21.00. Buy?",
    "choices": [
     "No; 5% over is past our limit",
-    "Yes; 5% over shows momentum",
+    "Yes; 5% over is momentum",
     "Yes, but only at half size",
-    "No; any buy over 20.00 chases"
+    "No; a buy over 20.00 chases"
    ],
    "answer": "No; 5% over is past our limit",
    "calc": {
@@ -1796,9 +1796,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; 5% over shows momentum": "Confirmed and too far away are both true. The chase line is 4%.",
+    "Yes; 5% over is momentum": "Confirmed and too far away are both true. The chase line is 4%.",
     "Yes, but only at half size": "Half of a chased entry is still chased. The rule is to skip it, not to shrink it.",
-    "No; any buy over 20.00 chases": "Chasing starts past 4% over the buy point. A small step above the trigger is allowed."
+    "No; a buy over 20.00 chases": "Chasing starts past 4% over the buy point. A small step above the trigger is allowed."
    },
    "simple": "No. The price is 5% over the trigger, and our rule skips anything more than 4% over.",
    "deeper": {
@@ -2294,8 +2294,8 @@
    "q": "Bracco's post, mirrored: on the climax day, how do the opening minutes compare with the other burst days?",
    "choices": [
     "The heaviest opening of the run",
-    "The lightest; sellers are tired",
-    "About the same as the other days",
+    "The lightest; sellers tired",
+    "About the same as other days",
     "Heavy only if the gap filled"
    ],
    "answer": "The heaviest opening of the run",
@@ -2307,8 +2307,8 @@
    ],
    "house": true,
    "wrong": {
-    "The lightest; sellers are tired": "The climax is the panic, so the opening is the loudest, not the quietest.",
-    "About the same as the other days": "A climax that looks like any other day is not a climax.",
+    "The lightest; sellers tired": "The climax is the panic, so the opening is the loudest, not the quietest.",
+    "About the same as other days": "A climax that looks like any other day is not a climax.",
     "Heavy only if the gap filled": "Bracco ties the heavy opening to the climax day itself. Nothing in his claim depends on the gap filling."
    },
    "simple": "Bracco says the climax day almost always has the heaviest opening volume of the run. We read it the same way for longs.",
@@ -2753,8 +2753,8 @@
    "choices": [
     "Take the stop; selling was not done",
     "Hold on; it reached the 9 EMA",
-    "Widen the stop to the Monday low",
-    "Add at Monday's close to lower cost"
+    "Widen it to the Monday low",
+    "Add Monday to lower your cost"
    ],
    "answer": "Take the stop; selling was not done",
    "why": "Take the stop. A trade under the climax low is the stop, and a new low means the selling was not done. Here Monday closed through the 24.94 stop, the low came days later at 23.85, and the stock reached the 9 EMA only by Friday. The later turn, not the Friday turn, was the trade.",
@@ -2771,8 +2771,8 @@
    "house": true,
    "wrong": {
     "Hold on; it reached the 9 EMA": "It got there from a lower low. Holding through the stop is how one R becomes more.",
-    "Widen the stop to the Monday low": "The stop only moves up, never down or wider.",
-    "Add at Monday's close to lower cost": "Never add when down. A re-entry needs a new trigger, as a new trade."
+    "Widen it to the Monday low": "The stop only moves up, never down or wider.",
+    "Add Monday to lower your cost": "Never add when down. A re-entry needs a new trigger, as a new trade."
    },
    "simple": "Take the stop. Price closed through it, and a new low means the selling is not done.",
    "deeper": {
@@ -2874,8 +2874,8 @@
    "choices": [
     "Out; a 3R loss is past the 2R cap",
     "48.70 is the new stop; hold on",
-    "Hold and wait for the daily close",
-    "Sell half at the open, hold half"
+    "Hold and wait for the close",
+    "Sell half now, hold half"
    ],
    "answer": "Out; a 3R loss is past the 2R cap",
    "why": "Out. After a gap through the stop, the first 30 minutes decide. The first 30-minute low becomes the new stop, with a ceiling: if the loss goes past 2R, get out. Your risk was the distance from 52.00 down to the 50.90 stop. A loss to 48.70 is a 3R loss.",
@@ -2888,8 +2888,8 @@
    "house": true,
    "wrong": {
     "48.70 is the new stop; hold on": "The 30-minute low becomes the stop only when the loss stays inside 2R. Here it is three times the risk.",
-    "Sell half at the open, hold half": "The rule gives two outcomes: a new stop at the 30-minute low, or out past 2R. Half is neither.",
-    "Hold and wait for the daily close": "The first 30 minutes decide, not the close."
+    "Hold and wait for the close": "The first 30 minutes decide, not the close.",
+    "Sell half now, hold half": "The rule gives two outcomes: a new stop at the 30-minute low, or out past 2R. Half is neither."
    },
    "simple": "Get out. The first 30 minutes took the loss past 2R, so the rule says to leave.",
    "tier": "extended",
@@ -3005,9 +3005,9 @@
    "story": "A leader fresh out of a base drops 2 ATR in one afternoon into its old high. No low is undercut. The volume is the day's heaviest, then it turns. Yesterday it closed at a high.",
    "choices": [
     "Mean Reversion form A; a one-day flush",
-    "A parabolic long; it fell a full 2 ATR",
+    "A parabolic long; it fell 2 ATR",
     "A U&R; the old high is the level",
-    "A dead-cat bounce; it fell in one day"
+    "A dead-cat bounce; a one-day fall"
    ],
    "answer": "Mean Reversion form A; a one-day flush",
    "why": "Mean Reversion form A. Bracco's one-day flush in a leader into a level is that card. A parabolic long needs 3 to 5 straight down days with two gap downs. Count the down days first.",
@@ -3020,9 +3020,9 @@
    ],
    "house": true,
    "wrong": {
-    "A parabolic long; it fell a full 2 ATR": "One afternoon is not a burst. The burst is 3 to 5 straight down days with two gap downs.",
-    "A dead-cat bounce; it fell in one day": "A dead-cat bounce starts with a one-day gap down of 15% to 70%. This is a 2 ATR afternoon flush in a leader.",
-    "A U&R; the old high is the level": "A U&R needs an undercut of a visible low after a small dip. Here no low is undercut; it is a 2 ATR flush into a level."
+    "A parabolic long; it fell 2 ATR": "One afternoon is not a burst. The burst is 3 to 5 straight down days with two gap downs.",
+    "A U&R; the old high is the level": "A U&R needs an undercut of a visible low after a small dip. Here no low is undercut; it is a 2 ATR flush into a level.",
+    "A dead-cat bounce; a one-day fall": "A dead-cat bounce starts with a one-day gap down of 15% to 70%. This is a 2 ATR afternoon flush in a leader."
    },
    "simple": "It is a one-day flush in a leader, so it is Mean Reversion. A parabolic long needs 3 to 5 down days in a row.",
    "deeper": {
@@ -3264,8 +3264,8 @@
    "choices": [
     "Sold; under 1R after 10 sessions",
     "Hold; the stop was never hit",
-    "Add; it has proved the low is in",
-    "Move the stop up and wait a month"
+    "Add; it proved the low is in",
+    "Raise the stop; wait a month"
    ],
    "answer": "Sold; under 1R after 10 sessions",
    "why": "Sold. A trade still under 1R after 10 trading days is sold, which frees the money. That holds even though the stop was never touched. Bracco says these are short-lived trades, not held longer than 1-3 days.",
@@ -3279,8 +3279,8 @@
    "house": true,
    "wrong": {
     "Hold; the stop was never hit": "The stop is one exit. Time is the other. Bracco holds these trades 1 to 3 days.",
-    "Add; it has proved the low is in": "Our rule is full size at one price with one stop, no adding. A bounce that went nowhere is not proof.",
-    "Move the stop up and wait a month": "The rule sells a trade under 1R after 10 trading days. A month is far past that."
+    "Add; it proved the low is in": "Our rule is full size at one price with one stop, no adding. A bounce that went nowhere is not proof.",
+    "Raise the stop; wait a month": "The rule sells a trade under 1R after 10 trading days. A month is far past that."
    },
    "simple": "Sell it. A trade still under 1R after 10 trading days is sold, and a snap back should not need that long.",
    "deeper": {
@@ -3337,9 +3337,9 @@
    "q": "After a three-session crash from 847.70 to 202.31, CAR's 9 EMA was still above 260 at the end of April. What does our card warn?",
    "choices": [
     "Do not count on reaching the 9 EMA",
-    "Count on the 9 EMA within days",
-    "Expect a bounce as big as the fall",
-    "Widen the stop to give it time"
+    "Count on the 9 EMA in days",
+    "Expect an equal-size bounce",
+    "Widen the stop for more time"
    ],
    "answer": "Do not count on reaching the 9 EMA",
    "why": "Do not count on the 9 EMA every time. After CAR's three-session crash from 847.70 to 202.31, its 9 EMA, above 260 at the end of April, was not reached until 05-21. Expecting the 9 EMA every time is a named mistake.",
@@ -3352,9 +3352,9 @@
    ],
    "house": true,
    "wrong": {
-    "Count on the 9 EMA within days": "After a crash from far above it can take weeks. CAR did not get there until 05-21.",
-    "Expect a bounce as big as the fall": "A bigger crash puts the 9 EMA farther away. The card promises no bigger bounce.",
-    "Widen the stop to give it time": "The stop only moves up, never down or wider."
+    "Count on the 9 EMA in days": "After a crash from far above it can take weeks. CAR did not get there until 05-21.",
+    "Expect an equal-size bounce": "A bigger crash puts the 9 EMA farther away. The card promises no bigger bounce.",
+    "Widen the stop for more time": "The stop only moves up, never down or wider."
    },
    "simple": "After a crash from far above, the 9 EMA can be too far away to reach for weeks.",
    "deeper": {
@@ -3705,9 +3705,9 @@
    "q": "Entry 40.00, stop 38.50, the 9 EMA at 45.10. Where is 3R, and is it below or above the 9 EMA?",
    "choices": [
     "44.50, below the 9 EMA",
-    "43.00, below the 9 EMA",
-    "46.00, above the 9 EMA",
-    "47.50, above the 9 EMA"
+    "43.00, below 9 EMA",
+    "46.00, over the 9 EMA",
+    "47.50, above 9 EMA"
    ],
    "answer": "44.50, below the 9 EMA",
    "calc": {
@@ -3728,9 +3728,9 @@
    ],
    "house": true,
    "wrong": {
-    "43.00, below the 9 EMA": "43.00 is only 2R: two times the risk above the fill. 3R is three times.",
-    "46.00, above the 9 EMA": "46.00 is above 3R, four times the risk above the fill. 3R is three times.",
-    "47.50, above the 9 EMA": "47.50 is well past 3R. 3R is three times the risk above the fill."
+    "43.00, below 9 EMA": "43.00 is only 2R: two times the risk above the fill. 3R is three times.",
+    "46.00, over the 9 EMA": "46.00 is above 3R, four times the risk above the fill. 3R is three times.",
+    "47.50, above 9 EMA": "47.50 is well past 3R. 3R is three times the risk above the fill."
    },
    "simple": "3R is 44.50, a little below the 9 EMA at 45.10.",
    "deeper": {
@@ -3896,7 +3896,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c02/c01/c12; key is the shortest choice; wrong notes tied to c02/c04/c34."
+   "notes": "Key matches c02/c01/c12; key is the shortest choice; wrong notes tied to c02/c04/c34.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3998,7 +3999,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "pct_change 20 to 21 = 5.0 against the 4% line (h11, c14); the size arithmetic in the why follows h03."
+   "notes": "pct_change 20 to 21 = 5.0 against the 4% line (h11, c14); the size arithmetic in the why follows h03.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -4082,7 +4084,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c07/p09; wrong notes supported; stem scoped to the mirrored claim."
+   "notes": "Key from c07/p09; wrong notes supported; stem scoped to the mirrored claim.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -4154,7 +4157,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d14 and new d15b are verbatim in docs/study/setups/research/38-parabolic-long.md (WDC row). 09-29-2022 was a Thursday; 09-30 a Friday. Why correctly says 'the later turn'."
+   "notes": "d14 and new d15b are verbatim in docs/study/setups/research/38-parabolic-long.md (WDC row). 09-29-2022 was a Thursday; 09-30 a Friday. Why correctly says 'the later turn'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -4172,7 +4176,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (52-48.7)/(52-50.9)=3.0 checked; h06 and h07 decide; sibling q27 is the inside-2R side."
+   "notes": "Calc (52-48.7)/(52-50.9)=3.0 checked; h06 and h07 decide; sibling q27 is the inside-2R side.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -4190,7 +4195,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c36; story avoids U&R undercut; DCB wrong note supported by b04. Mean Reversion form A is taught only here (owner flag), answerable by elimination."
+   "notes": "Key from c36; story avoids U&R undercut; DCB wrong note supported by b04. Mean Reversion form A is taught only here (owner flag), answerable by elimination.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -4226,7 +4232,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "upgraded wave3; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
@@ -4238,7 +4245,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and the 05-21 date are in d24; c33 names the mistake. Deeper counter states the mirror is not true for longs, which is fine only because q57 comes first in the same rung."
+   "notes": "Numbers and the 05-21 date are in d24; c33 names the mistake. Deeper counter states the mirror is not true for longs, which is fine only because q57 comes first in the same rung.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -4292,7 +4300,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 1.50, 3R = 44.50 (calc), under 45.10; 9 EMA is 3.4R away, over the 2R floor (c08). Distractors are 2R, 4R, 5R with correct notes."
+   "notes": "R = 1.50, 3R = 44.50 (calc), under 45.10; 9 EMA is 3.4R away, over the 2R floor (c08). Distractors are 2R, 4R, 5R with correct notes.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q68": {
    "status": "cut",

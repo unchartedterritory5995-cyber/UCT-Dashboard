@@ -1319,9 +1319,9 @@
    "q": "What's the biggest risk if you buy here?",
    "choices": [
     "A crash that's hard to exit",
-    "Missing the rest of the move",
-    "Paying a few cents too much",
-    "Getting shaken out too early"
+    "Missing more of the move",
+    "Paying a few cents extra",
+    "Being shaken out early"
    ],
    "answer": "A crash that's hard to exit",
    "why": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
@@ -1337,9 +1337,9 @@
     "f67"
    ],
    "wrong": {
-    "Missing the rest of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
-    "Paying a few cents too much": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into.",
-    "Getting shaken out too early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard."
+    "Missing more of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
+    "Paying a few cents extra": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into.",
+    "Being shaken out early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard."
    },
    "simple": "A crash that's hard to exit, because when promoters dump a tiny float the price can fall in seconds.",
    "deeper": {
@@ -1555,7 +1555,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key re-derived before reading it: the fast dump that is hard to sell into (f22, f23, FINRA, re-read live 2026-11-12: 'sometimes in a matter of seconds', 'difficult ... to sell their holdings without incurring substantial losses'). f20, f21, f24, f25 also verbatim on the live page. f67 matches sizing_rule.md section 9 B23 word for word; $3 is under $10, so the why's rule line is right and nothing contradicts the rulebook. Break found: the key 'A crash you can't get out of' is the lone absolute among the choices and overreaches f23, which says selling is difficult without big losses, not impossi"
+   "notes": "Key re-derived before reading it: the fast dump that is hard to sell into (f22, f23, FINRA, re-read live 2026-11-12: 'sometimes in a matter of seconds', 'difficult ... to sell their holdings without incurring substantial losses'). f20, f21, f24, f25 also verbatim on the live page. f67 matches sizing_rule.md section 9 B23 word for word; $3 is under $10, so the why's rule line is right and nothing contradicts the rulebook. Break found: the key 'A crash you can't get out of' is the lone absolute among the choices and overreaches f23, which says selling is difficult without big losses, not impossi",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",

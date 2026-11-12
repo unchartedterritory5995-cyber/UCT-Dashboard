@@ -1549,9 +1549,9 @@
    "q": "Which name fits?",
    "choices": [
     "EMA Crossback; the first retest",
-    "20 EMA Pullback; a tap of the 20",
-    "Wedge Pop; first close back over",
-    "Breakout; a push to a new high"
+    "20 EMA Pullback; a tap of 20",
+    "Wedge Pop; first close over",
+    "Breakout; a push to new highs"
    ],
    "answer": "EMA Crossback; the first retest",
    "why": "EMA Crossback. It is the first test of the averages after the stock's strong move back over them, which Kell calls the crossback. A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback. This stock spent weeks under its averages.",
@@ -1563,9 +1563,9 @@
     "x01"
    ],
    "wrong": {
-    "20 EMA Pullback; a tap of the 20": "That is a tap of a 20 EMA that has been rising for weeks. This 20 EMA only turned up eight sessions ago.",
-    "Wedge Pop; first close back over": "The pop was eight sessions ago. This is the first pullback after it.",
-    "Breakout; a push to a new high": "This stock is testing its averages after the pop, not pushing out to a new high."
+    "20 EMA Pullback; a tap of 20": "That is a tap of a 20 EMA that has been rising for weeks. This 20 EMA only turned up eight sessions ago.",
+    "Wedge Pop; first close over": "The pop was eight sessions ago. This is the first pullback after it.",
+    "Breakout; a push to new highs": "This stock is testing its averages after the pop, not pushing out to a new high."
    },
    "house": true,
    "story": "A stock spent weeks under its averages. Eight sessions ago it closed back over the 9 and 20 EMA on heavy volume, and the 9 is over the 20 again. Today it dips back to those averages. It has not been near them since the move up.",
@@ -1590,9 +1590,9 @@
    "criterion": "xbk.wedge_pop_first",
    "q": "Which stage is this?",
    "choices": [
-    "An EMA Crossback, after a dip",
+    "An EMA Crossback, a retest",
     "A Wedge Pop, a first reclaim",
-    "A Base n' Break, a later rest",
+    "A Base n' Break, later rest",
     "A Wedge Drop, a break lower"
    ],
    "answer": "A Wedge Pop, a first reclaim",
@@ -1605,8 +1605,8 @@
     "x01"
    ],
    "wrong": {
-    "An EMA Crossback, after a dip": "There has been no pullback yet. This is the reclaim itself.",
-    "A Base n' Break, a later rest": "That is a later rest in the cycle, after the crossback.",
+    "An EMA Crossback, a retest": "There has been no pullback yet. This is the reclaim itself.",
+    "A Base n' Break, later rest": "That is a later rest in the cycle, after the crossback.",
     "A Wedge Drop, a break lower": "A Wedge Drop follows an Exhaustion Extension at the top of a run. This stock is turning up from weeks under its averages."
    },
    "house": true,
@@ -1707,7 +1707,7 @@
    "choices": [
     "No; the 9 is still under the 20",
     "Yes, if the stop is tighter",
-    "Yes; it is back over the 50-day",
+    "Yes; it is over the 50-day",
     "No; it needs a gap up first"
    ],
    "answer": "No; the 9 is still under the 20",
@@ -1721,8 +1721,8 @@
     "x01"
    ],
    "wrong": {
-    "Yes; it is back over the 50-day": "Retaking the 50-day does not fix the short averages. With the 9 under the 20 there is no reason to be long.",
     "Yes, if the stop is tighter": "A tighter stop does not change the 9 being under the 20. There is still no reason to be long.",
+    "Yes; it is over the 50-day": "Retaking the 50-day does not fix the short averages. With the 9 under the 20 there is no reason to be long.",
     "No; it needs a gap up first": "The hold day needs a low in the zone and a strong close, with the 9 above the 20. No gap is named."
    },
    "house": true,
@@ -1749,9 +1749,9 @@
    "q": "Is this a crossback?",
    "choices": [
     "No; it never got to the zone",
-    "Yes; the big run was the pop",
-    "Yes; a tight drift is enough",
-    "No; a crossback needs a pole"
+    "Yes; the run was the pop",
+    "Yes; a tight drift will do",
+    "No; crossbacks need a pole"
    ],
    "answer": "No; it never got to the zone",
    "why": "No. The crossback's drift must reach the 9/20 zone. This stock jumped 32% in 12 sessions. Then it drifted six sessions well above the 9 and 20 EMA, so it never reached the zone. A big run before the drift does not change that.",
@@ -1762,9 +1762,9 @@
     "x05"
    ],
    "wrong": {
-    "Yes; the big run was the pop": "The drift must reach the 9/20 zone to be a crossback. This one stayed well above the 9 and 20 EMA.",
-    "Yes; a tight drift is enough": "A tight drift counts only if it reaches the 9/20 zone. This one never did.",
-    "No; a crossback needs a pole": "The crossback needs no pole. Its drift must reach the 9/20 zone, and this one did not."
+    "Yes; the run was the pop": "The drift must reach the 9/20 zone to be a crossback. This one stayed well above the 9 and 20 EMA.",
+    "Yes; a tight drift will do": "A tight drift counts only if it reaches the 9/20 zone. This one never did.",
+    "No; crossbacks need a pole": "The crossback needs no pole. Its drift must reach the 9/20 zone, and this one did not."
    },
    "house": true,
    "story": "A stock jumps 32% in 12 sessions. Then it drifts tight for six sessions, well above the 9 and 20 EMA.",
@@ -2212,8 +2212,8 @@
    "q": "How do you respond?",
    "choices": [
     "Take the loss; wait for a new trigger",
-    "Buy again at once; it looked so clean",
-    "Move the stop lower and give it room",
+    "Buy again at once; it looked clean",
+    "Move the stop lower, give it room",
     "Wait three days, then buy again"
    ],
    "answer": "Take the loss; wait for a new trigger",
@@ -2227,8 +2227,8 @@
     "h29"
    ],
    "wrong": {
-    "Buy again at once; it looked so clean": "A re-buy needs a new hold day, a new trigger and every rule.",
-    "Move the stop lower and give it room": "The stop never moves down or wider.",
+    "Buy again at once; it looked clean": "A re-buy needs a new hold day, a new trigger and every rule.",
+    "Move the stop lower, give it room": "The stop never moves down or wider.",
     "Wait three days, then buy again": "Time alone is not a trigger. A re-buy is a new trade with its own trigger, stop and every rule."
    },
    "house": true,
@@ -2481,10 +2481,10 @@
    "criterion": "xbk.depth",
    "q": "Is it a valid hold day?",
    "choices": [
-    "No; a low under the 20 EMA fails",
+    "No; a low under the line fails",
     "No; the stop would be too wide",
     "Yes; the low sits inside the zone",
-    "Yes; an undercut up to 3% is fine"
+    "Yes; an undercut to 3% is fine"
    ],
    "answer": "Yes; the low sits inside the zone",
    "why": "Yes. The low undercut the 20 EMA by 0.6%, which is inside the zone. The zone runs down to about 1% under the 20 EMA. The close came back over the line, in the upper half of its range. A low much more than 1% under the line is outside the zone.",
@@ -2499,9 +2499,9 @@
     "h03"
    ],
    "wrong": {
+    "No; a low under the line fails": "The zone runs down to about 1% under the 20 EMA, so a low a little under the line still counts.",
     "No; the stop would be too wide": "A wider stop means fewer shares. The hold day is judged by its low and its close, not by how wide the stop is.",
-    "No; a low under the 20 EMA fails": "The zone runs down to about 1% under the 20 EMA, so a low a little under the line still counts.",
-    "Yes; an undercut up to 3% is fine": "The zone ends about 1% under the 20 EMA. A low 2.1% under it, as in AMAT, was outside the zone."
+    "Yes; an undercut to 3% is fine": "The zone ends about 1% under the 20 EMA. A low 2.1% under it, as in AMAT, was outside the zone."
    },
    "house": true,
    "story": "A leader drifted four quiet sessions. The hold day's low sat 0.6% under the 20 EMA. It closed back over the line, in the upper half of its range.",
@@ -2533,8 +2533,8 @@
    "choices": [
     "No; it needs a gap down",
     "Yes; the low reached the zone",
-    "No; it must dip under the line",
-    "Yes; the close does not matter"
+    "No; it must pierce the line",
+    "Yes; close does not matter"
    ],
    "answer": "Yes; the low reached the zone",
    "why": "Yes. The low only has to reach the zone, which runs from the 9 EMA down to about 1% under the 20 EMA. A low exactly on the 20 EMA is inside it, and the close must still be strong. ALGN drifted six sessions with its low exactly on the 20 EMA and a strong close.",
@@ -2546,9 +2546,9 @@
     "x03"
    ],
    "wrong": {
-    "No; it must dip under the line": "The zone is a range. Reaching the line is enough.",
     "No; it needs a gap down": "The setup is a drift into the zone, not a gap down.",
-    "Yes; the close does not matter": "The close matters as much as the low. It must be at or above the 20 EMA in the upper half of its range."
+    "No; it must pierce the line": "The zone is a range. Reaching the line is enough.",
+    "Yes; close does not matter": "The close matters as much as the low. It must be at or above the 20 EMA in the upper half of its range."
    },
    "house": true,
    "story": "ALGN popped on 3.7x volume. It drifted six sessions, the hold day's low sat exactly on the 20 EMA, and it closed strong.",
@@ -2714,9 +2714,9 @@
    "q": "Where does the stop go?",
    "choices": [
     "Same stop, under the day's low",
-    "At breakeven the moment you buy",
-    "Just under the 200-day average",
-    "Under the 65-minute bar's low"
+    "At breakeven as you buy",
+    "Just under the 200-day line",
+    "Under the 65-minute low"
    ],
    "answer": "Same stop, under the day's low",
    "why": "The same stop. The advanced version buys an intraday trigger on the hold day itself. It keeps the same stop, a few cents under the day's low. Breakeven is a later step.",
@@ -2727,9 +2727,9 @@
     "x39"
    ],
    "wrong": {
-    "Just under the 200-day average": "That ignores the hold day's low.",
-    "At breakeven the moment you buy": "Breakeven comes from 2R, at the first trim by default.",
-    "Under the 65-minute bar's low": "The advanced version keeps the same stop, a few cents under the hold day's low, not the low of the trigger bar."
+    "At breakeven as you buy": "Breakeven comes from 2R, at the first trim by default.",
+    "Just under the 200-day line": "That ignores the hold day's low.",
+    "Under the 65-minute low": "The advanced version keeps the same stop, a few cents under the hold day's low, not the low of the trigger bar."
    },
    "house": true,
    "story": "You use the advanced version: you buy an intraday trigger on the hold day itself. Today the stock breaks its 65-minute high.",
@@ -3461,8 +3461,8 @@
    "choices": [
     "The 10% stretch rule",
     "The 4% chase limit",
-    "The 200-day line rule",
-    "The 3-session window"
+    "The 200-day rule",
+    "The 3-session rule"
    ],
    "answer": "The 10% stretch rule",
    "why": "The 10% stretch rule. A long more than 10% above its 10-day average is too stretched to buy. Here 103.00 is more than 10% above the 93.00 average. The fill is only a little over the 100.00 high, so the 4% chase limit passes. The stock is well above its 200-day, and the buy comes the next morning, inside the 3 sessions.",
@@ -3476,8 +3476,8 @@
    ],
    "wrong": {
     "The 4% chase limit": "The fill is a little over the trigger, so the chase limit passes. The stretch rule is the one that fails.",
-    "The 200-day line rule": "The stock sits well above its 200-day, so that rule passes.",
-    "The 3-session window": "The buy comes the next morning, one session after the hold day. That is inside the 3 sessions."
+    "The 200-day rule": "The stock sits well above its 200-day, so that rule passes.",
+    "The 3-session rule": "The buy comes the next morning, one session after the hold day. That is inside the 3 sessions."
    },
    "house": true,
    "simple": "The fill is more than 10% above the 10-day average, so the stretch rule says skip.",
@@ -3875,9 +3875,9 @@
    "q": "On our card, what does the index cue say about this trade?",
    "choices": [
     "It lowers the grade but does not block",
-    "It blocks the buy until the index heals",
-    "Nothing, only the stock's chart counts",
-    "Raises the grade, since the stock leads"
+    "It blocks the buy until index heals",
+    "Nothing, only the chart counts",
+    "Raises the grade, the stock leads"
    ],
    "answer": "It lowers the grade but does not block",
    "why": "It lowers the grade but does not block. On our card the index is a cue, not a gate. The cue is met when the Nasdaq is not below its 20-day EMA, or a market Wedge Pop has just happened. Neither is true here, so the grade drops. Kell himself trades less or smaller when the index is below its 20 EMA.",
@@ -3888,9 +3888,9 @@
     "e12"
    ],
    "wrong": {
-    "It blocks the buy until the index heals": "On our card the index is a cue, not a gate. It lowers the grade but does not block the buy.",
-    "Nothing, only the stock's chart counts": "The card lists the market under its 20-day EMA as a lower-grade cue. Kell also trades less in index corrections.",
-    "Raises the grade, since the stock leads": "The card lists the market under its 20-day EMA as a lower-grade cue. A market Wedge Pop is the cue that helps."
+    "It blocks the buy until index heals": "On our card the index is a cue, not a gate. It lowers the grade but does not block the buy.",
+    "Nothing, only the chart counts": "The card lists the market under its 20-day EMA as a lower-grade cue. Kell also trades less in index corrections.",
+    "Raises the grade, the stock leads": "The card lists the market under its 20-day EMA as a lower-grade cue. A market Wedge Pop is the cue that helps."
    },
    "house": true,
    "simple": "On our card a Nasdaq under its 20-day EMA lowers the grade but does not block the trade.",
@@ -4068,13 +4068,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story is too thin: it says only that the stock closed back over the 9 and 20 EMA eight sessions ago. Our own q09/q23 say one close back over the averages is only a pop setting up, and the Kell definition needs a strong move (volume). Without that, the stock might not have popped yet. Adding heavy volume (the card's own wording) to the story fixes it and ties the 20 EMA Pullback distractor to the story."
+   "notes": "Story is too thin: it says only that the stock closed back over the 9 and 20 EMA eight sessions ago. Our own q09/q23 say one close back over the averages is only a pop setting up, and the Kell definition needs a strong move (volume). Without that, the stock might not have popped yet. Adding heavy volume (the card's own wording) to the story fixes it and ties the 20 EMA Pullback distractor to the story.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",
@@ -4092,13 +4094,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -4176,7 +4180,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -4218,13 +4223,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -4254,7 +4261,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "pass",
@@ -4368,7 +4376,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q73": {
    "status": "pass",
@@ -4440,7 +4449,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Before looking at the key I got the same answer: x19 (card) says the index is 'a cue, not a gate', and x43 / grading.b_minus lists 'the market under its 20-day EMA' as a lower-grade cue. The story meets neither half of the cue, so the grade drops and nothing blocks. The key is right, there is no second defensible answer on the card's wording, the choices are 38-39 chars with no length or Yes/No tell, and the answer does not reuse the story's words. It conflicts with nothing in sizing_rule.md: B18/F65's market filter is the app's reading, a separate question (q35, q58). It answers no other live"
+   "notes": "Before looking at the key I got the same answer: x19 (card) says the index is 'a cue, not a gate', and x43 / grading.b_minus lists 'the market under its 20-day EMA' as a lower-grade cue. The story meets neither half of the cue, so the grade drops and nothing blocks. The key is right, there is no second defensible answer on the card's wording, the choices are 38-39 chars with no length or Yes/No tell, and the answer does not reuse the story's words. It conflicts with nothing in sizing_rule.md: B18/F65's market filter is the app's reading, a separate question (q35, q58). It answers no other live",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

@@ -1499,7 +1499,7 @@
    "choices": [
     "Members fell, more losses guided",
     "The EPS beat over the estimate",
-    "The slight revenue miss on sales",
+    "The slight revenue miss",
     "A currency gain inside the EPS"
    ],
    "answer": "Members fell, more losses guided",
@@ -1519,7 +1519,7 @@
    ],
    "wrong": {
     "The EPS beat over the estimate": "It's real, but it looks back. Members and the guide speak to what comes next.",
-    "The slight revenue miss on sales": "It missed, but only just: $7.87 billion against $7.93 billion. Variety tied the drop to the subscriber loss.",
+    "The slight revenue miss": "It missed, but only just: $7.87 billion against $7.93 billion. Variety tied the drop to the subscriber loss.",
     "A currency gain inside the EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way."
    },
    "simple": "Members fell with more losses guided, because member growth had long been a key number for Netflix.",
@@ -1933,7 +1933,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: members fell with more losses guided (f15, f12, f19, f22). Matches key. Changed wrong-notes are grounded: revenue $7.87B vs $7.93B (f14), Variety tied the drop to the subscriber loss (f22), $162M non-cash currency gain (f10), subscriber growth a key metric (f19). The currency-gain choice is not in the story; it was kept out on purpose (conflicts) and q01's why teaches it, so it stays."
+   "notes": "Own answer: members fell with more losses guided (f15, f12, f19, f22). Matches key. Changed wrong-notes are grounded: revenue $7.87B vs $7.93B (f14), Variety tied the drop to the subscriber loss (f22), $162M non-cash currency gain (f10), subscriber growth a key metric (f19). The currency-gain choice is not in the story; it was kept out on purpose (conflicts) and q01's why teaches it, so it stays.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

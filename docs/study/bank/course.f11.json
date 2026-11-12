@@ -1907,7 +1907,7 @@
     "A 5- or 15-minute intraday chart",
     "The daily chart, one bar a day",
     "Whichever chart looks cleanest",
-    "The weekly chart, one bar a week"
+    "The weekly chart, a bar a week"
    ],
    "kind": "mcq",
    "q": "You'll be in and out the same day, every trade. Which chart do you trade off?",
@@ -1969,7 +1969,7 @@
     "summary": "A day trader trades off charts like the 15-minute and times with the 5-minute. Day traders work off intraday charts, and it takes a lot of focus. A day trader owns a stock for seconds to minutes, inside one session. A day trade opens and closes in the same session. On a daily chart, each bar is one day. A long-term position trader could focus on the weekly chart. Position traders hold for weeks or months."
    },
    "facts": {
-    "given": "You'll be in and out the same day, every trade. Which chart do you trade off? A 5- or 15-minute intraday chart The daily chart, one bar a day The weekly chart, one bar a week Whichever chart looks cleanest"
+    "given": "You'll be in and out the same day, every trade. Which chart do you trade off? A 5- or 15-minute intraday chart The daily chart, one bar a day The weekly chart, a bar a week Whichever chart looks cleanest"
    },
    "lesson_line": "Your holding time picks the chart. Trades that last minutes need minute bars.",
    "simple": "A 5- or 15-minute chart, because a trade that lasts minutes to hours needs bars that short.",
@@ -1978,7 +1978,7 @@
    "why": "A 5- or 15-minute intraday chart. A day trade opens and closes in the same session, held for seconds, minutes or hours. Day traders use intraday charts for timely entries and exits. Investopedia's day trader trades off the 15-minute chart and reads the short-term trend on the 5-minute. A daily or weekly bar would hold the whole trade inside one bar. Longer charts still have a job: a 60-minute chart can set the day trader's trend.",
    "wrong": {
     "The daily chart, one bar a day": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
-    "The weekly chart, one bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes.",
+    "The weekly chart, a bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes.",
     "Whichever chart looks cleanest": "Your holding time picks the chart, not the picture. A clean daily or weekly setup can't time a trade that lasts minutes."
    }
   },
@@ -3059,8 +3059,8 @@
   "prompt_json": {
    "choices": [
     "$112, from last month's bar",
-    "$115, from yesterday's bar",
-    "$110, last month's midpoint",
+    "$115, yesterday's bar",
+    "$110, the midpoint",
     "$116, last month's close"
    ],
    "kind": "mcq",
@@ -3113,7 +3113,7 @@
      "fn": "arith",
      "result": 112.0
     },
-    "given": "By ChartSchool's rule, which base pivot fits your daily chart this month? You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115. $112, from last month's bar $115, from yesterday's bar $116, last month's close $110, last month's midpoint"
+    "given": "By ChartSchool's rule, which base pivot fits your daily chart this month? You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115. $112, from last month's bar $115, yesterday's bar $116, last month's close $110, the midpoint"
    },
    "lesson_line": "Your levels scale with your chart. A day trader's pivot doesn't fit a swing trader's clock.",
    "simple": "$112, because a daily chart's pivot comes from last month's high, low and close, not yesterday's.",
@@ -3121,8 +3121,8 @@
    "unit": "F11.02",
    "why": "$112, from last month's bar. On ChartSchool's rule, daily charts take their pivots from the prior month's high, low and close. Here that is (120 + 100 + 116) / 3 = 112. They stay fixed for the whole month. Yesterday's bar sets the pivots for 1- to 15-minute charts, so it would reset every day. The pivot is an average, never just the close.",
    "wrong": {
-    "$110, last month's midpoint": "That's halfway between the high and the low. The base pivot is the average of three numbers: the high, the low and the close.",
-    "$115, from yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
+    "$110, the midpoint": "That's halfway between the high and the low. The base pivot is the average of three numbers: the high, the low and the close.",
+    "$115, yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
     "$116, last month's close": "The pivot isn't the close. It's the average of the high, low and close."
    }
   },
@@ -3651,8 +3651,8 @@
   "prompt_json": {
    "choices": [
     "Buy, then set the stop tonight",
-    "Scalp the 1-minute chart all day",
-    "Trade VWAP bounces into the close",
+    "Scalp the 1-minute chart",
+    "Trade VWAP bounces to close",
     "Buy early with a stop, then hold"
    ],
    "kind": "mcq",
@@ -3726,7 +3726,7 @@
     "summary": "Our entries are market orders. Our rule C35: we swing trade, holding days to a few weeks, longer for a winner that keeps working. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Trading through the day takes a lot of time and constant attention. Day trading means watching the market all session long. Our rule D41: every position has a real stop order with the broker. A stop goes where the reason for the trade has failed. A true day trader is flat by the close, because prices can change sharply overnight."
    },
    "facts": {
-    "given": "Which plan fits your day? You can watch the first 30 minutes of the session. Then you're in meetings until the close. Buy early with a stop, then hold Scalp the 1-minute chart all day Trade VWAP bounces into the close Buy, then set the stop tonight"
+    "given": "Which plan fits your day? You can watch the first 30 minutes of the session. Then you're in meetings until the close. Buy early with a stop, then hold Scalp the 1-minute chart Trade VWAP bounces to close Buy, then set the stop tonight"
    },
    "lesson_line": "Pick an entry you can make in the time you have, then walk away.",
    "simple": "Buy early with a real stop in, then hold, because scalping and VWAP trades need you at the screen all day.",
@@ -3735,8 +3735,8 @@
    "why": "Buy early with a stop, then hold. Make the entry in the first 30 minutes, while you can watch, with a market order. Put the stop in with the broker as a real order. We swing trade: days to a few weeks, so the trade can run without you at the screen. Scalping and VWAP trading both need your eyes on the market all session. A day trade would also need you back before the close to get flat.",
    "wrong": {
     "Buy, then set the stop tonight": "The stop goes in with the entry. A stop marks where the trade has failed, and ours sits with the broker as a real order.",
-    "Scalp the 1-minute chart all day": "Scalping needs you at the screen all session. You're in meetings.",
-    "Trade VWAP bounces into the close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it."
+    "Scalp the 1-minute chart": "Scalping needs you at the screen all session. You're in meetings.",
+    "Trade VWAP bounces to close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it."
    }
   },
   "review_status": "draft",
@@ -4126,9 +4126,9 @@
   "prompt_json": {
    "choices": [
     "None: every part stays in the plan",
-    "The size, it's only for a few hours",
-    "The stop, since you'll be watching",
-    "The exit, you're out by the close"
+    "The size, it's only a few hours",
+    "The stop, you'll be watching",
+    "The exit, out by the close"
    ],
    "kind": "mcq",
    "q": "You move from swing trades to day trades. Which part of your trade plan can you drop?",
@@ -4197,7 +4197,7 @@
     "summary": "A day trader's plan still sets when to enter and exit, how much to risk and what to trade. Every trade is the same set of decisions: what, how much, when in, when out. Intraday trading needs strict money management, like any style. Every trader needs a written plan. In a fast market, a triggered sell stop can fill well below the stop price. A quick drop can trigger a stop, and the stock can then bounce right back. Shares are the dollars you'll risk divided by the distance from entry to stop. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None: every part stays in the plan The stop, since you'll be watching The size, it's only for a few hours The exit, you're out by the close"
+    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None: every part stays in the plan The stop, you'll be watching The size, it's only a few hours The exit, out by the close"
    },
    "lesson_line": "A shorter hold is no reason for a thinner plan.",
    "simple": "None of them, because a day trade still needs a stop, a size and an exit, just over less time.",
@@ -4205,9 +4205,9 @@
    "unit": "F11.03",
    "why": "None of them. Schwab's day-trading page says a day trader still plans when to enter and exit, how much to risk, and what to trade. Only the clock is shorter. Watching the screen is not a stop. Our rule is a real stop order with the broker, not one kept in your head. Being out by the close is a deadline, not an exit price.",
    "wrong": {
-    "The exit, you're out by the close": "The close is a deadline, not an exit plan. You still need the price that says you're wrong.",
-    "The size, it's only for a few hours": "Size is what caps the loss. Shares come from the dollars you'll risk over the distance to the stop.",
-    "The stop, since you'll be watching": "Watching isn't a stop. Our rule is a real stop order with the broker, and a fast market can fill below your price."
+    "The exit, out by the close": "The close is a deadline, not an exit plan. You still need the price that says you're wrong.",
+    "The size, it's only a few hours": "Size is what caps the loss. Shares come from the dollars you'll risk over the distance to the stop.",
+    "The stop, you'll be watching": "Watching isn't a stop. Our rule is a real stop order with the broker, and a fast market can fill below your price."
    }
   },
   "review_status": "draft",
@@ -4993,9 +4993,9 @@
   "prompt_json": {
    "choices": [
     "Whether to sit through reports",
-    "Nothing extra, the stop covers it",
-    "Which hourly bar you'll buy on",
-    "Where the first 10-minute low is"
+    "Nothing, the stop covers it",
+    "Which hourly bar to buy on",
+    "The first 10-minute low"
    ],
    "kind": "mcq",
    "q": "What must this plan cover that a day trade plan can skip?",
@@ -5107,7 +5107,7 @@
     "summary": "US public companies file an annual report (10-K) and quarterly reports (10-Q). A 10-Q is filed for each of the first three quarters; the 10-K covers the year, so a report comes every quarter. Holding for days or weeks exposes a swing trade to gaps at the open from news after hours. A gap between sessions can carry the price past a stop. A gap at the open can fill a stop away from its price and cost more than planned. Fidelity's example: the stock was trading at 96 the night before. After an overnight earnings gap, the stop sold near 90. Gap risk: the stop was at 95, and a gap down meant no fill at 95. A day trade is opened and closed on the same day. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. A stop some traders use on a trade near the open: under the low of the first 10 minutes. Our rule: no new buys in the 3 days before earnings, and hold through a report only when up 5R. A tight stop never justifies a position over our cap, because a gap can jump the stop. Every trade is the same set of decisions: what, how much, when in, when out."
    },
    "facts": {
-    "given": "What must this plan cover that a day trade plan can skip? You plan a position trade in a US company's stock. You expect to hold it for about six months. Whether to sit through reports Where the first 10-minute low is Which hourly bar you'll buy on Nothing extra, the stop covers it"
+    "given": "What must this plan cover that a day trade plan can skip? You plan a position trade in a US company's stock. You expect to hold it for about six months. Whether to sit through reports The first 10-minute low Which hourly bar to buy on Nothing, the stop covers it"
    },
    "lesson_line": "A long hold sits through quarterly reports. Decide what you'll do at each one before you buy.",
    "simple": "Whether to sit through reports, because a six-month hold spans reports that can gap the stock past your stop.",
@@ -5115,9 +5115,9 @@
    "unit": "F11.03",
    "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
    "wrong": {
-    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap.",
-    "Where the first 10-minute low is": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
-    "Which hourly bar you'll buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock."
+    "Nothing, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap.",
+    "The first 10-minute low": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
+    "Which hourly bar to buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock."
    }
   },
   "review_status": "draft",
@@ -5764,10 +5764,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A new style picked for each trade",
+    "A new style for each trade",
     "Day trades, closed by the bell",
     "Swing trades: days to a few weeks",
-    "Position trades held up to a year"
+    "Position trades up to a year"
    ],
    "kind": "mcq",
    "q": "By our own rule, which style do our trades use?",
@@ -5801,7 +5801,7 @@
     "summary": "Our style: we swing trade, days to a few weeks; a winner can be held longer while it keeps working. A day trade is opened and closed on the same day. The order: find the setup, put the stop where the idea fails, measure the distance, size last."
    },
    "facts": {
-    "given": "By our own rule, which style do our trades use? Swing trades: days to a few weeks Day trades, closed by the bell Position trades held up to a year A new style picked for each trade"
+    "given": "By our own rule, which style do our trades use? Swing trades: days to a few weeks Day trades, closed by the bell Position trades up to a year A new style for each trade"
    },
    "lesson_line": "We swing trade: days to a few weeks, longer only while a winner keeps working.",
    "simple": "Swing trades, because our rule is to hold for days to a few weeks, longer only while a winner keeps working.",
@@ -5809,9 +5809,9 @@
    "unit": "F11.03",
    "why": "Swing trades. Our rule: we swing trade, holding for days to a few weeks. A winner can be held longer while it keeps working. The steps in this unit still run the same way in any style.",
    "wrong": {
-    "A new style picked for each trade": "Our rule names one style. We swing trade, and a winner can be held longer while it keeps working.",
+    "A new style for each trade": "Our rule names one style. We swing trade, and a winner can be held longer while it keeps working.",
     "Day trades, closed by the bell": "A day trade opens and closes the same day. Our rule is to swing trade, for days to a few weeks.",
-    "Position trades held up to a year": "Our rule says days to a few weeks. A winner may run longer, but only while it keeps working."
+    "Position trades up to a year": "Our rule says days to a few weeks. A winner may run longer, but only while it keeps working."
    }
   },
   "review_status": "draft",
@@ -6283,9 +6283,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The setup with the best win rate",
-    "Whatever top traders are using",
-    "A corner of little-known stocks",
+    "The best win-rate setup",
+    "What top traders use",
+    "A corner of obscure stocks",
     "Edge that fits your strengths"
    ],
    "kind": "mcq",
@@ -6337,7 +6337,7 @@
     "summary": "Bellafiore: find a niche that has edge and plays to your personality and the way you think. A niche is work that uses your talents and skills and also your deepest values and interests. Tharp: finding a trading system that fits you personally is one of the biggest secrets of successful trading. Tharp's example makes money even though 99% of its trades lose: the one winner is big. Copying your trading heroes is a good way to lose money."
    },
    "facts": {
-    "given": "SMB's Mike Bellafiore says to find your trading niche. What does he mean by a niche? Edge that fits your strengths The setup with the best win rate Whatever top traders are using A corner of little-known stocks"
+    "given": "SMB's Mike Bellafiore says to find your trading niche. What does he mean by a niche? Edge that fits your strengths The best win-rate setup What top traders use A corner of obscure stocks"
    },
    "lesson_line": "Your niche is where real edge meets the way you think.",
    "simple": "Edge that fits your strengths, because Bellafiore's niche has real edge and plays to your personality and the way you think.",
@@ -6345,9 +6345,9 @@
    "unit": "F11.04",
    "why": "Edge that fits your strengths. Bellafiore says find a niche that has edge and plays to your personality and the way you think. Coach Brett Steenbarger agrees on the fit half: a niche uses your talents and skills plus your deepest values and interests. Tharp calls finding a system that fits you personally one of the biggest secrets of successful trading. A niche here is not an obscure corner of the market.",
    "wrong": {
-    "A corner of little-known stocks": "Niche here isn't an obscure market. Bellafiore means a way of trading with edge that plays to how you think.",
-    "The setup with the best win rate": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
-    "Whatever top traders are using": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money."
+    "A corner of obscure stocks": "Niche here isn't an obscure market. Bellafiore means a way of trading with edge that plays to how you think.",
+    "The best win-rate setup": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
+    "What top traders use": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money."
    }
   },
   "review_status": "draft",
@@ -6687,9 +6687,9 @@
   "prompt_json": {
    "choices": [
     "Quit your job to day trade",
-    "Whatever made money last month",
+    "Whatever worked last month",
     "Swing trades planned at night",
-    "Day trading the open from work"
+    "Day trade the open at work"
    ],
    "kind": "mcq",
    "q": "Which lane fits your life right now?",
@@ -6745,7 +6745,7 @@
     "summary": "Swing trading takes less time than day trading because positions are held for days to weeks. FINRA says intraday trading takes a lot of time and continuous attention to your positions and the market. Day trading means watching the market all day long. Swing trading is flexible but carries overnight and weekend risk. New day traders typically lose heavily in their first months, and many never become profitable. Never day trade with money you need to live on, retirement money, a second mortgage or student loans."
    },
    "facts": {
-    "given": "Which lane fits your life right now? You love fast trades and quick decisions. But you work 9 to 5, with no screen during market hours. Your evenings are free. Swing trades planned at night Day trading the open from work Quit your job to day trade Whatever made money last month"
+    "given": "Which lane fits your life right now? You love fast trades and quick decisions. But you work 9 to 5, with no screen during market hours. Your evenings are free. Swing trades planned at night Day trade the open at work Quit your job to day trade Whatever worked last month"
    },
    "lesson_line": "Your schedule picks the lane before your taste does.",
    "simple": "Swing trades planned at night fit, because you can't watch the market at work, and swing trades need less screen time.",
@@ -6753,9 +6753,9 @@
    "unit": "F11.04",
    "why": "Swing trades planned at night. Your clock decides before your taste does. FINRA says intraday trading needs continuous attention, and you can't give that at work. Swing trades are held for a few days to several weeks, so they take less screen time. The trade-off is overnight and weekend risk. Your love of fast trades doesn't change your hours.",
    "wrong": {
-    "Day trading the open from work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
+    "Day trade the open at work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
     "Quit your job to day trade": "Don't bet your living on it. The SEC says new day traders typically lose heavily in their first months. It also says never day trade with money you need to live on.",
-    "Whatever made money last month": "Someone's last month says nothing about your hours. Start from your schedule."
+    "Whatever worked last month": "Someone's last month says nothing about your hours. Start from your schedule."
    }
   },
   "review_status": "draft",
@@ -6966,10 +6966,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "After two or three big wins in a row",
-    "When you feel really sure about it",
+    "After two or three big wins",
+    "When you feel sure about it",
     "After your logged trades prove it",
-    "When a mentor you trust swears by it"
+    "When a mentor swears by it"
    ],
    "kind": "mcq",
    "q": "When has a setup earned a bigger size from you?",
@@ -7031,7 +7031,7 @@
     "summary": "Size up only after months, not days, of consistent, profitable trading of that strategy. Bellafiore: size up on the setups that measure well in live trading. An SMB trader earned more buying power on his favourite setup by showing his stats for it. Small samples give jumpy, unreliable results. Learn from others, then build your own trading identity on your skills and risk tolerance. Our rule C37: new traders risk 0.25% a trade until 50 journaled trades followed the rules. Our rule D45: never raise risk past the rules after a run of winners."
    },
    "facts": {
-    "given": "When has a setup earned a bigger size from you? After your logged trades prove it After two or three big wins in a row When you feel really sure about it When a mentor you trust swears by it"
+    "given": "When has a setup earned a bigger size from you? After your logged trades prove it After two or three big wins When you feel sure about it When a mentor swears by it"
    },
    "lesson_line": "Size follows proof. Your own logged numbers earn bigger size, inside our rules.",
    "simple": "After your own logged trades prove the setup, because a few wins or a feeling is too small a sample.",
@@ -7039,9 +7039,9 @@
    "unit": "F11.04",
    "why": "After your logged trades prove it. Tharp says ramp up size only once you've traded a strategy consistently and profitably over months, not days. Bellafiore says increase risk on setups that measure well in real time. Our rules add limits. A new trader stays at 0.25% risk until 50 journaled trades followed the rules. Never raise risk past the rules after a run of winners. Two or three wins is a tiny sample, and small samples give unreliable results.",
    "wrong": {
-    "After two or three big wins in a row": "Two or three trades is a tiny sample, and small samples give unreliable results. Our rule: never raise risk past the rules after a run of winners.",
-    "When a mentor you trust swears by it": "His record isn't yours. Learn from others, then build your own trading identity on your skills and risk tolerance.",
-    "When you feel really sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence."
+    "After two or three big wins": "Two or three trades is a tiny sample, and small samples give unreliable results. Our rule: never raise risk past the rules after a run of winners.",
+    "When a mentor swears by it": "His record isn't yours. Learn from others, then build your own trading identity on your skills and risk tolerance.",
+    "When you feel sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence."
    }
   },
   "review_status": "draft",
@@ -7594,10 +7594,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Check only if the account is down",
+    "Check only if you're down",
     "Review only the losing trades",
     "Review win rate, R and expectancy",
-    "Wait until a losing streak shows"
+    "Wait for a losing streak"
    ],
    "kind": "mcq",
    "q": "What does our rulebook have you do with your numbers now?",
@@ -7653,7 +7653,7 @@
     "summary": "Our rule E59: each month, review win rate, average win and loss in R, and expectancy. Expectancy is the average R per trade. Bellafiore: tag and measure your trades; keep score. After a streak, check whether you're net up or down, then look for patterns in your wins and losses. Study your best trades, and how you won them, to see what you do well. Bellafiore: size up on the setups that measure well in live trading."
    },
    "facts": {
-    "given": "What does our rulebook have you do with your numbers now? You tag every trade by setup in your journal. A new month has just begun. Review win rate, R and expectancy Wait until a losing streak shows Check only if the account is down Review only the losing trades"
+    "given": "What does our rulebook have you do with your numbers now? You tag every trade by setup in your journal. A new month has just begun. Review win rate, R and expectancy Wait for a losing streak Check only if you're down Review only the losing trades"
    },
    "lesson_line": "Each month, review the numbers: win rate, average win and loss in R, and expectancy.",
    "simple": "Review win rate, R and expectancy, because our rule is to review the numbers each month.",
@@ -7661,9 +7661,9 @@
    "unit": "F11.04",
    "why": "Review win rate, R and expectancy. Our rule: each month, review the numbers, including win rate, average win and loss in R, and expectancy. Expectancy is the average R per trade. Bellafiore says tag and measure your trades, and keep score. Schwab says look for patterns in both your wins and your losses.",
    "wrong": {
-    "Check only if the account is down": "Our rule sets the review each month, up or down. Bellafiore increases risk on setups that measure well, so winners need measuring too.",
+    "Check only if you're down": "Our rule sets the review each month, up or down. Bellafiore increases risk on setups that measure well, so winners need measuring too.",
     "Review only the losing trades": "That's half the picture. Steenbarger says study your best trades to see what you do well.",
-    "Wait until a losing streak shows": "Our rule sets the review each month, streak or not. Schwab says look for patterns in your wins and your losses."
+    "Wait for a losing streak": "Our rule sets the review each month, streak or not. Schwab says look for patterns in your wins and your losses."
    }
   },
   "review_status": "draft",
@@ -7931,9 +7931,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Mostly in the hours after the close",
-    "About evenly all through the day",
-    "Mostly in the middle of the session",
+    "Mostly in the hours after close",
+    "About evenly all day long",
+    "Mostly in the middle of the day",
     "Near the open and near the close"
    ],
    "kind": "mcq",
@@ -7982,7 +7982,7 @@
     "summary": "Volume is usually heavy early, slows at midday, and grows again near the close. The first and last hours are the busiest; the middle of the day tends to be the calmest. A Journal of Finance model matches the known empirical findings: busier trading around the open and the close, and U-shaped volatility through the day. The intraday volume shape is a tendency, and exceptions can happen any day. After hours, thinner trading usually means wider spreads, or no quote at all."
    },
    "facts": {
-    "given": "On a normal day, when do the most shares trade? Near the open and near the close About evenly all through the day Mostly in the middle of the session Mostly in the hours after the close"
+    "given": "On a normal day, when do the most shares trade? Near the open and near the close About evenly all day long Mostly in the middle of the day Mostly in the hours after close"
    },
    "lesson_line": "Busy early, quiet midday, busy late. The trading day has a shape.",
    "simple": "Most shares usually trade near the open and near the close, while the middle of the day tends to be quiet.",
@@ -7990,9 +7990,9 @@
    "unit": "F11.05",
    "why": "Near the open and near the close. Volume is usually heavy early, slows at midday, and builds again into the close. This is a tendency, and exceptions can happen any day. After the close, trading interest drops, and spreads usually widen.",
    "wrong": {
-    "About evenly all through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
-    "Mostly in the hours after the close": "After the close, trading interest drops. Extended hours usually bring wider spreads, or no quote at all.",
-    "Mostly in the middle of the session": "Midday is the quiet stretch. The action slows there, then picks up again late."
+    "About evenly all day long": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
+    "Mostly in the hours after close": "After the close, trading interest drops. Extended hours usually bring wider spreads, or no quote at all.",
+    "Mostly in the middle of the day": "Midday is the quiet stretch. The action slows there, then picks up again late."
    }
   },
   "review_status": "draft",
@@ -9244,9 +9244,9 @@
   "prompt_json": {
    "choices": [
     "Act on the close, if it still holds",
-    "Wait and buy Monday's open instead",
-    "Skip it, Fridays are bad days to buy",
-    "Buy now, it's already over the line"
+    "Wait and buy Monday's open",
+    "Skip it, Fridays are bad to buy",
+    "Buy now, it's over the line"
    ],
    "kind": "mcq",
    "q": "What does our plan say to do?",
@@ -9305,7 +9305,7 @@
     "summary": "Our Slingshot plan enters on the close back over the 4-day average of the highs. The last 10 to 15 minutes can help show whether the day's move holds or reverses. Reversals in the final hour can be severe. The weekend effect, among other famous anomalies, weakened or disappeared after it was published. Trading by the day of the week gains nothing, all else equal. News that breaks outside trading hours can unbalance orders and make a stock open far from the prior close."
    },
    "facts": {
-    "given": "What does our plan say to do? Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend. Act on the close, if it still holds Buy now, it's already over the line Skip it, Fridays are bad days to buy Wait and buy Monday's open instead"
+    "given": "What does our plan say to do? Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend. Act on the close, if it still holds Buy now, it's over the line Skip it, Fridays are bad to buy Wait and buy Monday's open"
    },
    "lesson_line": "A level crossed at 3:45 isn't a close. Let the close decide.",
    "simple": "Wait for the close and buy only if it still holds over the line, because our Slingshot enters on the close.",
@@ -9313,9 +9313,9 @@
    "unit": "F11.05",
    "why": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. A move can still reverse in the final minutes. The last 10 to 15 minutes can help show whether it holds. Friday is not a reason to skip: no weekday has an edge on its own.",
    "wrong": {
-    "Buy now, it's already over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
-    "Skip it, Fridays are bad days to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
-    "Wait and buy Monday's open instead": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
+    "Buy now, it's over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
+    "Skip it, Fridays are bad to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
+    "Wait and buy Monday's open": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
    }
   },
   "review_status": "draft",
@@ -9521,9 +9521,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Wait until the first half hour ends",
-    "Skip it, since the open is too wild",
-    "Buy now, set the stop once it calms",
+    "Wait out the first half hour",
+    "Skip it, the open is too wild",
+    "Buy now, set stop once it calms",
     "Buy now, with the stop and size set"
    ],
    "kind": "mcq",
@@ -9562,7 +9562,7 @@
     "summary": "Our rulebook has no time-of-day rule. Our rule: every planned buy has its entry, stop and size written down before the market opens. The open and the close are the most volatile, active hours, and the 9:30 a.m. open absorbs all the news since the prior close."
    },
    "facts": {
-    "given": "What do our rules say to do? At 9:34 a.m., a stock on your focus list hits its planned entry. The open is swinging hard today. Buy now, with the stop and size set Wait until the first half hour ends Skip it, since the open is too wild Buy now, set the stop once it calms"
+    "given": "What do our rules say to do? At 9:34 a.m., a stock on your focus list hits its planned entry. The open is swinging hard today. Buy now, with the stop and size set Wait out the first half hour Skip it, the open is too wild Buy now, set stop once it calms"
    },
    "lesson_line": "We have no time-of-day rule. The planned entry decides, not the clock.",
    "simple": "Buy now, because our rulebook has no time-of-day rule and your written plan is the trigger.",
@@ -9570,9 +9570,9 @@
    "unit": "F11.05",
    "why": "Buy now, with the stop and size set. Our rulebook has no time-of-day rule. Every planned buy has its entry, stop and size written before the open. The open tends to swing hardest, but the clock is not the trigger.",
    "wrong": {
-    "Buy now, set the stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
-    "Skip it, since the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
-    "Wait until the first half hour ends": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger."
+    "Buy now, set stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
+    "Skip it, the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
+    "Wait out the first half hour": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger."
    }
   },
   "review_status": "draft",

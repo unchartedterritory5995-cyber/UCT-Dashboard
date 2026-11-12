@@ -1159,13 +1159,13 @@
    "criterion": "wp.averages",
    "q": "Which pair of averages does Kell's cycle of price revolve around?",
    "choices": [
-    "The 10 and 20-day EMAs",
+    "The 10-day and 20-day EMAs",
     "The 50 and 200-day SMAs",
     "The 20 and 100-day SMAs",
     "The 8 and 21-day EMAs"
    ],
-   "answer": "The 10 and 20-day EMAs",
-   "why": "The 10 and 20-day EMAs. Kell's cycle revolves around them, and they guide the intermediate trend. The 50 and 200-day simple averages track the longer trend. We name the 10 and 20 here only as Kell's own pair.",
+   "answer": "The 10-day and 20-day EMAs",
+   "why": "The 10-day and 20-day EMAs. Kell's cycle revolves around them, and they guide the intermediate trend. The 50 and 200-day simple averages track the longer trend. We name the 10 and 20 here only as Kell's own pair.",
    "lesson_line": "Kell's cycle lives on two short exponential averages. The slow lines are for the bigger trend.",
    "facts": [
     "y04",
@@ -1322,9 +1322,9 @@
    "q": "In Kell's words, what does a Wedge Pop signal?",
    "choices": [
     "A bottom and a new uptrend",
-    "A top and a new downtrend",
-    "A pause inside a downtrend",
-    "A gap the stock must fill"
+    "A top and new downtrend",
+    "A pause in a downtrend",
+    "A gap it must fill"
    ],
    "answer": "A bottom and a new uptrend",
    "why": "A bottom and a new uptrend. Kell's page says the Wedge Pop signals that a stock has bottomed and is starting a new uptrend. His QQQ pop confirmed the low that way. It signals the turn. It does not promise how far the move runs.",
@@ -1336,9 +1336,9 @@
     "c35"
    ],
    "wrong": {
-    "A pause inside a downtrend": "A pause under the averages is the base that comes before the pop. The pop is the break out of it, and Kell says it signals a bottom.",
-    "A top and a new downtrend": "That is the Wedge Drop, the mirror. The pop starts an up-cycle.",
-    "A gap the stock must fill": "The pop signals a turn, not a gap to fill. Kell says most powerful pops start with gaps."
+    "A top and new downtrend": "That is the Wedge Drop, the mirror. The pop starts an up-cycle.",
+    "A pause in a downtrend": "A pause under the averages is the base that comes before the pop. The pop is the break out of it, and Kell says it signals a bottom.",
+    "A gap it must fill": "The pop signals a turn, not a gap to fill. Kell says most powerful pops start with gaps."
    },
    "simple": "Kell says a Wedge Pop signals that a stock has bottomed and is starting a new uptrend.",
    "tier": "core",
@@ -1946,9 +1946,9 @@
    "q": "Buy?",
    "choices": [
     "No, a report is too close",
-    "Yes, the setup is complete",
-    "Yes, but only at half size",
-    "No, it needs a gap up first"
+    "Yes, the setup is done",
+    "Yes, but at half size",
+    "No, it needs a gap up"
    ],
    "answer": "No, a report is too close",
    "why": "No. We take no new buy in the 3 days before an earnings report, and this one comes out tonight. The chart is not the question. MU in March 2022 popped, reported that evening, and the next day's low of 78.60 went through the 79.21 stop.",
@@ -1962,9 +1962,9 @@
     "c09"
    ],
    "wrong": {
-    "Yes, the setup is complete": "A complete setup still waits for the calendar. No new buys in the 3 days before a report.",
-    "Yes, but only at half size": "Size does not fix it. The rule is no new buys in the 3 days before a report.",
-    "No, it needs a gap up first": "A gap helps, but a pop does not need one. The reason to wait here is the report."
+    "Yes, the setup is done": "A complete setup still waits for the calendar. No new buys in the 3 days before a report.",
+    "Yes, but at half size": "Size does not fix it. The rule is no new buys in the 3 days before a report.",
+    "No, it needs a gap up": "A gap helps, but a pop does not need one. The reason to wait here is the report."
    },
    "house": true,
    "story": "A stock trades through its pivot on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
@@ -2186,8 +2186,8 @@
    "q": "Take it or pass?",
    "choices": [
     "Pass, it is under the 200-day",
-    "Take it, the base looks clean",
-    "Take it, but only at half size",
+    "Take it, the base is clean",
+    "Take it, but at half size",
     "Pass, the base is too short"
    ],
    "answer": "Pass, it is under the 200-day",
@@ -2201,8 +2201,8 @@
     "c05"
    ],
    "wrong": {
-    "Take it, the base looks clean": "A clean base under the 200-day is still under the 200-day. That rule is hard.",
-    "Take it, but only at half size": "A hard rule has no half size. Under the 200-day there is no long.",
+    "Take it, the base is clean": "A clean base under the 200-day is still under the 200-day. That rule is hard.",
+    "Take it, but at half size": "A hard rule has no half size. Under the 200-day there is no long.",
     "Pass, the base is too short": "A 6-day base is longer than the 3-session minimum on our card. The base was fine. The 200-day line is the problem."
    },
    "house": true,
@@ -2581,9 +2581,9 @@
    "q": "What now?",
    "choices": [
     "The stop stays; it is the exit",
-    "Lower the stop to give it room",
-    "Buy more as it nears the stop",
-    "Raise the stop to breakeven now"
+    "Lower the stop for more room",
+    "Buy more near the stop",
+    "Raise the stop to breakeven"
    ],
    "answer": "The stop stays; it is the exit",
    "why": "The stop stays. A close back under the pop day's low means the pop failed. The stop is just under that low anyway, so it is already doing its job. Breakeven comes later, between 2R and 5R, at the first trim.",
@@ -2596,9 +2596,9 @@
     "h30"
    ],
    "wrong": {
-    "Lower the stop to give it room": "Our stop is the exit. It only moves up, never down or wider.",
-    "Buy more as it nears the stop": "No adding. We take the full size at one price with one stop.",
-    "Raise the stop to breakeven now": "Our default moves the stop to breakeven between 2R and 5R, at the first trim. A stop at 40.00 sits above today's close of 39.15 and would fire at once."
+    "Lower the stop for more room": "Our stop is the exit. It only moves up, never down or wider.",
+    "Buy more near the stop": "No adding. We take the full size at one price with one stop.",
+    "Raise the stop to breakeven": "Our default moves the stop to breakeven between 2R and 5R, at the first trim. A stop at 40.00 sits above today's close of 39.15 and would fire at once."
    },
    "house": true,
    "story": "You bought a pop at 40.00, stop 39.10. Two days later it closes at 39.15, under the pop day's low and five cents over your stop.",
@@ -2658,9 +2658,9 @@
    "q": "What kind of loss was it?",
    "choices": [
     "A planned loss, the plan working",
-    "A mistake: the stop was too wide",
-    "A signal to widen stops next time",
-    "Proof that the setup does not work"
+    "A mistake: stop was too wide",
+    "A sign to widen stops",
+    "Proof the setup does not work"
    ],
    "answer": "A planned loss, the plan working",
    "why": "A planned loss. The honest stop was 4.7% below the fill, wider than about 3%, so our rule is a smaller position or a pass. You took the smaller size. The pop came on 1.24 times the base days' volume, so it passed our volume test, and the stop did its job.",
@@ -2674,9 +2674,9 @@
     "h02"
    ],
    "wrong": {
-    "A mistake: the stop was too wide": "The rule for a wide stop is a smaller position or a pass, and you took the smaller position. A wide stop is not banned.",
-    "A signal to widen stops next time": "A stop never moves wider, and a wide honest stop already means a smaller size.",
-    "Proof that the setup does not work": "One loss at the stop proves nothing about the setup. A valid pop can fail, and then the stop does its job."
+    "A mistake: stop was too wide": "The rule for a wide stop is a smaller position or a pass, and you took the smaller position. A wide stop is not banned.",
+    "A sign to widen stops": "A stop never moves wider, and a wide honest stop already means a smaller size.",
+    "Proof the setup does not work": "One loss at the stop proves nothing about the setup. A valid pop can fail, and then the stop does its job."
    },
    "house": true,
    "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
@@ -2862,8 +2862,8 @@
    "q": "Weeks after the pop, you still hold part of the position. The stock runs far above its averages in a climax. What do we do?",
    "choices": [
     "Sell a big part into the run",
-    "Sell it all at the first sign",
-    "Add more, it is strongest now",
+    "Sell it all at first sign",
+    "Add more, it is strong now",
     "Hold it; the trail decides"
    ],
    "answer": "Sell a big part into the run",
@@ -2876,8 +2876,8 @@
     "h30"
    ],
    "wrong": {
-    "Sell it all at the first sign": "Our rule is a big part, not all. The rest stays on the trail.",
-    "Add more, it is strongest now": "No adding. We take the full size at one price with one stop.",
+    "Sell it all at first sign": "Our rule is a big part, not all. The rest stays on the trail.",
+    "Add more, it is strong now": "No adding. We take the full size at one price with one stop.",
     "Hold it; the trail decides": "The trail sells on a close under the 10-day or 21-day average. In a climax the stock sits far above it, so the trail would act only after the top."
    },
    "house": true,
@@ -3419,13 +3419,13 @@
    "criterion": "wp.market_reading",
    "q": "What is the most you would risk on it?",
    "choices": [
-    "1.5%, sized up",
+    "1.5%, sized up for A+",
     "1%, normal size",
     "2%, the ceiling",
     "0.5%, sized down"
    ],
-   "answer": "1.5%, sized up",
-   "why": "1.5%, sized up. An A+ setup risks 1% to 1.5%, and a Green market allows full risk per grade. 1.5% is the most any grade uses, and 2% is the absolute ceiling. The position cap can still shrink the shares.",
+   "answer": "1.5%, sized up for A+",
+   "why": "1.5%, sized up for A+. An A+ setup risks 1% to 1.5%, and a Green market allows full risk per grade. 1.5% is the most any grade uses, and 2% is the absolute ceiling. The position cap can still shrink the shares.",
    "lesson_line": "Grade sets the size. A+ in a Green market is where I lean in, inside the ceiling.",
    "facts": [
     "h32",
@@ -3435,9 +3435,9 @@
     "h03"
    ],
    "wrong": {
-    "0.5%, sized down": "Sizing down is for B- or lower. This one is A+.",
     "1%, normal size": "1% is the low end of the A+ band and the top of A and B. An A+ is sized up to 1.5%.",
-    "2%, the ceiling": "2% is the absolute ceiling for any trade, but 1.5% is the most any grade uses."
+    "2%, the ceiling": "2% is the absolute ceiling for any trade, but 1.5% is the most any grade uses.",
+    "0.5%, sized down": "Sizing down is for B- or lower. This one is A+."
    },
    "house": true,
    "story": "An A+ pop in a Green market: a gap through the pivot after the index's own low, on heavy volume.",
@@ -3758,7 +3758,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c19, A13, A4, d20/d21; 41% and 13-day verified in the dossier COIN row). Defect: the why says 'volume grades a pop and does not gate it', which contradicts q34 and the card's wp.inv_no_volume (a pop on volume no higher than the base days is invalid, a gate). Here 1.24x passes that test, so say that instead. The key still rests on D-006 option (a); keep depends_on D-006 (under 1.05x or 1.5x the 50-day, COIN would not qualify). Mild tell: the key is the lone positive framing against three negatives; left as is."
+   "notes": "Key right (c19, A13, A4, d20/d21; 41% and 13-day verified in the dossier COIN row). Defect: the why says 'volume grades a pop and does not gate it', which contradicts q34 and the card's wp.inv_no_volume (a pop on volume no higher than the base days is invalid, a gate). Here 1.24x passes that test, so say that instead. The key still rests on D-006 option (a); keep depends_on D-006 (under 1.05x or 1.5x the 50-day, COIN would not qualify). Mild tell: the key is the lone positive framing against three negatives; left as is.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "cut",
@@ -3794,7 +3795,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E49 and A1 (h33/h34): A+ is 1% to 1.5%, 1.5% is the most any grade uses, 2% the ceiling. Pass."
+   "notes": "E49 and A1 (h33/h34): A+ is 1% to 1.5%, 1.5% is the most any grade uses, 2% the ceiling. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -3854,7 +3856,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -3914,7 +3917,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "upgraded wave2; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -3980,7 +3984,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from p03/y04; the 8 and 21 choice is a real near-miss and Kell's pair is the 10 and 20. Lengths even. D-021 dependency kept."
+   "notes": "Key from p03/y04; the 8 and 21 choice is a real near-miss and Kell's pair is the 10 and 20. Lengths even. D-021 dependency kept.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -4010,7 +4015,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k01/w04 support key; wrong notes cited (c35, k11). D-077 dependency recorded. Pass."
+   "notes": "k01/w04 support key; wrong notes cited (c35, k11). D-077 dependency recorded. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -4064,7 +4070,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q29": {
    "status": "pass",
@@ -4082,7 +4089,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",

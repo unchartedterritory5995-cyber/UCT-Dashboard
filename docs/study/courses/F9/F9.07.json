@@ -1171,9 +1171,9 @@
    "q": "When can you sell ABC without a good faith violation?",
    "choices": [
     "Once XYZ's sale has settled",
-    "Right away, XYZ already sold",
-    "Only after you add new cash",
-    "After Monday's market close"
+    "Right away, XYZ is sold",
+    "Only after you add cash",
+    "After Monday's close"
    ],
    "answer": "Once XYZ's sale has settled",
    "why": "Once XYZ's sale has settled. You paid for ABC with XYZ's sale cash, and that cash settles the next business day. Sell ABC before then and you've sold a stock bought with unsettled money. That is a good faith violation. Fidelity's example matches: XYZ sold Monday settles Tuesday, and selling ABC before Tuesday is a violation.",
@@ -1185,9 +1185,9 @@
     "f39"
    ],
    "wrong": {
-    "Right away, XYZ already sold": "Sold isn't settled. XYZ's cash settles the next business day, not when the sale fills.",
-    "Only after you add new cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
-    "After Monday's market close": "The close isn't settlement. Under T+1, XYZ's sale settles the next business day, Tuesday, not at Monday's close."
+    "Right away, XYZ is sold": "Sold isn't settled. XYZ's cash settles the next business day, not when the sale fills.",
+    "Only after you add cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
+    "After Monday's close": "The close isn't settlement. Under T+1, XYZ's sale settles the next business day, Tuesday, not at Monday's close."
    },
    "simple": "Wait until the XYZ sale settles, because ABC was bought with that sale's cash and selling sooner is a good faith violation.",
    "tier": "extended",
@@ -1246,9 +1246,9 @@
    "q": "What does the new rule check?",
    "choices": [
     "Equity against positions all day",
-    "Day trades counted over five days",
-    "A $25,000 minimum balance to trade",
-    "Nothing, day trading is unlimited"
+    "Day trades over five days",
+    "A $25,000 minimum balance",
+    "Nothing, trading is unlimited"
    ],
    "answer": "Equity against positions all day",
    "why": "Your equity against your positions during the trading day. The new rule has no pattern day trader count and no $25,000 minimum. If your equity falls short of your open positions, you have an intraday margin deficit to cover as promptly as possible. Keep failing to cover them and the account can be restricted for up to 90 days.",
@@ -1260,9 +1260,9 @@
     "f08"
    ],
    "wrong": {
-    "Day trades counted over five days": "That was the old pattern day trader count. The new rule has no trade count.",
-    "A $25,000 minimum balance to trade": "The new rule has no $25,000 minimum for day trading.",
-    "Nothing, day trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
+    "Day trades over five days": "That was the old pattern day trader count. The new rule has no trade count.",
+    "A $25,000 minimum balance": "The new rule has no $25,000 minimum for day trading.",
+    "Nothing, trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
    },
    "simple": "The new rule requires your equity to cover your open positions during the day, with no trade count and no $25,000 minimum.",
    "tier": "extended",
@@ -1514,9 +1514,9 @@
    "q": "What's the best use of your account now?",
    "choices": [
     "More cash, build a watch list",
-    "Go all cash and stop watching",
-    "Borrow on margin to buy the dip",
-    "Size up to win the losses back"
+    "Go to cash, stop watching",
+    "Borrow to buy the dip",
+    "Size up to win losses back"
    ],
    "answer": "More cash, build a watch list",
    "why": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
@@ -1533,9 +1533,9 @@
     "f77"
    ],
    "wrong": {
-    "Borrow on margin to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
-    "Size up to win the losses back": "Bigger size where most breakouts fail means bigger losses. New buys in a correction are riskier, not safer.",
-    "Go all cash and stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend."
+    "Go to cash, stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend.",
+    "Borrow to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
+    "Size up to win losses back": "Bigger size where most breakouts fail means bigger losses. New buys in a correction are riskier, not safer."
    },
    "simple": "Hold more cash and build a watch list, since new buys in a correction are riskier.",
    "deeper": {
@@ -1703,7 +1703,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -1715,7 +1716,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple and lesson line say the requirement applies all day (f06, f07, f12), matching the conflicts note. The stem's 'check' is kept: f06 (Tier 1) itself says the firm monitors equity during the trading day. Near-duplicate with q19 acceptable: both reinforce w2; q19 adds the 25% level."
+   "notes": "Simple and lesson line say the requirement applies all day (f06, f07, f12), matching the conflicts note. The stem's 'check' is kept: f06 (Tier 1) itself says the firm monitors equity during the trading day. Near-duplicate with q19 acceptable: both reinforce w2; q19 adds the 25% level.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",
@@ -1757,7 +1759,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key decided first from f62/f63 (IBD, both quotes re-read live 2026-11-12): more cash and a watch list; fits our D44 and D46. DEFECT: the key is the single longest choice, 33 characters against 29/31/30 (the earlier note's 32/29/31/30 miscounted), against README section 5 ('Do not make the right choice the longest'). Shortened to 'More cash, build a watch list' (29, tied shortest) and the why's verdict to match. Also the margin wrong note says borrowing 'grows your losses', which is f54, not cited; f54 added to facts. Everything else passes."
+   "notes": "Key decided first from f62/f63 (IBD, both quotes re-read live 2026-11-12): more cash and a watch list; fits our D44 and D46. DEFECT: the key is the single longest choice, 33 characters against 29/31/30 (the earlier note's 32/29/31/30 miscounted), against README section 5 ('Do not make the right choice the longest'). Shortened to 'More cash, build a watch list' (29, tied shortest) and the why's verdict to match. Also the margin wrong note says borrowing 'grows your losses', which is f54, not cited; f54 added to facts. Everything else passes.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",

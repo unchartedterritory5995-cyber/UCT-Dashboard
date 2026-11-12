@@ -793,9 +793,9 @@
    "q": "SMB's Mike Bellafiore says to find your trading niche. What does he mean by a niche?",
    "choices": [
     "Edge that fits your strengths",
-    "The setup with the best win rate",
-    "Whatever top traders are using",
-    "A corner of little-known stocks"
+    "The best win-rate setup",
+    "What top traders use",
+    "A corner of obscure stocks"
    ],
    "answer": "Edge that fits your strengths",
    "why": "Edge that fits your strengths. Bellafiore says find a niche that has edge and plays to your personality and the way you think. Coach Brett Steenbarger agrees on the fit half: a niche uses your talents and skills plus your deepest values and interests. Tharp calls finding a system that fits you personally one of the biggest secrets of successful trading. A niche here is not an obscure corner of the market.",
@@ -808,9 +808,9 @@
     "f60"
    ],
    "wrong": {
-    "The setup with the best win rate": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
-    "Whatever top traders are using": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money.",
-    "A corner of little-known stocks": "Niche here isn't an obscure market. Bellafiore means a way of trading with edge that plays to how you think."
+    "The best win-rate setup": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
+    "What top traders use": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money.",
+    "A corner of obscure stocks": "Niche here isn't an obscure market. Bellafiore means a way of trading with edge that plays to how you think."
    },
    "simple": "Edge that fits your strengths, because Bellafiore's niche has real edge and plays to your personality and the way you think.",
    "deeper": {
@@ -966,9 +966,9 @@
    "q": "Which lane fits your life right now?",
    "choices": [
     "Swing trades planned at night",
-    "Day trading the open from work",
+    "Day trade the open at work",
     "Quit your job to day trade",
-    "Whatever made money last month"
+    "Whatever worked last month"
    ],
    "answer": "Swing trades planned at night",
    "why": "Swing trades planned at night. Your clock decides before your taste does. FINRA says intraday trading needs continuous attention, and you can't give that at work. Swing trades are held for a few days to several weeks, so they take less screen time. The trade-off is overnight and weekend risk. Your love of fast trades doesn't change your hours.",
@@ -982,9 +982,9 @@
     "f72"
    ],
    "wrong": {
-    "Day trading the open from work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
+    "Day trade the open at work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
     "Quit your job to day trade": "Don't bet your living on it. The SEC says new day traders typically lose heavily in their first months. It also says never day trade with money you need to live on.",
-    "Whatever made money last month": "Someone's last month says nothing about your hours. Start from your schedule."
+    "Whatever worked last month": "Someone's last month says nothing about your hours. Start from your schedule."
    },
    "simple": "Swing trades planned at night fit, because you can't watch the market at work, and swing trades need less screen time.",
    "tier": "core",
@@ -1180,9 +1180,9 @@
    "q": "When has a setup earned a bigger size from you?",
    "choices": [
     "After your logged trades prove it",
-    "After two or three big wins in a row",
-    "When you feel really sure about it",
-    "When a mentor you trust swears by it"
+    "After two or three big wins",
+    "When you feel sure about it",
+    "When a mentor swears by it"
    ],
    "answer": "After your logged trades prove it",
    "why": "After your logged trades prove it. Tharp says ramp up size only once you've traded a strategy consistently and profitably over months, not days. Bellafiore says increase risk on setups that measure well in real time. Our rules add limits. A new trader stays at 0.25% risk until 50 journaled trades followed the rules. Never raise risk past the rules after a run of winners. Two or three wins is a tiny sample, and small samples give unreliable results.",
@@ -1197,9 +1197,9 @@
     "f76"
    ],
    "wrong": {
-    "After two or three big wins in a row": "Two or three trades is a tiny sample, and small samples give unreliable results. Our rule: never raise risk past the rules after a run of winners.",
-    "When you feel really sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
-    "When a mentor you trust swears by it": "His record isn't yours. Learn from others, then build your own trading identity on your skills and risk tolerance."
+    "After two or three big wins": "Two or three trades is a tiny sample, and small samples give unreliable results. Our rule: never raise risk past the rules after a run of winners.",
+    "When you feel sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
+    "When a mentor swears by it": "His record isn't yours. Learn from others, then build your own trading identity on your skills and risk tolerance."
    },
    "simple": "After your own logged trades prove the setup, because a few wins or a feeling is too small a sample.",
    "tier": "extended",
@@ -1464,8 +1464,8 @@
    "q": "What does our rulebook have you do with your numbers now?",
    "choices": [
     "Review win rate, R and expectancy",
-    "Wait until a losing streak shows",
-    "Check only if the account is down",
+    "Wait for a losing streak",
+    "Check only if you're down",
     "Review only the losing trades"
    ],
    "answer": "Review win rate, R and expectancy",
@@ -1473,8 +1473,8 @@
    "simple": "Review win rate, R and expectancy, because our rule is to review the numbers each month.",
    "lesson_line": "Each month, review the numbers: win rate, average win and loss in R, and expectancy.",
    "wrong": {
-    "Wait until a losing streak shows": "Our rule sets the review each month, streak or not. Schwab says look for patterns in your wins and your losses.",
-    "Check only if the account is down": "Our rule sets the review each month, up or down. Bellafiore increases risk on setups that measure well, so winners need measuring too.",
+    "Wait for a losing streak": "Our rule sets the review each month, streak or not. Schwab says look for patterns in your wins and your losses.",
+    "Check only if you're down": "Our rule sets the review each month, up or down. Bellafiore increases risk on setups that measure well, so winners need measuring too.",
     "Review only the losing trades": "That's half the picture. Steenbarger says study your best trades to see what you do well."
    },
    "facts": [
@@ -1548,7 +1548,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f34 (re-read live on SMB s11: 'niche that has edge and leverages your personality and cognitive strengths'). f70 re-read live on the Tharp page. Choices 29 to 32 characters, no tell. Distractor notes rest on f52, f60 and f34."
+   "notes": "Key re-derived from f34 (re-read live on SMB s11: 'niche that has edge and leverages your personality and cognitive strengths'). f70 re-read live on the Tharp page. Choices 29 to 32 characters, no tell. Distractor notes rest on f52, f60 and f34.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1578,7 +1579,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1614,7 +1616,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f49 and f33 (both re-read live) with f36 (re-read live). The house lines quote f75 (C37) and f76 (D45) exactly as in sizing_rule.md section 9. 0.25% and 50 come from f75. No choice expresses grade-based size (D38, E49), so there is no second key; owner flag on D38 and E49 stands."
+   "notes": "Key re-derived from f49 and f33 (both re-read live) with f36 (re-read live). The house lines quote f75 (C37) and f76 (D45) exactly as in sizing_rule.md section 9. 0.25% and 50 come from f75. No choice expresses grade-based size (D38, E49), so there is no second key; owner flag on D38 and E49 stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1656,7 +1659,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is E59 (f79), quoted exactly from sizing_rule.md section 9. Each distractor is wrong under the each-month rule, and its note rests on f68, f33 and f13. f32 and f33 re-read live on SMB s10. Not against B27 (weekly review). f68 (Schwab) unreachable 2026-11-12."
+   "notes": "Key is E59 (f79), quoted exactly from sizing_rule.md section 9. Each distractor is wrong under the each-month rule, and its note rests on f68, f33 and f13. f32 and f33 re-read live on SMB s10. Not against B27 (weekly review). f68 (Schwab) unreachable 2026-11-12.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

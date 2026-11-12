@@ -1259,8 +1259,8 @@
   "prompt_json": {
    "choices": [
     "It's still 1% of the account",
-    "It depends on where the stop is",
-    "It grew along with the account",
+    "It depends on the stop",
+    "It grew with the account",
     "It fell to 0.4% of the account"
    ],
    "kind": "mcq",
@@ -1308,7 +1308,7 @@
      "fn": "arith",
      "result": 0.4
     },
-    "given": "What has happened to your risk as a percent of the account? You set your risk at $400 a trade when the account was $40,000. The account has grown to $100,000. You still risk $400. It fell to 0.4% of the account It's still 1% of the account It grew along with the account It depends on where the stop is"
+    "given": "What has happened to your risk as a percent of the account? You set your risk at $400 a trade when the account was $40,000. The account has grown to $100,000. You still risk $400. It fell to 0.4% of the account It's still 1% of the account It grew with the account It depends on the stop"
    },
    "lesson_line": "Fixed dollars shrink as a percent as the account grows. Resize from the account weekly or monthly.",
    "simple": "It fell to 0.4%, because the same $400 is a much smaller slice of a $100,000 account.",
@@ -1316,8 +1316,8 @@
    "unit": "F9.01",
    "why": "It fell to 0.4%. $400 is 0.4% of $100,000. When you set it, $400 was 1% of $40,000. The dollars stayed the same while the account grew, so the percent shrank. Investopedia warns a fixed dollar amount may become outdated as the portfolio grows. Our rule is to recalculate the account weekly or monthly and size every trade from it.",
    "wrong": {
-    "It depends on where the stop is": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits.",
-    "It grew along with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
+    "It depends on the stop": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits.",
+    "It grew with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
     "It's still 1% of the account": "$400 was 1% of $40,000. Against $100,000, the same $400 is a smaller slice."
    }
   },
@@ -2215,19 +2215,19 @@
  },
  {
   "answer_json": {
-   "answer": "Dollars at risk ÷ risk per share"
+   "answer": "Dollars at risk ÷ the risk per share"
   },
   "difficulty": 1,
   "id": "si_68c299842798",
   "lesson_origin": "session",
-  "lesson_text": "Dollars at risk ÷ risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares. Dollars at risk divided by risk per share gives the risk-based size.",
+  "lesson_text": "Dollars at risk ÷ the risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares. Dollars at risk divided by risk per share gives the risk-based size.",
   "module": "F9",
   "prompt_json": {
    "choices": [
     "Account size ÷ the share price",
     "Dollars at risk × risk per share",
     "Dollars at risk ÷ the share price",
-    "Dollars at risk ÷ risk per share"
+    "Dollars at risk ÷ the risk per share"
    ],
    "kind": "mcq",
    "q": "Which of these gives you the number of shares to buy?",
@@ -2254,13 +2254,13 @@
     "summary": "Shares to buy are the dollars you will risk divided by the risk per share. Shares equal the risk per trade divided by the risk per share."
    },
    "facts": {
-    "given": "Which of these gives you the number of shares to buy? Dollars at risk ÷ risk per share Account size ÷ the share price Dollars at risk ÷ the share price Dollars at risk × risk per share"
+    "given": "Which of these gives you the number of shares to buy? Dollars at risk ÷ the risk per share Account size ÷ the share price Dollars at risk ÷ the share price Dollars at risk × risk per share"
    },
    "lesson_line": "Dollars at risk divided by risk per share gives the risk-based size.",
    "simple": "Divide your dollars at risk by your risk per share, because that tells you how many shares fit your plan.",
    "tier": "core",
    "unit": "F9.02",
-   "why": "Dollars at risk ÷ risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares.",
+   "why": "Dollars at risk ÷ the risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares.",
    "wrong": {
     "Account size ÷ the share price": "That buys everything you can afford. It ignores the stop, so your risk is whatever happens.",
     "Dollars at risk × risk per share": "That is backwards. A wider stop would buy more shares, when it should buy fewer.",
@@ -2420,9 +2420,9 @@
   "prompt_json": {
    "choices": [
     "Low of the day or prior day's low",
-    "Wherever it fits the size you want",
+    "Wherever it fits your size",
     "Just under the 50-day average",
-    "A flat 10% under your entry price"
+    "A flat 10% under your entry"
    ],
    "kind": "mcq",
    "q": "What is our default stop on a new long trade?",
@@ -2456,7 +2456,7 @@
     "summary": "Our default stop is the low of the day or the prior day's low. The order: find the setup, put the stop where the idea fails, measure the distance, and size last. Rule F62: the default stop sits a few cents under the day's low, not exactly on it."
    },
    "facts": {
-    "given": "What is our default stop on a new long trade? Low of the day or prior day's low A flat 10% under your entry price Wherever it fits the size you want Just under the 50-day average"
+    "given": "What is our default stop on a new long trade? Low of the day or prior day's low A flat 10% under your entry Wherever it fits your size Just under the 50-day average"
    },
    "lesson_line": "Our default stop: today's low, or yesterday's low.",
    "simple": "Our default stop is the low of the day or the prior day's low, read off the chart before you size.",
@@ -2464,9 +2464,9 @@
    "unit": "F9.02",
    "why": "The low of the day, or the prior day's low. That is our default stop on a new long trade. In practice it sits a few cents under that low, not exactly on it. You read it off the chart first, and the size comes after. A flat percent under your entry ignores the chart. A stop fitted to the size you want is back to front.",
    "wrong": {
-    "A flat 10% under your entry price": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
+    "A flat 10% under your entry": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
     "Just under the 50-day average": "That is a different tool. Our default is the day's low or the prior day's low, a real low the stock just made.",
-    "Wherever it fits the size you want": "That's back to front. The stop comes first, and the size comes from it."
+    "Wherever it fits your size": "That's back to front. The stop comes first, and the size comes from it."
    }
   },
   "review_status": "draft",
@@ -3019,8 +3019,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Risk that low means you can add",
-    "The risk is really 1%, not 0.4%",
+    "Low risk means you can add",
+    "The risk is really 1%",
     "A gap can open below your stop",
     "None, the risk is still 0.4%"
    ],
@@ -3074,7 +3074,7 @@
     "summary": "Once triggered, a stop is a market order and can fill far from the stop price. A gap past your stop can cost more than the risk you planned. When price gaps through a stop, the order fills at the next available price, not at the stop. Rule A7: our cap on one position is 40% of the account. Rule A7: a tight stop never justifies a bigger position than the cap, because a gap can jump the stop."
    },
    "facts": {
-    "given": "What's the catch, if any? Your stop is only 1% under entry, so you buy a 40% position. On paper that's 0.4% risk. You hold it overnight. A gap can open below your stop None, the risk is still 0.4% The risk is really 1%, not 0.4% Risk that low means you can add"
+    "given": "What's the catch, if any? Your stop is only 1% under entry, so you buy a 40% position. On paper that's 0.4% risk. You hold it overnight. A gap can open below your stop None, the risk is still 0.4% The risk is really 1% Low risk means you can add"
    },
    "lesson_line": "A stop cannot catch a gap, so a tight stop is no safety net.",
    "simple": "The catch is that a gap can open below your stop, so the loss could be bigger than planned.",
@@ -3082,9 +3082,9 @@
    "unit": "F9.02",
    "why": "A gap can open below your stop. On paper, 40% of the account times a 1% stop is 0.4% risk. That math assumes you sell at the stop. A triggered stop becomes a market order, and the fill can be far from your stop price. If the stock gaps past it, the order fills at the next available price. With that much of the account in one stock, a gap hurts. This is why a tight stop never justifies a bigger position than our 40% cap.",
    "wrong": {
+    "Low risk means you can add": "Paper risk only holds if you are filled at the stop. A gap can break that, so low paper risk is no reason to add.",
     "None, the risk is still 0.4%": "Only if you get filled at the stop. A gap past it costs more than the risk you planned.",
-    "Risk that low means you can add": "Paper risk only holds if you are filled at the stop. A gap can break that, so low paper risk is no reason to add.",
-    "The risk is really 1%, not 0.4%": "On paper it is 0.4%: 40% of the account times a 1% stop. The danger is a gap past the stop on that much size."
+    "The risk is really 1%": "On paper it is 0.4%: 40% of the account times a 1% stop. The danger is a gap past the stop on that much size."
    }
   },
   "review_status": "draft",
@@ -3749,9 +3749,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Halve it and hold the rest",
-    "Hold it and trust the stop",
-    "Add more before the report",
+    "Halve it, hold the rest",
+    "Hold it, trust the stop",
+    "Add more before earnings",
     "Sell it before the report"
    ],
    "kind": "mcq",
@@ -3797,7 +3797,7 @@
     "summary": "Rule B22: no new buys in the 3 days before earnings, and hold through a report only if the trade is up 5R. Before earnings, some traders cut the position in half to reduce gap risk. When price gaps through a stop, the order fills at the next available price, not at the stop. Once triggered, a stop is a market order and can fill far from the stop price."
    },
    "facts": {
-    "given": "What does our earnings rule tell you to do? Earnings come out in two days. Your open trade is up 2R, which is twice the risk you took. The stop is 3% below the price. Sell it before the report Halve it and hold the rest Hold it and trust the stop Add more before the report"
+    "given": "What does our earnings rule tell you to do? Earnings come out in two days. Your open trade is up 2R, which is twice the risk you took. The stop is 3% below the price. Sell it before the report Halve it, hold the rest Hold it, trust the stop Add more before earnings"
    },
    "lesson_line": "Into earnings, hold only if you are up 5R. Otherwise sell.",
    "simple": "Sell it before the report, because we hold through earnings only if the trade is up 5R, and this one is up 2R.",
@@ -3805,9 +3805,9 @@
    "unit": "F9.02",
    "why": "Sell it before the report. Our rule is to hold through earnings only if the trade is up 5R, and this one is up 2R. We also open no new buys in the 3 days before a report. A stop is no shield against a gap. If the stock gaps below it, the order fills at the next available price. Investopedia notes some traders halve their size before earnings, but our rule is stricter.",
    "wrong": {
-    "Add more before the report": "Adding puts more money into a gap the stop cannot catch. We also open no new buys in the 3 days before a report.",
-    "Halve it and hold the rest": "Investopedia says some traders halve their size before a report. Our rule is stricter: below 5R, you do not hold through it.",
-    "Hold it and trust the stop": "A stop does not cap the loss. It becomes a market order, and after a gap the fill can be far below it."
+    "Add more before earnings": "Adding puts more money into a gap the stop cannot catch. We also open no new buys in the 3 days before a report.",
+    "Halve it, hold the rest": "Investopedia says some traders halve their size before a report. Our rule is stricter: below 5R, you do not hold through it.",
+    "Hold it, trust the stop": "A stop does not cap the loss. It becomes a market order, and after a gap the fill can be far below it."
    }
   },
   "review_status": "draft",
@@ -3990,10 +3990,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The stock's average daily price range",
+    "The stock's average daily range",
     "Your planned loss if the stop is hit",
-    "The price of your first profit target",
-    "One percent of your account's value"
+    "The price of your first target",
+    "One percent of your account"
    ],
    "kind": "mcq",
    "q": "You're planning a trade. What does 1R mean?",
@@ -4034,7 +4034,7 @@
     "summary": "Initial risk is the distance from entry to stop when you open the trade. R is the money you have agreed to lose if you are wrong. Risk per share is entry minus stop. Risking 1% of a $100,000 account makes the risk on the trade $1,000."
    },
    "facts": {
-    "given": "You're planning a trade. What does 1R mean? Your planned loss if the stop is hit One percent of your account's value The price of your first profit target The stock's average daily price range"
+    "given": "You're planning a trade. What does 1R mean? Your planned loss if the stop is hit One percent of your account The price of your first target The stock's average daily range"
    },
    "lesson_line": "1R is what you agree to lose before you buy. Every result gets measured in it.",
    "simple": "1R is what you plan to lose if the stop is hit. Per share, it's your entry minus your stop.",
@@ -4042,9 +4042,9 @@
    "unit": "F9.03",
    "why": "Your planned loss if the stop is hit. R is your initial risk: the distance from your entry to your stop when you open the trade. It's the money you agree to lose if you're wrong, set before you buy. It isn't a percent of the account, a target or a measure of how much the stock swings.",
    "wrong": {
-    "One percent of your account's value": "That's one risk-per-trade setting. You can size so 1R is a set percent of the account, but R itself comes from your entry and stop.",
-    "The price of your first profit target": "A target sits on the profit side, and it gets measured in R. R itself is the risk side of the trade.",
-    "The stock's average daily price range": "That measures how much the stock swings in a day. R is the distance from your entry to the stop you chose."
+    "One percent of your account": "That's one risk-per-trade setting. You can size so 1R is a set percent of the account, but R itself comes from your entry and stop.",
+    "The price of your first target": "A target sits on the profit side, and it gets measured in R. R itself is the risk side of the trade.",
+    "The stock's average daily range": "That measures how much the stock swings in a day. R is the distance from your entry to the stop you chose."
    }
   },
   "review_status": "draft",
@@ -5066,8 +5066,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "About 67%",
-    "Above 50%",
+    "67%",
+    "Over 50%",
     "50%",
     "About 33%"
    ],
@@ -5111,7 +5111,7 @@
      "fn": "arith",
      "result": 33.0
     },
-    "given": "Your winners average +2R and your losers -1R. What win rate makes the expectancy zero? About 33% 50% About 67% Above 50%"
+    "given": "Your winners average +2R and your losers -1R. What win rate makes the expectancy zero? About 33% 50% 67% Over 50%"
    },
    "lesson_line": "Bigger winners lower the win rate you need. At 2R, about 33% breaks even.",
    "simple": "About 33%, because at that rate each +2R winner pays for two -1R losers, so the average is zero.",
@@ -5120,8 +5120,8 @@
    "why": "About 33%. Expectancy is the win rate times 2R, minus the loss rate times 1R. It is zero when one 2R winner pays for two 1R losers, a win rate of one in three. Win more often than that and the average turns positive.",
    "wrong": {
     "50%": "That's breakeven only when winners and losers are the same size. Bigger winners lower it.",
-    "About 67%": "That's flipped. About 67% is the loss rate at breakeven, not the win rate.",
-    "Above 50%": "That's the belief that you must win most trades. With 2R winners against 1R losers, about 33% already breaks even."
+    "67%": "That's flipped. 67% is the loss rate at breakeven, not the win rate.",
+    "Over 50%": "That's the belief that you must win most trades. With 2R winners against 1R losers, about 33% already breaks even."
    }
   },
   "review_status": "draft",
@@ -9510,16 +9510,16 @@
  },
  {
   "answer_json": {
-   "answer": "Hold it and add no shares"
+   "answer": "Hold it and add no more shares"
   },
   "difficulty": 3,
   "id": "si_ec0bb2cb3261",
   "lesson_origin": "session",
-  "lesson_text": "Hold it and add no shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal. We never add, least of all to a loser. The stop decides, not the discount.",
+  "lesson_text": "Hold it and add no more shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal. We never add, least of all to a loser. The stop decides, not the discount.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Hold it and add no shares",
+    "Hold it and add no more shares",
     "Sell now, it's below entry",
     "Add more, it's cheaper now",
     "Add more and lower the stop"
@@ -9574,13 +9574,13 @@
     "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our rule A4: the stop is how we get out, and it only ever moves up. Hirsch lists averaging down into losing positions first among the habits to avoid. Adding as the price falls is not pyramiding, and Roze calls it potentially suicidal."
    },
    "facts": {
-    "given": "What do you do? You bought your full size at $40 with the stop at $38. It's at $38.80, under your entry but above the stop. A friend says buy more while it's cheap. Hold it and add no shares Add more, it's cheaper now Add more and lower the stop Sell now, it's below entry"
+    "given": "What do you do? You bought your full size at $40 with the stop at $38. It's at $38.80, under your entry but above the stop. A friend says buy more while it's cheap. Hold it and add no more shares Add more, it's cheaper now Add more and lower the stop Sell now, it's below entry"
    },
    "lesson_line": "We never add, least of all to a loser. The stop decides, not the discount.",
    "simple": "Hold and add nothing, because our full size went on at one price with one stop and we never add.",
    "tier": "extended",
    "unit": "F9.05",
-   "why": "Hold it and add no shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal.",
+   "why": "Hold it and add no more shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal.",
    "wrong": {
     "Add more and lower the stop": "That breaks two rules at once. Our stop only moves up, never down or wider. And our size went on at one price, with no adding.",
     "Add more, it's cheaper now": "Cheaper here means losing. Buying more of a loser is averaging down, first on Hirsch's list of deadly sins. And we never add.",
@@ -9839,9 +9839,9 @@
   "prompt_json": {
    "choices": [
     "Use the room under the limit",
-    "Size up to win back the losses",
+    "Size up to win back losses",
     "Be picky and keep exposure low",
-    "Wider stops, same share count"
+    "Wider stops, same shares"
    ],
    "kind": "mcq",
    "q": "What's the sound move?",
@@ -9886,7 +9886,7 @@
     "summary": "In a bear market, risk rises across stocks and the odds of picking winners fall. When the market outlook turns negative, Hirsch suggests limiting new buys and getting more defensive. Put the stop where it belongs and change the size instead. Our rule D44: we never force a trade just to have something on, because cash is a position."
    },
    "facts": {
-    "given": "What's the sound move? The market is in a downtrend and your stops keep getting hit. You're at 2% total open risk with a 6% limit you set. A decent setup shows up. Be picky and keep exposure low Use the room under the limit Size up to win back the losses Wider stops, same share count"
+    "given": "What's the sound move? The market is in a downtrend and your stops keep getting hit. You're at 2% total open risk with a 6% limit you set. A decent setup shows up. Be picky and keep exposure low Use the room under the limit Size up to win back losses Wider stops, same shares"
    },
    "lesson_line": "A limit is a ceiling, not a target. In a weak market, use less of it.",
    "simple": "Take only your best setups and keep risk low, because a falling market makes winners harder to find.",
@@ -9894,9 +9894,9 @@
    "unit": "F9.05",
    "why": "Be picky and keep exposure low. In a bear market, StockCharts' Arthur Hill says the chance of picking winners is greatly reduced. Fidelity's Hirsch suggests limiting new buys when the outlook turns negative. Our rule: never force a trade to have something on, because cash is a position. The room under your limit is not a reason to buy.",
    "wrong": {
-    "Size up to win back the losses": "That's chasing losses with bigger bets, in a market where the odds of picking winners are worse.",
+    "Size up to win back losses": "That's chasing losses with bigger bets, in a market where the odds of picking winners are worse.",
     "Use the room under the limit": "Room under the limit isn't a reason to buy. Our rule: never force a trade to have something on.",
-    "Wider stops, same share count": "A wider stop on the same shares puts more money at risk, in a market where winners are harder to pick. If a stop needs room, adjust the position."
+    "Wider stops, same shares": "A wider stop on the same shares puts more money at risk, in a market where winners are harder to pick. If a stop needs room, adjust the position."
    }
   },
   "review_status": "draft",
@@ -10341,7 +10341,7 @@
     "Buy more, or lower the stop",
     "Sell shares, or raise the stop",
     "Raise the stop, or buy more",
-    "Lower the stop, or sell shares"
+    "Lower the stop, or sell some"
    ],
    "kind": "mcq",
    "q": "Which two moves cut what an open trade can lose at its stop?",
@@ -10382,7 +10382,7 @@
     "summary": "Total risk is risk per share times the shares you hold: $2 times 100 shares is $200. Raising stops lowers your total open risk. A sell stop can limit a loss, or protect a profit on a stock you own. Into a sharp move up, sell part and let the rest ride."
    },
    "facts": {
-    "given": "Which two moves cut what an open trade can lose at its stop? Sell shares, or raise the stop Buy more, or lower the stop Lower the stop, or sell shares Raise the stop, or buy more"
+    "given": "Which two moves cut what an open trade can lose at its stop? Sell shares, or raise the stop Buy more, or lower the stop Lower the stop, or sell some Raise the stop, or buy more"
    },
    "lesson_line": "To cut open risk, sell shares or raise the stop.",
    "simple": "Sell shares or raise the stop, because fewer shares or a smaller drop to the stop both shrink what you can lose.",
@@ -10391,7 +10391,7 @@
    "why": "Sell shares, or raise the stop. Total risk is the risk per share times the shares you hold. Selling cuts the shares. Raising the stop cuts the risk on each share. Buying more or lowering the stop does the reverse and adds risk.",
    "wrong": {
     "Buy more, or lower the stop": "Both add risk. More shares or a lower stop means more to lose at the stop.",
-    "Lower the stop, or sell shares": "Selling helps, but a lower stop adds risk on every share you keep.",
+    "Lower the stop, or sell some": "Selling helps, but a lower stop adds risk on every share you keep.",
     "Raise the stop, or buy more": "Raising helps, but buying more adds shares that can hit the stop."
    }
   },
@@ -10491,10 +10491,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A gap down at tomorrow's open",
-    "Selling too early on a dip",
+    "A gap down at the open",
+    "Selling early on a dip",
     "A winner turning into a loss",
-    "Any pullback after the rally"
+    "Any pullback after a rally"
    ],
    "kind": "mcq",
    "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
@@ -10563,7 +10563,7 @@
     "summary": "A sell stop can limit a loss, or protect a profit on a stock you own. A sell stop can limit a loss or preserve a gain on a stock you own. O'Neil: don't let a stock with a good gain fall back below your purchase price. Leave only your first stop in place and a winning trade can turn into a loser. Once triggered, a stop is a market order and can fill far from the stop price. A stop does not protect you from a gap. Too tight a stop gets hit by normal swings; too loose a stop gives back most of a big win. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
    },
    "facts": {
-    "given": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent? A winner turning into a loss Any pullback after the rally A gap down at tomorrow's open Selling too early on a dip"
+    "given": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent? A winner turning into a loss Any pullback after a rally A gap down at the open Selling early on a dip"
    },
    "lesson_line": "O'Neil's rule: don't let a good gain fall back below your purchase price.",
    "simple": "It keeps a winner from turning into a loss, because it sells you out about even if the stock falls back.",
@@ -10571,9 +10571,9 @@
    "unit": "F9.06",
    "why": "A winner turning into a loss. A sell stop can protect a profit as well as limit a loss. Filled at your entry, the shares you hold come out even. That's O'Neil's rule: don't let a good gain fall back below your purchase price. Our rule moves the stop to breakeven at 2R to 5R, ideally. It can't stop a pullback above your entry, or a gap below it.",
    "wrong": {
-    "A gap down at tomorrow's open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
-    "Any pullback after the rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
-    "Selling too early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
+    "A gap down at the open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
+    "Any pullback after a rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
+    "Selling early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
    }
   },
   "review_status": "draft",
@@ -11907,10 +11907,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Held as a $50 limit, not filled",
-    "Sold at $50, with nothing lost",
+    "Held as a $50 limit order",
+    "Sold at $50, nothing lost",
     "Sold near $46, about $800 lost",
-    "Held until it trades back to $50"
+    "Held until it's back at $50"
    ],
    "kind": "mcq",
    "q": "What happens to your position?",
@@ -11971,7 +11971,7 @@
      "fn": "risk_dollars",
      "result": 800.0
     },
-    "given": "What happens to your position? You hold 200 shares bought at $50. Your sell stop order sits with your broker at $50. Bad news hits overnight, and the stock opens at $46. Sold near $46, about $800 lost Sold at $50, with nothing lost Held until it trades back to $50 Held as a $50 limit, not filled"
+    "given": "What happens to your position? You hold 200 shares bought at $50. Your sell stop order sits with your broker at $50. Bad news hits overnight, and the stock opens at $46. Sold near $46, about $800 lost Sold at $50, nothing lost Held until it's back at $50 Held as a $50 limit order"
    },
    "lesson_line": "A stop order is a trigger, not a floor. After a gap, it fills near the open.",
    "simple": "Sold near $46 at the open, because a stop becomes a market order once hit, and the gap skips right past $50.",
@@ -11979,9 +11979,9 @@
    "unit": "F9.06",
    "why": "Sold near $46, about $800 lost. A sell stop triggers when a trade prints at or below its price. The open at $46 is below your $50 stop, so it fires at once and becomes a market order. It fills at the next price, not at $50. On 200 shares, a fill near $46 loses about $800 from your $50 entry.",
    "wrong": {
-    "Held as a $50 limit, not filled": "A plain stop doesn't turn into a limit order. Once its price is reached, it becomes a market order and sells at the next price.",
-    "Held until it trades back to $50": "A sell stop triggers at or below its price. An open at $46 is below it, so it fires right away.",
-    "Sold at $50, with nothing lost": "That's the breakeven myth. The stop turns into a market order, and after a gap it fills well below your stop."
+    "Held as a $50 limit order": "A plain stop doesn't turn into a limit order. Once its price is reached, it becomes a market order and sells at the next price.",
+    "Held until it's back at $50": "A sell stop triggers at or below its price. An open at $46 is below it, so it fires right away.",
+    "Sold at $50, nothing lost": "That's the breakeven myth. The stop turns into a market order, and after a gap it fills well below your stop."
    }
   },
   "review_status": "draft",
@@ -13262,10 +13262,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Only after you add new cash",
-    "Right away, XYZ already sold",
+    "Only after you add cash",
+    "Right away, XYZ is sold",
     "Once XYZ's sale has settled",
-    "After Monday's market close"
+    "After Monday's close"
    ],
    "kind": "mcq",
    "q": "When can you sell ABC without a good faith violation?",
@@ -13307,7 +13307,7 @@
     "summary": "Buying with unsettled cash and selling before that cash settles is a good faith violation. Fidelity's example: buy with Monday's sale proceeds and sell before they settle Tuesday, and it's a violation. Selling a stock before it was paid for with settled funds is a good faith violation. Under T+1, most trades settle the next business day."
    },
    "facts": {
-    "given": "When can you sell ABC without a good faith violation? Cash account with no settled cash. Monday morning you sell XYZ. Monday afternoon you buy ABC with that money. Once XYZ's sale has settled Right away, XYZ already sold Only after you add new cash After Monday's market close"
+    "given": "When can you sell ABC without a good faith violation? Cash account with no settled cash. Monday morning you sell XYZ. Monday afternoon you buy ABC with that money. Once XYZ's sale has settled Right away, XYZ is sold Only after you add cash After Monday's close"
    },
    "lesson_line": "Bought with unsettled cash means you hold it until that cash settles.",
    "simple": "Wait until the XYZ sale settles, because ABC was bought with that sale's cash and selling sooner is a good faith violation.",
@@ -13315,9 +13315,9 @@
    "unit": "F9.07",
    "why": "Once XYZ's sale has settled. You paid for ABC with XYZ's sale cash, and that cash settles the next business day. Sell ABC before then and you've sold a stock bought with unsettled money. That is a good faith violation. Fidelity's example matches: XYZ sold Monday settles Tuesday, and selling ABC before Tuesday is a violation.",
    "wrong": {
-    "After Monday's market close": "The close isn't settlement. Under T+1, XYZ's sale settles the next business day, Tuesday, not at Monday's close.",
-    "Only after you add new cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
-    "Right away, XYZ already sold": "Sold isn't settled. XYZ's cash settles the next business day, not when the sale fills."
+    "After Monday's close": "The close isn't settlement. Under T+1, XYZ's sale settles the next business day, Tuesday, not at Monday's close.",
+    "Only after you add cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
+    "Right away, XYZ is sold": "Sold isn't settled. XYZ's cash settles the next business day, not when the sale fills."
    }
   },
   "review_status": "draft",
@@ -13436,9 +13436,9 @@
   "prompt_json": {
    "choices": [
     "Equity against positions all day",
-    "Day trades counted over five days",
-    "A $25,000 minimum balance to trade",
-    "Nothing, day trading is unlimited"
+    "Day trades over five days",
+    "A $25,000 minimum balance",
+    "Nothing, trading is unlimited"
    ],
    "kind": "mcq",
    "q": "What does the new rule check?",
@@ -13480,7 +13480,7 @@
     "summary": "The new rule drops the trade count and checks your equity against your positions during the day. Under the new rule there is no $25,000 minimum to day trade. Too little equity for your open positions during the day is an intraday margin deficit, and you must cover it promptly. Repeatedly missing intraday margin deficits can get the account restricted for up to 90 days."
    },
    "facts": {
-    "given": "What does the new rule check? Your broker has switched to FINRA's new intraday margin rule. You day trade a few times a week in a $15,000 margin account. Equity against positions all day Day trades counted over five days A $25,000 minimum balance to trade Nothing, day trading is unlimited"
+    "given": "What does the new rule check? Your broker has switched to FINRA's new intraday margin rule. You day trade a few times a week in a $15,000 margin account. Equity against positions all day Day trades over five days A $25,000 minimum balance Nothing, trading is unlimited"
    },
    "lesson_line": "The new rule doesn't count your trades. Your equity must cover your positions all day.",
    "simple": "The new rule requires your equity to cover your open positions during the day, with no trade count and no $25,000 minimum.",
@@ -13488,9 +13488,9 @@
    "unit": "F9.07",
    "why": "Your equity against your positions during the trading day. The new rule has no pattern day trader count and no $25,000 minimum. If your equity falls short of your open positions, you have an intraday margin deficit to cover as promptly as possible. Keep failing to cover them and the account can be restricted for up to 90 days.",
    "wrong": {
-    "A $25,000 minimum balance to trade": "The new rule has no $25,000 minimum for day trading.",
-    "Day trades counted over five days": "That was the old pattern day trader count. The new rule has no trade count.",
-    "Nothing, day trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
+    "A $25,000 minimum balance": "The new rule has no $25,000 minimum for day trading.",
+    "Day trades over five days": "That was the old pattern day trader count. The new rule has no trade count.",
+    "Nothing, trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
    }
   },
   "review_status": "draft",
@@ -14030,10 +14030,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Borrow on margin to buy the dip",
+    "Borrow to buy the dip",
     "More cash, build a watch list",
-    "Size up to win the losses back",
-    "Go all cash and stop watching"
+    "Size up to win losses back",
+    "Go to cash, stop watching"
    ],
    "kind": "mcq",
    "q": "What's the best use of your account now?",
@@ -14113,7 +14113,7 @@
     "summary": "New buys in a correction are riskier because most stocks follow the market down. In a correction, build your watch list for the next uptrend. Make money in uptrends and protect it when the market turns down. Growth leaders can fall fast when the market turns. Buying in a correction risks a further decline as it continues. A sharp correction can be disastrous for short-term traders on heavy margin. Margin raises buying power and the size of possible losses. On margin you can lose more than you deposit. Our rule: never force a trade; cash is a position."
    },
    "facts": {
-    "given": "What's the best use of your account now? The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves. More cash, build a watch list Go all cash and stop watching Borrow on margin to buy the dip Size up to win the losses back"
+    "given": "What's the best use of your account now? The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves. More cash, build a watch list Go to cash, stop watching Borrow to buy the dip Size up to win losses back"
    },
    "lesson_line": "Cash is a position. In a correction, hold more cash and build a sharp watch list.",
    "simple": "Hold more cash and build a watch list, since new buys in a correction are riskier.",
@@ -14121,9 +14121,9 @@
    "unit": "F9.07",
    "why": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
    "wrong": {
-    "Borrow on margin to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
-    "Go all cash and stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend.",
-    "Size up to win the losses back": "Bigger size where most breakouts fail means bigger losses. New buys in a correction are riskier, not safer."
+    "Borrow to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
+    "Go to cash, stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend.",
+    "Size up to win losses back": "Bigger size where most breakouts fail means bigger losses. New buys in a correction are riskier, not safer."
    }
   },
   "review_status": "draft",
@@ -14671,7 +14671,7 @@
    "choices": [
     "1% to 1.5%",
     "0.5% to 1%",
-    "Zero, skip it",
+    "Skip it",
     "0.25% to 0.5%"
    ],
    "kind": "mcq",
@@ -14706,7 +14706,7 @@
     "summary": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. The setup's grade sets the size: A and B normal, A+ bigger, B- or lower smaller. Our market reading guides risk: Green full risk per grade, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts."
    },
    "facts": {
-    "given": "Our market reading is Green, and a setup grades B- or lower. What's our risk range for it? 0.25% to 0.5% 0.5% to 1% 1% to 1.5% Zero, skip it"
+    "given": "Our market reading is Green, and a setup grades B- or lower. What's our risk range for it? 0.25% to 0.5% 0.5% to 1% 1% to 1.5% Skip it"
    },
    "lesson_line": "Lower grade, smaller risk. B- or lower gets 0.25% to 0.5%.",
    "simple": "B- or lower risks 0.25% to 0.5%, because in a Green market a weaker setup is sized down, not skipped.",
@@ -14716,7 +14716,7 @@
    "wrong": {
     "0.5% to 1%": "That's the A and B range, normal size. B- or lower is sized down from there.",
     "1% to 1.5%": "That's the A+ range, sized up. A B- setup gets the smallest risk, not the biggest.",
-    "Zero, skip it": "A Green market takes full risk per grade. B- or lower is sized down to 0.25% to 0.5%, not skipped."
+    "Skip it": "A Green market takes full risk per grade. B- or lower is sized down to 0.25% to 0.5%, not skipped."
    }
   },
   "review_status": "draft",
@@ -14932,8 +14932,8 @@
    "choices": [
     "A judgment call, no set checklist",
     "By how high the share price is",
-    "By how tight the stop distance is",
-    "A points checklist that adds it up"
+    "By how tight the stop is",
+    "A points checklist that adds up"
    ],
    "kind": "mcq",
    "q": "How do we grade a setup A+, A, B or B-?",
@@ -14974,7 +14974,7 @@
     "summary": "Grading a setup is a judgment call; we teach no fixed checklist. The setup's grade sets the size: A and B normal, A+ bigger, B- or lower smaller. Our rule: shares are the account times the risk percent, divided by entry minus stop, rounded down, then the smaller of that and the position cap. We trade only stocks priced $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "How do we grade a setup A+, A, B or B-? A judgment call, no set checklist A points checklist that adds it up By how tight the stop distance is By how high the share price is"
+    "given": "How do we grade a setup A+, A, B or B-? A judgment call, no set checklist A points checklist that adds up By how tight the stop is By how high the share price is"
    },
    "lesson_line": "Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
    "simple": "Grading is a judgment call with no set checklist, and the grade then picks how much you risk.",
@@ -14982,9 +14982,9 @@
    "unit": "F9.08",
    "why": "A judgment call, no set checklist. Grading a setup A+, A, B or B- is discretionary and hard to define, and we teach no fixed checklist as ours. The grade then sets the size: A and B normal, A+ sized up, B- or lower sized down. The grade picks the risk percent; the stop distance turns it into shares.",
    "wrong": {
-    "A points checklist that adds it up": "We teach no fixed checklist. The grade is a judgment call.",
+    "A points checklist that adds up": "We teach no fixed checklist. The grade is a judgment call.",
     "By how high the share price is": "Price decides whether a stock is tradable ($10 or more), not how good the setup is.",
-    "By how tight the stop distance is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+."
+    "By how tight the stop is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+."
    }
   },
   "review_status": "draft",
@@ -16803,8 +16803,8 @@
    "choices": [
     "Above the 200-day, in an uptrend",
     "Below the 200-day, unless parabolic",
-    "Either side, when the setup is right",
-    "Below the 10-day average, any trend"
+    "Either side, if the setup is right",
+    "Below the 10-day, in any trend"
    ],
    "kind": "mcq",
    "q": "Under our rules, where do shorts belong?",
@@ -16838,7 +16838,7 @@
     "summary": "No longs below the 200-day simple moving average and shorts only below it; the one exception each way is a parabolic move. The rule as first written: shorts only below the 200-day, no longs below it, unless the trade is a parabolic one. In a Red market we sit mostly in cash, with shorts below the 200-day."
    },
    "facts": {
-    "given": "Under our rules, where do shorts belong? Below the 200-day, unless parabolic Above the 200-day, in an uptrend Either side, when the setup is right Below the 10-day average, any trend"
+    "given": "Under our rules, where do shorts belong? Below the 200-day, unless parabolic Above the 200-day, in an uptrend Either side, if the setup is right Below the 10-day, in any trend"
    },
    "lesson_line": "Longs above the 200-day, shorts below it. A parabolic move is the only exception.",
    "simple": "Below the 200-day, because shorts mirror our long rule, and only a parabolic short may sit above the line.",
@@ -16847,8 +16847,8 @@
    "why": "Below the 200-day, unless parabolic. Shorts go only below the 200-day, never above it unless it is a parabolic short. It mirrors the long rule: no longs below the line unless parabolic. In a Red market we sit mostly in cash, plus shorts below the 200-day.",
    "wrong": {
     "Above the 200-day, in an uptrend": "That's backwards. Above the 200-day is where our longs live. A short goes there only as a parabolic short.",
-    "Below the 10-day average, any trend": "The 10-day isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short.",
-    "Either side, when the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line."
+    "Below the 10-day, in any trend": "The 10-day isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short.",
+    "Either side, if the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line."
    }
   },
   "review_status": "draft",
@@ -17764,9 +17764,9 @@
   "prompt_json": {
    "choices": [
     "Sell it and free the money",
-    "Hold. The stop hasn't hit",
-    "Raise the stop to breakeven",
-    "Sell half, keep half for 1R"
+    "Hold. No stop was hit",
+    "Raise stop to breakeven",
+    "Sell half, hold half"
    ],
    "kind": "mcq",
    "q": "What does our time stop say?",
@@ -17801,7 +17801,7 @@
     "summary": "Our time stop: a trade still under 1R after 10 trading days is sold. A time exit sets the longest you will stay in a position. A time exit helps when a stock drifts sideways for a long time without hitting the stop."
    },
    "facts": {
-    "given": "What does our time stop say? You bought a stock 11 trading days ago. It never hit the stop and never got going. It's up 0.4R. Sell it and free the money Hold. The stop hasn't hit Raise the stop to breakeven Sell half, keep half for 1R"
+    "given": "What does our time stop say? You bought a stock 11 trading days ago. It never hit the stop and never got going. It's up 0.4R. Sell it and free the money Hold. No stop was hit Raise stop to breakeven Sell half, hold half"
    },
    "lesson_line": "Ten trading days and under 1R: out. The money belongs in a setup that's working.",
    "simple": "Sell it, because it is still under 1R after 10 trading days, so our time stop sells it.",
@@ -17809,9 +17809,9 @@
    "unit": "F9.09",
    "why": "Sell it and free the money. Our time stop: a trade still under 1R after 10 trading days is sold. This one is 11 days in and up 0.4R. A time exit is built for exactly this, a stock drifting sideways without hitting its stop. It's a sale, not a tighter stop and not a partial.",
    "wrong": {
-    "Hold. The stop hasn't hit": "The price stop is one exit. The time stop is another, and this one has triggered.",
-    "Raise the stop to breakeven": "A tighter stop keeps the trade open. Our time stop sells it: still under 1R after 10 trading days.",
-    "Sell half, keep half for 1R": "The time stop sells the trade, not half of it. Still under 1R after 10 trading days, it's sold."
+    "Hold. No stop was hit": "The price stop is one exit. The time stop is another, and this one has triggered.",
+    "Raise stop to breakeven": "A tighter stop keeps the trade open. Our time stop sells it: still under 1R after 10 trading days.",
+    "Sell half, hold half": "The time stop sells the trade, not half of it. Still under 1R after 10 trading days, it's sold."
    }
   },
   "review_status": "draft",
@@ -18486,9 +18486,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Dollar profit for the whole month",
+    "Dollar profit for the month",
     "The index's return that month",
-    "Trade count and the biggest winner",
+    "Trade count and the top winner",
     "Average win and average loss, in R"
    ],
    "kind": "mcq",
@@ -18533,7 +18533,7 @@
     "summary": "Each month, review win rate, average win and loss in R, expectancy and other statistics. Expectancy is what a system makes per dollar risked, on average: the mean R of its trades. Win rate is the number of winning trades out of all trades. A journal keeps you focused on process instead of the ups and downs of P/L."
    },
    "facts": {
-    "given": "Our monthly review names win rate and expectancy. Which other numbers does it name? Average win and average loss, in R Dollar profit for the whole month Trade count and the biggest winner The index's return that month"
+    "given": "Our monthly review names win rate and expectancy. Which other numbers does it name? Average win and average loss, in R Dollar profit for the month Trade count and the top winner The index's return that month"
    },
    "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
    "simple": "Average win and loss in R, because the monthly review names them beside win rate and expectancy.",
@@ -18541,9 +18541,9 @@
    "unit": "F9.09",
    "why": "Average win and average loss, in R. Each month we review win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. A journal keeps you on process, not the ups and downs of P/L.",
    "wrong": {
-    "Dollar profit for the whole month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
+    "Dollar profit for the month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
     "The index's return that month": "That measures the market, not your trading. The review names average win and loss in R.",
-    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
+    "Trade count and the top winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
    }
   },
   "review_status": "draft",

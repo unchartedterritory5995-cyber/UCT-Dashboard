@@ -1345,9 +1345,9 @@
    "q": "Which stocks make the flags we trade?",
    "choices": [
     "Leaders with high RS in strong groups",
-    "Laggards that are about to catch up",
-    "Any stock that shows the right shape",
-    "Whatever stock is loudest in the news"
+    "Laggards about to catch up",
+    "Any stock with the right shape",
+    "Whatever is loudest in the news"
    ],
    "answer": "Leaders with high RS in strong groups",
    "why": "Leaders, with an RS rating of 80 or more in one of the strongest groups. Bonde: flags are the most common continuation patterns on momentum leaders. A flag continues a run that was already strong.",
@@ -1358,9 +1358,9 @@
     "c28"
    ],
    "wrong": {
-    "Laggards that are about to catch up": "A flag is a continuation pattern. It continues what the leader was already doing.",
-    "Any stock that shows the right shape": "The shape alone does not pay. The leader, the catalyst and the market do.",
-    "Whatever stock is loudest in the news": "Loud is not leading. We pick leaders by RS rating and by group strength."
+    "Laggards about to catch up": "A flag is a continuation pattern. It continues what the leader was already doing.",
+    "Any stock with the right shape": "The shape alone does not pay. The leader, the catalyst and the market do.",
+    "Whatever is loudest in the news": "Loud is not leading. We pick leaders by RS rating and by group strength."
    },
    "house": true,
    "simple": "We buy flags in leaders, meaning stocks with an RS rating of 80 or more in a strong group.",
@@ -2824,13 +2824,13 @@
    "criterion": "bf.length",
    "q": "Bull flag or flat base?",
    "choices": [
-    "A flat base",
+    "A flat base setup",
     "A bull flag",
     "A wedge up",
     "A VCP setup"
    ],
-   "answer": "A flat base",
-   "why": "A flat base. Count the sessions: a flag is a short rest. Bulkowski says flags run under 3 weeks, and longer patterns are rectangles or channels. Our flat base rests at least 25 sessions in a box up to 15% deep, with a flat ceiling tapped twice.",
+   "answer": "A flat base setup",
+   "why": "A flat base setup. Count the sessions: a flag is a short rest. Bulkowski says flags run under 3 weeks, and longer patterns are rectangles or channels. Our flat base rests at least 25 sessions in a box up to 15% deep, with a flat ceiling tapped twice.",
    "lesson_line": "A rest measured in weeks is a base. Count the sessions before you name it.",
    "facts": [
     "c20",
@@ -3232,9 +3232,9 @@
    "q": "What is the lesson of this stop-out?",
    "choices": [
     "A weaker setup than a first flag",
-    "A stop set too close to the entry",
-    "A pole too small to be trusted",
-    "A flag far too deep to be bought"
+    "A stop set too close to entry",
+    "A pole too small to trust",
+    "A flag too deep to be bought"
    ],
    "answer": "A weaker setup than a first flag",
    "why": "A weaker setup than a first flag. The first flag after a breakout or correction is the best one, and this one came late in a long run. The stop was not the problem: it sat 2.25% under the entry, a planned loss.",
@@ -3248,9 +3248,9 @@
     "h24"
    ],
    "wrong": {
-    "A stop set too close to the entry": "The stop sits a few cents under the day's low by rule. A wider stop is not the fix; the setup was the weak spot.",
-    "A pole too small to be trusted": "A 30% pole is a normal bull flag pole. The weak spot was how late the flag came.",
-    "A flag far too deep to be bought": "The flag was only 3.8% deep after a 30% pole. Depth was not the problem."
+    "A stop set too close to entry": "The stop sits a few cents under the day's low by rule. A wider stop is not the fix; the setup was the weak spot.",
+    "A pole too small to trust": "A 30% pole is a normal bull flag pole. The weak spot was how late the flag came.",
+    "A flag too deep to be bought": "The flag was only 3.8% deep after a 30% pole. Depth was not the problem."
    },
    "house": true,
    "story": "A five-day flag, 3.8% deep, at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three.",
@@ -3488,8 +3488,8 @@
    "q": "What does the strong close tell you about this flag's odds?",
    "choices": [
     "No promise; strong closes failed too",
-    "A promise; it almost never fails now",
-    "It means move the stop to breakeven",
+    "A promise; it almost never fails",
+    "Move the stop to breakeven",
     "Sell it; the volume was too low"
    ],
    "answer": "No promise; strong closes failed too",
@@ -3505,9 +3505,9 @@
     "d21"
    ],
    "wrong": {
-    "It means move the stop to breakeven": "Breakeven comes between 2R and 5R, not on a good first close.",
+    "Move the stop to breakeven": "Breakeven comes between 2R and 5R, not on a good first close.",
     "Sell it; the volume was too low": "Low volume is a mark against the buy, not an exit. The stop is the exit.",
-    "A promise; it almost never fails now": "QCOM, STZ and LLY all closed the trigger day at the high and were stopped within days."
+    "A promise; it almost never fails": "QCOM, STZ and LLY all closed the trigger day at the high and were stopped within days."
    },
    "house": true,
    "story": "Your flag buy closes its first day at the high on below-average volume.",
@@ -3582,7 +3582,7 @@
     "Take it; every close held the line",
     "Pass; two closes sat under it",
     "Pass; the pole was too small",
-    "Take it; the rest lasted four days"
+    "Take it; the rest ran four days"
    ],
    "answer": "Take it; every close held the line",
    "why": "Take it. An eight-day flag held the 21-day EMA on every close, after a doubled pole. An intraday undercut that closes back above is allowed.",
@@ -3595,7 +3595,7 @@
    "wrong": {
     "Pass; two closes sat under it": "Look again: every close of the flag sits on or above the 21-day EMA.",
     "Pass; the pole was too small": "The pole nearly doubled in 12 days. Small is not the word.",
-    "Take it; the rest lasted four days": "The rest ran eight sessions, not four. Count the bars on the chart before you give a reason."
+    "Take it; the rest ran four days": "The rest ran eight sessions, not four. Count the bars on the chart before you give a reason."
    },
    "house": true,
    "chart": {
@@ -4178,7 +4178,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h14 (80 or more, strong groups) plus p4. No floor sentence left that gives away q36. Key ties the longest choice, not alone."
+   "notes": "h14 (80 or more, strong groups) plus p4. No floor sentence left that gives away q36. Key ties the longest choice, not alone.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -4412,7 +4413,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Nine weeks (about 45 sessions) in a 9% box with a flat top tapped twice matches c20b; Bulkowski and cs6/deeper counter handled. Marginal against Kullamagi's '2 months' option, but the flat base definition stands alone."
+   "notes": "Nine weeks (about 45 sessions) in a 9% box with a flat top tapped twice matches c20b; Bulkowski and cs6/deeper counter handled. Marginal against Kullamagi's '2 months' option, but the flat base definition stands alone.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -4478,7 +4480,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer right. 'The stop-out cost 2.25%' / 'took a planned loss of 2.25%' says more than d23 gives: 2.25% is the stop distance (day-3 low 906.17 is well under the 935.95 stop, fill not recorded). Reword to the stop distance."
+   "notes": "Answer right. 'The stop-out cost 2.25%' / 'took a planned loss of 2.25%' says more than d23 gives: 2.25% is the stop distance (day-3 low 906.17 is well under the 935.95 stop, fill not recorded). Reword to the stop distance.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -4514,7 +4517,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches d32 (three of four failures closed the trigger day at the high) and p2/p3 for the volume mark. Wrong notes grounded in d19, d21, h05."
+   "notes": "Key matches d32 (three of four failures closed the trigger day at the high) and p2/p3 for the volume mark. Wrong notes grounded in d19, d21, h05.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "cut",
@@ -4526,7 +4530,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d02: SHOP's eight-day flag held the 21-day EMA on every close; asof 2020-05-01 is the day before the 2020-05-04 trigger. Chart not viewed; confirm the chart shows the 21-day EMA."
+   "notes": "d02: SHOP's eight-day flag held the 21-day EMA on every close; asof 2020-05-01 is the day before the 2020-05-04 trigger. Chart not viewed; confirm the chart shows the 21-day EMA.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
    "status": "pass",

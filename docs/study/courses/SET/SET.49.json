@@ -1429,9 +1429,9 @@
    "q": "What is the taught daily trigger for a capitulation?",
    "choices": [
     "Buy the reclaim of the flush low",
-    "Buy right at the flush day's close",
-    "Buy a break of the flush-day high",
-    "Buy the first green day after it"
+    "Buy at the flush day's close",
+    "Buy a break of the flush high",
+    "Buy the first green day"
    ],
    "answer": "Buy the reclaim of the flush low",
    "why": "Undercut the flush low, then reclaim it. Within 3 sessions after the flush day, a session trades below the flush low and then back above it. We buy that reclaim. We never buy the flush close: nearly half of flush closes are undercut the next day. A green day alone is not the trigger.",
@@ -1443,9 +1443,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy right at the flush day's close": "That is the knife. Nearly half of flush closes are undercut the next day.",
-    "Buy a break of the flush-day high": "That is not our trigger. We buy the reclaim of the flush low, within 3 sessions.",
-    "Buy the first green day after it": "A green day alone is not the trigger. A session must trade under the flush low and back above it."
+    "Buy at the flush day's close": "That is the knife. Nearly half of flush closes are undercut the next day.",
+    "Buy a break of the flush high": "That is not our trigger. We buy the reclaim of the flush low, within 3 sessions.",
+    "Buy the first green day": "A green day alone is not the trigger. A session must trade under the flush low and back above it."
    },
    "simple": "We buy when price dips under the flush low and then climbs back above it, not at the flush close.",
    "tier": "core",
@@ -1738,9 +1738,9 @@
    "q": "Buy the close, or wait?",
    "choices": [
     "Wait for the undercut and reclaim",
-    "Buy the close; it is record volume",
-    "Wait a week for the dust to settle",
-    "Buy tomorrow's open, whatever it is"
+    "Buy the close; record volume",
+    "Wait a week for it to settle",
+    "Buy tomorrow's open regardless"
    ],
    "story": "The flush day closes at its low on record volume, 4 ATR under yesterday's close. It looks like the bottom.",
    "answer": "Wait for the undercut and reclaim",
@@ -1753,9 +1753,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy the close; it is record volume": "Record volume shows the panic. It does not show the low is in.",
-    "Buy tomorrow's open, whatever it is": "A blind open is not a trigger. The reclaim of the flush low is.",
-    "Wait a week for the dust to settle": "The trigger has a window: within 3 sessions of the flush. A week can miss it."
+    "Buy the close; record volume": "Record volume shows the panic. It does not show the low is in.",
+    "Wait a week for it to settle": "The trigger has a window: within 3 sessions of the flush. A week can miss it.",
+    "Buy tomorrow's open regardless": "A blind open is not a trigger. The reclaim of the flush low is."
    },
    "simple": "Wait. The flush close is often not the low, so we buy only when price breaks the low and climbs back.",
    "deeper": {
@@ -2080,9 +2080,9 @@
    "q": "What does that tell you?",
    "choices": [
     "An early warning; the stop rules",
-    "A buy signal; add more on the dip",
-    "Nothing; one candle means little",
-    "The stop should move down a bit"
+    "A buy signal; add on the dip",
+    "Nothing; one candle is minor",
+    "Move the stop down a bit"
    ],
    "story": "You bought the reclaim. The first bounce day closes in the lower third of its range.",
    "answer": "An early warning; the stop rules",
@@ -2095,9 +2095,9 @@
    ],
    "house": true,
    "wrong": {
-    "A buy signal; add more on the dip": "We never average down. It is full size at one price.",
-    "Nothing; one candle means little": "Our card names this stall the early warning. It is not nothing.",
-    "The stop should move down a bit": "The stop only moves up, never down."
+    "A buy signal; add on the dip": "We never average down. It is full size at one price.",
+    "Nothing; one candle is minor": "Our card names this stall the early warning. It is not nothing.",
+    "Move the stop down a bit": "The stop only moves up, never down."
    },
    "simple": "It is an early warning that the bounce is weak, but the stop still decides the exit.",
    "tier": "extended",
@@ -2873,9 +2873,9 @@
    "q": "Capitulation, or something else?",
    "choices": [
     "An undercut and rally, not a flush",
-    "A capitulation; it undercut a level",
+    "A capitulation; it broke a level",
     "A parabolic long off a fast fall",
-    "An Oops Reversal; it closed back up"
+    "An Oops Reversal; closed back up"
    ],
    "story": "A stock in an ordinary pullback opens flat, then dips 1% under a visible level. Its 50-day is not falling and volume is light. It closes back above the level.",
    "answer": "An undercut and rally, not a flush",
@@ -2888,9 +2888,9 @@
    ],
    "house": true,
    "wrong": {
-    "A capitulation; it undercut a level": "A capitulation needs a 2 ATR flush on 2x volume, not a 1% dip.",
+    "A capitulation; it broke a level": "A capitulation needs a 2 ATR flush on 2x volume, not a 1% dip.",
     "A parabolic long off a fast fall": "There was no fast fall. It was an ordinary pullback on light volume.",
-    "An Oops Reversal; it closed back up": "An Oops gaps under the prior day's low. This stock opened flat, with no gap."
+    "An Oops Reversal; closed back up": "An Oops gaps under the prior day's low. This stock opened flat, with no gap."
    },
    "simple": "An undercut and rally. It was a small dip on light volume, not a big flush on heavy volume.",
    "deeper": {
@@ -3129,9 +3129,9 @@
    "q": "What do you do?",
    "choices": [
     "Log it; wait for a new trigger",
-    "Buy back at once, a bigger size",
-    "Drop the stop on the next try",
-    "Call the setup broken; drop it"
+    "Buy back now, in bigger size",
+    "Drop the stop next time",
+    "Call the setup broken"
    ],
    "story": "You bought the reclaim at 64.66 with a stop at 63.75. The next day trades 23 cents under the stop, stops you out, then closes near its high.",
    "answer": "Log it; wait for a new trigger",
@@ -3146,9 +3146,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy back at once, a bigger size": "A new buy needs a new trigger, not a bigger size.",
-    "Drop the stop on the next try": "The stop is the exit. A new try is a new trade with its own stop.",
-    "Call the setup broken; drop it": "A planned loss is the cost of the trade, not proof the setup is broken."
+    "Buy back now, in bigger size": "A new buy needs a new trigger, not a bigger size.",
+    "Drop the stop next time": "The stop is the exit. A new try is a new trade with its own stop.",
+    "Call the setup broken": "A planned loss is the cost of the trade, not proof the setup is broken."
    },
    "simple": "Log the loss and wait. A stop that worked as planned can still lose, and a new buy needs a new trigger.",
    "deeper": {
@@ -3666,9 +3666,9 @@
    "story": "You tried the same stock three times this week and were stopped each time. On Friday it reclaims its flush low again.",
    "choices": [
     "No; three tries a week is the limit",
-    "Yes; a new reclaim is a new trigger",
-    "Yes, at half size to cut the risk",
-    "No; after a stop-out you never retry"
+    "Yes; a new reclaim is a trigger",
+    "Yes, at half size for less risk",
+    "No; a stop-out bars a retry"
    ],
    "answer": "No; three tries a week is the limit",
    "why": "No. On one stock we take at most 3 tries in a week and 6 in a month. Each try needs a new trigger, as a new trade with its own stop. A fresh reclaim is a new trigger, but the weekly limit still holds. A smaller size does not reset the count.",
@@ -3679,9 +3679,9 @@
     "h28"
    ],
    "wrong": {
-    "Yes; a new reclaim is a new trigger": "A new trigger is needed, but the week's limit still holds: at most 3 tries.",
-    "Yes, at half size to cut the risk": "Half size does not change the count. It is at most 3 tries in a week on one stock.",
-    "No; after a stop-out you never retry": "A stop-out does not bar the stock. We buy again on a new trigger, up to 3 tries a week."
+    "Yes; a new reclaim is a trigger": "A new trigger is needed, but the week's limit still holds: at most 3 tries.",
+    "Yes, at half size for less risk": "Half size does not change the count. It is at most 3 tries in a week on one stock.",
+    "No; a stop-out bars a retry": "A stop-out does not bar the stock. We buy again on a new trigger, up to 3 tries a week."
    },
    "house": true,
    "simple": "No. We take at most three tries a week on one stock, and this would be the fourth.",
@@ -3912,8 +3912,8 @@
    "choices": [
     "A gap down on the climax day",
     "A close under the lower band",
-    "15% off the 10-day high close",
-    "Price below the 9 and 20 EMA"
+    "15% off the 10-day high",
+    "Under the 9 and 20 EMA"
    ],
    "answer": "A gap down on the climax day",
    "why": "A gap down on the climax day. It is one of the 5 burst boxes on our card, the same gate as our parabolic long. The others are 3 or more lower closes, two gaps down in a row, growing losses and rising volume. A close under the lower Bollinger band, the 15% stretch and the short averages are separate checks.",
@@ -3929,8 +3929,8 @@
    "house": true,
    "wrong": {
     "A close under the lower band": "A band close is supporting evidence only. It is not one of the burst boxes.",
-    "15% off the 10-day high close": "That is the stretch, its own check. It is not one of the burst boxes.",
-    "Price below the 9 and 20 EMA": "Falling under the short averages is its own check, not a burst box."
+    "15% off the 10-day high": "That is the stretch, its own check. It is not one of the burst boxes.",
+    "Under the 9 and 20 EMA": "Falling under the short averages is its own check, not a burst box."
    },
    "simple": "A gap down on the climax day. It is one of the 5 burst boxes, and the other choices are separate checks.",
    "tier": "core",
@@ -4126,7 +4126,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c13/c35; every wrong note grounded (c33, c13). All four start with 'Buy'; lengths 32-34. Known overlap: q03's fill sentence ('the undercut and ___ of the flush low') nearly hands over this key. Kept because the trigger is the lesson's core rule taught across rungs, and q12's distractors (flush close, flush-day high, first green day) are real misreadings q03 does not test. Flag for the bank builder: do not deal q03 and q12 in the same session."
+   "notes": "Key matches c13/c35; every wrong note grounded (c33, c13). All four start with 'Buy'; lengths 32-34. Known overlap: q03's fill sentence ('the undercut and ___ of the flush low') nearly hands over this key. Kept because the trigger is the lesson's core rule taught across rungs, and q12's distractors (flush close, flush-day high, first green day) are real misreadings q03 does not test. Flag for the bank builder: do not deal q03 and q12 in the same session.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -4174,7 +4175,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c12, c13, c33. Two waits, two buys, no tell; the week-wait fails c13's 3-session window."
+   "notes": "Key from c12, c13, c33. Two waits, two buys, no tell; the week-wait fails c13's 3-session window.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -4210,7 +4212,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Card cap.inv_stall names the stall 'the early warning' with no extra action, so 'the stop rules' (h02, c48 sense) is right. Wrong notes rest on c19, c25, h02. Checked the card text directly."
+   "notes": "Card cap.inv_stall names the stall 'the early warning' with no extra action, so 'the stop rules' (h02, c48 sense) is right. Wrong notes rest on c19, c25, h02. Checked the card text directly.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -4306,7 +4309,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c39 (U&R = Undercut and Rally, as the library names it). Oops note holds: the story says it opened flat."
+   "notes": "Key from c39 (U&R = Undercut and Rally, as the library names it). Oops note holds: the story says it opened flat.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "pass",
@@ -4330,7 +4334,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h28 and h30. Even if day 1 itself formed a new undercut and reclaim, the key (wait for a new trigger) still holds."
+   "notes": "Key from h28 and h30. Even if day 1 itself formed a new undercut and reclaim, the key (wait for a new trigger) still holds.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -4486,7 +4491,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q71": {
    "status": "cut",
@@ -4527,7 +4533,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Gap down on the climax day is box 5 (c53) and mirrors B26. 'Growing losses' for box 3 matches Bracco's own post, where range expansion means a larger percent gain than the day before (re-fetched 2026-11-12). Distractors are separate checks."
+   "notes": "Gap down on the climax day is box 5 (c53) and mirrors B26. 'Growing losses' for box 3 matches Bracco's own post, where range expansion means a larger percent gain than the day before (re-fetched 2026-11-12). Distractors are separate checks.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q78": {
    "status": "pass",

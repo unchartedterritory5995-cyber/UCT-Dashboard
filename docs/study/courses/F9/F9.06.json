@@ -554,7 +554,7 @@
    "choices": [
     "Sell shares, or raise the stop",
     "Buy more, or lower the stop",
-    "Lower the stop, or sell shares",
+    "Lower the stop, or sell some",
     "Raise the stop, or buy more"
    ],
    "answer": "Sell shares, or raise the stop",
@@ -568,7 +568,7 @@
    ],
    "wrong": {
     "Buy more, or lower the stop": "Both add risk. More shares or a lower stop means more to lose at the stop.",
-    "Lower the stop, or sell shares": "Selling helps, but a lower stop adds risk on every share you keep.",
+    "Lower the stop, or sell some": "Selling helps, but a lower stop adds risk on every share you keep.",
     "Raise the stop, or buy more": "Raising helps, but buying more adds shares that can hit the stop."
    },
    "simple": "Sell shares or raise the stop, because fewer shares or a smaller drop to the stop both shrink what you can lose.",
@@ -622,9 +622,9 @@
    "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
    "choices": [
     "A winner turning into a loss",
-    "Any pullback after the rally",
-    "A gap down at tomorrow's open",
-    "Selling too early on a dip"
+    "Any pullback after a rally",
+    "A gap down at the open",
+    "Selling early on a dip"
    ],
    "answer": "A winner turning into a loss",
    "why": "A winner turning into a loss. A sell stop can protect a profit as well as limit a loss. Filled at your entry, the shares you hold come out even. That's O'Neil's rule: don't let a good gain fall back below your purchase price. Our rule moves the stop to breakeven at 2R to 5R, ideally. It can't stop a pullback above your entry, or a gap below it.",
@@ -640,9 +640,9 @@
     "h08"
    ],
    "wrong": {
-    "Any pullback after the rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
-    "A gap down at tomorrow's open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
-    "Selling too early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
+    "Any pullback after a rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
+    "A gap down at the open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
+    "Selling early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
    },
    "simple": "It keeps a winner from turning into a loss, because it sells you out about even if the stock falls back.",
    "tier": "core",
@@ -1336,9 +1336,9 @@
    "q": "What happens to your position?",
    "choices": [
     "Sold near $46, about $800 lost",
-    "Sold at $50, with nothing lost",
-    "Held until it trades back to $50",
-    "Held as a $50 limit, not filled"
+    "Sold at $50, nothing lost",
+    "Held until it's back at $50",
+    "Held as a $50 limit order"
    ],
    "answer": "Sold near $46, about $800 lost",
    "calc": {
@@ -1359,9 +1359,9 @@
     "f09"
    ],
    "wrong": {
-    "Held until it trades back to $50": "A sell stop triggers at or below its price. An open at $46 is below it, so it fires right away.",
-    "Sold at $50, with nothing lost": "That's the breakeven myth. The stop turns into a market order, and after a gap it fills well below your stop.",
-    "Held as a $50 limit, not filled": "A plain stop doesn't turn into a limit order. Once its price is reached, it becomes a market order and sells at the next price."
+    "Sold at $50, nothing lost": "That's the breakeven myth. The stop turns into a market order, and after a gap it fills well below your stop.",
+    "Held until it's back at $50": "A sell stop triggers at or below its price. An open at $46 is below it, so it fires right away.",
+    "Held as a $50 limit order": "A plain stop doesn't turn into a limit order. Once its price is reached, it becomes a market order and sells at the next price."
    },
    "simple": "Sold near $46 at the open, because a stop becomes a market order once hit, and the gap skips right past $50.",
    "deeper": {
@@ -1449,7 +1449,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1461,7 +1462,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answered cold: a stop at entry is there to keep a winner from becoming a loss (f14, f38, f01/f08). Distractors are each wrong on cited facts: a pullback above entry does not reach the stop, a gap goes through it (f09, f35), and a close stop raises the shake-out risk (f13). Choices are 26-29 chars with no tell, and the stem is 96 chars. h08 is quoted word for word from rulebook B19. The wrong note on the dip covers the same idea as q20's key, but walkthrough w3 step 3 already teaches it and q20 asks it as a case, so q05 does not give q20 away."
+   "notes": "Answered cold: a stop at entry is there to keep a winner from becoming a loss (f14, f38, f01/f08). Distractors are each wrong on cited facts: a pullback above entry does not reach the stop, a gap goes through it (f09, f35), and a close stop raises the shake-out risk (f13). Choices are 26-29 chars with no tell, and the stem is 96 chars. h08 is quoted word for word from rulebook B19. The wrong note on the dip covers the same idea as q20's key, but walkthrough w3 step 3 already teaches it and q20 asks it as a case, so q05 does not give q20 away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -1575,7 +1577,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story names a resting broker stop order (D41), so the key is order mechanics: f32 triggers at or below, f02 becomes market order, f33 gap fill far below; calc 200x(50-46)=800. Choices 30-32, two Sold two Held, neither Held choice is B20, so no second answer. B20 teaching stays the existing owner flag."
+   "notes": "Story names a resting broker stop order (D41), so the key is order mechanics: f32 triggers at or below, f02 becomes market order, f33 gap fill far below; calc 200x(50-46)=800. Choices 30-32, two Sold two Held, neither Held choice is B20, so no second answer. B20 teaching stays the existing owner flag.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",

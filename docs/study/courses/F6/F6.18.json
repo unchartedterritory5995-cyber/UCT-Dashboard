@@ -828,8 +828,8 @@
    "q": "It's midday. When was the open interest on your options chain last updated?",
    "choices": [
     "After the prior session's close",
-    "With the last trade that printed",
-    "At the start of the trading week",
+    "With each trade that prints",
+    "At the start of the week",
     "At the most recent expiration"
    ],
    "answer": "After the prior session's close",
@@ -840,8 +840,8 @@
     "f17"
    ],
    "wrong": {
-    "With the last trade that printed": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
-    "At the start of the trading week": "OCC reports it after each day's trades clear, not weekly.",
+    "With each trade that prints": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
+    "At the start of the week": "OCC reports it after each day's trades clear, not weekly.",
     "At the most recent expiration": "It changes every day as traders open and close positions, not just at expiry."
    },
    "simple": "It was last updated after the prior session closed, because OCC counts open interest once the day's trades clear.",
@@ -1477,9 +1477,9 @@
    "q": "Roughly what net position did that leave market makers with?",
    "choices": [
     "Short about 3,000 contracts",
-    "Short over 100,000 contracts",
-    "Long about 52,000 contracts",
-    "Flat, buys and sells match"
+    "Short over 100,000",
+    "Long about 52,000",
+    "Flat, buys equal sells"
    ],
    "answer": "Short about 3,000 contracts",
    "calc": {
@@ -1501,9 +1501,9 @@
     "f68"
    ],
    "wrong": {
-    "Short over 100,000 contracts": "That's the gross volume. Most of it was buying and selling that offset.",
-    "Long about 52,000 contracts": "That counts only their buys. They sold about 55,000 too.",
-    "Flat, buys and sells match": "Close, but not zero. They sold about 3,000 more than they bought."
+    "Short over 100,000": "That's the gross volume. Most of it was buying and selling that offset.",
+    "Long about 52,000": "That counts only their buys. They sold about 55,000 too.",
+    "Flat, buys equal sells": "Close, but not zero. They sold about 3,000 more than they bought."
    },
    "simple": "They were short about 3,000, because they sold about 55,000 and bought about 52,000, and only the gap counts.",
    "deeper": {
@@ -1677,7 +1677,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1791,7 +1792,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

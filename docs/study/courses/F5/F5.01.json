@@ -775,10 +775,10 @@
    "format": "mcq",
    "q": "Where does a company usually put out its quarterly numbers first?",
    "choices": [
-    "The 10-Q quarterly report filing",
+    "The 10-Q quarterly report",
     "A press release filed on an 8-K",
-    "The earnings call with analysts",
-    "The company's investor slide deck"
+    "The call with analysts",
+    "The investor slide deck"
    ],
    "answer": "A press release filed on an 8-K",
    "why": "A press release filed on an 8-K. Most companies put out their sales and earnings in a press release. If they do, they must file it with the SEC on Form 8-K. The release is a summary. The full statements come later in the 10-Q or 10-K. The earnings call usually comes shortly after the release.",
@@ -792,9 +792,9 @@
     "f22"
    ],
    "wrong": {
-    "The 10-Q quarterly report filing": "The 10-Q comes later, with the full financial statements the release summarizes.",
-    "The earnings call with analysts": "The call usually comes shortly after the release, to discuss numbers already out.",
-    "The company's investor slide deck": "Only some companies issue a deck, and it comes along with the figures. Most put the numbers out in a press release."
+    "The 10-Q quarterly report": "The 10-Q comes later, with the full financial statements the release summarizes.",
+    "The call with analysts": "The call usually comes shortly after the release, to discuss numbers already out.",
+    "The investor slide deck": "Only some companies issue a deck, and it comes along with the figures. Most put the numbers out in a press release."
    },
    "simple": "A press release filed on an 8-K comes first, because the call and the 10-Q both follow it.",
    "tier": "core",
@@ -1359,7 +1359,7 @@
     "Beat on both lines",
     "Revenue beat, EPS missed",
     "Missed on both lines",
-    "EPS beat, revenue missed"
+    "EPS beat, sales missed"
    ],
    "answer": "Revenue beat, EPS missed",
    "why": "Revenue beat, EPS missed. Revenue of $28.10 billion topped the $26.37 billion LSEG consensus. Adjusted EPS of 50 cents fell short of the 54 cents expected. One report can beat on one line and miss on the other. Tesla's operating margin also fell, to 5.8% from 10.8% a year earlier.",
@@ -1374,7 +1374,7 @@
    "wrong": {
     "Beat on both lines": "EPS came in at 50 cents against 54 cents expected. That's below the consensus.",
     "Missed on both lines": "Revenue of $28.10 billion was above the $26.37 billion consensus. That line beat.",
-    "EPS beat, revenue missed": "It's the other way round. Sales beat, and profit per share fell short."
+    "EPS beat, sales missed": "It's the other way round. Sales beat, and profit per share fell short."
    },
    "simple": "Revenue beat and EPS missed, because sales came in above the estimate while profit per share came in below it.",
    "deeper": {
@@ -1468,9 +1468,9 @@
    "q": "Why did EPS grow faster than net earnings?",
    "choices": [
     "Fewer shares split the profit",
-    "Revenue grew faster than profit",
-    "Target paid a bigger dividend",
-    "Adjusted EPS left out some costs"
+    "Revenue outgrew profit",
+    "Target paid more dividends",
+    "Adjusted EPS left out costs"
    ],
    "answer": "Fewer shares split the profit",
    "why": "Fewer shares split the profit. EPS is net income divided by shares. Net earnings rose 10.0%, but the diluted share count fell 1.6%. So each share's slice grew faster, 11.7%. Target also bought back and retired 2.2 million shares in the quarter.",
@@ -1483,9 +1483,9 @@
     "f05"
    ],
    "wrong": {
-    "Revenue grew faster than profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
-    "Target paid a bigger dividend": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two.",
-    "Adjusted EPS left out some costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count."
+    "Revenue outgrew profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
+    "Target paid more dividends": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two.",
+    "Adjusted EPS left out costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count."
    },
    "simple": "Fewer shares, because the profit grew 10.0% but was split over 1.6% fewer shares, so each share got more.",
    "deeper": {
@@ -1507,8 +1507,8 @@
    "q": "What's the right yardstick for Target's gross margin?",
    "choices": [
     "Its own past and other retailers",
-    "NVIDIA's 73.4%, a bigger company",
-    "The stock market's average margin",
+    "NVIDIA's 73.4%, a big firm",
+    "The market's average margin",
     "Its own 6.2% operating margin"
    ],
    "answer": "Its own past and other retailers",
@@ -1532,9 +1532,9 @@
     "f30"
    ],
    "wrong": {
-    "NVIDIA's 73.4%, a bigger company": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
-    "Its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations.",
-    "The stock market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry."
+    "NVIDIA's 73.4%, a big firm": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
+    "The market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry.",
+    "Its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations."
    },
    "simple": "Compare it with Target's own past and with other retailers, because good margins differ from one industry to another.",
    "deeper": {
@@ -1595,7 +1595,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1697,7 +1698,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -1715,13 +1717,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f31: net earnings +10.0%, diluted EPS +11.7%, diluted shares -1.6%; f04). Story does not name the cause, choices balanced, key not longest. Defect: the dividend wrong note is copied almost word for word from q16's dividend note ('EPS is the profit per share as if all of it were paid out'), a copied explanation. Reworded to rest on f04's formula instead, which also points the member at the two parts of EPS."
+   "notes": "Key right (f31: net earnings +10.0%, diluted EPS +11.7%, diluted shares -1.6%; f04). Story does not name the cause, choices balanced, key not longest. Defect: the dividend wrong note is copied almost word for word from q16's dividend note ('EPS is the profit per share as if all of it were paid out'), a copied explanation. Reworded to rest on f04's formula instead, which also points the member at the two parts of EPS.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f07 SEC: desirable ratios vary by industry; f71 Fidelity: compare similar companies and the industry; f69; f78 Target among retailers; f33 own year-ago 28.8%). Defect: the story, why and a wrong note state NVIDIA is in 'AI and accelerated computing', and the verify note says this rests on new fact f79, but f79 was never added to the facts array or to q24's facts. Ungrounded claim as the file stands. Quote re-fetched 2026-11-12 from the s11 8-K, About NVIDIA: 'NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.' Fix: add that fact as f79 to the file's facts and"
+   "notes": "Key right (f07 SEC: desirable ratios vary by industry; f71 Fidelity: compare similar companies and the industry; f69; f78 Target among retailers; f33 own year-ago 28.8%). Defect: the story, why and a wrong note state NVIDIA is in 'AI and accelerated computing', and the verify note says this rests on new fact f79, but f79 was never added to the facts array or to q24's facts. Ungrounded claim as the file stands. Quote re-fetched 2026-11-12 from the s11 8-K, About NVIDIA: 'NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.' Fix: add that fact as f79 to the file's facts and",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

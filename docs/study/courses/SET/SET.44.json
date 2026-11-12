@@ -1081,9 +1081,9 @@
    "q": "Which line does the Holy Grail pull back to?",
    "choices": [
     "The 20-day EMA of closes",
-    "The 20-day simple average",
-    "The 21-day EMA of closes",
-    "The 50-day simple average"
+    "The 20-day SMA line",
+    "The 21-day EMA line",
+    "The 50-day SMA line"
    ],
    "answer": "The 20-day EMA of closes",
    "why": "The 20-day EMA of closes. Raschke says she uses a 20-period exponential moving average on all her markets. Our card says the same: not a 20 SMA, not the 21 EMA. Woods' page uses a 20-period simple average instead. The 50-day has a different job: the touch low holds above it.",
@@ -1096,9 +1096,9 @@
     "c10"
    ],
    "wrong": {
-    "The 20-day simple average": "Woods' page says simple. Raschke names the exponential average every time, and so does our card.",
-    "The 21-day EMA of closes": "Our card says it plainly: not a 20 SMA, not the 21 EMA. Raschke uses a 20-period line.",
-    "The 50-day simple average": "The 50-day is the floor under the touch, not the line it touches."
+    "The 20-day SMA line": "Woods' page says simple. Raschke names the exponential average every time, and so does our card.",
+    "The 21-day EMA line": "Our card says it plainly: not a 20 SMA, not the 21 EMA. Raschke uses a 20-period line.",
+    "The 50-day SMA line": "The 50-day is the floor under the touch, not the line it touches."
    },
    "house": true,
    "simple": "It pulls back to the 20-day EMA of closes, because Raschke names the exponential average and so does our card.",
@@ -1526,9 +1526,9 @@
    "q": "By our card, how long is a Holy Grail pullback, momentum high to touch?",
    "choices": [
     "2 to 10 sessions",
-    "1 session at most",
-    "11 to 20 sessions",
-    "Six weeks or more"
+    "1 session",
+    "11-20 sessions",
+    "Six weeks"
    ],
    "answer": "2 to 10 sessions",
    "why": "2 to 10 sessions, from the momentum high to the touch. That is our card's range. Raschke's first two- to three-day retracement sits inside it. A one-day dip is too short to count. More than 10 sessions is past the card's limit.",
@@ -1539,9 +1539,9 @@
     "d24"
    ],
    "wrong": {
-    "1 session at most": "The card starts at 2 sessions. A one-day dip is too short to count.",
-    "Six weeks or more": "Far past the card's 10-session limit, so it is no Holy Grail.",
-    "11 to 20 sessions": "The card stops at 10. Even ten days, our dossier says, is a flag that has lost its urgency."
+    "1 session": "The card starts at 2 sessions. A one-day dip is too short to count.",
+    "11-20 sessions": "The card stops at 10. Even ten days, our dossier says, is a flag that has lost its urgency.",
+    "Six weeks": "Far past the card's 10-session limit, so it is no Holy Grail."
    },
    "house": true,
    "simple": "By our card, the pullback runs 2 to 10 sessions, counted from the momentum high to the touch.",
@@ -2378,9 +2378,9 @@
    "q": "Which touch is the A+ cue?",
    "choices": [
     "The one closing in its upper half",
-    "The one closing right on its low",
-    "Neither; the close does not matter",
-    "Wait; the next day's close decides"
+    "The one closing on its low",
+    "Neither; the close is no cue",
+    "Wait; the next close decides"
    ],
    "answer": "The one closing in its upper half",
    "why": "The one closing in its upper half. Our card's A+ cue is a touch session that shows buyers. It closes in its upper half, or it shows the intraday turn. A close on the low does not show those buyers on the touch day. Grading stays a judgment, and this cue is one part of it.",
@@ -2392,9 +2392,9 @@
     "h32"
    ],
    "wrong": {
-    "Neither; the close does not matter": "The close matters here. On our card, a touch that closes in its upper half shows buyers.",
-    "The one closing right on its low": "A close on the low does not show buyers. The A+ cue is a touch that closes in its upper half.",
-    "Wait; the next day's close decides": "The cue is on the touch session itself. The next day is for the trigger, a trade over the prior high."
+    "The one closing on its low": "A close on the low does not show buyers. The A+ cue is a touch that closes in its upper half.",
+    "Neither; the close is no cue": "The close matters here. On our card, a touch that closes in its upper half shows buyers.",
+    "Wait; the next close decides": "The cue is on the touch session itself. The next day is for the trigger, a trade over the prior high."
    },
    "story": "Two touches of the 20 EMA on the same kind of trend. One closes near the top of its range. The other closes on its low.",
    "house": true,
@@ -2448,9 +2448,9 @@
    "q": "Where is our stop?",
    "choices": [
     "A few cents under 48.75",
-    "46.75; give it some room",
+    "46.75; give it room",
     "At the 20 EMA line",
-    "Right on 48.75, the low"
+    "Right on 48.75"
    ],
    "answer": "A few cents under 48.75",
    "why": "A few cents under 48.75, the swing low. The stop goes a few cents under the newly formed swing low, the lowest low from the touch through the trigger. Not exactly on it, and not a full ATR under it. Here 1 ATR is 2.00, so the scan's stop sits at 46.75. A full ATR under the low puts the risk past 4% before the bar's own range is added.",
@@ -2462,9 +2462,9 @@
     "h24"
    ],
    "wrong": {
-    "46.75; give it some room": "Room is a bigger loss, not a better trade. A stop a full ATR under the low is a named mistake.",
+    "46.75; give it room": "Room is a bigger loss, not a better trade. A stop a full ATR under the low is a named mistake.",
     "At the 20 EMA line": "The line is where it touched, not where the setup is wrong. The swing low is.",
-    "Right on 48.75, the low": "Not exactly on it. Our stop sits a few cents under the low."
+    "Right on 48.75": "Not exactly on it. Our stop sits a few cents under the low."
    },
    "story": "The swing low is 48.75 and the ATR is 2.00. A scan suggests a stop at 46.75, a full ATR under the low.",
    "house": true,
@@ -2683,9 +2683,9 @@
    "q": "Before the trigger comes, the stock closes under its 50-day. The setup?",
    "choices": [
     "Void; no Holy Grail trade",
-    "Still live for 5 sessions",
-    "A buy at the 50-day instead",
-    "Live while the 20 EMA rises"
+    "Live for 5 sessions",
+    "A buy at the 50-day",
+    "Live; the 20 EMA rises"
    ],
    "answer": "Void; no Holy Grail trade",
    "why": "Void. Before the trigger, our card voids the setup after a close below the 50-day SMA. The 5-session limit is a separate test, for a trigger that never comes. A rising 20 EMA does not save it. There is no Holy Grail trade.",
@@ -2695,9 +2695,9 @@
     "c10"
    ],
    "wrong": {
-    "Still live for 5 sessions": "The 5 sessions are for a trigger that never comes. A close under the 50-day ends it at once.",
-    "A buy at the 50-day instead": "Our card calls that a 50-day pullback, a different setup with its own rules. The Grail is void.",
-    "Live while the 20 EMA rises": "A rising line does not save it. A close below the 50-day SMA voids the setup."
+    "Live for 5 sessions": "The 5 sessions are for a trigger that never comes. A close under the 50-day ends it at once.",
+    "A buy at the 50-day": "Our card calls that a 50-day pullback, a different setup with its own rules. The Grail is void.",
+    "Live; the 20 EMA rises": "A rising line does not save it. A close below the 50-day SMA voids the setup."
    },
    "house": true,
    "simple": "The setup is void, because a close under the 50-day before the trigger ends the Holy Grail at once.",
@@ -2896,9 +2896,9 @@
    "q": "What comes off?",
    "choices": [
     "A third at 5R, sell the burst",
-    "Nothing; let the whole leg run",
-    "All of it, sold at the 5R line",
-    "A third once it reaches 10R"
+    "Nothing; let the leg run",
+    "All of it, sold at 5R",
+    "A third at 10R"
    ],
    "answer": "A third at 5R, sell the burst",
    "why": "A third at 5R, then sell a big part into the climax run. After the first third at 3R, our rule takes another third at 5R and trails the last third. A climax run on your own long, Bracco's parabolic burst, is sold into. How much is a judgment call. LITE in 2025 began this kind of leg right after its 3R.",
@@ -2911,9 +2911,9 @@
     "h25"
    ],
    "wrong": {
-    "Nothing; let the whole leg run": "Sell into strength. A climax run is the strength our rule sells a big part into.",
-    "All of it, sold at the 5R line": "5R is the second third, not the exit. The last third rides the trail or the climax sale.",
-    "A third once it reaches 10R": "The second third comes at 5R, not 10R."
+    "Nothing; let the leg run": "Sell into strength. A climax run is the strength our rule sells a big part into.",
+    "All of it, sold at 5R": "5R is the second third, not the exit. The last third rides the trail or the climax sale.",
+    "A third at 10R": "The second third comes at 5R, not 10R."
    },
    "story": "Bought at 91.78, stop 88.88. 3R in five sessions, a third off. Then a parabolic leg carries it well past 5R.",
    "house": true,
@@ -3242,9 +3242,9 @@
    "q": "Hidden ticker, the touch day. Assume a Green market, RS 80 or more. A first pullback to its rising 20 EMA after an ADX push. Buy or pass?",
    "choices": [
     "Buy the trigger; the 50-day held",
-    "Pass; the touch broke the 50-day",
-    "Pass; price is under the 200-day",
-    "Buy at the close, on the touch"
+    "Pass; touch broke the 50-day",
+    "Pass; under the 200-day",
+    "Buy the touch at the close"
    ],
    "answer": "Buy the trigger; the 50-day held",
    "why": "Buy, on the trigger. The touch low holds above the 50-day, and the close sits above the 200-day. Our scan required both for every example, and this was CI in October 2000. It had a strong thrust off the 50-day, then seven quiet red days into the line. It triggered the morning after the touch.",
@@ -3259,9 +3259,9 @@
     "c44"
    ],
    "wrong": {
-    "Pass; the touch broke the 50-day": "The touch low held above the 50-day. This chart is one of our scan's examples, and the scan required it.",
-    "Pass; price is under the 200-day": "The close sits above the 200-day. Our scan required that for every example, this one included.",
-    "Buy at the close, on the touch": "Right setup, wrong entry. Today is the touch, and buying the touch instead of the trigger is a named mistake."
+    "Pass; touch broke the 50-day": "The touch low held above the 50-day. This chart is one of our scan's examples, and the scan required it.",
+    "Pass; under the 200-day": "The close sits above the 200-day. Our scan required that for every example, this one included.",
+    "Buy the touch at the close": "Right setup, wrong entry. Today is the touch, and buying the touch instead of the trigger is a named mistake."
    },
    "chart": {
     "sym": "CI",
@@ -3371,9 +3371,9 @@
    "q": "Which setup is it?",
    "choices": [
     "An Oops reversal day",
-    "A Holy Grail pullback",
-    "A U&R at a swing low",
-    "A Slingshot reclaim"
+    "A Holy Grail",
+    "A swing-low U&R",
+    "A Slingshot"
    ],
    "answer": "An Oops reversal day",
    "why": "An Oops. It opens under the prior close, trades under the prior day's low and reclaims the prior close the same day. A Holy Grail's trigger comes after a touch of the 20 EMA, and this stock never touched it. A U&R undercuts a level everyone can see, such as a bounced swing low or the range low. A Slingshot needs 3 to 7 closes under the 4-day EMA of the highs, then a close back over it. Nothing here shows that.",
@@ -3385,9 +3385,9 @@
     "u01"
    ],
    "wrong": {
-    "A Holy Grail pullback": "It never touched its 20 EMA, so there is no Grail. The Grail is bought after a touch of the line.",
-    "A U&R at a swing low": "A U&R undercuts a level everyone can see, like a swing low or range low. Yesterday's low here was neither.",
-    "A Slingshot reclaim": "A Slingshot needs 3 to 7 closes under the 4-day EMA of the highs, then a close back over it. Nothing here shows that."
+    "A Holy Grail": "It never touched its 20 EMA, so there is no Grail. The Grail is bought after a touch of the line.",
+    "A swing-low U&R": "A U&R undercuts a level everyone can see, like a swing low or range low. Yesterday's low here was neither.",
+    "A Slingshot": "A Slingshot needs 3 to 7 closes under the 4-day EMA of the highs, then a close back over it. Nothing here shows that."
    },
    "story": "The stock opens under yesterday's close and trades under yesterday's low. By the bell it has reclaimed yesterday's close. Yesterday's low was no swing low or range low. It never touched its 20 EMA.",
    "house": true,
@@ -3430,9 +3430,9 @@
    "q": "By our card, where is the trigger for Wednesday?",
    "choices": [
     "Just over 52.00, Tuesday's high",
-    "Still over 52.40, Monday's high",
-    "None; a lower low ends the setup",
-    "Buy at the 20 EMA touch instead"
+    "Over 52.40, Monday's high",
+    "None; a lower low ends it",
+    "Buy at the 20 EMA touch"
    ],
    "answer": "Just over 52.00, Tuesday's high",
    "why": "Just over 52.00, Tuesday's high. Raschke puts a buy stop above the high of the previous bar. Our card adds a rule for a session that makes a lower low and does not trigger. The next trigger is that session's high, while the setup is still alive. When price trades there, we buy at market. A lower low alone does not end the setup.",
@@ -3445,9 +3445,9 @@
     "h22"
    ],
    "wrong": {
-    "Still over 52.40, Monday's high": "Monday's level is stale. The trigger follows the latest session's high while the setup is alive.",
-    "None; a lower low ends the setup": "A lower low alone does not end it. The card rolls the trigger to that session's high while the setup is alive.",
-    "Buy at the 20 EMA touch instead": "Buying the touch instead of the trigger is a named mistake. The buy waits for a trade over the latest high."
+    "Over 52.40, Monday's high": "Monday's level is stale. The trigger follows the latest session's high while the setup is alive.",
+    "None; a lower low ends it": "A lower low alone does not end it. The card rolls the trigger to that session's high while the setup is alive.",
+    "Buy at the 20 EMA touch": "Buying the touch instead of the trigger is a named mistake. The buy waits for a trade over the latest high."
    },
    "house": true,
    "story": "Monday touched the 20 EMA. The trigger for Tuesday sat just over Monday's high of 52.40. Tuesday made a lower low, topped out at 52.00 and never triggered. There is no close under the 50-day.",
@@ -3585,7 +3585,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the 20-day EMA of closes from r30/c06 before reading the key; matches. Choices balanced (24-26 chars), Woods' SMA shown as his (w02), 50-day note rests on c10. No second answer, no tell."
+   "notes": "Derived the 20-day EMA of closes from r30/c06 before reading the key; matches. Choices balanced (24-26 chars), Woods' SMA shown as his (w02), 50-day note rests on c10. No second answer, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3663,7 +3664,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 2 to 10 sessions from c08; why and notes grounded (r31, d24). 'Six weeks or more' is a weak distractor but a real misconception (a long base read as a pullback). No other question's stem gives the range away."
+   "notes": "Key 2 to 10 sessions from c08; why and notes grounded (r31, d24). 'Six weeks or more' is a weak distractor but a real misconception (a long base read as a pullback). No other question's stem gives the range away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -3801,7 +3803,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the upper-half close from c12/c39 first; matches. The story paraphrases (near the top of its range) rather than echoing the key. The 'Wait' note correctly places the trigger next (r03). E50 scoping in the why; the owner flag on card grade rows stands."
+   "notes": "Derived the upper-half close from c12/c39 first; matches. The story paraphrases (near the top of its range) rather than echoing the key. The 'Wait' note correctly places the trigger next (r03). E50 scoping in the why; the owner flag on card grade rows stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -3813,7 +3816,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c15/h24; 46.75 and 2.00 come from the story; 2.00 is over 4% of 48.75, so c16's 'past 4%' holds here. Overlaps q03 (same stop fact) but with numbers and F62's 'not exactly on it' choice; acceptable."
+   "notes": "Key from c15/h24; 46.75 and 2.00 come from the story; 2.00 is over 4% of 48.75, so c16's 'past 4%' holds here. Overlaps q03 (same stop fact) but with numbers and F62's 'not exactly on it' choice; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",
@@ -3849,7 +3853,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'void' from c14 first; matches. The 5-session note separates the two void tests; the 50-day note rests on c10 (setup 12). Choices 25-27 chars, no tell. q66's restatement of this rule is fixed there."
+   "notes": "Derived 'void' from c14 first; matches. The 5-session note separates the two void tests; the 50-day note rests on c10 (setup 12). Choices 25-27 chars, no tell. q66's restatement of this rule is fixed there.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3885,7 +3890,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h20 (a third at 5R) + h16 (sell a big part into a climax run); LITE from d05/d06; deeper from h25. 'Sell the burst' is read with the why ('a big part'); acceptable."
+   "notes": "Key from h20 (a third at 5R) + h16 (sell a big part into a climax run); LITE from d05/d06; deeper from h25. 'Sell the burst' is read with the why ('a big part'); acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "cut",
@@ -3945,7 +3951,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Read the CI 2000-10-25 bars before the key: low 36.08 reaches the 20 EMA (36.38), over the 50-day (33.80); close 36.50 over the 200-day (29.39); triggered 10-26 over 36.70. Buy the trigger is right; touch-buy is c30. Dossier says the ten examples were checked by hand against earnings dates, so B22 does not bite. Stem 137 chars."
+   "notes": "Read the CI 2000-10-25 bars before the key: low 36.08 reaches the 20 EMA (36.38), over the 50-day (33.80); close 36.50 over the 200-day (29.39); triggered 10-26 over 36.70. Buy the trigger is right; touch-buy is c30. Dossier says the ten examples were checked by hand against earnings dates, so B22 does not bite. Stem 137 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q62": {
    "status": "pass",
@@ -3963,7 +3970,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived Oops from c22 first; matches. Story excludes the Grail (no touch) and the U&R level (u01: no swing low or range low); Slingshot needs facts not given (c21). c23's looser 'a prior low' is narrowed by u01, which the why uses. Choices 19-21 chars, no tell."
+   "notes": "Derived Oops from c22 first; matches. Story excludes the Grail (no touch) and the U&R level (u01: no swing low or range low); Slingshot needs facts not given (c21). c23's looser 'a prior low' is narrowed by u01, which the why uses. Choices 19-21 chars, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "cut",
@@ -3975,7 +3983,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'just over 52.00' from c50 (and r03's previous bar) first; matches. Lower-low void choice ruled out by c14; touch-buy by c30. The deeper's 5-session count does not decide q21 (whether the fifth session counts) or q45 (the 50-day close)."
+   "notes": "Derived 'just over 52.00' from c50 (and r03's previous bar) first; matches. Lower-low void choice ruled out by c14; touch-buy by c30. The deeper's 5-session count does not decide q21 (whether the fifth session counts) or q45 (the 50-day close).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
    "status": "cut",

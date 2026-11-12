@@ -307,9 +307,9 @@
   "prompt_json": {
    "choices": [
     "Bears have been much shorter",
-    "They have run about the same",
-    "Bears have been much longer",
-    "There's no pattern either way"
+    "They've run about the same",
+    "Bears have run much longer",
+    "There's no pattern"
    ],
    "kind": "mcq",
    "q": "On average, how have bear markets compared with bull markets in length?",
@@ -343,7 +343,7 @@
     "summary": "Since 1966 the average bear market lasted about 14 months, far shorter than the average bull market. The 2020 bear market lasted about a month, the shortest ever; bear markets have been shorter than bull markets. In Bulkowski's Dow data the average bull market lasted 3 years."
    },
    "facts": {
-    "given": "On average, how have bear markets compared with bull markets in length? Bears have been much shorter Bears have been much longer They have run about the same There's no pattern either way"
+    "given": "On average, how have bear markets compared with bull markets in length? Bears have been much shorter Bears have run much longer They've run about the same There's no pattern"
    },
    "lesson_line": "Bears hurt fast. Bulls take their time.",
    "simple": "Much shorter, since on average bear markets have ended far sooner than bull markets.",
@@ -351,9 +351,9 @@
    "unit": "F7.01",
    "why": "Much shorter. Since 1966 the average bear market lasted roughly 14 months, far shorter than the average bull, Schwab says. Morningstar agrees that periods of decline have been shorter than periods of growth. Bulkowski's Dow data put the average bull at 3 years. The exact averages differ by period and method, so only the direction is firm.",
    "wrong": {
-    "Bears have been much longer": "The reverse. Periods of decline have been shorter than periods of growth.",
-    "There's no pattern either way": "There is one. Schwab and Morningstar both find bear markets shorter than bull markets.",
-    "They have run about the same": "Not close. Schwab puts the average bear far shorter than the average bull."
+    "Bears have run much longer": "The reverse. Periods of decline have been shorter than periods of growth.",
+    "There's no pattern": "There is one. Schwab and Morningstar both find bear markets shorter than bull markets.",
+    "They've run about the same": "Not close. Schwab puts the average bear far shorter than the average bull."
    }
   },
   "review_status": "draft",
@@ -8051,8 +8051,8 @@
    "choices": [
     "Volume drying up for a whole week",
     "Under 15% of stocks above their 50-day",
-    "The index at a new high, VIX near lows",
-    "Over 70% of stocks above their 50-day"
+    "Index at a new high, VIX near lows",
+    "Over 70% above their 50-day"
    ],
    "kind": "mcq",
    "q": "You're watching for a breadth washout. Which reading fits?",
@@ -8100,7 +8100,7 @@
     "summary": "One washout sign: under 15% of stocks above their 50-day moving average. A bottom starts with a washout: panic, extreme fear and capitulation on a big drop. For the percent of stocks above their 50-day, above 70% is generally deemed overbought and below 30% oversold. The washout starts the bottoming process but is rarely the index's low. Capitulation shows up as sharp drops on unusually high volume."
    },
    "facts": {
-    "given": "You're watching for a breadth washout. Which reading fits? Under 15% of stocks above their 50-day Over 70% of stocks above their 50-day The index at a new high, VIX near lows Volume drying up for a whole week"
+    "given": "You're watching for a breadth washout. Which reading fits? Under 15% of stocks above their 50-day Over 70% above their 50-day Index at a new high, VIX near lows Volume drying up for a whole week"
    },
    "lesson_line": "A washout means almost nothing is holding up. It starts the bottoming process. It's rarely the low.",
    "simple": "Under 15% above their 50-day fits, because a washout means almost every stock has broken down.",
@@ -8108,8 +8108,8 @@
    "unit": "F7.04",
    "why": "Under 15% of stocks above their 50-day. A CMT Association article lists it as one washout sign. ChartSchool generally treats a reading under 30% as oversold, so 15% is deep. A washout comes with panic and extreme fear. It starts the bottoming process, but it is rarely where the index makes its low.",
    "wrong": {
-    "Over 70% of stocks above their 50-day": "That's the overbought end. ChartSchool generally treats above 70% as overbought.",
-    "The index at a new high, VIX near lows": "That's calm, not panic. A washout comes with extreme fear.",
+    "Index at a new high, VIX near lows": "That's calm, not panic. A washout comes with extreme fear.",
+    "Over 70% above their 50-day": "That's the overbought end. ChartSchool generally treats above 70% as overbought.",
     "Volume drying up for a whole week": "Quiet volume isn't panic. A washout is a big, fearful drop, and capitulation comes on unusually high volume."
    }
   },
@@ -11088,9 +11088,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Extreme oversold; the drop is ending",
+    "Oversold, so the drop is ending",
     "Deeply oversold, with no upturn yet",
-    "Little; breadth only matters at tops",
+    "Breadth only matters at tops",
     "A bullish divergence is forming"
    ],
    "kind": "mcq",
@@ -11150,7 +11150,7 @@
     "summary": "ChartSchool treats above 70% as overbought and below 30% as oversold, and says the levels vary by index. Oversold alone is not always a buy signal; it is often wiser to wait for an upturn. In a strong trend this gauge can go overbought (uptrend) or oversold (downtrend) again and again. In ChartSchool's downtrend example, oversold readings were ignored and overbought bounces were the selling alerts. Bullish divergence: the index makes a lower low and the A/D line does not, so fewer stocks are falling and the decline may be ending. Don't trade on a breadth reading alone; confirm with price."
    },
    "facts": {
-    "given": "What does this breadth reading tell you? After a sharp drop, only 12% of S&P 500 stocks are above their 50-day average. That share is still falling, and the index keeps making lower lows. Deeply oversold, with no upturn yet Extreme oversold; the drop is ending A bullish divergence is forming Little; breadth only matters at tops"
+    "given": "What does this breadth reading tell you? After a sharp drop, only 12% of S&P 500 stocks are above their 50-day average. That share is still falling, and the index keeps making lower lows. Deeply oversold, with no upturn yet Oversold, so the drop is ending A bullish divergence is forming Breadth only matters at tops"
    },
    "lesson_line": "Oversold tells you where breadth is, not when it turns.",
    "simple": "It is deeply oversold, but no upturn has come, and oversold alone is not always a buy signal.",
@@ -11159,8 +11159,8 @@
    "why": "Deeply oversold, with no upturn yet. ChartSchool counts below 30% above the 50-day as oversold, and says levels vary by index. But oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times. ChartSchool waits for an upturn from oversold levels.",
    "wrong": {
     "A bullish divergence is forming": "In a bullish divergence, the A/D line holds above its low as the index makes a lower low. Here breadth is still falling.",
-    "Extreme oversold; the drop is ending": "Oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times, and this share is still falling.",
-    "Little; breadth only matters at tops": "Breadth matters at lows too. ChartSchool reads oversold levels and waits for an upturn from them."
+    "Breadth only matters at tops": "Breadth matters at lows too. ChartSchool reads oversold levels and waits for an upturn from them.",
+    "Oversold, so the drop is ending": "Oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times, and this share is still falling."
    }
   },
   "review_status": "draft",
@@ -11281,10 +11281,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It's overbought, so go short now",
+    "It's overbought, so go short",
     "A sign of strength, not weakness",
-    "Strength that rules out a pullback",
-    "The uptrend is about to end soon"
+    "Strength that rules out dips",
+    "The uptrend is about to end"
    ],
    "kind": "mcq",
    "q": "What do those repeated high readings tell you?",
@@ -11364,7 +11364,7 @@
     "summary": "Repeated overbought readings are a sign of strength, not weakness. In a strong trend this gauge can go overbought (uptrend) or oversold (downtrend) again and again. ChartSchool treats above 70% as overbought and below 30% as oversold, and says the levels vary by index. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were used as buying chances. In a strong trend the high-low index can stay at an extreme for a long time. In a strong trend this gauge can stay near its extremes. Above 50% gives a bullish bias (most stocks above their average); below 50% gives a bearish bias. Oversold alone is not always a buy signal; it is often wiser to wait for an upturn. An A/D line that fails to confirm the index's new highs shows narrowing participation."
    },
    "facts": {
-    "given": "What do those repeated high readings tell you? The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. A sign of strength, not weakness It's overbought, so go short now The uptrend is about to end soon Strength that rules out a pullback"
+    "given": "What do those repeated high readings tell you? The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. A sign of strength, not weakness It's overbought, so go short The uptrend is about to end Strength that rules out dips"
    },
    "lesson_line": "In an uptrend, repeated overbought breadth is strength, not a sell signal.",
    "simple": "It is a sign of strength, because in a strong uptrend this gauge can go overbought again and again.",
@@ -11372,9 +11372,9 @@
    "unit": "F7.05",
    "why": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
    "wrong": {
-    "It's overbought, so go short now": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
-    "Strength that rules out a pullback": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances.",
-    "The uptrend is about to end soon": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend."
+    "It's overbought, so go short": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
+    "Strength that rules out dips": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances.",
+    "The uptrend is about to end": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend."
    }
   },
   "review_status": "draft",
@@ -12309,8 +12309,8 @@
   "prompt_json": {
    "choices": [
     "The overnight bank borrowing rate",
-    "The yield on the 10-year Treasury",
-    "The average 30-year mortgage rate",
+    "The 10-year Treasury yield",
+    "The 30-year mortgage rate",
     "The Fed's yearly inflation goal"
    ],
    "kind": "mcq",
@@ -12359,7 +12359,7 @@
     "summary": "Fed funds is the rate banks pay to borrow reserves overnight. The fed funds rate is the overnight rate banks charge each other to lend the balances they keep at the Fed. The FOMC's main tool is its target for the fed funds rate. The FOMC's inflation goal is 2% a year, measured by the PCE price index. Long-term rates price where policy and the economy are expected to go, not just today's fed funds rate."
    },
    "facts": {
-    "given": "What is the federal funds rate? The overnight bank borrowing rate The yield on the 10-year Treasury The average 30-year mortgage rate The Fed's yearly inflation goal"
+    "given": "What is the federal funds rate? The overnight bank borrowing rate The 10-year Treasury yield The 30-year mortgage rate The Fed's yearly inflation goal"
    },
    "lesson_line": "Fed funds is the overnight rate between banks. It's the rate the Fed targets.",
    "simple": "It's the rate banks pay each other to borrow money overnight, and it's the rate the Fed aims at.",
@@ -12367,9 +12367,9 @@
    "unit": "F7.06",
    "why": "The overnight bank borrowing rate. Banks pay it to borrow reserve balances overnight. Other banks lend them from the balances they keep at the Fed. The FOMC's main tool is its target for this rate. It is not a long-term yield, a mortgage rate or the inflation goal.",
    "wrong": {
-    "The Fed's yearly inflation goal": "That's the goal for inflation, what policy aims at. Fed funds is a rate banks pay to borrow.",
-    "The average 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
-    "The yield on the 10-year Treasury": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year."
+    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
+    "The 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
+    "The Fed's yearly inflation goal": "That's the goal for inflation, what policy aims at. Fed funds is a rate banks pay to borrow."
    }
   },
   "review_status": "draft",
@@ -13230,9 +13230,9 @@
   "prompt_json": {
    "choices": [
     "Most of their profit is years away",
-    "The Fed's hikes aimed at tech stocks",
-    "Their sales drop the day rates rise",
-    "They pay the largest cash dividends"
+    "The Fed targeted tech stocks",
+    "Their sales drop as rates rise",
+    "They pay the biggest dividends"
    ],
    "kind": "mcq",
    "q": "Rates jumped in 2022, and fast-growing companies still losing money got hit hard. What made them so exposed?",
@@ -13332,7 +13332,7 @@
     "summary": "Higher rates shrink what future cash flows are worth today, so valuations can fall. Long-duration growth stocks, whose profit growth lies further ahead, may face valuation pressure as higher rates discount those earnings. Rate moves often hit growth stocks' valuations harder, because more of their value rests on expected future earnings. As the Fed hiked in 2022, investors stopped paying up for unprofitable growth and wanted cash generation. Rising rates drove selling in high-priced tech giants in 2022. In 2022 the Fed's aggressive hikes battered growth and tech stocks. In 2022 the Fed took its range from 0-0.25% to 4.25-4.5% in seven hikes. High-tech and telecom stocks reacted to Fed surprises about one and a half times as much as the broad market. Rate changes usually take at least 12 months to reach the wider economy, but stocks often react much sooner. When demand runs too hot and inflation rises, the Fed tightens by raising rates. Rising rates don't automatically mean falling stocks; why rates rise, how fast, and earnings matter more. Stocks fell sharply in the first half of 2022 on inflation, expected Fed tightening and the war in Ukraine."
    },
    "facts": {
-    "given": "Rates jumped in 2022, and fast-growing companies still losing money got hit hard. What made them so exposed? Most of their profit is years away They pay the largest cash dividends Their sales drop the day rates rise The Fed's hikes aimed at tech stocks"
+    "given": "Rates jumped in 2022, and fast-growing companies still losing money got hit hard. What made them so exposed? Most of their profit is years away They pay the biggest dividends Their sales drop as rates rise The Fed targeted tech stocks"
    },
    "lesson_line": "Distant profits get discounted harder when rates rise. That's a big part of why 2022 hit unprofitable growth so hard.",
    "simple": "Their profits are far off, and higher rates make far-off profits worth less today.",
@@ -13340,9 +13340,9 @@
    "unit": "F7.06",
    "why": "Most of their profit is years away. Higher rates shrink what future cash flows are worth today, so valuations can fall. Growth stocks that get more of their value from expected future earnings often feel that more. In 2022, investors stopped paying up for unprofitable growth and wanted cash generation.",
    "wrong": {
-    "The Fed's hikes aimed at tech stocks": "No. The Fed tightens to cool economic activity and keep inflation in check. Growth stocks feel it through valuations.",
-    "Their sales drop the day rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
-    "They pay the largest cash dividends": "Companies still losing money have little to pay out. The hit comes from discounting profits still years away."
+    "The Fed targeted tech stocks": "No. The Fed tightens to cool economic activity and keep inflation in check. Growth stocks feel it through valuations.",
+    "Their sales drop as rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
+    "They pay the biggest dividends": "Companies still losing money have little to pay out. The hit comes from discounting profits still years away."
    }
   },
   "review_status": "draft",
@@ -13841,7 +13841,7 @@
  },
  {
   "answer_json": {
-   "answer": "Little; brief dips often mislead"
+   "answer": "Little, brief dips often mislead"
   },
   "difficulty": 3,
   "id": "si_6598abfef785",
@@ -13850,10 +13850,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Full weight; any inversion counts",
-    "Heavy; it usually means recession",
-    "Little; brief dips often mislead",
-    "It means a recession began today"
+    "Full weight, any dip counts",
+    "Heavy, it means recession",
+    "Little, brief dips often mislead",
+    "A recession began today"
    ],
    "kind": "mcq",
    "q": "How much weight do you give that dip?",
@@ -13905,7 +13905,7 @@
     "summary": "One-day or intraday inversions often mislead; inversions that hold on monthly or quarterly averages are more reliable. A long inversion is a more reliable recession signal than a brief one, whichever spread you watch. The New York Fed turns a Treasury spread into a recession probability. The model's probability is for a recession twelve months ahead. An inverted spread is not a standalone recession call; it mostly reflects what markets already expect."
    },
    "facts": {
-    "given": "How much weight do you give that dip? The 2s10s dips below zero for one session, then bounces back. A friend says the recession is locked in. Little; brief dips often mislead Full weight; any inversion counts It means a recession began today Heavy; it usually means recession"
+    "given": "How much weight do you give that dip? The 2s10s dips below zero for one session, then bounces back. A friend says the recession is locked in. Little, brief dips often mislead Full weight, any dip counts A recession began today Heavy, it means recession"
    },
    "lesson_line": "One day below zero often misleads. Inversions that hold on monthly averages are more reliable.",
    "simple": "Give it little weight, because a one-day dip below zero often turns out to be a false alarm.",
@@ -13913,9 +13913,9 @@
    "unit": "F7.06",
    "why": "Little. New York Fed research says inversions in daily or intraday data often prove to be false signals. Inversions that hold on monthly or quarterly averages are more reliable. Even a lasting one is a warning, not a recession start date.",
    "wrong": {
-    "Full weight; any inversion counts": "New York Fed research found daily inversions often prove false. Inversions that hold on monthly or quarterly averages count more.",
-    "Heavy; it usually means recession": "Not for one session. Daily inversions often prove false, and Fed Board researchers say inversions are no standalone recession call.",
-    "It means a recession began today": "An inversion is a warning, not a start date. The New York Fed's model gives recession odds twelve months ahead."
+    "A recession began today": "An inversion is a warning, not a start date. The New York Fed's model gives recession odds twelve months ahead.",
+    "Full weight, any dip counts": "New York Fed research found daily inversions often prove false. Inversions that hold on monthly or quarterly averages count more.",
+    "Heavy, it means recession": "Not for one session. Daily inversions often prove false, and Fed Board researchers say inversions are no standalone recession call."
    }
   },
   "review_status": "draft",
@@ -15434,7 +15434,7 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "November's CPI release",
+    "November's CPI report",
     "November's jobs report",
     "November's PPI report",
     "Weekly jobless claims"
@@ -15507,7 +15507,7 @@
     "summary": "The November 2026 jobs report is scheduled for Friday, Dec. 4, 2026, at 8:30 a.m. Payroll data usually come out on the first Friday of the next month. The June 2026 jobs report came out on a Thursday, July 2, 2026. The January 2026 jobs report came out on a Wednesday, Feb. 11, 2026. November 2026's CPI is scheduled for Thursday, Dec. 10, 2026, at 8:30 a.m. November 2026's PPI is scheduled for Tuesday, Dec. 15, 2026. Weekly jobless claims come out every Thursday at 8:30 a.m. Eastern. A federal holiday on a Thursday moves the claims report."
    },
    "facts": {
-    "given": "Which report lands Friday, Dec. 4, at 8:30 a.m.? It's Monday, Nov. 30, 2026. You hold three swing trades. You want to know what's scheduled this week. November's jobs report November's CPI release November's PPI report Weekly jobless claims"
+    "given": "Which report lands Friday, Dec. 4, at 8:30 a.m.? It's Monday, Nov. 30, 2026. You hold three swing trades. You want to know what's scheduled this week. November's jobs report November's CPI report November's PPI report Weekly jobless claims"
    },
    "lesson_line": "The first Friday usually brings the jobs report. Usually, so check the calendar.",
    "simple": "November's jobs report, because it usually comes out on the first Friday of the next month, and Dec. 4 is one.",
@@ -15515,7 +15515,7 @@
    "unit": "F7.07",
    "why": "November's jobs report. BLS lists Friday, Dec. 4, 2026 at 8:30 a.m. for it. Payroll data come out three weeks after the week that includes the 12th, typically the first Friday of the next month. Typically, not always: in 2026 it also came on a Wednesday, Feb. 11, and a Thursday, July 2. November's CPI is Thursday, Dec. 10, and its PPI Tuesday, Dec. 15.",
    "wrong": {
-    "November's CPI release": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
+    "November's CPI report": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
     "November's PPI report": "BLS set November's PPI for Tuesday, Dec. 15.",
     "Weekly jobless claims": "Claims come out on Thursday mornings, unless a holiday moves them. This Friday 8:30 report is November's jobs report."
    }
@@ -20613,7 +20613,7 @@
    "choices": [
     "Buy energy now, the cycle says so",
     "Wait for energy to show strength first",
-    "Drop sectors and trade the stock alone",
+    "Drop sectors, trade the stock alone",
     "Buy the cheapest energy stocks now"
    ],
    "kind": "mcq",
@@ -20708,7 +20708,7 @@
     "summary": "Late in the cycle, energy and utility stocks have done well as inflation rises. In the textbook model, materials and energy show relative strength near the market's top. Sector rotation analysis compares the eleven sector funds' relative performance and links it to the business cycle. No investment has behaved the same way in every cycle. A cycle is easy to identify after it ends and hard to call while it's happening. StockCharts describes its business cycle as the ideal one for an inflationary environment. Cycle phases have varied widely in length. Wyckoff's method: first find a group with relative strength, then the strong stocks inside it. Some groups lead the market and some lag it, even though the market sets the overall trend. Buy relative strength and avoid relative weakness. Our rule C31: buy leaders, in one of the strongest groups."
    },
    "facts": {
-    "given": "What's the better move? A friend reads that energy tends to do well late in the business cycle. He thinks we're late in the cycle. Energy is still lagging the S&P 500. Wait for energy to show strength first Buy energy now, the cycle says so Drop sectors and trade the stock alone Buy the cheapest energy stocks now"
+    "given": "What's the better move? A friend reads that energy tends to do well late in the business cycle. He thinks we're late in the cycle. Energy is still lagging the S&P 500. Wait for energy to show strength first Buy energy now, the cycle says so Drop sectors, trade the stock alone Buy the cheapest energy stocks now"
    },
    "lesson_line": "The cycle model tells you where to look. Relative strength tells you when.",
    "simple": "Wait until energy starts beating the market, because the cycle model says where to look, not when to buy.",
@@ -20718,7 +20718,7 @@
    "wrong": {
     "Buy energy now, the cycle says so": "The model is an ideal cycle. Phases have varied widely in length, and calling one in real time is hard.",
     "Buy the cheapest energy stocks now": "Cheap is not strength. Buy relative strength and avoid relative weakness, and energy is still lagging.",
-    "Drop sectors and trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm."
+    "Drop sectors, trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm."
    }
   },
   "review_status": "draft",

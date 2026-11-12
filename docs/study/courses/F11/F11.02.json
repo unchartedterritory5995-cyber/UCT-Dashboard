@@ -762,7 +762,7 @@
    "choices": [
     "A 5- or 15-minute intraday chart",
     "The daily chart, one bar a day",
-    "The weekly chart, one bar a week",
+    "The weekly chart, a bar a week",
     "Whichever chart looks cleanest"
    ],
    "answer": "A 5- or 15-minute intraday chart",
@@ -779,7 +779,7 @@
    ],
    "wrong": {
     "The daily chart, one bar a day": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
-    "The weekly chart, one bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes.",
+    "The weekly chart, a bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes.",
     "Whichever chart looks cleanest": "Your holding time picks the chart, not the picture. A clean daily or weekly setup can't time a trade that lasts minutes."
    },
    "simple": "A 5- or 15-minute chart, because a trade that lasts minutes to hours needs bars that short.",
@@ -1249,9 +1249,9 @@
    "q": "By ChartSchool's rule, which base pivot fits your daily chart this month?",
    "choices": [
     "$112, from last month's bar",
-    "$115, from yesterday's bar",
+    "$115, yesterday's bar",
     "$116, last month's close",
-    "$110, last month's midpoint"
+    "$110, the midpoint"
    ],
    "answer": "$112, from last month's bar",
    "calc": {
@@ -1272,9 +1272,9 @@
     "f16"
    ],
    "wrong": {
-    "$115, from yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
+    "$115, yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
     "$116, last month's close": "The pivot isn't the close. It's the average of the high, low and close.",
-    "$110, last month's midpoint": "That's halfway between the high and the low. The base pivot is the average of three numbers: the high, the low and the close."
+    "$110, the midpoint": "That's halfway between the high and the low. The base pivot is the average of three numbers: the high, the low and the close."
    },
    "simple": "$112, because a daily chart's pivot comes from last month's high, low and close, not yesterday's.",
    "tier": "extended",
@@ -1505,8 +1505,8 @@
    "q": "Which plan fits your day?",
    "choices": [
     "Buy early with a stop, then hold",
-    "Scalp the 1-minute chart all day",
-    "Trade VWAP bounces into the close",
+    "Scalp the 1-minute chart",
+    "Trade VWAP bounces to close",
     "Buy, then set the stop tonight"
    ],
    "answer": "Buy early with a stop, then hold",
@@ -1523,8 +1523,8 @@
     "f02"
    ],
    "wrong": {
-    "Scalp the 1-minute chart all day": "Scalping needs you at the screen all session. You're in meetings.",
-    "Trade VWAP bounces into the close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it.",
+    "Scalp the 1-minute chart": "Scalping needs you at the screen all session. You're in meetings.",
+    "Trade VWAP bounces to close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it.",
     "Buy, then set the stop tonight": "The stop goes in with the entry. A stop marks where the trade has failed, and ours sits with the broker as a real order."
    },
    "simple": "Buy early with a real stop in, then hold, because scalping and VWAP trades need you at the screen all day.",
@@ -1623,7 +1623,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived intraday before looking. f09 (Hill page), f39 (Schwab) and f55 (Investopedia) were all re-fetched 2026-11-12 and the quotes match. The choices run 30 to 32 characters, with no tell and no silly choice. The weekly note is backed by f56 and f40. It does not answer q08: the q08 story never says same-day."
+   "notes": "Derived intraday before looking. f09 (Hill page), f39 (Schwab) and f55 (Investopedia) were all re-fetched 2026-11-12 and the quotes match. The choices run 30 to 32 characters, with no tell and no silly choice. The weekly note is backed by f56 and f40. It does not answer q08: the q08 story never says same-day.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1707,7 +1708,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1743,7 +1745,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived from h9, h11, h14 and f03/f05. Matches E57 (market orders), D41 and C35. The key no longer echoes 'watch'. Two Buy choices against two others. The stop-tonight distractor fails on D41."
+   "notes": "Re-derived from h9, h11, h14 and f03/f05. Matches E57 (market orders), D41 and C35. The key no longer echoes 'watch'. Two Buy choices against two others. The stop-tonight distractor fails on D41.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

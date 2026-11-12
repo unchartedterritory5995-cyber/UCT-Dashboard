@@ -1258,9 +1258,9 @@
    "q": "Which pullback into the 20 EMA is orderly by our card?",
    "choices": [
     "Small red days on quiet volume",
-    "One huge red day into the line",
+    "One huge red day to the line",
     "A red day on heavy volume",
-    "A gap down through the 50-day"
+    "A gap down past the 50-day"
    ],
    "answer": "Small red days on quiet volume",
    "why": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal.",
@@ -1271,9 +1271,9 @@
     "t01"
    ],
    "wrong": {
-    "A gap down through the 50-day": "That broke the 50-day. The 20 EMA pullback is off.",
-    "One huge red day into the line": "Orderly allows no down day larger than 2 ATR. One huge red bar breaks that.",
-    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is distribution, not a rest."
+    "One huge red day to the line": "Orderly allows no down day larger than 2 ATR. One huge red bar breaks that.",
+    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is distribution, not a rest.",
+    "A gap down past the 50-day": "That broke the 50-day. The 20 EMA pullback is off."
    },
    "house": true,
    "simple": "A quiet drift of small red days is orderly, while big or heavy-volume down days are selling.",
@@ -1324,10 +1324,10 @@
    "criterion": "e20.touch",
    "q": "Which low counts as a touch by the card?",
    "choices": [
-    "A low of 51.00",
+    "Low of 51.00",
     "A low of 48.30",
-    "A low of 47.90",
-    "A low of 46.00"
+    "Low of 47.90",
+    "Low of 46.00"
    ],
    "answer": "A low of 48.30",
    "why": "A low of 48.30. The touch band runs from 0.25 ATR above the 20 EMA to 1 ATR below it. With an ATR of 2.00, 48.30 is under the line by less than one ATR. The line gets run through; it is not a wall.",
@@ -1337,9 +1337,9 @@
     "c29"
    ],
    "wrong": {
-    "A low of 51.00": "That low stayed more than 0.25 ATR above the line. It never came down to touch it.",
-    "A low of 47.90": "That is under the line by more than one ATR of 2.00. It went through the touch band, not into it.",
-    "A low of 46.00": "That is far more than one ATR under the line. The line gets run through, but not by that much."
+    "Low of 51.00": "That low stayed more than 0.25 ATR above the line. It never came down to touch it.",
+    "Low of 47.90": "That is under the line by more than one ATR of 2.00. It went through the touch band, not into it.",
+    "Low of 46.00": "That is far more than one ATR under the line. The line gets run through, but not by that much."
    },
    "house": true,
    "story": "Four stocks each have a 20 EMA at 50.00 and an ATR of 2.00. Each closes above the line today, but their lows differ.",
@@ -1532,9 +1532,9 @@
    "q": "Buy the hold?",
    "choices": [
     "No; the report is inside 3 days",
-    "Yes; a first tap is the best tap",
-    "Yes; but at half the usual size",
-    "No; a hold needs a second session"
+    "Yes; a first tap is best",
+    "Yes; but at half size",
+    "No; it needs a second session"
    ],
    "answer": "No; the report is inside 3 days",
    "why": "No. We take no new buys in the 3 days before an earnings report, and this one reports tomorrow. The 5R exception is for holding a trade already open, not for a new buy. If the stock still sets up after the report, it can hold again.",
@@ -1544,9 +1544,9 @@
     "c10"
    ],
    "wrong": {
-    "Yes; a first tap is the best tap": "The tap is fine, but the rulebook bars new buys in the 3 days before a report.",
-    "Yes; but at half the usual size": "Size does not change the rule. A smaller buy is still a new buy inside the window.",
-    "No; a hold needs a second session": "One session that holds the line is enough. The reason to pass is the report inside the window."
+    "Yes; a first tap is best": "The tap is fine, but the rulebook bars new buys in the 3 days before a report.",
+    "Yes; but at half size": "Size does not change the rule. A smaller buy is still a new buy inside the window.",
+    "No; it needs a second session": "One session that holds the line is enough. The reason to pass is the report inside the window."
    },
    "house": true,
    "story": "A leader's first tap of its rising 20 EMA holds today and closes above the line. The company reports tomorrow before the open.",
@@ -1609,8 +1609,8 @@
    "q": "The last third of a 20 EMA pullback winner trails which line, by our default?",
    "choices": [
     "The 10-day or the 21-day line",
-    "The 50-day or the 200-day line",
-    "The prior day's low, each day",
+    "The 50-day or 200-day line",
+    "The prior day's low, daily",
     "No trail; sell it all at 5R"
    ],
    "answer": "The 10-day or the 21-day line",
@@ -1622,9 +1622,9 @@
     "h20"
    ],
    "wrong": {
-    "No trail; sell it all at 5R": "5R is where the second third comes off, not the exit. The last third rides the trail.",
-    "The 50-day or the 200-day line": "Our default trail is the 10-day or the 21-day line, not these.",
-    "The prior day's low, each day": "Our default trails an average and sells on a close below it, not a daily low."
+    "The 50-day or 200-day line": "Our default trail is the 10-day or the 21-day line, not these.",
+    "The prior day's low, daily": "Our default trails an average and sells on a close below it, not a daily low.",
+    "No trail; sell it all at 5R": "5R is where the second third comes off, not the exit. The last third rides the trail."
    },
    "house": true,
    "simple": "We trail the 10-day line for fast movers or the 21-day line for steadier ones, and sell on a close below it.",
@@ -2442,9 +2442,9 @@
    "q": "What do you do with the shares you still hold?",
    "choices": [
     "Sell a big part into the run",
-    "Sell only a small slice of it",
-    "Hold it all; the trend is up",
-    "Add more; strength is strength"
+    "Sell only a small slice",
+    "Hold all; the trend is up",
+    "Add more; it is strong"
    ],
    "answer": "Sell a big part into the run",
    "why": "Sell a big part into the run. The rulebook says to sell a big part into a climax run on your own long. It is a judgment call. This story is a climax run: a third straight up day, a gap up, the heaviest volume of the run.",
@@ -2455,9 +2455,9 @@
     "h21"
    ],
    "wrong": {
-    "Sell only a small slice of it": "The rule says to sell a big part into the run, not a small slice.",
-    "Hold it all; the trend is up": "The rule for a climax run on your own long is to sell a big part into it. Holding it all skips that.",
-    "Add more; strength is strength": "The pullback buy is one price at full size, with no adding. A climax is where we sell, not add."
+    "Sell only a small slice": "The rule says to sell a big part into the run, not a small slice.",
+    "Hold all; the trend is up": "The rule for a climax run on your own long is to sell a big part into it. Holding it all skips that.",
+    "Add more; it is strong": "The pullback buy is one price at full size, with no adding. A climax is where we sell, not add."
    },
    "house": true,
    "story": "Your pullback buy is up 9R in two weeks. Today is its third straight up day, a gap up on the heaviest volume of the run.",
@@ -2551,9 +2551,9 @@
    "q": "Price holds the 20 EMA and the same session closes back over the 9 EMA. On our card, that 9 EMA remount is what?",
    "choices": [
     "A confirming sign of the hold",
-    "The trigger for the buy order",
+    "The buy order's trigger",
     "An invalidation of the hold",
-    "The line the stop is placed at"
+    "The line the stop sits at"
    ],
    "answer": "A confirming sign of the hold",
    "why": "A confirming sign, not a gate. On our card a close back over the 9 EMA backs up the hold. It is not the trigger, and a missing remount does not cancel the hold.",
@@ -2563,9 +2563,9 @@
     "c09"
    ],
    "wrong": {
-    "The trigger for the buy order": "The Model Book playbook makes it the buy. Our card makes it a confirming sign, and the buy is the trade over the hold candle's high.",
+    "The buy order's trigger": "The Model Book playbook makes it the buy. Our card makes it a confirming sign, and the buy is the trade over the hold candle's high.",
     "An invalidation of the hold": "The card calls it a confirming sign. It does not cancel the hold.",
-    "The line the stop is placed at": "The stop is a few cents under the hold session's low, never a line."
+    "The line the stop sits at": "The stop is a few cents under the hold session's low, never a line."
    },
    "house": true,
    "simple": "It is a confirming sign, not a gate, so the trade can go on without it.",
@@ -2613,9 +2613,9 @@
    "q": "Which name fits?",
    "choices": [
     "EMA Crossback; a fresh reclaim",
-    "20 EMA pullback; an old uptrend",
-    "Remount; a 50-day line was lost",
-    "Bull flag; a pause after a run"
+    "20 EMA pullback; old uptrend",
+    "Remount; the 50-day was lost",
+    "Bull flag; a pause in a run"
    ],
    "answer": "EMA Crossback; a fresh reclaim",
    "why": "The EMA Crossback. Count the sessions since the stock closed back above both the 9 and 20 EMA out of a decline. Eight sessions ago here. The first test of the averages soon after that pop is Kell's crossback.",
@@ -2627,9 +2627,9 @@
     "c23"
    ],
    "wrong": {
-    "20 EMA pullback; an old uptrend": "Same line, but the averages were just reclaimed and this is the first test. The card names that the EMA Crossback, not the pullback.",
-    "Remount; a 50-day line was lost": "A Remount is five or more closes under a 50-day or 200-day line, then retaken. This story reclaims the 9 and 20 EMA.",
-    "Bull flag; a pause after a run": "A flag needs a pole, a gain of 20% or more inside 20 sessions. The story describes a reclaim of the averages, not a pole."
+    "20 EMA pullback; old uptrend": "Same line, but the averages were just reclaimed and this is the first test. The card names that the EMA Crossback, not the pullback.",
+    "Remount; the 50-day was lost": "A Remount is five or more closes under a 50-day or 200-day line, then retaken. This story reclaims the 9 and 20 EMA.",
+    "Bull flag; a pause in a run": "A flag needs a pole, a gain of 20% or more inside 20 sessions. The story describes a reclaim of the averages, not a pole."
    },
    "house": true,
    "story": "The stock slid for weeks, then closed back over its 9 and 20 EMA eight sessions ago. Now it tests the 20 EMA for the first time since.",
@@ -3243,8 +3243,8 @@
    "choices": [
     "Pass; Orange buys A+ setups only",
     "Buy it; a clean hold is a hold",
-    "Buy; Orange only halves the size",
-    "Pass; Orange means cash, no longs"
+    "Buy; Orange only halves size",
+    "Pass; Orange is cash, no longs"
    ],
    "answer": "Pass; Orange buys A+ setups only",
    "why": "Pass. Orange means we buy only A+ setups, and you graded this one B. The rulebook calls the market reading a guide, and here it narrows us to A+.",
@@ -3254,8 +3254,8 @@
    ],
    "wrong": {
     "Buy it; a clean hold is a hold": "The market reading comes first. In Orange we buy only A+ setups, and this one is a B.",
-    "Buy; Orange only halves the size": "Orange narrows us to A+ setups. A smaller size does not make a B setup an A+.",
-    "Pass; Orange means cash, no longs": "That is Red, which is mostly cash and shorts. Orange still buys A+ setups."
+    "Buy; Orange only halves size": "Orange narrows us to A+ setups. A smaller size does not make a B setup an A+.",
+    "Pass; Orange is cash, no longs": "That is Red, which is mostly cash and shorts. Orange still buys A+ setups."
    },
    "house": true,
    "story": "The market reading is Orange. A leader holds its rising 20 EMA and you grade the setup B.",
@@ -3636,7 +3636,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c05. Only the key is a clean rest; distractors are plain failures. Acceptable."
+   "notes": "Key c05. Only the key is a clean rest; distractors are plain failures. Acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "cut",
@@ -3648,7 +3649,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: band 50.50 down to 48.00 with ATR 2.00; only 48.30 fits; 51.00 above, 47.90 and 46.00 below."
+   "notes": "Re-derived: band 50.50 down to 48.00 with ATR 2.00; only 48.30 fits; 51.00 above, 47.90 and 46.00 below.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3684,7 +3686,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B22 verbatim (3 days before a report); story reports tomorrow, inside the window either way. Mild lead-in to q57 via the 5R sentence, acceptable."
+   "notes": "B22 verbatim (3 days before a report); story reports tomorrow, inside the window either way. Mild lead-in to q57 via the 5R sentence, acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -3696,7 +3699,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 verbatim; E51 for the thirds; Kullamagi q04 found. Key not longest; wrong notes true."
+   "notes": "E52 verbatim; E51 for the thirds; Kullamagi q04 found. Key not longest; wrong notes true.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -3834,7 +3838,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key follows C34 (sell a big part into a climax run, a judgment call). Story is thin: 'almost straight up for a third day' is hedged and does not match Bracco's burst (three up days, a gap up, heavy volume), leaving 'sell only a small slice' arguable under 'depends'. Tighten the story."
+   "notes": "Key follows C34 (sell a big part into a climax run, a judgment call). Story is thin: 'almost straight up for a third day' is hedged and does not match Bracco's burst (three up days, a gap up, heavy volume), leaving 'sell only a small slice' arguable under 'depends'. Tighten the story.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -3852,7 +3857,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c18 supports 'confirming sign, not a gate'; card status proposed but the stem says 'on our card' and the conflicts note covers it. Others clearly wrong (q05 already shows the buy is the cent over the high, minor overlap only)."
+   "notes": "c18 supports 'confirming sign, not a gate'; card status proposed but the stem says 'on our card' and the conflicts note covers it. Others clearly wrong (q05 already shows the buy is the cent over the high, minor overlap only).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -3864,7 +3870,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c20 / k03 / c21 / c23 verbatim; eight sessions is inside 3 to 20; Remount and flag wrong notes true. Rests on held D-002/D-026, flagged."
+   "notes": "c20 / k03 / c21 / c23 verbatim; eight sessions is inside 3 to 20; Remount and flag wrong notes true. Rests on held D-002/D-026, flagged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -3954,7 +3961,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F65 verbatim (Orange, only A+ setups; Red, mostly cash and shorts). Key not longest. Orange is first taught in this why, with q34 hinting 'tighter than Yellow'; acceptable."
+   "notes": "F65 verbatim (Orange, only A+ setups; Red, mostly cash and shorts). Key not longest. Orange is first taught in this why, with q34 hinting 'tighter than Yellow'; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",

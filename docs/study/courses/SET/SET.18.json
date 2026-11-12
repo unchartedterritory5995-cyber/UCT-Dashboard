@@ -1578,8 +1578,8 @@
    "q": "Does this gap pass the card's first-EP test?",
    "choices": [
     "No; March's EP is inside 126 sessions",
-    "No; a contract is not a named catalyst",
-    "Yes; a new catalyst makes it a new EP",
+    "No; a contract is not a catalyst",
+    "Yes; a new catalyst makes a new EP",
     "Yes; 100 sessions is plenty of time"
    ],
    "story": "In March a stock had a textbook EP: a 14% earnings gap on 4x volume that held and closed near its high. About 100 trading days later it gaps 12% on 4x volume on a new contract win.",
@@ -1593,8 +1593,8 @@
     "b09"
    ],
    "wrong": {
-    "No; a contract is not a named catalyst": "A contract or partnership is on the card's list of named catalysts, after earnings and guidance. The catalyst is fine. The count of earlier EPs is what fails.",
-    "Yes; a new catalyst makes it a new EP": "The test looks back 126 sessions for any qualifying EP. A new catalyst does not reset the count.",
+    "No; a contract is not a catalyst": "A contract or partnership is on the card's list of named catalysts, after earnings and guidance. The catalyst is fine. The count of earlier EPs is what fails.",
+    "Yes; a new catalyst makes a new EP": "The test looks back 126 sessions for any qualifying EP. A new catalyst does not reset the count.",
     "Yes; 100 sessions is plenty of time": "The card asks for no qualifying EP in the prior 126 sessions. A gap 100 sessions back is inside that window."
    },
    "house": true,
@@ -2921,8 +2921,8 @@
    "q": "What is the lesson?",
    "choices": [
     "Right stock; the first buy failed",
-    "Re-buy at once; the stop was wrong",
-    "Drop the stock; it has failed once",
+    "Re-buy at once; stop was wrong",
+    "Drop the stock; it failed once",
     "The stop should have been wider"
    ],
    "story": "A 17.2% earnings gap on 4.4x volume. You buy the day-3 break of the post-gap high at 22.01, stop 21.46. The next session takes the stop. Months later the stock makes a far larger move.",
@@ -2938,9 +2938,9 @@
     "h01"
    ],
    "wrong": {
-    "The stop should have been wider": "A few cents under the trigger day's low is the rule, and a wider stop only risks more. The stop kept the loss near 1R, which is its job.",
-    "Re-buy at once; the stop was wrong": "After a stop-out, buy again only on a new trigger, as a new trade with its own stop. A re-buy at once is not a new trigger.",
-    "Drop the stock; it has failed once": "A stop-out says nothing final about the stock. TSLA made a far larger move months later."
+    "Re-buy at once; stop was wrong": "After a stop-out, buy again only on a new trigger, as a new trade with its own stop. A re-buy at once is not a new trigger.",
+    "Drop the stock; it failed once": "A stop-out says nothing final about the stock. TSLA made a far larger move months later.",
+    "The stop should have been wider": "A few cents under the trigger day's low is the rule, and a wider stop only risks more. The stop kept the loss near 1R, which is its job."
    },
    "house": true,
    "simple": "The stock was right but the first buy failed. A stop-out is not a verdict, and a new trigger is a new trade.",
@@ -3352,8 +3352,8 @@
    "choices": [
     "Pass; Red is mostly cash and shorts",
     "Pass; a 15% gap is too big to buy",
-    "Buy it; EPs often beat a weak market",
-    "Buy it; Red still allows an A+ setup"
+    "Buy it; EPs beat a weak market",
+    "Buy it; Red allows an A+ setup"
    ],
    "story": "The market reading is Red. A neglected stock gaps 15% on a blowout report, on 8x volume, and holds all day.",
    "answer": "Pass; Red is mostly cash and shorts",
@@ -3370,8 +3370,8 @@
    ],
    "wrong": {
     "Pass; a 15% gap is too big to buy": "A 15% gap is fine. Bonde cautions at gaps over 20% and our card grades down only over 25%. The Red reading is the reason to pass.",
-    "Buy it; EPs often beat a weak market": "Bonde finds EP opportunities even in bear markets. Our house filter still puts Red at mostly cash and shorts.",
-    "Buy it; Red still allows an A+ setup": "Orange allows an A+ setup. Red allows mostly cash and shorts."
+    "Buy it; EPs beat a weak market": "Bonde finds EP opportunities even in bear markets. Our house filter still puts Red at mostly cash and shorts.",
+    "Buy it; Red allows an A+ setup": "Orange allows an A+ setup. Red allows mostly cash and shorts."
    },
    "house": true,
    "simple": "Pass. In a Red reading we stay mostly in cash or short, so this EP goes on the list, not in the account.",
@@ -3397,9 +3397,9 @@
    "q": "What is the trade?",
    "choices": [
     "Buy; stop under the inside-day low",
-    "Pass; three days is too late to buy",
-    "Buy it; stop under the gap-day low",
-    "Wait for the gap-day high to break"
+    "Pass; day three is too late",
+    "Buy; stop under the gap-day low",
+    "Wait for the gap-day high break"
    ],
    "story": "A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91, and the inside day's low is 2.3% below.",
    "answer": "Buy; stop under the inside-day low",
@@ -3415,9 +3415,9 @@
     "h01"
    ],
    "wrong": {
-    "Buy it; stop under the gap-day low": "The inside day's low is the stop. The gap-day low is wider than the trade needs.",
-    "Wait for the gap-day high to break": "That is the other trigger. The inside-day break came first, with a tighter stop.",
-    "Pass; three days is too late to buy": "The gap held and the trigger is tight. A delayed entry has its own line on the card."
+    "Pass; day three is too late": "The gap held and the trigger is tight. A delayed entry has its own line on the card.",
+    "Buy; stop under the gap-day low": "The inside day's low is the stop. The gap-day low is wider than the trade needs.",
+    "Wait for the gap-day high break": "That is the other trigger. The inside-day break came first, with a tighter stop."
    },
    "house": true,
    "simple": "Buy at market as price breaks the inside day's high, with the stop a few cents under that inside day's low.",
@@ -3493,8 +3493,8 @@
    "choices": [
     "A+; record volume on a neglected name",
     "B-; the gap is over 25% and too big",
-    "A; record volume is just a grading cue",
-    "B; the close is only 82% of the range"
+    "A; record volume is just a cue",
+    "B; the close is only 82% of range"
    ],
    "story": "A stock sideways-to-down for a year, with no earlier EP, gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
    "answer": "A+; record volume on a neglected name",
@@ -3512,8 +3512,8 @@
    ],
    "wrong": {
     "B-; the gap is over 25% and too big": "The grade-down line on our card is 25%. This gap is 20.3%, under it.",
-    "A; record volume is just a grading cue": "It is a cue, and cues set the grade. Record volume is the A+ row.",
-    "B; the close is only 82% of the range": "82% is in the top quarter, the grade-up cue. Nothing here grades down."
+    "A; record volume is just a cue": "It is a cue, and cues set the grade. Record volume is the A+ row.",
+    "B; the close is only 82% of range": "82% is in the top quarter, the grade-up cue. Nothing here grades down."
    },
    "house": true,
    "simple": "A+. Record volume on a stock that drifted for a year is our top volume cue, and nothing here grades it down.",
@@ -4029,7 +4029,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q12": {
    "status": "pass",
@@ -4245,7 +4246,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d18/d19/h28/d30: right stock, first buy failed; re-buy and wider-stop notes grounded in h28 and h01. d19 vs d17 wording flag stands."
+   "notes": "d18/d19/h28/d30: right stock, first buy failed; re-buy and wider-stop notes grounded in h28 and h01. d19 vs d17 wording flag stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -4305,13 +4307,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -4323,7 +4327,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",

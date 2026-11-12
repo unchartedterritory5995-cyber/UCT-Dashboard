@@ -1172,13 +1172,13 @@
    "story": "XYZ trades at 80. It has stalled under 85 for weeks. You think it stays below 85 through expiry, and you want to collect a credit.",
    "q": "Which spread fits that view?",
    "choices": [
-    "Sell the 85 call, buy the 90 call",
+    "Sell the 85 call and buy the 90 call",
     "Buy the 85 call, sell the 90 call",
     "Sell the 75 call, buy the 80 call",
     "Sell the 85 put, buy the 80 put"
    ],
-   "answer": "Sell the 85 call, buy the 90 call",
-   "why": "Sell the 85 call, buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out.",
+   "answer": "Sell the 85 call and buy the 90 call",
+   "why": "Sell the 85 call and buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out.",
    "lesson_line": "Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
    "facts": [
     "f29",
@@ -1564,7 +1564,7 @@
    "q": "Which move takes the weekend assignment risk off the table?",
    "choices": [
     "Close the spread before the bell",
-    "Hold it: max profit is locked in",
+    "Hold it: max profit locked in",
     "Sell 100 shares now to cover",
     "Sell only the long call"
    ],
@@ -1581,7 +1581,7 @@
     "f51"
    ],
    "wrong": {
-    "Hold it: max profit is locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
+    "Hold it: max profit locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
     "Sell 100 shares now to cover": "That bets against assignment. If the 65 call is assigned anyway, you've sold the shares twice and you're short.",
     "Sell only the long call": "That leaves the 65 call short and uncovered. If it's assigned, you're short 100 shares with nothing behind it."
    },
@@ -1879,7 +1879,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -1939,7 +1940,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from f13, f15, f95: close the spread. Each wrong note checks out (selling 100 shares leaves you short if assigned; selling only the long call leaves the 65 call uncovered). Split why sentences are all 22 words or fewer."
+   "notes": "Solved cold from f13, f15, f95: close the spread. Each wrong note checks out (selling 100 shares leaves you short if assigned; selling only the long call leaves the 65 call uncovered). Split why sentences are all 22 words or fewer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "cut",

@@ -1970,9 +1970,9 @@
    "story": "A well-known company reports and gaps up strongly. It trades its biggest volume in a year, 7.6x its average, and closes strong.",
    "choices": [
     "A PEG; earnings on a known name",
-    "A High Volume Edge; record volume",
-    "An Episodic Pivot; a surprise gap",
-    "A News Gapper; it gapped on news"
+    "A High Volume Edge; a record",
+    "An Episodic Pivot; a big gap",
+    "A News Gapper; gapped on news"
    ],
    "answer": "A PEG; earnings on a known name",
    "why": "A PEG. An earnings spike on an established name stays a PEG even at a one-year volume record. A High Volume Edge is a record that dwarfs every prior day, usually on a lesser-known name. ASML at 7.6x was still just a PEG.",
@@ -1984,9 +1984,9 @@
     "c33"
    ],
    "wrong": {
-    "A High Volume Edge; record volume": "An HVE dwarfs every prior day, usually on a lesser-known name.",
-    "An Episodic Pivot; a surprise gap": "An Episodic Pivot is a neglected name, flat or down for six months. This one is well known.",
-    "A News Gapper; it gapped on news": "A News Gapper's gap comes on a headline that is not a report. This gap came with a report."
+    "A High Volume Edge; a record": "An HVE dwarfs every prior day, usually on a lesser-known name.",
+    "An Episodic Pivot; a big gap": "An Episodic Pivot is a neglected name, flat or down for six months. This one is well known.",
+    "A News Gapper; gapped on news": "A News Gapper's gap comes on a headline that is not a report. This gap came with a report."
    },
    "house": true,
    "simple": "It is a PEG. A report on a well-known name stays a PEG, even when volume is a one-year record.",
@@ -2915,9 +2915,9 @@
    "story": "AMD, 2022. A stock gaps 11.2% on earnings on 2.7x volume. The day's low stays above the prior close of 116.78, but it closes at 0.23 of its range.",
    "choices": [
     "No; it faded into a weak close",
-    "Yes; the gap stayed open all day",
-    "Yes; the gap day is Gap Support",
-    "No; the gap filled by the close"
+    "Yes; the gap held all day",
+    "Yes; the day is Gap Support",
+    "No; the gap filled by close"
    ],
    "answer": "No; it faded into a weak close",
    "why": "No. The gap held, but the day faded and closed at 0.23 of its range, in the bottom quarter. A faded PEG day is not a PEG. It can become a delayed-reaction watch, but it is not a buy. The gap did not fill, because the low stayed above the prior close of 116.78. So the fill is not what failed it.",
@@ -2929,9 +2929,9 @@
     "c37"
    ],
    "wrong": {
-    "Yes; the gap stayed open all day": "Holding the gap is not enough. A faded PEG day is not a PEG.",
-    "Yes; the gap day is Gap Support": "The gap day itself is never Gap Support. That is a later test of the gap-up low, days or weeks on.",
-    "No; the gap filled by the close": "The low stayed above the prior close, so the gap did not fill."
+    "Yes; the gap held all day": "Holding the gap is not enough. A faded PEG day is not a PEG.",
+    "Yes; the day is Gap Support": "The gap day itself is never Gap Support. That is a later test of the gap-up low, days or weeks on.",
+    "No; the gap filled by close": "The low stayed above the prior close, so the gap did not fill."
    },
    "house": true,
    "simple": "No. The gap stayed open, but the day closed near its low, so it faded and is not a PEG.",
@@ -3045,8 +3045,8 @@
    "choices": [
     "Small losses and a few big runs",
     "A wider stop that rarely hits",
-    "A filter that lifts wins to 80%",
-    "Holding winners into each report"
+    "A filter lifting wins to 80%",
+    "Holding winners into reports"
    ],
    "answer": "Small losses and a few big runs",
    "why": "Small losses and a few big runs. In that scan 31.0% reached 3R and 20.0% reached 5R before the stop. The measured edge comes from the few big runs, so the trims are not pulled earlier. It is a scan of past bars, not a promise.",
@@ -3062,8 +3062,8 @@
    ],
    "wrong": {
     "A wider stop that rarely hits": "Our stops stay tight. A stop only moves up, never wider.",
-    "A filter that lifts wins to 80%": "The plan does not need a high win rate. It pays on the few big runs.",
-    "Holding winners into each report": "Holding into a report needs 5R. The plan trims instead."
+    "A filter lifting wins to 80%": "The plan does not need a high win rate. It pays on the few big runs.",
+    "Holding winners into reports": "Holding into a report needs 5R. The plan trims instead."
    },
    "house": true,
    "simple": "Most buys never reach 3R, but the few that run far pay for the losses, so the plan can still work.",
@@ -3322,14 +3322,14 @@
    "story": "A leader gaps up on earnings from a prior close of 80.00. It opens at 84.80, dips to 83.60, then climbs to 85.60.",
    "choices": [
     "A few cents under the 83.60 low",
-    "A few cents under the 84.80 open",
-    "At the prior close, the gap line",
-    "A fixed 5% under the 85.60 fill"
+    "Just under the 84.80 open",
+    "The prior close, the gap line",
+    "Fixed 5% under the 85.60 fill"
    ],
    "wrong": {
-    "A few cents under the 84.80 open": "The open is not the day's low. The stop goes under the low so far, 83.60.",
-    "At the prior close, the gap line": "The prior close, 80.00, is far under the day's low. The stop never goes wider than under that low.",
-    "A fixed 5% under the 85.60 fill": "A fixed percentage ignores the chart. The stop sits under a real low."
+    "Just under the 84.80 open": "The open is not the day's low. The stop goes under the low so far, 83.60.",
+    "The prior close, the gap line": "The prior close, 80.00, is far under the day's low. The stop never goes wider than under that low.",
+    "Fixed 5% under the 85.60 fill": "A fixed percentage ignores the chart. The stop sits under a real low."
    },
    "answer": "A few cents under the 83.60 low",
    "why": "A few cents under 83.60, the gap day's low so far. On the gap day itself the stop goes a few cents under that low, never exactly on it. It is not under the 84.80 open, because the day dipped lower.",
@@ -3640,7 +3640,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c13 and c34: an earnings spike on a known name at a one-year volume record stays a PEG (ASML 7.6x). EP and News Gapper are killed by c32 and c33. All numbers in c34 or the story."
+   "notes": "c13 and c34: an earnings spike on a known name at a one-year volume record stays a PEG (ASML 7.6x). EP and News Gapper are killed by c32 and c33. All numbers in c34 or the story.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "cut",
@@ -3772,7 +3773,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c08/c37/d24v/d25v: a faded day (0.23, bottom quarter) is not a PEG, gap still open (low above 116.78). Every number is in the story or d24v. Gap Support note is c35."
+   "notes": "c08/c37/d24v/d25v: a faded day (0.23, bottom quarter) is not a PEG, gap still open (low above 116.78). Every number is in the story or d24v. Gap Support note is c35.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -3790,7 +3792,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c46 and the story's numbers (d22, c47). Distractors contradict h02, h08 or invent an 80% win rate. Caveat 'not a promise' is present. Criterion tag peg.earnings_season does not fit the content (cosmetic)."
+   "notes": "Key follows c46 and the story's numbers (d22, c47). Distractors contradict h02, h08 or invent an 80% win rate. Caveat 'not a promise' is present. Criterion tag peg.earnings_season does not fit the content (cosmetic).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q63": {
    "status": "pass",
@@ -3820,7 +3823,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Day-one stop under the low so far (c05); 83.60 correct; notes match the choices."
+   "notes": "Day-one stop under the low so far (c05); 83.60 correct; notes match the choices.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "pass",

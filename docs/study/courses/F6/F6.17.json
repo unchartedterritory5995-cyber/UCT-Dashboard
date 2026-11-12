@@ -727,9 +727,9 @@
    "q": "In options, what does it mean to roll a position?",
    "choices": [
     "Close it and open a new one",
-    "Exercise it early for shares",
+    "Exercise it early",
     "Add contracts as it drops",
-    "Move your stop further away"
+    "Widen your stop"
    ],
    "answer": "Close it and open a new one",
    "why": "Close it and open a new one. The Options Industry Council defines a roll as closing an open option and opening a new one. The new one has a different strike, a different expiry, or both. The two legs are usually done at the same time. It is not exercise, adding size or moving a stop.",
@@ -740,9 +740,9 @@
     "f82"
    ],
    "wrong": {
-    "Exercise it early for shares": "Exercise turns the option into stock. A roll trades out of one option and into another.",
+    "Exercise it early": "Exercise turns the option into stock. A roll trades out of one option and into another.",
     "Add contracts as it drops": "That's averaging down on the same option. A roll replaces the option.",
-    "Move your stop further away": "That's widening your stop. A roll changes the contract itself: strike, expiry or both."
+    "Widen your stop": "That's widening your stop. A roll changes the contract itself: strike, expiry or both."
    },
    "simple": "Rolling means you close the option you hold and open a new one, at another strike, another expiry, or both.",
    "tier": "core",
@@ -1068,13 +1068,13 @@
    "story": "You own 4 calls you bought at $2.50. They're $4.10 now, with a month left. You think the stock has more room, but you want to lock in part of the gain.",
    "q": "Which move fits that view?",
    "choices": [
-    "Sell 2, let 2 ride",
-    "Hold all 4 to expiry",
-    "Buy 4 more at $4.10",
+    "Sell 2 and let 2 ride",
+    "Hold all 4 for now",
+    "Buy 4 more now",
     "Exercise 2, keep 2"
    ],
-   "answer": "Sell 2, let 2 ride",
-   "why": "Sell 2, let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares.",
+   "answer": "Sell 2 and let 2 ride",
+   "why": "Sell 2 and let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares.",
    "lesson_line": "Sell some into strength, keep some for the run.",
    "facts": [
     "f17",
@@ -1084,8 +1084,8 @@
     "f46"
    ],
    "wrong": {
-    "Hold all 4 to expiry": "That lets the whole gain ride, with the full risk of a reversal. It locks in nothing.",
-    "Buy 4 more at $4.10": "That doubles your contracts at a higher price. It adds risk instead of locking in the gain.",
+    "Hold all 4 for now": "That lets the whole gain ride, with the full risk of a reversal. It locks in nothing.",
+    "Buy 4 more now": "That doubles your contracts at a higher price. It adds risk instead of locking in the gain.",
     "Exercise 2, keep 2": "Exercising throws away the time value left and needs cash for the shares. The gain then rides in the stock."
    },
    "simple": "Sell 2 and let 2 ride, because selling part locks in some gain while the rest stays in for more upside.",
@@ -1683,7 +1683,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
@@ -1743,7 +1744,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sell 2, let 2 ride is right (f17). 'Exercise 2, keep 2' removes the lone-partial tell and is wrong on f10/f46/f47 (it does not lock in a gain). Choices 18-20 chars, no tell. Consistent with A11."
+   "notes": "Sell 2, let 2 ride is right (f17). 'Exercise 2, keep 2' removes the lone-partial tell and is wrong on f10/f46/f47 (it does not lock in a gain). Choices 18-20 chars, no tell. Consistent with A11.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",

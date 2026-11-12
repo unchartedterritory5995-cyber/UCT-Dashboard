@@ -741,9 +741,9 @@
    "q": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it?",
    "choices": [
     "A log of when and why it happens",
-    "More willpower when the urge hits",
-    "A full week away from the screens",
-    "A new setup that suits you better"
+    "More willpower in the moment",
+    "A week away from the screens",
+    "A new setup that suits you"
    ],
    "answer": "A log of when and why it happens",
    "why": "A log of when and why it happens. Tendler's first stage is Map Your Pattern: a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step to avoiding costly mistakes. Mapping is the first step, not the whole fix. Tendler's next stages find the root of the problem and then correct it, day after day.",
@@ -761,9 +761,9 @@
     "f24"
    ],
    "wrong": {
-    "More willpower when the urge hits": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it.",
-    "A full week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
-    "A new setup that suits you better": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup."
+    "More willpower in the moment": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it.",
+    "A week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
+    "A new setup that suits you": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup."
    },
    "simple": "Keep a log of when and why it happens, because you have to see the pattern before you can fix it.",
    "tier": "core",
@@ -783,9 +783,9 @@
    "q": "When should you write down a trading mistake?",
    "choices": [
     "Same day, while it's fresh",
-    "At month-end, all in one go",
-    "Only when it costs you a lot",
-    "Never, forget it and move on"
+    "At month-end, in one go",
+    "Only when it costs a lot",
+    "Never, just move on"
    ],
    "answer": "Same day, while it's fresh",
    "why": "Same day, while it's fresh. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. Our own rule says the same: ideally, journal every trade the same day and review the week every weekend. A note written that day keeps your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
@@ -799,9 +799,9 @@
     "h01"
    ],
    "wrong": {
-    "At month-end, all in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
-    "Only when it costs you a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes.",
-    "Never, forget it and move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one."
+    "At month-end, in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
+    "Only when it costs a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes.",
+    "Never, just move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one."
    },
    "simple": "Write it the same day, while it's fresh, because a note made then still holds what you really thought.",
    "tier": "core",
@@ -940,9 +940,9 @@
    "q": "What would make this note useful for finding your pattern?",
    "choices": [
     "Your thoughts and feelings then",
-    "Who or what is to blame for it",
-    "The exact loss, down to the cent",
-    "A promise to do better tomorrow"
+    "Who or what is to blame",
+    "The exact loss to the cent",
+    "A promise to do better"
    ],
    "answer": "Your thoughts and feelings then",
    "why": "Your thoughts and feelings then. Tendler maps the emotions, thoughts, actions and decisions around a mistake, because they are the data that explain it. Steenbarger says naming how you feel is the first step. The dollar figure tells you what happened, not why. Add what came before, during and after the trade, and the pattern can show.",
@@ -957,9 +957,9 @@
     "f53"
    ],
    "wrong": {
-    "Who or what is to blame for it": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it.",
-    "The exact loss, down to the cent": "You already have the number. What's missing is the why.",
-    "A promise to do better tomorrow": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it."
+    "Who or what is to blame": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it.",
+    "The exact loss to the cent": "You already have the number. What's missing is the why.",
+    "A promise to do better": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it."
    },
    "simple": "Write down what you thought and felt, because that part repeats, while the dollar loss only says what happened.",
    "tier": "core",
@@ -1228,9 +1228,9 @@
    "q": "How do you log this trade?",
    "choices": [
     "A mistake, logged as a rule break",
-    "A good trade, since it made money",
-    "A new setup worth trading again",
-    "No log entry, since it's a winner"
+    "A good trade, it made money",
+    "A new setup worth repeating",
+    "No log entry, it's a winner"
    ],
    "answer": "A mistake, logged as a rule break",
    "why": "A mistake, logged as a rule break. Your plan says buy only on a pullback, and you chased. Judge the decision, not the result. Judging by the outcome is outcome bias, and it leads people to repeat risky choices. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while. Our rule is to follow the rules. Change the plan only when you have found a better way, not after one win.",
@@ -1245,9 +1245,9 @@
     "h01"
    ],
    "wrong": {
-    "A good trade, since it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
-    "A new setup worth trading again": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
-    "No log entry, since it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
+    "A good trade, it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
+    "A new setup worth repeating": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
+    "No log entry, it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
    },
    "simple": "Log it as a mistake, because you broke your plan, and a win can teach you to break it again.",
    "deeper": {
@@ -1462,13 +1462,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: the log (f27/f28 map first, f89 first step). Matches. Choices 32-33 chars, no tell. Willpower note rests on f31; week-away note on f33 (good short-term, training wheels); setup note on f24. Not against the rulebook: F67 sits out a day, the wrong choice is a full week, and the note never calls F67 training wheels. Owner flag stands."
+   "notes": "Own answer before key: the log (f27/f28 map first, f89 first step). Matches. Choices 32-33 chars, no tell. Willpower note rests on f31; week-away note on f33 (good short-term, training wheels); setup note on f24. Not against the rulebook: F67 sits out a day, the wrong choice is a full week, and the note never calls F67 training wheels. Owner flag stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before the key: same day (h01 B27 'every trade the same day', f54 journals after the close). Matches. Choices 26-28 chars, no tell; 'Never, forget it' is Tendler's named habit (f14), not silly. Wrong notes grounded in f71, h01, f11, f14. Why says nothing about hindsight, so it does not pre-answer q04. B27 quote checked in sizing_rule.md section 9."
+   "notes": "Own answer before the key: same day (h01 B27 'every trade the same day', f54 journals after the close). Matches. Choices 26-28 chars, no tell; 'Never, forget it' is Tendler's named habit (f14), not silly. Wrong notes grounded in f71, h01, f11, f14. Why says nothing about hindsight, so it does not pre-answer q04. B27 quote checked in sizing_rule.md section 9.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1498,7 +1500,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f12/f51. Blame note keeps f93's 'facing a big loss' and does not call the $400 big. Choices 30-32 chars."
+   "notes": "Key from f12/f51. Blame note keeps f93's 'facing a big loss' and does not call the $400 big. Choices 30-32 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -1546,7 +1549,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f73/f74/f37 and our C36 (h04): don't break a rule; if you do, journal it. Choices 31-33 chars, no concessive tell. No-entry note grounded in h01 (B27). Owner flag on C36's bent-rule note stands."
+   "notes": "Key from f73/f74/f37 and our C36 (h04): don't break a rule; if you do, journal it. Choices 31-33 chars, no concessive tell. No-entry note grounded in h01 (B27). Owner flag on C36's bent-rule note stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",

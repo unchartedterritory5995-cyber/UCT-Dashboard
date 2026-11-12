@@ -962,8 +962,8 @@
    "q": "You own a long strangle. All else equal, which of these helps it?",
    "choices": [
     "Implied volatility rising",
-    "Implied volatility falling",
-    "Expiration getting closer",
+    "Implied volatility drops",
+    "Expiry getting closer",
     "The stock holding still"
    ],
    "answer": "Implied volatility rising",
@@ -977,9 +977,9 @@
     "f17"
    ],
    "wrong": {
-    "Implied volatility falling": "Falling IV shrinks both options. That's what a seller wants.",
-    "The stock holding still": "A stock sitting between the strikes until expiry is the strangle's worst case.",
-    "Expiration getting closer": "Time decay eats both legs as expiry nears. OIC says the passage of time has a very negative impact."
+    "Implied volatility drops": "Falling IV shrinks both options. That's what a seller wants.",
+    "Expiry getting closer": "Time decay eats both legs as expiry nears. OIC says the passage of time has a very negative impact.",
+    "The stock holding still": "A stock sitting between the strikes until expiry is the strangle's worst case."
    },
    "skill": "options.vol_spreads",
    "simple": "Rising implied volatility helps, because it makes both options you own worth more, even before the stock moves.",
@@ -1162,12 +1162,12 @@
    "term": "Diagonal spread",
    "q": "Long the June 45 call, short the April 50 call. Which structure is this?",
    "choices": [
-    "Diagonal spread",
+    "Call diagonal spread",
     "Calendar spread",
     "Bull call spread",
     "Long strangle"
    ],
-   "answer": "Diagonal spread",
+   "answer": "Call diagonal spread",
    "why": "A diagonal spread. OIC's glossary: buy one option and write another of the same type, with different strikes and different expiries. Here both are calls, at 45 and 50, in June and April. It mixes a vertical spread and a calendar. In a long diagonal you own the later expiry, as here.",
    "lesson_line": "Buy one call, sell another: two strikes is a vertical, two expiries a calendar, two of each a diagonal.",
    "facts": [
@@ -1376,9 +1376,9 @@
    "q": "What is happening to the spread's value?",
    "choices": [
     "It's shrinking toward zero",
-    "It's rising with the rally",
+    "It's rising on the rally",
     "It's dropping below zero",
-    "It's near its maximum value"
+    "It's near its peak"
    ],
    "answer": "It's shrinking toward zero",
    "why": "It's shrinking toward zero. At 130, both 100 calls are deep in the money and trade near their intrinsic value. The gap between them, which is the spread's value, closes. Bought for a debit, a long calendar can lose that 1.25 at most. A sharp move either way does this.",
@@ -1391,9 +1391,9 @@
     "f88"
    ],
    "wrong": {
-    "It's rising with the rally": "The long call gains, but the short call gains nearly as much. The spread is the gap between them.",
+    "It's rising on the rally": "The long call gains, but the short call gains nearly as much. The spread is the gap between them.",
     "It's dropping below zero": "Bought for a debit, the most a long calendar can lose is that 1.25.",
-    "It's near its maximum value": "The peak is the stock sitting on the strike at the near expiry, not far above it."
+    "It's near its peak": "The peak is the stock sitting on the strike at the near expiry, not far above it."
    },
    "skill": "options.vol_spreads",
    "simple": "The spread shrinks toward zero, because deep in the money both calls are worth about the same.",
@@ -1850,7 +1850,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -1886,7 +1887,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: different strikes and expiries, same type = diagonal (f36, whose own example is the same shape). Calendar, vertical and strangle notes rest on f37/f26, f42, f11. Lesson line scoped to buy-one, sell-another call spreads (18 words). Choices 13-16, no tell. q03's wrong note and q21's story teach the same structure, but as reinforcement, not a give-away of the stem."
+   "notes": "Solved cold: different strikes and expiries, same type = diagonal (f36, whose own example is the same shape). Calendar, vertical and strangle notes rest on f37/f26, f42, f11. Lesson line scoped to buy-one, sell-another call spreads (18 words). Choices 13-16, no tell. q03's wrong note and q21's story teach the same structure, but as reinforcement, not a give-away of the stem.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -1922,7 +1924,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

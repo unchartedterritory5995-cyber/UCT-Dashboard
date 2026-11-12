@@ -1842,7 +1842,7 @@
     "Buy at market, stop under day's low",
     "Pass; day one is not a buy here",
     "Half now, half at close; one stop",
-    "Buy tomorrow's open; stop under low"
+    "Buy tomorrow's open; stop at low"
    ],
    "answer": "Buy at market, stop under day's low",
    "why": "Buy at market. Day one over the opening-range high is the A+ form, and the pullback and reclaim is the other way in. Volume is hot, with the average daily volume already traded. The stop goes a few cents under the day's low, about 2% away.",
@@ -1855,9 +1855,9 @@
     "u04"
    ],
    "wrong": {
+    "Pass; day one is not a buy here": "Day one over the opening-range high with hot volume is a buy we teach, the A+ form.",
     "Half now, half at close; one stop": "Half now and half later is two prices, not one buy.",
-    "Buy tomorrow's open; stop under low": "Waiting for tomorrow's open gives up the trigger that fired today.",
-    "Pass; day one is not a buy here": "Day one over the opening-range high with hot volume is a buy we teach, the A+ form."
+    "Buy tomorrow's open; stop at low": "Waiting for tomorrow's open gives up the trigger that fired today."
    },
    "house": true,
    "simple": "Buy at market as price trades over the opening-range high. Put the stop a few cents under the day's low.",
@@ -1887,8 +1887,8 @@
    "choices": [
     "PEG owns the day; we teach the buy",
     "We own the day and the buy both",
-    "Gap Support owns the first pullback",
-    "Episodic Pivot owns the day; no buy"
+    "Gap Support owns first pullback",
+    "Episodic Pivot owns day; no buy"
    ],
    "answer": "PEG owns the day; we teach the buy",
    "why": "The PEG owns the day. The pullback buy is taught here. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on either is taught here. An Episodic Pivot is the first gap in six months on a neglected name.",
@@ -1898,9 +1898,9 @@
     "c46"
    ],
    "wrong": {
-    "Gap Support owns the first pullback": "Gap Support is the later test of the gap-up low, not the first pullback.",
     "We own the day and the buy both": "The PEG lesson owns a report reaction day on a leader.",
-    "Episodic Pivot owns the day; no buy": "An Episodic Pivot is a neglected name, not a leader clearing a base."
+    "Gap Support owns first pullback": "Gap Support is the later test of the gap-up low, not the first pullback.",
+    "Episodic Pivot owns day; no buy": "An Episodic Pivot is a neglected name, not a leader clearing a base."
    },
    "house": true,
    "simple": "The PEG lesson owns the report day on a leader, and this lesson teaches the pullback buy on either kind of gap.",
@@ -1968,9 +1968,9 @@
    "story": "Monday ends with a weak red close. Tuesday opens 2% higher on 1.6x volume with no headline.",
    "choices": [
     "A Kicker; a small gap on positioning",
-    "A News Gapper; 1.6x volume is enough",
+    "A News Gapper; 1.6x is enough",
     "A PEG; the stock gapped on volume",
-    "An Episodic Pivot; the close was weak"
+    "An Episodic Pivot; weak close"
    ],
    "answer": "A Kicker; a small gap on positioning",
    "why": "A Kicker. It needs a weak red close and then a gap of only 1.5% or more on positioning, rarely a headline. Monday closed weak and red, and Tuesday gapped 2% with no news. A News Gapper needs a named catalyst and at least 3 times volume. This had 1.6x.",
@@ -1981,9 +1981,9 @@
     "c47"
    ],
    "wrong": {
-    "An Episodic Pivot; the close was weak": "An Episodic Pivot is the first gap in six months on a neglected name. Nothing here says that.",
-    "A News Gapper; 1.6x volume is enough": "A News Gapper needs a named catalyst and at least 3 times volume. This had no headline and 1.6x.",
-    "A PEG; the stock gapped on volume": "A PEG is a report's reaction day on a leader. This gap came with no headline."
+    "A News Gapper; 1.6x is enough": "A News Gapper needs a named catalyst and at least 3 times volume. This had no headline and 1.6x.",
+    "A PEG; the stock gapped on volume": "A PEG is a report's reaction day on a leader. This gap came with no headline.",
+    "An Episodic Pivot; weak close": "An Episodic Pivot is the first gap in six months on a neglected name. Nothing here says that."
    },
    "house": true,
    "simple": "A Kicker is a small gap after a weak red close, rarely on news. This one had no headline and only 1.6x volume.",
@@ -2134,9 +2134,9 @@
    "story": "Same gap, same volume, two stocks, and both hold the gap. One closes at 93% of its range. The other closes at 60%.",
    "choices": [
     "First an A+ cue; second just holds",
-    "Both the same; both held the gap",
-    "First just holds; second an A+ cue",
-    "Both A+; both closed green and held"
+    "Both the same; held the gap",
+    "First just holds; second A+ cue",
+    "Both A+; both green and held"
    ],
    "answer": "First an A+ cue; second just holds",
    "why": "The first is an A+ cue, and the second just holds the gap. A close in the top quarter of the range is an A+ cue, and 93% is in it. A close in the upper half holds the gap but is not an A+ cue, and 60% is there. The close separates them.",
@@ -2146,9 +2146,9 @@
     "c02"
    ],
    "wrong": {
-    "Both the same; both held the gap": "Both held the gap, but only the 93% close is in the top quarter, an A+ cue.",
-    "Both A+; both closed green and held": "Only a top-quarter close is the A+ cue, and 60% is not.",
-    "First just holds; second an A+ cue": "It is the other way round: only the 93% close is in the top quarter, the A+ cue."
+    "Both the same; held the gap": "Both held the gap, but only the 93% close is in the top quarter, an A+ cue.",
+    "First just holds; second A+ cue": "It is the other way round: only the 93% close is in the top quarter, the A+ cue.",
+    "Both A+; both green and held": "Only a top-quarter close is the A+ cue, and 60% is not."
    },
    "house": true,
    "simple": "The 93% close is an A+ cue because it sits in the top quarter. The 60% close only holds the gap.",
@@ -2506,9 +2506,9 @@
    "story": "AVAV, 2024. A 15.3% gap on 15.8x volume closed at 79% of its range. You bought the 8-session pullback and reclaim at 162.59. It went straight to the stop at 158.43.",
    "choices": [
     "A planned loss; the stop did its job",
-    "A bad gap; it was never a real gapper",
+    "A bad gap; never a real gapper",
     "A sign the setup no longer works",
-    "A broken rule; the stop was too tight"
+    "A broken rule; stop too tight"
    ],
    "answer": "A planned loss; the stop did its job",
    "why": "A planned loss; the stop did its job. The gap was strong: 15.3% on 15.8x volume, closing at 79% of its range. The pullback was bought at 162.59 and went straight to the stop at 158.43 without a single higher high. A big-volume gap does not protect the buy.",
@@ -2525,9 +2525,9 @@
     "d29"
    ],
    "wrong": {
-    "A broken rule; the stop was too tight": "The stop sits a few cents under the pullback low, not wherever gives more room. A stop that is hit is not a rule break.",
-    "A bad gap; it was never a real gapper": "The gap was big, on heavy volume, and closed at 79% of its range.",
-    "A sign the setup no longer works": "Only about three in ten reach 3R before the stop. One stopped trade does not retire the setup."
+    "A bad gap; never a real gapper": "The gap was big, on heavy volume, and closed at 79% of its range.",
+    "A sign the setup no longer works": "Only about three in ten reach 3R before the stop. One stopped trade does not retire the setup.",
+    "A broken rule; stop too tight": "The stop sits a few cents under the pullback low, not wherever gives more room. A stop that is hit is not a rule break."
    },
    "house": true,
    "simple": "It was a planned loss. A strong gap does not protect a pullback buy, and the stop got us out.",
@@ -2719,9 +2719,9 @@
    "story": "NFLX, 2018. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64. It closes at 35% of its range.",
    "choices": [
     "No; the gap held and never filled",
-    "Yes; any fade counts as a failure",
+    "Yes; any fade is a failure",
     "No; a 35% close is a strong one",
-    "Yes; it finished in the lower half"
+    "Yes; it ended in the lower half"
    ],
    "answer": "No; the gap held and never filled",
    "why": "No. The gap held, since the low of 35.65 stayed above the prior close of 34.64, so it never filled. A News Failure closes under the prior close or trades back to it. This day was a weak, faded close at 35% of its range, not a failure.",
@@ -2734,9 +2734,9 @@
     "c26"
    ],
    "wrong": {
-    "Yes; any fade counts as a failure": "A News Failure closes under the prior close or trades back to it.",
+    "Yes; any fade is a failure": "A News Failure closes under the prior close or trades back to it.",
     "No; a 35% close is a strong one": "The answer is no, but not for that reason. A 35% close is in the lower half, a weak close.",
-    "Yes; it finished in the lower half": "A weak close is not the failure. A close under the prior close or a filled gap is."
+    "Yes; it ended in the lower half": "A weak close is not the failure. A close under the prior close or a filled gap is."
    },
    "house": true,
    "simple": "No. The gap held and the day closed above the prior close, so it is a weak close and not a News Failure.",
@@ -2847,9 +2847,9 @@
    "story": "Two stocks gap on reports and close strong. The first one's pullback never leaves the upper half of the gap day. The second one's pullback dips under the gap-day midpoint but holds the low.",
    "choices": [
     "First an A+ cue; second a B- cue",
-    "Both the same; both hold the low",
-    "First a B- cue; shallow means weak",
-    "Second an A+ cue; it tested more"
+    "Both the same; both hold low",
+    "First a B- cue; shallow is weak",
+    "Second an A+ cue; tested more"
    ],
    "answer": "First an A+ cue; second a B- cue",
    "why": "First an A+ cue, second a B- cue. A first pullback that holds the upper half of the gap day is an A+ cue. A pullback that dips under the gap-day midpoint is a B- cue. Both hold the low, so both pass the setup. Depth still shapes the grade.",
@@ -2860,9 +2860,9 @@
     "h30"
    ],
    "wrong": {
-    "Both the same; both hold the low": "Both hold the low, but the depth still grades.",
-    "First a B- cue; shallow means weak": "A shallow pullback shows strength, not weakness.",
-    "Second an A+ cue; it tested more": "Dipping under the midpoint is a B- cue, not extra strength."
+    "Both the same; both hold low": "Both hold the low, but the depth still grades.",
+    "First a B- cue; shallow is weak": "A shallow pullback shows strength, not weakness.",
+    "Second an A+ cue; tested more": "Dipping under the midpoint is a B- cue, not extra strength."
    },
    "house": true,
    "simple": "A pullback that stays in the upper half of the gap day grades higher than one that dips under its midpoint.",
@@ -2888,9 +2888,9 @@
    "story": "A stock has gapped up two days in a row, each on wider ranges. Today a news headline gaps it a third time on 4x volume.",
    "choices": [
     "Pass; this is day three of a burst",
-    "Pass; the headline is not a report",
-    "Buy day one; the volume is strong",
-    "Buy the pullback tomorrow morning"
+    "Pass; headline is not a report",
+    "Buy day one; volume is strong",
+    "Buy the pullback tomorrow"
    ],
    "answer": "Pass; this is day three of a burst",
    "why": "Pass. Our card wants a gap that is not the 3rd to 5th day of a straight-up burst. This is the third gap. Buying the third gap of a parabolic burst is a mistake. Good volume does not make a late gap early.",
@@ -2900,9 +2900,9 @@
     "c35"
    ],
    "wrong": {
-    "Buy the pullback tomorrow morning": "A pullback buy still needs a setup that is not late.",
-    "Pass; the headline is not a report": "Passing is right, but not for that reason. A named headline can be a catalyst. The third gap of a burst is the problem.",
-    "Buy day one; the volume is strong": "Good volume does not fix a third gap in a burst."
+    "Pass; headline is not a report": "Passing is right, but not for that reason. A named headline can be a catalyst. The third gap of a burst is the problem.",
+    "Buy day one; volume is strong": "Good volume does not fix a third gap in a burst.",
+    "Buy the pullback tomorrow": "A pullback buy still needs a setup that is not late."
    },
    "house": true,
    "simple": "Pass. Today is the third day of a straight-up burst, which is too late to buy.",
@@ -3722,7 +3722,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key correct: day one over the opening-range high with hot volume and still above the open (ng.entry_day1, F62 stop). 9% clears the 4% floor; 2% stop is under the 3% / 1.5 ATR limits. u01 and u04 verified on the Substack pages. Entry rule is a pending-owner default (D-086, D-005), not an owner ruling."
+   "notes": "Key correct: day one over the opening-range high with hot volume and still above the open (ng.entry_day1, F62 stop). 9% clears the 4% floor; 2% stop is under the 3% / 1.5 ATR limits. u01 and u04 verified on the Substack pages. Entry rule is a pending-owner default (D-086, D-005), not an owner ruling.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "cut",
@@ -3872,7 +3873,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c47 exactly. Rests on D-002 (flagged). q74 teaches the PEG first, then q32 applies it; accepted as teach then apply."
+   "notes": "Key follows c47 exactly. Rests on D-002 (flagged). q74 teaches the PEG first, then q32 applies it; accepted as teach then apply.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",
@@ -3884,7 +3886,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story fits c48 (weak red close, 2% gap, no headline, 1.6x); News Gapper/PEG/EP foils refuted by c04, c47, c46. Mild overlap with the q01 Kicker note, acceptable as recall."
+   "notes": "Story fits c48 (weak red close, 2% gap, no headline, 1.6x); News Gapper/PEG/EP foils refuted by c04, c47, c46. Mild overlap with the q01 Kicker note, acceptable as recall.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -3908,7 +3911,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key correct: 93% is in the top quarter (A+ cue, c40); 60% is upper half so only holds (c02). Mirror distractor stops a polarity tell."
+   "notes": "Key correct: 93% is in the top quarter (A+ cue, c40); 60% is upper half so only holds (c02). Mirror distractor stops a polarity tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -3962,7 +3966,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Content and key are sound (planned loss; stop did its job). Provenance defect: facts d14 and d15 are quoted from the card's examples.failures (source c1) but cited to d1 (the dossier), where the wording differs ('gap 2024-03-05 (+15.3% ...)' and 'reclaim on 2024-03-14 was bought'), so the quotes are not found on the cited page. Repoint d14, d15 (and d17 for q66) to source c1 in the lesson facts array, or re-quote the dossier text verbatim. Question fields themselves unchanged."
+   "notes": "Content and key are sound (planned loss; stop did its job). Provenance defect: facts d14 and d15 are quoted from the card's examples.failures (source c1) but cited to d1 (the dossier), where the wording differs ('gap 2024-03-05 (+15.3% ...)' and 'reclaim on 2024-03-14 was bought'), so the quotes are not found on the cited page. Repoint d14, d15 (and d17 for q66) to source c1 in the lesson facts array, or re-quote the dossier text verbatim. Question fields themselves unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -3980,19 +3985,22 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Low 35.65 above prior close 34.64, so the gap held (d25) and it is not a News Failure (c49). 35% is a lower-half B- close (c03). The second No is plainly false."
+   "notes": "Low 35.65 above prior close 34.64, so the gap held (d25) and it is not a News Failure (c49). 35% is a lower-half B- close (c03). The second No is plainly false.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c43 and c44 support both halves; foils checkable. Overlap: q56 (TF, 'dips under the midpoint is graded down') gives away the second half; recommend rewording or cutting q56, outside this check."
+   "notes": "c43 and c44 support both halves; foils checkable. Overlap: q56 (TF, 'dips under the midpoint is graded down') gives away the second half; recommend rewording or cutting q56, outside this check.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Third gap of a straight-up burst fails the not-late line (c08, c35). Both Pass choices are clear: the second has a false reason (c01 allows a named headline)."
+   "notes": "Third gap of a straight-up burst fails the not-late line (c08, c35). Both Pass choices are clear: the second has a false reason (c01 allows a named headline).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",

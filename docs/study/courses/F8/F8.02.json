@@ -747,9 +747,9 @@
    "q": "In trading, what is FOMO?",
    "choices": [
     "Fear of being left out of a move",
-    "Fear of losing money on a trade",
-    "Fear of buying a stock at a high",
-    "Fear of holding a trade overnight"
+    "Fear of losing money",
+    "Fear of buying at a high",
+    "Fear of holding overnight"
    ],
    "answer": "Fear of being left out of a move",
    "why": "Fear of being left out of a move. FOMO stands for the fear of missing out. In trading it is the fear of missing out on potential market moves. It feels like something exciting is happening while you sit on the sidelines. Its urgency drives rushed, impulsive decisions. It is not the fear of a loss: FOMO is about a gain you are not in.",
@@ -760,9 +760,9 @@
     "f36"
    ],
    "wrong": {
-    "Fear of losing money on a trade": "That's the fear of loss. FOMO is the fear of being left out of a gain.",
-    "Fear of buying a stock at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
-    "Fear of holding a trade overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in."
+    "Fear of losing money": "That's the fear of loss. FOMO is the fear of being left out of a gain.",
+    "Fear of buying at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
+    "Fear of holding overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in."
    },
    "skill": "psych.fomo",
    "simple": "FOMO is the fear of being left out of a move others are making, and that urge pushes you into rushed trades.",
@@ -1624,9 +1624,9 @@
    "q": "By our rule, how far above the buy point can you still buy?",
    "choices": [
     "Up to 4% above the buy point",
-    "Up to 5% above the buy point",
-    "Up to 10% above the buy point",
-    "Any distance, if shares shrink"
+    "Up to 5% above buy point",
+    "Up to 10% above buy point",
+    "Any, if the shares shrink"
    ],
    "answer": "Up to 4% above the buy point",
    "simple": "Up to 4%, because our rule never buys more than 4% above the buy point.",
@@ -1640,9 +1640,9 @@
     "h14"
    ],
    "wrong": {
-    "Up to 5% above the buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point.",
-    "Up to 10% above the buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
-    "Any distance, if shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all."
+    "Up to 5% above buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point.",
+    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
+    "Any, if the shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all."
    },
    "tier": "core",
    "risk": {
@@ -1710,12 +1710,12 @@
    "story": "A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned.",
    "q": "What does our rule say to do?",
    "choices": [
-    "Skip today; plan it tonight",
+    "Skip today and plan it tonight",
     "Buy at market before it runs",
     "Buy now, set a stop later",
     "Short it, the gap is too big"
    ],
-   "answer": "Skip today; plan it tonight",
+   "answer": "Skip today and plan it tonight",
    "simple": "Skip it today, because our rule needs the entry, stop and size written down before the market opens.",
    "why": "Skip today and plan it tonight. Our rule: every planned buy has its entry, stop and size written down before the market opens. This one has none. Without a stop you can't know your risk or size the trade. Never feel pressured to invest right away. Steenbarger: however many trades you miss, new ones keep coming.",
    "lesson_line": "No written plan before the open, no buy. Plan it tonight if it still looks good.",
@@ -1783,7 +1783,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple grounded in f36/f62 (sidelines, potential moves; urgency drives impulsive decisions). 21 words. Key independently derived; no tell."
+   "notes": "Simple grounded in f36/f62 (sidelines, potential moves; urgency drives impulsive decisions). 21 words. Key independently derived; no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1933,7 +1934,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h04. Choices 28-30 chars, key not longest. 5% and 10% are real named rules (f47 IBD, h14 C29); 'Any distance, if shares shrink' is a real misreading of h05. Reveals in q05/q06 teach the same line, which is teach-then-recall, not a giveaway in question text."
+   "notes": "Key from h04. Choices 28-30 chars, key not longest. 5% and 10% are real named rules (f47 IBD, h14 C29); 'Any distance, if shares shrink' is a real misreading of h05. Reveals in q05/q06 teach the same line, which is teach-then-recall, not a giveaway in question text.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -1945,7 +1947,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from D39 (h06) + D44 (h08); no opening-range choice offered, so no second defensible answer among the choices. Choices 25-28 chars. The owner flag (day-one 30-minute range break as a house entry) stands and must be answered before release; if he says the range break counts without a premarket plan, cut q28."
+   "notes": "Key from D39 (h06) + D44 (h08); no opening-range choice offered, so no second defensible answer among the choices. Choices 25-28 chars. The owner flag (day-one 30-minute range break as a house entry) stands and must be answered before release; if he says the range break counts without a premarket plan, cut q28.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

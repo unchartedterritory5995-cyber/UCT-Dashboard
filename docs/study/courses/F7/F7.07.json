@@ -1137,7 +1137,7 @@
    "q": "Which report lands Friday, Dec. 4, at 8:30 a.m.?",
    "choices": [
     "November's jobs report",
-    "November's CPI release",
+    "November's CPI report",
     "November's PPI report",
     "Weekly jobless claims"
    ],
@@ -1155,7 +1155,7 @@
     "f46"
    ],
    "wrong": {
-    "November's CPI release": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
+    "November's CPI report": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
     "November's PPI report": "BLS set November's PPI for Tuesday, Dec. 15.",
     "Weekly jobless claims": "Claims come out on Thursday mornings, unless a holiday moves them. This Friday 8:30 report is November's jobs report."
    },
@@ -1715,7 +1715,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Dec. 4 jobs report from f13; Nov. 30, 2026 is a Monday. Choices 21-22 chars. Claims note grounded in f45, f46."
+   "notes": "Dec. 4 jobs report from f13; Nov. 30, 2026 is a Monday. Choices 21-22 chars. Claims note grounded in f45, f46.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",

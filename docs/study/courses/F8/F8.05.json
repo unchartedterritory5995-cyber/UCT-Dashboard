@@ -584,9 +584,9 @@
    "q": "What does overconfidence bias mean?",
    "choices": [
     "Overrating your own skill and knowledge",
-    "Fearing you'll miss out on a big move",
-    "Holding losers too long to avoid a loss",
-    "Buying what everyone else is buying"
+    "Fearing you'll miss out on a move",
+    "Holding on to losers too long",
+    "Buying what the crowd is buying"
    ],
    "answer": "Overrating your own skill and knowledge",
    "why": "Overrating your own skill and knowledge. Investopedia defines it as overestimating your abilities, knowledge and skills. Schwab names where it leads: risky bets and ignored data. It is not FOMO or following the crowd. It can feed the disposition effect, but that is a separate bias.",
@@ -597,9 +597,9 @@
     "f07"
    ],
    "wrong": {
-    "Holding losers too long to avoid a loss": "That's one half of the disposition effect, a separate bias that also sells winners too soon. Overconfidence can feed it, but the word means overrating yourself.",
-    "Buying what everyone else is buying": "That's herd behavior, following the crowd. Overconfidence is trusting your own call too much.",
-    "Fearing you'll miss out on a big move": "That's FOMO, the fear of missing out. Overconfidence is rating yourself too highly."
+    "Fearing you'll miss out on a move": "That's FOMO, the fear of missing out. Overconfidence is rating yourself too highly.",
+    "Holding on to losers too long": "That's one half of the disposition effect, a separate bias that also sells winners too soon. Overconfidence can feed it, but the word means overrating yourself.",
+    "Buying what the crowd is buying": "That's herd behavior, following the crowd. Overconfidence is trusting your own call too much."
    },
    "simple": "It means rating your own skill and knowledge higher than they really are, which pushes you into risky bets.",
    "tier": "core",
@@ -678,13 +678,13 @@
    "term": "House money effect",
    "q": "What is the house money effect?",
    "choices": [
-    "Taking more risk after a gain",
+    "Taking on more risk after a gain",
     "Taking more risk after a loss",
     "Selling winners too early",
     "Trading with borrowed money"
    ],
-   "answer": "Taking more risk after a gain",
-   "why": "Taking more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss.",
+   "answer": "Taking on more risk after a gain",
+   "why": "Taking on more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss.",
    "lesson_line": "Profit in your account is your money. Risk it like your money.",
    "facts": [
     "f39",
@@ -1009,9 +1009,9 @@
    "q": "What's the honest read on your run?",
    "choices": [
     "Can't tell skill from tailwind yet",
-    "My stock picking has jumped a level",
-    "Time to size up while the run lasts",
-    "Probably luck, so my method is weak"
+    "My picking has jumped a level",
+    "Size up while the run lasts",
+    "Luck, so my method is weak"
    ],
    "answer": "Can't tell skill from tailwind yet",
    "why": "Can't tell skill from tailwind yet. When most stocks rose, five wins can't separate your skill from the market's lift. Wins do hint at some ability. But people give themselves too much credit for success and too little to chance or outside circumstance. Compare your results to the market, and let your plan, not the streak, set your size.",
@@ -1026,9 +1026,9 @@
     "f50"
    ],
    "wrong": {
-    "My stock picking has jumped a level": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
-    "Time to size up while the run lasts": "That's the hot hand feeling. Size that grows on a run can turn a sudden reversal into a large loss.",
-    "Probably luck, so my method is weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much."
+    "My picking has jumped a level": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
+    "Size up while the run lasts": "That's the hot hand feeling. Size that grows on a run can turn a sudden reversal into a large loss.",
+    "Luck, so my method is weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much."
    },
    "simple": "You can't tell yet. Most stocks went up, so five wins can't show how good you are.",
    "tier": "extended",
@@ -1276,8 +1276,8 @@
    "choices": [
     "A rule for it written before the run",
     "It still fits under your 2% cap",
-    "You feel sure about the next trades",
-    "The quarter's profit covers the risk"
+    "You feel sure about the next one",
+    "The quarter's profit covers it"
    ],
    "answer": "A rule for it written before the run",
    "why": "A rule for it written before the run. Setting your risk ahead of time is what a trade plan is for. Our rule: never raise risk past the rules after a run of winners. A change made up at your peak is the streak deciding, even under the cap. Feeling sure and having profit to spare are not tests.",
@@ -1295,8 +1295,8 @@
    ],
    "wrong": {
     "It still fits under your 2% cap": "The cap is a ceiling, not a reason. A raise with no rule behind it is still a mood.",
-    "You feel sure about the next trades": "Feeling sure is what a hot run produces, so it can't be the test.",
-    "The quarter's profit covers the risk": "That's the house money effect: treating profit as money you can afford to lose."
+    "You feel sure about the next one": "Feeling sure is what a hot run produces, so it can't be the test.",
+    "The quarter's profit covers it": "That's the house money effect: treating profit as money you can afford to lose."
    },
    "simple": "Only a rule written before the hot run makes it a plan, since a raise made at the peak is the streak deciding.",
    "deeper": {
@@ -1374,7 +1374,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1392,7 +1393,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided key from f39/f09 before reading it: more risk after a gain. Two publishers (Management Science, Investopedia). Key ties a distractor for length; break-even distractor is the real mirror, not a second answer. why/simple grounded."
+   "notes": "Decided key from f39/f09 before reading it: more risk after a gain. Two publishers (Management Science, Investopedia). Key ties a distractor for length; break-even distractor is the real mirror, not a second answer. why/simple grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1446,7 +1448,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'can't tell yet' from f15/f31/f50 before reading key; matches. Key 34 chars, not longest; two hedged, two confident choices; no story echo. Size line fits rulebook D45/A1."
+   "notes": "Decided 'can't tell yet' from f15/f31/f50 before reading key; matches. Key 34 chars, not longest; two hedged, two confident choices; no story echo. Size line fits rulebook D45/A1.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -1488,7 +1491,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key fits rulebook A1/E49 (risk can follow recent results, but by a rule set ahead) and D45. Key ties a distractor for longest (36), not a lone tell. Cap note no longer contradicts A1."
+   "notes": "Key fits rulebook A1/E49 (risk can follow recent results, but by a rule set ahead) and D45. Key ties a distractor for longest (36), not a lone tell. Cap note no longer contradicts A1.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",

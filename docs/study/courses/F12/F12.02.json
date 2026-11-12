@@ -1394,9 +1394,9 @@
    "q": "Where should those stops live during the day?",
    "choices": [
     "As stop orders at your broker",
-    "In your head, checked at lunch",
+    "In your head, a lunch check",
     "Nowhere until you get home",
-    "As price alerts on your phone"
+    "As alerts on your phone"
    ],
    "answer": "As stop orders at your broker",
    "why": "As stop orders at your broker. Our rule: every position has a real stop order with the broker, not a stop kept in your head. Stop orders can help protect against big declines, especially when you can't watch your positions. They are not a guarantee. A gap past your stop can cost more than you planned.",
@@ -1408,9 +1408,9 @@
     "h5"
    ],
    "wrong": {
-    "In your head, checked at lunch": "Between checks, nothing acts on it. Our rule is a real stop order with the broker, not a stop kept in your head.",
+    "In your head, a lunch check": "Between checks, nothing acts on it. Our rule is a real stop order with the broker, not a stop kept in your head.",
     "Nowhere until you get home": "Then a bad day has no limit until you're home. That's a loss you never planned.",
-    "As price alerts on your phone": "An alert only tells you a price traded. While you're at work and can't act, nothing sells."
+    "As alerts on your phone": "An alert only tells you a price traded. While you're at work and can't act, nothing sells."
    },
    "simple": "As stop orders at your broker, because a real order acts on its own while you are at work and can't watch.",
    "deeper": {
@@ -1436,7 +1436,7 @@
    "choices": [
     "Checking earnings dates for holdings",
     "Reading the futures each morning",
-    "A tighter stop order on that holding",
+    "A tighter stop on that holding",
     "The midday check on market volume"
    ],
    "answer": "Checking earnings dates for holdings",
@@ -1452,8 +1452,8 @@
    ],
    "wrong": {
     "Reading the futures each morning": "Futures show the market's mood. They don't list a company's report date.",
-    "The midday check on market volume": "Volume says nothing about a report date. The earnings calendar does.",
-    "A tighter stop order on that holding": "A stop can't stop a report. The stock can gap past it, and the fill can land far below."
+    "A tighter stop on that holding": "A stop can't stop a report. The stock can gap past it, and the fill can land far below.",
+    "The midday check on market volume": "Volume says nothing about a report date. The earnings calendar does."
    },
    "simple": "Checking earnings dates for what you hold, because knowing the date lets you decide before the close, not after the gap.",
    "deeper": {
@@ -1501,9 +1501,9 @@
    "q": "How does your premarket treat that one name?",
    "choices": [
     "Extra caution, the market is against it",
-    "Full size, it held up when others broke",
-    "Buy the names that broke, they're cheap",
-    "Short it, since the market is falling"
+    "Full size, it held when others broke",
+    "Buy the broken names, they're cheap",
+    "Short it, the market is falling"
    ],
    "answer": "Extra caution, the market is against it",
    "why": "Extra caution, the market is against it. Short-term trades do better in the direction of the bigger trend. Even strong growth stocks can drop fast when the market shifts. Our market reading guides it: Orange, only A+ setups; Red, mostly cash and shorts. Caution is not a ban. This one name has to clear a higher bar.",
@@ -1518,9 +1518,9 @@
     "h14"
    ],
    "wrong": {
-    "Buy the names that broke, they're cheap": "Broken support isn't a discount. It usually brings selling on the way back up.",
-    "Full size, it held up when others broke": "Holding up is not a free pass. Even strong growth stocks can drop fast when the market turns.",
-    "Short it, since the market is falling": "Our shorts are the weakest stocks in the weakest groups. A chart that still looks perfect is the opposite of that."
+    "Full size, it held when others broke": "Holding up is not a free pass. Even strong growth stocks can drop fast when the market turns.",
+    "Buy the broken names, they're cheap": "Broken support isn't a discount. It usually brings selling on the way back up.",
+    "Short it, the market is falling": "Our shorts are the weakest stocks in the weakest groups. A chart that still looks perfect is the opposite of that."
    },
    "simple": "Extra caution, because trades do better with the bigger trend, and even strong stocks can drop fast when the market turns.",
    "deeper": {
@@ -1570,9 +1570,9 @@
    "q": "What does tonight's recap still need?",
    "choices": [
     "Stops, reports due, tomorrow's list",
-    "Nothing, a red day earns a night off",
-    "A bigger list to win it back tomorrow",
-    "Looser stops so they don't hit again"
+    "Nothing, a red day earns a break",
+    "A bigger list to win it back",
+    "Looser stops, so they don't hit"
    ],
    "answer": "Stops, reports due, tomorrow's list",
    "why": "Stops, reports due, tomorrow's list. The recap isn't a mood check. Review each open position and its stop, check the reports coming up, and write the next plan while the market is closed. Our rule adds one more step: journal every trade the same day, the two losses included. Trading more to win back a loss is revenge trading, and it backfires.",
@@ -1588,9 +1588,9 @@
     "ips1"
    ],
    "wrong": {
-    "Nothing, a red day earns a night off": "Losses taken by the plan are the cost of trading. What you still hold and tomorrow's plan still need the recap.",
-    "A bigger list to win it back tomorrow": "That's trading more to win back a loss. Investopedia calls revenge trading a recipe for disaster.",
-    "Looser stops so they don't hit again": "Our stop only moves up, never down or wider. A wider stop means a bigger loss when it's hit."
+    "Nothing, a red day earns a break": "Losses taken by the plan are the cost of trading. What you still hold and tomorrow's plan still need the recap.",
+    "A bigger list to win it back": "That's trading more to win back a loss. Investopedia calls revenge trading a recipe for disaster.",
+    "Looser stops, so they don't hit": "Our stop only moves up, never down or wider. A wider stop means a bigger loss when it's hit."
    },
    "simple": "Review your stops, check who reports, and write tomorrow's list, because the recap sets up tomorrow whatever today felt like.",
    "deeper": {
@@ -1661,8 +1661,8 @@
    "q": "What does our trail rule have you do in the recap?",
    "choices": [
     "Check for a close below the 10-day",
-    "Check for a close below the 21-day",
-    "Cancel the stop, since it's working",
+    "Look for a close below the 21-day",
+    "Cancel the stop, it's working",
     "Raise the stop to today's close"
    ],
    "answer": "Check for a close below the 10-day",
@@ -1675,9 +1675,9 @@
     "h13"
    ],
    "wrong": {
-    "Cancel the stop, since it's working": "The stop is the exit. Cancel it, and a working trade has no exit if it turns.",
-    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 10-day average.",
-    "Check for a close below the 21-day": "The 21-day is our trail for steadier names. For a fast mover, our default trail is the 10-day average."
+    "Look for a close below the 21-day": "The 21-day is our trail for steadier names. For a fast mover, our default trail is the 10-day average.",
+    "Cancel the stop, it's working": "The stop is the exit. Cancel it, and a working trade has no exit if it turns.",
+    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 10-day average."
    },
    "tier": "extended",
    "risk": {
@@ -1815,13 +1815,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own from D41 (h5) + sb5. No second right answer: an alert only notifies, and a member at work cannot act on it. The gap caveat (ips2) keeps the why from overclaiming, and the trap agrees with A7 ('a gap can jump the stop'). The story no longer names a stop level, so q10 is not leaked. Choices are 26-30 characters and the key is not the longest."
+   "notes": "I reached the key on my own from D41 (h5) + sb5. No second right answer: an alert only notifies, and a member at work cannot act on it. The gap caveat (ips2) keeps the why from overclaiming, and the trap agrees with A7 ('a gap can jump the stop'). The story no longer names a stop level, so q10 is not leaked. Choices are 26-30 characters and the key is not the longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right (fe1 + fr2 + ss3 + h6/B22) and I reached it on my own. The defect is a grammar tell, the same kind fixed in q08: the stem asks 'Which step would have flagged it', and 'A tighter stop order on that holding' cannot flag anything, so grammar alone rules it out. The stem now asks what would have protected you, which makes the stop choice a real temptation (the misconception the trap teaches) and leaves the key the only answer. The simple's 'because' now says why the check helps. Its 'decide before the close' rests on fe1 + sb4 and the why's B22 line. 11% is in the story. The key a"
+   "notes": "The key is right (fe1 + fr2 + ss3 + h6/B22) and I reached it on my own. The defect is a grammar tell, the same kind fixed in q08: the stem asks 'Which step would have flagged it', and 'A tighter stop order on that holding' cannot flag anything, so grammar alone rules it out. The stem now asks what would have protected you, which makes the stop choice a real temptation (the misconception the trap teaches) and leaves the key the only answer. The simple's 'because' now says why the check helps. Its 'decide before the close' rests on fe1 + sb4 and the why's B22 line. 11% is in the story. The key a",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
@@ -1833,7 +1835,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from m1 + ic2 + h14 (F65); 'Short it' wrong on h9 (C31 mirror). No second right answer: the story gives no reading, and the why teaches the guide without claiming one. Choices 37-39 chars. q07 teaches m1 at rung 3; q19 applies it with the house reading at rung 8, not the same ask. Integrator: house flag decision."
+   "notes": "Key from m1 + ic2 + h14 (F65); 'Short it' wrong on h9 (C31 mirror). No second right answer: the story gives no reading, and the why teaches the guide without claiming one. Choices 37-39 chars. q07 teaches m1 at rung 3; q19 applies it with the house reading at rung 8, not the same ask. Integrator: house flag decision.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -1845,7 +1848,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own (stops, reports, tomorrow's plan) from ss2, ss3 and rl1. The why adds B27 (h7, journal the same day), so nothing contradicts the rulebook. The looser-stops note now rests on h11 + ips1. Choices are 35-37 characters and the key is the shortest. Lesson-level notes only: the key's 'reports due' is the same idea q17 tests, but w3 already teaches it and q17 asks it in a different frame (which step), so I treat it as teach-then-apply, not a leak. The revenge-trading line appears in both the wrong note and deeper.trap; that is acceptable inside one item."
+   "notes": "I reached the key on my own (stops, reports, tomorrow's plan) from ss2, ss3 and rl1. The why adds B27 (h7, journal the same day), so nothing contradicts the rulebook. The looser-stops note now rests on h11 + ips1. Choices are 35-37 characters and the key is the shortest. Lesson-level notes only: the key's 'reports due' is the same idea q17 tests, but w3 already teaches it and q17 asks it in a different frame (which step), so I treat it as teach-then-apply, not a leak. The revenge-trading line appears in both the wrong note and deeper.trap; that is acceptable inside one item.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",
@@ -1857,7 +1861,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own from E52 (h13) and the story's 'fast mover'. The 21-day is wrong by the same rule (steadier names only), so there is no second right answer. Choices are 31-35 characters and the key is not the longest. The cancel note rests on h11 ('The stop is the exit') and the close note on h13. The why's timing (sell on a close below it, so check in the recap) follows from h13. E51 puts the trail on the last third after trims, but the stem asks only what 'our trail rule' has you do, so it does not create a second answer. q15 is cut, so its 'Raise it to today's closing price' no "
+   "notes": "I reached the key on my own from E52 (h13) and the story's 'fast mover'. The 21-day is wrong by the same rule (steadier names only), so there is no second right answer. Choices are 31-35 characters and the key is not the longest. The cancel note rests on h11 ('The stop is the exit') and the close note on h13. The why's timing (sell on a close below it, so check in the recap) follows from h13. E51 puts the trail on the last third after trims, but the stem asks only what 'our trail rule' has you do, so it does not create a second answer. q15 is cut, so its 'Raise it to today's closing price' no ",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

@@ -1488,9 +1488,9 @@
    "q": "Is this a Go Signal?",
    "choices": [
     "No; it never went red first",
-    "Yes; it is green all morning",
-    "Yes; if the 20-day is rising",
-    "No; it needs heavier volume"
+    "Yes; green all morning",
+    "Yes; if the 20-day rises",
+    "No; it needs more volume"
    ],
    "answer": "No; it never went red first",
    "why": "No. A gap up that never trades under the prior close is not a Go Signal. The first hourly candle has to trade under the prior close first, and then buyers push it back above. A stock that is green from the open has no turn in it. A rising 20-day or heavier volume does not make one.",
@@ -1502,9 +1502,9 @@
     "g21"
    ],
    "wrong": {
-    "Yes; it is green all morning": "Green is not red to green. There was no red first.",
-    "Yes; if the 20-day is rising": "A rising 20-day is context. Without a dip under the prior close there is no signal.",
-    "No; it needs heavier volume": "Volume is not a rule for the Go Signal. What is missing is the dip under the prior close."
+    "Yes; green all morning": "Green is not red to green. There was no red first.",
+    "Yes; if the 20-day rises": "A rising 20-day is context. Without a dip under the prior close there is no signal.",
+    "No; it needs more volume": "Volume is not a rule for the Go Signal. What is missing is the dip under the prior close."
    },
    "house": true,
    "story": "The stock opens 0.8% above the prior close and never trades under it. It grinds green all morning.",
@@ -1912,9 +1912,9 @@
    "q": "Take it?",
    "choices": [
     "Yes; a new trade, its own stop",
-    "No; it already failed on Monday",
-    "Yes; with a wider stop this time",
-    "No; one try a week is the limit"
+    "No; it failed on Monday",
+    "Yes; with a wider stop",
+    "No; one try a week, no more"
    ],
    "answer": "Yes; a new trade, its own stop",
    "why": "Yes, as a new trade with its own stop. After a stop-out you buy again only if the setup triggers again, and then it is a new trade with every rule. This is the second try this week and this month. That is inside the limit of 3 tries a week and 6 a month on one stock.",
@@ -1926,9 +1926,9 @@
     "h24"
    ],
    "wrong": {
-    "No; it already failed on Monday": "A new trigger is a new trade. The limit is 3 tries a week and 6 a month on one stock.",
-    "Yes; with a wider stop this time": "The stop sits a few cents under the session low. A wider one to get back in is not the rule.",
-    "No; one try a week is the limit": "The limit is 3 tries a week and 6 a month on one stock. Two tries is well inside it."
+    "No; it failed on Monday": "A new trigger is a new trade. The limit is 3 tries a week and 6 a month on one stock.",
+    "Yes; with a wider stop": "The stop sits a few cents under the session low. A wider one to get back in is not the rule.",
+    "No; one try a week, no more": "The limit is 3 tries a week and 6 a month on one stock. Two tries is well inside it."
    },
    "house": true,
    "story": "A Go Signal in this stock failed on Monday, the only try this month. On Wednesday it sets up and turns again, a fresh trigger.",
@@ -2438,8 +2438,8 @@
    "choices": [
     "No; you need the hourly bars",
     "Yes; the wick shows the dip",
-    "Yes; green means red to green",
-    "No; wait for tomorrow's close"
+    "Yes; green is red to green",
+    "No; wait for the next close"
    ],
    "answer": "No; you need the hourly bars",
    "why": "No. The daily footprint cannot show the turn, so grading from the daily chart is a listed mistake. A long lower wick could form at any hour, and a green close says nothing about the first two hourly candles. Open the hourly bars: the Go Signal lives in the first two hourly candles.",
@@ -2451,8 +2451,8 @@
    ],
    "wrong": {
     "Yes; the wick shows the dip": "A wick could be made any time of day. The Go Signal lives in the first two hourly candles.",
-    "Yes; green means red to green": "A green daily close says nothing about the first two hours.",
-    "No; wait for tomorrow's close": "Tomorrow tells you nothing about the first two hours of today. The hourly bars show them."
+    "Yes; green is red to green": "A green daily close says nothing about the first two hours.",
+    "No; wait for the next close": "Tomorrow tells you nothing about the first two hours of today. The hourly bars show them."
    },
    "house": true,
    "story": "You look at a daily chart. A candle has a long lower wick and a green close. A friend calls it a Go Signal.",
@@ -3629,7 +3629,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -3694,7 +3695,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key from cited quotes; no tell or second answer found."
+   "notes": "Pass. Key from cited quotes; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -3772,7 +3774,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "cut",

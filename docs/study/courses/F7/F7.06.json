@@ -934,8 +934,8 @@
    "q": "What is the federal funds rate?",
    "choices": [
     "The overnight bank borrowing rate",
-    "The yield on the 10-year Treasury",
-    "The average 30-year mortgage rate",
+    "The 10-year Treasury yield",
+    "The 30-year mortgage rate",
     "The Fed's yearly inflation goal"
    ],
    "answer": "The overnight bank borrowing rate",
@@ -949,8 +949,8 @@
     "f12"
    ],
    "wrong": {
-    "The yield on the 10-year Treasury": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
-    "The average 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
+    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
+    "The 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
     "The Fed's yearly inflation goal": "That's the goal for inflation, what policy aims at. Fed funds is a rate banks pay to borrow."
    },
    "simple": "It's the rate banks pay each other to borrow money overnight, and it's the rate the Fed aims at.",
@@ -1314,9 +1314,9 @@
    "q": "Rates jumped in 2022, and fast-growing companies still losing money got hit hard. What made them so exposed?",
    "choices": [
     "Most of their profit is years away",
-    "They pay the largest cash dividends",
-    "Their sales drop the day rates rise",
-    "The Fed's hikes aimed at tech stocks"
+    "They pay the biggest dividends",
+    "Their sales drop as rates rise",
+    "The Fed targeted tech stocks"
    ],
    "answer": "Most of their profit is years away",
    "why": "Most of their profit is years away. Higher rates shrink what future cash flows are worth today, so valuations can fall. Growth stocks that get more of their value from expected future earnings often feel that more. In 2022, investors stopped paying up for unprofitable growth and wanted cash generation.",
@@ -1336,9 +1336,9 @@
     "f28"
    ],
    "wrong": {
-    "They pay the largest cash dividends": "Companies still losing money have little to pay out. The hit comes from discounting profits still years away.",
-    "Their sales drop the day rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
-    "The Fed's hikes aimed at tech stocks": "No. The Fed tightens to cool economic activity and keep inflation in check. Growth stocks feel it through valuations."
+    "They pay the biggest dividends": "Companies still losing money have little to pay out. The hit comes from discounting profits still years away.",
+    "Their sales drop as rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
+    "The Fed targeted tech stocks": "No. The Fed tightens to cool economic activity and keep inflation in check. Growth stocks feel it through valuations."
    },
    "simple": "Their profits are far off, and higher rates make far-off profits worth less today.",
    "deeper": {
@@ -1561,12 +1561,12 @@
    "story": "The 2s10s dips below zero for one session, then bounces back. A friend says the recession is locked in.",
    "q": "How much weight do you give that dip?",
    "choices": [
-    "Little; brief dips often mislead",
-    "Full weight; any inversion counts",
-    "It means a recession began today",
-    "Heavy; it usually means recession"
+    "Little, brief dips often mislead",
+    "Full weight, any dip counts",
+    "A recession began today",
+    "Heavy, it means recession"
    ],
-   "answer": "Little; brief dips often mislead",
+   "answer": "Little, brief dips often mislead",
    "why": "Little. New York Fed research says inversions in daily or intraday data often prove to be false signals. Inversions that hold on monthly or quarterly averages are more reliable. Even a lasting one is a warning, not a recession start date.",
    "lesson_line": "One day below zero often misleads. Inversions that hold on monthly averages are more reliable.",
    "facts": [
@@ -1577,9 +1577,9 @@
     "f59"
    ],
    "wrong": {
-    "Full weight; any inversion counts": "New York Fed research found daily inversions often prove false. Inversions that hold on monthly or quarterly averages count more.",
-    "It means a recession began today": "An inversion is a warning, not a start date. The New York Fed's model gives recession odds twelve months ahead.",
-    "Heavy; it usually means recession": "Not for one session. Daily inversions often prove false, and Fed Board researchers say inversions are no standalone recession call."
+    "Full weight, any dip counts": "New York Fed research found daily inversions often prove false. Inversions that hold on monthly or quarterly averages count more.",
+    "A recession began today": "An inversion is a warning, not a start date. The New York Fed's model gives recession odds twelve months ahead.",
+    "Heavy, it means recession": "Not for one session. Daily inversions often prove false, and Fed Board researchers say inversions are no standalone recession call."
    },
    "simple": "Give it little weight, because a one-day dip below zero often turns out to be a false alarm.",
    "deeper": {
@@ -1779,7 +1779,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f9, f1 Tier 1). Answer is 33 chars, so it fits a Word Match tile; the four choices are 31-33 chars. The inflation-goal note no longer gives q05's 2%. The mortgage note rests on f12. Gives away nothing later in the lesson."
+   "notes": "Key right (f9, f1 Tier 1). Answer is 33 chars, so it fits a Word Match tile; the four choices are 31-33 chars. The inflation-goal note no longer gives q05's 2%. The mortgage note rests on f12. Gives away nothing later in the lesson.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
@@ -1851,7 +1852,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on f64, f63 and f89, and the 2022 context on f73. Choice lengths run 34 to 36 characters. The notes rest on f80, f16 and f65, and the counter on f76 and f28. Small note: 'largest cash dividends' is easy to rule out once the stem says they lose money. It stands for a real bond-proxy misconception, so it was kept."
+   "notes": "Key rests on f64, f63 and f89, and the 2022 context on f73. Choice lengths run 34 to 36 characters. The notes rest on f80, f16 and f65, and the counter on f76 and f28. Small note: 'largest cash dividends' is easy to rule out once the stem says they lose money. It stands for a real bond-proxy misconception, so it was kept.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -1887,7 +1889,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f55 re-read verbatim in the NY Fed PDF (ci12-5): 'inversions in daily or intraday data often prove to be false signals'. It agrees with f83 (Investopedia), so two publishers support the key. The key (32 chars) is the shortest choice, and the hedges are split ('often' in the key, 'usually' in a distractor). The wrong notes rest on f38 and f59. The lesson line is now grounded in f55. Small note: the deeper trap mostly repeats the why, which is acceptable. Does not answer q23."
+   "notes": "f55 re-read verbatim in the NY Fed PDF (ci12-5): 'inversions in daily or intraday data often prove to be false signals'. It agrees with f83 (Investopedia), so two publishers support the key. The key (32 chars) is the shortest choice, and the hedges are split ('often' in the key, 'usually' in a distractor). The wrong notes rest on f38 and f59. The lesson line is now grounded in f55. Small note: the deeper trap mostly repeats the why, which is acceptable. Does not answer q23.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",

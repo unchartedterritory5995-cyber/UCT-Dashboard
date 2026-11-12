@@ -1242,8 +1242,8 @@
    "choices": [
     "How long the line stayed lost",
     "How heavy the volume was",
-    "Whether the 200-day was rising",
-    "Whether it gapped on earnings"
+    "Whether the 200-day rose",
+    "Whether earnings gapped it"
    ],
    "answer": "How long the line stayed lost",
    "why": "How long the line stayed lost. A U&R is back above the line within a few sessions. A Remount lost its line for real before the retake. A gap on earnings or a rising 200-day does not name the setup.",
@@ -1256,8 +1256,8 @@
    ],
    "wrong": {
     "How heavy the volume was": "Volume helps judge the retake, but it does not name the setup. The time under the line does.",
-    "Whether the 200-day was rising": "A rising 200-day is a grade cue, not what splits a Remount from a U&R.",
-    "Whether it gapped on earnings": "A remount on the earnings gap is allowed and is still a Remount. The gap does not split the two."
+    "Whether the 200-day rose": "A rising 200-day is a grade cue, not what splits a Remount from a U&R.",
+    "Whether earnings gapped it": "A remount on the earnings gap is allowed and is still a Remount. The gap does not split the two."
    },
    "house": true,
    "simple": "The split is how long the line stayed lost, since a U&R is back above within a few sessions.",
@@ -2104,9 +2104,9 @@
    "q": "Take it or pass?",
    "choices": [
     "Pass; the line is a chop line",
-    "Pass; the candle is too weak",
-    "Take it; it closed well above",
-    "Take it, but at half the size"
+    "Pass; the candle is weak",
+    "Take it; it closed above",
+    "Take it, at half size"
    ],
    "answer": "Pass; the line is a chop line",
    "why": "Pass. A flat line that price has crossed back and forth for weeks is a chop line. Buying its reclaim is a listed mistake. Whipsaw is the main miss. ChartSchool says crossover signals are less reliable in sideways markets. Weinstein's stage work says to avoid trading a sideways chop with no defined trend.",
@@ -2120,9 +2120,9 @@
     "e09"
    ],
    "wrong": {
-    "Pass; the candle is too weak": "The candle is strong. The flat line that price keeps crossing is the problem.",
-    "Take it; it closed well above": "A close above a line it has crossed for weeks proves little. Whipsaw is the main miss.",
-    "Take it, but at half the size": "Half size on a chop line is still a chop trade."
+    "Pass; the candle is weak": "The candle is strong. The flat line that price keeps crossing is the problem.",
+    "Take it; it closed above": "A close above a line it has crossed for weeks proves little. Whipsaw is the main miss.",
+    "Take it, at half size": "Half size on a chop line is still a chop trade."
    },
    "house": true,
    "story": "A stock has crossed back and forth over its flat 200-day for weeks. Today it closes well above the line on a strong green candle.",
@@ -2322,9 +2322,9 @@
    "q": "Which form is this?",
    "choices": [
     "The level form of a Remount",
-    "A 50-day or 200-day Remount",
+    "A 50- or 200-day Remount",
     "A U&R of the 100.00 price",
-    "An AVWAP reclaim from a date"
+    "An AVWAP reclaim"
    ],
    "answer": "The level form of a Remount",
    "why": "The level form of a Remount. A horizontal level that held before it broke, then lost and retaken, is the level form. It is not the moving-average form, because the line is not the 50-day or the 200-day. It is not a U&R, which closes back above within 3 sessions. It is not an AVWAP, which starts at one event day and bends with volume.",
@@ -2339,9 +2339,9 @@
     "k14"
    ],
    "wrong": {
-    "A 50-day or 200-day Remount": "The line is a flat price, not the 50-day or the 200-day.",
+    "A 50- or 200-day Remount": "The line is a flat price, not the 50-day or the 200-day.",
     "A U&R of the 100.00 price": "Three weeks under the line is far past a U&R.",
-    "An AVWAP reclaim from a date": "A flat price is not an AVWAP. The AVWAP bends with volume from an event day."
+    "An AVWAP reclaim": "A flat price is not an AVWAP. The AVWAP bends with volume from an event day."
    },
    "house": true,
    "story": "A stock broke out above 100.00 and held it for months. Later it closed under 100.00 and stayed there for three weeks. Today it closes back above.",
@@ -2455,9 +2455,9 @@
    "q": "Do you buy?",
    "choices": [
     "Pass; the gap is too far past 50.00",
-    "Pass; the trigger has not fired yet",
+    "Pass; the trigger has not fired",
     "Buy; price traded over the high",
-    "Buy with a wider stop to fit the gap"
+    "Buy and widen the stop to fit"
    ],
    "answer": "Pass; the gap is too far past 50.00",
    "why": "Pass. Never buy more than 4% above the buy point. The quiet day's high of 50.00 is the buy point, and a fill at 52.60 is more than 4% above it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
@@ -2469,9 +2469,9 @@
     "h02"
    ],
    "wrong": {
-    "Buy with a wider stop to fit the gap": "A wider stop to fit a late fill is the mistake, not the fix.",
-    "Pass; the trigger has not fired yet": "The trigger did fire, since the stock opened over 50.00. The problem is the fill, not the signal.",
-    "Buy; price traded over the high": "It did trade over the high, but the fill is more than 4% over the buy point. Never buy more than 4% above the buy point."
+    "Pass; the trigger has not fired": "The trigger did fire, since the stock opened over 50.00. The problem is the fill, not the signal.",
+    "Buy; price traded over the high": "It did trade over the high, but the fill is more than 4% over the buy point. Never buy more than 4% above the buy point.",
+    "Buy and widen the stop to fit": "A wider stop to fit a late fill is the mistake, not the fix."
    },
    "house": true,
    "story": "The quiet day's high is 50.00. The stock gaps up to 52.60 at the open.",
@@ -2589,9 +2589,9 @@
    "q": "You grade it B minus. How do you size it?",
    "choices": [
     "Smaller than a normal B setup",
-    "The same as a normal B setup",
-    "Larger than a normal B setup",
-    "No trade; a B minus is barred"
+    "Same as a normal B setup",
+    "Larger than a B setup",
+    "No trade; B minus is barred"
    ],
    "answer": "Smaller than a normal B setup",
    "why": "Smaller. Setup grades set the size: A and B at normal size, A+ sized up, B minus or lower sized down.",
@@ -2601,9 +2601,9 @@
     "k11"
    ],
    "wrong": {
-    "The same as a normal B setup": "Only A and B setups get normal size. B minus or lower is sized down.",
-    "Larger than a normal B setup": "Only an A+ is sized up. B minus is sized down.",
-    "No trade; a B minus is barred": "A lower grade is not a ban. B minus or lower is sized down, not skipped."
+    "Same as a normal B setup": "Only A and B setups get normal size. B minus or lower is sized down.",
+    "Larger than a B setup": "Only an A+ is sized up. B minus is sized down.",
+    "No trade; B minus is barred": "A lower grade is not a ban. B minus or lower is sized down, not skipped."
    },
    "house": true,
    "story": "A stock fell 25% over months but never closed under its 200-day. Today it remounts its 50-day for the first time. The 50-day is still curling lower.",
@@ -3022,9 +3022,9 @@
    "q": "By our default, after the first third comes off at 3R, where does the stop go?",
    "choices": [
     "Up to breakeven, our entry price",
-    "Up halfway between stop and entry",
-    "Up to 2R to lock in some profit",
-    "Up to the 10-day average at once"
+    "Up halfway from stop to entry",
+    "Up to 2R to lock in profit",
+    "Up to the 10-day average now"
    ],
    "answer": "Up to breakeven, our entry price",
    "why": "Up to breakeven, our entry price. Our rules put the stop at breakeven anywhere from 2R to 5R. Our card makes it the first trim by default. So after the third comes off at 3R, the stop goes to entry. It only moves up.",
@@ -3037,9 +3037,9 @@
     "kfa1"
    ],
    "wrong": {
-    "Up halfway between stop and entry": "A halfway stop is not in the plan. The stop goes to breakeven, our entry.",
-    "Up to 2R to lock in some profit": "The plan moves the stop to breakeven, our entry, not into profit.",
-    "Up to the 10-day average at once": "The 10-day trail is for the last third, after the 5R trim."
+    "Up halfway from stop to entry": "A halfway stop is not in the plan. The stop goes to breakeven, our entry.",
+    "Up to 2R to lock in profit": "The plan moves the stop to breakeven, our entry, not into profit.",
+    "Up to the 10-day average now": "The 10-day trail is for the last third, after the 5R trim."
    },
    "house": true,
    "simple": "After the first third sells at 3R, the stop moves up to our entry. That is breakeven.",
@@ -3357,9 +3357,9 @@
    "q": "Is 80.00 a real level for a Remount?",
    "choices": [
     "No; too few closes were above it",
-    "Yes; the retake is what counts",
-    "Yes; any round number is a level",
-    "No; a Remount uses averages only"
+    "Yes; the retake is enough",
+    "Yes; round numbers are levels",
+    "No; Remounts use averages"
    ],
    "answer": "No; too few closes were above it",
    "why": "No. Our card wants a level that held before it broke. That means at least 10 of the 15 closes before the break were at or above it. Here only 5 did, so 80.00 was a price the stock chopped through, not a level. The level form is real, but the level has to have held first.",
@@ -3369,9 +3369,9 @@
     "k14"
    ],
    "wrong": {
-    "Yes; the retake is what counts": "The retake comes second. The level has to have held before the break.",
-    "Yes; any round number is a level": "A round number counts only if it held. Weeks of chop through it says it did not.",
-    "No; a Remount uses averages only": "The level form is real. A price level that held before it broke counts."
+    "Yes; the retake is enough": "The retake comes second. The level has to have held before the break.",
+    "Yes; round numbers are levels": "A round number counts only if it held. Weeks of chop through it says it did not.",
+    "No; Remounts use averages": "The level form is real. A price level that held before it broke counts."
    },
    "house": true,
    "story": "A stock breaks under 80.00 and later closes back over it. In the 15 sessions before the break, only 5 closes were at or above 80.00. It had chopped through that price for weeks.",
@@ -3538,9 +3538,9 @@
    "q": "By our default plan, what comes off at 5R?",
    "choices": [
     "Another 100; trail the last 100",
-    "The other 200; no trail needed",
-    "Another 50; trail the other 150",
-    "Nothing; wait for the 21-day"
+    "The other 200; no trail",
+    "Another 50; trail 150",
+    "Nothing; await the 21-day"
    ],
    "answer": "Another 100; trail the last 100",
    "why": "Another 100, a third of the position. After the first third at 3R comes another third at 5R, then you trail the last third. You bought 300 shares and sold 100 at 3R, so 100 more come off at 5R and 100 ride the trail. The plan is adjustable, but this is the default.",
@@ -3550,9 +3550,9 @@
     "k31"
    ],
    "wrong": {
-    "The other 200; no trail needed": "The plan keeps the last third on the trail. A third comes off at 5R, not all of it.",
-    "Another 50; trail the other 150": "Half a third is not the plan. The second trim is a third of the position.",
-    "Nothing; wait for the 21-day": "The trail is for the last third, after both trims. At 5R the second third comes off."
+    "The other 200; no trail": "The plan keeps the last third on the trail. A third comes off at 5R, not all of it.",
+    "Another 50; trail 150": "Half a third is not the plan. The second trim is a third of the position.",
+    "Nothing; await the 21-day": "The trail is for the last third, after both trims. At 5R the second third comes off."
    },
    "house": true,
    "story": "You bought 300 shares of a Remount and sold 100 at 3R. 200 shares remain. Today the stock reaches 5R.",
@@ -3819,9 +3819,9 @@
    "q": "After a gap down through your stop, what sets the new stop?",
    "choices": [
     "The first 30-minute bar's low",
-    "The first 5-minute bar's low",
-    "The first 60-minute bar's low",
-    "The open of the gap-down day"
+    "The first 5-minute low",
+    "The first 60-minute low",
+    "The gap-down day's open"
    ],
    "answer": "The first 30-minute bar's low",
    "simple": "On a gap through the stop, the first 30 minutes decide, and the low of that 30-minute bar is the new stop.",
@@ -3833,9 +3833,9 @@
     "h02"
    ],
    "wrong": {
-    "The first 5-minute bar's low": "Not our rule. The first 30 minutes decide, not the first 5.",
-    "The first 60-minute bar's low": "Not our rule. The rule uses the first 30-minute bar, not the first hour.",
-    "The open of the gap-down day": "The open is not the stop. The first 30-minute bar's low is."
+    "The first 5-minute low": "Not our rule. The first 30 minutes decide, not the first 5.",
+    "The first 60-minute low": "Not our rule. The rule uses the first 30-minute bar, not the first hour.",
+    "The gap-down day's open": "The open is not the stop. The first 30-minute bar's low is."
    },
    "house": true,
    "batch": "wave3",
@@ -4038,7 +4038,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from m03 and k18: the border is how long the line stayed lost. Wrong notes true. Leans on the proposed 3-session U&R limit only in wording 'a few sessions'."
+   "notes": "Key from m03 and k18: the border is how long the line stayed lost. Wrong notes true. Leans on the proposed 3-session U&R limit only in wording 'a few sessions'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "cut",
@@ -4188,7 +4189,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "cut",
@@ -4218,7 +4220,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -4236,7 +4239,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4254,7 +4258,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D38 (hfa1): B- or lower is sized down. The grade is given, so E50's discretion does not matter. 'No trade' is wrong by the rulebook. Choices are balanced."
+   "notes": "D38 (hfa1): B- or lower is sized down. The grade is given, so E50's discretion does not matter. 'No trade' is wrong by the rulebook. Choices are balanced.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -4314,7 +4319,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B19 plus card default (kfa1 verbatim). Third at 3R sits inside 2R to 5R, so breakeven at the first trim is allowed; deeper note covers the earlier move."
+   "notes": "B19 plus card default (kfa1 verbatim). Third at 3R sits inside 2R to 5R, so breakeven at the first trim is allowed; deeper note covers the earlier move.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "cut",
@@ -4368,7 +4374,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5 of 15 is under k27's 10 of 15. The other No choice ('averages only') is wrong. Minor: the key says 'above' where the rule says 'at or above'. It is still true, since at most 5 were above."
+   "notes": "5 of 15 is under k27's 10 of 15. The other No choice ('averages only') is wrong. Minor: the key says 'above' where the rule says 'at or above'. It is still true, since at most 5 were above.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "pass",
@@ -4398,7 +4405,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E51 (h20): a third of 300 = 100 at 5R, then trail 100. Arithmetic is from the story. It is stated as the default and adjustable."
+   "notes": "E51 (h20): a third of 300 = 100 at 5R, then trail 100. Arithmetic is from the story. It is stated as the default and adjustable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q74": {
    "status": "pass",
@@ -4446,7 +4454,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key is the middle of 5/30/60 minutes, a mild tell, but the open choice breaks the pattern and h06 grounds every note. Teaches the gap rule before q27 applies the 2R ceiling; not a duplicate."
+   "notes": "Pass. Key is the middle of 5/30/60 minutes, a mild tell, but the open choice breaks the pattern and h06 grounds every note. Teaches the gap rule before q27 applies the 2R ceiling; not a duplicate.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q86": {
    "status": "pass",

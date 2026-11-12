@@ -684,9 +684,9 @@
    "q": "On an option, what does gamma measure?",
    "choices": [
     "How much its delta changes per $1",
-    "How much the option moves per $1",
-    "How much value it loses each day",
-    "How much it moves per point of IV"
+    "How much it moves per $1",
+    "How much it loses each day",
+    "How much it moves per IV point"
    ],
    "answer": "How much its delta changes per $1",
    "term": "Gamma",
@@ -701,9 +701,9 @@
     "f26"
    ],
    "wrong": {
-    "How much the option moves per $1": "That's delta, the option's estimated move for each $1 in the stock. Gamma measures how that delta changes.",
-    "How much value it loses each day": "That's theta, the time decay.",
-    "How much it moves per point of IV": "That's vega, its sensitivity to implied volatility."
+    "How much it moves per $1": "That's delta, the option's estimated move for each $1 in the stock. Gamma measures how that delta changes.",
+    "How much it loses each day": "That's theta, the time decay.",
+    "How much it moves per IV point": "That's vega, its sensitivity to implied volatility."
    },
    "simple": "Gamma tells you how much an option's delta is expected to change when the stock moves one dollar.",
    "tier": "core",
@@ -1479,13 +1479,13 @@
    "house": true,
    "q": "Our rulebook allows options occasionally, and the premium paid is the stop. What gamma does such an option carry?",
    "choices": [
-    "Positive, it's a bought option",
+    "Positive, as it's a bought option",
     "Negative, options lose to decay",
     "Zero, the premium caps the loss",
     "It depends on call or put"
    ],
-   "answer": "Positive, it's a bought option",
-   "why": "Positive, it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma.",
+   "answer": "Positive, as it's a bought option",
+   "why": "Positive, as it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma.",
    "simple": "Positive, because a premium paid means you bought the option, and bought options have positive gamma.",
    "lesson_line": "We trade shares. An option we buy has positive gamma, and the premium paid is the stop.",
    "facts": [
@@ -1543,7 +1543,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My own answer from f1, before reading the key: the change in delta per $1. Matches. The distractors are delta (f19), theta (f25) and vega (f26). Choices are 32-33 characters, the key is not the only longest, and it fits Word Match. Every sentence in the why ties to f1, f19, f62, f25 or f26."
+   "notes": "My own answer from f1, before reading the key: the change in delta per $1. Matches. The distractors are delta (f19), theta (f25) and vega (f26). Choices are 32-33 characters, the key is not the only longest, and it fits Word Match. Every sentence in the why ties to f1, f19, f62, f25 or f26.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1675,7 +1676,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My own answer before the key: positive. f76 (B25) 'the premium paid is the stop' means the option was bought; f77 (A6) defined-risk alternative; f4 (OIC Tier 1) and f65 give bought calls and puts positive gamma. Both house quotes are verbatim in sizing_rule.md section 9 (A6, B25), and the key does not go past them. The stem is singular ('such an option'), so a debit spread is not in play. Choices 25-31 characters, one each of positive, negative, zero, depends; no pronoun echo left. Each wrong note is grounded (f29 theta, f6 delta moves, f21 call/put sets delta sign). Overlaps q02/q04 on the si"
+   "notes": "My own answer before the key: positive. f76 (B25) 'the premium paid is the stop' means the option was bought; f77 (A6) defined-risk alternative; f4 (OIC Tier 1) and f65 give bought calls and puts positive gamma. Both house quotes are verbatim in sizing_rule.md section 9 (A6, B25), and the key does not go past them. The stem is singular ('such an option'), so a debit spread is not in play. Choices 25-31 characters, one each of positive, negative, zero, depends; no pronoun echo left. Each wrong note is grounded (f29 theta, f6 delta moves, f21 call/put sets delta sign). Overlaps q02/q04 on the si",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

@@ -552,9 +552,9 @@
    "q": "Why log every trade in the same fixed fields instead of free notes?",
    "choices": [
     "So you can sort and compare trades",
-    "So each entry is longer and richer",
-    "So you can skip the written notes",
-    "So you can fill it in once a week"
+    "So entries are longer and richer",
+    "So you can skip written notes",
+    "So you can fill it in weekly"
    ],
    "answer": "So you can sort and compare trades",
    "why": "So you can sort and compare trades. Free notes drift: detailed one day, sketchy the next. Schwab notes that a spreadsheet lets you track, sort and analyze. Steenbarger says tags pull up every entry on one stock or one topic. Fixed fields do not mean longer entries or no written notes. The reason and the lesson are fields too.",
@@ -571,9 +571,9 @@
     "h02"
    ],
    "wrong": {
-    "So each entry is longer and richer": "Longer isn't the goal. The best journals keep collecting the information light.",
-    "So you can skip the written notes": "The reason and the lesson are fields too. A good entry holds numbers and written notes.",
-    "So you can fill it in once a week": "Fixed fields are about what you log, not when. CME Group says to record why as you enter. Our rule: journal every trade the same day, ideally."
+    "So entries are longer and richer": "Longer isn't the goal. The best journals keep collecting the information light.",
+    "So you can skip written notes": "The reason and the lesson are fields too. A good entry holds numbers and written notes.",
+    "So you can fill it in weekly": "Fixed fields are about what you log, not when. CME Group says to record why as you enter. Our rule: journal every trade the same day, ideally."
    },
    "simple": "Fixed fields let you sort and compare your trades, so every trade of one kind comes up at once.",
    "tier": "core",
@@ -619,9 +619,9 @@
    "q": "A useful log entry holds two kinds of information. Which two?",
    "choices": [
     "Numbers and your written reasons",
-    "Your P&L and your account balance",
+    "Your P&L and account balance",
     "Price alerts and news headlines",
-    "Winning trades and losing trades"
+    "Winning and losing trades"
    ],
    "answer": "Numbers and your written reasons",
    "why": "Numbers and your written reasons. Steenbarger says entries can be quantitative, like P&L and wins and losses, and qualitative, like written summaries. Investopedia lists entry and exit points beside your reasons for taking the trade. Numbers show what happened. Your words show why. Every trade, win or loss, holds both.",
@@ -633,9 +633,9 @@
     "f03"
    ],
    "wrong": {
-    "Your P&L and your account balance": "Both are numbers. Neither says why you took the trade or how you ran it.",
+    "Your P&L and account balance": "Both are numbers. Neither says why you took the trade or how you ran it.",
     "Price alerts and news headlines": "Those come from the market. Your log records what you decided and why.",
-    "Winning trades and losing trades": "That sorts trades by result, not by kind of information. Every entry, win or loss, holds numbers and your reasons."
+    "Winning and losing trades": "That sorts trades by result, not by kind of information. Every entry, win or loss, holds numbers and your reasons."
    },
    "simple": "A good entry holds numbers and your written reasons, because numbers show what happened and your words show why.",
    "tier": "core",
@@ -808,8 +808,8 @@
    "q": "Which of these goes in the log before you click buy?",
    "choices": [
     "Entry, stop, target and size",
-    "Exit price and the R it made",
-    "What worked and what didn't",
+    "Exit price and the R made",
+    "What worked, what didn't",
     "The realized gain or loss"
    ],
    "answer": "Entry, stop, target and size",
@@ -823,8 +823,8 @@
     "h05"
    ],
    "wrong": {
-    "Exit price and the R it made": "You don't have those until the trade is over. They're result fields.",
-    "What worked and what didn't": "That's the review at the end. You can't answer it before the trade.",
+    "Exit price and the R made": "You don't have those until the trade is over. They're result fields.",
+    "What worked, what didn't": "That's the review at the end. You can't answer it before the trade.",
     "The realized gain or loss": "Realized means the trade is closed. That comes last, in the result fields."
    },
    "simple": "The plan goes in first: entry, stop, target and size, because the rest only exists once the trade is closed.",
@@ -1000,9 +1000,9 @@
    "q": "What R goes in your log?",
    "choices": [
     "A loss of 2R on the trade",
-    "A loss of 1R on the trade",
-    "A loss of 0.5R on the trade",
-    "No R, since the plan changed"
+    "A loss of 1R on it",
+    "A loss of 0.5R on it",
+    "No R, the plan changed"
    ],
    "answer": "A loss of 2R on the trade",
    "calc": {
@@ -1024,9 +1024,9 @@
     "h01"
    ],
    "wrong": {
-    "A loss of 1R on the trade": "That measures from the moved stop. Your planned risk was $20 to $19, and you lost twice that.",
-    "A loss of 0.5R on the trade": "That flips the math. R is the loss divided by the planned risk, not the planned risk divided by the loss.",
-    "No R, since the plan changed": "That's exactly the trade your log needs to show. Measure it against the stop you set at entry."
+    "A loss of 1R on it": "That measures from the moved stop. Your planned risk was $20 to $19, and you lost twice that.",
+    "A loss of 0.5R on it": "That flips the math. R is the loss divided by the planned risk, not the planned risk divided by the loss.",
+    "No R, the plan changed": "That's exactly the trade your log needs to show. Measure it against the stop you set at entry."
    },
    "simple": "Log a 2R loss, because R comes from the stop you set at entry, and moving the stop does not change it.",
    "deeper": {
@@ -1373,7 +1373,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided from f06/f23/f27 before reading: sort and compare. New wrong note grounded in f01 and h02 (B27 wording incl. 'ideally'). Choices 33-34 chars, no tell. It previews the journal half of q22 only inside a post-answer note: reinforcement, not a giveaway."
+   "notes": "Key decided from f06/f23/f27 before reading: sort and compare. New wrong note grounded in f01 and h02 (B27 wording incl. 'ideally'). Choices 33-34 chars, no tell. It previews the journal half of q22 only inside a post-answer note: reinforcement, not a giveaway.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1385,7 +1386,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1421,7 +1423,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided from f11/f07: entry, stop, target, size. Why's D39 line matches h05 and sizing_rule.md D39 verbatim in meaning; Tharp line matches f34. 'Target' is Schwab's word; owner A12 says Trim, already in owner_flags; no key contradicts the rulebook. Choices 25-28 chars."
+   "notes": "Key decided from f11/f07: entry, stop, target, size. Why's D39 line matches h05 and sizing_rule.md D39 verbatim in meaning; Tharp line matches f34. 'Target' is Schwab's word; owner A12 says Trim, already in owner_flags; no key contradicts the rulebook. Choices 25-28 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1457,7 +1460,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (20-18)/(20-19) = 2. f35 and f36 key it; h01 (A4) correctly framed as the rule broken. Choices 25-28 chars, 0.5R note correct (inverse ratio). Deeper narrowed and supported."
+   "notes": "Recomputed (20-18)/(20-19) = 2. f35 and f36 key it; h01 (A4) correctly framed as the rule broken. Choices 25-28 chars, 0.5R note correct (inverse ratio). Deeper narrowed and supported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",

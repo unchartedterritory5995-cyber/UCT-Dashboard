@@ -1924,8 +1924,8 @@
    "choices": [
     "Fewer stocks falling; a low may be near",
     "The decline is broadening; sell more",
-    "Breadth may be confirming the downtrend",
-    "Nothing until the index makes a new high"
+    "Breadth may confirm the downtrend",
+    "Nothing until a new index high"
    ],
    "answer": "Fewer stocks falling; a low may be near",
    "why": "Fewer stocks are falling, so a low may be near. The index made a lower low, but the A/D line held above its own prior low. That is a bullish divergence: the selling is thinning out. ChartSchool says the decline may be nearing an end, not that it has ended. It is a clue to watch for a turn. Let price confirm before you buy.",
@@ -1940,8 +1940,8 @@
    ],
    "wrong": {
     "The decline is broadening; sell more": "Broadening would mean the A/D line making new lows with the index. Here it held up.",
-    "Nothing until the index makes a new high": "That throws away the clue. A bullish divergence shows up while the index is still making lows.",
-    "Breadth may be confirming the downtrend": "Confirmation needs the A/D line to make a new low too. It held well above its prior low instead."
+    "Nothing until a new index high": "That throws away the clue. A bullish divergence shows up while the index is still making lows.",
+    "Breadth may confirm the downtrend": "Confirmation needs the A/D line to make a new low too. It held well above its prior low instead."
    },
    "simple": "Fewer stocks are falling with the index, so a low may be near, but it is a clue, not a buy signal.",
    "deeper": {
@@ -2949,9 +2949,9 @@
    "q": "What is the AD Volume Line?",
    "choices": [
     "Running total of up minus down volume",
-    "Running total of net advancing stocks",
+    "Running total of net advances",
     "Today's up volume over down volume",
-    "Total index volume versus its average"
+    "Total volume versus its average"
    ],
    "answer": "Running total of up minus down volume",
    "why": "A running total of up volume minus down volume. Net advancing volume is the volume of advancing stocks less the volume of declining stocks. The line adds each day's number to the prior total, rising when it is positive and falling when it is negative. Because it counts shares, it leans toward large caps. One day's up volume over down volume is a ratio, not the line.",
@@ -2966,8 +2966,8 @@
    ],
    "wrong": {
     "Today's up volume over down volume": "That's the up/down volume ratio, one day's reading.",
-    "Running total of net advancing stocks": "That's the plain A/D line, which counts stocks, not shares.",
-    "Total index volume versus its average": "That compares total volume to normal. It doesn't split rising and falling stocks."
+    "Running total of net advances": "That's the plain A/D line, which counts stocks, not shares.",
+    "Total volume versus its average": "That compares total volume to normal. It doesn't split rising and falling stocks."
    },
    "simple": "It is a running total of up volume minus down volume, the advance-decline line built from shares traded.",
    "tier": "core",
@@ -3376,12 +3376,12 @@
    "term": "Follow-through day",
    "q": "In IBD's method, what is a follow-through day?",
    "choices": [
-    "Strong index gain on higher volume",
+    "A strong index gain on higher volume",
     "Strong index drop on higher volume",
     "The first up day after a market low",
     "An index gap up that holds all day"
    ],
-   "answer": "Strong index gain on higher volume",
+   "answer": "A strong index gain on higher volume",
    "why": "A strong index gain on higher volume, several days after a market low. IBD looks for a major index to close up significantly from the prior session on higher volume. It names the Nasdaq Composite or the S&P 500. It reads that as a sign the selling has likely ended and a new uptrend has started.",
    "lesson_line": "A follow-through day says the bounce off the low has real buyers behind it.",
    "facts": [
@@ -3794,7 +3794,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -3974,7 +3975,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f53/f54. The large-cap lean is from f152, and the A/D-line note from f13."
+   "notes": "Key from f53/f54. The large-cap lean is from f152, and the A/D-line note from f13.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -4046,7 +4048,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f56 (StockCharts) plus f158/f123/f125 (IBD). The Day 4 note is from f122, also taught in w3. The why no longer gives q64's Day 1 key."
+   "notes": "Key from f56 (StockCharts) plus f158/f123/f125 (IBD). The Day 4 note is from f122, also taught in w3. The why no longer gives q64's Day 1 key.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",

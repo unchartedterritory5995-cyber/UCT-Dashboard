@@ -167,9 +167,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "The exchange lends them to you",
-    "Your broker buys them on margin",
-    "The company issues new shares",
+    "The exchange lends them",
+    "Your broker buys on margin",
+    "The company issues shares",
     "Your broker lends them to you"
    ],
    "kind": "mcq",
@@ -204,7 +204,7 @@
     "summary": "Your broker lends you the shares, from its own inventory, other clients' margin accounts or another lender. Your broker locates the shares before it executes your short sale. A margin loan for buying is a loan of cash, not of shares."
    },
    "facts": {
-    "given": "Where do the shares you sell short usually come from? Your broker lends them to you The company issues new shares The exchange lends them to you Your broker buys them on margin"
+    "given": "Where do the shares you sell short usually come from? Your broker lends them to you The company issues shares The exchange lends them Your broker buys on margin"
    },
    "lesson_line": "Every short starts with a loan of shares. You owe them back.",
    "simple": "Your broker lends them, from its own stock, other clients' accounts or another lender.",
@@ -212,9 +212,9 @@
    "unit": "F10b.01",
    "why": "Your broker lends them to you. The SEC says the shares typically come from the broker's own inventory, the margin accounts of its other clients, or another lender. Because you don't own the shares, your broker must locate them before your short goes through. A short sale creates no new stock, and the exchange is not the lender. Nobody buys the shares for you either. You owe the borrowed shares back.",
    "wrong": {
-    "The company issues new shares": "A short sale creates no new stock. You sell shares that someone else owns and lent out.",
-    "The exchange lends them to you": "The loan comes through your broker, from its inventory, other clients' margin accounts or another lender.",
-    "Your broker buys them on margin": "A margin loan for buying is a loan of cash. A short borrows shares and sells them. Nobody buys them for you."
+    "The company issues shares": "A short sale creates no new stock. You sell shares that someone else owns and lent out.",
+    "The exchange lends them": "The loan comes through your broker, from its inventory, other clients' margin accounts or another lender.",
+    "Your broker buys on margin": "A margin loan for buying is a loan of cash. A short borrows shares and sells them. Nobody buys them for you."
    }
   },
   "review_status": "draft",
@@ -321,10 +321,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "As a cut of your profit",
+    "As a cut of profit",
     "As a percent per year",
-    "As a flat fee per trade",
-    "Per share, paid up front"
+    "As a flat trade fee",
+    "Per share, up front"
    ],
    "kind": "mcq",
    "q": "How is the fee to borrow shares for a short usually quoted?",
@@ -372,7 +372,7 @@
     "summary": "The borrow fee is a yearly rate, from a fraction of a percent to over 100%, charged for the days the short is open. Borrow rates run from nothing for the most liquid stocks to more than 100% a year for the least liquid. You pay interest on the value of the borrowed shares until you return them. The borrow rate can change suddenly; it accrues daily at the current rate and is charged monthly at Schwab. Borrowing shares to open or keep a short has a cost, the lending fee."
    },
    "facts": {
-    "given": "How is the fee to borrow shares for a short usually quoted? As a percent per year As a flat fee per trade As a cut of your profit Per share, paid up front"
+    "given": "How is the fee to borrow shares for a short usually quoted? As a percent per year As a flat trade fee As a cut of profit Per share, up front"
    },
    "lesson_line": "Read the borrow rate as a yearly number, then scale it to how long you'll hold.",
    "simple": "As a yearly percent of the position's value, charged for each day the short is open, win or lose.",
@@ -380,9 +380,9 @@
    "unit": "F10b.01",
    "why": "As a percent per year. Schwab and Investopedia both describe the borrow fee as an annualized rate. It accrues daily at the current rate, for the days the short is open. The most liquid shares can cost nothing to borrow. The least liquid can cost more than 100% a year. It is not a commission, and you owe it win or lose.",
    "wrong": {
-    "As a cut of your profit": "You owe it win or lose. It's charged on the value of the borrowed shares, not on your profit.",
-    "As a flat fee per trade": "That sounds like a commission. The borrow fee runs as a yearly rate for as long as you're short.",
-    "Per share, paid up front": "It isn't paid once at entry. It accrues daily at the current rate while the short is open."
+    "As a cut of profit": "You owe it win or lose. It's charged on the value of the borrowed shares, not on your profit.",
+    "As a flat trade fee": "That sounds like a commission. The borrow fee runs as a yearly rate for as long as you're short.",
+    "Per share, up front": "It isn't paid once at entry. It accrues daily at the current rate while the short is open."
    }
   },
   "review_status": "draft",
@@ -1697,9 +1697,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Yes, any 10% drop trips it at once",
+    "Yes, any 10% drop trips it",
     "No, it trips in regular hours only",
-    "No, it covers just the small caps",
+    "No, it covers just small caps",
     "Yes, the bad news turns it on"
    ],
    "kind": "mcq",
@@ -1759,7 +1759,7 @@
     "summary": "Only regular trading hours count for tripping the Rule 201 circuit breaker. Regular trading hours run from 9:30 a.m. to 4:00 p.m. Eastern. The 10% drop is measured on trades reported during regular trading hours. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. Rule 201 generally covers every exchange-listed stock. Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day."
    },
    "facts": {
-    "given": "Is the short-sale price test on yet? A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday. No, it trips in regular hours only Yes, any 10% drop trips it at once No, it covers just the small caps Yes, the bad news turns it on"
+    "given": "Is the short-sale price test on yet? A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday. No, it trips in regular hours only Yes, any 10% drop trips it No, it covers just small caps Yes, the bad news turns it on"
    },
    "lesson_line": "A premarket gap doesn't trip the price test. The first regular-hours trades can.",
    "simple": "No, because only trades in regular hours count, so the test can trip only once regular trading starts.",
@@ -1767,8 +1767,8 @@
    "unit": "F10b.01",
    "why": "No. Whether Rule 201 trips is judged on regular-hours trades only, 9:30 a.m. to 4:00 p.m. Eastern. A premarket drop of 12% doesn't count. If regular trading prints 10% or more below the $40.00 close, it trips then. It generally covers every exchange-listed stock, large or small. News alone doesn't trip it.",
    "wrong": {
-    "No, it covers just the small caps": "It generally covers every exchange-listed stock, large or small.",
-    "Yes, any 10% drop trips it at once": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
+    "No, it covers just small caps": "It generally covers every exchange-listed stock, large or small.",
+    "Yes, any 10% drop trips it": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
     "Yes, the bad news turns it on": "News doesn't trip it. Only a price drop of 10% or more from the prior close, in regular hours, does."
    }
   },
@@ -4367,9 +4367,9 @@
   "prompt_json": {
    "choices": [
     "Pass: no short above the 200-day",
-    "Short it, at half the usual size",
-    "Pass: wait for a second down day",
-    "Short the break, stop over the high"
+    "Short it, at half size",
+    "Pass: await a second down day",
+    "Short the break, with a stop"
    ],
    "kind": "mcq",
    "q": "What's the call, by our rules?",
@@ -4390,7 +4390,7 @@
     "summary": "Our rule: we short only below the 200-day average, unless it is a parabolic short."
    },
    "facts": {
-    "given": "What's the call, by our rules? A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume. Pass: no short above the 200-day Pass: wait for a second down day Short the break, stop over the high Short it, at half the usual size"
+    "given": "What's the call, by our rules? A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume. Pass: no short above the 200-day Pass: await a second down day Short the break, with a stop Short it, at half size"
    },
    "lesson_line": "We short only below the 200-day line. Above it, only a parabolic short qualifies.",
    "simple": "Pass. $48 is above the $41 200-day, and we short only below it unless it's a parabolic short.",
@@ -4398,9 +4398,9 @@
    "unit": "F10b.02",
    "why": "Pass: no short above the 200-day. At $48 the stock sits above its $41 200-day. Our rule allows shorts only below the 200-day line. Above it, only a parabolic short qualifies, and this isn't one.",
    "wrong": {
-    "Pass: wait for a second down day": "A second down day changes nothing. The stock is still above its 200-day, so it isn't a short for us.",
-    "Short it, at half the usual size": "A smaller size doesn't fix it. Above the 200-day, our rule allows no short unless it's parabolic.",
-    "Short the break, stop over the high": "Good mechanics, wrong stock. Our rule allows shorts only below the 200-day, unless it's a parabolic short."
+    "Pass: await a second down day": "A second down day changes nothing. The stock is still above its 200-day, so it isn't a short for us.",
+    "Short it, at half size": "A smaller size doesn't fix it. Above the 200-day, our rule allows no short unless it's parabolic.",
+    "Short the break, with a stop": "Good mechanics, wrong stock. Our rule allows shorts only below the 200-day, unless it's a parabolic short."
    }
   },
   "review_status": "draft",

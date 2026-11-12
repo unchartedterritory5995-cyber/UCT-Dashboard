@@ -2054,13 +2054,13 @@
    "term": "spinning top",
    "q": "What does a spinning top look like?",
    "choices": [
-    "Small body, shadows longer than it",
+    "Small body, shadows longer than the body",
     "Long body, no shadows at either end",
     "No body, just one long lower shadow",
     "Small body inside the prior body"
    ],
-   "answer": "Small body, shadows longer than it",
-   "why": "Small body, shadows longer than it. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line.",
+   "answer": "Small body, shadows longer than the body",
+   "why": "Small body, shadows longer than the body. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line.",
    "lesson_line": "A spinning top is indecision with a little body. A doji is indecision with almost none.",
    "facts": [
     "f55",
@@ -3005,8 +3005,8 @@
    "choices": [
     "Outside reversal day",
     "Inside day pattern",
-    "Bearish harami cross",
-    "Morning star pattern"
+    "Harami cross",
+    "Morning star"
    ],
    "answer": "Outside reversal day",
    "why": "Outside reversal day. It is an outside day, with a high above yesterday's high and a low below yesterday's low. It also closes in the opposite direction of the prior trend. After a rally, that means a down close. Investopedia notes analysts pair it with volume or support levels for more reliability. It signals a potential trend change, not a certain one.",
@@ -3020,8 +3020,8 @@
    ],
    "wrong": {
     "Inside day pattern": "An inside day stays within yesterday's range. Today broke out of both ends.",
-    "Bearish harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
-    "Morning star pattern": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
+    "Harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
+    "Morning star": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
    },
    "simple": "It is an outside reversal day, because it broke both ends of yesterday's range and closed down against the rally.",
    "deeper": {
@@ -3839,7 +3839,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is f55 near verbatim, f32/f115 agree (two publishers). Choice lengths balanced. Defines what q17 applies, which is teaching, not a giveaway."
+   "notes": "Key is f55 near verbatim, f32/f115 agree (two publishers). Choice lengths balanced. Defines what q17 applies, which is teaching, not a giveaway.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",
@@ -3989,7 +3990,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "pass",

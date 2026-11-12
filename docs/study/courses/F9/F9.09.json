@@ -801,8 +801,8 @@
    "choices": [
     "Below the 200-day, unless parabolic",
     "Above the 200-day, in an uptrend",
-    "Either side, when the setup is right",
-    "Below the 10-day average, any trend"
+    "Either side, if the setup is right",
+    "Below the 10-day, in any trend"
    ],
    "answer": "Below the 200-day, unless parabolic",
    "why": "Below the 200-day, unless parabolic. Shorts go only below the 200-day, never above it unless it is a parabolic short. It mirrors the long rule: no longs below the line unless parabolic. In a Red market we sit mostly in cash, plus shorts below the 200-day.",
@@ -814,8 +814,8 @@
    ],
    "wrong": {
     "Above the 200-day, in an uptrend": "That's backwards. Above the 200-day is where our longs live. A short goes there only as a parabolic short.",
-    "Either side, when the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line.",
-    "Below the 10-day average, any trend": "The 10-day isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short."
+    "Either side, if the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line.",
+    "Below the 10-day, in any trend": "The 10-day isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short."
    },
    "simple": "Below the 200-day, because shorts mirror our long rule, and only a parabolic short may sit above the line.",
    "tier": "core",
@@ -1295,9 +1295,9 @@
    "q": "What does our time stop say?",
    "choices": [
     "Sell it and free the money",
-    "Hold. The stop hasn't hit",
-    "Raise the stop to breakeven",
-    "Sell half, keep half for 1R"
+    "Hold. No stop was hit",
+    "Raise stop to breakeven",
+    "Sell half, hold half"
    ],
    "answer": "Sell it and free the money",
    "why": "Sell it and free the money. Our time stop: a trade still under 1R after 10 trading days is sold. This one is 11 days in and up 0.4R. A time exit is built for exactly this, a stock drifting sideways without hitting its stop. It's a sale, not a tighter stop and not a partial.",
@@ -1308,9 +1308,9 @@
     "f18"
    ],
    "wrong": {
-    "Hold. The stop hasn't hit": "The price stop is one exit. The time stop is another, and this one has triggered.",
-    "Sell half, keep half for 1R": "The time stop sells the trade, not half of it. Still under 1R after 10 trading days, it's sold.",
-    "Raise the stop to breakeven": "A tighter stop keeps the trade open. Our time stop sells it: still under 1R after 10 trading days."
+    "Hold. No stop was hit": "The price stop is one exit. The time stop is another, and this one has triggered.",
+    "Sell half, hold half": "The time stop sells the trade, not half of it. Still under 1R after 10 trading days, it's sold.",
+    "Raise stop to breakeven": "A tighter stop keeps the trade open. Our time stop sells it: still under 1R after 10 trading days."
    },
    "simple": "Sell it, because it is still under 1R after 10 trading days, so our time stop sells it.",
    "tier": "extended",
@@ -1650,8 +1650,8 @@
    "q": "Our monthly review names win rate and expectancy. Which other numbers does it name?",
    "choices": [
     "Average win and average loss, in R",
-    "Dollar profit for the whole month",
-    "Trade count and the biggest winner",
+    "Dollar profit for the month",
+    "Trade count and the top winner",
     "The index's return that month"
    ],
    "answer": "Average win and average loss, in R",
@@ -1665,8 +1665,8 @@
    ],
    "wrong": {
     "The index's return that month": "That measures the market, not your trading. The review names average win and loss in R.",
-    "Dollar profit for the whole month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
-    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
+    "Dollar profit for the month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
+    "Trade count and the top winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
    },
    "simple": "Average win and loss in R, because the monthly review names them beside win rate and expectancy.",
    "deeper": {
@@ -1736,7 +1736,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold from h05 (shorts only below the 200-day, never above it unless parabolic): key matches. Lengths 35/32/36/35, key not longest, no lone absolute. Each wrong note rests on h05. It shows the parabolic exception that q22 tests, but q22 (rung 7) tests spotting the burst from the story, and q02/w2 already state the exception, so it gives nothing away. h04, h05, h06 match sizing_rule.md B26 and D46 word for word."
+   "notes": "Decided cold from h05 (shorts only below the 200-day, never above it unless parabolic): key matches. Lengths 35/32/36/35, key not longest, no lone absolute. Each wrong note rests on h05. It shows the parabolic exception that q22 tests, but q22 (rung 7) tests spotting the burst from the story, and q02/w2 already state the exception, so it gives nothing away. h04, h05, h06 match sizing_rule.md B26 and D46 word for word.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1826,7 +1827,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sell by h16 (11 days, 0.4R in the story). Notes grounded in h16. Lengths 25-27."
+   "notes": "Sell by h16 (11 days, 0.4R in the story). Notes grounded in h16. Lengths 25-27.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -1880,7 +1882,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key 'Win rate, average R, expectancy' misstates h33. The rule names 'average win and loss in R', and 'average R' (the mean R per trade) is expectancy itself (f20: 'the mean R of an R-multiple distribution'), so the key lists one number twice and drops the one the rule names. The deeper counter's 'The average R per trade shows it' repeats the slip. Writing the full set within 40 characters needs slash shorthand, so the stem now gives win rate and expectancy and asks for the other number named. That keeps 'names' (the last pass's fix against 'and other statistics'). f20 was re-read on the Va"
+   "notes": "The key 'Win rate, average R, expectancy' misstates h33. The rule names 'average win and loss in R', and 'average R' (the mean R per trade) is expectancy itself (f20: 'the mean R of an R-multiple distribution'), so the key lists one number twice and drops the one the rule names. The deeper counter's 'The average R per trade shows it' repeats the slip. Writing the full set within 40 characters needs slash shorthand, so the stem now gives win rate and expectancy and asks for the other number named. That keeps 'names' (the last pass's fix against 'and other statistics'). f20 was re-read on the Va",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

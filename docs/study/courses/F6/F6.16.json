@@ -1219,9 +1219,9 @@
    "q": "What are you most likely holding on Monday?",
    "choices": [
     "100 shares, bought at 90",
-    "Cash for the spread only",
+    "Cash for the spread",
     "Short 100 shares at 95",
-    "Nothing, both legs expire"
+    "Nothing, both expire"
    ],
    "answer": "100 shares, bought at 90",
    "why": "100 shares, bought at 90. At a 93 close the 90 call is in the money, so it is exercised automatically unless you say otherwise. The 95 call is out of the money and will likely expire worthless. Stock options settle in shares, not cash, so you buy 100 at 90. To avoid it, sell the spread before the close or file a do-not-exercise on the 90 call.",
@@ -1236,9 +1236,9 @@
     "f93"
    ],
    "wrong": {
+    "Cash for the spread": "Stock options settle in shares, not cash. The exercised 90 call buys you the shares.",
     "Short 100 shares at 95": "At 93 the 95 call is out of the money, so it most likely expires unexercised.",
-    "Nothing, both legs expire": "The 90 call is in the money at the close, so it's exercised unless you say otherwise.",
-    "Cash for the spread only": "Stock options settle in shares, not cash. The exercised 90 call buys you the shares."
+    "Nothing, both expire": "The 90 call is in the money at the close, so it's exercised unless you say otherwise."
    },
    "simple": "You'd most likely own 100 shares bought at 90, because the 90 call is exercised and the 95 call expires.",
    "tier": "extended",
@@ -1288,7 +1288,7 @@
    "choices": [
     "Likely: just $0.05 of time value left",
     "Likely: in-the-money calls go early",
-    "Unlikely: holders wait for expiry day",
+    "Unlikely: holders wait for expiry",
     "Unlikely: 0.30 is tiny next to 7.45"
    ],
    "answer": "Likely: just $0.05 of time value left",
@@ -1314,8 +1314,8 @@
     "f62"
    ],
    "wrong": {
-    "Unlikely: holders wait for expiry day": "That's the general rule, and the day before an ex-dividend date is the exception.",
     "Likely: in-the-money calls go early": "Being in the money isn't the test. Exercising early throws away time value, so it generally doesn't pay. Here the time value is tiny.",
+    "Unlikely: holders wait for expiry": "That's the general rule, and the day before an ex-dividend date is the exception.",
     "Unlikely: 0.30 is tiny next to 7.45": "A holder weighs the dividend against the time value given up, here $0.05, not against the whole 7.45 premium."
    },
    "simple": "Likely, because the call has only $0.05 of time value left, less than the 0.30 dividend a holder gets by exercising.",
@@ -1718,7 +1718,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f71/f72 (90 call exercised, 95 likely expires, you buy at 90). Shares come from f78/f93. 'Cash for the spread only' is now 24 chars, so choices run 22-25. q14's DNE tactic and q21 test different cases (a spread vs a single long call)."
+   "notes": "Key from f71/f72 (90 call exercised, 95 likely expires, you buy at 90). Shares come from f78/f93. 'Cash for the spread only' is now 24 chars, so choices run 22-25. q14's DNE tactic and q21 test different cases (a spread vs a single long call).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -1730,7 +1731,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before reading the key: calc extrinsic = 7.45 - (62.40 - 55) = 0.05, below the 0.30 dividend, so Likely (f80, f82, f85). 'and why?' makes the ITM-only choice wrong on its reason. The key is no longer the only choice with numbers. Choices 35-37 chars. Wrong notes from f19/f62."
+   "notes": "My answer before reading the key: calc extrinsic = 7.45 - (62.40 - 55) = 0.05, below the 0.30 dividend, so Likely (f80, f82, f85). 'and why?' makes the ITM-only choice wrong on its reason. The key is no longer the only choice with numbers. Choices 35-37 chars. Wrong notes from f19/f62.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",

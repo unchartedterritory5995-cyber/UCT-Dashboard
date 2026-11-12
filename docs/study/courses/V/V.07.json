@@ -2336,12 +2336,12 @@
    "q": "What happens to each?",
    "story": "Two orders to buy 1,000 shares. Only 400 are offered at your price right now. Order A is fill-or-kill. Order B is all-or-none.",
    "choices": [
-    "A cancels; B waits for all 1,000",
+    "A cancels at once; B waits for all 1,000",
     "Both buy 400 and cancel the rest",
     "A buys 400 now; B cancels at once",
     "Both wait until all 1,000 can fill"
    ],
-   "answer": "A cancels; B waits for all 1,000",
+   "answer": "A cancels at once; B waits for all 1,000",
    "why": "A cancels, B waits. Fill-or-kill must fill in full right away. With only 400 of the 1,000 shares offered, it is canceled at once and takes no partial. All-or-none also needs the full 1,000. Unlike FOK, it stays active until it fills or you cancel it.",
    "lesson_line": "FOK and AON both refuse a partial. Only FOK refuses to wait.",
    "facts": [
@@ -3619,7 +3619,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",

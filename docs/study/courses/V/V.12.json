@@ -1383,9 +1383,9 @@
    "q": "In trading talk, what does FOMO stand for?",
    "choices": [
     "Fear of missing out",
-    "Fear of losing money",
-    "Following the crowd",
-    "Greed for more profit"
+    "Fear of a loss",
+    "Following a crowd",
+    "Greed for profit"
    ],
    "answer": "Fear of missing out",
    "why": "Fear of missing out. FINRA writes it as fear of missing out (FOMO), and Investor.gov notes everyone has felt some fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
@@ -1397,9 +1397,9 @@
     "f76"
    ],
    "wrong": {
-    "Fear of losing money": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
-    "Following the crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
-    "Greed for more profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
+    "Fear of a loss": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
+    "Following a crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
+    "Greed for profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
    },
    "simple": "FOMO stands for fear of missing out: the worry that you will be left out of a move.",
    "tier": "core",
@@ -2457,8 +2457,8 @@
    "choices": [
     "Leaning on the first number you saw",
     "Holding a stock for the long run",
-    "Following a mentor into every trade",
-    "Marking a key price level on a chart"
+    "Following a mentor in every trade",
+    "Marking a price level on a chart"
    ],
    "answer": "Leaning on the first number you saw",
    "why": "Leaning on the first number you saw. The OSC defines anchoring as relying too heavily on the first piece of information you're offered. Schwab says we fixate on the first data point whether or not it's relevant. In trading, the anchor is often your purchase price or a stock's old price. The OSC says an anchor can sway you even when it's completely irrelevant.",
@@ -2474,8 +2474,8 @@
    ],
    "wrong": {
     "Holding a stock for the long run": "That's a holding period. Anchoring is a reference number steering your judgment.",
-    "Following a mentor into every trade": "That's closer to herding. Anchoring is about a number in your head.",
-    "Marking a key price level on a chart": "That's chart work you do on purpose. The OSC says an anchor is a first number that becomes an unintended reference point."
+    "Following a mentor in every trade": "That's closer to herding. Anchoring is about a number in your head.",
+    "Marking a price level on a chart": "That's chart work you do on purpose. The OSC says an anchor is a first number that becomes an unintended reference point."
    },
    "simple": "Anchoring is leaning too hard on the first number you saw, even when it no longer matters.",
    "tier": "core",
@@ -3037,13 +3037,13 @@
    "term": "Break-even effect",
    "q": "Down on the day, you take a long-shot trade because one win would erase the loss. Which word is this?",
    "choices": [
-    "Break-even effect",
+    "The break-even effect",
     "House money effect",
     "Disposition effect",
     "Gambler's fallacy"
    ],
-   "answer": "Break-even effect",
-   "why": "Break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect.",
+   "answer": "The break-even effect",
+   "why": "The break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect.",
    "lesson_line": "Getting back to even is not a setup. Grade the trade as if you were flat.",
    "facts": [
     "f117",
@@ -3058,7 +3058,7 @@
     "Disposition effect": "That's selling winners and holding losers. This is reaching for a long shot to get even.",
     "Gambler's fallacy": "The gambler's fallacy is believing a win is due after a losing run. Here you aren't betting on a reversal. You want any way back to even."
    },
-   "simple": "Break-even effect, because after a loss, any trade that could get you back to even starts to look too good.",
+   "simple": "The break-even effect, because after a loss, any trade that could get you back to even starts to look too good.",
    "deeper": {
     "trap": "A long shot that could erase the day's loss is graded on the hole you're in, not on the setup. Thaler and Johnson found a chance to break even looks especially attractive after losses."
    },
@@ -3513,7 +3513,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f19 gives the acronym, FINRA tier 1). Broke on a cross-answer: the lesson_line 'Feel it, then check your plan' hands q02 its fill word 'plan'. Also 'The SEC says' credits a former director's personal column (s3) to the agency; reworded to Investor.gov."
+   "notes": "Key right (f19 gives the acronym, FINRA tier 1). Broke on a cross-answer: the lesson_line 'Feel it, then check your plan' hands q02 its fill word 'plan'. Also 'The SEC says' credits a former director's personal column (s3) to the agency; reworded to Investor.gov.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -3705,7 +3706,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -3807,7 +3809,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f117: break-even effect. The gambler's fallacy note rules out a 'due' reversal. The stem no longer echoes 'back to even', and nothing from q51 is left."
+   "notes": "Own answer from f117: break-even effect. The gambler's fallacy note rules out a 'due' reversal. The stem no longer echoes 'back to even', and nothing from q51 is left.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",

@@ -1070,8 +1070,8 @@
    "q": "Which event is the buy on a trendline break?",
    "choices": [
     "Trades through the line and prior high",
-    "Price just touches the line from below",
-    "Volume jumps while still under the line",
+    "Price touches the line from below",
+    "Volume jumps, still under the line",
     "The 50-day crossing the 200-day"
    ],
    "answer": "Trades through the line and prior high",
@@ -1083,9 +1083,9 @@
     "h23"
    ],
    "wrong": {
-    "Price just touches the line from below": "Touching the line is not a break. Price has to trade through it.",
-    "The 50-day crossing the 200-day": "A crossing of averages is a different signal. The trigger is the line and the prior high.",
-    "Volume jumps while still under the line": "Volume alone is not the buy. Price has to trade through the line and the prior day's high."
+    "Price touches the line from below": "Touching the line is not a break. Price has to trade through it.",
+    "Volume jumps, still under the line": "Volume alone is not the buy. Price has to trade through the line and the prior day's high.",
+    "The 50-day crossing the 200-day": "A crossing of averages is a different signal. The trigger is the line and the prior high."
    },
    "house": true,
    "simple": "The buy is when price trades through the line and above the prior day's high during market hours.",
@@ -2238,8 +2238,8 @@
    "choices": [
     "Sell the last third on that close",
     "Hold until the 50-day breaks",
-    "Move the stop down to give it room",
-    "Sell only if it breaks the 21-day"
+    "Move the stop down for room",
+    "Sell if it breaks the 21-day"
    ],
    "answer": "Sell the last third on that close",
    "why": "Sell the last third. Our default trail is the 10-day average for a fast mover and the 21-day for a steadier one. We sell on a close below it. This fast mover closed under its 10-day, so the trail is hit. The stop only moves up, never down.",
@@ -2251,8 +2251,8 @@
    ],
    "wrong": {
     "Hold until the 50-day breaks": "The trail is the 10-day for a fast mover, not the 50-day.",
-    "Move the stop down to give it room": "The stop only moves up, never down or wider.",
-    "Sell only if it breaks the 21-day": "The 21-day is the trail for a steadier stock. A fast mover trails the 10-day."
+    "Move the stop down for room": "The stop only moves up, never down or wider.",
+    "Sell if it breaks the 21-day": "The 21-day is the trail for a steadier stock. A fast mover trails the 10-day."
    },
    "house": true,
    "simple": "Sell the last third, because a fast mover trails the 10-day and it just closed below that line.",
@@ -2353,9 +2353,9 @@
    "story": "A clean break sets up for tomorrow. The company reports after the close in 2 days.",
    "choices": [
     "No; the report is inside 3 days",
-    "Yes; the line is clean and tight",
-    "Yes, and sell before the report",
-    "No; the stock reports this month"
+    "Yes; the line is clean",
+    "Yes, and sell before it",
+    "No; it reports this month"
    ],
    "answer": "No; the report is inside 3 days",
    "why": "No. Our rule: no new buys in the 3 days before an earnings report. A report in 2 days is inside that window, so the break waits. Holding through a report is only for a trade already up 5R. The rule covers those 3 days, not the whole season.",
@@ -2365,9 +2365,9 @@
     "h08"
    ],
    "wrong": {
-    "Yes; the line is clean and tight": "A clean line does not move the earnings window.",
-    "Yes, and sell before the report": "The rule is no new buy in that window, not a quick trade through it.",
-    "No; the stock reports this month": "The rule is narrower: no new buys in the 3 days before a report. A report this month alone does not block a buy."
+    "Yes; the line is clean": "A clean line does not move the earnings window.",
+    "Yes, and sell before it": "The rule is no new buy in that window, not a quick trade through it.",
+    "No; it reports this month": "The rule is narrower: no new buys in the 3 days before a report. A report this month alone does not block a buy."
    },
    "house": true,
    "simple": "No, because we make no new buys in the 3 days before a report, and this one comes in 2 days.",
@@ -2659,9 +2659,9 @@
    "story": "A steep three-week drop leaves two lower highs. A line through them breaks today.",
    "choices": [
     "Pass; not the tight drift we want",
-    "Take it; the line broke on the day",
+    "Take it; the line broke today",
     "Take it, but on half the size",
-    "Pass; lower highs mean a downtrend"
+    "Pass; lower highs, a downtrend"
    ],
    "answer": "Pass; not the tight drift we want",
    "why": "Pass. A steep three-week drop is a drop, not the tight drift down this setup wants. Our card names buying breaks of steep lines as a mistake. ChartSchool says the steeper a trend line, the less valid it is.",
@@ -2675,9 +2675,9 @@
     "d04"
    ],
    "wrong": {
-    "Take it; the line broke on the day": "The steeper the line, the less valid it is. A break of it is not enough.",
+    "Take it; the line broke today": "The steeper the line, the less valid it is. A break of it is not enough.",
     "Take it, but on half the size": "Size does not repair a steep line drawn off a fast drop.",
-    "Pass; lower highs mean a downtrend": "Lower highs are what draw a falling line, so they are not the problem. The steep drop is."
+    "Pass; lower highs, a downtrend": "Lower highs are what draw a falling line, so they are not the problem. The steep drop is."
    },
    "house": true,
    "simple": "Pass, because a fast, steep drop makes a steep line, and that is a drop, not the tight drift we want.",
@@ -2893,9 +2893,9 @@
    "story": "Last week a stock closed over its falling line, then slid back under. Today it trades through the line again.",
    "choices": [
     "No; it already closed through",
-    "Yes; a wick through is allowed",
-    "Yes; each day is a fresh start",
-    "No; a week is too soon to retry"
+    "Yes; a wick is allowed",
+    "Yes; each day starts fresh",
+    "No; a week is too soon"
    ],
    "answer": "No; it already closed through",
    "why": "No. A first break has no daily close above the line between the first anchor and the trigger day. A wick through is allowed, a close is not. The close last week spent the first break.",
@@ -2904,9 +2904,9 @@
     "c02"
    ],
    "wrong": {
-    "No; a week is too soon to retry": "Our card's rule is about closes, not waiting. One daily close above the line already spent the first break.",
-    "Yes; a wick through is allowed": "A wick is allowed, but a close above the line is not. This one closed over it.",
-    "Yes; each day is a fresh start": "The rule counts closes above the line since the first anchor, not days."
+    "Yes; a wick is allowed": "A wick is allowed, but a close above the line is not. This one closed over it.",
+    "Yes; each day starts fresh": "The rule counts closes above the line since the first anchor, not days.",
+    "No; a week is too soon": "Our card's rule is about closes, not waiting. One daily close above the line already spent the first break."
    },
    "house": true,
    "simple": "No, because the stock already closed above the line last week, and a first break has no earlier close above it.",
@@ -3317,7 +3317,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c12 (verbatim in card), h22, h23. Distractors are real misreads; no length tell; why does not hand over q09/q64/q65 any more. D-003 still pending (risk recorded)."
+   "notes": "Key from c12 (verbatim in card), h22, h23. Distractors are real misreads; no length tell; why does not hand over q09/q64/q65 any more. D-003 still pending (risk recorded).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "cut",
@@ -3521,7 +3522,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "upgraded wave4b; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q43": {
    "status": "pass",
@@ -3539,7 +3541,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h08/c11 verbatim; report in 2 days sits inside the 3-day window. New 'reports this month' distractor fails h08's narrower window. q63's B case overlaps at rung 9 (synthesis)."
+   "notes": "h08/c11 verbatim; report in 2 days sits inside the 3-day window. New 'reports this month' distractor fails h08's narrower window. q63's B case overlaps at rung 9 (synthesis).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3587,7 +3590,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d21 verbatim; c35 and x02 (re-read live) support the pass. Two Pass, two Take; deeper.counter grounded in d03/d04."
+   "notes": "d21 verbatim; c35 and x02 (re-read live) support the pass. Two Pass, two Take; deeper.counter grounded in d03/d04.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "pass",
@@ -3617,7 +3621,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c02 key; the story's close over the line rules out the wick choice. Lengths 29-31. Owner flag on tl.first_break stands."
+   "notes": "c02 key; the story's close over the line rules out the wick choice. Lengths 29-31. Owner flag on tl.first_break stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "cut",

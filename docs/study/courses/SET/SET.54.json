@@ -1932,9 +1932,9 @@
    "story": "You hold a drive, the first stop still in place. Two sessions later the stock gaps open below it, a 1.2R loss so far.",
    "choices": [
     "Hold; the stop was already passed",
-    "Buy more shares at the lower gap price",
+    "Buy more at the lower gap price",
     "Make the first 30-minute low the stop",
-    "Sell at the open and book the loss now"
+    "Sell at the open and book the loss"
    ],
    "answer": "Make the first 30-minute low the stop",
    "why": "Make the first 30-minute low the new stop. The stop only moves up, with one exception: the gap rule. When the stock gaps against the stop, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop. The ceiling: if those 30 minutes take the loss past 2R, get out. This open is a 1.2R loss, inside that ceiling. Adding at the lower price is never allowed.",
@@ -1947,8 +1947,8 @@
    ],
    "wrong": {
     "Hold; the stop was already passed": "There is always a stop. The new one is the first 30-minute low, under a 2R ceiling.",
-    "Buy more shares at the lower gap price": "Full size at one price with one stop, no adding.",
-    "Sell at the open and book the loss now": "The open is a 1.2R loss, inside the 2R ceiling. The gap rule gives it the first 30 minutes."
+    "Buy more at the lower gap price": "Full size at one price with one stop, no adding.",
+    "Sell at the open and book the loss": "The open is a 1.2R loss, inside the 2R ceiling. The gap rule gives it the first 30 minutes."
    },
    "house": true,
    "simple": "The low of the first 30 minutes becomes the new stop, because a gap through the stop is the gap rule's case.",
@@ -2269,8 +2269,8 @@
    "choices": [
     "One at a full day's volume by 9:45",
     "One on average first-bar volume",
-    "Same; the daily setup is identical",
-    "One whose first bar closes highest"
+    "Same; the setup is identical",
+    "One whose first bar closes high"
    ],
    "answer": "One at a full day's volume by 9:45",
    "why": "The one that trades its average daily volume by 9:45, the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes, or a first 5-minute bar at 4 times its average or more. Kullamagi says the best ones often trade their average daily volume in the first 15 to 30 minutes. The same daily setup does not make two drives equal.",
@@ -2283,8 +2283,8 @@
    ],
    "wrong": {
     "One on average first-bar volume": "Average volume in the first bar is only the floor. The A+ mark is far heavier.",
-    "Same; the daily setup is identical": "Volume grades the drive. Our card marks the heavy one A+.",
-    "One whose first bar closes highest": "Where the first bar closes is not the A+ mark. A drive may even dip in the first minute; volume grades it."
+    "Same; the setup is identical": "Volume grades the drive. Our card marks the heavy one A+.",
+    "One whose first bar closes high": "Where the first bar closes is not the A+ mark. A drive may even dip in the first minute; volume grades it."
    },
    "house": true,
    "simple": "The one that trades a full day's average volume by 9:45, because that early crowd is our A+ volume mark.",
@@ -2352,11 +2352,11 @@
    "story": "WDC, 2026-10-05: a real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
    "choices": [
     "Buy full size; it is a real drive",
-    "Set a mental stop, not a real order",
-    "Let the stop set the size, or skip",
-    "Tighten the stop to keep the shares"
+    "Set a mental stop, not an order",
+    "Let the stop set the size, or skip it",
+    "Tighten the stop to keep shares"
    ],
-   "answer": "Let the stop set the size, or skip",
+   "answer": "Let the stop set the size, or skip it",
    "why": "Let the stop set the size, or skip. The stop comes first, a few cents under the day's low, and the size comes from it. WDC's stop sat 3.53% under the 445.63 fill because its first bar was 3.6% tall. A wider stop means fewer shares at the same risk. If the honest stop does not fit the risk, skip the trade. It never means tightening the stop or buying full size anyway.",
    "lesson_line": "The honest stop sets the size. If it does not fit, skip the trade.",
    "facts": [
@@ -2369,8 +2369,8 @@
    ],
    "wrong": {
     "Buy full size; it is a real drive": "Full size on a wide stop risks more than planned. The stop sets the size.",
-    "Set a mental stop, not a real order": "Every position has a real stop order with the broker, not a stop kept in your head.",
-    "Tighten the stop to keep the shares": "A tight stop is not a free stop. The stop belongs under the day's low."
+    "Set a mental stop, not an order": "Every position has a real stop order with the broker, not a stop kept in your head.",
+    "Tighten the stop to keep shares": "A tight stop is not a free stop. The stop belongs under the day's low."
    },
    "house": true,
    "simple": "Let the honest stop set the size, and skip the trade if that stop does not fit your risk.",
@@ -2400,11 +2400,11 @@
    "story": "You bought CNC's drive at 72.00, stop 70.16. At 9:35 the next day it prints 3R, 77.52. Two days later it falls back to the old stop.",
    "choices": [
     "A full-size loss at the old stop",
-    "A third banked, rest near even",
+    "A third banked, the rest near even",
     "Nothing kept; it round-tripped",
     "Two thirds banked, at 3R and 5R"
    ],
-   "answer": "A third banked, rest near even",
+   "answer": "A third banked, the rest near even",
    "why": "A third banked, the rest near even. The hard rule takes a third at 3R, here 77.52 the next morning. The stop then moves to breakeven, which the rulebook places at 2R to 5R, ideally; 3R is inside that range. So when CNC fell back two days later, the rest left near the 72.00 entry, not at 70.16. This is our plan laid on the scan's prices, not a simulated trade.",
    "lesson_line": "The first trim turns a round trip into a win. Take the third at 3R.",
    "facts": [
@@ -2545,10 +2545,10 @@
    "choices": [
     "It makes the drive rules optional",
     "It means skip drives for the day",
-    "It lifts the grade of the drives",
+    "It lifts the grade of today's drives",
     "It means today's drives will work"
    ],
-   "answer": "It lifts the grade of the drives",
+   "answer": "It lifts the grade of today's drives",
    "why": "It lifts the grade. The card lists a cue: the Nasdaq trending above its rising 10 and 20-day averages. Strong breadth at the open on a broad gap-up goes with it. It is the simple test Kullamagi made well known. The card's A+ marks include a Green market with a broad gap and strong breadth. A cue raises the grade. It never loosens a rule, and it promises nothing: four in ten strict drives were stopped on the drive day.",
    "lesson_line": "A good market lifts the grade. It never loosens a rule.",
    "facts": [
@@ -3654,7 +3654,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q37": {
    "status": "pass",
@@ -3666,13 +3667,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (h01/A3, h03/A5, d30). WDC numbers in d29. Choices balanced; 'mental stop' rebutted by h18/D41."
+   "notes": "Key right (h01/A3, h03/A5, d30). WDC numbers in d29. Choices balanced; 'mental stop' rebutted by h18/D41.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 3R = 72.00 + 3 x 1.84 = 77.52 (story). Third at 3R is the hard rule (h05); 'rest near even' assumes the breakeven move, which B19 calls ideal; no choice offers 'rest lost at the old stop', so no second defensible answer. Owner flag on 'ideally' stands."
+   "notes": "Own answer: 3R = 72.00 + 3 x 1.84 = 77.52 (story). Third at 3R is the hard rule (h05); 'rest near even' assumes the breakeven move, which B19 calls ideal; no choice offers 'rest lost at the old stop', so no second defensible answer. Owner flag on 'ideally' stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -3894,7 +3897,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: B20 (h06) with the 2R ceiling (h07); a 1.2R open is inside it, so selling at the open is not the rule. Key 37 chars, not longest. Adding ruled out by h03b. Story number is the question's own."
+   "notes": "Own answer: B20 (h06) with the 2R ceiling (h07); a 1.2R open is inside it, so selling at the open is not the rule. Key 37 chars, not longest. Adding ruled out by h03b. Story number is the question's own.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -3936,7 +3940,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from c21 and c41: a cue lifts the grade, never loosens a rule; 'four in ten' is c28 verbatim; Kullamagi credit is u04. Distinct cue from q35. 'Skip drives for the day' is weak but a real contrarian reading, not silly."
+   "notes": "Own answer from c21 and c41: a cue lifts the grade, never loosens a rule; 'four in ten' is c28 verbatim; Kullamagi credit is u04. Distinct cue from q35. 'Skip drives for the day' is weak but a real contrarian reading, not silly.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",

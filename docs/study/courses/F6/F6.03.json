@@ -387,13 +387,13 @@
    "format": "mcq",
    "q": "An option's premium is made of two parts. Which two?",
    "choices": [
-    "Intrinsic value and time value",
+    "The intrinsic value and time value",
     "The bid price and the ask price",
     "The strike price and expiry date",
     "The stock price and the strike"
    ],
-   "answer": "Intrinsic value and time value",
-   "why": "Intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part.",
+   "answer": "The intrinsic value and time value",
+   "why": "The intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part.",
    "lesson_line": "Premium equals intrinsic value plus time value. Split every quote that way.",
    "facts": [
     "f1",
@@ -1234,13 +1234,13 @@
    "story": "A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday.",
    "q": "Which call is more likely to lose you the whole premium?",
    "choices": [
-    "Call B, the 60 expiring Friday",
+    "Call B, the 60 expiring on Friday",
     "Call A, the 52 with two months",
     "About the same, both are calls",
     "Neither, both still have time"
    ],
-   "answer": "Call B, the 60 expiring Friday",
-   "why": "Call B, the 60 expiring Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing.",
+   "answer": "Call B, the 60 expiring on Friday",
+   "why": "Call B, the 60 expiring on Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing.",
    "lesson_line": "Far out of the money with days left is the fastest way to lose the whole premium.",
    "facts": [
     "f23",
@@ -1408,7 +1408,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f1 (Tier 1 OIC). Choices 30-32 chars, key not longest. Each wrong note grounded (f35 ask, f9/f10 stock and strike set intrinsic). The why repeats definitions the walkthroughs w1/w2 already teach, so it gives nothing away that is not taught first."
+   "notes": "Key from f1 (Tier 1 OIC). Choices 30-32 chars, key not longest. Each wrong note grounded (f35 ask, f9/f10 stock and strike set intrinsic). The why repeats definitions the walkthroughs w1/w2 already teach, so it gives nothing away that is not taught first.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1552,7 +1553,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f23 (Tier 1). Choices 29-30 chars. All why sentences 22 words or fewer. 'It costs more' for Call A rests on f5 and f41 (more time, nearer the money). Minor: two choices ('About the same', 'Neither') both deny a difference, but they carry distinct misconceptions and notes."
+   "notes": "Key from f23 (Tier 1). Choices 29-30 chars. All why sentences 22 words or fewer. 'It costs more' for Call A rests on f5 and f41 (more time, nearer the money). Minor: two choices ('About the same', 'Neither') both deny a difference, but they carry distinct misconceptions and notes.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",

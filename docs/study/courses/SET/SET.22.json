@@ -1650,8 +1650,8 @@
    "choices": [
     "Pass; that is too far to chase",
     "Buy, the hold is confirmed",
-    "Buy half size to limit the risk",
-    "Buy with a wider stop to fit it"
+    "Buy half size to cut risk",
+    "Buy with a wider stop"
    ],
    "answer": "Pass; that is too far to chase",
    "why": "Pass. 52.30 is more than 4% over the 50.00 buy point, and we never buy more than 4% above it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
@@ -1665,8 +1665,8 @@
    ],
    "wrong": {
     "Buy, the hold is confirmed": "A confirmed hold is not the question. The chase line is 4% above the buy point.",
-    "Buy half size to limit the risk": "The rule limits the price, not the size: no buy more than 4% over the buy point.",
-    "Buy with a wider stop to fit it": "The stop goes where the chart puts it and never gets wider. If the honest stop does not fit the risk, skip the trade."
+    "Buy half size to cut risk": "The rule limits the price, not the size: no buy more than 4% over the buy point.",
+    "Buy with a wider stop": "The stop goes where the chart puts it and never gets wider. If the honest stop does not fit the risk, skip the trade."
    },
    "house": true,
    "simple": "Pass, because the open is more than 4% above your buy point, and we never chase past 4%.",
@@ -1964,9 +1964,9 @@
    "story": "The stock gapped up months ago. Now price undercuts the lowest low of a base from five weeks ago and closes back over it two days later. The gap-up day's low is far below.",
    "choices": [
     "Undercut and Rally; a swing low",
-    "Gap Support; the stock gapped up",
-    "A PEG; it reclaimed a swing low",
-    "Neither; a reclaim takes one day"
+    "Gap Support; it gapped up",
+    "A PEG; reclaimed a swing low",
+    "Neither; a reclaim is one day"
    ],
    "answer": "Undercut and Rally; a swing low",
    "why": "An Undercut and Rally. On our card a U&R reclaims a prominent prior swing low on the daily chart within 3 sessions. Here price undercut the low of a base and closed back over it two days later. Gap Support's undercut is of a gap-up day's low.",
@@ -1977,9 +1977,9 @@
     "g38"
    ],
    "wrong": {
-    "A PEG; it reclaimed a swing low": "A PEG is the gap day itself or its first pause. This is a later reclaim of a swing low.",
-    "Gap Support; the stock gapped up": "Gap Support's undercut is of the gap-up day's low. This undercut is of a base low.",
-    "Neither; a reclaim takes one day": "Our card lets a reclaim take up to 3 sessions, so two days fits."
+    "Gap Support; it gapped up": "Gap Support's undercut is of the gap-up day's low. This undercut is of a base low.",
+    "A PEG; reclaimed a swing low": "A PEG is the gap day itself or its first pause. This is a later reclaim of a swing low.",
+    "Neither; a reclaim is one day": "Our card lets a reclaim take up to 3 sessions, so two days fits."
    },
    "house": true,
    "simple": "An Undercut and Rally. It undercut a swing low of a base, not a gap-up day's low.",
@@ -2425,8 +2425,8 @@
    "choices": [
     "A planned loss; a clean test can lose",
     "A sign the setup no longer works",
-    "A mistake; you should have held on",
-    "A broken rule; the stop was too tight"
+    "A mistake; you should have held",
+    "A broken rule; stop too tight"
    ],
    "answer": "A planned loss; a clean test can lose",
    "why": "A planned loss; a clean test can still lose. In the AVGO case the hold was near perfect, with the low 0.7% above the line. The stop still traded without any gain. The stop is the exit, a few cents under the test day's low, so taking it is the plan working.",
@@ -2438,9 +2438,9 @@
     "h02"
    ],
    "wrong": {
-    "A broken rule; the stop was too tight": "The stop sat a few cents under the test day's low, as the rules say.",
-    "A mistake; you should have held on": "The stop is the exit. It only moves up, never wider.",
-    "A sign the setup no longer works": "One loss does not show that. AVGO held near perfectly and still lost. A clean test can lose."
+    "A sign the setup no longer works": "One loss does not show that. AVGO held near perfectly and still lost. A clean test can lose.",
+    "A mistake; you should have held": "The stop is the exit. It only moves up, never wider.",
+    "A broken rule; stop too tight": "The stop sat a few cents under the test day's low, as the rules say."
    },
    "house": true,
    "simple": "A planned loss. A near perfect test can still lose, and the stop is the exit, so taking it is the system working.",
@@ -2760,9 +2760,9 @@
    "story": "You were stopped out of the same gap-up low three times this week. On Friday it tests the line again and closes strong.",
    "choices": [
     "No; the weekly limit is reached",
-    "Yes; a new trigger is a new trade",
-    "No; never rebuy after a stop-out",
-    "Yes, with a wider stop this time"
+    "Yes; new trigger, new trade",
+    "No; never rebuy after a stop",
+    "Yes, with a wider stop"
    ],
    "answer": "No; the weekly limit is reached",
    "why": "No. We allow at most 3 tries a week and 6 a month on the same line. You were stopped out three times this week, so the weekly tries are used. After a stop-out, a new trigger makes a new trade, but only inside that cap.",
@@ -2774,9 +2774,9 @@
     "h01"
    ],
    "wrong": {
-    "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped at 3.",
-    "Yes, with a wider stop this time": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade.",
-    "No; never rebuy after a stop-out": "After a stop-out we may buy again on a new trigger. Here the weekly cap is what says no."
+    "Yes; new trigger, new trade": "A new trigger is a new trade, but the tries per week are capped at 3.",
+    "No; never rebuy after a stop": "After a stop-out we may buy again on a new trigger. Here the weekly cap is what says no.",
+    "Yes, with a wider stop": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade."
    },
    "house": true,
    "simple": "No, because we allow at most 3 tries a week on one line and you have used all of them.",
@@ -3158,8 +3158,8 @@
    "choices": [
     "$12 stock, $24M traded a day",
     "$8 stock, $40M traded a day",
-    "$35 stock, $15M traded a day",
-    "$11 stock, $19M traded a day"
+    "$35 stock, $15M a day",
+    "$11 stock, $19M a day"
    ],
    "answer": "$12 stock, $24M traded a day",
    "why": "The $12 stock. Our rule is a price of $10 or more and at least $20 million traded a day. The $8 stock fails on price. The $35 stock at $15M and the $11 stock at $19M fail on dollars traded.",
@@ -3170,8 +3170,8 @@
    ],
    "wrong": {
     "$8 stock, $40M traded a day": "A price under $10 fails, whatever the volume.",
-    "$35 stock, $15M traded a day": "Under $20 million a day fails, whatever the price.",
-    "$11 stock, $19M traded a day": "Just under $20 million a day still fails the rule."
+    "$35 stock, $15M a day": "Under $20 million a day fails, whatever the price.",
+    "$11 stock, $19M a day": "Just under $20 million a day still fails the rule."
    },
    "house": true,
    "story": "Four stocks hold their gap-up lows today and close strong. You check the price and the dollars traded each day.",
@@ -3998,7 +3998,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.30 vs 50.00 is 4.6%, over the 4% line (h11, g24). Wrong notes rest on h11/h01/h02. Key is not the longest. Lone Pass shape accepted."
+   "notes": "52.30 vs 50.00 is 4.6%, over the 4% line (h11, g24). Wrong notes rest on h11/h01/h02. Key is not the longest. Lone Pass shape accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -4046,7 +4047,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Base low reclaimed within 3 sessions = U&R per g42; gap-up low far below rules out Gap Support; PEG and one-day distractors answered by g38/g42. Could not find a second defensible answer."
+   "notes": "Base low reclaimed within 3 sessions = U&R per g42; gap-up low far below rules out Gap Support; PEG and one-day distractors answered by g38/g42. Could not find a second defensible answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "pass",
@@ -4112,7 +4114,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (card: 16% gap is not banned, over 30% is only a lower grade). Two problems. (1) Wrong note for 'you should have waited a day' says waiting would not change the stop; that is false in hindsight: the stop traded the very next session (dossier table: 2025-09-25), so waiting a day would have dodged it. Replaced that choice. (2) Lone non-blame key against three 'mistake/broken rule' choices is a tell; the new distractor is also non-blame. FACT ISSUE outside this question: e15 cites d1 but its quote is verbatim only in c1 (25-gap-support.json, failures AVGO entry); in d1 the text has '(20"
+   "notes": "Key right (card: 16% gap is not banned, over 30% is only a lower grade). Two problems. (1) Wrong note for 'you should have waited a day' says waiting would not change the stop; that is false in hindsight: the stop traded the very next session (dossier table: 2025-09-25), so waiting a day would have dodged it. Replaced that choice. (2) Lone non-blame key against three 'mistake/broken rule' choices is a tell; the new distractor is also non-blame. FACT ISSUE outside this question: e15 cites d1 but its quote is verbatim only in c1 (25-gap-support.json, failures AVGO entry); in d1 the text has '(20",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -4142,7 +4145,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (E56: at most 3 tries a week). Tell: lone 'No' against three 'Yes' choices. Replaced the weakest Yes (double size) with a wrong No that tests B21, so the cue no longer gives it away. Dropped h03 with that choice."
+   "notes": "Key right (E56: at most 3 tries a week). Tell: lone 'No' against three 'Yes' choices. Replaced the weakest Yes (double size) with a wrong No that tests B21, so the cue no longer gives it away. Dropped h03 with that choice.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "cut",
@@ -4184,7 +4188,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only $12/$24M passes B23 ($10, $20M); distractors fail one limit each; lengths equal."
+   "notes": "Only $12/$24M passes B23 ($10, $20M); distractors fail one limit each; lengths equal.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
    "status": "pass",

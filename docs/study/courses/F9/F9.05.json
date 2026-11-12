@@ -916,13 +916,13 @@
    "story": "You bought your full size at $40 with the stop at $38. It's at $38.80, under your entry but above the stop. A friend says buy more while it's cheap.",
    "q": "What do you do?",
    "choices": [
-    "Hold it and add no shares",
+    "Hold it and add no more shares",
     "Add more, it's cheaper now",
     "Add more and lower the stop",
     "Sell now, it's below entry"
    ],
-   "answer": "Hold it and add no shares",
-   "why": "Hold it and add no shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal.",
+   "answer": "Hold it and add no more shares",
+   "why": "Hold it and add no more shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal.",
    "lesson_line": "We never add, least of all to a loser. The stop decides, not the discount.",
    "facts": [
     "h01",
@@ -1076,8 +1076,8 @@
    "choices": [
     "Be picky and keep exposure low",
     "Use the room under the limit",
-    "Size up to win back the losses",
-    "Wider stops, same share count"
+    "Size up to win back losses",
+    "Wider stops, same shares"
    ],
    "answer": "Be picky and keep exposure low",
    "why": "Be picky and keep exposure low. In a bear market, StockCharts' Arthur Hill says the chance of picking winners is greatly reduced. Fidelity's Hirsch suggests limiting new buys when the outlook turns negative. Our rule: never force a trade to have something on, because cash is a position. The room under your limit is not a reason to buy.",
@@ -1089,9 +1089,9 @@
     "h07"
    ],
    "wrong": {
-    "Size up to win back the losses": "That's chasing losses with bigger bets, in a market where the odds of picking winners are worse.",
-    "Wider stops, same share count": "A wider stop on the same shares puts more money at risk, in a market where winners are harder to pick. If a stop needs room, adjust the position.",
-    "Use the room under the limit": "Room under the limit isn't a reason to buy. Our rule: never force a trade to have something on."
+    "Use the room under the limit": "Room under the limit isn't a reason to buy. Our rule: never force a trade to have something on.",
+    "Size up to win back losses": "That's chasing losses with bigger bets, in a market where the odds of picking winners are worse.",
+    "Wider stops, same shares": "A wider stop on the same shares puts more money at risk, in a market where winners are harder to pick. If a stop needs room, adjust the position."
    },
    "simple": "Take only your best setups and keep risk low, because a falling market makes winners harder to find.",
    "deeper": {
@@ -1314,7 +1314,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Hold, from A5 (no adding) and A4 (stop is the exit); h01, h02, h04 match sizing_rule.md verbatim. 'Sell now, it's below entry' is a real misconception and ends the lone-Hold tell. Gap exception B20 does not apply."
+   "notes": "Own answer Hold, from A5 (no adding) and A4 (stop is the exit); h01, h02, h04 match sizing_rule.md verbatim. 'Sell now, it's below entry' is a real misconception and ends the lone-Hold tell. Gap exception B20 does not apply.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
@@ -1338,7 +1339,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 'Be picky' from f29 (confirmed live), f11 and D44 (h07 matches sizing_rule.md). Choices balanced, no silly choice. 4% gone; no ungrounded number."
+   "notes": "Own answer 'Be picky' from f29 (confirmed live), f11 and D44 (h07 matches sizing_rule.md). Choices balanced, no silly choice. 4% gone; no ungrounded number.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

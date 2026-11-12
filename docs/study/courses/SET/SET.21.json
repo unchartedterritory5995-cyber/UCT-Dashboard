@@ -935,9 +935,9 @@
    "q": "When is the taught High Volume Edge buy?",
    "choices": [
     "Day 2, the next session",
-    "At the record day's close",
-    "At the record day's open",
-    "Day 3, once day 2 holds"
+    "At the record close",
+    "At the record open",
+    "Day 3, if day 2 holds"
    ],
    "answer": "Day 2, the next session",
    "why": "Day 2, the next session. The taught trigger is the one session after the record day. Day 2 dips under the record day's close and reclaims it, and that is the buy. It is not the record day's close, and not a later day. Duncan buys the gap-up day's close, and the Episodic Pivot is bought on the gap day itself. The High Volume Edge waits a session.",
@@ -949,9 +949,9 @@
     "g03"
    ],
    "wrong": {
-    "At the record day's close": "The close is the level, not the buy. The taught trigger waits for day 2.",
-    "At the record day's open": "That is the Episodic Pivot's day: bought on the gap day itself. The HVE waits a session.",
-    "Day 3, once day 2 holds": "Not a later day. The taught trigger is the one session after the record day."
+    "At the record close": "The close is the level, not the buy. The taught trigger waits for day 2.",
+    "At the record open": "That is the Episodic Pivot's day: bought on the gap day itself. The HVE waits a session.",
+    "Day 3, if day 2 holds": "Not a later day. The taught trigger is the one session after the record day."
    },
    "house": true,
    "simple": "Buy on day 2, the session after the record day, not on the record day itself.",
@@ -1305,9 +1305,9 @@
    "q": "Which name fits a High Volume Edge best?",
    "choices": [
     "A thinly owned small company",
-    "A mega-cap that everyone owns",
-    "A small cap with big coverage",
-    "A hot leader already up a lot"
+    "A mega-cap everyone owns",
+    "A small cap widely covered",
+    "A hot leader up a lot"
    ],
    "answer": "A thinly owned small company",
    "why": "A thinly owned small company. The card wants a lesser-known stock, often neglected or beaten down, where a fresh story arrives all at once. It does not want a mega-cap. Bonde adds that earnings breakouts in widely covered companies do not do as well. Stocks with no analyst coverage are typically smaller or out of favor.",
@@ -1320,9 +1320,9 @@
     "c10"
    ],
    "wrong": {
-    "A mega-cap that everyone owns": "Not a mega-cap. The card wants a lesser-known stock and rules the mega-cap out.",
-    "A small cap with big coverage": "Bonde: earnings breakouts in widely covered companies do not do as well.",
-    "A hot leader already up a lot": "A big run first can turn the day into a climax. The card wants a quiet, lesser-known name."
+    "A mega-cap everyone owns": "Not a mega-cap. The card wants a lesser-known stock and rules the mega-cap out.",
+    "A small cap widely covered": "Bonde: earnings breakouts in widely covered companies do not do as well.",
+    "A hot leader up a lot": "A big run first can turn the day into a climax. The card wants a quiet, lesser-known name."
    },
    "house": true,
    "simple": "The card wants a lesser-known, neglected company, where a fresh story arrives all at once.",
@@ -2066,13 +2066,13 @@
    "criterion": "hve.excluded_days",
    "q": "Which record-volume up day never counts as a High Volume Edge?",
    "choices": [
-    "The last session of a month",
+    "The last session of the month",
     "The first session of a month",
     "A day on a trial result",
     "A day in a beaten-down stock"
    ],
-   "answer": "The last session of a month",
-   "why": "The last session of a month. The card bars it, because the volume on that day is not demand. A trial result is the kind of fresh story the card wants, and a beaten-down stock can qualify because no prior advance is required.",
+   "answer": "The last session of the month",
+   "why": "The last session of the month. The card bars it, because the volume on that day is not demand. A trial result is the kind of fresh story the card wants, and a beaten-down stock can qualify because no prior advance is required.",
    "lesson_line": "Month-end volume is not demand.",
    "facts": [
     "c09",
@@ -2080,12 +2080,12 @@
     "c26"
    ],
    "wrong": {
-    "A day in a beaten-down stock": "Beaten-down is often where it starts. No prior trend is needed.",
+    "The first session of a month": "The card does not bar the first session.",
     "A day on a trial result": "A trial result is a fresh story, the kind the card wants.",
-    "The first session of a month": "The card does not bar the first session."
+    "A day in a beaten-down stock": "Beaten-down is often where it starts. No prior trend is needed."
    },
    "house": true,
-   "simple": "The last session of a month never counts, because that volume is not real demand. The first session does not.",
+   "simple": "The last session of the month never counts, because that volume is not real demand. The first session does not.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2147,8 +2147,8 @@
    "story": "You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
    "choices": [
     "A ceiling above price",
-    "Support; buy it again",
-    "Broken; erase the line",
+    "Support; buy again",
+    "Broken; erase it",
     "The new stop level"
    ],
    "answer": "A ceiling above price",
@@ -2162,9 +2162,9 @@
     "h28"
    ],
    "wrong": {
-    "Support; buy it again": "Under the record day's low it is no longer support. A new buy needs a new trigger.",
-    "The new stop level": "You are out already. The line now sits overhead.",
-    "Broken; erase the line": "Do not erase it. The level stays on the chart, and it now sits overhead."
+    "Support; buy again": "Under the record day's low it is no longer support. A new buy needs a new trigger.",
+    "Broken; erase it": "Do not erase it. The level stays on the chart, and it now sits overhead.",
+    "The new stop level": "You are out already. The line now sits overhead."
    },
    "house": true,
    "simple": "After a close under the record day's low, the HVC is a ceiling above price, not a floor.",
@@ -3452,7 +3452,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c12. Day 3 is ruled out by 'not a later day'. No tell (key not longest)."
+   "notes": "Key follows c12. Day 3 is ruled out by 'not a later day'. No tell (key not longest).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -3524,7 +3525,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c25/c01. Two small, two big; lengths balanced. Wrong notes rest on c25, b02, c10."
+   "notes": "Key follows c25/c01. Two small, two big; lengths balanced. Wrong notes rest on c25, b02, c10.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -3650,7 +3652,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (month's last session barred, c09). Problems: the wrong note on 'first session' says 'Only the monthly options expiry and the last session ... are barred', which overreaches (D-092 may add the last Friday of June) and hands q06 (OPEX) its answer. Fixed."
+   "notes": "Key right (month's last session barred, c09). Problems: the wrong note on 'first session' says 'Only the monthly options expiry and the last session ... are barred', which overreaches (D-092 may add the last Friday of June) and hands q06 (OPEX) its answer. Fixed.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q37": {
    "status": "pass",
@@ -3662,7 +3665,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per c23; QGEN d14/d15 match. No second answer."
+   "notes": "Key per c23; QGEN d14/d15 match. No second answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",

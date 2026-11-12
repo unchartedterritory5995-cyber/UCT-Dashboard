@@ -10,10 +10,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A loan you make to the company",
-    "A vote on every company decision",
+    "A loan to the company",
+    "A vote on every decision",
     "Part ownership of the company",
-    "A promised dividend each year"
+    "A promised yearly dividend"
    ],
    "kind": "mcq",
    "q": "What does one share of a company's common stock give you?",
@@ -68,7 +68,7 @@
     "summary": "A stock gives you a share of ownership in a company. One share is an ownership stake: a proportional claim on the company's assets and profits. A stock is ownership; a bond is a loan to the company. A company may pay a dividend, but it does not have to. Most stocks carry a vote on certain decisions, such as electing directors. A dividend is not guaranteed and can be cut or dropped."
    },
    "facts": {
-    "given": "What does one share of a company's common stock give you? Part ownership of the company A loan you make to the company A promised dividend each year A vote on every company decision"
+    "given": "What does one share of a company's common stock give you? Part ownership of the company A loan to the company A promised yearly dividend A vote on every decision"
    },
    "lesson_line": "A share is a slice of the business. You own part of it, good and bad.",
    "simple": "Part ownership. A share makes you an owner of a small slice of the company and its profits.",
@@ -76,9 +76,9 @@
    "unit": "F1.02",
    "why": "Part ownership. A share is an ownership stake, called equity, in the company. It gives you a claim on your proportional share of its assets and profits. It is not a loan to the company: that is a bond. It does not promise a dividend. Most stocks give a vote only on certain decisions, such as electing directors.",
    "wrong": {
-    "A loan you make to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
-    "A promised dividend each year": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
-    "A vote on every company decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
+    "A loan to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
+    "A promised yearly dividend": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
+    "A vote on every decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
    }
   },
   "review_status": "draft",
@@ -1360,7 +1360,7 @@
  },
  {
   "answer_json": {
-   "answer": "Little public info, higher risk"
+   "answer": "Little public info and higher risk"
   },
   "difficulty": 3,
   "id": "si_9e6d379434a1",
@@ -1369,10 +1369,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Little public info, higher risk",
-    "Penny stocks pay steady dividends",
-    "A low price means little downside",
-    "OTC stocks meet exchange standards"
+    "Little public info and higher risk",
+    "Penny stocks pay dividends",
+    "Low price means little downside",
+    "OTC stocks meet listing standards"
    ],
    "kind": "mcq",
    "q": "What should you know before you touch it?",
@@ -1445,17 +1445,17 @@
     "summary": "Microcaps, also called penny stocks, are low-priced shares of very small companies. Microcaps mostly trade over the counter (OTC). Relatively little information is available on microcaps compared with larger companies listed on national exchanges. Microcaps have a long history of price manipulation and fraud. Penny stocks pay no dividends and are highly speculative. Nothing guarantees the company does well, so you can lose money in a stock. To trade on an exchange, a company first has to meet that exchange's listing standards. Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "What should you know before you touch it? A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange. Little public info, higher risk A low price means little downside OTC stocks meet exchange standards Penny stocks pay steady dividends"
+    "given": "What should you know before you touch it? A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange. Little public info and higher risk Low price means little downside OTC stocks meet listing standards Penny stocks pay dividends"
    },
    "lesson_line": "Little public information and a long fraud history. It is also under our $10 floor. I'd pass on that tip.",
-   "simple": "Little public info, higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
+   "simple": "Little public info and higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
    "tier": "expert",
    "unit": "F1.02",
    "why": "Little public information, higher risk. Low-priced microcaps, also called penny stocks, trade mostly over the counter. Relatively little information is available on them compared with companies listed on national exchanges. The microcap sector has a long history of price manipulation and fraud. Penny stocks pay no dividends, and you can lose the money you put in. At UCT we skip it anyway: we trade only stocks at $10 or more that trade at least $20 million a day.",
    "wrong": {
-    "A low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
-    "OTC stocks meet exchange standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
-    "Penny stocks pay steady dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
+    "Low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
+    "OTC stocks meet listing standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
+    "Penny stocks pay dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
    }
   },
   "review_status": "draft",
@@ -3925,10 +3925,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A micro-cap stock",
+    "A micro-cap",
     "A large-cap stock",
-    "A low-priced stock",
-    "A small-cap stock"
+    "A cheap stock",
+    "A small-cap"
    ],
    "kind": "mcq",
    "q": "Which kind of stock is usually the easiest to buy and sell quickly?",
@@ -3983,7 +3983,7 @@
     "summary": "Large-cap stocks are usually more liquid than small-cap or micro-cap stocks. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones. Low volume can make it hard to sell your shares when you want to. In a low-volume stock, any size trade can move the price a lot in percentage terms. Low-priced stocks often trade in low volumes, so even fairly small trades can move their price. Higher volume usually means more liquid, and a large order in a low-volume stock is hard to fill quickly."
    },
    "facts": {
-    "given": "Which kind of stock is usually the easiest to buy and sell quickly? A large-cap stock A small-cap stock A micro-cap stock A low-priced stock"
+    "given": "Which kind of stock is usually the easiest to buy and sell quickly? A large-cap stock A small-cap A micro-cap A cheap stock"
    },
    "lesson_line": "Big, heavily traded names are usually the easiest to get in and out of.",
    "simple": "A large-cap stock, because FINRA says large caps are usually more liquid than small or micro caps.",
@@ -3991,9 +3991,9 @@
    "unit": "F1.04",
    "why": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps. Well-known stocks with heavy daily volume are generally more liquid than low-priced, low-volume or obscure ones. Usually is the key word: stocks with higher trading volume are generally more liquid, so check the volume itself.",
    "wrong": {
-    "A low-priced stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them.",
-    "A micro-cap stock": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
-    "A small-cap stock": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder."
+    "A cheap stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them.",
+    "A micro-cap": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
+    "A small-cap": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder."
    }
   },
   "review_status": "draft",
@@ -5295,9 +5295,9 @@
   "prompt_json": {
    "choices": [
     "We skip it: too few dollars a day",
-    "We skip it until the price is $20",
-    "We trade it, but with a small size",
-    "We trade it: the price is over $10"
+    "We skip it until price is $20",
+    "We trade it at small size",
+    "We trade it: price is over $10"
    ],
    "kind": "mcq",
    "q": "What does our rule say about this stock?",
@@ -5335,7 +5335,7 @@
     "summary": "Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day. Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks. S&P Dow Jones Indices measures dollar value traded as price times volume."
    },
    "facts": {
-    "given": "What does our rule say about this stock? Our rule: trade only stocks at $10 or more that trade at least $20 million a day. A $15 stock averages 500,000 shares a day. We skip it: too few dollars a day We trade it: the price is over $10 We trade it, but with a small size We skip it until the price is $20"
+    "given": "What does our rule say about this stock? Our rule: trade only stocks at $10 or more that trade at least $20 million a day. A $15 stock averages 500,000 shares a day. We skip it: too few dollars a day We trade it: price is over $10 We trade it at small size We skip it until price is $20"
    },
    "lesson_line": "We trade only stocks that clear both lines: $10 a share and $20 million a day.",
    "simple": "We skip it, because $15 times 500,000 shares is far less than the $20 million a day our rule needs.",
@@ -5343,9 +5343,9 @@
    "unit": "F1.04",
    "why": "We skip it. Our rule needs both lines: a price of $10 or more and at least $20 million traded a day. Price times volume here, $15 times 500,000 shares, is far under $20 million. The price passes; the dollars traded do not.",
    "wrong": {
-    "We skip it until the price is $20": "The $20 million is dollars traded a day, not the share price. Our price line is $10, and $15 already clears it.",
-    "We trade it, but with a small size": "Size can't fix it. The $20 million line decides which stocks we trade at all, and illiquid stocks are not even watched.",
-    "We trade it: the price is over $10": "The price passes, but our rule needs both lines. At $15, 500,000 shares a day is far under $20 million."
+    "We skip it until price is $20": "The $20 million is dollars traded a day, not the share price. Our price line is $10, and $15 already clears it.",
+    "We trade it at small size": "Size can't fix it. The $20 million line decides which stocks we trade at all, and illiquid stocks are not even watched.",
+    "We trade it: price is over $10": "The price passes, but our rule needs both lines. At $15, 500,000 shares a day is far under $20 million."
    }
   },
   "review_status": "draft",
@@ -6809,7 +6809,7 @@
    "choices": [
     "A cue to buy at market now",
     "A thin print, not a firm price",
-    "A real trade, so a solid price",
+    "A solid price, a real trade",
     "The price it will open at"
    ],
    "kind": "mcq",
@@ -6883,7 +6883,7 @@
     "summary": "An extended-hours price may not match the regular-session close or the next day's open. With fewer people trading, one order can move the price more than it would in regular hours. Extended hours usually have less trading interest and price competition, which can raise costs, blur the real price and make fills harder. The next day's opening price comes from supply and demand at the open. Many brokers accept only limit orders in extended hours. In extended hours an order may fill partly or not at all, and a fill may be at a worse price than in regular hours. Extended hours have higher volatility and less liquidity: fewer people trading and bigger price moves. Our rule: we make no new buys outside regular trading hours."
    },
    "facts": {
-    "given": "How should you read that $26.00 print? At 7:40 a.m. ET a stock prints $26.00. It closed yesterday at $24.00. Only a few hundred shares have traded so far. A thin print, not a firm price The price it will open at A cue to buy at market now A real trade, so a solid price"
+    "given": "How should you read that $26.00 print? At 7:40 a.m. ET a stock prints $26.00. It closed yesterday at $24.00. Only a few hundred shares have traded so far. A thin print, not a firm price The price it will open at A cue to buy at market now A solid price, a real trade"
    },
    "lesson_line": "I treat a 7:40 a.m. print as a hint, not a verdict. The open is the real test.",
    "simple": "It is a thin early print, not a firm price, because with so few shares trading one order can move it.",
@@ -6892,7 +6892,7 @@
    "why": "A thin print, not a firm price. Only a few hundred shares have traded. With fewer people trading, one order can move the price more than in regular hours. The SEC warns extended-hours prices may not reflect regular-hours prices. The open, set by supply and demand at the open, is the real test.",
    "wrong": {
     "A cue to buy at market now": "Many brokers take only limit orders this early, and thin trading can raise what you pay. Our rule is no new buys outside regular hours.",
-    "A real trade, so a solid price": "It is a real trade, but only a few hundred shares have traded. With few trades, one order can move the price more than in regular hours.",
+    "A solid price, a real trade": "It is a real trade, but only a few hundred shares have traded. With few trades, one order can move the price more than in regular hours.",
     "The price it will open at": "Not promised. The SEC warns extended-hours prices may not reflect prices in regular hours."
    }
   },
@@ -7196,9 +7196,9 @@
   "prompt_json": {
    "choices": [
     "Real news, but a thin, shaky price",
-    "The official close is now 9% lower",
-    "Real news, so the drop will hold",
-    "Just noise the open will erase"
+    "The close is now 9% lower",
+    "Real news, so the drop holds",
+    "Just noise the open erases"
    ],
    "kind": "mcq",
    "q": "What's the most accurate read right now?",
@@ -7264,7 +7264,7 @@
     "summary": "After an out-of-hours earnings move, trading can settle once people digest the results and the regular session opens. An extended-hours price may not match the regular-session close or the next day's open. News released out of hours, on thin trading, can move a stock sharply in extended hours. The 4 p.m. price is the official close, whatever trades in extended hours. With fewer trades, stocks can swing more in extended hours. Extended-hours spreads are usually wider, and sometimes there is no quote at all. Thinly traded stocks can swing more in extended hours than they do in the regular session."
    },
    "facts": {
-    "given": "What's the most accurate read right now? A stock you follow reports earnings at 4:05 p.m. and falls 9% after hours. The quote is wide, and only small trades are printing. Real news, but a thin, shaky price The official close is now 9% lower Real news, so the drop will hold Just noise the open will erase"
+    "given": "What's the most accurate read right now? A stock you follow reports earnings at 4:05 p.m. and falls 9% after hours. The quote is wide, and only small trades are printing. Real news, but a thin, shaky price The close is now 9% lower Real news, so the drop holds Just noise the open erases"
    },
    "lesson_line": "Respect the news, not the exact after-hours price. The open is where the full market weighs in.",
    "simple": "The news is real, but the after-hours price is thin and shaky, so the open may land somewhere else.",
@@ -7272,9 +7272,9 @@
    "unit": "F1.05",
    "why": "Real news, but a thin, shaky price. A wide quote and small trades show little trading interest. Extended-hours prices may not reflect the next day's open. FINRA notes trading can settle once people digest the results and regular hours resume. The official close is still the 4 p.m. price. Nothing here promises a rebound, and nothing promises the open will match the 9% drop.",
    "wrong": {
-    "Just noise the open will erase": "The news is real. The SEC says out-of-hours news can move a stock sharply, and nothing promises the open will undo it.",
-    "Real news, so the drop will hold": "The news is real, but nothing promises the price holds. The SEC warns extended-hours prices may not reflect the next day's open.",
-    "The official close is now 9% lower": "The close is still the 4 p.m. price. After-hours trading doesn't change it."
+    "Just noise the open erases": "The news is real. The SEC says out-of-hours news can move a stock sharply, and nothing promises the open will undo it.",
+    "Real news, so the drop holds": "The news is real, but nothing promises the price holds. The SEC warns extended-hours prices may not reflect the next day's open.",
+    "The close is now 9% lower": "The close is still the 4 p.m. price. After-hours trading doesn't change it."
    }
   },
   "review_status": "draft",
@@ -9177,9 +9177,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Missing the rest of the move",
-    "Paying a few cents too much",
-    "Getting shaken out too early",
+    "Missing more of the move",
+    "Paying a few cents extra",
+    "Being shaken out early",
     "A crash that's hard to exit"
    ],
    "kind": "mcq",
@@ -9253,7 +9253,7 @@
     "summary": "The public float is the shares everyday investors can trade, and pump-and-dump schemes try to buy up a big part of it. Whoever controls a big share of the float can push the price around more easily. When the promoters sell, the crash can come in seconds. A fast dump can make it hard for other holders to sell without big losses. Promoters may use a text or an ad to pull people into a group chat that pushes the stock. These schemes count on the fear of missing out. Getting in and out of a low-float stock can be hard. We trade only stocks priced $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "What's the biggest risk if you buy here? A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide. A crash that's hard to exit Missing the rest of the move Paying a few cents too much Getting shaken out too early"
+    "given": "What's the biggest risk if you buy here? A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide. A crash that's hard to exit Missing more of the move Paying a few cents extra Being shaken out early"
    },
    "lesson_line": "On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
    "simple": "A crash that's hard to exit, because when promoters dump a tiny float the price can fall in seconds.",
@@ -9261,9 +9261,9 @@
    "unit": "F1.06",
    "why": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "wrong": {
-    "Getting shaken out too early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard.",
-    "Missing the rest of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
-    "Paying a few cents too much": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into."
+    "Being shaken out early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard.",
+    "Missing more of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
+    "Paying a few cents extra": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into."
    }
   },
   "review_status": "draft",
@@ -11111,9 +11111,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "14.7%, less than 3x",
-    "15.3%, 3x the index",
-    "15%, 3% times 5 days",
+    "14.7%, under 3x",
+    "15.3%, same as 3x",
+    "15%, 3% x 5 days",
     "15.9%, more than 3x"
    ],
    "kind": "mcq",
@@ -11162,7 +11162,7 @@
      "fn": "arith",
      "result": 15.9
     },
-    "given": "About how much does the 3x fund gain over the five days, before fees? The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day. 15.9%, more than 3x 15.3%, 3x the index 14.7%, less than 3x 15%, 3% times 5 days"
+    "given": "About how much does the 3x fund gain over the five days, before fees? The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day. 15.9%, more than 3x 15.3%, same as 3x 14.7%, under 3x 15%, 3% x 5 days"
    },
    "lesson_line": "A clean trend compounds in a 3x fund's favor. Chop is what bleeds it.",
    "simple": "About 15.9%, because in a steady climb each day's gain lands on a bigger balance, so the fund beats 3x.",
@@ -11170,9 +11170,9 @@
    "unit": "F1.07",
    "why": "About 15.9%. Each day the fund aims for three times the index's 1%. In a steady trend each gain lands on a bigger balance, so five days compound to about 15.9%. That beats three times the index's 5.1%. Larger index gains and lower volatility help a 3x fund; small net moves and chop do the opposite.",
    "wrong": {
-    "14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
-    "15%, 3% times 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%.",
-    "15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it."
+    "14.7%, under 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
+    "15%, 3% x 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%.",
+    "15.3%, same as 3x": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it."
    }
   },
   "review_status": "draft",

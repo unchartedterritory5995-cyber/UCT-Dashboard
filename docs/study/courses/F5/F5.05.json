@@ -696,8 +696,8 @@
    "choices": [
     "Nearest at-the-money straddle",
     "Far out-of-the-money calls",
-    "The longest-dated puts listed",
-    "The call with the most volume"
+    "The longest-dated puts",
+    "The call with most volume"
    ],
    "answer": "Nearest at-the-money straddle",
    "why": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number.",
@@ -712,8 +712,8 @@
    ],
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
-    "The longest-dated puts listed": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report.",
-    "The call with the most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle."
+    "The longest-dated puts": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report.",
+    "The call with most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle."
    },
    "simple": "The nearest at-the-money straddle, because a call plus a put at the strike nearest the price shows the move priced.",
    "tier": "core",
@@ -1056,7 +1056,7 @@
    "choices": [
     "Options priced a smaller move than usual",
     "Options priced a bigger move than usual",
-    "The stock will likely rise on the report",
+    "The stock likely rises on the report",
     "The options are mispriced and too cheap"
    ],
    "answer": "Options priced a smaller move than usual",
@@ -1071,7 +1071,7 @@
    ],
    "wrong": {
     "Options priced a bigger move than usual": "6% is below the 7.39% average, so it's smaller, not bigger.",
-    "The stock will likely rise on the report": "The implied move has no direction. It can't tell you up or down.",
+    "The stock likely rises on the report": "The implied move has no direction. It can't tell you up or down.",
     "The options are mispriced and too cheap": "Below average alone doesn't make them wrong. Cboe found big tech options generally price moves slightly below their history."
    },
    "simple": "Options priced a smaller move than usual, because about 6% is below the 7.39% average of its last six reactions.",
@@ -1184,8 +1184,8 @@
    "choices": [
     "Yes, the size was about as priced",
     "No, it went down instead of up",
-    "No, a drop that big is a surprise",
-    "Yes, options priced a drop of 8.4%"
+    "No, a drop that big is a shock",
+    "Yes, they priced a drop of 8.4%"
    ],
    "answer": "Yes, the size was about as priced",
    "why": "Yes, the size was about as priced. Options priced about 8.4% for NVDA's February 2025 report, and the stock fell 8.48%, Sosnick wrote. That is almost exactly the expected size. Direction was never part of the price: Cboe and OIC both say option prices describe how big, not which way. A big drop that matches the priced move is the market getting it right.",
@@ -1200,8 +1200,8 @@
    ],
    "wrong": {
     "No, it went down instead of up": "Options didn't price a direction. A fall of the priced size is right on.",
-    "Yes, options priced a drop of 8.4%": "Options priced about 8.4% either way, not a drop. They got the size right; a direction was never priced.",
-    "No, a drop that big is a surprise": "Big is relative. Options priced about 8.4%, and the stock fell 8.48%. That is the priced size."
+    "No, a drop that big is a shock": "Big is relative. Options priced about 8.4%, and the stock fell 8.48%. That is the priced size.",
+    "Yes, they priced a drop of 8.4%": "Options priced about 8.4% either way, not a drop. They got the size right; a direction was never priced."
    },
    "simple": "Yes, because the 8.48% drop was almost exactly the 8.4% move options priced, and options price size, not direction.",
    "deeper": {
@@ -1394,13 +1394,13 @@
    "format": "mcq",
    "q": "A stock moves twice its implied move after the report. What does that tell you?",
    "choices": [
-    "The report surprised the market",
+    "The report surprised the options market",
     "The options were priced too high",
     "The move will reverse the next day",
     "Implied volatility will now rise"
    ],
-   "answer": "The report surprised the market",
-   "why": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
+   "answer": "The report surprised the options market",
+   "why": "The report surprised the options market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
    "lesson_line": "Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
    "facts": [
     "f17",
@@ -1414,7 +1414,7 @@
     "The move will reverse the next day": "Nothing in the implied move predicts tomorrow. Judge what happens next on its own.",
     "Implied volatility will now rise": "After a report, implied volatility often falls sharply. The event it was pricing is over."
    },
-   "simple": "The report surprised the market, because the stock moved twice as far as options had priced for it.",
+   "simple": "The report surprised the options market, because the stock moved twice as far as options had priced for it.",
    "deeper": {
     "trap": "The trap is reading the ratio as a forecast. Twice the priced move says the news surprised the market. It does not say the move will reverse or run on, or that options were too dear. Judge what comes next from the chart and your plan."
    },
@@ -1507,7 +1507,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: nearest at-the-money straddle (f35 IBKR, f26 Fidelity: two Tier 2 publishers agree; Cboe f18 also uses the straddle). Choices similar lengths, key not longest. Why no longer overreaches on 'scale'; f21 Cboe re-fetched verbatim. Longest sentence exactly 22 words."
+   "notes": "Own answer: nearest at-the-money straddle (f35 IBKR, f26 Fidelity: two Tier 2 publishers agree; Cboe f18 also uses the straddle). Choices similar lengths, key not longest. Why no longer overreaches on 'scale'; f21 Cboe re-fetched verbatim. Longest sentence exactly 22 words.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1573,7 +1574,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: smaller move than usual (6% vs 7.39%, f46). Cboe f56 re-fetched verbatim and the why now says 'alone'. Choices 39-40 chars, balanced; longest sentence 22 words. IBKR s16 unreachable by WebFetch (403)."
+   "notes": "Own answer: smaller move than usual (6% vs 7.39%, f46). Cboe f56 re-fetched verbatim and the why now says 'alone'. Choices 39-40 chars, balanced; longest sentence 22 words. IBKR s16 unreachable by WebFetch (403).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1591,7 +1593,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: yes on size, 8.48 vs about 8.4 (ratio about 1.01), with direction never priced. f44 '(-8.48%)' and f45 'the 8.4% that was priced in two quarters ago' found on the IBKR page (plain client); NVDA reported Feb 26, 2025, matches f42. f19/f20 Cboe and f52 OIC ('magnitude of expected movement, not direction', re-fetched) back the direction point. Tried to break: 'Yes, options priced a drop of 8.4%' is the only other Yes and is wrong because no direction was priced; two Yes, two No; lengths 30-34, key not longest; each distractor a real misreading with its own note. Teaches the"
+   "notes": "Own answer before key: yes on size, 8.48 vs about 8.4 (ratio about 1.01), with direction never priced. f44 '(-8.48%)' and f45 'the 8.4% that was priced in two quarters ago' found on the IBKR page (plain client); NVDA reported Feb 26, 2025, matches f42. f19/f20 Cboe and f52 OIC ('magnitude of expected movement, not direction', re-fetched) back the direction point. Tried to break: 'Yes, options priced a drop of 8.4%' is the only other Yes and is wrong because no direction was priced; two Yes, two No; lengths 30-34, key not longest; each distractor a real misreading with its own note. Teaches the",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -1627,7 +1630,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer before key: the report surprised the market (f17/f34: options price the expected reaction; f54: more than implied beats it). Key matches; 'surprise' is an inference from those quotes, not a quote, but the only defensible one of the four. Rulebook section 9 has nothing against 'judge the chart on its own merits'. Breaks: (1) the why's OIC sentence is copied word for word from q11's why, and the wrong note repeats it a third time; (2) 'A move twice that size means the news landed far outside that expectation' copies q21's why. Fix rewords both. STILL OPEN, OUTSIDE THIS CHECK: q21 (run"
+   "notes": "Own answer before key: the report surprised the market (f17/f34: options price the expected reaction; f54: more than implied beats it). Key matches; 'surprise' is an inference from those quotes, not a quote, but the only defensible one of the four. Rulebook section 9 has nothing against 'judge the chart on its own merits'. Breaks: (1) the why's OIC sentence is copied word for word from q11's why, and the wrong note repeats it a third time; (2) 'A move twice that size means the news landed far outside that expectation' copies q21's why. Fix rewords both. STILL OPEN, OUTSIDE THIS CHECK: q21 (run",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",

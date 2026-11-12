@@ -1179,9 +1179,9 @@
    "q": "What makes a range flat?",
    "choices": [
     "Its closes drift under 1/4 the height",
-    "It makes a higher high week after week",
-    "It stands 6% to 20% tall, floor to top",
-    "Its volume dries up to almost nothing"
+    "It makes a higher high each week",
+    "It stands 6% to 20% tall",
+    "Its volume nearly dries up"
    ],
    "answer": "Its closes drift under 1/4 the height",
    "why": "Its closes drift less than a quarter of the range height. That is our card's test for flat: no clear slope. Height is a separate test, 6% to 20% from floor to top. Quiet volume does not make a range flat; flat is about price.",
@@ -1192,9 +1192,9 @@
    ],
    "house": true,
    "wrong": {
-    "Its volume dries up to almost nothing": "Flat describes the slope of price, not the volume.",
-    "It makes a higher high week after week": "That is a slope up, a trend. Flat means no clear slope.",
-    "It stands 6% to 20% tall, floor to top": "That is our height test. Flat is about slope: the closes drift less than a quarter of the height."
+    "It makes a higher high each week": "That is a slope up, a trend. Flat means no clear slope.",
+    "It stands 6% to 20% tall": "That is our height test. Flat is about slope: the closes drift less than a quarter of the height.",
+    "Its volume nearly dries up": "Flat describes the slope of price, not the volume."
    },
    "simple": "A range is flat when its closes drift less than a quarter of the range height.",
    "tier": "core",
@@ -1417,12 +1417,12 @@
    "criterion": "spr.location_averages",
    "q": "Besides the floor, what does a spring often undercut?",
    "choices": [
-    "The 20-day or 50-day",
+    "The 20-day or 50-day average",
     "The 200-day average",
     "A new multi-year low",
     "Nothing but the floor"
    ],
-   "answer": "The 20-day or 50-day",
+   "answer": "The 20-day or 50-day average",
    "why": "The 20-day or the 50-day. Our card says the spring often undercuts those averages too. The 200-day is a different matter: we take no longs below the 200-day unless it is a parabolic long. A spring is a small dip under a flat floor, not a collapse.",
    "lesson_line": "A spring can dip through the 20-day or 50-day. No longs under the 200-day.",
    "facts": [
@@ -2342,9 +2342,9 @@
    "q": "Buy it or pass?",
    "choices": [
     "Pass; no longs under the 200-day",
-    "Buy now; it is a textbook spring",
-    "Buy at half size with a tight stop",
-    "Pass; the 200-day must be rising"
+    "Buy now; a textbook spring",
+    "Buy at half size, tight stop",
+    "Pass; the 200-day must rise"
    ],
    "story": "A textbook spring under a flat 200-day, after a nine-month decline.",
    "answer": "Pass; no longs under the 200-day",
@@ -2356,9 +2356,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy now; it is a textbook spring": "A textbook shape under the 200-day still breaks the rule.",
-    "Buy at half size with a tight stop": "Half size does not fix a rule break.",
-    "Pass; the 200-day must be rising": "Our rule is about price, not slope. The stock is under the line, and that alone rules out a long."
+    "Buy now; a textbook spring": "A textbook shape under the 200-day still breaks the rule.",
+    "Buy at half size, tight stop": "Half size does not fix a rule break.",
+    "Pass; the 200-day must rise": "Our rule is about price, not slope. The stock is under the line, and that alone rules out a long."
    },
    "simple": "Pass, because we take no longs under the 200-day line, however clean the spring looks.",
    "deeper": {
@@ -2385,13 +2385,13 @@
    "criterion": "spr.range_height",
    "q": "What does our card say about its grade?",
    "choices": [
-    "Lower; the range is over 20%",
+    "Lower; the range is over 20% tall",
     "Full grade; the dip is shallow",
     "Higher; a tall range is strong",
     "Pass; too tall to be a spring"
    ],
    "story": "A spring comes from a flat range 22% tall. The dip is 0.4 ATR under the floor and closes back inside.",
-   "answer": "Lower; the range is over 20%",
+   "answer": "Lower; the range is over 20% tall",
    "why": "Lower. The card wants a range 6% to 20% tall, and over 20% grades lower. The dip of 0.4 ATR is fine, inside the 0.1 to about 1 ATR band. So it is still a spring, just a weaker one. The cue is a guide, since our rulebook keeps grading discretionary.",
    "lesson_line": "A range over 20% tall costs grade, even with a clean dip.",
    "facts": [
@@ -2709,13 +2709,13 @@
    "criterion": "spr.stop",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "Market 47.40; stop 46.92; third at 3R",
+    "Market at 47.40; stop 46.92; third at 3R",
     "Buy over 52.80; stop 47.20; all at top",
     "Market 47.40; stop 47.20; hold a month",
     "Buy over 52.80; stop 46.92; third at 3R"
    ],
    "story": "A flat shelf runs from 47.20 to 52.80 with four floor touches. A quiet one-day dip to 46.95, 0.2 ATR under the floor, closes back inside. The next open is 47.40.",
-   "answer": "Market 47.40; stop 46.92; third at 3R",
+   "answer": "Market at 47.40; stop 46.92; third at 3R",
    "why": "Market 47.40, stop 46.92, a third at 3R. Entries are market orders, here at the next open. The stop goes a few cents under the 46.95 spring low, not on the 47.20 floor. The first trim is the hard rule, a third at 3R.",
    "lesson_line": "Entry at the reclaim, stop under the spring low, a third at 3R.",
    "facts": [
@@ -3121,9 +3121,9 @@
    "q": "After the push to the top of the range, what is the back-up?",
    "choices": [
     "A light dip that holds the old top",
-    "A heavy drop back under the floor",
-    "The first dip under the range floor",
-    "A gap through the top of the range"
+    "A heavy drop under the floor",
+    "The first dip under the floor",
+    "A gap through the range top"
    ],
    "answer": "A light dip that holds the old top",
    "why": "A light dip that holds the old top. After the push to the top of the range, the first light-volume pullback that holds the old top is the back-up. Pruden describes the backup as a narrow reaction on lighter volume that tests the jump. It is not the spring, which dips under the floor.",
@@ -3134,9 +3134,9 @@
     "c33"
    ],
    "wrong": {
-    "A heavy drop back under the floor": "That is a breakdown, not a back-up. A back-up is light and holds the old top.",
-    "The first dip under the range floor": "That is the spring itself. The back-up comes later, after the push to the top.",
-    "A gap through the top of the range": "That is the push. The back-up is the pullback after it."
+    "A heavy drop under the floor": "That is a breakdown, not a back-up. A back-up is light and holds the old top.",
+    "The first dip under the floor": "That is the spring itself. The back-up comes later, after the push to the top.",
+    "A gap through the range top": "That is the push. The back-up is the pullback after it."
    },
    "house": true,
    "simple": "The back-up is the first light pullback after the push to the top that holds the old top.",
@@ -3201,8 +3201,8 @@
    "choices": [
     "No; the share price is under 10",
     "Yes; the dollar volume is big",
-    "Half size, if the range is tight",
-    "No; 60 million a day is too low"
+    "Half size, with a tight range",
+    "No; 60 million is too low"
    ],
    "answer": "No; the share price is under 10",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one trades about $60 million a day, which clears the dollar floor, but 9.40 is under the $10 price floor. Miss either floor and it is a pass.",
@@ -3213,8 +3213,8 @@
    ],
    "wrong": {
     "Yes; the dollar volume is big": "Both floors must pass. The price is under $10.",
-    "Half size, if the range is tight": "A tight range does not waive a floor, and half size does not either.",
-    "No; 60 million a day is too low": "60 million clears our 20 million floor. The price is the problem, not the volume."
+    "Half size, with a tight range": "A tight range does not waive a floor, and half size does not either.",
+    "No; 60 million is too low": "60 million clears our 20 million floor. The price is the problem, not the volume."
    },
    "house": true,
    "story": "A clean spring shows up in a 9.40 stock that trades about 60 million dollars a day.",
@@ -3627,7 +3627,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c08 verbatim; height distractor c07 correctly separated. No second defensible answer."
+   "notes": "c08 verbatim; height distractor c07 correctly separated. No second defensible answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3759,7 +3760,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c07 ('Over 20%: grade lower'), asked as what the card says; the 0.4 ATR dip is inside c09; h50 verified in the rulebook. 'Higher; a tall range is strong' is a real cause-and-effect misconception, not silly."
+   "notes": "Key from c07 ('Over 20%: grade lower'), asked as what the card says; the 0.4 ATR dip is inside c09; h50 verified in the rulebook. 'Higher; a tall range is strong' is a real cause-and-effect misconception, not silly.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -3801,7 +3803,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12 verbatim; 200-day excluded by B26 (h10) and the card ('It must stay above the 200-day'). No break found."
+   "notes": "c12 verbatim; 200-day excluded by B26 (h10) and the card ('It must stay above the 200-day'). No break found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",
@@ -3825,7 +3828,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B26 (h10) keys Pass; the slope distractor is failed by the rule's wording (price, not slope). Stem now fits the choices."
+   "notes": "B26 (h10) keys Pass; the slope distractor is failed by the rule's wording (price, not slope). Stem now fits the choices.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3855,7 +3859,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: market at the next open, stop 46.92 a few cents under the 46.95 low (stop 1.01%, range 11.9% tall). But the card's trigger buys the next open only after a quiet dip (a loud dip waits for the test), and the story gives no volume. Add 'quiet'. The why calls 3R 'the hard rule', which is B19 (h05), not cited; add h05."
+   "notes": "Key right: market at the next open, stop 46.92 a few cents under the 46.95 low (stop 1.01%, range 11.9% tall). But the card's trigger buys the next open only after a quiet dip (a loud dip waits for the test), and the story gives no volume. Add 'quiet'. The why calls 3R 'the hard rule', which is B19 (h05), not cited; add h05.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "pass",
@@ -3963,7 +3968,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is the card's c36 definition; Pruden's backup line w10 verified in the local s2.pdf text (two-column layout). Choices balanced (33 to 35). Minor: risk score 0 although c36 is a card proposal."
+   "notes": "Key is the card's c36 definition; Pruden's backup line w10 verified in the local s2.pdf text (two-column layout). Choices balanced (33 to 35). Minor: risk score 0 although c36 is a card proposal.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
    "status": "pass",
@@ -3975,7 +3981,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "pass",

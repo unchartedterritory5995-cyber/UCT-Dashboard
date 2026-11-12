@@ -1586,10 +1586,10 @@
    "criterion": "map.recent_catalyst",
    "q": "What usually comes before a pullback worth buying?",
    "choices": [
-    "A long, quiet sleep under the 200-day",
+    "A long sleep under the 200-day",
     "A breakout, earnings gap or up-cycle",
-    "A month of falling on heavy volume",
-    "No prior run; a rising line is enough"
+    "A month falling on heavy volume",
+    "No prior run; a rising line"
    ],
    "answer": "A breakout, earnings gap or up-cycle",
    "why": "A breakout, an earnings gap or a new up-cycle within the last 3 months (63 sessions) comes before the pullback. The dip needs a run to dip from. Bonde's list of common pullback methods includes buying the first pullback after a major breakout. A catalyst alone is not a buy, because the rest of the card must pass too.",
@@ -1599,9 +1599,9 @@
     "b1"
    ],
    "wrong": {
-    "A month of falling on heavy volume": "Heavy selling is distribution, not a leader's rest.",
-    "A long, quiet sleep under the 200-day": "A stock asleep under the 200-day is not a leader in an uptrend.",
-    "No prior run; a rising line is enough": "A dip needs a run to dip from. The card wants a breakout, gap or new up-cycle first. Bonde: buy the first pullback after a major breakout."
+    "A long sleep under the 200-day": "A stock asleep under the 200-day is not a leader in an uptrend.",
+    "A month falling on heavy volume": "Heavy selling is distribution, not a leader's rest.",
+    "No prior run; a rising line": "A dip needs a run to dip from. The card wants a breakout, gap or new up-cycle first. Bonde: buy the first pullback after a major breakout."
    },
    "house": true,
    "simple": "A pullback needs a recent breakout, earnings gap or new up-cycle to pull back from, within the last 3 months.",
@@ -1890,10 +1890,10 @@
    "criterion": "map.stop",
    "q": "Which of these is the stop mistake on this setup?",
    "choices": [
-    "A few cents under the low, not on it",
-    "A stop order placed with the broker",
+    "A few cents under the low",
+    "A stop order with the broker",
     "Line minus a cushion, at full size",
-    "The stop only moves up, never down"
+    "The stop only moves up"
    ],
    "answer": "Line minus a cushion, at full size",
    "why": "The line minus a cushion, at full size. That puts the stop far wider than 3% while the size stays the same, so the real risk is bigger than planned. The plan puts the stop a few cents under the low. It is a real order with the broker, and it only moves up. The size comes down when the stop runs wider.",
@@ -1907,9 +1907,9 @@
     "hA4"
    ],
    "wrong": {
-    "A stop order placed with the broker": "A real stop order with the broker is required.",
-    "A few cents under the low, not on it": "That is the plan. The stop sits a few cents under the low, not exactly on it.",
-    "The stop only moves up, never down": "That is the plan. The stop is the exit, and it only moves up."
+    "A few cents under the low": "That is the plan. The stop sits a few cents under the low, not exactly on it.",
+    "A stop order with the broker": "A real stop order with the broker is required.",
+    "The stop only moves up": "That is the plan. The stop is the exit, and it only moves up."
    },
    "house": true,
    "simple": "The mistake is a stop set under the line minus a cushion while keeping full size. The other three are the plan.",
@@ -2425,8 +2425,8 @@
    "q": "Which one is orderly?",
    "choices": [
     "The first; no one day is a spike",
-    "The second; a fast drop is clean",
-    "Both; each one reaches the 50-day",
+    "The second; a fast drop is OK",
+    "Both; each reaches the 50-day",
     "Neither; six days is too long"
    ],
    "answer": "The first; no one day is a spike",
@@ -2438,8 +2438,8 @@
     "c11"
    ],
    "wrong": {
-    "The second; a fast drop is clean": "Orderly means no single down day larger than 2 ATR. The 2.5 ATR bars break it.",
-    "Both; each one reaches the 50-day": "A 2.5 ATR red bar breaks the 2 ATR limit, so the second is not orderly.",
+    "The second; a fast drop is OK": "Orderly means no single down day larger than 2 ATR. The 2.5 ATR bars break it.",
+    "Both; each reaches the 50-day": "A 2.5 ATR red bar breaks the 2 ATR limit, so the second is not orderly.",
     "Neither; six days is too long": "Six sessions fits the 2 to 8 session length. A drift with no outsized day breaks no rule here."
    },
    "house": true,
@@ -3574,9 +3574,9 @@
    "q": "How many shares do you buy?",
    "choices": [
     "Buy 4,000 shares with the same stop",
-    "Buy 6,000 shares with the same stop",
-    "Buy 5,000 shares with the same stop",
-    "Skip it; the cap makes it too small"
+    "Buy 6,000 with the same stop",
+    "Buy 5,000 with the same stop",
+    "Skip it; the cap is too small"
    ],
    "answer": "Buy 4,000 shares with the same stop",
    "why": "Buy 4,000. One percent of 400,000 shares is 4,000, and we never own more than 1% of a stock's average daily volume. The stop alone would allow 6,000. Both limits must hold, so 4,000 is the most. The cap trims the size. It does not cancel the trade.",
@@ -3587,9 +3587,9 @@
     "hA5"
    ],
    "wrong": {
-    "Buy 6,000 shares with the same stop": "The stop gives 6,000, but that is over 1% of the average daily volume. The cap wins.",
-    "Buy 5,000 shares with the same stop": "5,000 is still over the cap. The limit is not something to average.",
-    "Skip it; the cap makes it too small": "The cap sets the most you can own. It trims the size and does not cancel the trade."
+    "Buy 6,000 with the same stop": "The stop gives 6,000, but that is over 1% of the average daily volume. The cap wins.",
+    "Buy 5,000 with the same stop": "5,000 is still over the cap. The limit is not something to average.",
+    "Skip it; the cap is too small": "The cap sets the most you can own. It trims the size and does not cancel the trade."
    },
    "house": true,
    "story": "A thin leader averages 400,000 shares a day. Your stop and risk size work out to 6,000 shares.",
@@ -3687,9 +3687,9 @@
    "q": "Which of these is a named variant of the entry on this card?",
    "choices": [
     "A reversal candle at the line",
-    "A gap through the 52-week high",
+    "A gap over the 52-week high",
     "A close under the 200-day",
-    "A break of the hold day's low"
+    "A break of the hold-day low"
    ],
    "answer": "A reversal candle at the line",
    "why": "A reversal candle at the line. Our card names it a variant of the entry. The default entry is still a market order the moment the trigger trades.",
@@ -3701,9 +3701,9 @@
     "c16"
    ],
    "wrong": {
-    "A gap through the 52-week high": "The card does not name a gap through the 52-week high as an entry variant.",
+    "A gap over the 52-week high": "The card does not name a gap through the 52-week high as an entry variant.",
     "A close under the 200-day": "No longs below the 200-day, so a close under it is a reason to stay out, not an entry.",
-    "A break of the hold day's low": "The hold day's low breaking is the line giving way, not an entry variant."
+    "A break of the hold-day low": "The hold day's low breaking is the line giving way, not an entry variant."
    },
    "house": true,
    "simple": "A reversal candle at the line is one of the entry variants named on our card.",
@@ -4258,7 +4258,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c04 and b1 verbatim; the lone absolute is gone. Key is the card's own list; wrong notes sound."
+   "notes": "c04 and b1 verbatim; the lone absolute is gone. Key is the card's own list; wrong notes sound.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -4312,7 +4313,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the cushion choice is a mistake (c34). The other three are A3/F62, D41 and A4. Rebuttals are grounded. No tell."
+   "notes": "Only the cushion choice is a mistake (c34). The other three are A3/F62, D41 and A4. Rebuttals are grounded. No tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q30": {
    "status": "pass",
@@ -4396,7 +4398,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found."
+   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "cut",
@@ -4588,7 +4591,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: 1% of 400,000 = 4,000. D42 and A5 (smaller of the risk-based size and the cap) support it. Choices are the same length; 6,000 and 5,000 are real mistakes. Same cap as q74 but with the extra step of comparing two limits."
+   "notes": "calc: 1% of 400,000 = 4,000. D42 and A5 (smaller of the risk-based size and the cap) support it. Choices are the same length; 6,000 and 5,000 are real mistakes. Same cap as q74 but with the extra step of comparing two limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q76": {
    "status": "pass",
@@ -4606,7 +4610,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Out of chunk: q79's reveal lists the reversal candle and names q78's key; trim q79's why. D-003 pending."
+   "notes": "Pass. Out of chunk: q79's reveal lists the reversal candle and names q78's key; trim q79's why. D-003 pending.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q79": {
    "status": "cut",

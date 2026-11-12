@@ -941,8 +941,8 @@
    "q": "Your review shows you overtrade. Which note is a plan you can act on next week?",
    "choices": [
     "Write a daily trade cap and keep it",
-    "Be more careful with my trading plan",
-    "Trade with more discipline next week",
+    "Be more careful with my plan",
+    "Trade with more discipline",
     "Make fewer mistakes next week"
    ],
    "answer": "Write a daily trade cap and keep it",
@@ -955,9 +955,9 @@
     "f37"
    ],
    "wrong": {
-    "Be more careful with my trading plan": "Careful how. Steenbarger's test is what, specifically, you will do. This note doesn't say.",
-    "Make fewer mistakes next week": "Which ones, and how. Vague goals get the least follow-through.",
-    "Trade with more discipline next week": "That's Steenbarger's own example of a vague goal against overtrading. It names a wish, not an action."
+    "Be more careful with my plan": "Careful how. Steenbarger's test is what, specifically, you will do. This note doesn't say.",
+    "Trade with more discipline": "That's Steenbarger's own example of a vague goal against overtrading. It names a wish, not an action.",
+    "Make fewer mistakes next week": "Which ones, and how. Vague goals get the least follow-through."
    },
    "simple": "Write a daily trade cap and keep it, because it is one action you can check next week.",
    "deeper": {
@@ -1220,8 +1220,8 @@
    "choices": [
     "Too few trades to judge it yet",
     "It's broken, so drop it now",
-    "Double the size to win it back",
-    "Tweak its rules after each loss"
+    "Double up to win it back",
+    "Tweak its rules after losses"
    ],
    "answer": "Too few trades to judge it yet",
    "why": "Too few trades to judge it yet. Four results say very little. Tharp's rough bar is more than thirty results, and a clear picture takes somewhere between 100 and 200 trades. Investopedia adds that too small a sample gives no trustworthy conclusion. Losing streaks happen, even to good traders. Keep taking it by your rules and keep logging it while the sample grows.",
@@ -1233,9 +1233,9 @@
     "f41"
    ],
    "wrong": {
-    "Double the size to win it back": "That raises your risk exactly when you know least. Four results give no reason to trust it with more.",
     "It's broken, so drop it now": "That's a verdict from four results. Too small a sample gives no trustworthy conclusion.",
-    "Tweak its rules after each loss": "Then you never trade one setup long enough to judge it. Each change starts the sample over."
+    "Double up to win it back": "That raises your risk exactly when you know least. Four results give no reason to trust it with more.",
+    "Tweak its rules after losses": "Then you never trade one setup long enough to judge it. Each change starts the sample over."
    },
    "simple": "Too few trades to judge it yet, because four results say very little about a setup.",
    "tier": "extended",
@@ -1714,7 +1714,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rederived from f04 and f17; 'Trade with more discipline' is f16's own vague example. No invented number in the key now; why says plainly a trade cap is not a UCT rule, and nothing in section 9 rules a trade cap out. Lengths 29-36. f37 is cited but unused (harmless)."
+   "notes": "Key rederived from f04 and f17; 'Trade with more discipline' is f16's own vague example. No invented number in the key now; why says plainly a trade cap is not a UCT rule, and nothing in section 9 rules a trade cap out. Lengths 29-36. f37 is cited but unused (harmless).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -1756,7 +1757,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rederived from f53 (Tharp) and f57 (Investopedia): two publishers. Each wrong note fails for its own reason. Consistent with B17 (no losing-streak size cut). It intentionally contrasts with q21 (4 trades vs 45); the two do not answer each other."
+   "notes": "Key rederived from f53 (Tharp) and f57 (Investopedia): two publishers. Each wrong note fails for its own reason. Consistent with B17 (no losing-streak size cut). It intentionally contrasts with q21 (4 trades vs 45); the two do not answer each other.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "cut",

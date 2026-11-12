@@ -1319,7 +1319,7 @@
    "q": "Where does the stop go on a Wedge Drop short, by our default?",
    "choices": [
     "A few cents over the trigger day's high",
-    "A few cents under the trigger day's low",
+    "A few cents under the day's low",
     "A few cents over the 200-day line",
     "Exactly on the trigger day's high"
    ],
@@ -1337,7 +1337,7 @@
    ],
    "house": true,
    "wrong": {
-    "A few cents under the trigger day's low": "That is the long's stop, mirrored the wrong way. A short's risk is above the entry.",
+    "A few cents under the day's low": "That is the long's stop, mirrored the wrong way. A short's risk is above the entry.",
     "A few cents over the 200-day line": "The 200-day is the gate for taking the short, not the place for its stop. The stop goes over the trigger day's high.",
     "Exactly on the trigger day's high": "Our rule is a few cents past the day's extreme, not exactly on it."
    },
@@ -1739,7 +1739,7 @@
    "choices": [
     "Pass; over 10% under the 10-day",
     "Pass; the stall was too short",
-    "Short; the gap confirms the top",
+    "Short; gap confirms the top",
     "Short at half size, same stop"
    ],
    "answer": "Pass; over 10% under the 10-day",
@@ -1752,8 +1752,8 @@
    ],
    "house": true,
    "wrong": {
-    "Short; the gap confirms the top": "A gap down can look like confirmation. The rule checks the stretch at the open, and it says skip.",
     "Pass; the stall was too short": "The story says the stall checked out. The reason to pass is the stretch under the 10-day.",
+    "Short; gap confirms the top": "A gap down can look like confirmation. The rule checks the stretch at the open, and it says skip.",
     "Short at half size, same stop": "Size does not fix a stretched entry. The rule is skip."
    },
    "simple": "Pass. The open is more than 10% under the 10-day average, so the drop is already stretched and we skip it.",
@@ -2418,9 +2418,9 @@
    "q": "How does our card treat that stall?",
    "choices": [
     "Take it, graded down for the stall",
-    "Skip it; a loose stall is no setup",
-    "Skip it; the 2.4% stop is too wide",
-    "Take it at full grade; tight stop"
+    "Skip it; loose stall is no setup",
+    "Skip it; a 2.4% stop is too wide",
+    "Take it full grade; tight stop"
    ],
    "answer": "Take it, graded down for the stall",
    "why": "Take it, graded down. Wide, loose action before the drop is graded down, not excluded. The stall here is 9.6% wide over 8 days, and a tight stop does not repair that. DXCM 2022-04-18 was this setup: an 8-day stall 9.6% wide, stopped at 0R by a 124.00 high. The stock then fell hard.",
@@ -2433,9 +2433,9 @@
    ],
    "house": true,
    "wrong": {
-    "Skip it; a loose stall is no setup": "The card grades wide, loose action down, not out. It is still a trade, at a lower grade.",
-    "Skip it; the 2.4% stop is too wide": "The stop is inside the 3% line. The wide stall is what grades it down, not the stop.",
-    "Take it at full grade; tight stop": "A tight stop does not fix a loose stall. The 9.6% wide stall is what grades it down."
+    "Skip it; loose stall is no setup": "The card grades wide, loose action down, not out. It is still a trade, at a lower grade.",
+    "Skip it; a 2.4% stop is too wide": "The stop is inside the 3% line. The wide stall is what grades it down, not the stop.",
+    "Take it full grade; tight stop": "A tight stop does not fix a loose stall. The 9.6% wide stall is what grades it down."
    },
    "simple": "It is taken, but graded down, because a wide, loose stall lowers the grade rather than ruling the trade out.",
    "deeper": {
@@ -2502,9 +2502,9 @@
    "q": "Which gets the higher grade?",
    "choices": [
     "Drop B; sellers were in control",
-    "Drop A; a quiet drop is better",
-    "Equal; only the averages matter",
-    "Drop A; more room left to fall"
+    "Drop A; quiet is better",
+    "Equal; only averages matter",
+    "Drop A; more room to fall"
    ],
    "answer": "Drop B; sellers were in control",
    "why": "Drop B, the gap down closing at its low. It is the stronger drop: Kell calls the drop an influx of sellers, and TraderLion adds increased selling pressure. The card wants a wide red bar or a gap down closing near its low, in the lower 40%. A mid-range close is the weaker day. Grading stays a judgment call.",
@@ -2517,9 +2517,9 @@
    ],
    "house": true,
    "wrong": {
-    "Equal; only the averages matter": "The averages are the trigger. The close in the day's range is part of the grade.",
-    "Drop A; a quiet drop is better": "Quiet is for the stall. The drop wants sellers.",
-    "Drop A; more room left to fall": "The card wants the close in the lower 40% of the range. A mid-range close is the weaker day."
+    "Drop A; quiet is better": "Quiet is for the stall. The drop wants sellers.",
+    "Equal; only averages matter": "The averages are the trigger. The close in the day's range is part of the grade.",
+    "Drop A; more room to fall": "The card wants the close in the lower 40% of the range. A mid-range close is the weaker day."
    },
    "simple": "Drop B, the gap down that closes at its low. It shows sellers in control, and our card wants the close in the lower 40%.",
    "tier": "extended",
@@ -2698,8 +2698,8 @@
    "q": "The stock is hard to borrow with a high fee. The chart is an A+ Wedge Drop. Your call?",
    "choices": [
     "Skip it; the borrow comes first",
-    "Skip it; the chart is stretched",
-    "Short it at half the usual size",
+    "Skip it; chart is stretched",
+    "Short it at half size",
     "Short it; the A+ chart wins"
    ],
    "answer": "Skip it; the borrow comes first",
@@ -2711,8 +2711,8 @@
    ],
    "house": true,
    "wrong": {
-    "Skip it; the chart is stretched": "The chart is an A+ Wedge Drop, so it is not the problem. The reason to skip is the borrow.",
-    "Short it at half the usual size": "Half of a hard borrow is still a hard borrow. The rule is skip.",
+    "Skip it; chart is stretched": "The chart is an A+ Wedge Drop, so it is not the problem. The reason to skip is the borrow.",
+    "Short it at half size": "Half of a hard borrow is still a hard borrow. The rule is skip.",
     "Short it; the A+ chart wins": "The borrow comes before the chart. The rule skips a hard-to-borrow short, however good it looks."
    },
    "simple": "Skip it. We pass on any short that is hard to borrow or carries a high fee, even with an A+ chart.",
@@ -2798,8 +2798,8 @@
    "q": "Does that pass our stall test?",
    "choices": [
     "No; one close was past 1 ATR",
-    "Yes; five days is long enough",
-    "Yes; 1.42 ATR is close enough",
+    "Yes; five days is enough",
+    "Yes; 1.42 ATR is fine",
     "No; five days is too short"
    ],
    "answer": "No; one close was past 1 ATR",
@@ -2812,8 +2812,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; five days is long enough": "Length is one test. The distance is another, and one close failed it.",
-    "Yes; 1.42 ATR is close enough": "The card says no close is more than 1 ATR from the 10-day EMA. This one is past it.",
+    "Yes; five days is enough": "Length is one test. The distance is another, and one close failed it.",
+    "Yes; 1.42 ATR is fine": "The card says no close is more than 1 ATR from the 10-day EMA. This one is past it.",
     "No; five days is too short": "Five days is inside the 3 to 10 sessions the card allows."
    },
    "simple": "No. One close past 1 ATR from the 10-day EMA breaks the stall test, even in a five-day stall.",
@@ -2926,9 +2926,9 @@
    "q": "Which is it?",
    "choices": [
     "A Wedge Pop, the mirror setup",
-    "A Wedge Drop, the sell signal",
-    "A downside crossback, a retest",
-    "An upside crossback, a retest"
+    "A Wedge Drop, a sell signal",
+    "A downside crossback, a test",
+    "An upside crossback, a test"
    ],
    "answer": "A Wedge Pop, the mirror setup",
    "why": "A Wedge Pop. Look at where price sat before the day and which way it closed. A Wedge Pop coils under the 10 and 20-day EMAs and closes up through both. A Wedge Drop stalls on or just above them and closes down through both. Kell adds that the pop is not simply a cross of the averages: price bars and volume matter too.",
@@ -2939,9 +2939,9 @@
    ],
    "house": true,
    "wrong": {
-    "A Wedge Drop, the sell signal": "A drop closes down through the averages from on or just above them. This closed up through them from below.",
-    "A downside crossback, a retest": "A downside crossback is a rally that stalls under falling averages and is met with resistance. This closed up through them.",
-    "An upside crossback, a retest": "A crossback is a retest of the averages. This is the first close up through both."
+    "A Wedge Drop, a sell signal": "A drop closes down through the averages from on or just above them. This closed up through them from below.",
+    "A downside crossback, a test": "A downside crossback is a rally that stalls under falling averages and is met with resistance. This closed up through them.",
+    "An upside crossback, a test": "A crossback is a retest of the averages. This is the first close up through both."
    },
    "simple": "Price coiled under both averages and then closed up through them. That is a Wedge Pop and not a drop.",
    "deeper": {
@@ -3127,9 +3127,9 @@
    "q": "Take it?",
    "choices": [
     "Yes; the stop fits the 3% line",
-    "No; never short a gap-down day",
-    "Yes, but pull the stop in to 2%",
-    "No; 3.0% is not under the line"
+    "No; never short a gap down",
+    "Yes, but pull the stop to 2%",
+    "No; 3.0% is not under 3%"
    ],
    "answer": "Yes; the stop fits the 3% line",
    "why": "Yes. The stop usually sits within about 3% of the fill, and this one sits right at it. Skip or size down only when the stop is more than about 3% away. Never pull it in. TSM 2022-06-09 was this trade: a gap down through the stall low. It reached 6.4R at best, with 3R on day 9.",
@@ -3142,9 +3142,9 @@
    ],
    "house": true,
    "wrong": {
-    "No; never short a gap-down day": "A gap down closing near its low is a fine trigger day. The question is only the stop's distance.",
-    "Yes, but pull the stop in to 2%": "Never pull the stop in to fit. It sits over the high or the trade is skipped.",
-    "No; 3.0% is not under the line": "The line is about 3%, and skip applies only when the stop is more than about 3% away. This one is at the line, not past it."
+    "No; never short a gap down": "A gap down closing near its low is a fine trigger day. The question is only the stop's distance.",
+    "Yes, but pull the stop to 2%": "Never pull the stop in to fit. It sits over the high or the trade is skipped.",
+    "No; 3.0% is not under 3%": "The line is about 3%, and skip applies only when the stop is more than about 3% away. This one is at the line, not past it."
    },
    "simple": "Take it. The stop is about 3 percent away, which is right at the line and not past it.",
    "deeper": {
@@ -3249,9 +3249,9 @@
    "q": "By our card, which RS rating fits a Wedge Drop short?",
    "choices": [
     "20 or less, in a weak group",
-    "80 or more, in a strong group",
-    "Any rating; the chart decides",
-    "50 or less, in a weak group"
+    "80 or more, strong group",
+    "Any rating; chart decides",
+    "50 or less, weak group"
    ],
    "answer": "20 or less, in a weak group",
    "why": "20 or less, in a weak group. Shorts are the mirror of buying leaders: the weakest stocks, an RS rating of 20 or less, in the weakest groups. The card asks the same: RS rating 20 or less, in a weak group. In our own words, we are extremely picky with shorts.",
@@ -3264,9 +3264,9 @@
    ],
    "house": true,
    "wrong": {
-    "80 or more, in a strong group": "That is the leader's side. Shorts are the mirror: the weakest stocks in the weakest groups.",
-    "Any rating; the chart decides": "The chart is one gate. Weakness is another.",
-    "50 or less, in a weak group": "The line is 20 or less, not 50."
+    "80 or more, strong group": "That is the leader's side. Shorts are the mirror: the weakest stocks in the weakest groups.",
+    "Any rating; chart decides": "The chart is one gate. Weakness is another.",
+    "50 or less, weak group": "The line is 20 or less, not 50."
    },
    "simple": "We short the weakest stocks, an RS rating of 20 or less, in the weakest groups. It is the mirror of buying leaders.",
    "deeper": {
@@ -3842,7 +3842,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Mirror of F62/A3 via D47 and the card's c47; the exact-on-the-high choice is ruled out by h22. No tell, ties on length. 3% line is c16/h04."
+   "notes": "Mirror of F62/A3 via D47 and the card's c47; the exact-on-the-high choice is ruled out by h22. No tell, ties on length. 3% line is c16/h04.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -3914,7 +3915,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "12% is over the 10% line (c50, mirror of h12 via D47). Two Pass, two Short; the lengths are close. Stall is stated as checked, so no second answer."
+   "notes": "12% is over the 10% line (c50, mirror of h12 via D47). Two Pass, two Short; the lengths are close. Stall is stated as checked, so no second answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -4022,7 +4024,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12 supports 'graded down, not excluded'; stem avoids a fixed grade. Residual owner call on grade wording (E50) already flagged; the story does not state the closes stayed within 1 ATR, accepted."
+   "notes": "c12 supports 'graded down, not excluded'; stem avoids a fixed grade. Residual owner call on grade wording (E50) already flagged; the story does not state the closes stayed within 1 ATR, accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q37": {
    "status": "pass",
@@ -4034,7 +4037,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on the card's close-position row (c13, c42) and Kell's influx of sellers; why says grading is a judgment call (E50). Mild: Drop B is the lone B choice, and q25 already treats a mid-range close as no trigger. Acceptable."
+   "notes": "Key rests on the card's close-position row (c13, c42) and Kell's influx of sellers; why says grading is a judgment call (E50). Mild: Drop B is the lone B choice, and q25 already treats a mid-range close as no trigger. Acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -4064,7 +4068,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Skip per h17 and c55. Two Skip, two Short, lengths 27 to 31."
+   "notes": "Skip per h17 and c55. Two Skip, two Short, lengths 27 to 31.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "cut",
@@ -4082,7 +4087,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c09/d30 give 1 ATR and 1.42; 5 days inside c08; two Yes, two No. Rung 7 application of q15, not a duplicate."
+   "notes": "c09/d30 give 1 ATR and 1.42; 5 days inside c08; two Yes, two No. Rung 7 application of q15, not a duplicate.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4100,7 +4106,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper trap is supported by c28 and p01; split into short sentences."
+   "notes": "Deeper trap is supported by c28 and p01; split into short sentences.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -4130,7 +4137,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(93.53-90.85)/90.85 = 2.95%, about 3%; h04/c16 'more than about 3%' skips only past the line; d13 and d20 show trades at the limit were taken."
+   "notes": "(93.53-90.85)/90.85 = 2.95%, about 3%; h04/c16 'more than about 3%' skips only past the line; d13 and d20 show trades at the limit were taken.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "pass",
@@ -4148,7 +4156,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20 or less per h13 and c46. Strong-RS B- versus RS 20 gate stays an owner flag; key uses the settled gate only."
+   "notes": "20 or less per h13 and c46. Strong-RS B- versus RS 20 gate stays an owner flag; key uses the settled gate only.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q58": {
    "status": "pass",

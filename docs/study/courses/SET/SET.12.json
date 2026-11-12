@@ -1788,10 +1788,10 @@
    "criterion": "vcp.higher_lows",
    "q": "By our rule, what do higher lows mean in a VCP?",
    "choices": [
-    "The base drifts under its first low",
-    "Each high is below the last high",
+    "It drifts under the first low",
+    "Each high is below the last",
     "The last low is above the base low",
-    "Each pullback ends at the same low"
+    "Each pullback ends at one low"
    ],
    "answer": "The last low is above the base low",
    "why": "The last low is above the base low. Our rule: the final contraction's low is above the lowest low of the base. Kullamagi, who never uses the word VCP, describes a similar orderly look in his breakout setup: higher lows and a tightening range.",
@@ -1801,9 +1801,9 @@
     "kq1"
    ],
    "wrong": {
-    "Each high is below the last high": "That describes lower highs, not higher lows.",
-    "The base drifts under its first low": "A low under the first low is the opposite of a higher low.",
-    "Each pullback ends at the same low": "Equal lows are a flat floor. The final low must sit above the base's lowest low."
+    "Each high is below the last": "That describes lower highs, not higher lows.",
+    "It drifts under the first low": "A low under the first low is the opposite of a higher low.",
+    "Each pullback ends at one low": "Equal lows are a flat floor. The final low must sit above the base's lowest low."
    },
    "house": true,
    "simple": "Higher lows mean the final pullback bottoms above the base's lowest low, a sign of an orderly, tightening base.",
@@ -2469,9 +2469,9 @@
    "q": "What does it do to the grade?",
    "choices": [
     "It raises it; a grade cue",
-    "It lowers it; the low broke",
-    "It voids the setup outright",
-    "No change; the dip is noise"
+    "It lowers it; low broke",
+    "It voids the setup",
+    "No change; it is noise"
    ],
    "answer": "It raises it; a grade cue",
    "why": "It raises the grade. Our rule lists a last contraction that undercuts a nearby low and recovers, then makes a higher low, as a grade cue. No shakeout, or a lower low, is B-. It does not void the setup, and it is not noise.",
@@ -2481,9 +2481,9 @@
     "c04"
    ],
    "wrong": {
-    "It voids the setup outright": "An undercut that recovers is a cue, not a failure.",
-    "It lowers it; the low broke": "A lower low would lower it. This one recovered, then made a higher low.",
-    "No change; the dip is noise": "Our rule treats an undercut that recovers, then a higher low, as a grade cue. It is not noise."
+    "It voids the setup": "An undercut that recovers is a cue, not a failure.",
+    "It lowers it; low broke": "A lower low would lower it. This one recovered, then made a higher low.",
+    "No change; it is noise": "Our rule treats an undercut that recovers, then a higher low, as a grade cue. It is not noise."
    },
    "house": true,
    "story": "The last contraction dips under an earlier swing's low, closes back above it the same day, and then forms a higher low.",
@@ -3146,10 +3146,10 @@
    "criterion": "vcp.pivot_location",
    "q": "Same shape. Which setup grades higher on pivot location?",
    "choices": [
-    "Same grade; location is not a cue",
+    "Same grade; no location cue",
     "Base A; no overhead supply above",
-    "Base B; more room to run above it",
-    "Base A; it is too extended to buy"
+    "Base B; more room to run",
+    "Base A; too extended to buy"
    ],
    "answer": "Base A; no overhead supply above",
    "why": "Base A. A pivot at or near a 52-week or all-time high, with no overhead supply, is the A+ picture. A pivot well below the left-side high is B-.",
@@ -3162,9 +3162,9 @@
     "d07"
    ],
    "wrong": {
-    "Same grade; location is not a cue": "Location is one of our grade cues.",
-    "Base B; more room to run above it": "Overhead supply sits above Base B's pivot. That is not room to run.",
-    "Base A; it is too extended to buy": "A pivot at an all-time high has no overhead supply. Stretch is a separate check against the 10-day average."
+    "Same grade; no location cue": "Location is one of our grade cues.",
+    "Base B; more room to run": "Overhead supply sits above Base B's pivot. That is not room to run.",
+    "Base A; too extended to buy": "A pivot at an all-time high has no overhead supply. Stretch is a separate check against the 10-day average."
    },
    "house": true,
    "story": "Two VCPs have the same shape. Base A's pivot sits at an all-time high. Base B's pivot sits well below its left-side high.",
@@ -3457,9 +3457,9 @@
    "q": "What did the plan miss?",
    "choices": [
     "A live stop order with the broker",
-    "A wider stop to ride the shakeout",
-    "A smaller buy, spread over two days",
-    "A phone alert set at the stop price"
+    "A wider stop for the shakeout",
+    "A smaller buy over two days",
+    "A phone alert at the stop"
    ],
    "answer": "A live stop order with the broker",
    "why": "A live stop order with the broker. Every position needs a real stop order, not a stop kept in your head or notes. Here the stop was 16.59, and the stock traded at 16.20 while you were in a meeting, with nothing in place to sell. A wider stop is not the fix: the stop only moves up, never down or wider.",
@@ -3470,9 +3470,9 @@
     "h03b"
    ],
    "wrong": {
-    "A wider stop to ride the shakeout": "A stop never goes wider. The problem was that no order existed.",
-    "A smaller buy, spread over two days": "We do not build a VCP in steps; it is one full buy. The missing piece was the order.",
-    "A phone alert set at the stop price": "An alert tells you; it does not sell. The rule is a real stop order with the broker."
+    "A wider stop for the shakeout": "A stop never goes wider. The problem was that no order existed.",
+    "A smaller buy over two days": "We do not build a VCP in steps; it is one full buy. The missing piece was the order.",
+    "A phone alert at the stop": "An alert tells you; it does not sell. The rule is a real stop order with the broker."
    },
    "house": true,
    "story": "You buy a VCP breakout at 17.38 and note the stop, 16.59, in your notebook. At 11 am the stock trades 16.20 while you are in a meeting.",
@@ -3674,8 +3674,8 @@
    "choices": [
     "Sell a big part into the strength",
     "Add, since the leg is strong",
-    "Hold it all until the trail breaks",
-    "Sell only a small part, then hold"
+    "Hold it all until trail breaks",
+    "Sell a small part, then hold"
    ],
    "answer": "Sell a big part into the strength",
    "why": "Sell a big part into the strength. On a climax run in your own long, we sell a big part into it, and how much is a judgment call. Adding is the opposite of our plan, which is one full buy with no adding. Holding everything for the trail ignores the climax rule.",
@@ -3686,8 +3686,8 @@
    ],
    "wrong": {
     "Add, since the leg is strong": "No adds. A climax is where we sell, not where we buy more.",
-    "Hold it all until the trail breaks": "The rule is to sell a big part into a climax, not to wait for the trail.",
-    "Sell only a small part, then hold": "The rule is a big part into a climax. A token trim leaves most of the position exposed."
+    "Hold it all until trail breaks": "The rule is to sell a big part into a climax, not to wait for the trail.",
+    "Sell a small part, then hold": "The rule is a big part into a climax. A token trim leaves most of the position exposed."
    },
    "house": true,
    "story": "Your VCP winner is in a climax run: three gaps up in five days on rising volume, and a huge range today.",
@@ -3958,7 +3958,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "pass",
@@ -4072,7 +4073,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "cut",
@@ -4180,7 +4182,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q68": {
    "status": "cut",
@@ -4234,7 +4237,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q77": {
    "status": "pass",
@@ -4270,7 +4274,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q83": {
    "status": "pass",

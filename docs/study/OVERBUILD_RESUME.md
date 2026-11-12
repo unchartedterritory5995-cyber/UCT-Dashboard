@@ -2,6 +2,8 @@
 
 ## >>> COMPLETE 2026-11-12: every lesson upgraded and verified. Nothing running. <<<
 
+**LENGTH FIX RUNNING 2026-11-12 (wf_5059355b-3bc):** the right answer was the longest choice only 2% of the time (a reverse tell). 741 questions picked by `_study-resume/overbuild/make_lenfix_args.py` into 13 chunks in scratch `agents/lenfix/`; writer + cold checker each. When done: `python _study-resume/overbuild/merge_lenfix.py <scratch>/agents/lenfix` (dry) then `--write`; then gen_courses, strict audit, tests, hygiene, commit; target: right answer ~25% in each length rank. If the window died: resume with Workflow scriptPath + resumeFromRunId. AFTER: owner rules on the top 9 decisions (D-003, D-002, D-005, D-008, D-006, D-007, D-013, D-021, D-009, about 300 questions), then re-key, then his Part 4 sample review.
+
 **Polish pass DONE 2026-11-12:** 0 style flags, 5,232 live questions, 9 quote fixes, lost criteria restored; 39 criteria left uncovered on purpose (need owner rulings). Nothing left to run.
 
 All 9 waves plus the pilot are integrated, verified and committed locally (last content commit 568b618f70). 5,215 of 5,215 live

@@ -1303,13 +1303,13 @@
    "format": "mcq",
    "q": "XYZ splits 2-for-1. Before the split you held one standard XYZ 60 call. As a general rule, what do you hold after?",
    "choices": [
-    "Two 30 calls, 100 shares each",
+    "Two 30 calls, each on 100 shares",
     "One 30 call on 100 shares",
     "One 60 call on 100 shares",
     "Two 60 calls, 100 shares each"
    ],
-   "answer": "Two 30 calls, 100 shares each",
-   "why": "Two 30 calls, 100 shares each. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms.",
+   "answer": "Two 30 calls, each on 100 shares",
+   "why": "Two 30 calls, each on 100 shares. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms.",
    "lesson_line": "A whole-share split multiplies your contracts and cuts the strike in proportion. Check the new terms after any split.",
    "facts": [
     "f62",
@@ -1590,7 +1590,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: two 30 calls on 100 shares each (f62 general rule, f63 and f69 the ODD's own 2-for-1 example at 60, f48 standard). Stem 114 chars, now says standard. Key ties for longest with 'Two 60 calls' (29), so not a tell; each distractor changes one term or none, which is the deeper's trap. 'As a general rule' matches f62's hedge; f28 covers the check-the-terms line."
+   "notes": "Own answer: two 30 calls on 100 shares each (f62 general rule, f63 and f69 the ODD's own 2-for-1 example at 60, f48 standard). Stem 114 chars, now says standard. Key ties for longest with 'Two 60 calls' (29), so not a tell; each distractor changes one term or none, which is the deeper's trap. 'As a general rule' matches f62's hedge; f28 covers the check-the-terms line.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q24": {
    "status": "pass",

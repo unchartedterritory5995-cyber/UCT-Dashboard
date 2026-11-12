@@ -900,9 +900,9 @@
    "q": "What does the minus in 4B- say?",
    "choices": [
     "The stock has now seen its low",
-    "The stock is still falling hard",
-    "The stock is already in Stage 2",
-    "The stock is a short candidate"
+    "The stock is still falling",
+    "The stock is in Stage 2",
+    "The stock is a short idea"
    ],
    "answer": "The stock has now seen its low",
    "why": "The minus says the stock has now seen its low for the cycle. It is not yet officially in Stage 1A, but the low is in, with no close under it since. It does not say the buy is ready.",
@@ -913,9 +913,9 @@
     "m01"
    ],
    "wrong": {
-    "The stock is still falling hard": "That is a plain 4B, a stock still falling. The minus says the stock has now seen its low for the cycle.",
-    "The stock is already in Stage 2": "It is not yet even officially in Stage 1A. The minus only says the low is in.",
-    "The stock is a short candidate": "The minus says the low for the cycle is in, not that the decline is still running."
+    "The stock is still falling": "That is a plain 4B, a stock still falling. The minus says the stock has now seen its low for the cycle.",
+    "The stock is in Stage 2": "It is not yet even officially in Stage 1A. The minus only says the low is in.",
+    "The stock is a short idea": "The minus says the low for the cycle is in, not that the decline is still running."
    },
    "house": true,
    "simple": "The minus says the stock has now seen its low for the cycle, though it is not yet officially in Stage 1A.",
@@ -1522,8 +1522,8 @@
    "choices": [
     "No; that stock is a plain 4B",
     "Yes; it is cheap, down 60%",
-    "Yes, but only a small starter",
-    "No; it is a Remount, not a 4B"
+    "Yes, but only a starter",
+    "No; it is a Remount"
    ],
    "answer": "No; that stock is a plain 4B",
    "why": "No. Never a 4B without the minus. A stock still making new lows has not seen its low for the cycle, so it is a plain 4B. That is much too soon to consider buying. Cheap is not a reason.",
@@ -1536,8 +1536,8 @@
    ],
    "wrong": {
     "Yes; it is cheap, down 60%": "Buying because it seems cheap is the named mistake.",
-    "Yes, but only a small starter": "Size does not fix timing. It is much too soon to consider buying.",
-    "No; it is a Remount, not a 4B": "A Remount comes with a rising 150-day. This stock sits under a falling 30-week line and still makes new lows: a plain 4B."
+    "Yes, but only a starter": "Size does not fix timing. It is much too soon to consider buying.",
+    "No; it is a Remount": "A Remount comes with a rising 150-day. This stock sits under a falling 30-week line and still makes new lows: a plain 4B."
    },
    "house": true,
    "simple": "No. A stock still making new lows is a plain 4B, which is much too soon to buy.",
@@ -1810,9 +1810,9 @@
    "story": "A stock closes under its cycle low, then closes back over it two sessions later. You want to buy that reclaim.",
    "choices": [
     "No; a 4B- waits for a higher low",
-    "Yes; it reclaimed the old low fast",
-    "Yes, if the reclaim volume is big",
-    "No; a 4B- needs a rising 150-day"
+    "Yes; it reclaimed the low fast",
+    "Yes, if the volume is big",
+    "No; it needs a rising 150-day"
    ],
    "answer": "No; a 4B- waits for a higher low",
    "why": "No. A 4B- never closes under its cycle low. It waits weeks after the low for a higher low on drying volume and a 50-day reclaim. Two sessions after a new low, none of that exists.",
@@ -1825,9 +1825,9 @@
     "c02"
    ],
    "wrong": {
-    "Yes; it reclaimed the old low fast": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
-    "Yes, if the reclaim volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base.",
-    "No; a 4B- needs a rising 150-day": "A 4B- comes after a Stage 4 decline. If the 150-day was rising at the low, it is a Remount or a pullback, not a 4B-."
+    "Yes; it reclaimed the low fast": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
+    "Yes, if the volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base.",
+    "No; it needs a rising 150-day": "A 4B- comes after a Stage 4 decline. If the 150-day was rising at the low, it is a Remount or a pullback, not a 4B-."
    },
    "house": true,
    "simple": "No. A 4B- takes weeks to build a higher low, a 50-day reclaim and a pause, so a quick reclaim is not one.",
@@ -2201,8 +2201,8 @@
    "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. The next morning it opens at 43.60.",
    "choices": [
     "Take a third off at the open",
-    "Wait for the close to decide",
-    "Sell it all and take the gain",
+    "Wait for the close",
+    "Sell all, take the gain",
     "Take half off at the open"
    ],
    "answer": "Take a third off at the open",
@@ -2215,8 +2215,8 @@
     "h20"
    ],
    "wrong": {
-    "Wait for the close to decide": "The 3R level is already passed. The rule is to take the trim at the open.",
-    "Sell it all and take the gain": "A third at 3R. The rest waits for 5R and the trail.",
+    "Wait for the close": "The 3R level is already passed. The rule is to take the trim at the open.",
+    "Sell all, take the gain": "A third at 3R. The rest waits for 5R and the trail.",
     "Take half off at the open": "The hard rule for the first trim is a third at 3R, not half. The rest waits for 5R and the trail."
    },
    "house": true,
@@ -2311,9 +2311,9 @@
    "story": "Your 4B- trade is working. A friend says to add along the way, as some traders do.",
    "choices": [
     "No; one price, one stop, no adds",
-    "Yes; add on each fresh higher low",
-    "Yes, but only add half the size",
-    "No; sell half to lock in the gain"
+    "Yes; add on each higher low",
+    "Yes, but add half the size",
+    "No; sell half to lock gains"
    ],
    "answer": "No; one price, one stop, no adds",
    "why": "No. Size from the stop, with one price, one stop and no adding along the way. Adding to it on the way up is a named mistake. The trade grows through its trims and trail, not through adds.",
@@ -2324,9 +2324,9 @@
     "c28"
    ],
    "wrong": {
-    "Yes; add on each fresh higher low": "Adding to it on the way up is the named mistake.",
-    "Yes, but only add half the size": "A smaller add is still an add with a second price and a second stop.",
-    "No; sell half to lock in the gain": "The plan trims a third at 3R, then trails the rest. Selling half early is not the answer to an add."
+    "Yes; add on each higher low": "Adding to it on the way up is the named mistake.",
+    "Yes, but add half the size": "A smaller add is still an add with a second price and a second stop.",
+    "No; sell half to lock gains": "The plan trims a third at 3R, then trails the rest. Selling half early is not the answer to an add."
    },
    "house": true,
    "simple": "No. We size from the stop once and never add along the way, even when the trade works.",
@@ -2439,9 +2439,9 @@
    "story": "Your 4B- stalls after the buy and drifts back toward the old low. A friend says to hold it as an investment.",
    "choices": [
     "Sell by the rules; it is a trade",
-    "Hold it; it is a long-term bottom",
-    "Add more shares; it is cheaper",
-    "Move the stop lower for more room"
+    "Hold it; a long-term bottom",
+    "Add shares; it is cheaper",
+    "Move the stop lower for room"
    ],
    "answer": "Sell by the rules; it is a trade",
    "why": "Sell by the rules. A 4B- is a short-term trade on our trims, not an investment. Holding it back down into Stage 4 is the named mistake. A stalled trade exits on its stop or its time stop.",
@@ -2456,9 +2456,9 @@
     "h02"
    ],
    "wrong": {
-    "Hold it; it is a long-term bottom": "Holding a short-term trade back down into Stage 4 is the named mistake.",
-    "Add more shares; it is cheaper": "Adding to it is a named mistake. One price, one stop, no adds.",
-    "Move the stop lower for more room": "The stop only moves up, never down or wider. Moving it lower turns a planned loss into a hope."
+    "Hold it; a long-term bottom": "Holding a short-term trade back down into Stage 4 is the named mistake.",
+    "Add shares; it is cheaper": "Adding to it is a named mistake. One price, one stop, no adds.",
+    "Move the stop lower for room": "The stop only moves up, never down or wider. Moving it lower turns a planned loss into a hope."
    },
    "house": true,
    "simple": "Sell by the rules, because a 4B- is a short-term trade and we never hold a stock back in Stage 4.",
@@ -2924,9 +2924,9 @@
    "q": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Take it or pass?",
    "choices": [
     "Take it; it is above the 200-day",
-    "Pass; the 200-day line is overhead",
-    "Pass; there is no real higher low",
-    "Take it; washouts tend to bounce"
+    "Pass; the 200-day is overhead",
+    "Pass; no real higher low",
+    "Take it; washouts bounce"
    ],
    "answer": "Take it; it is above the 200-day",
    "why": "Take it. A spring washout, a higher low, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The prior close was above the 200-day, so the no-longs-under-it rule does not apply. It then ran to 5R in 9 sessions. The other checks still apply, and one winner proves nothing about the next.",
@@ -2940,9 +2940,9 @@
     "d09"
    ],
    "wrong": {
-    "Pass; the 200-day line is overhead": "Look again: price sits above the 200-day here.",
-    "Pass; there is no real higher low": "Look again: the second low sits well above the first.",
-    "Take it; washouts tend to bounce": "A washout alone is not a setup. This one has a higher low, a pause over the 50-day and a prior close above the 200-day."
+    "Pass; the 200-day is overhead": "Look again: price sits above the 200-day here.",
+    "Pass; no real higher low": "Look again: the second low sits well above the first.",
+    "Take it; washouts bounce": "A washout alone is not a setup. This one has a higher low, a pause over the 50-day and a prior close above the 200-day."
    },
    "chart": {
     "sym": "DY",
@@ -3186,9 +3186,9 @@
    "q": "Which picture of the 150-day and 200-day lines is the better cue?",
    "choices": [
     "Flat, or turning over the trade",
-    "Falling steeply, price far below",
+    "Falling steeply, far below",
     "No difference to the grade",
-    "The 150-day crossing the 200-day"
+    "The 150 crossing the 200-day"
    ],
    "answer": "Flat, or turning over the trade",
    "why": "Flat, or turning. Our card wants the 150-day and 200-day lines flat or turning over the trade, not still falling steeply.",
@@ -3197,9 +3197,9 @@
     "c11"
    ],
    "wrong": {
-    "Falling steeply, price far below": "The card wants the lines flat or turning, not still falling steeply. A steep fall is the weaker picture.",
+    "Falling steeply, far below": "The card wants the lines flat or turning, not still falling steeply. A steep fall is the weaker picture.",
     "No difference to the grade": "It is a cue that counts. Flat or turning lines are the better picture.",
-    "The 150-day crossing the 200-day": "The card asks for the 150-day and 200-day lines flat or turning over the trade, not for a cross."
+    "The 150 crossing the 200-day": "The card asks for the 150-day and 200-day lines flat or turning over the trade, not for a cross."
    },
    "house": true,
    "simple": "Flat or turning long averages are the better picture, and a steep fall is a weaker one.",
@@ -3290,9 +3290,9 @@
    "q": "Your planned stop level lands on exactly 25.00. Where does the stop go?",
    "choices": [
     "A few cents under 25.00",
-    "Right on the 25.00 line",
-    "A few cents above 25.00",
-    "A full dollar under 25.00"
+    "Right on 25.00",
+    "A few cents over 25.00",
+    "A dollar under 25.00"
    ],
    "answer": "A few cents under 25.00",
    "why": "A few cents under 25.00. Our card keeps the stop off a round number: a few cents under it, not on it. Our default stop is also a few cents under the day's low or the prior day's low.",
@@ -3302,9 +3302,9 @@
     "h01"
    ],
    "wrong": {
-    "Right on the 25.00 line": "Not on a round number. The stop sits a few cents under it.",
-    "A few cents above 25.00": "That puts the stop above the level instead of under it. A long stop sits a few cents under.",
-    "A full dollar under 25.00": "A few cents is the gap. A full dollar widens the stop and shrinks the size."
+    "Right on 25.00": "Not on a round number. The stop sits a few cents under it.",
+    "A few cents over 25.00": "That puts the stop above the level instead of under it. A long stop sits a few cents under.",
+    "A dollar under 25.00": "A few cents is the gap. A full dollar widens the stop and shrinks the size."
    },
    "house": true,
    "simple": "Put the stop a few cents under 25.00, not right on the round number.",
@@ -3516,9 +3516,9 @@
    "story": "You would buy at 50.00 with the stop at 48.50. The falling 150-day sits at 52.00. The 200-day is below your entry.",
    "choices": [
     "Pass; too little room overhead",
-    "Take it; the 150-day will break",
-    "Take it; it is over the 200-day",
-    "Pass; no longs under the 150-day"
+    "Take it; the 150-day breaks",
+    "Take it; over the 200-day",
+    "Pass; no longs under 150-day"
    ],
    "answer": "Pass; too little room overhead",
    "why": "Pass. Our working rule wants at least 3R from the entry to the nearest overhead level. The risk is the buy minus the stop. The falling 150-day sits above the buy by only a little more than that risk, far short of 3R.",
@@ -3530,9 +3530,9 @@
     "h10"
    ],
    "wrong": {
-    "Take it; the 150-day will break": "Buying right under a falling long average with less than 3R of room is the named mistake. A hoped-for break is not room.",
-    "Take it; it is over the 200-day": "Being over the 200-day clears one gate, not the room. The falling 150-day is just overhead, and we want at least 3R.",
-    "Pass; no longs under the 150-day": "The no-long line is the 200-day, not the 150-day. The reason to pass is the room, which is under the 3R we want."
+    "Take it; the 150-day breaks": "Buying right under a falling long average with less than 3R of room is the named mistake. A hoped-for break is not room.",
+    "Take it; over the 200-day": "Being over the 200-day clears one gate, not the room. The falling 150-day is just overhead, and we want at least 3R.",
+    "Pass; no longs under 150-day": "The no-long line is the 200-day, not the 150-day. The reason to pass is the room, which is under the 3R we want."
    },
    "tier": "extended",
    "risk": {
@@ -3633,7 +3633,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Key matches the cited quotes; no tell, no second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
@@ -3753,7 +3754,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Key matches the cited quotes; no tell, no second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -3801,7 +3803,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (l2, l3). Story said 'closes under its low' without saying which low, so the rule it rests on (no close under the CYCLE low) did not clearly apply; now 'its cycle low'. The why repeated q23's point; it now carries this item's own lesson, the clock (l3: weeks, not 2 sessions), so the two items no longer test the same fact the same way."
+   "notes": "Key right (l2, l3). Story said 'closes under its low' without saying which low, so the rule it rests on (no close under the CYCLE low) did not clearly apply; now 'its cycle low'. The why repeated q23's point; it now carries this item's own lesson, the clock (l3: weeks, not 2 sessions), so the two items no longer test the same fact the same way.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "cut",
@@ -3861,7 +3864,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: take a third at the open (F63 h25, c30; B19 a third at 3R, c28). 3R is given in the story. Half, all and wait are each refuted by a cited rule. The owner's 'mostly waits for 5R' does not apply: F63 is explicit for an open past a trim level."
+   "notes": "Decided cold: take a third at the open (F63 h25, c30; B19 a third at 3R, c28). 3R is given in the story. Half, all and wait are each refuted by a cited rule. The owner's 'mostly waits for 5R' does not apply: F63 is explicit for an open past a trim level.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -3878,7 +3882,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Mild overlap with q05 (teach then test); criterion tag w4b.size_by_grade should be retagged at lesson level."
+   "notes": "Pass. Mild overlap with q05 (teach then test); criterion tag w4b.size_by_grade should be retagged at lesson level.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "cut",
@@ -3901,7 +3906,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (m09, c33). (1) Story put our 4B- 'under the falling 200-day', but B26 bars a long under the 200-day, so the story contradicts the rulebook the unit teaches; (2) the why spelled out the time stop (under 1R after 10 trading days), which is q36's key; (3) wrong notes leaned on uncited facts (adding mistake m05, stop only moves up h02). Story fixed, time-stop numbers dropped, facts added."
+   "notes": "Key right (m09, c33). (1) Story put our 4B- 'under the falling 200-day', but B26 bars a long under the 200-day, so the story contradicts the rulebook the unit teaches; (2) the why spelled out the time stop (under 1R after 10 trading days), which is q36's key; (3) wrong notes leaned on uncited facts (adding mistake m05, stop only moves up h02). Story fixed, time-stop numbers dropped, facts added.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -3973,7 +3979,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Prior close above the 200-day (d00, d29), higher low +14.4%, 11-day pause (d28), ran to 5R in 9 sessions. Neutral stem; wrong notes supported; deeper cites F and META."
+   "notes": "Prior close above the 200-day (d00, d29), higher low +14.4%, 11-day pause (d28), ran to 5R in 9 sessions. Neutral stem; wrong notes supported; deeper cites F and META.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",
@@ -4009,7 +4016,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Key matches the cited quotes; no tell, no second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q66": {
    "status": "pass",
@@ -4027,7 +4035,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "cut",
@@ -4068,7 +4077,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Risk 1.50, room 2.00 = 1.33R, under 3R (c10, m06); 200-day below entry so it is not overhead; 150-day is not the no-long line (h10). Yes/No split two and two."
+   "notes": "Risk 1.50, room 2.00 = 1.33R, under 3R (c10, m06); 200-day below entry so it is not overhead; 150-day is not the no-long line (h10). Yes/No split two and two.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q83": {
    "status": "pass",

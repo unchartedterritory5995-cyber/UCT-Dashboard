@@ -1689,7 +1689,7 @@
    "choices": [
     "Wait for energy to show strength first",
     "Buy energy now, the cycle says so",
-    "Drop sectors and trade the stock alone",
+    "Drop sectors, trade the stock alone",
     "Buy the cheapest energy stocks now"
    ],
    "answer": "Wait for energy to show strength first",
@@ -1710,7 +1710,7 @@
    ],
    "wrong": {
     "Buy energy now, the cycle says so": "The model is an ideal cycle. Phases have varied widely in length, and calling one in real time is hard.",
-    "Drop sectors and trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm.",
+    "Drop sectors, trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm.",
     "Buy the cheapest energy stocks now": "Cheap is not strength. Buy relative strength and avoid relative weakness, and energy is still lagging."
    },
    "simple": "Wait until energy starts beating the market, because the cycle model says where to look, not when to buy.",
@@ -2015,7 +2015,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f73/f70 (ChartSchool), f81/f89 (Fidelity), g05 (Schwab), f65; agrees with C31. Sentences now under 22 words. Note: key and 'Drop sectors and trade the stock alone' are both 38 chars (tie, not a lone longest). Its 'cheap is not strength' note foreshadows q20, acceptable as a progression."
+   "notes": "Key from f73/f70 (ChartSchool), f81/f89 (Fidelity), g05 (Schwab), f65; agrees with C31. Sentences now under 22 words. Note: key and 'Drop sectors and trade the stock alone' are both 38 chars (tie, not a lone longest). Its 'cheap is not strength' note foreshadows q20, acceptable as a progression.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

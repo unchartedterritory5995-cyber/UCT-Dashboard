@@ -1692,18 +1692,18 @@
    "q": "What's the call, by our rules?",
    "choices": [
     "Pass: no short above the 200-day",
-    "Pass: wait for a second down day",
-    "Short the break, stop over the high",
-    "Short it, at half the usual size"
+    "Pass: await a second down day",
+    "Short the break, with a stop",
+    "Short it, at half size"
    ],
    "answer": "Pass: no short above the 200-day",
    "why": "Pass: no short above the 200-day. At $48 the stock sits above its $41 200-day. Our rule allows shorts only below the 200-day line. Above it, only a parabolic short qualifies, and this isn't one.",
    "simple": "Pass. $48 is above the $41 200-day, and we short only below it unless it's a parabolic short.",
    "lesson_line": "We short only below the 200-day line. Above it, only a parabolic short qualifies.",
    "wrong": {
-    "Pass: wait for a second down day": "A second down day changes nothing. The stock is still above its 200-day, so it isn't a short for us.",
-    "Short the break, stop over the high": "Good mechanics, wrong stock. Our rule allows shorts only below the 200-day, unless it's a parabolic short.",
-    "Short it, at half the usual size": "A smaller size doesn't fix it. Above the 200-day, our rule allows no short unless it's parabolic."
+    "Pass: await a second down day": "A second down day changes nothing. The stock is still above its 200-day, so it isn't a short for us.",
+    "Short the break, with a stop": "Good mechanics, wrong stock. Our rule allows shorts only below the 200-day, unless it's a parabolic short.",
+    "Short it, at half size": "A smaller size doesn't fix it. Above the 200-day, our rule allows no short unless it's parabolic."
    },
    "facts": [
     "h26"
@@ -1937,7 +1937,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer from h26 (B26, a hard rule): pass, no short above the 200-day unless parabolic. Story states $48 vs a $41 200-day and 'no parabolic burst', so the parabolic exception is closed. The added 'by our rules' is correct here (house: true, rule is owner-ruled and hardened). No second defensible answer: 'wait for a second down day' and 'half size' still short above the 200-day. Choices 32-35 chars, answer not the longest, two Pass vs two Short (no lone-kind tell). why grounded in h26, sentences short, no em dash. simple follows the lesson's 'Pass. ...' convention, 19 words, no semicolon/br"
+   "notes": "Cold answer from h26 (B26, a hard rule): pass, no short above the 200-day unless parabolic. Story states $48 vs a $41 200-day and 'no parabolic burst', so the parabolic exception is closed. The added 'by our rules' is correct here (house: true, rule is owner-ruled and hardened). No second defensible answer: 'wait for a second down day' and 'half size' still short above the 200-day. Choices 32-35 chars, answer not the longest, two Pass vs two Short (no lone-kind tell). why grounded in h26, sentences short, no em dash. simple follows the lesson's 'Pass. ...' convention, 19 words, no semicolon/br",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",

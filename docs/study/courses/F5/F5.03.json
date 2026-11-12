@@ -678,8 +678,8 @@
    "q": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with?",
    "choices": [
     "The same quarter a year earlier",
-    "The quarter just before this one",
-    "The analysts' quarterly estimate",
+    "The quarter just before it",
+    "The analysts' estimate",
     "Last year's full-year EPS"
    ],
    "answer": "The same quarter a year earlier",
@@ -692,9 +692,9 @@
     "f42"
    ],
    "wrong": {
-    "Last year's full-year EPS": "That's closer to the A test, the annual record. C is one quarter against the same quarter.",
-    "The quarter just before this one": "That's quarter over quarter. O'Neil's C test goes back a full year, to the same quarter.",
-    "The analysts' quarterly estimate": "That tells you beat or miss. The C test measures growth against the same quarter a year ago."
+    "The quarter just before it": "That's quarter over quarter. O'Neil's C test goes back a full year, to the same quarter.",
+    "The analysts' estimate": "That tells you beat or miss. The C test measures growth against the same quarter a year ago.",
+    "Last year's full-year EPS": "That's closer to the A test, the annual record. C is one quarter against the same quarter."
    },
    "simple": "The same quarter a year earlier. O'Neil wants this quarter's EPS to have jumped against that same quarter last year.",
    "tier": "core",
@@ -765,9 +765,9 @@
    "q": "On a growth screen, what does \"accelerating earnings\" mean?",
    "choices": [
     "The growth rate rises each quarter",
-    "EPS sets a new record each quarter",
-    "EPS beats the estimate each quarter",
-    "The stock rises after each report"
+    "EPS sets a record each quarter",
+    "EPS beats estimates each quarter",
+    "The stock rises after reports"
    ],
    "answer": "The growth rate rises each quarter",
    "why": "The growth rate rises each quarter. Investopedia describes this as growing at an increasing rate. CFI calls accelerating EPS growth a strong positive sign in O'Neil's method. Stockopedia says O'Neil looks for earnings acceleration. It does not mean a new record, a beat of the estimate, or a price jump after the report. Records can come with slowing growth.",
@@ -781,9 +781,9 @@
     "f57"
    ],
    "wrong": {
-    "EPS sets a new record each quarter": "Records can come with slowing growth. A bigger number each quarter isn't the same as faster growth.",
-    "EPS beats the estimate each quarter": "That's a beat streak. It measures results against forecasts, not the growth rate.",
-    "The stock rises after each report": "That's the price reaction. Acceleration is about the earnings numbers themselves."
+    "EPS sets a record each quarter": "Records can come with slowing growth. A bigger number each quarter isn't the same as faster growth.",
+    "EPS beats estimates each quarter": "That's a beat streak. It measures results against forecasts, not the growth rate.",
+    "The stock rises after reports": "That's the price reaction. Acceleration is about the earnings numbers themselves."
    },
    "simple": "It means the growth rate itself climbs each quarter, not just that earnings keep getting bigger.",
    "tier": "core",
@@ -1048,9 +1048,9 @@
    "q": "Whose EPS growth looks more solid?",
    "choices": [
     "A's, real demand is behind it",
-    "B's, it squeezed out more profit",
-    "Same, EPS growth is what counts",
-    "Neither, 40% growth is too low"
+    "B's, it made more profit",
+    "Same, EPS growth counts",
+    "Neither, 40% is too low"
    ],
    "answer": "A's, real demand is behind it",
    "why": "A's. Its earnings growth rides on sales growth. Fidelity notes sales are much harder to manipulate than earnings. Investopedia notes earnings come from the company itself and could be shaped. O'Neil's method looks for strong sales as well as improving earnings. B grew EPS while its sales fell, so the jump did not come from more customers buying.",
@@ -1066,9 +1066,9 @@
     "f42"
    ],
    "wrong": {
-    "B's, it squeezed out more profit": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
-    "Same, EPS growth is what counts": "EPS can rise without customers buying more. Sales show whether the business itself is growing.",
-    "Neither, 40% growth is too low": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it."
+    "B's, it made more profit": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
+    "Same, EPS growth counts": "EPS can rise without customers buying more. Sales show whether the business itself is growing.",
+    "Neither, 40% is too low": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it."
    },
    "simple": "A's, because its profit growth is backed by real sales growth, and sales are harder to dress up than earnings.",
    "tier": "extended",
@@ -1474,9 +1474,9 @@
    "q": "What kind of future winner can that screen miss?",
    "choices": [
     "Fast growers with a high or no P/E",
-    "Only overpriced stocks, so no loss",
+    "Only overpriced stocks, no loss",
     "Companies with falling sales",
-    "Growers at under 20 times earnings"
+    "Growers under 20 times earnings"
    ],
    "answer": "Fast growers with a high or no P/E",
    "why": "Fast growers with a high or no P/E. Investopedia notes growth stocks may have low or even negative earnings, often making them high P/E stocks. A company losing money has no P/E, so a P/E filter drops it. Nasdaq's glossary says a high multiple reflects buyers' growth hopes, and Fidelity points to price-to-sales when there is a net loss. Bulkowski found P/E almost meaningless for finding 10-baggers, because many were unprofitable.",
@@ -1492,9 +1492,9 @@
     "f13"
    ],
    "wrong": {
-    "Only overpriced stocks, so no loss": "A high P/E isn't proof of overpricing. Fast growth can make a high P/E cheap later.",
+    "Only overpriced stocks, no loss": "A high P/E isn't proof of overpricing. Fast growth can make a high P/E cheap later.",
     "Companies with falling sales": "That screen can let those in. A low P/E can come from a business in decline.",
-    "Growers at under 20 times earnings": "A P/E under 20 passes this screen, so those stay in. A filter can only miss what it throws out."
+    "Growers under 20 times earnings": "A P/E under 20 passes this screen, so those stay in. A filter can only miss what it throws out."
    },
    "simple": "Fast growers, because they often trade at high multiples of earnings, and money-losing ones have no price-to-earnings ratio at all.",
    "deeper": {
@@ -1519,7 +1519,7 @@
    "choices": [
     "The P/E divided by the EPS growth rate",
     "The share price divided by the EPS",
-    "The EPS growth rate divided by the P/E",
+    "The EPS growth divided by the P/E",
     "The P/E times the EPS growth rate"
    ],
    "answer": "The P/E divided by the EPS growth rate",
@@ -1536,7 +1536,7 @@
    ],
    "wrong": {
     "The share price divided by the EPS": "That's the P/E itself. PEG takes that P/E and divides it by the growth rate.",
-    "The EPS growth rate divided by the P/E": "That's upside down. The P/E goes on top, and the growth rate goes underneath.",
+    "The EPS growth divided by the P/E": "That's upside down. The P/E goes on top, and the growth rate goes underneath.",
     "The P/E times the EPS growth rate": "PEG divides, it does not multiply. The P/E goes on top, and the growth rate goes underneath."
    },
    "tier": "core",
@@ -1608,7 +1608,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1626,7 +1627,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: growth rate rises (f29 'growing ... at an increasing rate', f43, f47). The record distractor note is backed by NVIDIA records with falling rates (f53, f56, f57). Choice lengths 34-35, key not longest. The beat and price-reaction notes are definitional contrasts. Not answered by q11 or q19, which apply the idea to cases."
+   "notes": "Own answer: growth rate rises (f29 'growing ... at an increasing rate', f43, f47). The record distractor note is backed by NVIDIA records with falling rates (f53, f56, f57). Choice lengths 34-35, key not longest. The beat and price-reaction notes are definitional contrasts. Not answered by q11 or q19, which apply the idea to cases.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1680,7 +1682,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: A, because its EPS growth is backed by sales (f35, f18, f09, f50). Choices 29-32 chars, key not longest, and the key no longer echoes the story. 40% clears both the quarterly floors (f06, f38, f42) and the annual 25% bar (f07), so 'too low' fails either way. 'Real demand' and 'more customers buying' are fair plain readings of sales growth. Agrees with rulebook D40 (prefer growing sales and earnings)."
+   "notes": "Own answer: A, because its EPS growth is backed by sales (f35, f18, f09, f50). Choices 29-32 chars, key not longest, and the key no longer echoes the story. 40% clears both the quarterly floors (f06, f38, f42) and the annual 25% bar (f07), so 'too low' fails either way. 'Real demand' and 'more customers buying' are fair plain readings of sales growth. Agrees with rulebook D40 (prefer growing sales and earnings).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -1746,13 +1749,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: fast growers with high or no P/E (f25, f12, f14, f36, f03). Key ties for longest (34 chars) with two distractors, so it does not stand out. 'Growers at under 20 times earnings' is a deliberate lure (its 'Growers' competes with the key) and its note teaches the filter's direction. I judge it weak, not silly. The f51 Bulkowski line stays the owner's held flag; the key stands without it."
+   "notes": "Own answer: fast growers with high or no P/E (f25, f12, f14, f36, f03). Key ties for longest (34 chars) with two distractors, so it does not stand out. 'Growers at under 20 times earnings' is a deliberate lure (its 'Growers' competes with the key) and its note teaches the filter's direction. I judge it weak, not silly. The f51 Bulkowski line stays the owner's held flag; the key stands without it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: P/E divided by EPS growth rate; matches f20 (Investopedia) and f33 (Fidelity, verified live). Distractors are real errors (P/E itself, inverted, multiplied), lengths 33-38, no tell, no absolutes. Why and simple stay inside f19/f20/f33/f34/f22; wrong note for P/E grounded in f01. It teaches the definition q15/q16 build on but answers neither (both still need the arithmetic). No em dashes, voice fine. Investopedia page blocked our fetch this pass; Fidelity quotes confirmed."
+   "notes": "Solved cold: P/E divided by EPS growth rate; matches f20 (Investopedia) and f33 (Fidelity, verified live). Distractors are real errors (P/E itself, inverted, multiplied), lengths 33-38, no tell, no absolutes. Why and simple stay inside f19/f20/f33/f34/f22; wrong note for P/E grounded in f01. It teaches the definition q15/q16 build on but answers neither (both still need the arithmetic). No em dashes, voice fine. Investopedia page blocked our fetch this pass; Fidelity quotes confirmed.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",

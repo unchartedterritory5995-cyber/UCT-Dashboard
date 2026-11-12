@@ -771,9 +771,9 @@
    "q": "On a normal day, when do the most shares trade?",
    "choices": [
     "Near the open and near the close",
-    "About evenly all through the day",
-    "Mostly in the middle of the session",
-    "Mostly in the hours after the close"
+    "About evenly all day long",
+    "Mostly in the middle of the day",
+    "Mostly in the hours after close"
    ],
    "answer": "Near the open and near the close",
    "why": "Near the open and near the close. Volume is usually heavy early, slows at midday, and builds again into the close. This is a tendency, and exceptions can happen any day. After the close, trading interest drops, and spreads usually widen.",
@@ -786,9 +786,9 @@
     "f40"
    ],
    "wrong": {
-    "About evenly all through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
-    "Mostly in the middle of the session": "Midday is the quiet stretch. The action slows there, then picks up again late.",
-    "Mostly in the hours after the close": "After the close, trading interest drops. Extended hours usually bring wider spreads, or no quote at all."
+    "About evenly all day long": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
+    "Mostly in the middle of the day": "Midday is the quiet stretch. The action slows there, then picks up again late.",
+    "Mostly in the hours after close": "After the close, trading interest drops. Extended hours usually bring wider spreads, or no quote at all."
    },
    "simple": "Most shares usually trade near the open and near the close, while the middle of the day tends to be quiet.",
    "tier": "core",
@@ -1389,9 +1389,9 @@
    "q": "What does our plan say to do?",
    "choices": [
     "Act on the close, if it still holds",
-    "Buy now, it's already over the line",
-    "Skip it, Fridays are bad days to buy",
-    "Wait and buy Monday's open instead"
+    "Buy now, it's over the line",
+    "Skip it, Fridays are bad to buy",
+    "Wait and buy Monday's open"
    ],
    "answer": "Act on the close, if it still holds",
    "why": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. A move can still reverse in the final minutes. The last 10 to 15 minutes can help show whether it holds. Friday is not a reason to skip: no weekday has an edge on its own.",
@@ -1405,9 +1405,9 @@
     "f43"
    ],
    "wrong": {
-    "Buy now, it's already over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
-    "Skip it, Fridays are bad days to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
-    "Wait and buy Monday's open instead": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
+    "Buy now, it's over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
+    "Skip it, Fridays are bad to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
+    "Wait and buy Monday's open": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
    },
    "simple": "Wait for the close and buy only if it still holds over the line, because our Slingshot enters on the close.",
    "deeper": {
@@ -1508,9 +1508,9 @@
    "q": "What do our rules say to do?",
    "choices": [
     "Buy now, with the stop and size set",
-    "Wait until the first half hour ends",
-    "Skip it, since the open is too wild",
-    "Buy now, set the stop once it calms"
+    "Wait out the first half hour",
+    "Skip it, the open is too wild",
+    "Buy now, set stop once it calms"
    ],
    "answer": "Buy now, with the stop and size set",
    "simple": "Buy now, because our rulebook has no time-of-day rule and your written plan is the trigger.",
@@ -1522,9 +1522,9 @@
     "f52"
    ],
    "wrong": {
-    "Wait until the first half hour ends": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger.",
-    "Skip it, since the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
-    "Buy now, set the stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens."
+    "Wait out the first half hour": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger.",
+    "Skip it, the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
+    "Buy now, set stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens."
    },
    "deeper": {
     "trap": "The open's swings are a fact about the market, not a rule for you. Your entry, stop and size were written before the open. Act on them."
@@ -1575,7 +1575,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answered cold from f42/f51/f64: near the open and the close. Choices 32-35 chars, key not longest, no lone hedge. After-hours line rests on f40. q01 still says volume is heavy early, a soft hint toward q08, but q08 asks calm vs volatile and w1 already teaches it: minor, left."
+   "notes": "Answered cold from f42/f51/f64: near the open and the close. Choices 32-35 chars, key not longest, no lone hedge. After-hours line rests on f40. q01 still says volume is heavy early, a soft hint toward q08, but q08 asks calm vs volatile and w1 already teaches it: minor, left.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1677,7 +1678,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -1695,7 +1697,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Cold answer under the rulebook: buy now on the written plan. C30 (h8) says no time-of-day rule. D39 (h9) puts entry, stop and size in writing before the open. D41 requires a real stop order. No second defensible choice, and the key fits section 9. Defect is a tell: the key is the only choice that acts, against three time-based ways to wait or skip, so a member can pick the odd one out without knowing the rule. Replaced the midday choice (a near-repeat of 'wait') with a 'buy now' that breaks D39 by setting the stop later. That leaves two buys and two waits, all 35 characters. Dropped f51, which"
+   "notes": "Cold answer under the rulebook: buy now on the written plan. C30 (h8) says no time-of-day rule. D39 (h9) puts entry, stop and size in writing before the open. D41 requires a real stop order. No second defensible choice, and the key fits section 9. Defect is a tell: the key is the only choice that acts, against three time-based ways to wait or skip, so a member can pick the odd one out without knowing the rule. Replaced the midday choice (a near-repeat of 'wait') with a 'buy now' that breaks D39 by setting the stop later. That leaves two buys and two waits, all 35 characters. Dropped f51, which",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

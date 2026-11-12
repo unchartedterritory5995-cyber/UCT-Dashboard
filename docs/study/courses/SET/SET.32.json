@@ -921,7 +921,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1071,7 +1072,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h06, h07, h02 verbatim; gap rule is the exception to only-moves-up. Breakeven after the 3R trim sits inside B19 range."
+   "notes": "h06, h07, h02 verbatim; gap rule is the exception to only-moves-up. Breakeven after the 3R trim sits inside B19 range.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q27": {
    "status": "pass",
@@ -1185,7 +1187,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "lesson line matches c20; no leak of the clock rule into q30."
+   "notes": "lesson line matches c20; no leak of the clock rule into q30.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -1221,19 +1224,22 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h26, h34, c33 verbatim; the card lists Red as no-trade and invalidation. 2 No / 2 buy split. Minor: the \"Half size is not a reading\" note is vague but not wrong."
+   "notes": "h26, h34, c33 verbatim; the card lists Red as no-trade and invalidation. 2 No / 2 buy split. Minor: the \"Half size is not a reading\" note is vague but not wrong.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c07 numbers check: (11.05-10.80)/11.05 = 2.3%, (11.21-10.80)/11.21 = 3.7%; h03 supports the size line. Item is simple but sound; the 3.7% against the 3.5% cap is an owner flag already filed and is not keyed here."
+   "notes": "c07 numbers check: (11.05-10.80)/11.05 = 2.3%, (11.21-10.80)/11.21 = 3.7%; h03 supports the size line. Item is simple but sound; the 3.7% against the 3.5% cap is an owner flag already filed and is not keyed here.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "cut",
@@ -1263,7 +1269,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calcs check: R = 1.41, 2R below 60.92 = 58.10; 57.20 is a 2.64R loss, past the ceiling (h06, h07). Key unique."
+   "notes": "Calcs check: R = 1.41, 2R below 60.92 = 58.10; 57.20 is a 2.64R loss, past the ceiling (h06, h07). Key unique.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",
@@ -1336,9 +1343,9 @@
    "q": "What is the opening range on our ORB?",
    "choices": [
     "The 9:30 to 10:00 high and low",
-    "The first 5-minute bar's range",
-    "The 9:30 opening print alone",
-    "The 9:30 to 10:30 high and low"
+    "The first 5-minute range",
+    "The opening print alone",
+    "The 9:30-10:30 high and low"
    ],
    "answer": "The 9:30 to 10:00 high and low",
    "why": "The 9:30 to 10:00 high and low, the first 30-minute candle. Trade-Ideas defines the 30-minute range as the high and low of the first 30-minute candle. Bysshe says it is the day's high and low at 10:00, not the opening price. Other windows are other traders' choices, not ours.",
@@ -1353,9 +1360,9 @@
     "k02"
    ],
    "wrong": {
-    "The first 5-minute bar's range": "That is the opening drive's bar, a different timer: a drive is bought over the first 5-minute bar's high by about 9:40. Our range is the full 30 minutes.",
-    "The 9:30 opening print alone": "Bysshe: the OR is not the opening price. It is a high and a low.",
-    "The 9:30 to 10:30 high and low": "Raschke's morning range runs 45 to 120 minutes, and windows differ by trader. Ours ends at 10:00."
+    "The first 5-minute range": "That is the opening drive's bar, a different timer: a drive is bought over the first 5-minute bar's high by about 9:40. Our range is the full 30 minutes.",
+    "The opening print alone": "Bysshe: the OR is not the opening price. It is a high and a low.",
+    "The 9:30-10:30 high and low": "Raschke's morning range runs 45 to 120 minutes, and windows differ by trader. Ours ends at 10:00."
    },
    "house": true,
    "simple": "Our range is the high and low of the first half hour, from 9:30 to 10:00.",
@@ -2217,9 +2224,9 @@
    "q": "What is the stop now?",
    "choices": [
     "The low of the first 30 minutes",
-    "The gap-down day's opening price",
-    "Breakeven, where it already sat",
-    "A flat 3% under the open price"
+    "The gap-down day's open",
+    "Breakeven, where it sat",
+    "A flat 3% under the open"
    ],
    "answer": "The low of the first 30 minutes",
    "why": "The first 30-minute low. A gap against the stop hands the decision to the first 30 minutes of the gap-down day. The low of that first 30-minute bar is the new stop. It is the one exception to a stop that only moves up. There is a ceiling: if the first 30 minutes take the loss past 2R, get out.",
@@ -2232,9 +2239,9 @@
     "h02"
    ],
    "wrong": {
-    "The gap-down day's opening price": "The gap rule gives the decision to the first 30 minutes. The open is not the new stop.",
-    "Breakeven, where it already sat": "Price is already through breakeven. The gap rule makes the first 30-minute low the new stop.",
-    "A flat 3% under the open price": "A percent is not a level. The gap rule names the first 30-minute low, under a 2R ceiling."
+    "The gap-down day's open": "The gap rule gives the decision to the first 30 minutes. The open is not the new stop.",
+    "Breakeven, where it sat": "Price is already through breakeven. The gap rule makes the first 30-minute low the new stop.",
+    "A flat 3% under the open": "A percent is not a level. The gap rule names the first 30-minute low, under a 2R ceiling."
    },
    "house": true,
    "simple": "The new stop is the low of the first 30 minutes of the gap-down day. If that loss passes 2R, you leave.",
@@ -2957,12 +2964,12 @@
    "story": "A stock gaps up 2% and runs from the bell. At 9:36 the buy fires over the first 5-minute bar's high; the day's low is inside that bar.",
    "q": "Which trade is that?",
    "choices": [
-    "An opening drive",
+    "An opening drive buy",
     "A 30-minute ORB",
     "A 30-minute pivot",
     "A VWAP retest buy"
    ],
-   "answer": "An opening drive",
+   "answer": "An opening drive buy",
    "why": "An opening drive. It sets the day's low in the first 5-minute bar and is bought over that bar's high by about 9:40. An ORB waits for the full 30-minute range and buys after 10:00.",
    "lesson_line": "Name the drive: its low is set in the first 5-minute bar, and it is bought by about 9:40.",
    "facts": [
@@ -3225,9 +3232,9 @@
    "q": "What do you do?",
    "choices": [
     "Skip it; mostly cash and shorts",
-    "Buy it; A+ setups trade anywhere",
-    "Buy it at half size, tight stop",
-    "No; buy it at the close instead"
+    "Buy it; A+ works anywhere",
+    "Buy half size, tight stop",
+    "No; buy it at the close"
    ],
    "answer": "Skip it; mostly cash and shorts",
    "why": "No long. In a Red market: mostly cash, plus shorts below the 200-day. The market reading is a guide: Green is full risk, Yellow smaller and fewer, Orange only A+, Red mostly cash and shorts. A strong break does not change the reading.",
@@ -3238,9 +3245,9 @@
     "c33"
    ],
    "wrong": {
-    "Buy it; A+ setups trade anywhere": "Orange allows only A+ setups. Red is mostly cash and shorts, so a long is out.",
-    "Buy it at half size, tight stop": "Half size is not a reading. Red is mostly cash, plus shorts below the 200-day.",
-    "No; buy it at the close instead": "A buy at the close is still a long in a Red market. The reading, not the clock, is the test."
+    "Buy it; A+ works anywhere": "Orange allows only A+ setups. Red is mostly cash and shorts, so a long is out.",
+    "Buy half size, tight stop": "Half size is not a reading. Red is mostly cash, plus shorts below the 200-day.",
+    "No; buy it at the close": "A buy at the close is still a long in a Red market. The reading, not the clock, is the test."
    },
    "house": true,
    "simple": "Skip the long. In a Red market we hold mostly cash, plus shorts below the 200-day.",
@@ -3267,9 +3274,9 @@
    "q": "Hold through it?",
    "choices": [
     "No; hold through only if up 5R",
-    "Yes, after selling half first",
-    "Yes; move the stop to breakeven",
-    "No; hold through only if up 3R"
+    "Yes, after selling half",
+    "Yes; stop to breakeven",
+    "No; hold through if up 3R"
    ],
    "answer": "No; hold through only if up 5R",
    "why": "No. Hold through a report only if the trade is up 5R, and this one is up 2.2R, so it does not qualify. A stop cannot catch an overnight gap: SNX's report of 2026-09-24 gapped it straight through the stop.",
@@ -3281,9 +3288,9 @@
     "h20"
    ],
    "wrong": {
-    "Yes; move the stop to breakeven": "A stop cannot catch an overnight gap. Breakeven is not protection here.",
-    "Yes, after selling half first": "Half of a 2.2R cushion is still under the 5R line.",
-    "No; hold through only if up 3R": "3R is where the first third comes off. The line for holding through a report is 5R."
+    "Yes, after selling half": "Half of a 2.2R cushion is still under the 5R line.",
+    "Yes; stop to breakeven": "A stop cannot catch an overnight gap. Breakeven is not protection here.",
+    "No; hold through if up 3R": "3R is where the first third comes off. The line for holding through a report is 5R."
    },
    "house": true,
    "simple": "No. We hold through a report only if the trade is up 5R, and this one is up just 2.2R.",
@@ -3310,9 +3317,9 @@
    "q": "Which entry sits closer to the stop?",
    "choices": [
     "The 11.05 entry, the earlier fill",
-    "The 11.21 entry, once confirmed",
-    "Both the same, with the same stop",
-    "The 11.21 entry; it has more room"
+    "The 11.21 entry, confirmed",
+    "Both the same, same stop",
+    "The 11.21 entry; more room"
    ],
    "answer": "The 11.05 entry, the earlier fill",
    "why": "The 11.05 entry. Its stop sits 2.3% away; the ORB entry at 11.21 has 3.7% to the same stop. A tighter stop buys more shares for the same dollar risk. At the close the first was up about 2.3R, the ORB about 1.0R.",
@@ -3324,9 +3331,9 @@
     "h12"
    ],
    "wrong": {
-    "The 11.21 entry, once confirmed": "Confirmation costs distance. The ORB entry fills at 11.21, which is 3.7% from the same stop.",
-    "Both the same, with the same stop": "The same stop with a higher fill is a wider stop. Distance is the fill minus the stop.",
-    "The 11.21 entry; it has more room": "More room to the stop means farther from it, not closer: 3.7% against 2.3%."
+    "The 11.21 entry, confirmed": "Confirmation costs distance. The ORB entry fills at 11.21, which is 3.7% from the same stop.",
+    "Both the same, same stop": "The same stop with a higher fill is a wider stop. Distance is the fill minus the stop.",
+    "The 11.21 entry; more room": "More room to the stop means farther from it, not closer: 3.7% against 2.3%."
    },
    "house": true,
    "simple": "The 11.05 entry sits closer to the same stop, so its stop is tighter.",
@@ -3490,9 +3497,9 @@
    "q": "What does the gap rule say?",
    "choices": [
     "Get out; the loss is past 2R",
-    "The 57.20 low is the new stop",
-    "Sell at the open price, 58.90",
-    "Hold; wait and see the close"
+    "The 57.20 low is the stop",
+    "Sell at the open, 58.90",
+    "Hold; wait for the close"
    ],
    "answer": "Get out; the loss is past 2R",
    "why": "Get out. After a gap against the stop, the first 30-minute low becomes the new stop. There is a ceiling: if the first 30 minutes take the loss past 2R, you leave. One R is 60.92 minus 59.51, so 2R below the entry is 58.10. The first 30-minute low of 57.20 is under it.",
@@ -3503,9 +3510,9 @@
     "h02"
    ],
    "wrong": {
-    "Hold; wait and see the close": "The stop is the exit. There is no rule that waits for a close after a gap through it.",
-    "The 57.20 low is the new stop": "The 30-minute low becomes the stop only inside the 2R ceiling. This one is past it.",
-    "Sell at the open price, 58.90": "The rule gives the first 30 minutes. The open is not the decision; the 30-minute low is."
+    "The 57.20 low is the stop": "The 30-minute low becomes the stop only inside the 2R ceiling. This one is past it.",
+    "Sell at the open, 58.90": "The rule gives the first 30 minutes. The open is not the decision; the 30-minute low is.",
+    "Hold; wait for the close": "The stop is the exit. There is no rule that waits for a close after a gap through it."
    },
    "house": true,
    "simple": "Get out, because the first 30 minutes took the loss past 2R, so the 30-minute low does not become the stop.",

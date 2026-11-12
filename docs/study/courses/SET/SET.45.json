@@ -1266,10 +1266,10 @@
    "criterion": "qk.breakout_trigger",
    "q": "On the daily chart, how is the breakout bought?",
    "choices": [
-    "With a limit order just above the high",
+    "With a limit order over the high",
     "At market as it clears the base high",
-    "Half at the break, half on the retest",
-    "At market after a close above the high"
+    "Half at the break, half at retest",
+    "At market after a close above it"
    ],
    "answer": "At market as it clears the base high",
    "why": "At market as price trades over the base high. This is the daily-chart version: Kullamagi says to enter when the stock starts to break out. Our entries are market orders, set up from an alert the night before, in regular hours only.",
@@ -1283,9 +1283,9 @@
     "hA5"
    ],
    "wrong": {
-    "With a limit order just above the high": "Our entries are market orders, bought as the level breaks.",
-    "Half at the break, half on the retest": "We buy the full size at one price with one stop. The next flag in the same run is a new trade, not an add.",
-    "At market after a close above the high": "The card buys with a market order when the level breaks. It does not wait for a close above it."
+    "With a limit order over the high": "Our entries are market orders, bought as the level breaks.",
+    "Half at the break, half at retest": "We buy the full size at one price with one stop. The next flag in the same run is a new trade, not an add.",
+    "At market after a close above it": "The card buys with a market order when the level breaks. It does not wait for a close above it."
    },
    "house": true,
    "simple": "You buy at market the moment price trades over the base high, so you catch the break as it starts.",
@@ -1536,9 +1536,9 @@
    "q": "Which base after the big move does our card grade highest?",
    "choices": [
     "The first base after the move",
-    "The second base after the move",
-    "The third base after the move",
-    "The deepest base on the chart"
+    "The second base after it",
+    "The third base after it",
+    "The deepest base seen"
    ],
    "answer": "The first base after the move",
    "why": "The first base after the move. On our card the first base is the A+ case, and the second base or later is graded down. The card sets this by analogy with Kell's count. Graded down means a lower grade, not a ban. Grading stays a judgment call.",
@@ -1550,9 +1550,9 @@
     "hE50"
    ],
    "wrong": {
-    "The third base after the move": "A second base or later is graded down, and a third is later still.",
-    "The second base after the move": "A second base or later is graded down.",
-    "The deepest base on the chart": "A base 15% deep or less is the A+ depth, so a deeper base is not the best case."
+    "The second base after it": "A second base or later is graded down.",
+    "The third base after it": "A second base or later is graded down, and a third is later still.",
+    "The deepest base seen": "A base 15% deep or less is the A+ depth, so a deeper base is not the best case."
    },
    "house": true,
    "simple": "The first base after the big move is the best one, because later bases are graded down.",
@@ -1724,9 +1724,9 @@
    "q": "How close to an earnings report may we buy a breakout?",
    "choices": [
     "Not within 3 sessions before",
-    "Any time; the chart decides",
-    "Not within 10 sessions before",
-    "Not within 2 sessions before"
+    "Any time; chart decides",
+    "Not within 10 sessions",
+    "Not within 2 sessions"
    ],
    "answer": "Not within 3 sessions before",
    "why": "Not within the 3 sessions before a report. We hold through a report only if the trade is up 5R. The risk is a report that gaps the stock through the stop.",
@@ -1737,9 +1737,9 @@
     "dAMZNw"
    ],
    "wrong": {
-    "Any time; the chart decides": "A report inside the window can gap the stock through the stop.",
-    "Not within 10 sessions before": "That is longer than the rule. The rule is 3 sessions before.",
-    "Not within 2 sessions before": "That is shorter than the rule. A buy 3 sessions before a report is already inside it."
+    "Any time; chart decides": "A report inside the window can gap the stock through the stop.",
+    "Not within 10 sessions": "That is longer than the rule. The rule is 3 sessions before.",
+    "Not within 2 sessions": "That is shorter than the rule. A buy 3 sessions before a report is already inside it."
    },
    "house": true,
    "simple": "Do not buy in the 3 sessions before earnings, because a report can gap the stock through your stop.",
@@ -2317,9 +2317,9 @@
    "q": "Using our card's grade cues, how do the two breakout days compare?",
    "choices": [
     "Day A grades higher",
-    "Day B grades higher",
-    "They grade the same",
-    "Neither can be graded"
+    "Day B is higher",
+    "The same grade",
+    "None can be graded"
    ],
    "answer": "Day A grades higher",
    "why": "Day A grades higher. Breaking early through the opening-range high and holding is an A+ cue. Breaking late and closing off the high is a B- cue. These are cues, not a checklist: grading a setup is discretionary and hard to define.",
@@ -2330,9 +2330,9 @@
     "hE50"
    ],
    "wrong": {
-    "Day B grades higher": "Breaking late and closing off the high is a B- cue.",
-    "They grade the same": "The card treats the early break that holds as an A+ cue and the late break off the high as a B- cue.",
-    "Neither can be graded": "The card lists both breakout days among its grade cues."
+    "Day B is higher": "Breaking late and closing off the high is a B- cue.",
+    "The same grade": "The card treats the early break that holds as an A+ cue and the late break off the high as a B- cue.",
+    "None can be graded": "The card lists both breakout days among its grade cues."
    },
    "house": true,
    "story": "Two breakouts from similar bases. Day A breaks early through the opening-range high and holds. Day B breaks late and closes off the high.",
@@ -2882,10 +2882,10 @@
    "choices": [
     "Pass; the lows inside it are falling",
     "Pass; the base is too short to trust",
-    "Take it; rising lows, tight finish",
+    "Take it; rising lows and a tight finish",
     "Take it; the base runs 45 sessions"
    ],
-   "answer": "Take it; rising lows, tight finish",
+   "answer": "Take it; rising lows and a tight finish",
    "why": "Take it. After an earnings gap and a 43% run, the stock rested 12 tight sessions in a 17% band with rising lows. It broke out on 1.5x volume and reached 3R in 7 days. You buy as price trades over the base high, not the day before.",
    "lesson_line": "Rising lows and a tight finish: that is the base.",
    "facts": [
@@ -3095,8 +3095,8 @@
    "q": "On our card, how is an up cycle defined?",
    "choices": [
     "10 EMA above the 20 EMA, both rising",
-    "Price holds above its 200-day average",
-    "10 EMA under the 20 EMA, both falling",
+    "Price stays above the 200-day",
+    "10 EMA under the 20, both falling",
     "Price closes above the 10 EMA once"
    ],
    "answer": "10 EMA above the 20 EMA, both rising",
@@ -3107,8 +3107,8 @@
     "L1"
    ],
    "wrong": {
-    "Price holds above its 200-day average": "The cycle is read on the 10 and 20-day EMAs, not a longer average.",
-    "10 EMA under the 20 EMA, both falling": "That is a down cycle.",
+    "Price stays above the 200-day": "The cycle is read on the 10 and 20-day EMAs, not a longer average.",
+    "10 EMA under the 20, both falling": "That is a down cycle.",
     "Price closes above the 10 EMA once": "One close above a line is not a cycle. It is read on the 10 and 20-day EMAs."
    },
    "house": true,
@@ -3817,9 +3817,9 @@
    "q": "Which stocks does Kullamagi scan for?",
    "choices": [
     "The 1 or 2% up most over 3 timeframes",
-    "The 1 or 2% down most over 3 timeframes",
-    "The cheapest stocks in each big group",
-    "Every stock above its 200-day average"
+    "The 1 or 2% down over 3 timeframes",
+    "The cheapest stocks in each group",
+    "Every stock above its 200-day line"
    ],
    "answer": "The 1 or 2% up most over 3 timeframes",
    "why": "The 1 or 2% of stocks that are up the most over 3 timeframes. That is Kullamagi's own scan, a list of the biggest gainers. Our card has a similar cue. A top-2% gainer over 1, 3 or 6 months, or RS 90 or more, is an A+ cue. Grading stays a judgment call.",
@@ -3830,9 +3830,9 @@
     "hE50"
    ],
    "wrong": {
-    "The cheapest stocks in each big group": "His scan ranks stocks by how much they have risen, not by price.",
-    "The 1 or 2% down most over 3 timeframes": "The scan is for the stocks up the most, not down the most.",
-    "Every stock above its 200-day average": "His scan takes only the 1 or 2% that are up the most, not every stock above an average."
+    "The 1 or 2% down over 3 timeframes": "The scan is for the stocks up the most, not down the most.",
+    "The cheapest stocks in each group": "His scan ranks stocks by how much they have risen, not by price.",
+    "Every stock above its 200-day line": "His scan takes only the 1 or 2% that are up the most, not every stock above an average."
    },
    "house": true,
    "simple": "He scans for the 1 or 2% of stocks that have risen the most over three timeframes.",
@@ -4053,9 +4053,9 @@
    "q": "Which breakout has the better depth?",
    "choices": [
     "The 12% base; it is the shallower one",
-    "The 23% base; it has more room to run",
-    "Equal; any base under the cap is alike",
-    "Neither; depth plays no part in grading"
+    "The 23% base; it has more room",
+    "Equal; both are under the cap",
+    "Neither; depth plays no part"
    ],
    "answer": "The 12% base; it is the shallower one",
    "why": "The 12% base. Both pass the 25% cap, but only the 12% base is inside the 15% A+ depth. Depth is one cue among several, and grading is discretionary and hard to define.",
@@ -4066,9 +4066,9 @@
     "hE50"
    ],
    "wrong": {
-    "Equal; any base under the cap is alike": "Both pass the cap, but on our card 15% or less is the A+ depth.",
-    "The 23% base; it has more room to run": "Deeper is not better. It only has to stay under the 25% cap; 15% or less earns the A+ depth.",
-    "Neither; depth plays no part in grading": "Depth is a cue. On our card, 15% or less is the A+ depth."
+    "The 23% base; it has more room": "Deeper is not better. It only has to stay under the 25% cap; 15% or less earns the A+ depth.",
+    "Equal; both are under the cap": "Both pass the cap, but on our card 15% or less is the A+ depth.",
+    "Neither; depth plays no part": "Depth is a cue. On our card, 15% or less is the A+ depth."
    },
    "house": true,
    "story": "Two leaders break out of 15-session bases after similar runs. One base is 12% deep and the other is 23% deep. Both pass the cap.",
@@ -4141,9 +4141,9 @@
    "q": "What do you set up tonight?",
    "choices": [
     "An alert at the high; the plan written",
-    "A limit order resting at the base high",
-    "Nothing yet; you decide after the open",
-    "An after-hours buy just under the high"
+    "A limit order resting at the high",
+    "Nothing yet; decide after the open",
+    "An after-hours buy under the high"
    ],
    "answer": "An alert at the high; the plan written",
    "why": "An alert at the base high and a written plan. The buy itself is a market order when the level breaks, in regular hours only. Entry, stop and size are written down before the market opens. A limit order resting at the high is not our entry, and nothing is bought after hours.",
@@ -4155,9 +4155,9 @@
     "hE58"
    ],
    "wrong": {
-    "A limit order resting at the base high": "Our entries are market orders, bought as the level breaks.",
-    "Nothing yet; you decide after the open": "The entry, stop and size are written before the market opens.",
-    "An after-hours buy just under the high": "No new buys outside regular trading hours. The buy waits for the level to break tomorrow."
+    "A limit order resting at the high": "Our entries are market orders, bought as the level breaks.",
+    "Nothing yet; decide after the open": "The entry, stop and size are written before the market opens.",
+    "An after-hours buy under the high": "No new buys outside regular trading hours. The buy waits for the level to break tomorrow."
    },
    "house": true,
    "story": "It is 6 pm. A leader sits just under its base high, and you plan to buy the break tomorrow.",
@@ -4282,8 +4282,8 @@
    "q": "May you buy it?",
    "choices": [
     "Yes, as a new trade with its own stop",
-    "Yes, but only with half the usual size",
-    "No; a missed breakout is gone for good",
+    "Yes, but only at half size",
+    "No; a missed breakout is gone",
     "Yes, and keep the stop from Monday"
    ],
    "answer": "Yes, as a new trade with its own stop",
@@ -4295,8 +4295,8 @@
     "hC28"
    ],
    "wrong": {
-    "No; a missed breakout is gone for good": "Kullamagi sometimes buys the retrace, so a miss is not final.",
-    "Yes, but only with half the usual size": "Size comes from the stop and the risk rule. Missing the first move does not halve it.",
+    "Yes, but only at half size": "Size comes from the stop and the risk rule. Missing the first move does not halve it.",
+    "No; a missed breakout is gone": "Kullamagi sometimes buys the retrace, so a miss is not final.",
     "Yes, and keep the stop from Monday": "A retrace buy is a new trade with its own trigger and stop, not Monday's."
    },
    "house": true,
@@ -4692,9 +4692,9 @@
    "q": "What do you do?",
    "choices": [
     "Sell it now and free the money",
-    "Hold; the stop has not been hit",
-    "Move the stop to breakeven, wait",
-    "Sell half now and hold the rest"
+    "Hold; the stop is not hit",
+    "Move the stop to breakeven",
+    "Sell half, hold the rest"
    ],
    "answer": "Sell it now and free the money",
    "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money. The stop has not been hit, but the time stop is a second exit. Breakeven is for a winner: the stop ideally moves there between 2R and 5R, so at 0.4R it is too early.",
@@ -4706,9 +4706,9 @@
     "aAfter"
    ],
    "wrong": {
-    "Hold; the stop has not been hit": "The time stop is a second exit. A stalled trade does not wait for the stop.",
-    "Move the stop to breakeven, wait": "A stalled trade is sold. The stop ideally moves to breakeven between 2R and 5R, not at 0.4R.",
-    "Sell half now and hold the rest": "The time stop sells the trade, not half of it. A trade still under 1R after 10 trading days is sold."
+    "Hold; the stop is not hit": "The time stop is a second exit. A stalled trade does not wait for the stop.",
+    "Move the stop to breakeven": "A stalled trade is sold. The stop ideally moves to breakeven between 2R and 5R, not at 0.4R.",
+    "Sell half, hold the rest": "The time stop sells the trade, not half of it. A trade still under 1R after 10 trading days is sold."
    },
    "house": true,
    "story": "You bought a breakout 10 trading days ago. It has chopped sideways and is up 0.4R. The stop was never touched.",
@@ -4873,9 +4873,9 @@
    "q": "What do you do?",
    "choices": [
     "Hold; the stop is still the exit",
-    "Sell at the open; the news is bad",
-    "Lower the stop to ride out the dip",
-    "Add on the dip; the news is noise"
+    "Sell at the open; news is bad",
+    "Lower the stop for the dip",
+    "Add on the dip; news is noise"
    ],
    "answer": "Hold; the stop is still the exit",
    "why": "Hold. The stop is the exit, so a headline does not change the plan while the stop holds. The stock is still above the stop and in profit. The stop only moves up, and the full size was bought at one price with one stop, so there is no add.",
@@ -4889,9 +4889,9 @@
     "hB20c"
    ],
    "wrong": {
-    "Sell at the open; the news is bad": "The stop is the exit. A headline does not change the plan while the stop holds.",
-    "Lower the stop to ride out the dip": "The stop only moves up.",
-    "Add on the dip; the news is noise": "No adds. It is one price with one stop, and the stop is the exit."
+    "Sell at the open; news is bad": "The stop is the exit. A headline does not change the plan while the stop holds.",
+    "Lower the stop for the dip": "The stop only moves up.",
+    "Add on the dip; news is noise": "No adds. It is one price with one stop, and the stop is the exit."
    },
    "house": true,
    "story": "Day 6 after the buy. An analyst downgrade opens the stock down 2%. It is still above your stop and still in profit.",
@@ -5096,9 +5096,9 @@
    "q": "What do you do?",
    "choices": [
     "Buy at market; it is past the pivot",
-    "Wait for a dip back to the 20 EMA",
-    "Buy tomorrow, after a close above it",
-    "Skip it; the base needs 10 sessions"
+    "Wait for a dip to the 20 EMA",
+    "Buy tomorrow on a close above",
+    "Skip it; it needs 10 sessions"
    ],
    "answer": "Buy at market; it is past the pivot",
    "why": "Buy at market. A Base n' Break buys as price trades through the pivot into new highs, and our entries are market orders. The 8-session shelf fits a tight base of 5 to 15 sessions holding the rising averages.",
@@ -5110,9 +5110,9 @@
     "b9"
    ],
    "wrong": {
-    "Wait for a dip back to the 20 EMA": "A dip to the 20 EMA is the Crossback, a different phase.",
-    "Buy tomorrow, after a close above it": "The buy area is through the pivot. Buying tomorrow adds distance.",
-    "Skip it; the base needs 10 sessions": "That is the breakout's base length. A Base n' Break is a tight base of 5 to 15 sessions."
+    "Wait for a dip to the 20 EMA": "A dip to the 20 EMA is the Crossback, a different phase.",
+    "Buy tomorrow on a close above": "The buy area is through the pivot. Buying tomorrow adds distance.",
+    "Skip it; it needs 10 sessions": "That is the breakout's base length. A Base n' Break is a tight base of 5 to 15 sessions."
    },
    "house": true,
    "story": "A leader in an up cycle holds a tight 8-session shelf on its rising 10 EMA, near its highs. You treat it as a Base n' Break. Today it trades through the shelf's high to a new high.",
@@ -5179,9 +5179,9 @@
    "q": "Do you add?",
    "choices": [
     "No; one price, one stop, no adding",
-    "Yes; Kell treats it as an addition",
-    "No; wait and add on the next dip",
-    "Yes; the stock earned a bigger size"
+    "Yes; Kell calls it an addition",
+    "No; wait and add on a dip",
+    "Yes; it earned a bigger size"
    ],
    "answer": "No; one price, one stop, no adding",
    "why": "No. Kell calls the Base n' Break an addition to leading stocks. Our rule is full size at one price with one stop, no adding. A later phase is a new trade from flat, with its own stop and size.",
@@ -5192,9 +5192,9 @@
     "bBnN"
    ],
    "wrong": {
-    "Yes; Kell treats it as an addition": "Kell calls the Base n' Break an addition. Our rule is full size at one price with one stop.",
-    "No; wait and add on the next dip": "We do not add. A later phase is its own trade from flat, not an add on a dip.",
-    "Yes; the stock earned a bigger size": "No adding: the full size goes in at one price with one stop. A bigger size is also an add."
+    "Yes; Kell calls it an addition": "Kell calls the Base n' Break an addition. Our rule is full size at one price with one stop.",
+    "No; wait and add on a dip": "We do not add. A later phase is its own trade from flat, not an add on a dip.",
+    "Yes; it earned a bigger size": "No adding: the full size goes in at one price with one stop. A bigger size is also an add."
    },
    "house": true,
    "story": "You hold a leader bought at its Wedge Pop. It now breaks out of its first Base n' Break, and a friend quotes Kell and says to add shares.",
@@ -5406,7 +5406,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -5454,7 +5455,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -5484,7 +5486,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why narrates AMZN bought on report day and gapped through 119.75, which is q50's whole story and answer (and q23's case). Keep the rule and the gap risk without the AMZN narrative."
+   "notes": "Why narrates AMZN bought on report day and gapped through 119.75, which is q50's whole story and answer (and q23's case). Keep the rule and the gap risk without the AMZN narrative.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -5586,7 +5589,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Same issue fixed in q74: E50 says grading is discretionary with no checklist taught as ours, so a bare 'How do the two breakout days grade?' leaves 'Neither can be graded' arguable. The key rests on the card's cues (g1, g2); the stem must say so."
+   "notes": "Same issue fixed in q74: E50 says grading is discretionary with no checklist taught as ours, so a bare 'How do the two breakout days grade?' leaves 'Neither can be graded' arguable. The key rests on the card's cues (g1, g2); the stem must say so.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -5664,7 +5668,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Chart base is HWM 12 sessions, 17% deep, within card; two Take two Pass, key not longest."
+   "notes": "Chart base is HWM 12 sessions, 17% deep, within card; two Take two Pass, key not longest.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
@@ -5694,7 +5699,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "b1 supports, choices balanced. Mirror of q59 but different ask."
+   "notes": "b1 supports, choices balanced. Mirror of q59 but different ask.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q62": {
    "status": "pass",
@@ -5820,7 +5826,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "K8 verified on qullamaggie.com (1, 3, 6 months); aTop verbatim in card."
+   "notes": "K8 verified on qullamaggie.com (1, 3, 6 months); aTop verbatim in card.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q85": {
    "status": "pass",
@@ -5862,7 +5869,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "a11 15% A+ depth supports; key shortest; no choice also correct."
+   "notes": "a11 15% A+ depth supports; key shortest; no choice also correct.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q92": {
    "status": "pass",
@@ -5874,7 +5882,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "upgraded wave4; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q94": {
    "status": "pass",
@@ -5898,7 +5907,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "aRet keys the new trade; K9 verified as Kullamagi's own reply on his page; hC28 verbatim."
+   "notes": "aRet keys the new trade; K9 verified as Kullamagi's own reply on his page; hC28 verbatim.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q98": {
    "status": "pass",
@@ -5964,7 +5974,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q109": {
    "status": "pass",
@@ -5994,7 +6005,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q114": {
    "status": "pass",
@@ -6030,7 +6042,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story names the Base n' Break, so 'needs 10 sessions' is out; bBnT, L11, hE57 and b9 support buy at market through the pivot. 8 sessions is the question's own number."
+   "notes": "Story names the Base n' Break, so 'needs 10 sessions' is out; bBnT, L11, hE57 and b9 support buy at market through the pivot. 8 sessions is the question's own number.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q120": {
    "status": "pass",
@@ -6042,7 +6055,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A5 and bBnN key No; L20 quote confirmed in dossier. Distinct from q40 (Kell's 'addition' wording is the angle)."
+   "notes": "A5 and bBnN key No; L20 quote confirmed in dossier. Distinct from q40 (Kell's 'addition' wording is the angle).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q122": {
    "status": "pass",

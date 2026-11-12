@@ -1045,9 +1045,9 @@
    "q": "Which one goes in your playbook tonight?",
    "choices": [
     "B, the small winner",
-    "A, the biggest winner",
-    "C, to learn from it",
-    "None, B was too small"
+    "A, the big winner",
+    "C, learn from it",
+    "None, B was small"
    ],
    "answer": "B, the small winner",
    "why": "B, the small winner. It is your own setup, traded as written: a play you can spot again and want more of. Bellafiore asks for the setup that made the most sense that day. A paid more, but a tip is not a pattern of market behavior you can spot again. C broke your plan: our stop only moves up, never lower.",
@@ -1059,9 +1059,9 @@
     "h08"
    ],
    "wrong": {
-    "A, the biggest winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
-    "C, to learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat.",
-    "None, B was too small": "The size of the win isn't the test. B is your own setup run as written, and his desk writes one up every session."
+    "A, the big winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
+    "C, learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat.",
+    "None, B was small": "The size of the win isn't the test. B is your own setup run as written, and his desk writes one up every session."
    },
    "simple": "B goes in, because it is your own setup traded as written, a play you can spot and run again.",
    "deeper": {
@@ -1436,7 +1436,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key B is right (f01, f21, f39; h08 rules out C), and no second answer holds: A came from a tip, not a play, and C broke the stop rule. Two defects. (1) 'All three of them' is an 'all of the above' choice, since A, B and C are the other three choices, and the voice rule bans that. Replaced with 'None, B was too small'. That choice is the real profit-grading mistake the deeper note warns about, and f01 (his desk archives a setup every session) refutes it. It is 21 characters, in line with the others (19, 21, 19). (2) f52 (Keller: 'What was your best trade this year?') is cited but not used. Read"
+   "notes": "Key B is right (f01, f21, f39; h08 rules out C), and no second answer holds: A came from a tip, not a play, and C broke the stop rule. Two defects. (1) 'All three of them' is an 'all of the above' choice, since A, B and C are the other three choices, and the voice rule bans that. Replaced with 'None, B was too small'. That choice is the real profit-grading mistake the deeper note warns about, and f01 (his desk archives a setup every session) refutes it. It is 21 characters, in line with the others (19, 21, 19). (2) f52 (Keller: 'What was your best trade this year?') is cited but not used. Read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "cut",

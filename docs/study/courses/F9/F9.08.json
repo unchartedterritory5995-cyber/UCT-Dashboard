@@ -479,7 +479,7 @@
     "0.25% to 0.5%",
     "0.5% to 1%",
     "1% to 1.5%",
-    "Zero, skip it"
+    "Skip it"
    ],
    "answer": "0.25% to 0.5%",
    "why": "0.25% to 0.5% of the account. The grade sets the size. A and B are normal at 0.5% to 1%. A+ is sized up to 1% to 1.5%. In a Green market, B- or lower is sized down, not skipped. In an Orange market, only A+ setups are taken.",
@@ -492,7 +492,7 @@
    "wrong": {
     "0.5% to 1%": "That's the A and B range, normal size. B- or lower is sized down from there.",
     "1% to 1.5%": "That's the A+ range, sized up. A B- setup gets the smallest risk, not the biggest.",
-    "Zero, skip it": "A Green market takes full risk per grade. B- or lower is sized down to 0.25% to 0.5%, not skipped."
+    "Skip it": "A Green market takes full risk per grade. B- or lower is sized down to 0.25% to 0.5%, not skipped."
    },
    "simple": "B- or lower risks 0.25% to 0.5%, because in a Green market a weaker setup is sized down, not skipped.",
    "tier": "core",
@@ -606,8 +606,8 @@
    "q": "How do we grade a setup A+, A, B or B-?",
    "choices": [
     "A judgment call, no set checklist",
-    "A points checklist that adds it up",
-    "By how tight the stop distance is",
+    "A points checklist that adds up",
+    "By how tight the stop is",
     "By how high the share price is"
    ],
    "answer": "A judgment call, no set checklist",
@@ -620,8 +620,8 @@
     "h11"
    ],
    "wrong": {
-    "A points checklist that adds it up": "We teach no fixed checklist. The grade is a judgment call.",
-    "By how tight the stop distance is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
+    "A points checklist that adds up": "We teach no fixed checklist. The grade is a judgment call.",
+    "By how tight the stop is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
     "By how high the share price is": "Price decides whether a stock is tradable ($10 or more), not how good the setup is."
    },
    "simple": "Grading is a judgment call with no set checklist, and the grade then picks how much you risk.",
@@ -1378,7 +1378,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h08; Green named in the stem so h23 (F65) closes 'skip it'. Choices balanced; notes grounded."
+   "notes": "Key from h08; Green named in the stem so h23 (F65) closes 'skip it'. Choices balanced; notes grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1402,7 +1403,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h09; the 'grade picks the percent, stop picks the shares' line now agrees with h01."
+   "notes": "Key from h09; the 'grade picks the percent, stop picks the shares' line now agrees with h01.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",

@@ -1179,8 +1179,8 @@
    "choices": [
     "Your rules for when to buy and sell",
     "A list of stocks you might trade",
-    "A record of trades you already made",
-    "A forecast of where the market goes"
+    "A record of trades already made",
+    "A forecast of where markets go"
    ],
    "answer": "Your rules for when to buy and sell",
    "why": "Your rules for when to buy and sell. Fidelity calls a trading plan your strategy for buying and selling. Deciding when to buy and sell is your entry and exit strategy. Schwab adds that a plan helps you think through every part of a trade before you place it. It removes some of the emotion and guesswork, not all of it.",
@@ -1193,8 +1193,8 @@
    ],
    "wrong": {
     "A list of stocks you might trade": "That's a watchlist. The plan says what you'll do with those names.",
-    "A record of trades you already made": "That's a trading journal. The plan comes before the trade, the journal after.",
-    "A forecast of where the market goes": "That's a prediction. Fidelity calls a plan your strategy for buying and selling, not a forecast."
+    "A record of trades already made": "That's a trading journal. The plan comes before the trade, the journal after.",
+    "A forecast of where markets go": "That's a prediction. Fidelity calls a plan your strategy for buying and selling, not a forecast."
    },
    "simple": "A trading plan is your rules for when to buy and sell, made ahead so emotion and guessing play a smaller part.",
    "tier": "core",
@@ -3454,7 +3454,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from f01/f03 before reading it. Key ties longest (35/35/35/32), not lone. Why and the forecast wrong-note sit on f01, f02, f03, f20. 'It removes some' is f02's 'help remove some'; acceptable."
+   "notes": "Key derived from f01/f03 before reading it. Key ties longest (35/35/35/32), not lone. Why and the forecast wrong-note sit on f01, f02, f03, f20. 'It removes some' is f02's 'help remove some'; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",

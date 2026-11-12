@@ -1020,8 +1020,8 @@
    "choices": [
     "The base's highest intraday high",
     "The base's lowest intraday low",
-    "The rising 50-day moving average",
-    "The midpoint of the base's range"
+    "The rising 50-day average",
+    "The midpoint of the base"
    ],
    "answer": "The base's highest intraday high",
    "why": "The base's highest intraday high. MarketSmith calls it the left-side high that began the base. IBD adds 10 cents to it for the buy point. With a market order the 10 cents does not matter. The lowest low is the floor, and the 50-day is support inside the base.",
@@ -1033,8 +1033,8 @@
    ],
    "wrong": {
     "The base's lowest intraday low": "That is the base low, the floor. The breakout goes through the ceiling.",
-    "The rising 50-day moving average": "The 50-day is support inside the base, not the trigger.",
-    "The midpoint of the base's range": "Halfway up the box is still inside the box. Nothing has broken out."
+    "The rising 50-day average": "The 50-day is support inside the base, not the trigger.",
+    "The midpoint of the base": "Halfway up the box is still inside the box. Nothing has broken out."
    },
    "house": true,
    "simple": "The pivot is the top of the box, the highest high of the base, and a breakout must trade through it.",
@@ -1472,9 +1472,9 @@
    "q": "A ten-week base about 10% deep: a level top tapped three times, the same floor each time, one range held. What is this base?",
    "choices": [
     "A flat base, still resting",
-    "A VCP, with shrinking swings",
-    "A cup, with a handle forming",
-    "A double bottom, mid-pattern"
+    "A VCP, shrinking swings",
+    "A cup, handle forming",
+    "A double bottom forming"
    ],
    "answer": "A flat base, still resting",
    "why": "A flat base. At about 10% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle.",
@@ -1487,9 +1487,9 @@
     "c17"
    ],
    "wrong": {
-    "A VCP, with shrinking swings": "A VCP tightens pullback by pullback. These swings hold one range.",
-    "A cup, with a handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 10% deep and boxy.",
-    "A double bottom, mid-pattern": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 10% deep and holds one range."
+    "A VCP, shrinking swings": "A VCP tightens pullback by pullback. These swings hold one range.",
+    "A cup, handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 10% deep and boxy.",
+    "A double bottom forming": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 10% deep and holds one range."
    },
    "house": true,
    "simple": "A flat base, because it holds one range with a level top, while a VCP has swings that shrink.",
@@ -2031,8 +2031,8 @@
    "q": "By the gap rule, where is the stop now?",
    "choices": [
     "50.30, the first 30-minute low",
-    "50.95, the first 30-minute high",
-    "Sell it all at the open, 50.60",
+    "50.95, first 30-minute high",
+    "Sell all at the open, 50.60",
     "Get out, the gap is past 2R"
    ],
    "answer": "50.30, the first 30-minute low",
@@ -2044,8 +2044,8 @@
    ],
    "wrong": {
     "Get out, the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit.",
-    "Sell it all at the open, 50.60": "The gap rule gives the first 30 minutes the decision. The open is not the decision; the 30-minute low is.",
-    "50.95, the first 30-minute high": "The new stop is the low of that first bar, not the high."
+    "Sell all at the open, 50.60": "The gap rule gives the first 30 minutes the decision. The open is not the decision; the 30-minute low is.",
+    "50.95, first 30-minute high": "The new stop is the low of that first bar, not the high."
    },
    "house": true,
    "story": "You bought at 52.00 with the stop at 51.00. It gaps open at 50.60, under your stop, so the gap rule applies. The first 30 minutes trade between 50.30 and 50.95.",
@@ -2151,9 +2151,9 @@
    "q": "What do you do?",
    "choices": [
     "Hold; the stop stays where it is",
-    "Widen the stop to give it room",
-    "Sell it; the breakout has failed",
-    "Raise the stop up to the pivot"
+    "Widen the stop for room",
+    "Sell it; the breakout failed",
+    "Raise the stop to the pivot"
    ],
    "answer": "Hold; the stop stays where it is",
    "why": "Hold it. The stop only moves up, never down or wider, and nothing here calls for raising it. A pullback to the pivot is normal. Our card notes that two in three rectangle breakouts come back to the breakout price within 30 days.",
@@ -2166,9 +2166,9 @@
     "h28"
    ],
    "wrong": {
-    "Widen the stop to give it room": "Never wider. The rule has one exception and this is not it.",
-    "Sell it; the breakout has failed": "A pullback to the pivot is not a failure. The stop decides, not the retest.",
-    "Raise the stop up to the pivot": "The stop only moves up, but nothing here calls for it. A stop at the pivot sits on the price and invites a stop-out on noise."
+    "Widen the stop for room": "Never wider. The rule has one exception and this is not it.",
+    "Sell it; the breakout failed": "A pullback to the pivot is not a failure. The stop decides, not the retest.",
+    "Raise the stop to the pivot": "The stop only moves up, but nothing here calls for it. A stop at the pivot sits on the price and invites a stop-out on noise."
    },
    "house": true,
    "story": "Three days after the breakout at 73.16, price slides back to the pivot, 73.00. Your stop is 72.24.",
@@ -2258,7 +2258,7 @@
     "Sell a third, right at the open",
     "Wait and decide at the close",
     "Sell the whole position now",
-    "Hold it all; the stop is enough"
+    "Hold it all; keep the stop"
    ],
    "answer": "Sell a third, right at the open",
    "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The open here is 3.4R, past the 3R level, so the first third comes off at once. The rest waits for the 5R trim and then the trail.",
@@ -2270,7 +2270,7 @@
    "wrong": {
     "Wait and decide at the close": "The level is already passed. Waiting gives the gap a chance to fill.",
     "Sell the whole position now": "A third at 3R. The rest waits for 5R and the trail.",
-    "Hold it all; the stop is enough": "The stop stays, but the trim is the rule when a level is passed at the open."
+    "Hold it all; keep the stop": "The stop stays, but the trim is the rule when a level is passed at the open."
    },
    "house": true,
    "story": "Your flat base long sits at 2.6R at Thursday's close. Friday it gaps open to 3.4R.",
@@ -2342,8 +2342,8 @@
    "q": "A flat base is the stock's fourth since the last stage reset. The shape is clean. What does the stage tell you?",
    "choices": [
     "Late in the move; likelier to fail",
-    "A proven trend; the base is safer",
-    "Nothing; the stage does not matter",
+    "A proven trend; base is safer",
+    "Nothing; stage does not matter",
     "Early in the move; room to run"
    ],
    "answer": "Late in the move; likelier to fail",
@@ -2356,8 +2356,8 @@
     "m08"
    ],
    "wrong": {
-    "A proven trend; the base is safer": "A long trend means the move is late, not proven. IBD says breakouts from late-stage bases will often blow up.",
-    "Nothing; the stage does not matter": "Stage matters. Our card wants the first or second base, and MarketSmith calls later bases more likely to fail.",
+    "A proven trend; base is safer": "A long trend means the move is late, not proven. IBD says breakouts from late-stage bases will often blow up.",
+    "Nothing; stage does not matter": "Stage matters. Our card wants the first or second base, and MarketSmith calls later bases more likely to fail.",
     "Early in the move; room to run": "Backwards. A fourth base comes after three earlier ones, so the move is late, not early."
    },
    "house": true,
@@ -2695,13 +2695,13 @@
    "criterion": "fb.depth",
    "q": "What is it?",
    "choices": [
-    "A cup with handle",
+    "A cup with a handle",
     "A flat base",
     "A high tight flag",
     "A double bottom"
    ],
-   "answer": "A cup with handle",
-   "why": "A cup with handle. A flat base stays boxy and falls 15% or less. This one fell 24% in a rounded U, climbed back near the high, then dipped just under it. That last dip is the handle. IBD and MarketSmith both cap the flat base at 15% deep. It is not a high tight flag, because that needs a pole that nearly doubles and this run was 60%. Our card has a cup falling 12% to 33%.",
+   "answer": "A cup with a handle",
+   "why": "A cup with a handle. A flat base stays boxy and falls 15% or less. This one fell 24% in a rounded U, climbed back near the high, then dipped just under it. That last dip is the handle. IBD and MarketSmith both cap the flat base at 15% deep. It is not a high tight flag, because that needs a pole that nearly doubles and this run was 60%. Our card has a cup falling 12% to 33%.",
    "lesson_line": "Measure the depth. Past the box, it is a cup, with its own rules.",
    "facts": [
     "c17",
@@ -2716,7 +2716,7 @@
    },
    "house": true,
    "story": "The stock ran 60% into a high, then fell 24% over ten weeks in a rounded U. It climbed back near the high. Now it dips a few percent just under the high.",
-   "simple": "It is a cup with handle, because a flat base never falls past 15% and this one fell 24%.",
+   "simple": "It is a cup with a handle, because a flat base never falls past 15% and this one fell 24%.",
    "deeper": {
     "trap": "The trap is judging by the look. A rounded base near the high can feel flat. Measure it. IBD and MarketSmith stop a flat base at 15%, and this one is 24% deep. The small dip at the end is not a flat base tightening. It is the handle before the buy."
    },
@@ -2788,9 +2788,9 @@
    "q": "Is it a flat base?",
    "choices": [
     "No; it is too deep for a flat base",
-    "No; it is really a high tight flag",
+    "No; it is a high tight flag",
     "Yes; three taps are what count",
-    "Yes; IBD allows flat bases to 20%"
+    "Yes; IBD allows bases to 20%"
    ],
    "answer": "No; it is too deep for a flat base",
    "why": "No. This base is 18.5% deep, and past 15% it is no longer a flat base. IBD's limit is 15% from the intraday peak to the intraday trough, and MarketSmith's is 15% too. Depth runs from the left-side high to the base's intraday low. Three taps do not fix depth, and the 51% run before it is only context. Our scan read it as cup-shaped: best 1.1R, then stopped.",
@@ -2803,9 +2803,9 @@
     "c18"
    ],
    "wrong": {
-    "No; it is really a high tight flag": "A high tight flag follows a run of 90% or more. This run was 51%.",
+    "No; it is a high tight flag": "A high tight flag follows a run of 90% or more. This run was 51%.",
     "Yes; three taps are what count": "The ceiling is one gate; depth is another. This fails depth.",
-    "Yes; IBD allows flat bases to 20%": "IBD's limit is 15% from the intraday peak to the intraday trough. MarketSmith agrees. 18.5% is past that."
+    "Yes; IBD allows bases to 20%": "IBD's limit is 15% from the intraday peak to the intraday trough. MarketSmith agrees. 18.5% is past that."
    },
    "house": true,
    "story": "A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
@@ -3084,9 +3084,9 @@
    "q": "Buy again?",
    "choices": [
     "Yes; a new trade with a new stop",
-    "No; one try per base is the limit",
-    "Yes, with a wider stop this time",
-    "No; wait for a fresh base to form"
+    "No; one try per base",
+    "Yes, with a wider stop",
+    "No; wait for a fresh base"
    ],
    "answer": "Yes; a new trade with a new stop",
    "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. Here the stock traded back through the pivot, so it triggered again. The new stop is a few cents under the new day's low, not wider. The same stock gets at most 3 tries in a week and 6 in a month.",
@@ -3097,9 +3097,9 @@
     "h24"
    ],
    "wrong": {
-    "Yes, with a wider stop this time": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake.",
-    "No; one try per base is the limit": "The limit is 3 tries in a week and 6 in a month, not one.",
-    "No; wait for a fresh base to form": "The base is still there and it triggered again. That is the re-entry."
+    "Yes, with a wider stop": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake.",
+    "No; one try per base": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "No; wait for a fresh base": "The base is still there and it triggered again. That is the re-entry."
    },
    "house": true,
    "story": "Stopped out of a flat base breakout on Tuesday. Thursday it trades back through the pivot.",
@@ -3221,9 +3221,9 @@
    "q": "How many do you take on day one?",
    "choices": [
     "A few; add more as they work",
-    "Half now; the rest tomorrow",
-    "All eight, each at half size",
-    "None; wait a week to be sure"
+    "Half now, half tomorrow",
+    "All eight, at half size",
+    "None; wait a week to see"
    ],
    "answer": "A few; add more as they work",
    "why": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Green is the ceiling: full risk per grade and up to 10 positions. It is not the first day's order. Many leaders basing sideways after a pullback is the best setting for this setup.",
@@ -3234,9 +3234,9 @@
     "c26"
    ],
    "wrong": {
-    "None; wait a week to be sure": "The rule is to start with a few, not to wait. Start small and add as they work.",
-    "Half now; the rest tomorrow": "That adds on the clock. The rule adds more only as the first ones work.",
-    "All eight, each at half size": "Eight positions is not a few. Start with a few and add as they work."
+    "None; wait a week to see": "The rule is to start with a few, not to wait. Start small and add as they work.",
+    "Half now, half tomorrow": "That adds on the clock. The rule adds more only as the first ones work.",
+    "All eight, at half size": "Eight positions is not a few. Start with a few and add as they work."
    },
    "house": true,
    "story": "After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots.",
@@ -3509,8 +3509,8 @@
    "story": "The left-side high is 100.00. The base's first week, the five sessions after that high, tops out at 93.00, which is 7% under it. Then it builds a neat box between 91 and 93.",
    "choices": [
     "No; week one fell too far below it",
-    "Yes, the box is neat and orderly",
-    "Yes, if volume dries up in the box",
+    "Yes, the box is neat",
+    "Yes, if volume dries in the box",
     "No; a flat base needs a handle"
    ],
    "answer": "No; week one fell too far below it",
@@ -3522,8 +3522,8 @@
     "c17"
    ],
    "wrong": {
-    "Yes, the box is neat and orderly": "A neat box later does not fix week one. The first week must stay near the high.",
-    "Yes, if volume dries up in the box": "Quiet volume is a grade cue. It cannot make up for a first week that fell away.",
+    "Yes, the box is neat": "A neat box later does not fix week one. The first week must stay near the high.",
+    "Yes, if volume dries in the box": "Quiet volume is a grade cue. It cannot make up for a first week that fell away.",
     "No; a flat base needs a handle": "Handles belong to the cup. A flat base is a box and needs none."
    },
    "house": true,
@@ -3586,8 +3586,8 @@
    "story": "A leader's box began at a left-side high 80 weeks ago. Price has stayed under that high since, tapping it again and again. Today it trades through it.",
    "choices": [
     "No; it ran too long to be flat",
-    "Yes, a longer base is stronger",
-    "Yes, as long as the top is flat",
+    "Yes, longer is stronger",
+    "Yes, if the top is flat",
     "No; it needs a handle first"
    ],
    "answer": "No; it ran too long to be flat",
@@ -3599,8 +3599,8 @@
     "c17"
    ],
    "wrong": {
-    "Yes, a longer base is stronger": "Length has a cap. Past 65 weeks it is no longer a flat base.",
-    "Yes, as long as the top is flat": "A flat top is needed, but not enough. The base must also be 65 weeks or less.",
+    "Yes, longer is stronger": "Length has a cap. Past 65 weeks it is no longer a flat base.",
+    "Yes, if the top is flat": "A flat top is needed, but not enough. The base must also be 65 weeks or less.",
     "No; it needs a handle first": "A handle belongs to the cup. The flat base fails here on length."
    },
    "house": true,
@@ -3916,7 +3916,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "cut",
@@ -4000,7 +4001,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "cut",
@@ -4090,7 +4092,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop 51.00, R = 1.00. Gap open 50.60 is under the stop. New stop is the first 30-minute low, 50.30. Loss to 50.30 is 1.7R, under the 2R ceiling. B20 supports it; no other choice is defensible."
+   "notes": "Stop 51.00, R = 1.00. Gap open 50.60 is under the stop. New stop is the first 30-minute low, 50.30. Loss to 50.30 is 1.7R, under the 2R ceiling. B20 supports it; no other choice is defensible.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "cut",
@@ -4114,7 +4117,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: hold. Matches key. Cited c21 supports it. Note: q29 also keys 'Hold; the stop is still the exit', so the pair can be pattern-matched; not a defect in either."
+   "notes": "Own answer: hold. Matches key. Cited c21 supports it. Note: q29 also keys 'Hold; the stop is still the exit', so the pair can be pattern-matched; not a defect in either.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "pass",
@@ -4132,7 +4136,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -4144,7 +4149,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "i23 and m07 are two Tier 2 publishers that agree; c13 is the card. Fourth base is late, clean shape irrelevant. No second defensible answer; choices balanced in length."
+   "notes": "i23 and m07 are two Tier 2 publishers that agree; c13 is the card. Fourth base is late, clean shape irrelevant. No second defensible answer; choices balanced in length.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -4198,7 +4204,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c17, c23, i06, m01. 24% is past 15% so not flat; 60% run is not an HTF pole; one rounded fall plus a small dip is cup with handle. Same depth gate as q51 but asked as a classification (mirror question)."
+   "notes": "c17, c23, i06, m01. 24% is past 15% so not flat; 60% run is not an HTF pole; one rounded fall plus a small dip is cup with handle. Same depth gate as q51 but asked as a classification (mirror question).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -4210,7 +4217,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "i05, m01, c23 agree on 15%; 18.5% is d22's number. IBD-allows-20% distractor is false and the note says so."
+   "notes": "i05, m01, c23 agree on 15%; 18.5% is d22's number. IBD-allows-20% distractor is false and the note says so.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q52": {
    "status": "cut",
@@ -4258,7 +4266,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h28 (B21) and h29 (E56) verbatim. A trade-through of the pivot after a stop-out is a new trigger; one try per base is false."
+   "notes": "h28 (B21) and h29 (E56) verbatim. A trade-through of the pivot after a stop-out is a new trigger; one try per base is false.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "cut",
@@ -4282,7 +4291,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: a few, add as they work. F68 supports it; F65 gives the Green ceiling. 'Half now' and 'all eight' both break 'a few' and 'only as they work'."
+   "notes": "Own answer: a few, add as they work. F68 supports it; F65 gives the Green ceiling. 'Half now' and 'all eight' both break 'a few' and 'only as they work'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",
@@ -4324,7 +4334,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Ambiguous: q09 says the base starts at the left-side high, so a reader can count the high's own week as week one and pass it. Say the first week is the five sessions after the high. Also note the 3% is a proposed card number (base_catalog.py reading of IBD), not an owner ruling or a quoted source."
+   "notes": "Ambiguous: q09 says the base starts at the left-side high, so a reader can count the high's own week as week one and pass it. Say the first week is the five sessions after the high. Also note the 3% is a proposed card number (base_catalog.py reading of IBD), not an owner ruling or a quoted source.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q71": {
    "status": "pass",
@@ -4336,7 +4347,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The why says 'A longer base is not a stronger one': no cited fact says it and it is contested (Bulkowski finds taller patterns do better). Remove it. Also the story can be read against c27 (left-side high is the highest of the last 100 sessions, so a recent tap would start the base); state that the box began at a high 80 weeks ago."
+   "notes": "The why says 'A longer base is not a stronger one': no cited fact says it and it is contested (Bulkowski finds taller patterns do better). Remove it. Also the story can be read against c27 (left-side high is the highest of the last 100 sessions, so a recent tap would start the base); state that the box began at a high 80 weeks ago.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q73": {
    "status": "cut",

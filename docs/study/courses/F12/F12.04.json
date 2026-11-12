@@ -1095,9 +1095,9 @@
    "q": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap?",
    "choices": [
     "Crediting skill for a lucky win",
-    "Blaming bad luck for every loss",
-    "Trading smaller after every loss",
-    "Selling your winners too early"
+    "Blaming luck for every loss",
+    "Trading smaller after a loss",
+    "Selling winners too early"
    ],
    "answer": "Crediting skill for a lucky win",
    "why": "Crediting skill for a lucky win. Resulting works in both directions. A bad outcome gets blamed on a bad process. A good outcome gets put down to a sound process when it was just luck. Duke warns resulting can make you believe some bad decisions should be reinforced. That is how a lucky habit gets repeated.",
@@ -1109,9 +1109,9 @@
     "f50"
    ],
    "wrong": {
-    "Blaming bad luck for every loss": "That's a cousin bias: wins are your skill, losses are bad luck. Resulting grades by the result either way.",
-    "Trading smaller after every loss": "That's a reaction to losing, not a way of judging the decision.",
-    "Selling your winners too early": "That's an exit habit. Resulting is about how you judge a decision after the fact."
+    "Blaming luck for every loss": "That's a cousin bias: wins are your skill, losses are bad luck. Resulting grades by the result either way.",
+    "Trading smaller after a loss": "That's a reaction to losing, not a way of judging the decision.",
+    "Selling winners too early": "That's an exit habit. Resulting is about how you judge a decision after the fact."
    },
    "simple": "The other half is calling a lucky win good skill, which can lead you to repeat a bad choice.",
    "tier": "extended",
@@ -1308,7 +1308,7 @@
    "q": "What does that tell you?",
    "choices": [
     "The setup itself needs a hard look",
-    "Nothing, only process grades count",
+    "Nothing, process is what counts",
     "Your grades have been too harsh",
     "Trade it bigger to win it back"
    ],
@@ -1322,9 +1322,9 @@
     "f55"
    ],
    "wrong": {
-    "Nothing, only process grades count": "Process grades judge each trade. Over months, the results judge the setup.",
-    "Trade it bigger to win it back": "Sizing up a setup that's losing money makes a possible problem bigger.",
-    "Your grades have been too harsh": "The grades say you followed the plan. The question now is whether the plan has an edge."
+    "Nothing, process is what counts": "Process grades judge each trade. Over months, the results judge the setup.",
+    "Your grades have been too harsh": "The grades say you followed the plan. The question now is whether the plan has an edge.",
+    "Trade it bigger to win it back": "Sizing up a setup that's losing money makes a possible problem bigger."
    },
    "simple": "The setup needs a hard look: the trades were taken well, so the losses may point to a setup with no edge.",
    "deeper": {
@@ -1546,7 +1546,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Other half from f52; why grounded in f43 ('can make you believe some bad decisions should be reinforced'). Two distractors share 'every', so no lone absolute."
+   "notes": "Other half from f52; why grounded in f43 ('can make you believe some bad decisions should be reinforced'). Two distractors share 'every', so no lone absolute.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",
@@ -1582,7 +1583,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key decided cold and matches: clean process plus a losing pile over six months points at the setup (f36, f59, f60, f55); consistent with rulebook E59 (monthly review of the numbers) and 'Trade it bigger' is rightly wrong (D45, E49). Choices 30-34 chars, key tied longest with a distractor, echoes balanced. Only the lesson line breaks: 'The pile of trades tells you which one you have' has no clear antecedent ('which one' of what?), and 'a setup with no edge still loses' states as fact what the why only says may be so (f59: bad luck or a real problem). Reworded to a clear line that stays inside f"
+   "notes": "Key decided cold and matches: clean process plus a losing pile over six months points at the setup (f36, f59, f60, f55); consistent with rulebook E59 (monthly review of the numbers) and 'Trade it bigger' is rightly wrong (D45, E49). Choices 30-34 chars, key tied longest with a distractor, echoes balanced. Only the lesson line breaks: 'The pile of trades tells you which one you have' has no clear antecedent ('which one' of what?), and 'a setup with no edge still loses' states as fact what the why only says may be so (f59: bad luck or a real problem). Reworded to a clear line that stays inside f",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

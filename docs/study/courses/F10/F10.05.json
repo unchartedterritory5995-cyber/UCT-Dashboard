@@ -1470,8 +1470,8 @@
    "choices": [
     "Sell a portion, trail the rest",
     "Add more while it's running",
-    "Lower the stop to give it room",
-    "Sell it all, it can't go higher"
+    "Lower the stop for room",
+    "Sell all, it can't go higher"
    ],
    "answer": "Sell a portion, trail the rest",
    "why": "Sell a portion, trail the rest. You lock in some of the run while it's strong and keep shares on for more. Our rule: sell some into strength and trail the rest under the rising averages. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term. Schwab's version: sell a portion and let the remainder ride.",
@@ -1488,8 +1488,8 @@
    ],
    "wrong": {
     "Add more while it's running": "We never add to a position. And buying an extended stock is chasing: O'Neil warns those buys get shaken out on normal pullbacks.",
-    "Lower the stop to give it room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
-    "Sell it all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
+    "Lower the stop for room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
+    "Sell all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
    },
    "simple": "Sell part of it and trail the rest. You bank some of the run and keep shares on for more.",
    "deeper": {
@@ -1738,9 +1738,9 @@
    "q": "What do you do with the first third?",
    "choices": [
     "Sell it right at the open",
-    "Wait for a pullback to $23",
-    "Hold all of it, it's running",
-    "Sell everything at the open"
+    "Wait for a pullback",
+    "Hold all, it's running",
+    "Sell all at the open"
    ],
    "answer": "Sell it right at the open",
    "why": "Sell it right at the open. The stock opened at $24.10, above the $23 trim level. Our rule: if a stock opens above a trim level, take that trim at the open. Waiting for $23 is not part of the rule. The stop on the other two thirds moves to breakeven, $20.",
@@ -1752,9 +1752,9 @@
     "h04"
    ],
    "wrong": {
-    "Wait for a pullback to $23": "The level is already behind you. Our rule takes the trim at the open, not on a pullback.",
-    "Hold all of it, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
-    "Sell everything at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail."
+    "Wait for a pullback": "The level is already behind you. Our rule takes the trim at the open, not on a pullback.",
+    "Hold all, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
+    "Sell all at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail."
    },
    "simple": "Sell the first third at the open. The stock opened above the 3R trim, so our rule takes it there.",
    "tier": "extended",
@@ -2110,7 +2110,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: sell a portion, trail the rest (A11, h01; Hirsch f15 and Schwab f18 agree, attributed). Every wrong note grounded (h11, f11, h13). Minor: the story gives no R level, so the item rests on A11 rather than the 3R/5R ladder; the deeper names the set levels. 'Sell it all, it can't go higher' is a lone absolute in a wrong choice, a weak tell, kept because it is a real misconception."
+   "notes": "Own answer: sell a portion, trail the rest (A11, h01; Hirsch f15 and Schwab f18 agree, attributed). Every wrong note grounded (h11, f11, h13). Minor: the story gives no R level, so the item rests on A11 rather than the 3R/5R ladder; the deeper names the set levels. 'Sell it all, it can't go higher' is a lone absolute in a wrong choice, a weak tell, kept because it is a real misconception.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "w4": {
    "status": "pass",
@@ -2164,7 +2165,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: take the trim at the open (h06, F63 verbatim). Key is the shortest choice. Story gives $23 as 3R ($20 + 3 x $1), and the why states only story numbers. Lesson-level gap stands: F63 is in no walk-through (the resolver's proposed w5 is for the integrator). 'Hold all of it' is not defensible: B19's 'mostly waits for 5R' is his practice, and F63 is the rule."
+   "notes": "Own answer: take the trim at the open (h06, F63 verbatim). Key is the shortest choice. Story gives $23 as 3R ($20 + 3 x $1), and the why states only story numbers. Lesson-level gap stands: F63 is in no walk-through (the resolver's proposed w5 is for the integrator). 'Hold all of it' is not defensible: B19's 'mostly waits for 5R' is his practice, and F63 is the rule.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
    "status": "pass",

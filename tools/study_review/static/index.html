@@ -398,6 +398,7 @@ details p, details div { margin: 6px 0; }
     if (!d) { main.innerHTML = '<div class="banner">That decision did not load.</div>'; return; }
     if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
     var h = '<div class="where"><span>Decision ' + esc(d.id) + '</span><span class="chip">' + (d.part === 'A' ? 'Shared by many setups' : esc(d.group || 'One setup')) + '</span><span>' + (S.queue.indexOf(id) + 1) + ' of ' + S.queue.length + '</span></div>';
+    if (d.ndep) h += '<div class="flag mild"><b>' + (S.decs.indexOf(d) < 9 ? 'Start here. ' : '') + 'Your answer settles ' + d.ndep + ' question' + (d.ndep === 1 ? '' : 's') + '</b> whose right answer rests on this decision. Part 3 lists the decisions that settle the most questions first.</div>';
     h += '<div class="flag mild"><b>Not your ruling yet.</b> The lessons use <b>Our default</b> as a stand-in until you answer. Agree with it, change it, or ask to talk it over. Your answer goes straight into the rules.</div>';
     var meta = d.blocks.filter(function (b) { return /^\*\*(Setups touched|Questions)/.test(b); }), main3 = d.blocks.filter(function (b) { return !/^\*\*(Setups touched|Questions)/.test(b); });
     h += '<p class="q">' + esc(d.title) + '</p>' + main3.map(mdBlock).join('');
@@ -605,7 +606,7 @@ details p, details div { margin: 6px 0; }
       '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
       '<button class="big" id="mP1" type="button">Part 1: the ' + look + ' Claude changed or doubts<small>Start here. Each one shows what changed or worried Claude.</small></button>' +
       '<button class="big" id="mP2" type="button">Part 2: every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
-      '<button class="big" id="mP3" type="button">Part 3: the ' + nd + ' decisions behind the rules<small>One answer here settles many rules and questions at once.</small></button>' +
+      '<button class="big" id="mP3" type="button">Part 3: the ' + nd + ' decisions behind the rules<small>One answer here settles many rules and questions at once. Do these before Part 4: the first 9 settle about ' + nf(S.decs.slice(0, 9).reduce(function (a, d) { return a + (d.ndep || 0); }, 0)) + ' questions.</small></button>' +
       '<button class="big" id="mP4" type="button">Part 4: the sample review<small>10 random upgraded questions per lesson, riskiest first. If all 10 are good, the lesson is approved.</small></button>' +
       '<button class="big" id="mLessons" type="button">Lesson status board<small>Which lessons are approved, being sampled, or sent back.</small></button>' +
       '<label for="mBud"><b>Daily review budget</b> (questions a day)</label><input id="mBud" type="number" min="10" max="2000" value="' + budget() + '" style="width:100%;min-height:52px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px">' +

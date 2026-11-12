@@ -540,8 +540,8 @@
    "q": "In Tendler's mental hand history, what goes in step 1?",
    "choices": [
     "The problem, described in detail",
-    "The rule you'll follow next time",
-    "What the mistake cost in dollars",
+    "The rule for next time",
+    "What the mistake cost",
     "Why your thinking was flawed"
    ],
    "answer": "The problem, described in detail",
@@ -555,8 +555,8 @@
     "f08"
    ],
    "wrong": {
-    "The rule you'll follow next time": "A fix comes later, in step 4, and there it corrects your logic. Step 1 only describes the problem.",
-    "What the mistake cost in dollars": "The cost can be one detail. Step 1 is the full description of the problem, not just the bill.",
+    "The rule for next time": "A fix comes later, in step 4, and there it corrects your logic. Step 1 only describes the problem.",
+    "What the mistake cost": "The cost can be one detail. Step 1 is the full description of the problem, not just the bill.",
     "Why your thinking was flawed": "That's step 3. You can't find a flaw in logic you haven't laid out yet."
    },
    "simple": "Step 1 describes the problem in detail, and the later steps explain it, find the flaw and correct it.",
@@ -954,8 +954,8 @@
    "q": "What does Tendler say to do right now?",
    "choices": [
     "Recall what you wrote about it",
-    "Sell, then write it up tonight",
-    "Push the feeling down and hold",
+    "Sell, write it up tonight",
+    "Push the urge down and hold",
     "Wait for the urge to pass"
    ],
    "answer": "Recall what you wrote about it",
@@ -969,8 +969,8 @@
     "t01"
    ],
    "wrong": {
-    "Sell, then write it up tonight": "Selling on the urge is the habit you set out to fix. The correction is for this moment.",
-    "Push the feeling down and hold": "Holding is fine, but forcing the feeling down is control, not correction. Your correction is logic you already wrote, so use it.",
+    "Sell, write it up tonight": "Selling on the urge is the habit you set out to fix. The correction is for this moment.",
+    "Push the urge down and hold": "Holding is fine, but forcing the feeling down is control, not correction. Your correction is logic you already wrote, so use it.",
     "Wait for the urge to pass": "Tendler says use it early, as soon as the emotion is triggered. Waiting gives it time to build."
    },
    "simple": "Recall what you wrote right now, because the correction works best before the urge grows strong.",
@@ -1060,9 +1060,9 @@
    "q": "What does Tendler say is most likely?",
    "choices": [
     "He hasn't nailed down the cause",
-    "The method just doesn't fit him",
-    "He needs more willpower to stop",
-    "His entry rules are the problem"
+    "The method doesn't fit him",
+    "He needs more willpower",
+    "His entries are the problem"
    ],
    "answer": "He hasn't nailed down the cause",
    "why": "He hasn't nailed down the cause. Tendler says that after a lot of work with the problem still there, the root cause likely hasn't been nailed down. Believing you found the root is not proof. In this real reader case the trader had tried for 4 months. Tendler suggested his definition of progress was too narrow. Dig again, and aim for something new.",
@@ -1076,9 +1076,9 @@
     "t01"
    ],
    "wrong": {
-    "The method just doesn't fit him": "Tendler doesn't blame the method here. Lots of work with no progress likely means the root cause isn't found yet.",
-    "His entry rules are the problem": "Revenge trades follow losses, whatever the setup. That points to his thinking, not his entries.",
-    "He needs more willpower to stop": "Willpower is trying to control the emotion. Tendler says controlling it is different from correcting the problem."
+    "The method doesn't fit him": "Tendler doesn't blame the method here. Lots of work with no progress likely means the root cause isn't found yet.",
+    "He needs more willpower": "Willpower is trying to control the emotion. Tendler says controlling it is different from correcting the problem.",
+    "His entries are the problem": "Revenge trades follow losses, whatever the setup. That points to his thinking, not his entries."
    },
    "simple": "He likely has not found the real cause yet, because lots of work with no progress usually means that.",
    "deeper": {
@@ -1265,7 +1265,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided cold from f05/g04 before reading it: matches. Choices 28-32 chars, key tied for longest, not alone. Simple and why rest on f05-f08/g04 only. Voice fine."
+   "notes": "Key decided cold from f05/g04 before reading it: matches. Choices 28-32 chars, key tied for longest, not alone. Simple and why rest on f05-f08/g04 only. Voice fine.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1343,7 +1344,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -1361,7 +1363,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-fetched s6 2026-11-12: the reader's letter does say he mapped his emotions, did a mental hand history, identified the root cause, and tilts after 'a loss or two'; '4 months' is in h04. Tendler's root-cause line (h05) sits right before his diagnosis of this reader, so the key holds. Story details are on the page but carry no fact quote in the file; not a key or number, so not blocking."
+   "notes": "Re-fetched s6 2026-11-12: the reader's letter does say he mapped his emotions, did a mental hand history, identified the root cause, and tilts after 'a loss or two'; '4 months' is in h04. Tendler's root-cause line (h05) sits right before his diagnosis of this reader, so the key holds. Story details are on the page but carry no fact quote in the file; not a key or number, so not blocking.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",

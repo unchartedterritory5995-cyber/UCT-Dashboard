@@ -1127,7 +1127,7 @@
     "Early assignment, without the dividend",
     "No early assignment, dividend yours",
     "The strike cut by the dividend",
-    "Early assignment, dividend still yours"
+    "Early assignment, dividend yours"
    ],
    "answer": "Early assignment, without the dividend",
    "why": "Early assignment, without the dividend. A call holder who exercises before the ex-date is entitled to the dividend. Here the call is in the money and the dividend beats its time value left. So the owner has reason to exercise early. Assignment can come days or weeks before expiry. A regular quarterly cash dividend does not change the option's terms. Early exercise is likely, not certain. The only sure way to avoid it is to buy the call back.",
@@ -1144,9 +1144,9 @@
     "f48"
    ],
    "wrong": {
+    "No early assignment, dividend yours": "Assignment can come days or weeks before expiry. Here the call owner has reason to exercise early.",
     "The strike cut by the dividend": "A regular cash dividend doesn't change the option's terms. That's why the call owner exercises to get it.",
-    "Early assignment, dividend still yours": "The holder who exercises before the ex-date is entitled to the dividend. You may only hear of the assignment later.",
-    "No early assignment, dividend yours": "Assignment can come days or weeks before expiry. Here the call owner has reason to exercise early."
+    "Early assignment, dividend yours": "The holder who exercises before the ex-date is entitled to the dividend. You may only hear of the assignment later."
    },
    "simple": "Expect to be assigned early and lose the dividend, since the call owner gains more by exercising than by holding.",
    "deeper": {
@@ -1647,7 +1647,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f72, f73, f41 (dividend beats time value, ITM, holder who exercises before ex-date gets the dividend). Regular quarterly dividend means no terms change (f43, f77). Convergence points to a wrong choice, not the key. Why says 'likely, not certain'."
+   "notes": "Key from f72, f73, f41 (dividend beats time value, ITM, holder who exercises before ex-date gets the dividend). Regular quarterly dividend means no terms change (f43, f77). Convergence points to a wrong choice, not the key. Why says 'likely, not certain'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",

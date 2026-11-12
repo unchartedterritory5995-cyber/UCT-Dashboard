@@ -1239,7 +1239,7 @@
    "q": "In one line, what is a Parabolic Short?",
    "choices": [
     "A short of a vertical run as it cracks",
-    "A short of any stock under its 200-day",
+    "Shorting any stock under its 200-day",
     "A short at the top before the crack",
     "A long bought as a crash day turns"
    ],
@@ -1259,7 +1259,7 @@
     "d09"
    ],
    "wrong": {
-    "A short of any stock under its 200-day": "This setup lives far above its 200-day, in one of the hottest stocks in the market.",
+    "Shorting any stock under its 200-day": "This setup lives far above its 200-day, in one of the hottest stocks in the market.",
     "A short at the top before the crack": "Shorting at the day's highs can be a dangerous trap. We wait for the break back under VWAP.",
     "A long bought as a crash day turns": "That is the Parabolic Long, the mirror image: a burst down, bought on the intraday turn."
    },
@@ -1389,9 +1389,9 @@
    "q": "Where does the stop sit on a Parabolic Short?",
    "choices": [
     "A few cents over the day's high",
-    "A few cents under the day's low",
+    "A few cents under the low",
     "At the 9 EMA, below the price",
-    "A fixed 3% above your fill price"
+    "A fixed 3% above your fill"
    ],
    "answer": "A few cents over the day's high",
    "why": "A few cents over the climax day's high. Bracco's thesis is that the top is in, so the day's high is the line. Our card puts the stop a few cents over the high at the time of entry. Kullamagi agrees: the stop is the highs of the day. It is a level on the chart, not a percent of your fill.",
@@ -1403,9 +1403,9 @@
     "k03"
    ],
    "wrong": {
-    "A few cents under the day's low": "That is a long's stop. A short's stop sits above price.",
+    "A few cents under the low": "That is a long's stop. A short's stop sits above price.",
     "At the 9 EMA, below the price": "The 9 EMA is the target, not the stop. A short's stop sits above price.",
-    "A fixed 3% above your fill price": "The stop is a level on the chart, the day's high, not a percent."
+    "A fixed 3% above your fill": "The stop is a level on the chart, the day's high, not a percent."
    },
    "house": true,
    "simple": "The stop goes a few cents over the day's high, because if price gets back there the top was not in.",
@@ -1456,8 +1456,8 @@
    "choices": [
     "Two straight overnight gap ups",
     "A close under the 50-day",
-    "Volume falling two days running",
-    "A ten-week base before the run"
+    "Volume falling for two days",
+    "A ten-week base before it"
    ],
    "answer": "Two straight overnight gap ups",
    "why": "Two straight overnight gap ups. Bracco's boxes are three straight up days and two straight overnight gap ups. Add two of three days of range expansion and two days of rising volume. Then a gap up on the climax day. Not every box must be checked, but the more that are, the stronger the setup.",
@@ -1471,8 +1471,8 @@
    ],
    "wrong": {
     "A close under the 50-day": "A burst runs far above its averages. A close under the 50-day is a different chart.",
-    "Volume falling two days running": "The box is rising volume, each day higher than the last.",
-    "A ten-week base before the run": "The boxes count the burst's last days, not the base before it."
+    "Volume falling for two days": "The box is rising volume, each day higher than the last.",
+    "A ten-week base before it": "The boxes count the burst's last days, not the base before it."
    },
    "house": true,
    "simple": "Two straight overnight gap ups is one of Bracco's boxes for a burst.",
@@ -1934,9 +1934,9 @@
    "q": "The climax day is Tuesday. You are stopped out of the short that day. Wednesday it cracks under VWAP again. Allowed?",
    "choices": [
     "Yes; a new trigger in the window",
-    "No; only one try per climax move",
-    "Yes; keep the stop from Tuesday",
-    "No; a stop-out closes the window"
+    "No; one try per climax move",
+    "Yes; keep Tuesday's stop",
+    "No; a stop-out ends it"
    ],
    "answer": "Yes; a new trigger in the window",
    "why": "Yes. After a stop-out we short again only if the setup triggers again. It is a new trade with its own stop and every rule. The idea has a 1 to 2 day window, and Wednesday is the day after the climax, inside it. One stock gets at most 3 tries in a week and 6 in a month.",
@@ -1948,9 +1948,9 @@
     "m01"
    ],
    "wrong": {
-    "Yes; keep the stop from Tuesday": "A new trade has its own stop, set at its own entry.",
-    "No; only one try per climax move": "The cap is 3 tries in a week and 6 in a month, not one.",
-    "No; a stop-out closes the window": "One stop-out does not close it. Two failed triggers, or the window passing, drops the idea."
+    "No; one try per climax move": "The cap is 3 tries in a week and 6 in a month, not one.",
+    "Yes; keep Tuesday's stop": "A new trade has its own stop, set at its own entry.",
+    "No; a stop-out ends it": "One stop-out does not close it. Two failed triggers, or the window passing, drops the idea."
    },
    "house": true,
    "simple": "Yes, because after a stop-out a new trigger inside the 1 to 2 day window is a new trade with its own stop.",
@@ -2572,9 +2572,9 @@
    "q": "You shorted a climax close with the target only 0.14R away. Which yardstick fits this trade?",
    "choices": [
     "The 9 EMA, which acts as a magnet",
-    "A fixed 3R, like most other setups",
-    "The 50-day average as the target",
-    "The prior swing low as the target"
+    "A fixed 3R, like most setups",
+    "The 50-day as the target",
+    "The swing low as the target"
    ],
    "answer": "The 9 EMA, which acts as a magnet",
    "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the cover rule handles and a 3R test cannot.",
@@ -2586,9 +2586,9 @@
     "b14"
    ],
    "wrong": {
-    "The 50-day average as the target": "Bracco's target is the 9 EMA, not the 50-day.",
-    "The prior swing low as the target": "The rule names a moving average, not a low on the chart. Bracco's target is the 9 EMA, which acts as a magnet for mean reversion.",
-    "A fixed 3R, like most other setups": "3R was never on the table. The stock never gave more than 0.77R before it chopped."
+    "A fixed 3R, like most setups": "3R was never on the table. The stock never gave more than 0.77R before it chopped.",
+    "The 50-day as the target": "Bracco's target is the 9 EMA, not the 50-day.",
+    "The swing low as the target": "The rule names a moving average, not a low on the chart. Bracco's target is the 9 EMA, which acts as a magnet for mean reversion."
    },
    "house": true,
    "simple": "The target is the 9 EMA, a level not a multiple. Here it is only 0.14R away, so 3R was never on the table.",
@@ -2614,9 +2614,9 @@
    "q": "What is the lesson?",
    "choices": [
     "A mania can top more than once",
-    "Do not short a mania like this",
+    "Do not short a mania",
     "Use a wider stop in a mania",
-    "Hold on past the 9 EMA for 3R"
+    "Hold past the 9 EMA for 3R"
    ],
    "answer": "A mania can top more than once",
    "why": "A mania can top more than once. The cover rule takes the trade out at the 9 EMA on day 2, at 0.52R. Holding on meant the new high on day 3 took the stop. Twenty sessions later the stock was 27.7% higher. In our data, three of the four losing examples made a new high within three to ten sessions. That is what the 1 to 2 day window and the three-tries cap are for.",
@@ -2633,9 +2633,9 @@
     "b30"
    ],
    "wrong": {
-    "Do not short a mania like this": "Hot runaway stocks are exactly where this setup lives. The lesson is the window and the tries cap, not skipping it.",
+    "Do not short a mania": "Hot runaway stocks are exactly where this setup lives. The lesson is the window and the tries cap, not skipping it.",
     "Use a wider stop in a mania": "The stop is the exit. It never moves wider, and a few cents over the climax high is the rule.",
-    "Hold on past the 9 EMA for 3R": "This setup is paid at the 9 EMA, inside a few sessions, or not at all. Holding past it is how 0.52R became a stop-out."
+    "Hold past the 9 EMA for 3R": "This setup is paid at the 9 EMA, inside a few sessions, or not at all. Holding past it is how 0.52R became a stop-out."
    },
    "house": true,
    "story": "Shorted 60.68, stop 65.34. Day 2 touches the 9 EMA at 0.52R. Day 3 prints a new high and takes the stop. Twenty sessions later the stock is 27.7% higher.",
@@ -2718,8 +2718,8 @@
    "q": "By our card, what now?",
    "choices": [
     "Out; the VWAP reclaim ends it",
-    "Hold until 33.40 is reclaimed",
-    "Add more; VWAP is just noise",
+    "Hold until 33.40 is retaken",
+    "Add; VWAP is just noise",
     "Cover half; hold the rest"
    ],
    "answer": "Out; the VWAP reclaim ends it",
@@ -2732,8 +2732,8 @@
     "h11"
    ],
    "wrong": {
-    "Hold until 33.40 is reclaimed": "The day's high is the stop for a VWAP-break entry. For a VWAP-fail entry the reclaim is the exit.",
-    "Add more; VWAP is just noise": "VWAP is the one intraday line Kullamagi uses. A reclaim is the thesis failing, not noise.",
+    "Hold until 33.40 is retaken": "The day's high is the stop for a VWAP-break entry. For a VWAP-fail entry the reclaim is the exit.",
+    "Add; VWAP is just noise": "VWAP is the one intraday line Kullamagi uses. A reclaim is the thesis failing, not noise.",
     "Cover half; hold the rest": "The reclaim is a full exit, not a trim. Holding half keeps a thesis that has already failed."
    },
    "house": true,
@@ -3005,9 +3005,9 @@
    "q": "Our rule?",
    "choices": [
     "No adding; one entry, one stop",
-    "Add half; improve your average",
-    "Add only if volume dries up fast",
-    "No adding; give it a wider stop"
+    "Add half; improve average",
+    "Add if volume dries up",
+    "No adding; widen the stop"
    ],
    "answer": "No adding; one entry, one stop",
    "why": "No adding. The full size at one price with one stop. Bracco: parabolic advances often go further than anyone thinks, so he never adds when he is down. The stop is the exit and never moves wider, so widening it is no escape either.",
@@ -3019,9 +3019,9 @@
     "h11"
    ],
    "wrong": {
-    "Add half; improve your average": "A better average with a bigger position is a bigger squeeze.",
-    "Add only if volume dries up fast": "No condition opens the door. One entry, one stop, and the stop decides.",
-    "No adding; give it a wider stop": "The stop is the exit. It only moves in your favor, never wider."
+    "Add half; improve average": "A better average with a bigger position is a bigger squeeze.",
+    "Add if volume dries up": "No condition opens the door. One entry, one stop, and the stop decides.",
+    "No adding; widen the stop": "The stop is the exit. It only moves in your favor, never wider."
    },
    "house": true,
    "story": "Your short is nearly 1R against you, still under the day's high. A friend says average up, the top is in.",
@@ -3089,9 +3089,9 @@
    "q": "What was the mistake?",
    "choices": [
     "Shorted strength: no crack, no burst",
-    "None; any gap up counts as a climax",
-    "The stop over the high was too tight",
-    "Entered late; the open was the entry"
+    "None; any gap up is a climax",
+    "The stop over the high was tight",
+    "Entered late; open was the entry"
    ],
    "answer": "Shorted strength: no crack, no burst",
    "why": "Shorting strength. The day closed above its open, so there was no crack, and one box is no burst. On daily bars a close under the open is the stand-in for the crack. Shorting a green climax day won 23% of the time. Shorting that close lost 4.5R on the next day's gap up.",
@@ -3104,9 +3104,9 @@
     "c48"
    ],
    "wrong": {
-    "The stop over the high was too tight": "Nothing in the story says the stop was wrong. The mistake was the entry: a green day with one box.",
-    "None; any gap up counts as a climax": "A gap up that closes green has not cracked. The gap is the setup, the crack is the trigger.",
-    "Entered late; the open was the entry": "Nothing at the open on the climax day. The mistake was what you shorted: a green close with one box."
+    "None; any gap up is a climax": "A gap up that closes green has not cracked. The gap is the setup, the crack is the trigger.",
+    "The stop over the high was tight": "Nothing in the story says the stop was wrong. The mistake was the entry: a green day with one box.",
+    "Entered late; open was the entry": "Nothing at the open on the climax day. The mistake was what you shorted: a green close with one box."
    },
    "house": true,
    "story": "The stock gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway.",
@@ -3430,9 +3430,9 @@
    "q": "What does the card teach from it?",
    "choices": [
     "The time limit; the gap was small",
-    "Hold five weeks; it reached 2.95R",
-    "A 2.8% gap is a strong A+ cue here",
-    "A close at the low means it falls"
+    "Hold five weeks; it hit 2.95R",
+    "A 2.8% gap is a strong A+ cue",
+    "A low close means it falls"
    ],
    "answer": "The time limit; the gap was small",
    "why": "The time limit, and a small gap grades lower. This climax had four boxes and a close at the day's low, but only a 2.8% gap. That is a weak mark on our card, where 5% or more is the A+ row. The card says to cover if the 9 EMA is not reached within 3 sessions of entry. Here the 9 EMA took 8 sessions, and the stock chopped under the climax high for five weeks. It reached 2.95R at best, but not by the plan.",
@@ -3445,9 +3445,9 @@
     "c30"
    ],
    "wrong": {
-    "Hold five weeks; it reached 2.95R": "It reached 2.95R at best, but the 9 EMA took 8 sessions. The card's limit is 3.",
-    "A 2.8% gap is a strong A+ cue here": "A gap of 5% or more is the A+ cue. A small gap is the weak point.",
-    "A close at the low means it falls": "A close at the low is not a promise. This one closed at the low and still chopped under its high for five weeks."
+    "Hold five weeks; it hit 2.95R": "It reached 2.95R at best, but the 9 EMA took 8 sessions. The card's limit is 3.",
+    "A 2.8% gap is a strong A+ cue": "A gap of 5% or more is the A+ cue. A small gap is the weak point.",
+    "A low close means it falls": "A close at the low is not a promise. This one closed at the low and still chopped under its high for five weeks."
    },
    "house": true,
    "story": "Four of four boxes and a close at the day's low, but the gap was 2.8%. Short 502.85, stop 547.76. The stock chops under its high for five weeks.",
@@ -3584,9 +3584,9 @@
    "q": "Four boxes and record volume, but the climax gap is only 1.7%, like SCHW in 1999. Does the small gap rule it out?",
    "choices": [
     "Not ruled out; a small gap grades lower",
-    "Ruled out; the gap must be 5% or more",
-    "Ruled out; small gaps mean no exhaustion",
-    "Not ruled out; gap size is never graded"
+    "Ruled out; a gap must be 5% or more",
+    "Ruled out; small gaps lack exhaustion",
+    "Not ruled out; size is never graded"
    ],
    "answer": "Not ruled out; a small gap grades lower",
    "why": "Not ruled out. Our card requires the climax day to open above the prior close, and 1.7% does. A gap of 5% or more is the stronger A+ row, so 1.7% is a weaker mark, not a fail. SCHW in 1999 had four boxes and three record-volume days. It reached the 9 EMA the next session, and the 1.7% gap was its weak point.",
@@ -3598,9 +3598,9 @@
     "d12"
    ],
    "wrong": {
-    "Ruled out; the gap must be 5% or more": "5% is the stronger mark, not the requirement. The requirement is any open above the prior close.",
-    "Ruled out; small gaps mean no exhaustion": "SCHW's 1.7% gap came with four boxes, three record-volume days and the 9 EMA the next session. A small gap lowers one mark. It does not cancel the rest.",
-    "Not ruled out; gap size is never graded": "Size is graded. A gap of 5% or more is the A+ row; a small one is a B- mark."
+    "Ruled out; a gap must be 5% or more": "5% is the stronger mark, not the requirement. The requirement is any open above the prior close.",
+    "Ruled out; small gaps lack exhaustion": "SCHW's 1.7% gap came with four boxes, three record-volume days and the 9 EMA the next session. A small gap lowers one mark. It does not cancel the rest.",
+    "Not ruled out; size is never graded": "Size is graded. A gap of 5% or more is the A+ row; a small one is a B- mark."
    },
    "house": true,
    "simple": "Not ruled out, because any open above the prior close meets the rule, and a gap of 5 percent or more only grades higher.",
@@ -3777,9 +3777,9 @@
    "q": "By our card's 1 to 2 day window, what now?",
    "choices": [
     "Drop the idea; the window has passed",
-    "Short again; three tries are allowed",
-    "Short again; the window resets daily",
-    "Drop the idea; the stop was too tight"
+    "Short again; three tries allowed",
+    "Short again; window resets daily",
+    "Drop the idea; the stop was tight"
    ],
    "answer": "Drop the idea; the window has passed",
    "why": "Drop it. The card gives a 1 to 2 day window: if the trigger fails twice or the window passes, drop the idea. Both triggers failed and Thursday is past the window. Stamatoudis: if it does not work out, he skips the setup altogether. Three tries a week is the outer cap, not a licence to keep going. Obsessing over an idea after its window passes is a named mistake.",
@@ -3791,9 +3791,9 @@
     "m03"
    ],
    "wrong": {
-    "Short again; three tries are allowed": "Three a week is the outer cap, not a licence. By the window rule, two failures or two days ends the idea.",
-    "Drop the idea; the stop was too tight": "The stop is the rule's stop, a few cents over the high. The window closing is the reason to drop it.",
-    "Short again; the window resets daily": "The window is 1 to 2 days from the climax. It does not reset on a new day."
+    "Short again; three tries allowed": "Three a week is the outer cap, not a licence. By the window rule, two failures or two days ends the idea.",
+    "Short again; window resets daily": "The window is 1 to 2 days from the climax. It does not reset on a new day.",
+    "Drop the idea; the stop was tight": "The stop is the rule's stop, a few cents over the high. The window closing is the reason to drop it."
    },
    "house": true,
    "story": "The climax came Monday. Tuesday and Wednesday, both triggers failed. Thursday the stock cracks under VWAP again.",
@@ -4074,7 +4074,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -4098,7 +4099,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "upgraded wave3; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -4110,7 +4112,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "upgraded wave3; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q08": {
    "status": "pass",
@@ -4188,7 +4191,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "One failed trigger, Wednesday is session 1 after the climax, inside the card's 1 to 2 session window (c13, measure <= 2 sessions after the setup day); B21 + E56 allow a new trigger. Consistent with q68. Two Yes, two No, equal lengths."
+   "notes": "One failed trigger, Wednesday is session 1 after the climax, inside the card's 1 to 2 session window (c13, measure <= 2 sessions after the setup day); B21 + E56 allow a new trigger. Consistent with q68. Two Yes, two No, equal lengths.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -4290,13 +4294,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "cut",
@@ -4314,7 +4320,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q42": {
    "status": "pass",
@@ -4356,7 +4363,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -4368,7 +4376,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c43, c48, c02). Two wrong-choice notes overreach: 'The stop was the rule's stop' asserts a fact the story never gives, and 'The open was not the entry here' is muddled. Rewritten from c03/c43."
+   "notes": "Key right (c43, c48, c02). Two wrong-choice notes overreach: 'The stop was the rule's stop' asserts a fact the story never gives, and 'The open was not the entry here' is muddled. Rewritten from c03/c43.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -4428,7 +4437,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c14 and d10/d11; the 3-session cover is the card rule (owner flag stands). Wrong notes are grounded."
+   "notes": "Key follows c14 and d10/d11; the 3-session cover is the card rule (owner flag stands). Wrong notes are grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",
@@ -4452,7 +4462,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "pass",
@@ -4476,7 +4487,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q69": {
    "status": "pass",

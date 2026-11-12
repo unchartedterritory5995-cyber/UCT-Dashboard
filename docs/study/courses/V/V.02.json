@@ -3050,8 +3050,8 @@
    "q": "What's the sound move now?",
    "choices": [
     "Wait for a pullback or a new setup",
-    "Buy now before it runs even further",
-    "Short it: it has to come back down",
+    "Buy now before it runs further",
+    "Short it: it has to drop back",
     "Buy half now and half on a dip"
    ],
    "answer": "Wait for a pullback or a new setup",
@@ -3066,8 +3066,8 @@
     "h_lb_a5"
    ],
    "wrong": {
-    "Buy now before it runs even further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
-    "Short it: it has to come back down": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short.",
+    "Buy now before it runs further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
+    "Short it: it has to drop back": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short.",
     "Buy half now and half on a dip": "We don't scale in. Our rule is the full size at one price with one stop, no adding. ChartSchool calls a stretched buy risky."
    },
    "simple": "Wait for a pullback or a new setup, because buying a stock this stretched means buying after the move began.",
@@ -4554,7 +4554,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer wait (f95, f231); agrees with C28/C29. Scale-in distractor now teaches our A5 through h_lb_a5, quote verbatim in sizing_rule.md section 9. Choices 30 to 35 characters. Owner flag on teaching the C29 10-day number stands."
+   "notes": "Cold answer wait (f95, f231); agrees with C28/C29. Scale-in distractor now teaches our A5 through h_lb_a5, quote verbatim in sizing_rule.md section 9. Choices 30 to 35 characters. Owner flag on teaching the C29 10-day number stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",

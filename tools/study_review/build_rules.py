@@ -46,7 +46,7 @@ def main():
                 by_decision.setdefault(dec, []).append(key)
 
     # how many questions teach each rule
-    qn = {}
+    qn, dep = {}, {}
     for f in glob.glob(os.path.join(DATA, "track-*.json")):
         for unit in json.load(open(f, encoding="utf-8")).values():
             card = os.path.splitext(os.path.basename(unit.get("card") or ""))[0]
@@ -54,6 +54,15 @@ def main():
                 if card and q.get("criterion"):
                     k = card + ":" + q["criterion"]
                     qn[k] = qn.get(k, 0) + 1
+    # live questions whose right answer rests on an open decision (depends_on is owner-only, so read the lessons)
+    for f in glob.glob(os.path.join(REPO, "docs", "study", "courses", "*", "*.json")):
+        if f.endswith("units_plan.json"):
+            continue
+        doc = json.load(open(f, encoding="utf-8"))
+        for q in doc.get("questions") or []:
+            if (doc.get("verify") or {}).get(q.get("key"), {}).get("status") == "pass":
+                for dec in q.get("depends_on") or []:
+                    dep[dec] = dep.get(dec, 0) + 1
     for k, n in qn.items():
         if k in rules:
             rules[k]["nq"] = n
@@ -88,7 +97,10 @@ def main():
         d["rules"] = [{"k": k, "setup": rules[k]["setup"], "s": rules[k]["s"], "st": rules[k]["st"]} for k in keys]
         d["nrules"] = len(keys)
         d["nq"] = sum(rules[k].get("nq", 0) for k in keys)
+        d["ndep"] = dep.get(d["id"], 0)
         out.append(d)
+    # Part 3 opens with the decisions that settle the most questions (stable: register order breaks ties)
+    out.sort(key=lambda d: -d["ndep"])
     with open(os.path.join(DATA, "rules.json"), "w", encoding="utf-8", newline="\n") as fh:
         json.dump(rules, fh, ensure_ascii=False, separators=(",", ":"))
     with open(os.path.join(DATA, "decisions.json"), "w", encoding="utf-8", newline="\n") as fh:

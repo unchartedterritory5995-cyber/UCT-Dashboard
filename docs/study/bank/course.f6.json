@@ -1589,17 +1589,17 @@
  },
  {
   "answer_json": {
-   "answer": "Two 30 calls, 100 shares each"
+   "answer": "Two 30 calls, each on 100 shares"
   },
   "difficulty": 3,
   "id": "si_65bf009415e2",
   "lesson_origin": "session",
-  "lesson_text": "Two 30 calls, 100 shares each. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms. A whole-share split multiplies your contracts and cuts the strike in proportion. Check the new terms after any split.",
+  "lesson_text": "Two 30 calls, each on 100 shares. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms. A whole-share split multiplies your contracts and cuts the strike in proportion. Check the new terms after any split.",
   "module": "F6",
   "prompt_json": {
    "choices": [
     "One 60 call on 100 shares",
-    "Two 30 calls, 100 shares each",
+    "Two 30 calls, each on 100 shares",
     "Two 60 calls, 100 shares each",
     "One 30 call on 100 shares"
    ],
@@ -1652,13 +1652,13 @@
     "summary": "After a whole-share split (like 2-for-1), the general rule is more contracts at a lower strike, each still on the same number of shares. The document's example starts with one option on 100 shares at a 60 strike, before a 2-for-1 split. After the 2-for-1 split, that holder has two options, each on 100 shares at a 30 strike. Splits and mergers can change a contract's size, what it delivers, or its strike. A standard-size options contract is 100 shares."
    },
    "facts": {
-    "given": "XYZ splits 2-for-1. Before the split you held one standard XYZ 60 call. As a general rule, what do you hold after? Two 30 calls, 100 shares each One 30 call on 100 shares One 60 call on 100 shares Two 60 calls, 100 shares each"
+    "given": "XYZ splits 2-for-1. Before the split you held one standard XYZ 60 call. As a general rule, what do you hold after? Two 30 calls, each on 100 shares One 30 call on 100 shares One 60 call on 100 shares Two 60 calls, 100 shares each"
    },
    "lesson_line": "A whole-share split multiplies your contracts and cuts the strike in proportion. Check the new terms after any split.",
    "simple": "Two 30 calls on 100 shares each: as a general rule, a 2-for-1 split doubles the contracts and halves the strike.",
    "tier": "expert",
    "unit": "F6.01",
-   "why": "Two 30 calls, 100 shares each. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms.",
+   "why": "Two 30 calls, each on 100 shares. On a 2-for-1 split, the general rule is that the shares per contract stay the same. The number of options goes up in proportion, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Splits and mergers can also change a contract's size or what it delivers, so check the new terms.",
    "wrong": {
     "One 30 call on 100 shares": "The strike does drop to 30, but the number of contracts goes up in proportion too. You'd hold two.",
     "One 60 call on 100 shares": "The terms don't stay put. As a general rule the strike is cut in proportion and the contracts multiply.",
@@ -4336,16 +4336,16 @@
  },
  {
   "answer_json": {
-   "answer": "Intrinsic value and time value"
+   "answer": "The intrinsic value and time value"
   },
   "difficulty": 1,
   "id": "si_49d6ef6d7425",
   "lesson_origin": "session",
-  "lesson_text": "Intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part. Premium equals intrinsic value plus time value. Split every quote that way.",
+  "lesson_text": "The intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part. Premium equals intrinsic value plus time value. Split every quote that way.",
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Intrinsic value and time value",
+    "The intrinsic value and time value",
     "The strike price and expiry date",
     "The stock price and the strike",
     "The bid price and the ask price"
@@ -4396,13 +4396,13 @@
     "summary": "Every option premium is intrinsic value plus time value; time value is also called extrinsic value. Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. Time value is the premium minus intrinsic value; it reflects the time left before expiry. With the stock at 43, the 40 call is in the money by 3. A buyer pays the ask, so the ask is the buyer's real cost."
    },
    "facts": {
-    "given": "An option's premium is made of two parts. Which two? Intrinsic value and time value The bid price and the ask price The strike price and expiry date The stock price and the strike"
+    "given": "An option's premium is made of two parts. Which two? The intrinsic value and time value The bid price and the ask price The strike price and expiry date The stock price and the strike"
    },
    "lesson_line": "Premium equals intrinsic value plus time value. Split every quote that way.",
    "simple": "The price has two parts: the amount it is in the money, and time value on top of that.",
    "tier": "core",
    "unit": "F6.03",
-   "why": "Intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part.",
+   "why": "The intrinsic value and time value. The Options Industry Council names these as a premium's two main components. Intrinsic value is the amount the option is in the money. It is zero out of the money. Time value is whatever the premium is above intrinsic value. It is also called extrinsic value. The stock and strike set only the intrinsic part.",
    "wrong": {
     "The bid price and the ask price": "Those are two prices on the quote, and a buyer pays the ask. Neither one is a part of the premium.",
     "The stock price and the strike": "Those two give an in-the-money option's intrinsic value. That is only one part. Time value sits on top of it.",
@@ -6087,19 +6087,19 @@
  },
  {
   "answer_json": {
-   "answer": "Call B, the 60 expiring Friday"
+   "answer": "Call B, the 60 expiring on Friday"
   },
   "difficulty": 3,
   "id": "si_0bd56c24dad2",
   "lesson_origin": "session",
-  "lesson_text": "Call B, the 60 expiring Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing. Far out of the money with days left is the fastest way to lose the whole premium.",
+  "lesson_text": "Call B, the 60 expiring on Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing. Far out of the money with days left is the fastest way to lose the whole premium.",
   "module": "F6",
   "prompt_json": {
    "choices": [
     "Neither, both still have time",
     "Call A, the 52 with two months",
     "About the same, both are calls",
-    "Call B, the 60 expiring Friday"
+    "Call B, the 60 expiring on Friday"
    ],
    "kind": "mcq",
    "q": "Which call is more likely to lose you the whole premium?",
@@ -6144,13 +6144,13 @@
     "summary": "Further out of the money and less time left means a bigger risk of losing the premium. An option buyer has to be right on direction and on timing. More time left to expiry means more time value. A far out-of-the-money option is all time value, but normally less of it than the at-the-money option, same stock and same expiry."
    },
    "facts": {
-    "given": "Which call is more likely to lose you the whole premium? A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday. Call B, the 60 expiring Friday Call A, the 52 with two months About the same, both are calls Neither, both still have time"
+    "given": "Which call is more likely to lose you the whole premium? A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday. Call B, the 60 expiring on Friday Call A, the 52 with two months About the same, both are calls Neither, both still have time"
    },
    "lesson_line": "Far out of the money with days left is the fastest way to lose the whole premium.",
    "simple": "Call B, because further out of the money with less time left means a bigger risk of losing it all.",
    "tier": "expert",
    "unit": "F6.03",
-   "why": "Call B, the 60 expiring Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing.",
+   "why": "Call B, the 60 expiring on Friday. The disclosure document says the risk of losing the premium grows two ways. It grows the further out of the money the option is. It also grows as the time left gets shorter. Call B needs the stock to go from 50 to past 60 by Friday. Call A sits just above the stock with two months to work. An option buyer must be right on direction and on timing.",
    "wrong": {
     "About the same, both are calls": "Distance from the strike and time left both change the risk. B is worse on both.",
     "Call A, the 52 with two months": "It costs more, but it sits nearer the stock and has far more time to work.",
@@ -9376,16 +9376,16 @@
  },
  {
   "answer_json": {
-   "answer": "The 80% volatility call"
+   "answer": "The call with 80% volatility"
   },
   "difficulty": 2,
   "id": "si_7a93c99abd4d",
   "lesson_origin": "session",
-  "lesson_text": "The 80% volatility call. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak. Same expiry, both at the money: higher implied volatility means a bigger theta.",
+  "lesson_text": "The call with 80% volatility. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak. Same expiry, both at the money: higher implied volatility means a bigger theta.",
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 80% volatility call",
+    "The call with 80% volatility",
     "The 25% volatility call",
     "Same, only time matters",
     "Same, both at the money"
@@ -9436,13 +9436,13 @@
     "summary": "Higher implied volatility generally means a bigger theta. High volatility raises option prices and can raise theta. When implied volatility changes, theta changes too. High implied volatility means the market expects bigger moves, either way. Theta is highest at the money and lower the further in or out of the money."
    },
    "facts": {
-    "given": "Two stocks at 100, same-expiry at-the-money calls. One's implied volatility is 80%, the other's 25%. Which call has the bigger theta? The 80% volatility call The 25% volatility call Same, only time matters Same, both at the money"
+    "given": "Two stocks at 100, same-expiry at-the-money calls. One's implied volatility is 80%, the other's 25%. Which call has the bigger theta? The call with 80% volatility The 25% volatility call Same, only time matters Same, both at the money"
    },
    "lesson_line": "Same expiry, both at the money: higher implied volatility means a bigger theta.",
    "simple": "The 80% call, because higher implied volatility makes the option pricier, so it has more time value to decay.",
    "tier": "extended",
    "unit": "F6.05",
-   "why": "The 80% volatility call. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak.",
+   "why": "The call with 80% volatility. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak.",
    "wrong": {
     "Same, both at the money": "At the money is where theta peaks for each stock. Implied volatility still sets how big that peak is.",
     "Same, only time matters": "Time isn't the only input. Implied volatility sets how much time value there is to lose.",
@@ -10166,10 +10166,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Which way the stock will likely go",
-    "How much the option loses per day",
+    "Which way the stock will go",
+    "How much it loses per day",
     "How big a move the market expects",
-    "How much the stock moved last month"
+    "How much it moved last month"
    ],
    "kind": "mcq",
    "q": "On an option chain, what does implied volatility tell you?",
@@ -10238,7 +10238,7 @@
     "summary": "Implied volatility is how much the market expects the stock to move, read from the option's price. Implied volatility is a forecast of future movement, not a record of past moves. IV is the volatility the market expects in the future for a stock, ETF or index. The IV in an option's price is the market's inference about future moves. IV sizes the expected swing; it does not say which way. Historical volatility measures how much the price actually moved over a past period. Historical volatility looks back; IV looks forward and comes from the option's current price. The options with the least time left tend to lose the most to time decay."
    },
    "facts": {
-    "given": "On an option chain, what does implied volatility tell you? How big a move the market expects How much the stock moved last month Which way the stock will likely go How much the option loses per day"
+    "given": "On an option chain, what does implied volatility tell you? How big a move the market expects How much it moved last month Which way the stock will go How much it loses per day"
    },
    "lesson_line": "IV is the market's guess at how big the move will be. Not which way.",
    "simple": "It shows how big a move the market expects, read from option prices, but not which way the stock will go.",
@@ -10246,9 +10246,9 @@
    "unit": "F6.06",
    "why": "How big a move the market expects. Implied volatility, or IV, is read from the option's current price. So it looks forward, not back at the chart. It sizes the expected swing, up or down. It does not say which way. It is not historical volatility, which measures moves that already happened. It is a prediction, not a record.",
    "wrong": {
-    "How much the option loses per day": "That's theta, the daily cost of time. IV is about expected movement.",
-    "How much the stock moved last month": "That's historical volatility, built from past prices. IV looks ahead.",
-    "Which way the stock will likely go": "IV has no direction. It sizes the expected swing, up or down."
+    "How much it loses per day": "That's theta, the daily cost of time. IV is about expected movement.",
+    "How much it moved last month": "That's historical volatility, built from past prices. IV looks ahead.",
+    "Which way the stock will go": "IV has no direction. It sizes the expected swing, up or down."
    }
   },
   "review_status": "draft",
@@ -10505,7 +10505,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Which way the S&P 500 will go next",
+    "Which way the S&P 500 will go",
     "Trading volume on the S&P 500",
     "Past 30-day S&P 500 volatility",
     "Expected 30-day S&P 500 volatility"
@@ -10563,7 +10563,7 @@
     "summary": "The VIX measures the S&P 500's expected volatility over the next 30 days. The VIX is calculated from S&P 500 option prices (plus Treasury rates). The VIX measures the near-term volatility the market expects, as shown by S&P 500 option prices. The VIX is often called the fear gauge. IV sizes the expected swing; it does not say which way. Historical volatility measures how much the price actually moved over a past period."
    },
    "facts": {
-    "given": "What does the VIX measure? Expected 30-day S&P 500 volatility Past 30-day S&P 500 volatility Which way the S&P 500 will go next Trading volume on the S&P 500"
+    "given": "What does the VIX measure? Expected 30-day S&P 500 volatility Past 30-day S&P 500 volatility Which way the S&P 500 will go Trading volume on the S&P 500"
    },
    "lesson_line": "The VIX is the options market's read on how much the S&P 500 may move over the next 30 days.",
    "simple": "The VIX shows how much the S&P 500 is expected to move over the next 30 days, read from option prices.",
@@ -10573,7 +10573,7 @@
    "wrong": {
     "Past 30-day S&P 500 volatility": "That looks back, like historical volatility. The VIX looks ahead, from option prices.",
     "Trading volume on the S&P 500": "The VIX is built from S&P 500 option prices, not from trading volume.",
-    "Which way the S&P 500 will go next": "Like any implied volatility, it sizes the expected move, not its direction."
+    "Which way the S&P 500 will go": "Like any implied volatility, it sizes the expected move, not its direction."
    }
   },
   "review_status": "draft",
@@ -12270,9 +12270,9 @@
   "prompt_json": {
    "choices": [
     "How much its delta changes per $1",
-    "How much value it loses each day",
-    "How much the option moves per $1",
-    "How much it moves per point of IV"
+    "How much it loses each day",
+    "How much it moves per $1",
+    "How much it moves per IV point"
    ],
    "kind": "mcq",
    "q": "On an option, what does gamma measure?",
@@ -12327,7 +12327,7 @@
     "summary": "Gamma is how much an option's delta is expected to change for a $1 move in the stock. Delta estimates how much the option's price changes for a $1 move in the stock. Gamma is the change in delta for a $1 move in the stock. If delta is speed, gamma is acceleration. Theta is how the option's price changes as time passes. Vega is how the option's price changes with implied volatility."
    },
    "facts": {
-    "given": "On an option, what does gamma measure? How much its delta changes per $1 How much the option moves per $1 How much value it loses each day How much it moves per point of IV"
+    "given": "On an option, what does gamma measure? How much its delta changes per $1 How much it moves per $1 How much it loses each day How much it moves per IV point"
    },
    "lesson_line": "Delta is the speed. Gamma is how fast the speed changes.",
    "simple": "Gamma tells you how much an option's delta is expected to change when the stock moves one dollar.",
@@ -12335,9 +12335,9 @@
    "unit": "F6.07",
    "why": "How much its delta changes per $1. Gamma is how much an option's delta is expected to change for a $1 move in the stock. Delta is the option's own estimated move for each $1. Gamma is how fast that delta shifts. If delta is speed, gamma is acceleration. It is not theta, the price change as time passes. It is not vega, the change with implied volatility.",
    "wrong": {
-    "How much it moves per point of IV": "That's vega, its sensitivity to implied volatility.",
-    "How much the option moves per $1": "That's delta, the option's estimated move for each $1 in the stock. Gamma measures how that delta changes.",
-    "How much value it loses each day": "That's theta, the time decay."
+    "How much it loses each day": "That's theta, the time decay.",
+    "How much it moves per $1": "That's delta, the option's estimated move for each $1 in the stock. Gamma measures how that delta changes.",
+    "How much it moves per IV point": "That's vega, its sensitivity to implied volatility."
    }
   },
   "review_status": "draft",
@@ -14055,18 +14055,18 @@
  },
  {
   "answer_json": {
-   "answer": "Positive, it's a bought option"
+   "answer": "Positive, as it's a bought option"
   },
   "difficulty": 1,
   "id": "si_714294a46e0a",
   "lesson_origin": "session",
-  "lesson_text": "Positive, it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma. We trade shares. An option we buy has positive gamma, and the premium paid is the stop.",
+  "lesson_text": "Positive, as it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma. We trade shares. An option we buy has positive gamma, and the premium paid is the stop.",
   "module": "F6",
   "prompt_json": {
    "choices": [
     "Negative, options lose to decay",
     "It depends on call or put",
-    "Positive, it's a bought option",
+    "Positive, as it's a bought option",
     "Zero, the premium caps the loss"
    ],
    "kind": "mcq",
@@ -14129,13 +14129,13 @@
     "summary": "Rule B25: we use options occasionally, and the premium paid is the stop. Rule A6: we trade shares, and options are only a defined-risk alternative. Bought calls and bought puts have positive gamma; sold calls and sold puts have negative gamma. Long options have positive gamma; short options have negative gamma. Time decay works for option sellers and against option buyers. A long call's delta climbs toward 1.00 as the stock rises and shrinks toward 0 as it falls. Call deltas run from 0 to 1.00 and put deltas from 0 to -1.00."
    },
    "facts": {
-    "given": "Our rulebook allows options occasionally, and the premium paid is the stop. What gamma does such an option carry? Positive, it's a bought option Negative, options lose to decay Zero, the premium caps the loss It depends on call or put"
+    "given": "Our rulebook allows options occasionally, and the premium paid is the stop. What gamma does such an option carry? Positive, as it's a bought option Negative, options lose to decay Zero, the premium caps the loss It depends on call or put"
    },
    "lesson_line": "We trade shares. An option we buy has positive gamma, and the premium paid is the stop.",
    "simple": "Positive, because a premium paid means you bought the option, and bought options have positive gamma.",
    "tier": "core",
    "unit": "F6.07",
-   "why": "Positive, it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma.",
+   "why": "Positive, as it's a bought option. Our rulebook says we trade shares, and options are only a defined-risk alternative. The premium paid is the stop, so the option was bought. Long options, calls or puts, always have positive gamma.",
    "wrong": {
     "It depends on call or put": "Calls and puts you buy both have positive gamma. Call or put sets the sign of delta, not gamma.",
     "Negative, options lose to decay": "Time decay works against a buyer, but that is theta, not gamma. A bought option still has positive gamma.",
@@ -14460,7 +14460,7 @@
  },
  {
   "answer_json": {
-   "answer": "About 68% of outcomes"
+   "answer": "About 68% of the outcomes"
   },
   "difficulty": 1,
   "id": "si_f46979d2c8c4",
@@ -14472,7 +14472,7 @@
     "About 95% of outcomes",
     "About 99% of outcomes",
     "About 50% of outcomes",
-    "About 68% of outcomes"
+    "About 68% of the outcomes"
    ],
    "kind": "mcq",
    "q": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover?",
@@ -14534,7 +14534,7 @@
     "summary": "One standard deviation covers roughly 68% of outcomes. About 68% of the time the stock ends the period within one standard deviation. One standard deviation is about 68% of outcomes. About 95% of the time it ends within two standard deviations. About 99% of the time it ends within three standard deviations. Volatility is a standard deviation, stated on a yearly basis. The expected move assumes a bell-curve spread of returns, and it is not guaranteed."
    },
    "facts": {
-    "given": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover? About 68% of outcomes About 50% of outcomes About 95% of outcomes About 99% of outcomes"
+    "given": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover? About 68% of the outcomes About 50% of outcomes About 95% of outcomes About 99% of outcomes"
    },
    "lesson_line": "One standard deviation holds about 68% of outcomes. The rest lands outside it.",
    "simple": "About 68%. Under a bell-curve model, a one standard deviation range holds about 68% of outcomes.",
@@ -15877,7 +15877,7 @@
  },
  {
   "answer_json": {
-   "answer": "No, a day's expected move is $1.20"
+   "answer": "No, a day's expected move is about $1.20"
   },
   "difficulty": 3,
   "id": "si_95f7a5017772",
@@ -15886,7 +15886,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "No, a day's expected move is $1.20",
+    "No, a day's expected move is about $1.20",
     "No, a day's expected move is $19.20",
     "Yes, a move near 2% is a big day",
     "Yes, a normal day is only about 1%"
@@ -15957,7 +15957,7 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Using the Rule of 16, was it a big day against what its options price? A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day. No, a day's expected move is $1.20 Yes, a move near 2% is a big day Yes, a normal day is only about 1% No, a day's expected move is $19.20"
+    "given": "Using the Rule of 16, was it a big day against what its options price? A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day. No, a day's expected move is about $1.20 Yes, a move near 2% is a big day Yes, a normal day is only about 1% No, a day's expected move is $19.20"
    },
    "lesson_line": "Judge a day's move against the stock's own expected move, not a fixed percent.",
    "simple": "No, because at 32% IV the options price about $1.20 a day, and a $1.10 move fits inside that.",
@@ -16123,8 +16123,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Gaining value, high IV pays the buyer",
-    "Holding value, the stock hasn't fallen",
+    "Gaining value, high IV pays buyers",
+    "Holding value, it hasn't fallen",
     "Steady until IV itself comes down",
     "Losing value from too little movement"
    ],
@@ -16164,7 +16164,7 @@
     "summary": "More movement than priced tends to lift option prices; less movement tends to sink them. An option buyer needs the stock to move more than the time value lost each day. When the stock moves less than the IV priced, the options are said to underperform expectations."
    },
    "facts": {
-    "given": "If that keeps up, what tends to happen to your calls? You buy calls on a stock whose options price about 2.5% a day. For a week it drifts sideways, moving about 0.5% a day. Losing value from too little movement Holding value, the stock hasn't fallen Gaining value, high IV pays the buyer Steady until IV itself comes down"
+    "given": "If that keeps up, what tends to happen to your calls? You buy calls on a stock whose options price about 2.5% a day. For a week it drifts sideways, moving about 0.5% a day. Losing value from too little movement Holding value, it hasn't fallen Gaining value, high IV pays buyers Steady until IV itself comes down"
    },
    "lesson_line": "Buy options and you need more movement than the market priced. Quiet days cost the buyer.",
    "simple": "Your calls tend to lose value, because the stock moves less than the options priced and time decay keeps eating them.",
@@ -16172,8 +16172,8 @@
    "unit": "F6.08",
    "why": "Losing value. The options price about 2.5% a day, and the stock is moving about 0.5%. When the stock delivers less movement than priced, options are more likely to decline in value. A buyer needs moves that outpace the time value lost each day. A quiet week costs the buyer even if the stock never falls.",
    "wrong": {
-    "Gaining value, high IV pays the buyer": "A big priced move means you paid up for movement. If the movement doesn't come, that value drains away.",
-    "Holding value, the stock hasn't fallen": "Not falling isn't enough. A call loses time value every quiet day.",
+    "Gaining value, high IV pays buyers": "A big priced move means you paid up for movement. If the movement doesn't come, that value drains away.",
+    "Holding value, it hasn't fallen": "Not falling isn't enough. A call loses time value every quiet day.",
     "Steady until IV itself comes down": "Time value is lost each day, not only when IV falls. A buyer needs moves that outpace that daily loss."
    }
   },
@@ -16295,7 +16295,7 @@
  },
  {
   "answer_json": {
-   "answer": "One uses 365 days a year, one 252"
+   "answer": "One uses 365 days a year, one uses 252"
   },
   "difficulty": 3,
   "id": "si_de13edad6c41",
@@ -16304,7 +16304,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "One uses 365 days a year, one 252",
+    "One uses 365 days a year, one uses 252",
     "One shows up moves, one shows down",
     "One includes the stock's dividend",
     "One tool is using a broken formula"
@@ -16365,7 +16365,7 @@
     "summary": "Some measures annualize over 365 calendar days, others over 252 trading days. Expected move: price times IV times the square root of days over 365, or of trading days over 252. Fidelity describes IV as built on calendar days. There are about 252 trading days a year, and the square root of 252 is about 16. The expected move is a size, not a direction. One day's standard deviation is the IV times the stock price, divided by the square root of the trading days in a year."
    },
    "facts": {
-    "given": "Same stock, same IV. Two tools show different one-day expected moves. What most likely explains it? One uses 365 days a year, one 252 One tool is using a broken formula One shows up moves, one shows down One includes the stock's dividend"
+    "given": "Same stock, same IV. Two tools show different one-day expected moves. What most likely explains it? One uses 365 days a year, one uses 252 One tool is using a broken formula One shows up moves, one shows down One includes the stock's dividend"
    },
    "lesson_line": "Know your tool's day count before you compare. Calendar days and trading days give different daily moves.",
    "simple": "The tools count the year differently, one with 365 calendar days and one with 252 trading days, so the daily number differs.",
@@ -23833,16 +23833,16 @@
  },
  {
   "answer_json": {
-   "answer": "Sell the 85 call, buy the 90 call"
+   "answer": "Sell the 85 call and buy the 90 call"
   },
   "difficulty": 2,
   "id": "si_beb97273c0ac",
   "lesson_origin": "session",
-  "lesson_text": "Sell the 85 call, buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out. Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
+  "lesson_text": "Sell the 85 call and buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out. Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell the 85 call, buy the 90 call",
+    "Sell the 85 call and buy the 90 call",
     "Sell the 75 call, buy the 80 call",
     "Buy the 85 call, sell the 90 call",
     "Sell the 85 put, buy the 80 put"
@@ -23894,13 +23894,13 @@
     "summary": "In a bear call spread the short call has the lower strike, so it always opens for a credit. A bear call spread's best case is the stock below both strikes at expiry. A bear call spread earns its maximum profit with the stock below the short call strike at expiry. A bear call spread is short the lower strike call and long the higher strike call. In a bear call spread the short call brings in income and the long call limits the upside risk."
    },
    "facts": {
-    "given": "Which spread fits that view? XYZ trades at 80. It has stalled under 85 for weeks. You think it stays below 85 through expiry, and you want to collect a credit. Sell the 85 call, buy the 90 call Buy the 85 call, sell the 90 call Sell the 75 call, buy the 80 call Sell the 85 put, buy the 80 put"
+    "given": "Which spread fits that view? XYZ trades at 80. It has stalled under 85 for weeks. You think it stays below 85 through expiry, and you want to collect a credit. Sell the 85 call and buy the 90 call Buy the 85 call, sell the 90 call Sell the 75 call, buy the 80 call Sell the 85 put, buy the 80 put"
    },
    "lesson_line": "Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
    "simple": "Sell the 85 call and buy the 90: it pays a credit and keeps all of it if XYZ stays under 85.",
    "tier": "core",
    "unit": "F6.12",
-   "why": "Sell the 85 call, buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out.",
+   "why": "Sell the 85 call and buy the 90 call. That is a bear call spread. The short call has the lower strike, so it always opens for a credit. If XYZ finishes below 85, both calls expire worthless and you keep the whole credit. The long 90 call is there to limit the loss if XYZ breaks out.",
    "wrong": {
     "Buy the 85 call, sell the 90 call": "That's a bull call spread. It costs money and needs XYZ above 85 to pay.",
     "Sell the 75 call, buy the 80 call": "The 75 call is already in the money. If XYZ just sits at 80, this spread takes its full loss.",
@@ -24665,7 +24665,7 @@
    "choices": [
     "Sell 100 shares now to cover",
     "Sell only the long call",
-    "Hold it: max profit is locked in",
+    "Hold it: max profit locked in",
     "Close the spread before the bell"
    ],
    "kind": "mcq",
@@ -24732,7 +24732,7 @@
     "summary": "With the long call in the money and the short call near the money at expiry, exercise is certain but assignment is not. To handle expiration risk, close the spread early or be ready for either outcome on Monday. You may not know until Monday whether the short call was assigned; the risk is worst with the stock near the short strike. Closing short options before expiry is the only way to remove after-hours risk. A spread doesn't have to be held to expiry. Pin risk: the stock closes at or very near a strike at expiry, leaving both sides uncertain. One contract is tied to 100 shares."
    },
    "facts": {
-    "given": "Which move takes the weekend assignment risk off the table? It's expiry Friday. You hold the 60/65 call spread, and the stock is trading at 65.10 into the close. Close the spread before the bell Hold it: max profit is locked in Sell 100 shares now to cover Sell only the long call"
+    "given": "Which move takes the weekend assignment risk off the table? It's expiry Friday. You hold the 60/65 call spread, and the stock is trading at 65.10 into the close. Close the spread before the bell Hold it: max profit locked in Sell 100 shares now to cover Sell only the long call"
    },
    "lesson_line": "Stock near the short strike on expiry day: close the spread. Don't guess on assignment.",
    "simple": "Close it before the bell, because you may not know until Monday if your short 65 call was assigned.",
@@ -24740,7 +24740,7 @@
    "unit": "F6.12",
    "why": "Close the spread before the bell. At 65.10 your 60 call is in the money and will be exercised. Assignment on the short 65 call is not certain. You may not know until Monday. If it isn't assigned, you are long 100 shares over the weekend. Closing your short options before expiry is the only way to remove that after-hours risk.",
    "wrong": {
-    "Hold it: max profit is locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
+    "Hold it: max profit locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
     "Sell 100 shares now to cover": "That bets against assignment. If the 65 call is assigned anyway, you've sold the shares twice and you're short.",
     "Sell only the long call": "That leaves the 65 call short and uncovered. If it's assigned, you're short 100 shares with nothing behind it."
    }
@@ -26414,7 +26414,7 @@
    "choices": [
     "The strike cut by the dividend",
     "No early assignment, dividend yours",
-    "Early assignment, dividend still yours",
+    "Early assignment, dividend yours",
     "Early assignment, without the dividend"
    ],
    "kind": "mcq",
@@ -26495,7 +26495,7 @@
     "summary": "Expect early assignment near expiry on a call well in the money with a sizeable dividend coming. Assignment can come days or weeks before expiry. A call holder who exercises before the ex-date gets the dividend, even if the writer only hears of the assignment later. Ordinary cash dividends do not change the option's terms. An in-the-money covered call whose time value is below the coming dividend is likely to be exercised early. In the money into an ex-date, with a dividend bigger than the time value left, the call owner has reason to exercise early. A cash dividend paid on a regular schedule, such as quarterly, generally counts as ordinary, whatever its size. The only sure way to avoid assignment is to buy the call back. The notice of an assignment can arrive one or more days after it happens."
    },
    "facts": {
-    "given": "What should you be ready for? You sold a covered call that is deep in the money, with a week to expiry. The stock goes ex-dividend tomorrow for its regular quarterly dividend. The dividend is bigger than the call's time value. Early assignment, without the dividend No early assignment, dividend yours The strike cut by the dividend Early assignment, dividend still yours"
+    "given": "What should you be ready for? You sold a covered call that is deep in the money, with a week to expiry. The stock goes ex-dividend tomorrow for its regular quarterly dividend. The dividend is bigger than the call's time value. Early assignment, without the dividend No early assignment, dividend yours The strike cut by the dividend Early assignment, dividend yours"
    },
    "lesson_line": "Before an ex-date, a short in-the-money call is at risk when the dividend beats its time value left.",
    "simple": "Expect to be assigned early and lose the dividend, since the call owner gains more by exercising than by holding.",
@@ -26503,7 +26503,7 @@
    "unit": "F6.13",
    "why": "Early assignment, without the dividend. A call holder who exercises before the ex-date is entitled to the dividend. Here the call is in the money and the dividend beats its time value left. So the owner has reason to exercise early. Assignment can come days or weeks before expiry. A regular quarterly cash dividend does not change the option's terms. Early exercise is likely, not certain. The only sure way to avoid it is to buy the call back.",
    "wrong": {
-    "Early assignment, dividend still yours": "The holder who exercises before the ex-date is entitled to the dividend. You may only hear of the assignment later.",
+    "Early assignment, dividend yours": "The holder who exercises before the ex-date is entitled to the dividend. You may only hear of the assignment later.",
     "No early assignment, dividend yours": "Assignment can come days or weeks before expiry. Here the call owner has reason to exercise early.",
     "The strike cut by the dividend": "A regular cash dividend doesn't change the option's terms. That's why the call owner exercises to get it."
    }
@@ -27828,8 +27828,8 @@
   "prompt_json": {
    "choices": [
     "The stock holding still",
-    "Implied volatility falling",
-    "Expiration getting closer",
+    "Implied volatility drops",
+    "Expiry getting closer",
     "Implied volatility rising"
    ],
    "kind": "mcq",
@@ -27878,7 +27878,7 @@
     "summary": "All else equal, rising implied volatility helps a long strangle a lot. Long straddles and strangles are long vega positions. A long straddle is long vega: rising implied volatility helps, and quiet trading hurts through time decay. A long strangle loses the most when the stock stays between the strikes until expiry. All else equal, the passage of time hurts a long strangle a lot."
    },
    "facts": {
-    "given": "You own a long strangle. All else equal, which of these helps it? Implied volatility rising Implied volatility falling Expiration getting closer The stock holding still"
+    "given": "You own a long strangle. All else equal, which of these helps it? Implied volatility rising Implied volatility drops Expiry getting closer The stock holding still"
    },
    "lesson_line": "Long straddles and strangles are long volatility. Rising IV helps them, falling IV hurts them.",
    "simple": "Rising implied volatility helps, because it makes both options you own worth more, even before the stock moves.",
@@ -27886,8 +27886,8 @@
    "unit": "F6.14",
    "why": "Implied volatility rising. All else equal, OIC says an increase in IV has a very positive impact on a long strangle. You own two options, so you are long vega: higher IV lifts both, even with no stock move. Falling IV, the clock running down and a stock stuck between the strikes all hurt it.",
    "wrong": {
-    "Expiration getting closer": "Time decay eats both legs as expiry nears. OIC says the passage of time has a very negative impact.",
-    "Implied volatility falling": "Falling IV shrinks both options. That's what a seller wants.",
+    "Expiry getting closer": "Time decay eats both legs as expiry nears. OIC says the passage of time has a very negative impact.",
+    "Implied volatility drops": "Falling IV shrinks both options. That's what a seller wants.",
     "The stock holding still": "A stock sitting between the strikes until expiry is the strangle's worst case."
    }
   },
@@ -28273,7 +28273,7 @@
  },
  {
   "answer_json": {
-   "answer": "Diagonal spread"
+   "answer": "Call diagonal spread"
   },
   "difficulty": 2,
   "id": "si_dbbea46c34f6",
@@ -28282,7 +28282,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Diagonal spread",
+    "Call diagonal spread",
     "Calendar spread",
     "Long strangle",
     "Bull call spread"
@@ -28340,7 +28340,7 @@
     "summary": "A diagonal spread buys one option and sells another of the same type, with different strikes and different expiries. A diagonal mixes a vertical spread and a calendar: different strikes and different expiries. In a long diagonal you buy the longer-dated option and sell the shorter-dated one. A calendar usually uses one strike; with different strikes it becomes a diagonal. A long strangle usually buys an out-of-the-money call and an out-of-the-money put with the same expiry. A vertical spread uses two strikes in the same expiry."
    },
    "facts": {
-    "given": "Long the June 45 call, short the April 50 call. Which structure is this? Diagonal spread Calendar spread Bull call spread Long strangle"
+    "given": "Long the June 45 call, short the April 50 call. Which structure is this? Call diagonal spread Calendar spread Bull call spread Long strangle"
    },
    "lesson_line": "Buy one call, sell another: two strikes is a vertical, two expiries a calendar, two of each a diagonal.",
    "simple": "It is a diagonal spread, because the two calls have different strikes and different expiry dates.",
@@ -28793,8 +28793,8 @@
    "choices": [
     "It's dropping below zero",
     "It's shrinking toward zero",
-    "It's near its maximum value",
-    "It's rising with the rally"
+    "It's near its peak",
+    "It's rising on the rally"
    ],
    "kind": "mcq",
    "q": "What is happening to the spread's value?",
@@ -28843,7 +28843,7 @@
     "summary": "A long calendar loses the most when both options trade at the same value. That happens on a big drop (both worthless) or a big rally (both deep in the money at intrinsic value). Either way, a long calendar's loss is the premium paid to open it. A sharp move away from the strike shrinks a calendar toward zero, losing the full amount paid. In CME's example, a big rally takes both calls of a calendar to parity and the spread to zero."
    },
    "facts": {
-    "given": "What is happening to the spread's value? You paid 1.25 for the 100 call calendar: short the near 100 call, long the later 100 call. A week later the stock jumps to 130. It's shrinking toward zero It's rising with the rally It's dropping below zero It's near its maximum value"
+    "given": "What is happening to the spread's value? You paid 1.25 for the 100 call calendar: short the near 100 call, long the later 100 call. A week later the stock jumps to 130. It's shrinking toward zero It's rising on the rally It's dropping below zero It's near its peak"
    },
    "lesson_line": "A calendar wants a quiet stock. A big move either way drains it, and you can lose the whole debit.",
    "simple": "The spread shrinks toward zero, because deep in the money both calls are worth about the same.",
@@ -28852,8 +28852,8 @@
    "why": "It's shrinking toward zero. At 130, both 100 calls are deep in the money and trade near their intrinsic value. The gap between them, which is the spread's value, closes. Bought for a debit, a long calendar can lose that 1.25 at most. A sharp move either way does this.",
    "wrong": {
     "It's dropping below zero": "Bought for a debit, the most a long calendar can lose is that 1.25.",
-    "It's near its maximum value": "The peak is the stock sitting on the strike at the near expiry, not far above it.",
-    "It's rising with the rally": "The long call gains, but the short call gains nearly as much. The spread is the gap between them."
+    "It's near its peak": "The peak is the stock sitting on the strike at the near expiry, not far above it.",
+    "It's rising on the rally": "The long call gains, but the short call gains nearly as much. The spread is the gap between them."
    }
   },
   "review_status": "draft",
@@ -29986,7 +29986,7 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A bull call spread and a bear put spread",
+    "Bull call spread and bear put spread",
     "A bull put spread and a bear call spread",
     "A short call and a short put alone",
     "A short straddle and a long strangle"
@@ -30107,7 +30107,7 @@
     "summary": "An iron condor is a bear call spread plus a bull put spread. Usually the calls sit above the stock, the puts below it, and both sides are the same width. An iron condor is a put credit spread plus a call credit spread, opened for a net credit. Fidelity: a short iron condor is a bull put spread plus a bear call spread, short put below short call. The short options bring in the credit; the long options cap the loss. An iron condor sells rich premium when volatility is high, and its wings cap the risk. OIC's long condor is a bull call spread plus a bear put spread. A long condor wants a sharp move either way. A long condor is opened for a debit, and the debit is its max loss. Unlike a short strangle, an iron condor's risk is capped. An iron butterfly is a short straddle with a long strangle around it. At Schwab, a long iron condor is a bull call spread plus a bear put spread. A naked short call has unlimited potential loss. A straddle is a put and a call at the same strike and expiry. An iron butterfly sells a call and a put at one middle strike and buys a call above and a put below."
    },
    "facts": {
-    "given": "You sell an iron condor for a net credit. Which pair of positions is it made of? A bull put spread and a bear call spread A bull call spread and a bear put spread A short call and a short put alone A short straddle and a long strangle"
+    "given": "You sell an iron condor for a net credit. Which pair of positions is it made of? A bull put spread and a bear call spread Bull call spread and bear put spread A short call and a short put alone A short straddle and a long strangle"
    },
    "lesson_line": "An iron condor is a put credit spread plus a call credit spread, usually below and above the price.",
    "simple": "A bull put spread plus a bear call spread, usually below and above the stock, makes the credit iron condor.",
@@ -30115,9 +30115,9 @@
    "unit": "F6.15",
    "why": "A bull put spread and a bear call spread. The put spread usually sits below the stock and the call spread above it. Both are credit spreads, so the trade opens for a net credit. The long options are the wings, and they cap the loss on each side. A bull call spread and a bear put spread make the debit trade, the long iron condor.",
    "wrong": {
-    "A bull call spread and a bear put spread": "That pair opens for a debit. Schwab calls it the long iron condor, and it needs a sharp move.",
     "A short call and a short put alone": "That's a short strangle or straddle. With no long options, nothing caps the loss.",
-    "A short straddle and a long strangle": "That's the iron butterfly. Its short call and short put share one strike."
+    "A short straddle and a long strangle": "That's the iron butterfly. Its short call and short put share one strike.",
+    "Bull call spread and bear put spread": "That pair opens for a debit. Schwab calls it the long iron condor, and it needs a sharp move."
    }
   },
   "review_status": "draft",
@@ -30992,17 +30992,17 @@
  },
  {
   "answer_json": {
-   "answer": "46.80 and 53.20"
+   "answer": "At 46.80 and 53.20"
   },
   "difficulty": 2,
   "id": "si_f4afb380dc95",
   "lesson_origin": "session",
-  "lesson_text": "46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit. Iron butterfly break-evens sit the credit's distance either side of the body.",
+  "lesson_text": "At 46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit. Iron butterfly break-evens sit the credit's distance either side of the body.",
   "module": "F6",
   "prompt_json": {
    "choices": [
     "48.40 and 51.60",
-    "46.80 and 53.20",
+    "At 46.80 and 53.20",
     "41.80 and 58.20",
     "45.00 and 55.00"
    ],
@@ -31055,13 +31055,13 @@
      "fn": "arith",
      "result": 53.2
     },
-    "given": "Where are your two break-evens at expiry? A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20. 46.80 and 53.20 45.00 and 55.00 41.80 and 58.20 48.40 and 51.60"
+    "given": "Where are your two break-evens at expiry? A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20. At 46.80 and 53.20 45.00 and 55.00 41.80 and 58.20 48.40 and 51.60"
    },
    "lesson_line": "Iron butterfly break-evens sit the credit's distance either side of the body.",
-   "simple": "46.80 and 53.20, because an iron butterfly breaks even at the middle strike plus or minus the full 3.20 credit.",
+   "simple": "At 46.80 and 53.20, because an iron butterfly breaks even at the middle strike plus or minus the full 3.20 credit.",
    "tier": "extended",
    "unit": "F6.15",
-   "why": "46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit.",
+   "why": "At 46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit.",
    "wrong": {
     "41.80 and 58.20": "That measures the credit from the wings. Break-evens are measured from the body, the 50 strike.",
     "45.00 and 55.00": "Those are the wings, where the max loss starts. The break-evens sit inside them.",
@@ -33227,8 +33227,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Cash for the spread only",
-    "Nothing, both legs expire",
+    "Cash for the spread",
+    "Nothing, both expire",
     "100 shares, bought at 90",
     "Short 100 shares at 95"
    ],
@@ -33293,7 +33293,7 @@
     "summary": "In a 90/95 call spread finishing between the strikes, the 90 call is exercised and the 95 call likely expires. That leaves you buying shares at 90 unless you sell the spread first or file a do-not-exercise. Under OCC's exercise-by-exception rule, expiring equity options in the money by set amounts are exercised unless told otherwise. Options in the money by $0.01 or more at the close are typically exercised automatically; holders can decide until 4:30 p.m. Central. Stock options settle in shares, not cash. Whether an expiring option counts as in the money is set by the stock's closing price. Each stock option contract covers 100 shares."
    },
    "facts": {
-    "given": "What are you most likely holding on Monday? You own a 90/95 call spread: long the 90 call, short the 95 call, same expiry. On expiry Friday the stock closes at 93. You do nothing. 100 shares, bought at 90 Cash for the spread only Short 100 shares at 95 Nothing, both legs expire"
+    "given": "What are you most likely holding on Monday? You own a 90/95 call spread: long the 90 call, short the 95 call, same expiry. On expiry Friday the stock closes at 93. You do nothing. 100 shares, bought at 90 Cash for the spread Short 100 shares at 95 Nothing, both expire"
    },
    "lesson_line": "Between the strikes at expiry, a long call spread turns into stock. Sell the spread first if you don't want shares.",
    "simple": "You'd most likely own 100 shares bought at 90, because the 90 call is exercised and the 95 call expires.",
@@ -33301,8 +33301,8 @@
    "unit": "F6.16",
    "why": "100 shares, bought at 90. At a 93 close the 90 call is in the money, so it is exercised automatically unless you say otherwise. The 95 call is out of the money and will likely expire worthless. Stock options settle in shares, not cash, so you buy 100 at 90. To avoid it, sell the spread before the close or file a do-not-exercise on the 90 call.",
    "wrong": {
-    "Cash for the spread only": "Stock options settle in shares, not cash. The exercised 90 call buys you the shares.",
-    "Nothing, both legs expire": "The 90 call is in the money at the close, so it's exercised unless you say otherwise.",
+    "Cash for the spread": "Stock options settle in shares, not cash. The exercised 90 call buys you the shares.",
+    "Nothing, both expire": "The 90 call is in the money at the close, so it's exercised unless you say otherwise.",
     "Short 100 shares at 95": "At 93 the 95 call is out of the money, so it most likely expires unexercised."
    }
   },
@@ -33416,7 +33416,7 @@
     "Unlikely: 0.30 is tiny next to 7.45",
     "Likely: in-the-money calls go early",
     "Likely: just $0.05 of time value left",
-    "Unlikely: holders wait for expiry day"
+    "Unlikely: holders wait for expiry"
    ],
    "kind": "mcq",
    "q": "How likely is an early assignment tonight, and why?",
@@ -33499,7 +33499,7 @@
      "fn": "extrinsic",
      "result": 0.05
     },
-    "given": "How likely is an early assignment tonight, and why? You're short the 55 call with no shares. The stock is 62.40 and goes ex-dividend tomorrow, paying 0.30. Your call trades at 7.45, two weeks from expiry. Likely: just $0.05 of time value left Likely: in-the-money calls go early Unlikely: holders wait for expiry day Unlikely: 0.30 is tiny next to 7.45"
+    "given": "How likely is an early assignment tonight, and why? You're short the 55 call with no shares. The stock is 62.40 and goes ex-dividend tomorrow, paying 0.30. Your call trades at 7.45, two weeks from expiry. Likely: just $0.05 of time value left Likely: in-the-money calls go early Unlikely: holders wait for expiry Unlikely: 0.30 is tiny next to 7.45"
    },
    "lesson_line": "When a short call's time value is below the coming dividend, expect assignment. Buy it back or roll it before the ex-date.",
    "simple": "Likely, because the call has only $0.05 of time value left, less than the 0.30 dividend a holder gets by exercising.",
@@ -33509,7 +33509,7 @@
    "wrong": {
     "Likely: in-the-money calls go early": "Being in the money isn't the test. Exercising early throws away time value, so it generally doesn't pay. Here the time value is tiny.",
     "Unlikely: 0.30 is tiny next to 7.45": "A holder weighs the dividend against the time value given up, here $0.05, not against the whole 7.45 premium.",
-    "Unlikely: holders wait for expiry day": "That's the general rule, and the day before an ex-dividend date is the exception."
+    "Unlikely: holders wait for expiry": "That's the general rule, and the day before an ex-dividend date is the exception."
    }
   },
   "review_status": "draft",
@@ -34525,8 +34525,8 @@
    "choices": [
     "Close it and open a new one",
     "Add contracts as it drops",
-    "Move your stop further away",
-    "Exercise it early for shares"
+    "Widen your stop",
+    "Exercise it early"
    ],
    "kind": "mcq",
    "q": "In options, what does it mean to roll a position?",
@@ -34560,7 +34560,7 @@
     "summary": "Rolling closes your option and opens a new one at another strike, another expiry, or both. Rolling forward closes the first contract and opens a longer-dated one. A roll's close and new open are usually done at the same time."
    },
    "facts": {
-    "given": "In options, what does it mean to roll a position? Close it and open a new one Exercise it early for shares Add contracts as it drops Move your stop further away"
+    "given": "In options, what does it mean to roll a position? Close it and open a new one Exercise it early Add contracts as it drops Widen your stop"
    },
    "lesson_line": "A roll is two trades in one ticket: a close and a new open.",
    "simple": "Rolling means you close the option you hold and open a new one, at another strike, another expiry, or both.",
@@ -34569,8 +34569,8 @@
    "why": "Close it and open a new one. The Options Industry Council defines a roll as closing an open option and opening a new one. The new one has a different strike, a different expiry, or both. The two legs are usually done at the same time. It is not exercise, adding size or moving a stop.",
    "wrong": {
     "Add contracts as it drops": "That's averaging down on the same option. A roll replaces the option.",
-    "Exercise it early for shares": "Exercise turns the option into stock. A roll trades out of one option and into another.",
-    "Move your stop further away": "That's widening your stop. A roll changes the contract itself: strike, expiry or both."
+    "Exercise it early": "Exercise turns the option into stock. A roll trades out of one option and into another.",
+    "Widen your stop": "That's widening your stop. A roll changes the contract itself: strike, expiry or both."
    }
   },
   "review_status": "draft",
@@ -35232,18 +35232,18 @@
  },
  {
   "answer_json": {
-   "answer": "Sell 2, let 2 ride"
+   "answer": "Sell 2 and let 2 ride"
   },
   "difficulty": 2,
   "id": "si_1b9d2a21e36b",
   "lesson_origin": "session",
-  "lesson_text": "Sell 2, let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares. Sell some into strength, keep some for the run.",
+  "lesson_text": "Sell 2 and let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares. Sell some into strength, keep some for the run.",
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell 2, let 2 ride",
-    "Buy 4 more at $4.10",
-    "Hold all 4 to expiry",
+    "Sell 2 and let 2 ride",
+    "Buy 4 more now",
+    "Hold all 4 for now",
     "Exercise 2, keep 2"
    ],
    "kind": "mcq",
@@ -35293,17 +35293,17 @@
     "summary": "To keep some upside but cut what's invested, sell some of the options. Letting a winner ride means taking the risk of a reversal. Selling the option keeps its time value; exercising throws the time value away. In-the-money options are generally exercised at expiry, and a call owner needs the cash for the shares. Exercising a call buys the shares."
    },
    "facts": {
-    "given": "Which move fits that view? You own 4 calls you bought at $2.50. They're $4.10 now, with a month left. You think the stock has more room, but you want to lock in part of the gain. Sell 2, let 2 ride Hold all 4 to expiry Buy 4 more at $4.10 Exercise 2, keep 2"
+    "given": "Which move fits that view? You own 4 calls you bought at $2.50. They're $4.10 now, with a month left. You think the stock has more room, but you want to lock in part of the gain. Sell 2 and let 2 ride Hold all 4 for now Buy 4 more now Exercise 2, keep 2"
    },
    "lesson_line": "Sell some into strength, keep some for the run.",
    "simple": "Sell 2 and let 2 ride, because selling part locks in some gain while the rest stays in for more upside.",
    "tier": "extended",
    "unit": "F6.17",
-   "why": "Sell 2, let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares.",
+   "why": "Sell 2 and let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares.",
    "wrong": {
-    "Buy 4 more at $4.10": "That doubles your contracts at a higher price. It adds risk instead of locking in the gain.",
+    "Buy 4 more now": "That doubles your contracts at a higher price. It adds risk instead of locking in the gain.",
     "Exercise 2, keep 2": "Exercising throws away the time value left and needs cash for the shares. The gain then rides in the stock.",
-    "Hold all 4 to expiry": "That lets the whole gain ride, with the full risk of a reversal. It locks in nothing."
+    "Hold all 4 for now": "That lets the whole gain ride, with the full risk of a reversal. It locks in nothing."
    }
   },
   "review_status": "draft",
@@ -36880,9 +36880,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "With the last trade that printed",
+    "With each trade that prints",
     "At the most recent expiration",
-    "At the start of the trading week",
+    "At the start of the week",
     "After the prior session's close"
    ],
    "kind": "mcq",
@@ -36910,7 +36910,7 @@
     "summary": "Open interest depends on whether each side opened or closed, and OCC reports the new figure only after the day ends. OCC calculates open interest from the exchanges' reports of each day's opening and closing trades."
    },
    "facts": {
-    "given": "It's midday. When was the open interest on your options chain last updated? After the prior session's close With the last trade that printed At the start of the trading week At the most recent expiration"
+    "given": "It's midday. When was the open interest on your options chain last updated? After the prior session's close With each trade that prints At the start of the week At the most recent expiration"
    },
    "lesson_line": "During the session, open interest is the prior day's count. Today's trades show up in it next session.",
    "simple": "It was last updated after the prior session closed, because OCC counts open interest once the day's trades clear.",
@@ -36919,8 +36919,8 @@
    "why": "After the prior session's close. OCC can report new open interest only after it clears and pairs the day's opening and closing trades. So during the session, the chain shows the prior day's count. Today's trades show up the next session, not trade by trade, not weekly and not only at expiry.",
    "wrong": {
     "At the most recent expiration": "It changes every day as traders open and close positions, not just at expiry.",
-    "At the start of the trading week": "OCC reports it after each day's trades clear, not weekly.",
-    "With the last trade that printed": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade."
+    "At the start of the week": "OCC reports it after each day's trades clear, not weekly.",
+    "With each trade that prints": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade."
    }
   },
   "review_status": "draft",
@@ -38332,9 +38332,9 @@
   "prompt_json": {
    "choices": [
     "Short about 3,000 contracts",
-    "Flat, buys and sells match",
-    "Short over 100,000 contracts",
-    "Long about 52,000 contracts"
+    "Flat, buys equal sells",
+    "Short over 100,000",
+    "Long about 52,000"
    ],
    "kind": "mcq",
    "q": "Roughly what net position did that leave market makers with?",
@@ -38402,7 +38402,7 @@
      "fn": "arith",
      "result": 3000.0
     },
-    "given": "Roughly what net position did that leave market makers with? One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000. Short about 3,000 contracts Short over 100,000 contracts Long about 52,000 contracts Flat, buys and sells match"
+    "given": "Roughly what net position did that leave market makers with? One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000. Short about 3,000 contracts Short over 100,000 Long about 52,000 Flat, buys equal sells"
    },
    "lesson_line": "Volume isn't exposure. Dealers hedge the gap between buys and sells, not the total.",
    "simple": "They were short about 3,000, because they sold about 55,000 and bought about 52,000, and only the gap counts.",
@@ -38410,9 +38410,9 @@
    "unit": "F6.18",
    "why": "Short about 3,000 contracts. They sold about 55,000 and bought about 52,000, so 55,000 minus 52,000 leaves 3,000 net short. That's Cboe's own count for the SPX 4440 put on August 15, 2023. Huge volume left a small position to hedge. What matters is the balance of buys and sells, not the total.",
    "wrong": {
-    "Flat, buys and sells match": "Close, but not zero. They sold about 3,000 more than they bought.",
-    "Long about 52,000 contracts": "That counts only their buys. They sold about 55,000 too.",
-    "Short over 100,000 contracts": "That's the gross volume. Most of it was buying and selling that offset."
+    "Flat, buys equal sells": "Close, but not zero. They sold about 3,000 more than they bought.",
+    "Long about 52,000": "That counts only their buys. They sold about 55,000 too.",
+    "Short over 100,000": "That's the gross volume. Most of it was buying and selling that offset."
    }
   },
   "review_status": "draft",

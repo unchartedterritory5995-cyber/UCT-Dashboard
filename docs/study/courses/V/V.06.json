@@ -2157,12 +2157,12 @@
    "term": "Risk/reward ratio",
    "q": "What does a trade's risk/reward ratio compare?",
    "choices": [
-    "Loss at the stop vs gain at target",
+    "Loss at the stop vs gain at the target",
     "Your winning trades vs your losers",
     "Your risk vs your account size",
     "Today's range vs the average range"
    ],
-   "answer": "Loss at the stop vs gain at target",
+   "answer": "Loss at the stop vs gain at the target",
    "why": "Loss at the stop vs gain at the target. Investopedia measures entry to the stop against entry to the take-profit order. Tharp says to ask before every trade whether the reward is worth the risk. It describes one trade's plan, not your record of wins and losses.",
    "lesson_line": "Before you buy, know both distances: to the stop and to the target.",
    "facts": [
@@ -3592,8 +3592,8 @@
    "q": "What does ATR measure?",
    "choices": [
     "How much a stock typically moves",
-    "How far price is from its average",
-    "Average daily volume over 14 days",
+    "How far price is from average",
+    "Average volume over 14 days",
     "Your average loss per trade"
    ],
    "answer": "How much a stock typically moves",
@@ -3606,9 +3606,9 @@
     "f103"
    ],
    "wrong": {
-    "Average daily volume over 14 days": "That's a volume average. ATR uses price ranges.",
+    "Average volume over 14 days": "That's a volume average. ATR uses price ranges.",
     "Your average loss per trade": "That comes from your trade log, not the chart.",
-    "How far price is from its average": "That's a stretch measure. ATR averages the size of each day's range."
+    "How far price is from average": "That's a stretch measure. ATR averages the size of each day's range."
    },
    "simple": "How much a stock typically moves, because ATR averages the size of each day's true range.",
    "tier": "core",
@@ -4219,7 +4219,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f91; f32 Tharp agrees on weighing reward vs risk). All four choices 34 chars, no tell. ATR and 2%-style notes grounded (f87, f99)."
+   "notes": "Key right (f91; f32 Tharp agrees on weighing reward vs risk). All four choices 34 chars, no tell. ATR and 2%-style notes grounded (f87, f99).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -4453,7 +4454,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f81/f103/f83/f87. The volume-average distractor is a real trap (also says average and 14 days). No longer gives q59 or q71 away."
+   "notes": "Key from f81/f103/f83/f87. The volume-average distractor is a real trap (also says average and 14 days). No longer gives q59 or q71 away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",

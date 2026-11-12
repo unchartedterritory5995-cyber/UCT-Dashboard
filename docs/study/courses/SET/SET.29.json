@@ -1326,9 +1326,9 @@
    "q": "What is the low of the failed breakdown used for?",
    "choices": [
     "The setup's invalidation line",
-    "The stop, a few cents under it",
-    "The price where we buy back in",
-    "The target for the first trim"
+    "The stop, just under it",
+    "The price we buy back in",
+    "The first trim's target"
    ],
    "answer": "The setup's invalidation line",
    "why": "The invalidation line. In our run a stop under the failed-break low sat a median 9.3% away, and only 4% were within 3%. Our stop usually sits within about 3% of the buy, so that low is too far to be the stop. Using it as the stop is a named mistake.",
@@ -1344,9 +1344,9 @@
     "h05"
    ],
    "wrong": {
-    "The stop, a few cents under it": "Using the undercut low as the stop is a named mistake. It is usually far more than 3% away.",
-    "The price where we buy back in": "The buy is over the right-shoulder high, well above that low.",
-    "The target for the first trim": "The first trim is a third at 3R, a multiple of the risk. It is not a price taken from that low."
+    "The stop, just under it": "Using the undercut low as the stop is a named mistake. It is usually far more than 3% away.",
+    "The price we buy back in": "The buy is over the right-shoulder high, well above that low.",
+    "The first trim's target": "The first trim is a third at 3R, a multiple of the risk. It is not a price taken from that low."
    },
    "house": true,
    "simple": "That low is the invalidation line, and it sits too far from the buy to work as a stop.",
@@ -2236,9 +2236,9 @@
    "q": "How does the setting grade?",
    "choices": [
     "A grading plus; the best setting",
-    "Pass; a correction means no longs",
-    "Lower grade; the market is weak",
-    "Neutral; the market is no factor"
+    "Pass; a correction bars longs",
+    "Lower grade; market is weak",
+    "Neutral; market is no factor"
    ],
    "answer": "A grading plus; the best setting",
    "why": "A grading plus. The card says best when the market itself is correcting and the stock refuses to break down. In our run, SPY under its 50-day gave +0.30R against a +0.12R baseline. The reading still applies: Yellow means smaller and fewer, and in Orange only A+ setups.",
@@ -2254,9 +2254,9 @@
     "d14"
    ],
    "wrong": {
-    "Pass; a correction means no longs": "A correction is not a ban. Yellow allows a buy, smaller and fewer. Red is the reading that is mostly cash.",
-    "Lower grade; the market is weak": "A weak market with a leader that holds up is the cue, not a mark against it.",
-    "Neutral; the market is no factor": "The card names a correcting market, with the stock refusing to break down, as the best setting."
+    "Pass; a correction bars longs": "A correction is not a ban. Yellow allows a buy, smaller and fewer. Red is the reading that is mostly cash.",
+    "Lower grade; market is weak": "A weak market with a leader that holds up is the cue, not a mark against it.",
+    "Neutral; market is no factor": "The card names a correcting market, with the stock refusing to break down, as the best setting."
    },
    "house": true,
    "simple": "A leader that holds up while the market falls is the best setting for this setup.",
@@ -2538,8 +2538,8 @@
    "q": "The stock trades 3,000,000 shares a day on average. The most you may own?",
    "choices": [
     "30,000 shares, 1% of daily volume",
-    "300,000 shares, a tenth of the day",
-    "150,000 shares, 5% of daily volume",
+    "300,000, a tenth of the day",
+    "150,000 shares, 5% of volume",
     "No ceiling with a tight stop"
    ],
    "answer": "30,000 shares, 1% of daily volume",
@@ -2550,9 +2550,9 @@
     "h19"
    ],
    "wrong": {
-    "300,000 shares, a tenth of the day": "That is a tenth of the day's volume, far past the 1% ceiling.",
-    "No ceiling with a tight stop": "The ceiling has no exception for a tight stop. The rule is 1% of average daily volume.",
-    "150,000 shares, 5% of daily volume": "That is 5% of the day's volume, well past the 1% ceiling."
+    "300,000, a tenth of the day": "That is a tenth of the day's volume, far past the 1% ceiling.",
+    "150,000 shares, 5% of volume": "That is 5% of the day's volume, well past the 1% ceiling.",
+    "No ceiling with a tight stop": "The ceiling has no exception for a tight stop. The rule is 1% of average daily volume."
    },
    "house": true,
    "calc": {
@@ -3885,7 +3885,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c04, c23, d37, h04 and c55/h05 back the key and every wrong note. Four distinct uses, no tell."
+   "notes": "c04, c23, d37, h04 and c55/h05 back the key and every wrong note. Four distinct uses, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -4035,7 +4036,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story now states Yellow, so Pass is not defensible. c15/c28 and d38 (+0.30R vs +0.12R baseline) support it. Four distinct grades, no lone-Yes pattern."
+   "notes": "Story now states Yellow, so Pass is not defensible. c15/c28 and d38 (+0.30R vs +0.12R baseline) support it. Four distinct grades, no lone-Yes pattern.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "pass",
@@ -4083,7 +4085,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h19 and c48 support it; 3,000,000 x 1% = 30,000. Wrong choices state their own percentages, all wrong against the 1% ceiling."
+   "notes": "h19 and c48 support it; 3,000,000 x 1% = 30,000. Wrong choices state their own percentages, all wrong against the 1% ceiling.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",

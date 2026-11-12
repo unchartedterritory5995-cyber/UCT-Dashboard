@@ -2189,8 +2189,8 @@
   "prompt_json": {
    "choices": [
     "Wait for a pullback or a new setup",
-    "Short it: it has to come back down",
-    "Buy now before it runs even further",
+    "Short it: it has to drop back",
+    "Buy now before it runs further",
     "Buy half now and half on a dip"
    ],
    "kind": "mcq",
@@ -2250,7 +2250,7 @@
     "summary": "ChartSchool: an extended stock has run past its buy point, so buying it is riskier. Price far above its average may be ripe for a pullback. Far above the average can be strength in a strong uptrend. ChartSchool: after a big advance, it can be wiser to wait for a pullback. Pullbacks in a stock that is trending up are widely seen as buying chances. Our rule: take the full size at one price with one stop, and never add to the trade."
    },
    "facts": {
-    "given": "What's the sound move now? A leader broke out three weeks ago. It now sits 25% above its 50-day average, its widest stretch in a year. You missed the entry. Wait for a pullback or a new setup Buy now before it runs even further Short it: it has to come back down Buy half now and half on a dip"
+    "given": "What's the sound move now? A leader broke out three weeks ago. It now sits 25% above its 50-day average, its widest stretch in a year. You missed the entry. Wait for a pullback or a new setup Buy now before it runs further Short it: it has to drop back Buy half now and half on a dip"
    },
    "lesson_line": "An extended stock has already begun its advance. Wait for a pullback or a new setup.",
    "simple": "Wait for a pullback or a new setup, because buying a stock this stretched means buying after the move began.",
@@ -2259,8 +2259,8 @@
    "why": "Wait for a pullback or a new setup. The stock sits 25% above its 50-day average, its widest stretch in a year. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun. Its overview adds that after a big advance it may be prudent to wait for a pullback. Extended is not a reason to short: far above the average can be strength in a strong uptrend.",
    "wrong": {
     "Buy half now and half on a dip": "We don't scale in. Our rule is the full size at one price with one stop, no adding. ChartSchool calls a stretched buy risky.",
-    "Buy now before it runs even further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
-    "Short it: it has to come back down": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short."
+    "Buy now before it runs further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
+    "Short it: it has to drop back": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short."
    }
   },
   "review_status": "draft",
@@ -6688,18 +6688,18 @@
  },
  {
   "answer_json": {
-   "answer": "Small body, shadows longer than it"
+   "answer": "Small body, shadows longer than the body"
   },
   "difficulty": 1,
   "id": "si_fb7e98d8f205",
   "lesson_origin": "session",
-  "lesson_text": "Small body, shadows longer than it. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line. A spinning top is indecision with a little body. A doji is indecision with almost none.",
+  "lesson_text": "Small body, shadows longer than the body. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line. A spinning top is indecision with a little body. A doji is indecision with almost none.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Long body, no shadows at either end",
     "Small body inside the prior body",
-    "Small body, shadows longer than it",
+    "Small body, shadows longer than the body",
     "No body, just one long lower shadow"
    ],
    "kind": "mcq",
@@ -6783,13 +6783,13 @@
     "summary": "A spinning top has a small body with shadows longer than the body. A spinning top has a small real body with long upper and lower shadows. A spinning top's small body can be hollow or filled; the shadows show both sides were active. Spinning tops show indecision. A spinning top has a short body centered between long upper and lower shadows. A marubozu has no shadows; the open and close are the high and low. A dragonfly doji has open, high and close equal and a long lower shadow, so it looks like a T. In a harami the first candle has a large body and the second a small body inside it. A doji's body should look like a thin line next to the candles before it. In a white marubozu, buyers controlled the session from the first trade to the last."
    },
    "facts": {
-    "given": "What does a spinning top look like? Small body, shadows longer than it Long body, no shadows at either end No body, just one long lower shadow Small body inside the prior body"
+    "given": "What does a spinning top look like? Small body, shadows longer than the body Long body, no shadows at either end No body, just one long lower shadow Small body inside the prior body"
    },
    "lesson_line": "A spinning top is indecision with a little body. A doji is indecision with almost none.",
    "simple": "A spinning top has a small body with longer shadows on both sides, so it closed near its open.",
    "tier": "core",
    "unit": "V.03",
-   "why": "Small body, shadows longer than it. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line.",
+   "why": "Small body, shadows longer than the body. A spinning top has a small real body, hollow or filled, with long upper and lower shadows. The shadows show that buyers and sellers were both active. The small body shows little change from open to close. It stands for indecision. A doji goes further: its body is only a thin line.",
    "wrong": {
     "Long body, no shadows at either end": "That's a marubozu, the opposite of indecision.",
     "No body, just one long lower shadow": "That's a dragonfly doji.",
@@ -9084,10 +9084,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Morning star pattern",
+    "Morning star",
     "Inside day pattern",
     "Outside reversal day",
-    "Bearish harami cross"
+    "Harami cross"
    ],
    "kind": "mcq",
    "q": "Today is best described as what?",
@@ -9139,7 +9139,7 @@
     "summary": "An outside reversal day is an outside day that closes against the prior trend. An outside reversal's high and low both move beyond the prior session's range. Outside reversals are used with volume or support levels for more reliability. An outside reversal needs the whole range engulfed; engulfing needs only the open and close. Engulfing needs only the open and close (the body) engulfed, not the whole high-low range."
    },
    "facts": {
-    "given": "Today is best described as what? A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low. Outside reversal day Inside day pattern Bearish harami cross Morning star pattern"
+    "given": "Today is best described as what? A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low. Outside reversal day Inside day pattern Harami cross Morning star"
    },
    "lesson_line": "An outside day that closes against the trend is an outside reversal. Volume and the level it hits add weight.",
    "simple": "It is an outside reversal day, because it broke both ends of yesterday's range and closed down against the rally.",
@@ -9147,9 +9147,9 @@
    "unit": "V.03",
    "why": "Outside reversal day. It is an outside day, with a high above yesterday's high and a low below yesterday's low. It also closes in the opposite direction of the prior trend. After a rally, that means a down close. Investopedia notes analysts pair it with volume or support levels for more reliability. It signals a potential trend change, not a certain one.",
    "wrong": {
-    "Bearish harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
+    "Harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
     "Inside day pattern": "An inside day stays within yesterday's range. Today broke out of both ends.",
-    "Morning star pattern": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
+    "Morning star": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
    }
   },
   "review_status": "draft",
@@ -11213,8 +11213,8 @@
   "prompt_json": {
    "choices": [
     "U-shaped base plus a short pullback",
-    "Three peaks, the middle one highest",
-    "Lower highs pressing on a flat floor",
+    "Three peaks, middle one highest",
+    "Lower highs on a flat floor",
     "Two equal lows shaped like a W"
    ],
    "kind": "mcq",
@@ -11277,7 +11277,7 @@
     "summary": "The cup with handle is a bullish continuation pattern: a consolidation, then a breakout. Fidelity: the cup forms after an advance and looks like a bowl. The cup should be a U-shaped bowl; a V-shaped bottom is too sharp to qualify. The handle is the pullback after the cup's right side makes its high. The handle is the last pullback before the breakout and usually gives back no more than a third of the cup's advance. Bulkowski describes the shape as a rounded turn like a cup, with a handle on the right. Fidelity's guide: a rounded bottom, not a V, with a lip at each end and a handle."
    },
    "facts": {
-    "given": "What does cup with handle mean? U-shaped base plus a short pullback Three peaks, the middle one highest Two equal lows shaped like a W Lower highs pressing on a flat floor"
+    "given": "What does cup with handle mean? U-shaped base plus a short pullback Three peaks, middle one highest Two equal lows shaped like a W Lower highs on a flat floor"
    },
    "lesson_line": "Cup first, handle second, breakout third.",
    "simple": "A cup with handle is a rounded U-shaped bowl, then a short dip on its right side before the breakout.",
@@ -11285,8 +11285,8 @@
    "unit": "V.04",
    "why": "A U-shaped base plus a short pullback. Fidelity: the cup forms after an advance and looks like a bowl or rounding bottom. StockCharts: the cup should be U-shaped, and after the high on its right side, a pullback forms the handle.",
    "wrong": {
-    "Lower highs pressing on a flat floor": "Those are straight lines closing in. A cup is a rounded bowl.",
-    "Three peaks, the middle one highest": "That's three peaks. A cup is one rounded, U-shaped low.",
+    "Lower highs on a flat floor": "Those are straight lines closing in. A cup is a rounded bowl.",
+    "Three peaks, middle one highest": "That's three peaks. A cup is one rounded, U-shaped low.",
     "Two equal lows shaped like a W": "That's two separate lows. A cup is one rounded U, not a W."
    }
   },
@@ -12591,8 +12591,8 @@
   "prompt_json": {
    "choices": [
     "Three lows, the middle one deepest",
-    "Two equal lows with a peak between",
-    "Three peaks, the middle one highest",
+    "Two equal lows, a peak between",
+    "Three peaks, middle one highest",
     "Three equal lows in a row"
    ],
    "kind": "mcq",
@@ -12648,7 +12648,7 @@
     "summary": "A head and shoulders bottom has three troughs, the middle one deepest. Investopedia: the inverse head and shoulders, or head and shoulders bottom, is formed by three troughs. Bulkowski: a head and shoulders bottom is three valleys, the middle one lowest. A double bottom is two roughly equal troughs with a moderate peak between, then a breakout. Fidelity's guide: a triple bottom is three lows at about the same price. StockCharts: a triple bottom is three equal lows, then a break above resistance."
    },
    "facts": {
-    "given": "What does inverse head and shoulders mean? Three lows, the middle one deepest Three peaks, the middle one highest Two equal lows with a peak between Three equal lows in a row"
+    "given": "What does inverse head and shoulders mean? Three lows, the middle one deepest Three peaks, middle one highest Two equal lows, a peak between Three equal lows in a row"
    },
    "lesson_line": "Flip a head and shoulders top and you get the bottom version.",
    "simple": "It is three lows with the deepest one in the middle, a head and shoulders turned upside down.",
@@ -12657,8 +12657,8 @@
    "why": "Three lows, the middle one deepest. StockCharts describes three troughs with the middle trough deepest and the outer two shallower. Bulkowski calls it a 3-valley pattern with the middle valley below the others. Investopedia says it is often called a head and shoulders bottom. A triple bottom differs: its three lows sit at about the same price.",
    "wrong": {
     "Three equal lows in a row": "That's a triple bottom.",
-    "Three peaks, the middle one highest": "That's the top version.",
-    "Two equal lows with a peak between": "That's a double bottom."
+    "Three peaks, middle one highest": "That's the top version.",
+    "Two equal lows, a peak between": "That's a double bottom."
    }
   },
   "review_status": "draft",
@@ -14992,9 +14992,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A V-shaped drop and fast recovery",
-    "A gap that does not fill for weeks",
-    "A steep, sudden run on heavy volume",
+    "A V-shaped drop, then recovery",
+    "A gap left unfilled for weeks",
+    "A steep, sudden run on volume",
     "Sideways for several weeks or more"
    ],
    "kind": "mcq",
@@ -15050,7 +15050,7 @@
     "summary": "Bulkowski: a flat base looks like a rectangle, price touching the same levels over several weeks or months. Bulkowski: in a flat base, price moves horizontally. IBD: in a flat base the stock moves sideways, neither up nor down. The flagpole is the sharp move leading into the flag or pennant. No quick, straight-line run (the flagpole), no flag. The cup should be a U-shaped bowl; a V-shaped bottom is too sharp to qualify."
    },
    "facts": {
-    "given": "What does flat base mean? Sideways for several weeks or more A steep, sudden run on heavy volume A V-shaped drop and fast recovery A gap that does not fill for weeks"
+    "given": "What does flat base mean? Sideways for several weeks or more A steep, sudden run on volume A V-shaped drop, then recovery A gap left unfilled for weeks"
    },
    "lesson_line": "Flat base: the stock moves sideways, neither up nor down, for weeks.",
    "simple": "A flat base is a stock moving sideways for weeks or months, neither rising nor falling much.",
@@ -15058,9 +15058,9 @@
    "unit": "V.04",
    "why": "Sideways for several weeks or more. Bulkowski says a flat base looks like a rectangle: price touches the same value multiple times over several weeks or months. IBD says the stock moves sideways rather than going on an uptrend or downtrend. A flat base is a pause, not a direction. The breakout decides what comes next.",
    "wrong": {
-    "A V-shaped drop and fast recovery": "A V is a sharp reversal. A base goes sideways.",
-    "A gap that does not fill for weeks": "That describes a price gap, not weeks of sideways trading.",
-    "A steep, sudden run on heavy volume": "That's a flagpole, a quick run. A flat base goes sideways."
+    "A V-shaped drop, then recovery": "A V is a sharp reversal. A base goes sideways.",
+    "A gap left unfilled for weeks": "That describes a price gap, not weeks of sideways trading.",
+    "A steep, sudden run on volume": "That's a flagpole, a quick run. A flat base goes sideways."
    }
   },
   "review_status": "draft",
@@ -15083,8 +15083,8 @@
    "choices": [
     "A rounded base with a short handle",
     "A range set by recent highs and lows",
-    "Three peaks, with the middle highest",
-    "A flat top with steadily rising lows"
+    "Three peaks, middle highest",
+    "A flat top with rising lows"
    ],
    "kind": "mcq",
    "q": "What does Darvas box mean?",
@@ -15139,7 +15139,7 @@
     "summary": "Investopedia: a Darvas box frames price by recent highs and lows; a break above it is the buy signal. Bulkowski: find the box and wait for a close outside it. Bulkowski: the box top is a high that holds for the next three days. The cup with handle is a bullish continuation pattern: a consolidation, then a breakout. An ascending triangle has a flat upper line and a rising lower line. Three peaks: the middle one highest, the outer two lower and roughly equal."
    },
    "facts": {
-    "given": "What does Darvas box mean? A range set by recent highs and lows A rounded base with a short handle A flat top with steadily rising lows Three peaks, with the middle highest"
+    "given": "What does Darvas box mean? A range set by recent highs and lows A rounded base with a short handle A flat top with rising lows Three peaks, middle highest"
    },
    "lesson_line": "Darvas box: a top, a bottom, and a trade on the break.",
    "simple": "A Darvas box is a price range framed by recent highs and lows, and the trade comes on a break above it.",
@@ -15147,9 +15147,9 @@
    "unit": "V.04",
    "why": "A range set by recent highs and lows. Investopedia says it places price in a box based on recent highs and lows. The buy signal is a break above the box on strong volume. Bulkowski sets the box top at a high that holds for the next three days. Then he waits for a close outside the box. It is a range, not a shape like a cup.",
    "wrong": {
-    "A flat top with steadily rising lows": "That's an ascending triangle.",
+    "A flat top with rising lows": "That's an ascending triangle.",
     "A rounded base with a short handle": "That's a cup with handle.",
-    "Three peaks, with the middle highest": "That's a head and shoulders."
+    "Three peaks, middle highest": "That's a head and shoulders."
    }
   },
   "review_status": "draft",
@@ -22612,7 +22612,7 @@
  },
  {
   "answer_json": {
-   "answer": "Loss at the stop vs gain at target"
+   "answer": "Loss at the stop vs gain at the target"
   },
   "difficulty": 1,
   "id": "si_e6f93a46217e",
@@ -22621,7 +22621,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Loss at the stop vs gain at target",
+    "Loss at the stop vs gain at the target",
     "Today's range vs the average range",
     "Your risk vs your account size",
     "Your winning trades vs your losers"
@@ -22665,7 +22665,7 @@
     "summary": "Risk/reward compares entry-to-stop with entry-to-target. Before every trade, weigh the potential reward against the risk. The 2% rule caps the risk on one trade at 2% of trading capital. On a daily chart, ATR is the average daily range of movement in dollars."
    },
    "facts": {
-    "given": "What does a trade's risk/reward ratio compare? Loss at the stop vs gain at target Your winning trades vs your losers Your risk vs your account size Today's range vs the average range"
+    "given": "What does a trade's risk/reward ratio compare? Loss at the stop vs gain at the target Your winning trades vs your losers Your risk vs your account size Today's range vs the average range"
    },
    "lesson_line": "Before you buy, know both distances: to the stop and to the target.",
    "simple": "It compares what you lose if the stop is hit with what you gain if the target is reached.",
@@ -25423,9 +25423,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Average daily volume over 14 days",
+    "Average volume over 14 days",
     "Your average loss per trade",
-    "How far price is from its average",
+    "How far price is from average",
     "How much a stock typically moves"
    ],
    "kind": "mcq",
@@ -25467,7 +25467,7 @@
     "summary": "ATR measures volatility. ATR averages the true range, usually over 14 days. On a daily chart, ATR is the average daily range of movement in dollars. Wilder's ATR measures volatility."
    },
    "facts": {
-    "given": "What does ATR measure? How much a stock typically moves How far price is from its average Average daily volume over 14 days Your average loss per trade"
+    "given": "What does ATR measure? How much a stock typically moves How far price is from average Average volume over 14 days Your average loss per trade"
    },
    "lesson_line": "ATR tells you how far a stock normally moves in a day.",
    "simple": "How much a stock typically moves, because ATR averages the size of each day's true range.",
@@ -25475,8 +25475,8 @@
    "unit": "V.06",
    "why": "How much a stock typically moves. Wilder's average true range is an average of the true range, usually over 14 days. On a daily chart, an ATR of $1.18 means an average range of $1.18 a day. It measures volatility, the size of the moves.",
    "wrong": {
-    "Average daily volume over 14 days": "That's a volume average. ATR uses price ranges.",
-    "How far price is from its average": "That's a stretch measure. ATR averages the size of each day's range.",
+    "Average volume over 14 days": "That's a volume average. ATR uses price ranges.",
+    "How far price is from average": "That's a stretch measure. ATR averages the size of each day's range.",
     "Your average loss per trade": "That comes from your trade log, not the chart."
    }
   },
@@ -29408,7 +29408,7 @@
  },
  {
   "answer_json": {
-   "answer": "A cancels; B waits for all 1,000"
+   "answer": "A cancels at once; B waits for all 1,000"
   },
   "difficulty": 3,
   "id": "si_9e90dbe229a3",
@@ -29417,7 +29417,7 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A cancels; B waits for all 1,000",
+    "A cancels at once; B waits for all 1,000",
     "Both buy 400 and cancel the rest",
     "Both wait until all 1,000 can fill",
     "A buys 400 now; B cancels at once"
@@ -29472,7 +29472,7 @@
     "summary": "FOK: the whole order fills right away, or the whole order cancels. A fill-or-kill order never takes a partial fill. AON: the whole order or nothing. Unlike FOK, an AON order that can't fill right away stays active. IOC: fill what can fill right away and cancel the rest."
    },
    "facts": {
-    "given": "What happens to each? Two orders to buy 1,000 shares. Only 400 are offered at your price right now. Order A is fill-or-kill. Order B is all-or-none. A cancels; B waits for all 1,000 Both buy 400 and cancel the rest A buys 400 now; B cancels at once Both wait until all 1,000 can fill"
+    "given": "What happens to each? Two orders to buy 1,000 shares. Only 400 are offered at your price right now. Order A is fill-or-kill. Order B is all-or-none. A cancels at once; B waits for all 1,000 Both buy 400 and cancel the rest A buys 400 now; B cancels at once Both wait until all 1,000 can fill"
    },
    "lesson_line": "FOK and AON both refuse a partial. Only FOK refuses to wait.",
    "simple": "Order A cancels at once because fill-or-kill can't wait, while order B waits since all-or-none can stay open.",
@@ -33722,18 +33722,18 @@
  },
  {
   "answer_json": {
-   "answer": "Exercisable any time to expiry"
+   "answer": "Exercisable any time to expiration"
   },
   "difficulty": 1,
   "id": "si_3173a9273dfc",
   "lesson_origin": "session",
-  "lesson_text": "Exercisable any time to expiry. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles. The style is about when you can exercise, not where the option trades.",
+  "lesson_text": "Exercisable any time to expiration. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles. The style is about when you can exercise, not where the option trades.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Exercisable only at expiration",
     "Listed on a US options exchange",
-    "Exercisable any time to expiry",
+    "Exercisable any time to expiration",
     "Settled in cash, not in shares"
    ],
    "kind": "mcq",
@@ -33796,13 +33796,13 @@
     "summary": "An American-style option can be exercised at any time before it expires. American-style can be exercised any time up to expiration; European-style only at expiration. Standardized equity options are all American-style. Exchange-traded equity options are American-style; most index options are European-style. A European-style option can be exercised only just before expiration. Index options are generally settled in cash. An assigned equity call writer delivers shares and receives cash."
    },
    "facts": {
-    "given": "What does American-style mean on an option? Exercisable any time to expiry Exercisable only at expiration Listed on a US options exchange Settled in cash, not in shares"
+    "given": "What does American-style mean on an option? Exercisable any time to expiration Exercisable only at expiration Listed on a US options exchange Settled in cash, not in shares"
    },
    "lesson_line": "The style is about when you can exercise, not where the option trades.",
    "simple": "Any time up to expiry, because American style is about when you can exercise, not where the option is listed.",
    "tier": "core",
    "unit": "V.08",
-   "why": "Exercisable any time to expiry. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles.",
+   "why": "Exercisable any time to expiration. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles.",
    "wrong": {
     "Exercisable only at expiration": "That's European-style, the other exercise style.",
     "Listed on a US options exchange": "The style is about when you can exercise, not where it trades. Most index options, for one, are European-style.",
@@ -35005,7 +35005,7 @@
  },
  {
   "answer_json": {
-   "answer": "Vertical spread"
+   "answer": "A vertical spread"
   },
   "difficulty": 2,
   "id": "si_b377afc15e8b",
@@ -35015,7 +35015,7 @@
   "prompt_json": {
    "choices": [
     "Diagonal spread",
-    "Vertical spread",
+    "A vertical spread",
     "Straddle",
     "Calendar spread"
    ],
@@ -35065,7 +35065,7 @@
     "summary": "A vertical spread buys one option and writes another of the same type and expiration at a different strike. A bull call spread is a vertical spread: two calls, same expiration, different strikes. A calendar spread buys a longer-dated option and writes a nearer-dated one of the same type and strike. A diagonal spread buys and writes two options of the same type with different strikes and different expirations. A straddle pairs calls and puts one for one, same strike, same expiration, same stock."
    },
    "facts": {
-    "given": "What do you call buying one option and writing another, same type and expiry, at a different strike? Vertical spread Calendar spread Diagonal spread Straddle"
+    "given": "What do you call buying one option and writing another, same type and expiry, at a different strike? A vertical spread Calendar spread Diagonal spread Straddle"
    },
    "lesson_line": "A vertical spread: same type, same expiration, two strikes.",
    "simple": "Two options of the same type and date but different strikes, one bought and one sold, make a vertical spread.",
@@ -35280,18 +35280,18 @@
  },
  {
   "answer_json": {
-   "answer": "Buy a call and a put, same strike"
+   "answer": "Buy a call and a put at the same strike"
   },
   "difficulty": 2,
   "id": "si_5c365f366708",
   "lesson_origin": "session",
-  "lesson_text": "Buy a call and a put, same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle. A straddle bets on the size of the move, not the direction. You pay two premiums for it.",
+  "lesson_text": "Buy a call and a put at the same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle. A straddle bets on the size of the move, not the direction. You pay two premiums for it.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Buy a call and a put, two strikes",
     "Sell a call and a put, same strike",
-    "Buy a call and a put, same strike",
+    "Buy a call and a put at the same strike",
     "Buy the stock and buy a put"
    ],
    "kind": "mcq",
@@ -35354,13 +35354,13 @@
     "summary": "A long straddle buys a call and a put with the same strike and expiration. A straddle pairs calls and puts one for one, same strike, same expiration, same stock. Buying both legs is a long straddle; writing both is a short straddle. A long straddle profits from a big move either way. Paying two premiums sets a high bar for a straddle to break even. A long strangle buys an out-of-the-money call and an out-of-the-money put with the same expiration. A married put buys the stock and the puts at the same time, share for share."
    },
    "facts": {
-    "given": "What is a long straddle? Buy a call and a put, same strike Buy a call and a put, two strikes Sell a call and a put, same strike Buy the stock and buy a put"
+    "given": "What is a long straddle? Buy a call and a put at the same strike Buy a call and a put, two strikes Sell a call and a put, same strike Buy the stock and buy a put"
    },
    "lesson_line": "A straddle bets on the size of the move, not the direction. You pay two premiums for it.",
    "simple": "A long straddle buys a call and a put at the same strike and date, betting on a big move either way.",
    "tier": "core",
    "unit": "V.08",
-   "why": "Buy a call and a put, same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle.",
+   "why": "Buy a call and a put at the same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle.",
    "wrong": {
     "Buy a call and a put, two strikes": "Different strikes make it a strangle.",
     "Buy the stock and buy a put": "That's a married put.",
@@ -35919,19 +35919,19 @@
  },
  {
   "answer_json": {
-   "answer": "Close it, open a new strike or date"
+   "answer": "Close it and open a new strike or date"
   },
   "difficulty": 2,
   "id": "si_a7c0390aa927",
   "lesson_origin": "session",
-  "lesson_text": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll. A roll is two trades at once: a close and a new open.",
+  "lesson_text": "Close it and open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll. A roll is two trades at once: a close and a new open.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Add more contracts at a lower price",
     "Let it expire, then open a new one",
     "Exercise it early to take the shares",
-    "Close it, open a new strike or date"
+    "Close it and open a new strike or date"
    ],
    "kind": "mcq",
    "q": "What does it mean to roll an option position?",
@@ -35972,13 +35972,13 @@
     "summary": "Rolling closes an option and opens a new one at a different strike, expiration or both, at the same time. To exercise is to use the option's right: a call holder buys the stock, a put holder sells it. Averaging down is buying more at a lower price to cut your average cost. On the expiration date the option and its right to exercise stop existing."
    },
    "facts": {
-    "given": "What does it mean to roll an option position? Close it, open a new strike or date Exercise it early to take the shares Add more contracts at a lower price Let it expire, then open a new one"
+    "given": "What does it mean to roll an option position? Close it and open a new strike or date Exercise it early to take the shares Add more contracts at a lower price Let it expire, then open a new one"
    },
    "lesson_line": "A roll is two trades at once: a close and a new open.",
    "simple": "Rolling means you close your option and open a new one at a different strike or date, all at once.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
+   "why": "Close it and open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
    "wrong": {
     "Add more contracts at a lower price": "That's averaging down: buying more at a lower price to cut your average cost.",
     "Exercise it early to take the shares": "Exercise uses the right to buy or sell at the strike. It opens no new option, so it is not a roll.",
@@ -37240,10 +37240,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "About a 10% chance it expires worthless",
+    "About a 10% chance it ends worthless",
     "About a 10% chance it ends in the money",
-    "About a 15% chance it ends in the money",
-    "About a 0.1% chance it ends in the money"
+    "About 15% chance it ends in the money",
+    "About 0.1% chance it ends in the money"
    ],
    "kind": "mcq",
    "q": "Read as a rough probability, what does that delta suggest?",
@@ -37302,7 +37302,7 @@
     "summary": "Some traders read delta as a rough probability of finishing in the money. An option under about a .10 delta is not seen as likely to finish in the money. A very low-delta option needs a strong move to be worth anything at expiration. Delta estimates how much the premium changes for a $1 move in the stock. The premium is what the buyer pays and the seller receives. Out-of-the-money options usually just expire worthless."
    },
    "facts": {
-    "given": "Read as a rough probability, what does that delta suggest? You're scanning calls for a cheap swing trade. The 0.10-delta call costs $0.15 and looks like a bargain. About a 10% chance it ends in the money About a 10% chance it expires worthless About a 15% chance it ends in the money About a 0.1% chance it ends in the money"
+    "given": "Read as a rough probability, what does that delta suggest? You're scanning calls for a cheap swing trade. The 0.10-delta call costs $0.15 and looks like a bargain. About a 10% chance it ends in the money About a 10% chance it ends worthless About 15% chance it ends in the money About 0.1% chance it ends in the money"
    },
    "lesson_line": "A low-delta option is cheap because it probably won't pay. Price the odds, not the ticket.",
    "simple": "About a 10% chance, because some traders read a 0.10 delta as rough odds of the option ending in the money.",
@@ -37310,9 +37310,9 @@
    "unit": "V.08",
    "why": "About a 10% chance it ends in the money. Delta is an estimate of how much the premium may change for a $1 move in the stock. Some traders also read it as a rough probability of finishing in the money. OIC pairs a delta under .10 with under a 10% chance of being in the money. Such an option needs a strong move to be worth anything at expiry.",
    "wrong": {
-    "About a 0.1% chance it ends in the money": "A 0.10 delta read as odds is about 10%, not 0.1%. OIC pairs a delta under .10 with under a 10% chance.",
-    "About a 10% chance it expires worthless": "That flips it. Read as odds, 0.10 is about a 10% chance of ending in the money. Expiring worthless is the likely result.",
-    "About a 15% chance it ends in the money": "That reads the $0.15 price as the odds. The price is the premium. Read as odds, the 0.10 delta gives about 10%."
+    "About 0.1% chance it ends in the money": "A 0.10 delta read as odds is about 10%, not 0.1%. OIC pairs a delta under .10 with under a 10% chance.",
+    "About 15% chance it ends in the money": "That reads the $0.15 price as the odds. The price is the premium. Read as odds, the 0.10 delta gives about 10%.",
+    "About a 10% chance it ends worthless": "That flips it. Read as odds, 0.10 is about a 10% chance of ending in the money. Expiring worthless is the likely result."
    }
   },
   "review_status": "draft",
@@ -42724,19 +42724,19 @@
  },
  {
   "answer_json": {
-   "answer": "Form 8-K"
+   "answer": "Form 8-K filing"
   },
   "difficulty": 2,
   "id": "si_f5af75068d3f",
   "lesson_origin": "session",
-  "lesson_text": "Form 8-K. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited). The 8-K is the fast filing. The full 10-Q or 10-K usually comes later.",
+  "lesson_text": "Form 8-K filing. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited). The 8-K is the fast filing. The full 10-Q or 10-K usually comes later.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Form 10-K",
     "Form 10-Q",
     "No filing",
-    "Form 8-K"
+    "Form 8-K filing"
    ],
    "kind": "mcq",
    "q": "Which SEC form must carry the text of that release?",
@@ -42785,13 +42785,13 @@
     "summary": "An earnings press release has to be filed on Form 8-K with its full text. The 8-K is the current report companies file for major events. Most companies announce results before they file the required SEC forms. The 10-Q is the quarterly report, with unaudited financial statements. The 10-K is the annual report, with audited financial statements."
    },
    "facts": {
-    "given": "Which SEC form must carry the text of that release? A company puts out its quarterly earnings press release after the close. Form 8-K Form 10-Q Form 10-K No filing"
+    "given": "Which SEC form must carry the text of that release? A company puts out its quarterly earnings press release after the close. Form 8-K filing Form 10-Q Form 10-K No filing"
    },
    "lesson_line": "The 8-K is the fast filing. The full 10-Q or 10-K usually comes later.",
    "simple": "Form 8-K carries it, because a company that issues an earnings press release must file one with the release text.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "Form 8-K. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited).",
+   "why": "Form 8-K filing. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited).",
    "wrong": {
     "Form 10-K": "The 10-K is the annual report, not the place for a press release.",
     "Form 10-Q": "The 10-Q is the quarterly report with unaudited statements. Most companies announce results before filing it.",
@@ -45974,17 +45974,17 @@
  },
  {
   "answer_json": {
-   "answer": "Slow and then end bond buying"
+   "answer": "Slow and then end Fed bond buying"
   },
   "difficulty": 2,
   "id": "si_2b063c213515",
   "lesson_origin": "session",
-  "lesson_text": "Slow and then end bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later. Taper is QE winding down, not QT. The Fed stops adding before it starts shrinking.",
+  "lesson_text": "Slow and then end Fed bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later. Taper is QE winding down, not QT. The Fed stops adding before it starts shrinking.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Cut the fed funds rate in steps",
-    "Slow and then end bond buying",
+    "Slow and then end Fed bond buying",
     "Raise the fed funds rate slowly",
     "Sell bonds the Fed already owns"
    ],
@@ -46027,13 +46027,13 @@
     "summary": "The taper was the Fed's phaseout of its bond purchases, announced in November 2021 and sped up in December. QE grows the Fed's balance sheet; QT shrinks it. The 2022 plan shrank holdings mainly by reinvesting less of the principal from maturing securities. From June 2022 the Fed cut its balance sheet by $2.2 trillion."
    },
    "facts": {
-    "given": "In late 2021 the Fed began to taper. What does taper mean? Slow and then end bond buying Sell bonds the Fed already owns Cut the fed funds rate in steps Raise the fed funds rate slowly"
+    "given": "In late 2021 the Fed began to taper. What does taper mean? Slow and then end Fed bond buying Sell bonds the Fed already owns Cut the fed funds rate in steps Raise the fed funds rate slowly"
    },
    "lesson_line": "Taper is QE winding down, not QT. The Fed stops adding before it starts shrinking.",
    "simple": "Taper means the Fed slows its bond buying step by step until it stops, without selling what it already owns.",
    "tier": "core",
    "unit": "V.10",
-   "why": "Slow and then end bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later.",
+   "why": "Slow and then end Fed bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later.",
    "wrong": {
     "Cut the fed funds rate in steps": "Tapering is about bond purchases, not the rate.",
     "Raise the fed funds rate slowly": "Rate hikes are a separate tool. Tapering only slows bond buying.",
@@ -46531,18 +46531,18 @@
  },
  {
   "answer_json": {
-   "answer": "Establishment survey"
+   "answer": "The establishment survey"
   },
   "difficulty": 2,
   "id": "si_94c0fff53a45",
   "lesson_origin": "session",
-  "lesson_text": "Establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release. Payrolls from employers, unemployment rate from households. Two surveys, one report.",
+  "lesson_text": "The establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release. Payrolls from employers, unemployment rate from households. Two surveys, one report.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Weekly jobless claims",
     "Household survey",
-    "Establishment survey",
+    "The establishment survey",
     "The Fed's Beige Book"
    ],
    "kind": "mcq",
@@ -46598,13 +46598,13 @@
     "summary": "Household survey: unemployment. Establishment survey: nonfarm jobs. The payroll survey asks businesses; it counts jobs. The household survey asks people; it produces the unemployment rate. The weekly claims report comes out Thursday mornings at 8:30. Initial claims are applications for unemployment benefits from people who lost jobs. Each Reserve Bank gathers anecdotal reports on conditions in its District from business contacts and others."
    },
    "facts": {
-    "given": "Which source produces the nonfarm payroll number? Establishment survey Household survey Weekly jobless claims The Fed's Beige Book"
+    "given": "Which source produces the nonfarm payroll number? The establishment survey Household survey Weekly jobless claims The Fed's Beige Book"
    },
    "lesson_line": "Payrolls from employers, unemployment rate from households. Two surveys, one report.",
    "simple": "The payroll count comes from the survey of employers, and the survey of homes gives the jobless rate.",
    "tier": "extended",
    "unit": "V.10",
-   "why": "Establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release.",
+   "why": "The establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release.",
    "wrong": {
     "Household survey": "The household survey asks people, and it produces the unemployment rate.",
     "The Fed's Beige Book": "The Beige Book is the Fed's anecdotal report from business contacts in each District. It gives no payroll count and is not part of the jobs report.",
@@ -50057,10 +50057,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Breadth may be confirming the downtrend",
+    "Breadth may confirm the downtrend",
     "Fewer stocks falling; a low may be near",
     "The decline is broadening; sell more",
-    "Nothing until the index makes a new high"
+    "Nothing until a new index high"
    ],
    "kind": "mcq",
    "q": "What is breadth telling you?",
@@ -50119,7 +50119,7 @@
     "summary": "A bullish divergence: the index makes a lower low but the A/D line does not, so fewer stocks are falling. Index falling, A/D line rising: fewer stocks are declining. Index down, A/D line up is a bullish divergence: sellers may be losing conviction. Confirm any breadth reading with price before acting. An A/D line making new lows with the index shows broad selling. Breadth indicators are poor timing tools: they can be early or miss a reversal."
    },
    "facts": {
-    "given": "What is breadth telling you? The index undercuts last month's low. This time the A/D line holds well above its own low from last month. Fewer stocks falling; a low may be near The decline is broadening; sell more Breadth may be confirming the downtrend Nothing until the index makes a new high"
+    "given": "What is breadth telling you? The index undercuts last month's low. This time the A/D line holds well above its own low from last month. Fewer stocks falling; a low may be near The decline is broadening; sell more Breadth may confirm the downtrend Nothing until a new index high"
    },
    "lesson_line": "When the index breaks a low and breadth doesn't, I start watching for the turn.",
    "simple": "Fewer stocks are falling with the index, so a low may be near, but it is a clue, not a buy signal.",
@@ -50127,8 +50127,8 @@
    "unit": "V.11",
    "why": "Fewer stocks are falling, so a low may be near. The index made a lower low, but the A/D line held above its own prior low. That is a bullish divergence: the selling is thinning out. ChartSchool says the decline may be nearing an end, not that it has ended. It is a clue to watch for a turn. Let price confirm before you buy.",
    "wrong": {
-    "Breadth may be confirming the downtrend": "Confirmation needs the A/D line to make a new low too. It held well above its prior low instead.",
-    "Nothing until the index makes a new high": "That throws away the clue. A bullish divergence shows up while the index is still making lows.",
+    "Breadth may confirm the downtrend": "Confirmation needs the A/D line to make a new low too. It held well above its prior low instead.",
+    "Nothing until a new index high": "That throws away the clue. A bullish divergence shows up while the index is still making lows.",
     "The decline is broadening; sell more": "Broadening would mean the A/D line making new lows with the index. Here it held up."
    }
   },
@@ -52273,8 +52273,8 @@
   "prompt_json": {
    "choices": [
     "Today's up volume over down volume",
-    "Running total of net advancing stocks",
-    "Total index volume versus its average",
+    "Running total of net advances",
+    "Total volume versus its average",
     "Running total of up minus down volume"
    ],
    "kind": "mcq",
@@ -52330,7 +52330,7 @@
     "summary": "Net advancing volume is advancing volume minus declining volume; the AD Volume Line is built from it. The AD Volume Line is a running total of net advancing volume. A cumulative volume line adds up-stock volume, subtracts down-stock volume and keeps a running total. Volume-based breadth leans toward large caps, which trade the most shares. The A/D line is a running total of net advances. TRIN is the advance-decline ratio divided by the advance-decline volume ratio."
    },
    "facts": {
-    "given": "What is the AD Volume Line? Running total of up minus down volume Running total of net advancing stocks Today's up volume over down volume Total index volume versus its average"
+    "given": "What is the AD Volume Line? Running total of up minus down volume Running total of net advances Today's up volume over down volume Total volume versus its average"
    },
    "lesson_line": "Same idea as the A/D line, weighted by shares traded. Big, busy stocks count more.",
    "simple": "It is a running total of up volume minus down volume, the advance-decline line built from shares traded.",
@@ -52338,9 +52338,9 @@
    "unit": "V.11",
    "why": "A running total of up volume minus down volume. Net advancing volume is the volume of advancing stocks less the volume of declining stocks. The line adds each day's number to the prior total, rising when it is positive and falling when it is negative. Because it counts shares, it leans toward large caps. One day's up volume over down volume is a ratio, not the line.",
    "wrong": {
-    "Running total of net advancing stocks": "That's the plain A/D line, which counts stocks, not shares.",
+    "Running total of net advances": "That's the plain A/D line, which counts stocks, not shares.",
     "Today's up volume over down volume": "That's the up/down volume ratio, one day's reading.",
-    "Total index volume versus its average": "That compares total volume to normal. It doesn't split rising and falling stocks."
+    "Total volume versus its average": "That compares total volume to normal. It doesn't split rising and falling stocks."
    }
   },
   "review_status": "draft",
@@ -53193,7 +53193,7 @@
  },
  {
   "answer_json": {
-   "answer": "Strong index gain on higher volume"
+   "answer": "A strong index gain on higher volume"
   },
   "difficulty": 1,
   "id": "si_4b386000dcc0",
@@ -53205,7 +53205,7 @@
     "Strong index drop on higher volume",
     "An index gap up that holds all day",
     "The first up day after a market low",
-    "Strong index gain on higher volume"
+    "A strong index gain on higher volume"
    ],
    "kind": "mcq",
    "q": "In IBD's method, what is a follow-through day?",
@@ -53267,7 +53267,7 @@
     "summary": "A follow-through day comes several days into a rally attempt: a strong gain in a major index on higher volume. IBD: a follow-through day comes on Day 4 or later of a rally attempt. IBD: a follow-through says the selling has likely ended and a new uptrend has started. IBD: a follow-through is a major index closing up significantly from the prior session. IBD's gain threshold moves over time; volume must beat the prior session, not the average. IBD watches the Nasdaq Composite or the S&P 500 for a follow-through. IBD: a distribution day is a Nasdaq or S&P 500 drop of 0.2% or more on higher volume than the prior session."
    },
    "facts": {
-    "given": "In IBD's method, what is a follow-through day? Strong index gain on higher volume Strong index drop on higher volume The first up day after a market low An index gap up that holds all day"
+    "given": "In IBD's method, what is a follow-through day? A strong index gain on higher volume Strong index drop on higher volume The first up day after a market low An index gap up that holds all day"
    },
    "lesson_line": "A follow-through day says the bounce off the low has real buyers behind it.",
    "simple": "In IBD's method, it is a strong index gain on higher volume, several days after a market low.",
@@ -54069,9 +54069,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Following the crowd",
-    "Greed for more profit",
-    "Fear of losing money",
+    "Following a crowd",
+    "Greed for profit",
+    "Fear of a loss",
     "Fear of missing out"
    ],
    "kind": "mcq",
@@ -54113,7 +54113,7 @@
     "summary": "FOMO is the fear of missing out, and everyone has felt it. When excitement or FOMO takes hold, pause and evaluate before acting. Piling in because others are and you don't want to miss out is herd mentality. Loss aversion: a loss feels more severe than an equal gain."
    },
    "facts": {
-    "given": "In trading talk, what does FOMO stand for? Fear of missing out Fear of losing money Following the crowd Greed for more profit"
+    "given": "In trading talk, what does FOMO stand for? Fear of missing out Fear of a loss Following a crowd Greed for profit"
    },
    "lesson_line": "FOMO is a feeling, not a setup. Name it, then pause.",
    "simple": "FOMO stands for fear of missing out: the worry that you will be left out of a move.",
@@ -54121,9 +54121,9 @@
    "unit": "V.12",
    "why": "Fear of missing out. FINRA writes it as fear of missing out (FOMO), and Investor.gov notes everyone has felt some fear of missing out. FOMO names the feeling, not an action. It can drive herding, but the two are not the same thing. FINRA's advice when FOMO grabs you is to pause and evaluate before you act.",
    "wrong": {
-    "Fear of losing money": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
-    "Following the crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
-    "Greed for more profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
+    "Fear of a loss": "That's a different bias, about how much a loss hurts. FOMO is the fear of being left out.",
+    "Following a crowd": "That's herding. FOMO can drive it, but FOMO names the fear itself.",
+    "Greed for profit": "Greed is wanting more. FOMO is a fear: the fear of missing out on something."
    }
   },
   "review_status": "draft",
@@ -56384,8 +56384,8 @@
   "prompt_json": {
    "choices": [
     "Holding a stock for the long run",
-    "Following a mentor into every trade",
-    "Marking a key price level on a chart",
+    "Following a mentor in every trade",
+    "Marking a price level on a chart",
     "Leaning on the first number you saw"
    ],
    "kind": "mcq",
@@ -56448,7 +56448,7 @@
     "summary": "Anchoring is relying too heavily on the first piece of information. Anchoring: a first number becomes an unintended reference point for later judgments. Anchoring is fixating on the first data point, relevant or not. An anchor can sway you even when it's irrelevant. Anchoring is focusing too much on early information, like a stock's past price. Refusing to sell below your cost comes from loss aversion and from the purchase price acting as an anchor. Herding is doing something because others are doing it."
    },
    "facts": {
-    "given": "What is anchoring? Leaning on the first number you saw Holding a stock for the long run Following a mentor into every trade Marking a key price level on a chart"
+    "given": "What is anchoring? Leaning on the first number you saw Holding a stock for the long run Following a mentor in every trade Marking a price level on a chart"
    },
    "lesson_line": "Ask what the stock is doing now, not what it used to cost.",
    "simple": "Anchoring is leaning too hard on the first number you saw, even when it no longer matters.",
@@ -56456,9 +56456,9 @@
    "unit": "V.12",
    "why": "Leaning on the first number you saw. The OSC defines anchoring as relying too heavily on the first piece of information you're offered. Schwab says we fixate on the first data point whether or not it's relevant. In trading, the anchor is often your purchase price or a stock's old price. The OSC says an anchor can sway you even when it's completely irrelevant.",
    "wrong": {
-    "Following a mentor into every trade": "That's closer to herding. Anchoring is about a number in your head.",
+    "Following a mentor in every trade": "That's closer to herding. Anchoring is about a number in your head.",
     "Holding a stock for the long run": "That's a holding period. Anchoring is a reference number steering your judgment.",
-    "Marking a key price level on a chart": "That's chart work you do on purpose. The OSC says an anchor is a first number that becomes an unintended reference point."
+    "Marking a price level on a chart": "That's chart work you do on purpose. The OSC says an anchor is a first number that becomes an unintended reference point."
    }
   },
   "review_status": "draft",
@@ -57734,17 +57734,17 @@
  },
  {
   "answer_json": {
-   "answer": "Break-even effect"
+   "answer": "The break-even effect"
   },
   "difficulty": 2,
   "id": "si_38aa4a61c5e4",
   "lesson_origin": "session",
-  "lesson_text": "Break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect. Getting back to even is not a setup. Grade the trade as if you were flat.",
+  "lesson_text": "The break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect. Getting back to even is not a setup. Grade the trade as if you were flat.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "Gambler's fallacy",
-    "Break-even effect",
+    "The break-even effect",
     "House money effect",
     "Disposition effect"
    ],
@@ -57804,13 +57804,13 @@
     "summary": "The break-even effect: after losses, a chance to get back to even is extra attractive. Fear of locking in a loss can drive riskier decisions to get out of the hole. Investors hold losers hoping to get back to even. The house money effect is taking more risk after a gain. The gambler's fallacy expects a random run to reverse. After three heads, the believer thinks a fourth is less than 50% likely: a tail feels 'due'."
    },
    "facts": {
-    "given": "Down on the day, you take a long-shot trade because one win would erase the loss. Which word is this? Break-even effect House money effect Disposition effect Gambler's fallacy"
+    "given": "Down on the day, you take a long-shot trade because one win would erase the loss. Which word is this? The break-even effect House money effect Disposition effect Gambler's fallacy"
    },
    "lesson_line": "Getting back to even is not a setup. Grade the trade as if you were flat.",
-   "simple": "Break-even effect, because after a loss, any trade that could get you back to even starts to look too good.",
+   "simple": "The break-even effect, because after a loss, any trade that could get you back to even starts to look too good.",
    "tier": "core",
    "unit": "V.12",
-   "why": "Break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect.",
+   "why": "The break-even effect. Thaler and Johnson found that after prior losses, outcomes offering a chance to break even are especially attractive. Schwab says fear of locking in losses can drive riskier decisions to get out of the hole. It mirrors the house money effect.",
    "wrong": {
     "Disposition effect": "That's selling winners and holding losers. This is reaching for a long shot to get even.",
     "Gambler's fallacy": "The gambler's fallacy is believing a win is due after a losing run. Here you aren't betting on a reversal. You want any way back to even.",
@@ -58756,8 +58756,8 @@
    "choices": [
     "Your rules for when to buy and sell",
     "A list of stocks you might trade",
-    "A forecast of where the market goes",
-    "A record of trades you already made"
+    "A forecast of where markets go",
+    "A record of trades already made"
    ],
    "kind": "mcq",
    "q": "A trading plan is best described as which of these?",
@@ -58798,7 +58798,7 @@
     "summary": "A trading plan is your strategy for buying and selling. A trading plan takes some of the emotion and guesswork out of trading decisions. Deciding when to buy and sell is called your entry and exit strategy. A trading plan makes you think through every part of a trade before you place it."
    },
    "facts": {
-    "given": "A trading plan is best described as which of these? Your rules for when to buy and sell A list of stocks you might trade A record of trades you already made A forecast of where the market goes"
+    "given": "A trading plan is best described as which of these? Your rules for when to buy and sell A list of stocks you might trade A record of trades already made A forecast of where markets go"
    },
    "lesson_line": "Write the rules before the money is on the line.",
    "simple": "A trading plan is your rules for when to buy and sell, made ahead so emotion and guessing play a smaller part.",
@@ -58806,9 +58806,9 @@
    "unit": "V.13",
    "why": "Your rules for when to buy and sell. Fidelity calls a trading plan your strategy for buying and selling. Deciding when to buy and sell is your entry and exit strategy. Schwab adds that a plan helps you think through every part of a trade before you place it. It removes some of the emotion and guesswork, not all of it.",
    "wrong": {
-    "A forecast of where the market goes": "That's a prediction. Fidelity calls a plan your strategy for buying and selling, not a forecast.",
+    "A forecast of where markets go": "That's a prediction. Fidelity calls a plan your strategy for buying and selling, not a forecast.",
     "A list of stocks you might trade": "That's a watchlist. The plan says what you'll do with those names.",
-    "A record of trades you already made": "That's a trading journal. The plan comes before the trade, the journal after."
+    "A record of trades already made": "That's a trading journal. The plan comes before the trade, the journal after."
    }
   },
   "review_status": "draft",

@@ -1849,9 +1849,9 @@
    "q": "What does cup with handle mean?",
    "choices": [
     "U-shaped base plus a short pullback",
-    "Three peaks, the middle one highest",
+    "Three peaks, middle one highest",
     "Two equal lows shaped like a W",
-    "Lower highs pressing on a flat floor"
+    "Lower highs on a flat floor"
    ],
    "answer": "U-shaped base plus a short pullback",
    "why": "A U-shaped base plus a short pullback. Fidelity: the cup forms after an advance and looks like a bowl or rounding bottom. StockCharts: the cup should be U-shaped, and after the high on its right side, a pullback forms the handle.",
@@ -1866,9 +1866,9 @@
     "f30"
    ],
    "wrong": {
-    "Three peaks, the middle one highest": "That's three peaks. A cup is one rounded, U-shaped low.",
+    "Three peaks, middle one highest": "That's three peaks. A cup is one rounded, U-shaped low.",
     "Two equal lows shaped like a W": "That's two separate lows. A cup is one rounded U, not a W.",
-    "Lower highs pressing on a flat floor": "Those are straight lines closing in. A cup is a rounded bowl."
+    "Lower highs on a flat floor": "Those are straight lines closing in. A cup is a rounded bowl."
    },
    "simple": "A cup with handle is a rounded U-shaped bowl, then a short dip on its right side before the breakout.",
    "tier": "core",
@@ -2421,8 +2421,8 @@
    "q": "What does inverse head and shoulders mean?",
    "choices": [
     "Three lows, the middle one deepest",
-    "Three peaks, the middle one highest",
-    "Two equal lows with a peak between",
+    "Three peaks, middle one highest",
+    "Two equal lows, a peak between",
     "Three equal lows in a row"
    ],
    "answer": "Three lows, the middle one deepest",
@@ -2437,8 +2437,8 @@
     "f185"
    ],
    "wrong": {
-    "Three peaks, the middle one highest": "That's the top version.",
-    "Two equal lows with a peak between": "That's a double bottom.",
+    "Three peaks, middle one highest": "That's the top version.",
+    "Two equal lows, a peak between": "That's a double bottom.",
     "Three equal lows in a row": "That's a triple bottom."
    },
    "simple": "It is three lows with the deepest one in the middle, a head and shoulders turned upside down.",
@@ -3505,9 +3505,9 @@
    "q": "What does flat base mean?",
    "choices": [
     "Sideways for several weeks or more",
-    "A steep, sudden run on heavy volume",
-    "A V-shaped drop and fast recovery",
-    "A gap that does not fill for weeks"
+    "A steep, sudden run on volume",
+    "A V-shaped drop, then recovery",
+    "A gap left unfilled for weeks"
    ],
    "answer": "Sideways for several weeks or more",
    "why": "Sideways for several weeks or more. Bulkowski says a flat base looks like a rectangle: price touches the same value multiple times over several weeks or months. IBD says the stock moves sideways rather than going on an uptrend or downtrend. A flat base is a pause, not a direction. The breakout decides what comes next.",
@@ -3521,9 +3521,9 @@
     "f18"
    ],
    "wrong": {
-    "A steep, sudden run on heavy volume": "That's a flagpole, a quick run. A flat base goes sideways.",
-    "A V-shaped drop and fast recovery": "A V is a sharp reversal. A base goes sideways.",
-    "A gap that does not fill for weeks": "That describes a price gap, not weeks of sideways trading."
+    "A steep, sudden run on volume": "That's a flagpole, a quick run. A flat base goes sideways.",
+    "A V-shaped drop, then recovery": "A V is a sharp reversal. A base goes sideways.",
+    "A gap left unfilled for weeks": "That describes a price gap, not weeks of sideways trading."
    },
    "simple": "A flat base is a stock moving sideways for weeks or months, neither rising nor falling much.",
    "tier": "core",
@@ -3545,8 +3545,8 @@
    "choices": [
     "A range set by recent highs and lows",
     "A rounded base with a short handle",
-    "A flat top with steadily rising lows",
-    "Three peaks, with the middle highest"
+    "A flat top with rising lows",
+    "Three peaks, middle highest"
    ],
    "answer": "A range set by recent highs and lows",
    "why": "A range set by recent highs and lows. Investopedia says it places price in a box based on recent highs and lows. The buy signal is a break above the box on strong volume. Bulkowski sets the box top at a high that holds for the next three days. Then he waits for a close outside the box. It is a range, not a shape like a cup.",
@@ -3561,8 +3561,8 @@
    ],
    "wrong": {
     "A rounded base with a short handle": "That's a cup with handle.",
-    "A flat top with steadily rising lows": "That's an ascending triangle.",
-    "Three peaks, with the middle highest": "That's a head and shoulders."
+    "A flat top with rising lows": "That's an ascending triangle.",
+    "Three peaks, middle highest": "That's a head and shoulders."
    },
    "simple": "A Darvas box is a price range framed by recent highs and lows, and the trade comes on a break above it.",
    "tier": "extended",
@@ -4215,7 +4215,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f18, f19, f20). The wrong notes give away other questions: 'Three peaks, the middle one highest: That's a head and shoulders' is q17's stem and key (same rung 1), 'Two equal lows shaped like a W: That's a double bottom' answers q15 (rung 1), and the descending triangle note (flat lower line, falling upper one) answers q12's fill (rung 4). None of these is in a walkthrough. Notes rewritten to contrast with the cup without naming the other pattern; facts trimmed to what the notes now use."
+   "notes": "Key right (f18, f19, f20). The wrong notes give away other questions: 'Three peaks, the middle one highest: That's a head and shoulders' is q17's stem and key (same rung 1), 'Two equal lows shaped like a W: That's a double bottom' answers q15 (rung 1), and the descending triangle note (flat lower line, falling upper one) answers q12's fill (rung 4). None of these is in a walkthrough. Notes rewritten to contrast with the cup without naming the other pattern; facts trimmed to what the notes now use.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -4311,7 +4312,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -4491,13 +4493,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f156 and f158; the wrong notes are grounded in f50 and f18 and the gap note is a plain contrast. The lengths are even (33 to 35)."
+   "notes": "Key from f156 and f158; the wrong notes are grounded in f50 and f18 and the gap note is a plain contrast. The lengths are even (33 to 35).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f159; the box top and the close rule come from f161 and f160; the number 3 is in f161. The key no longer repeats 'box'. The distractors are real shapes."
+   "notes": "Key from f159; the box top and the close rule come from f161 and f160; the number 3 is in f161. The key no longer repeats 'box'. The distractors are real shapes.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",

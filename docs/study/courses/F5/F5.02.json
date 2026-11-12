@@ -931,9 +931,9 @@
    "q": "Why can guidance move a stock more than the quarter it just reported?",
    "choices": [
     "The price is built on future profits",
-    "Companies only guide when news is bad",
-    "Results come out weeks after the guide",
-    "Analysts ignore the reported quarter"
+    "Firms only guide when news is bad",
+    "Results come weeks after the guide",
+    "Analysts ignore reported results"
    ],
    "answer": "The price is built on future profits",
    "why": "The price is built on future profits. Schwab says a stock's price rests on expected future profit growth, and guidance looks ahead. The report covers a quarter that is already over. So the guide can be the top factor in the near-term price. FINRA notes a company can beat and still drop on a dour outlook. The guide can win, though not every time.",
@@ -947,9 +947,9 @@
     "f2"
    ],
    "wrong": {
-    "Results come out weeks after the guide": "They come out together. Guidance usually arrives with the quarterly report.",
-    "Analysts ignore the reported quarter": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over.",
-    "Companies only guide when news is bad": "No. Giving guidance is common practice for many companies."
+    "Firms only guide when news is bad": "No. Giving guidance is common practice for many companies.",
+    "Results come weeks after the guide": "They come out together. Guidance usually arrives with the quarterly report.",
+    "Analysts ignore reported results": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over."
    },
    "simple": "A stock is priced on the profits people expect next, and guidance speaks to those, while the report looks back.",
    "tier": "core",
@@ -1385,9 +1385,9 @@
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
    "choices": [
     "Its forecast calmed investors",
-    "It missed, so the bar was low",
-    "It ran up hard into the report",
-    "Its stock split was announced"
+    "It missed, the bar was low",
+    "It ran up into the report",
+    "A stock split was announced"
    ],
    "answer": "Its forecast calmed investors",
    "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
@@ -1402,9 +1402,9 @@
     "f38"
    ],
    "wrong": {
-    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
-    "It ran up hard into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
-    "Its stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
+    "It missed, the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
+    "It ran up into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
+    "A stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
    },
    "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
    "deeper": {
@@ -1612,7 +1612,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per f37/f38; f3 for the dour-outlook line. Distractors are real misreads, each answered by f24, f2/f30, f23. Lengths 36-38, key not longest. Teaches the principle q17 applies, same as w2: scaffolding, not a leak."
+   "notes": "Key per f37/f38; f3 for the dour-outlook line. Distractors are real misreads, each answered by f24, f2/f30, f23. Lengths 36-38, key not longest. Teaches the principle q17 applies, same as w2: scaffolding, not a leak.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",
@@ -1690,7 +1691,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f68). Two breaks: (1) 'Its stock split was announced' is ungrounded filler; the CNBC page (re-read live) never mentions a split, so the wrong note's 'nothing in the coverage' is the only basis, and no fact backs it. (2) Story too thin: 'Its supply limits had cleared' is forward-looking news a learner could pick by the lesson's own logic, and only the article (unseen) rules it out. Fix: the story states supply is still limited (f83), the supply and split choices go, and a run-up choice ruled out by FINRA f4 comes in. 'It missed' note now also cites f19."
+   "notes": "Key right (f68). Two breaks: (1) 'Its stock split was announced' is ungrounded filler; the CNBC page (re-read live) never mentions a split, so the wrong note's 'nothing in the coverage' is the only basis, and no fact backs it. (2) Story too thin: 'Its supply limits had cleared' is forward-looking news a learner could pick by the lesson's own logic, and only the article (unseen) rules it out. Fix: the story states supply is still limited (f83), the supply and split choices go, and a run-up choice ruled out by FINRA f4 comes in. 'It missed' note now also cites f19.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "cut",

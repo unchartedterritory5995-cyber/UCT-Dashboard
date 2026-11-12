@@ -1067,13 +1067,13 @@
    "format": "mcq",
    "q": "Two stocks at 100, same-expiry at-the-money calls. One's implied volatility is 80%, the other's 25%. Which call has the bigger theta?",
    "choices": [
-    "The 80% volatility call",
+    "The call with 80% volatility",
     "The 25% volatility call",
     "Same, only time matters",
     "Same, both at the money"
    ],
-   "answer": "The 80% volatility call",
-   "why": "The 80% volatility call. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak.",
+   "answer": "The call with 80% volatility",
+   "why": "The call with 80% volatility. In general, the higher the implied volatility, the higher the theta. High implied volatility means the market expects bigger moves, and it lifts option prices. With both at the money and the same expiry, the pricier option has more time value to lose each day. Being at the money puts each call near its peak theta, but volatility still sets the size of that peak.",
    "lesson_line": "Same expiry, both at the money: higher implied volatility means a bigger theta.",
    "facts": [
     "f10",
@@ -1537,7 +1537,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f10 (Tier 1 OIC): higher IV, higher theta; f51/f56 agree; the PyQuant conflict is logged and not cited. All four choices are 23 chars. Numbers 100/80%/25% from the stem."
+   "notes": "Own answer from f10 (Tier 1 OIC): higher IV, higher theta; f51/f56 agree; the PyQuant conflict is logged and not cited. All four choices are 23 chars. Numbers 100/80%/25% from the stem.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",

@@ -1907,9 +1907,9 @@
    "q": "Is it a short?",
    "choices": [
     "No; shorts go under the 200-day",
-    "Yes; a 2.7x volume fade is enough",
-    "Yes, if the stop is tight enough",
-    "No; it needs 3x the 50-day volume"
+    "Yes; 2.7x volume is enough",
+    "Yes, if the stop is tight",
+    "No; it needs 3x 50-day volume"
    ],
    "answer": "No; shorts go under the 200-day",
    "why": "No. Shorts only below the 200-day, never above it unless it is a parabolic short. This close, 377.76, is above the 200-day at 358.04. The volume is enough: 2.7x clears the 2 times the test asks. The only gate that fails is the 200-day.",
@@ -1921,9 +1921,9 @@
     "dNear"
    ],
    "wrong": {
-    "Yes; a 2.7x volume fade is enough": "Shorts only below the 200-day, never above it unless parabolic.",
-    "Yes, if the stop is tight enough": "A tight stop does not move the 200-day rule.",
-    "No; it needs 3x the 50-day volume": "The test asks for 2 times the 50-day volume, and 2.7x clears it. The 200-day is what fails."
+    "Yes; 2.7x volume is enough": "Shorts only below the 200-day, never above it unless parabolic.",
+    "Yes, if the stop is tight": "A tight stop does not move the 200-day rule.",
+    "No; it needs 3x 50-day volume": "The test asks for 2 times the 50-day volume, and 2.7x clears it. The 200-day is what fails."
    },
    "house": true,
    "story": "Good news gaps a stock up 5.0% on 2.7x volume. It closes down 0.2% in the bottom 18% of the range, at 377.76, above its 200-day at 358.04.",
@@ -3014,10 +3014,10 @@
    "criterion": "nf.inv_no_crowding",
    "q": "What is the right view?",
    "choices": [
-    "He is right; it proves the bottom",
+    "He is right; it is the bottom",
     "One failure is a clue, not proof",
-    "Ignore it; failures mean nothing",
-    "It is a sell signal for the market"
+    "Ignore it; it means nothing",
+    "It is a market sell signal"
    ],
    "answer": "One failure is a clue, not proof",
    "why": "One failure is a clue, not proof. Treating one failure as proof is a listed mistake. Shapiro himself wants two things: crowded positioning and market confirmation. One reversal in one name is a single clue. Weigh it with the market reading.",
@@ -3029,9 +3029,9 @@
     "l2b"
    ],
    "wrong": {
-    "He is right; it proves the bottom": "Treating one failure as proof is a listed mistake.",
-    "Ignore it; failures mean nothing": "It is a clue, not nothing. It adds to the picture without proving it.",
-    "It is a sell signal for the market": "A bad-news gap that closes back green is the long side, not a sell. And one failure is still a clue, not proof."
+    "He is right; it is the bottom": "Treating one failure as proof is a listed mistake.",
+    "Ignore it; it means nothing": "It is a clue, not nothing. It adds to the picture without proving it.",
+    "It is a market sell signal": "A bad-news gap that closes back green is the long side, not a sell. And one failure is still a clue, not proof."
    },
    "house": true,
    "story": "One bad-news reversal on a stock in your list closed green. A friend says that proves the market has bottomed.",
@@ -3650,7 +3650,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -3812,7 +3813,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer m1: a clue, not proof. Distractors mix two absolutes and a direction error, so the key is not the lone hedge. Sell-signal note true by l2b. S3 paraphrase fair."
+   "notes": "Own answer m1: a clue, not proof. Distractors mix two absolutes and a direction error, so the key is not the lone hedge. Sell-signal note true by l2b. S3 paraphrase fair.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "pass",

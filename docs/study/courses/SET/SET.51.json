@@ -1402,13 +1402,13 @@
    "criterion": "mr.stop",
    "q": "Where does this setup's stop go?",
    "choices": [
-    "A few cents under 52.40",
+    "A few cents under the 52.40 low",
     "A few cents under 52.90",
     "At the 20-day, 54.00",
     "Exactly at the 52.40 low"
    ],
-   "answer": "A few cents under 52.40",
-   "why": "A few cents under 52.40. Our general rule allows the day's low or the prior day's low. This setup's card takes the lower of the flush low and the turn day's low. Here the turn day's low, 52.90, is higher, so the flush low, 52.40, sets the stop. It sits a few cents under the low, not exactly on it.",
+   "answer": "A few cents under the 52.40 low",
+   "why": "A few cents under the 52.40 low. Our general rule allows the day's low or the prior day's low. This setup's card takes the lower of the flush low and the turn day's low. Here the turn day's low, 52.90, is higher, so the flush low, 52.40, sets the stop. It sits a few cents under the low, not exactly on it.",
    "lesson_line": "The stop sits under the lower of the flush low and the turn day's low.",
    "facts": [
     "cK",
@@ -1422,7 +1422,7 @@
    },
    "story": "The flush day's low was 52.40. The turn day's low is 52.90. You buy the turn at market.",
    "house": true,
-   "simple": "A few cents under 52.40, because the stop goes under the lower of the two lows, and 52.40 is lower.",
+   "simple": "A few cents under the 52.40 low, because the stop goes under the lower of the two lows, and 52.40 is lower.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1442,8 +1442,8 @@
    "choices": [
     "Take the loss; the stop is the exit",
     "Add half; it is cheaper now",
-    "Wait for a close under the flush low",
-    "Lower the stop to give it more room"
+    "Wait for a close under the low",
+    "Lower the stop for more room"
    ],
    "answer": "Take the loss; the stop is the exit",
    "why": "Take the loss. The stop is the exit, a real stop order with the broker, so it fills when price trades through it. It only moves up, never down or wider. The one exception is the gap rule, for a gap against the stop. No adding either: the full size goes in at one price with one stop.",
@@ -1456,8 +1456,8 @@
    ],
    "wrong": {
     "Add half; it is cheaper now": "No adding: the full size goes in at one price with one stop.",
-    "Wait for a close under the flush low": "The stop is a real order. It is not a closing-price suggestion.",
-    "Lower the stop to give it more room": "The stop only moves up, never down or wider."
+    "Wait for a close under the low": "The stop is a real order. It is not a closing-price suggestion.",
+    "Lower the stop for more room": "The stop only moves up, never down or wider."
    },
    "story": "You bought the turn. Price trades under the flush low, where your stop sits.",
    "house": true,
@@ -2196,8 +2196,8 @@
    "choices": [
     "No, 3 tries a week is the limit",
     "Yes, each turn is a new trade",
-    "Yes, but at half the usual size",
-    "No, one stop-out ends the setup"
+    "Yes, but at half size",
+    "No, a stop-out ends the setup"
    ],
    "answer": "No, 3 tries a week is the limit",
    "why": "No. On one stock we allow at most 3 tries in a week and 6 in a month. Three stop-outs this week used all 3, so a fourth try this week is over the cap, even on a clean trigger. A smaller size does not lift the cap. A stop-out does not ban the name, though: a new trigger later is a new trade.",
@@ -2208,8 +2208,8 @@
    ],
    "wrong": {
     "Yes, each turn is a new trade": "Each turn is a new trade, but the cap is 3 tries in a week.",
-    "Yes, but at half the usual size": "Half size does not lift the cap of 3 tries a week.",
-    "No, one stop-out ends the setup": "After a stop-out you may buy again if the setup triggers again, as a new trade. Here the weekly cap is the limit."
+    "Yes, but at half size": "Half size does not lift the cap of 3 tries a week.",
+    "No, a stop-out ends the setup": "After a stop-out you may buy again if the setup triggers again, as a new trade. Here the weekly cap is the limit."
    },
    "story": "You were stopped out on the same name three times this week. A fourth turn prints on Friday.",
    "house": true,
@@ -2555,13 +2555,13 @@
    "criterion": "mr.volume",
    "q": "Which setup is this?",
    "choices": [
-    "An undercut and rally",
+    "An undercut and rally setup",
     "A mean-reversion flush",
     "A parabolic long setup",
     "An oops reversal day"
    ],
-   "answer": "An undercut and rally",
-   "why": "An undercut and rally. That card's setup undercuts a visible level after an ordinary dip and needs no volume. A 3% dip under clear support on ordinary volume, closed back above it the same day, fits. A flush is a hard, fast drop with range or volume expansion. A parabolic long is a multi-day burst of gap downs. An oops needs a gap.",
+   "answer": "An undercut and rally setup",
+   "why": "An undercut and rally setup. That card's setup undercuts a visible level after an ordinary dip and needs no volume. A 3% dip under clear support on ordinary volume, closed back above it the same day, fits. A flush is a hard, fast drop with range or volume expansion. A parabolic long is a multi-day burst of gap downs. An oops needs a gap.",
    "lesson_line": "An undercut of a level after an ordinary dip is its own setup.",
    "facts": [
     "tUR",
@@ -2643,8 +2643,8 @@
    "choices": [
     "No leader's run behind it",
     "It is above the 200-day",
-    "A 2.1 ATR flush is too big",
-    "Four down days is too few"
+    "The flush is too big",
+    "Four days is too few"
    ],
    "answer": "No leader's run behind it",
    "why": "No leader's run behind it. Form A wants a leader up at least 25% in the prior 1 to 3 months. This one was up 15% from its 63-day low, short of 25%. It is a stock rolling over from a top, not a leader stretched down. Sitting above the averages fits, and a 2.1 ATR flush fits. Four down days is plenty. The missing piece is the run.",
@@ -2657,8 +2657,8 @@
    ],
    "wrong": {
     "It is above the 200-day": "Being above the 200-day is what the setup wants.",
-    "A 2.1 ATR flush is too big": "A 2.1 ATR flush is what a flush looks like. The run before it is what is missing.",
-    "Four down days is too few": "Four down days is plenty. The card skips only the first or second down day."
+    "The flush is too big": "A 2.1 ATR flush is what a flush looks like. The run before it is what is missing.",
+    "Four days is too few": "Four down days is plenty. The card skips only the first or second down day."
    },
    "story": "A stock is up 15% from its 63-day low. It slides four days, a 2.1 ATR flush, and still sits above both averages.",
    "house": true,
@@ -3545,13 +3545,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cK picks the lower low, 52.40. A3 allows the day's or the prior day's low, but the stem asks for this setup's stop, the why says so, and the card stays within A3. 'Exactly at' fails on F62."
+   "notes": "cK picks the lower low, 52.40. A3 allows the day's or the prior day's low, but the stem asks for this setup's stop, the why says so, and the card stays within A3. 'Exactly at' fails on F62.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",
@@ -3671,7 +3673,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The lesson_line is grounded in E56. The rest is unchanged and fits E56 and B21."
+   "notes": "The lesson_line is grounded in E56. The rest is unchanged and fits E56 and B21.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "cut",
@@ -3730,7 +3733,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "tUR fits. 'With no gap' rules out the oops (tOo). The why uses cG's 'range or volume'."
+   "notes": "tUR fits. 'With no gap' rules out the oops (tOo). The why uses cG's 'range or volume'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -3742,7 +3746,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",

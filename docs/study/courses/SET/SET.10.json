@@ -1246,10 +1246,10 @@
    "criterion": "ipo.length_typical",
    "q": "How long do IPO bases usually run, per IBD?",
    "choices": [
-    "Three to six months",
+    "A few months",
     "Two to five weeks",
-    "Less than one week",
-    "A full year or so"
+    "Under one week",
+    "A year or so"
    ],
    "answer": "Two to five weeks",
    "why": "Two to five weeks. IBD says IPO bases can be shorter than regular bases and usually run two to five weeks. In rare cases they can be as short as seven days. The first year is the window an IPO base forms in, not how long it lasts.",
@@ -1260,9 +1260,9 @@
     "c30"
    ],
    "wrong": {
-    "Three to six months": "That is not IBD's range. IBD says IPO bases can be shorter than regular bases.",
-    "A full year or so": "The first year is the window an IPO base forms in, not its length. IBD says usually two to five weeks.",
-    "Less than one week": "IBD's shortest rare case is seven days, so less than a week is below even that."
+    "A few months": "That is not IBD's range. IBD says IPO bases can be shorter than regular bases.",
+    "A year or so": "The first year is the window an IPO base forms in, not its length. IBD says usually two to five weeks.",
+    "Under one week": "IBD's shortest rare case is seven days, so less than a week is below even that."
    },
    "house": true,
    "simple": "IPO bases usually run two to five weeks, which is short. A few rare ones run as short as seven days.",
@@ -1406,10 +1406,10 @@
    "criterion": "ipo.liquidity",
    "q": "Which floor applies to an IPO base we buy?",
    "choices": [
-    "No floor while it is a new listing",
+    "No floor for a new listing",
     "$10 a share and $20 million a day",
     "$5 a share and $5 million a day",
-    "$10 a share, with no volume floor"
+    "$10 a share, no volume floor"
    ],
    "answer": "$10 a share and $20 million a day",
    "why": "$10 a share and $20 million a day. We trade only stocks at $10 or more that trade at least $20 million a day. A new issue gets no pass. The card measures the floor over the base's sessions and leaves out the first three sessions after listing. Thin, low-priced new issues are a named mistake.",
@@ -1420,9 +1420,9 @@
     "c45"
    ],
    "wrong": {
-    "No floor while it is a new listing": "A new issue gets no pass. The same liquidity floor applies to every setup.",
+    "No floor for a new listing": "A new issue gets no pass. The same liquidity floor applies to every setup.",
     "$5 a share and $5 million a day": "Too thin. Thin, low-priced new issues are a named mistake.",
-    "$10 a share, with no volume floor": "The floor has two parts. The stock must also trade at least $20 million a day."
+    "$10 a share, no volume floor": "The floor has two parts. The stock must also trade at least $20 million a day."
    },
    "house": true,
    "simple": "We trade only stocks at $10 or more that trade at least $20 million a day, and new issues get no pass.",
@@ -2024,9 +2024,9 @@
    "q": "How does this base look?",
    "choices": [
     "Weak; the V leaves no right side",
-    "Strong; buyers took it right back",
-    "Strong; it is back near the high",
-    "Weak; it must close above the high"
+    "Strong; buyers took it back",
+    "Strong; it is near the high",
+    "Weak; it must close above it"
    ],
    "answer": "Weak; the V leaves no right side",
    "why": "Weak. A fast V is a poor sign. The price ran from the low back to within 5% of the pivot in 5 sessions or fewer, with no pause. Here it went from 25% under the high to within 3% in four sessions. That leaves no right side to judge.",
@@ -2037,9 +2037,9 @@
     "c04"
    ],
    "wrong": {
-    "Strong; buyers took it right back": "A quick rebound looks bullish, but with no pause there is no quiet right side to judge.",
-    "Strong; it is back near the high": "Being near the high is only the end point. With no pause there was no right side to judge.",
-    "Weak; it must close above the high": "The trigger is a trade through the IPO high, not a close above it. It is weak because the V leaves no right side."
+    "Strong; buyers took it back": "A quick rebound looks bullish, but with no pause there is no quiet right side to judge.",
+    "Strong; it is near the high": "Being near the high is only the end point. With no pause there was no right side to judge.",
+    "Weak; it must close above it": "The trigger is a trade through the IPO high, not a close above it. It is weak because the V leaves no right side."
    },
    "house": true,
    "story": "A new issue drops 25% off its IPO high. Then in four sessions, with no pause, it climbs back within 3% of that high.",
@@ -2152,9 +2152,9 @@
    "q": "Which backdrop do new issues like best?",
    "choices": [
     "A market turning up after a correction",
-    "A long, crowded advance for new IPOs",
-    "A Red market with very strong volume",
-    "A market that has just started to fall"
+    "A long, crowded advance for IPOs",
+    "A Red market with strong volume",
+    "A market that just started to fall"
    ],
    "answer": "A market turning up after a correction",
    "why": "A market turning up after a correction. That is a cue, not a rule. Be careful when the IPO calendar is crowded late in a long advance. IBD says new issues often pull back the hardest when the market stumbles into a correction. A weak market is no place for a new issue.",
@@ -2166,9 +2166,9 @@
     "c44"
    ],
    "wrong": {
-    "A long, crowded advance for new IPOs": "Be careful there. A crowded IPO calendar late in a long advance is a warning.",
-    "A Red market with very strong volume": "Red means mostly cash, and new issues often pull back the hardest when the market weakens.",
-    "A market that has just started to fall": "IBD says new issues often pull back the hardest when the market stumbles into a correction."
+    "A long, crowded advance for IPOs": "Be careful there. A crowded IPO calendar late in a long advance is a warning.",
+    "A Red market with strong volume": "Red means mostly cash, and new issues often pull back the hardest when the market weakens.",
+    "A market that just started to fall": "IBD says new issues often pull back the hardest when the market stumbles into a correction."
    },
    "house": true,
    "simple": "New issues do best when the market turns up after a correction. It is a cue, not a rule.",
@@ -3243,10 +3243,10 @@
    "criterion": "ipo.volume_in_base",
    "q": "Which base would you rather take?",
    "choices": [
-    "Neither; volume does not matter here",
-    "Base A: selling shakes out weak hands",
+    "Neither; volume does not matter",
+    "Base A: it shakes out weak hands",
     "Base B: buyers show up when it rises",
-    "Whichever base has more total volume"
+    "Whichever base has more volume"
    ],
    "answer": "Base B: buyers show up when it rises",
    "why": "Base B. Light volume on the pullbacks and heavy on the up days is the healthy pattern. On the right half, up-day volume should exceed down-day volume. Base A shows the reverse.",
@@ -3257,9 +3257,9 @@
     "i10"
    ],
    "wrong": {
-    "Neither; volume does not matter here": "Volume on the right half of the base matters. Up days should carry the heavy volume.",
-    "Base A: selling shakes out weak hands": "On the right half, up-day volume should exceed down-day volume. Base A shows the reverse.",
-    "Whichever base has more total volume": "Total volume hides the side. Heavy volume on down days is selling, and we look for it on up days."
+    "Neither; volume does not matter": "Volume on the right half of the base matters. Up days should carry the heavy volume.",
+    "Base A: it shakes out weak hands": "On the right half, up-day volume should exceed down-day volume. Base A shows the reverse.",
+    "Whichever base has more volume": "Total volume hides the side. Heavy volume on down days is selling, and we look for it on up days."
    },
    "house": true,
    "story": "Two IPO bases have the same depth and length. In Base A the right-half down days carry the heavy volume. In Base B the up days do.",
@@ -3947,7 +3947,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "upgraded wave1; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -3977,7 +3978,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "upgraded wave1; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -4079,7 +4081,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The card contradicts itself: c15 (inv_v_shape, marked proposed) says a fast V ends the base, c35 (grading cue) says a fast V into the pivot is B-, i.e. still gradeable. 'Buyable? No, a V ends it' therefore rests on an unruled line. Reword to ask how the base looks (weak), which both card lines support, and drop the shallow-dip choice because '25% is not shallow' has no cited fact."
+   "notes": "The card contradicts itself: c15 (inv_v_shape, marked proposed) says a fast V ends the base, c35 (grading cue) says a fast V into the pivot is B-, i.e. still gradeable. 'Buyable? No, a V ends it' therefore rests on an unruled line. Reword to ask how the base looks (weak), which both card lines support, and drop the shallow-dip choice because '25% is not shallow' has no cited fact.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "pass",
@@ -4097,7 +4100,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c40 supports the key as a cue; distractors grounded in c40, c25, i11. Lengths level."
+   "notes": "c40 supports the key as a cue; distractors grounded in c40, c25, i11. Lengths level.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -4271,7 +4275,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c18/i09/i10 support Base B."
+   "notes": "c18/i09/i10 support Base B.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",

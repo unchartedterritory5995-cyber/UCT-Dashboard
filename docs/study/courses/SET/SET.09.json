@@ -1219,15 +1219,15 @@
    "criterion": "ch.pivot",
    "q": "On our card, which level does price have to trade through to trigger the buy?",
    "choices": [
-    "The cup's lowest low in the base",
+    "The cup's lowest low",
     "The highest price in the handle",
-    "The low of the handle's last dip",
-    "The old high set before the cup"
+    "The low of the handle's dip",
+    "The old high before the cup"
    ],
    "wrong": {
-    "The cup's lowest low in the base": "That is the bottom of the cup, the base's floor. The buy is at the top.",
-    "The low of the handle's last dip": "The handle low is the floor of the last dip, the outer limit for the stop.",
-    "The old high set before the cup": "Zanger buys as it emerges into new highs at the top of the handle, not at the old high point set some 8 to 12 weeks ago."
+    "The cup's lowest low": "That is the bottom of the cup, the base's floor. The buy is at the top.",
+    "The low of the handle's dip": "The handle low is the floor of the last dip, the outer limit for the stop.",
+    "The old high before the cup": "Zanger buys as it emerges into new highs at the top of the handle, not at the old high point set some 8 to 12 weeks ago."
    },
    "answer": "The highest price in the handle",
    "why": "The highest price in the handle. That level is the pivot. We buy as price trades above it in regular hours, at market. IBD adds 10 cents to it, but with a market order the 10 cents does not matter. Zanger buys at the top of the handle, not at the old high point.",
@@ -1589,18 +1589,18 @@
    "criterion": "ch.right_side",
    "q": "How far below the left-side high may the right side stop before the handle starts, on our card?",
    "choices": [
-    "About 10% below, at most",
+    "About 10% below it, at most",
     "About 20% below, at most",
     "About 30% below, at most",
-    "It must reach the old high"
+    "It must hit the old high"
    ],
    "wrong": {
     "About 30% below, at most": "Far too loose. A right side that stops well short leaves the handle low in the base, and low handles fail more.",
-    "It must reach the old high": "Zanger puts the handle about 5% below the old high, so the right side does not have to reach it.",
+    "It must hit the old high": "Zanger puts the handle about 5% below the old high, so the right side does not have to reach it.",
     "About 20% below, at most": "Too loose. Our card wants the right side back within about 10% of the left-side high."
    },
-   "answer": "About 10% below, at most",
-   "why": "About 10% below, at most. Our card has the right side climb back to within about 10% of the left-side high before the handle starts. Only then can the handle sit high in the base. Zanger puts the handle about 5% below the old high and calls a lower one riskier.",
+   "answer": "About 10% below it, at most",
+   "why": "About 10% below it, at most. Our card has the right side climb back to within about 10% of the left-side high before the handle starts. Only then can the handle sit high in the base. Zanger puts the handle about 5% below the old high and calls a lower one riskier.",
    "lesson_line": "The right side comes back up near the old high. Only then does a handle start.",
    "facts": [
     "c08",
@@ -2248,15 +2248,15 @@
    "q": "What now?",
    "story": "You bought the breakout at 91.20 with the stop at 89.10. The handle low is 88.40. It closes at 89.60, back inside the handle.",
    "choices": [
-    "Sell at the close; it has failed",
+    "Sell at the close; it failed",
     "Hold; the stop is still the exit",
-    "Lower the stop to the handle low",
-    "Add to it; the price is cheaper"
+    "Lower the stop to handle low",
+    "Add; the price is cheaper"
    ],
    "wrong": {
-    "Lower the stop to the handle low": "The stop only moves up, never down.",
-    "Sell at the close; it has failed": "That close is a warning, not an exit by itself. The stop decides.",
-    "Add to it; the price is cheaper": "Full size at one price with one stop. No adding."
+    "Lower the stop to handle low": "The stop only moves up, never down.",
+    "Sell at the close; it failed": "That close is a warning, not an exit by itself. The stop decides.",
+    "Add; the price is cheaper": "Full size at one price with one stop. No adding."
    },
    "answer": "Hold; the stop is still the exit",
    "why": "Hold it. A close back into the handle is a warning, not an exit by itself. The stop is the exit, and it was set before the buy at 89.10. It only moves up, never down. The close at 89.60 is above the stop, so the plan is still on. Adding is out too: it is the full size at one price with one stop.",
@@ -2486,14 +2486,14 @@
    "story": "An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle, and a breakout on heavy volume.",
    "choices": [
     "A flat base with a late dip",
-    "A shallow cup with a handle",
+    "A shallow cup and handle",
     "A VCP of shrinking dips",
-    "Not a base; too little dip"
+    "Not a base; no real dip"
    ],
    "wrong": {
     "A VCP of shrinking dips": "A VCP shows two or more separate shrinking pullbacks. This is one shallow shelf.",
-    "A shallow cup with a handle": "A cup is a deeper rounded U. A 6.6% dip is only a shelf.",
-    "Not a base; too little dip": "A flat base falls 15% or less, and a shelf this shallow fits that. It is a base, just a shallow one."
+    "A shallow cup and handle": "A cup is a deeper rounded U. A 6.6% dip is only a shelf.",
+    "Not a base; no real dip": "A flat base falls 15% or less, and a shelf this shallow fits that. It is a base, just a shallow one."
    },
    "answer": "A flat base with a late dip",
    "why": "A flat base. A flat base falls 15% or less, and a 6.6% dip sits well inside that. A cup is a deeper rounded U followed by a handle. This reads as a flat base, not a cup, even though it ends in a 9-day dip.",
@@ -2575,15 +2575,15 @@
    "q": "Does the cup with handle name apply yet?",
    "story": "After a nine-week rounded base, the stock dips three days just under the rim.",
    "choices": [
-    "Yes; a 3-session dip is enough",
+    "Yes; 3 sessions is enough",
     "Not yet; the dip is too short",
-    "Yes; any dip at the rim counts",
-    "Not yet; the base is too short"
+    "Yes; any dip at the rim",
+    "Not yet; base is too short"
    ],
    "wrong": {
-    "Not yet; the base is too short": "A cup spans at least 7 weeks, and a nine-week base is long enough. The shortfall is in the handle.",
-    "Yes; a 3-session dip is enough": "A handle needs at least five sessions. A three-day dip is not one yet.",
-    "Yes; any dip at the rim counts": "Any dip is not a handle. Five sessions is the floor."
+    "Not yet; base is too short": "A cup spans at least 7 weeks, and a nine-week base is long enough. The shortfall is in the handle.",
+    "Yes; 3 sessions is enough": "A handle needs at least five sessions. A three-day dip is not one yet.",
+    "Yes; any dip at the rim": "Any dip is not a handle. Five sessions is the floor."
    },
    "answer": "Not yet; the dip is too short",
    "why": "Not yet. A handle must last at least 5 sessions. IBD: if it's shorter than five days, it's not a handle. Calling a 2 or 3-day dip a handle is a named mistake. Keep watching. A dip that reaches 5 sessions in the upper half of the base and holds the 50-day can still become a handle.",
@@ -2881,14 +2881,14 @@
    "story": "A leader falls 21% in a rounded U over 14 weeks. It climbs back within 4% of the high. Then it drifts 6% lower for eight days.",
    "choices": [
     "A cup with a handle at the rim",
-    "A flat base that ends in a dip",
-    "A VCP of shrinking pullbacks",
-    "A high tight flag after a run"
+    "A flat base ending in a dip",
+    "A VCP of shrinking dips",
+    "A high tight flag"
    ],
    "wrong": {
-    "A flat base that ends in a dip": "Too deep and too rounded for a box.",
-    "A VCP of shrinking pullbacks": "One rounded decline and one handle, not a series of shrinking pullbacks.",
-    "A high tight flag after a run": "A high tight flag pauses 5 to 30 sessions with no rounded decline. This one rounded down over 14 weeks."
+    "A flat base ending in a dip": "Too deep and too rounded for a box.",
+    "A VCP of shrinking dips": "One rounded decline and one handle, not a series of shrinking pullbacks.",
+    "A high tight flag": "A high tight flag pauses 5 to 30 sessions with no rounded decline. This one rounded down over 14 weeks."
    },
    "answer": "A cup with a handle at the rim",
    "why": "A cup with a handle. A flat base falls 15% or less and stays boxy. This leader rounded down 21% over 14 weeks, climbed back within 4% of the high, then dipped into one handle. A VCP shows two or more separate pullbacks, and a high tight flag has no rounded decline.",
@@ -3008,14 +3008,14 @@
    "story": "A 16-week, 19% cup after a 76% run, an 8-day handle. You followed every rule: bought 260.96, stop 257.75. It closed mid-range and faded four days to your stop.",
    "choices": [
     "No; the stop simply did its job",
-    "Yes; the stop needed more room",
-    "Yes; sell on any mid-range close",
-    "No; then buy back to recover it"
+    "Yes; the stop needed room",
+    "Yes; sell mid-range closes",
+    "No; buy back to recover it"
    ],
    "wrong": {
-    "Yes; the stop needed more room": "The stop only moves up. More room is a bigger loss, not a fix.",
-    "Yes; sell on any mid-range close": "The stop is the exit. A weak close is a first warning sign, not a sell order.",
-    "No; then buy back to recover it": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule."
+    "Yes; the stop needed room": "The stop only moves up. More room is a bigger loss, not a fix.",
+    "Yes; sell mid-range closes": "The stop is the exit. A weak close is a first warning sign, not a sell order.",
+    "No; buy back to recover it": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule."
    },
    "answer": "No; the stop simply did its job",
    "why": "No. The stop is the exit, and the loss was the plan. The breakout closed mid-range and faded four days to the stop. A weak close is the first sign the trade is not working, not an exit by itself. Buy again only on a new trigger.",
@@ -3257,14 +3257,14 @@
    "story": "A quiet 7-day handle. Price clears the handle high and you fill at 64.30. The lower of that day's and the prior day's low is 63.78.",
    "choices": [
     "Just under 63.78; a third at 3R",
-    "Right on 63.78; a third at 2R",
-    "Handle-low stop; sell all at 5R",
-    "7% under the fill; half at 3R"
+    "On 63.78; a third at 2R",
+    "Handle-low stop; out at 5R",
+    "7% under fill; half at 3R"
    ],
    "wrong": {
-    "Right on 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first trim is 3R.",
-    "Handle-low stop; sell all at 5R": "The handle low is the outer limit, not the stop. The first trim is a third at 3R.",
-    "7% under the fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first trim is a third."
+    "On 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first trim is 3R.",
+    "Handle-low stop; out at 5R": "The handle low is the outer limit, not the stop. The first trim is a third at 3R.",
+    "7% under fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first trim is a third."
    },
    "answer": "Just under 63.78; a third at 3R",
    "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first trim is a third at 3R. The handle low is only the outer limit for the stop, never the stop itself.",
@@ -3411,15 +3411,15 @@
    "q": "What do you do with the breakout?",
    "story": "Your best cup sits a few cents under the pivot, above its 200-day. Overnight the market reading turns Red.",
    "choices": [
-    "Buy it; an A+ cup trades anywhere",
+    "Buy it; A+ cups trade anywhere",
     "No new long; stay mostly in cash",
-    "Buy half size with a tight stop",
-    "Skip the cup and short this stock"
+    "Buy half size, tight stop",
+    "Skip the cup; short the stock"
    ],
    "wrong": {
-    "Buy it; an A+ cup trades anywhere": "Red is mostly cash. The setup is off.",
-    "Buy half size with a tight stop": "Half size is still a new long in a Red market.",
-    "Skip the cup and short this stock": "Our Red shorts are below the 200-day, and this cup sits above it. Red means mostly cash."
+    "Buy it; A+ cups trade anywhere": "Red is mostly cash. The setup is off.",
+    "Buy half size, tight stop": "Half size is still a new long in a Red market.",
+    "Skip the cup; short the stock": "Our Red shorts are below the 200-day, and this cup sits above it. Red means mostly cash."
    },
    "answer": "No new long; stay mostly in cash",
    "why": "No new long. A Red reading before the buy ends the setup. In a Red market we hold mostly cash, plus shorts below the 200-day. Even the best cup waits. The reading is a guide, and Red is its most defensive setting.",
@@ -3607,15 +3607,15 @@
    "q": "Take it?",
    "story": "In a rising market, a leader's cup fell 42% in a rounded U. Then a tidy 8-day handle formed near the high.",
    "choices": [
-    "Take it; the 8-day handle is tidy",
+    "Take it; 8-day handle is tidy",
     "Pass; the cup is too deep to count",
-    "Take it; IBD allows cups to run 50%",
-    "Pass; an 8-day handle is too short"
+    "Take it; IBD allows cups to 50%",
+    "Pass; an 8-day handle is short"
    ],
    "wrong": {
-    "Take it; the 8-day handle is tidy": "The handle passes. The cup is far too deep.",
-    "Take it; IBD allows cups to run 50%": "Only in a bear market. Here the market is rising.",
-    "Pass; an 8-day handle is too short": "Eight sessions clears the handle minimum of 5. The cup depth is what fails."
+    "Take it; 8-day handle is tidy": "The handle passes. The cup is far too deep.",
+    "Take it; IBD allows cups to 50%": "Only in a bear market. Here the market is rising.",
+    "Pass; an 8-day handle is short": "Eight sessions clears the handle minimum of 5. The cup depth is what fails."
    },
    "answer": "Pass; the cup is too deep to count",
    "why": "Pass. On our card, a cup deeper than 35% outside a bear market ends the setup. This one fell 42% in a rising market. IBD says cups can run as deep as 50% in bear markets. Zanger puts cups at maybe 20% to 35% off the old high. A tidy handle does not fix a cup that fell too far.",
@@ -4236,14 +4236,14 @@
    "story": "Three clean cups, each with a quiet handle that drifts down. The handles are 5%, 7% and 11% deep.",
    "choices": [
     "The 5% deep handle",
-    "The 7% deep handle",
-    "The 11% deep handle",
-    "They grade the same"
+    "The 7% handle",
+    "The 11% handle",
+    "They grade alike"
    ],
    "wrong": {
-    "They grade the same": "Depth counts on our card: 8% or less is better, and about 5% is best.",
-    "The 7% deep handle": "Good, since 8% or less is better, but about 5% is best.",
-    "The 11% deep handle": "11% is past 8%, so it grades lower. A deeper handle gives back more."
+    "They grade alike": "Depth counts on our card: 8% or less is better, and about 5% is best.",
+    "The 7% handle": "Good, since 8% or less is better, but about 5% is best.",
+    "The 11% handle": "11% is past 8%, so it grades lower. A deeper handle gives back more."
    },
    "answer": "The 5% deep handle",
    "why": "The 5% handle. Our card grades a handle of 8% or less better, and about 5% best. The 7% handle is under 8%, so it is good but not best. The 11% handle is past 8%, so it grades lower. IBD says a handle's secondary decline is usually no more than 8% to 12%. So 11% is a lower grade, not a different pattern.",
@@ -4374,14 +4374,14 @@
    "story": "You bought at 91.29 with the stop at 90.67, so 3R is 93.15. The next morning the stock opens at 94.20.",
    "choices": [
     "Sell that third at the open",
-    "Wait for a pullback to 93.15",
-    "Sell two thirds at the open",
-    "Sell it at the close instead"
+    "Wait for a dip to 93.15",
+    "Sell two thirds at open",
+    "Sell it at the close"
    ],
    "wrong": {
-    "Wait for a pullback to 93.15": "Our rule is to take it at the open, not to bet on a pullback.",
-    "Sell it at the close instead": "The rule says at the open.",
-    "Sell two thirds at the open": "The first trim is a third at 3R, not two thirds."
+    "Wait for a dip to 93.15": "Our rule is to take it at the open, not to bet on a pullback.",
+    "Sell it at the close": "The rule says at the open.",
+    "Sell two thirds at open": "The first trim is a third at 3R, not two thirds."
    },
    "answer": "Sell that third at the open",
    "why": "Sell that third at the open. The first trim is a third at 3R, and if a stock opens above a trim level we take that trim at the open. Here 3R was 93.15 and the stock opened at 94.20, above it.",
@@ -4467,14 +4467,14 @@
    "story": "A clean cup, then a 6-session handle. Its lows run 47.0, 47.2, 47.4, 47.6, 47.9 and 48.3. Volume is quiet.",
    "choices": [
     "A wedging handle; it often fails",
-    "A tight handle; it grades best",
-    "A short handle; it does not count",
-    "A flat handle; it passes the test"
+    "A tight handle; grades best",
+    "A short handle; not counted",
+    "A flat handle; it passes"
    ],
    "wrong": {
-    "A tight handle; it grades best": "Tight closes are a separate cue. These lows climb, so the line trends up.",
-    "A short handle; it does not count": "Six sessions clears the 5-session minimum. The rising lows are what fail.",
-    "A flat handle; it passes the test": "Flat lows would pass, but these climb from 47.0 to 48.3. A line through them slopes up."
+    "A tight handle; grades best": "Tight closes are a separate cue. These lows climb, so the line trends up.",
+    "A short handle; not counted": "Six sessions clears the 5-session minimum. The rising lows are what fail.",
+    "A flat handle; it passes": "Flat lows would pass, but these climb from 47.0 to 48.3. A line through them slopes up."
    },
    "answer": "A wedging handle; it often fails",
    "why": "A wedging handle; it often fails. A straight line through those six lows slopes up, and the card wants it flat or down. Rising lows end the setup before the buy. IBD says wedging handles have a higher failure rate, and a wedging handle with no shakeouts is a sign to steer clear. Quiet volume does not fix it.",
@@ -4728,7 +4728,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is c01/c03; stem scoped to our card; old-high refuted by z06; choices 31-32 chars."
+   "notes": "Key is c01/c03; stem scoped to our card; old-high refuted by z06; choices 31-32 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",
@@ -4794,7 +4795,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem lacks 'On our card'. From IBD's upper-half rule or Zanger's 5%, a right side up to 20% below can be defended, so 'about 20%' becomes a second answer. The 10% is the card's number (c08). Name the card."
+   "notes": "Stem lacks 'On our card'. From IBD's upper-half rule or Zanger's 5%, a right side up to 20% below can be defended, so 'about 20%' becomes a second answer. The 10% is the card's number (c08). Name the card.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -4902,7 +4904,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c18, h02, h42 (verified in sizing_rule A5 across a line break), h28 support the key; all four story numbers are in the story; choices 30-33 chars."
+   "notes": "c18, h02, h42 (verified in sizing_rule A5 across a line break), h28 support the key; all four story numbers are in the story; choices 30-33 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q32": {
    "status": "pass",
@@ -4938,7 +4941,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "6.6% is under the cup floor of 12% (c28) and inside a flat base's 15% (c28, d28, d28b). No cited floor on flat-base depth, so 'Not a base' has no support. Lone hedge gone; choices 23-27 chars."
+   "notes": "6.6% is under the cup floor of 12% (c28) and inside a flat base's 15% (c28, d28, d28b). No cited floor on flat-base depth, so 'Not a base' has no support. Lone hedge gone; choices 23-27 chars.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -4950,7 +4954,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Three-session dip is under the 5-session floor (c09, i19, c31); nine weeks clears 7. Not yet is right. Overlaps q05/q89 only in the fact, in other formats."
+   "notes": "Three-session dip is under the 5-session floor (c09, i19, c31); nine weeks clears 7. Not yet is right. Overlaps q05/q89 only in the fact, in other formats.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",
@@ -4998,7 +5003,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "21% is over a flat base's 15% and inside 12-33% (c28); one rounded decline with a 4% climb-back and one handle matches c29, which separates it from a VCP. Choices 28-31."
+   "notes": "21% is over a flat base's 15% and inside 12-33% (c28); one rounded decline with a 4% climb-back and one handle matches c29, which separates it from a VCP. Choices 28-31.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
@@ -5016,7 +5022,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "c18 is about a close back INTO the handle after the buy; the story is a mid-range close on breakout day. The 'weak close is a warning, not an exit' claim is misattributed. Use d33 (weak close is the first sign) plus h02 (the stop is the exit). Story numbers (16-week, 19%, 76% run, 8-day handle) are in dossier row ULTA but not in the cited d21 quote; they are in the question, so allowed."
+   "notes": "c18 is about a close back INTO the handle after the buy; the story is a mid-range close on breakout day. The 'weak close is a warning, not an exit' claim is misattributed. Use d33 (weak close is the first sign) plus h02 (the stop is the exit). Story numbers (16-week, 19%, 76% run, 8-day handle) are in dossier row ULTA but not in the cited d21 quote; they are in the question, so allowed.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -5052,7 +5059,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop a few cents under the low (h24, c15), first trim a third at 3R (h05); each wrong option has at least two errors; handle low is only the outer limit (c16)."
+   "notes": "Stop a few cents under the low (h24, c15), first trim a third at 3R (h05); each wrong option has at least two errors; handle low is only the outer limit (c16).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
@@ -5070,7 +5078,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Red ends the setup before the buy (c41, h31, h26); shorts only under the 200-day (h31) and the story puts it above. Owner flag on 'guide' vs hard stop stands. Lengths 31-33."
+   "notes": "Red ends the setup before the buy (c41, h31, h26); shorts only under the 200-day (h31) and the story puts it above. Owner flag on 'guide' vs hard stop stands. Lengths 31-33.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",
@@ -5100,7 +5109,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "42% in a rising market fails c20 under every D-052 option; 50% bear-only is supported by i12/c25; handle (8 sessions) clears c09. Two Pass/two Take, lengths 33-35, no tell."
+   "notes": "42% in a rising market fails c20 under every D-052 option; 50% bear-only is supported by i12/c25; handle (8 sessions) clears c09. Two Pass/two Take, lengths 33-35, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q65": {
    "status": "cut",
@@ -5202,7 +5212,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c48 gives 8% or less better and about 5% best, so 5% grades highest; 11% shown as lower, not as a fail, so D-053 is not leaned on."
+   "notes": "c48 gives 8% or less better and about 5% best, so 5% grades highest; 11% shown as lower, not as a fail, so D-053 is not leaned on.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q82": {
    "status": "pass",
@@ -5226,7 +5237,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R = 91.29 + 3 x 0.62 = 93.15, correct; open 94.20 is above it, so h41/c56 say take the third at the open. 'Two thirds' refuted by h05/h20. The old skip-and-wait-for-5R choice is gone."
+   "notes": "3R = 91.29 + 3 x 0.62 = 93.15, correct; open 94.20 is above it, so h41/c56 say take the third at the open. 'Two thirds' refuted by h05/h20. The old skip-and-wait-for-5R choice is gone.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q86": {
    "status": "cut",
@@ -5244,7 +5256,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Lows 47.0 to 48.3 rise every session; 6 sessions clears the 5 minimum; wedge per c11/c24, IBD i21/i23. Same idea as q35 but different angle (numbers, line fit, short-handle distractor)."
+   "notes": "Lows 47.0 to 48.3 rise every session; 6 sessions clears the 5 minimum; wedge per c11/c24, IBD i21/i23. Same idea as q35 but different angle (numbers, line fit, short-handle distractor).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q89": {
    "status": "pass",

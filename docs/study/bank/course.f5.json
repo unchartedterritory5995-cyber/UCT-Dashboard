@@ -147,9 +147,9 @@
   "prompt_json": {
    "choices": [
     "A press release filed on an 8-K",
-    "The earnings call with analysts",
-    "The company's investor slide deck",
-    "The 10-Q quarterly report filing"
+    "The call with analysts",
+    "The investor slide deck",
+    "The 10-Q quarterly report"
    ],
    "kind": "mcq",
    "q": "Where does a company usually put out its quarterly numbers first?",
@@ -204,7 +204,7 @@
     "summary": "Most companies put out their sales and earnings in a press release. Companies usually announce quarterly results in a press release that is filed with an 8-K. The earnings release is a summary; the full statements come later in the 10-Q or 10-K. An earnings press release must be filed with the SEC on Form 8-K. Releases often announce an earnings call, held shortly after the release to discuss the results. Investor slide decks are marketing and tend to be rosier than the official filings."
    },
    "facts": {
-    "given": "Where does a company usually put out its quarterly numbers first? The 10-Q quarterly report filing A press release filed on an 8-K The earnings call with analysts The company's investor slide deck"
+    "given": "Where does a company usually put out its quarterly numbers first? The 10-Q quarterly report A press release filed on an 8-K The call with analysts The investor slide deck"
    },
    "lesson_line": "The release comes first. The 10-Q fills in the detail later.",
    "simple": "A press release filed on an 8-K comes first, because the call and the 10-Q both follow it.",
@@ -212,9 +212,9 @@
    "unit": "F5.01",
    "why": "A press release filed on an 8-K. Most companies put out their sales and earnings in a press release. If they do, they must file it with the SEC on Form 8-K. The release is a summary. The full statements come later in the 10-Q or 10-K. The earnings call usually comes shortly after the release.",
    "wrong": {
-    "The 10-Q quarterly report filing": "The 10-Q comes later, with the full financial statements the release summarizes.",
-    "The company's investor slide deck": "Only some companies issue a deck, and it comes along with the figures. Most put the numbers out in a press release.",
-    "The earnings call with analysts": "The call usually comes shortly after the release, to discuss numbers already out."
+    "The 10-Q quarterly report": "The 10-Q comes later, with the full financial statements the release summarizes.",
+    "The call with analysts": "The call usually comes shortly after the release, to discuss numbers already out.",
+    "The investor slide deck": "Only some companies issue a deck, and it comes along with the figures. Most put the numbers out in a press release."
    }
   },
   "review_status": "draft",
@@ -1370,7 +1370,7 @@
   "prompt_json": {
    "choices": [
     "Revenue beat, EPS missed",
-    "EPS beat, revenue missed",
+    "EPS beat, sales missed",
     "Beat on both lines",
     "Missed on both lines"
    ],
@@ -1424,7 +1424,7 @@
     "summary": "Per LSEG, Tesla's Q3 2025 adjusted EPS was 50 cents vs 54 cents estimated, and revenue $28.10 billion vs $26.37 billion estimated. Above the consensus is a beat, below it a miss, and equal is in line, for earnings or for revenue. Tesla's income from operations was $1,624 million in Q3 2025, and its operating margin fell to 5.8% from 10.8% a year earlier. Tesla's financial summary runs from Q3 2024 to Q3 2025, in millions, unaudited. Tesla's total revenue was $28,095 million in Q3 2025, up 12% from $25,182 million in Q3 2024."
    },
    "facts": {
-    "given": "How does the report card read? Tesla, Q3 2025. Revenue: $28.10 billion vs $26.37 billion expected. Adjusted EPS: 50 cents vs 54 cents expected. Beat on both lines Revenue beat, EPS missed Missed on both lines EPS beat, revenue missed"
+    "given": "How does the report card read? Tesla, Q3 2025. Revenue: $28.10 billion vs $26.37 billion expected. Adjusted EPS: 50 cents vs 54 cents expected. Beat on both lines Revenue beat, EPS missed Missed on both lines EPS beat, sales missed"
    },
    "lesson_line": "Read all four numbers. Sales can beat while profit misses.",
    "simple": "Revenue beat and EPS missed, because sales came in above the estimate while profit per share came in below it.",
@@ -1433,7 +1433,7 @@
    "why": "Revenue beat, EPS missed. Revenue of $28.10 billion topped the $26.37 billion LSEG consensus. Adjusted EPS of 50 cents fell short of the 54 cents expected. One report can beat on one line and miss on the other. Tesla's operating margin also fell, to 5.8% from 10.8% a year earlier.",
    "wrong": {
     "Beat on both lines": "EPS came in at 50 cents against 54 cents expected. That's below the consensus.",
-    "EPS beat, revenue missed": "It's the other way round. Sales beat, and profit per share fell short.",
+    "EPS beat, sales missed": "It's the other way round. Sales beat, and profit per share fell short.",
     "Missed on both lines": "Revenue of $28.10 billion was above the $26.37 billion consensus. That line beat."
    }
   },
@@ -1633,9 +1633,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Adjusted EPS left out some costs",
-    "Revenue grew faster than profit",
-    "Target paid a bigger dividend",
+    "Adjusted EPS left out costs",
+    "Revenue outgrew profit",
+    "Target paid more dividends",
     "Fewer shares split the profit"
    ],
    "kind": "mcq",
@@ -1688,7 +1688,7 @@
     "summary": "EPS is net income divided by the shares outstanding. Target Q1 2025 vs Q1 2024: net earnings $1,036 million vs $942 million (up 10.0%); basic EPS $2.28, diluted EPS $2.27 (up 11.7%); diluted shares 456.5 million vs 463.9 million (down 1.6%). Target bought back and retired 2.2 million of its own shares in Q1 2025. Target's Q1 2025 net sales fell 2.8% from a year earlier. EPS is the slice of the period's net income that belongs to each share, before anything is paid out."
    },
    "facts": {
-    "given": "Why did EPS grow faster than net earnings? Target's Q1 2025 net earnings rose 10.0%. Diluted EPS rose 11.7%. Fewer shares split the profit Revenue grew faster than profit Target paid a bigger dividend Adjusted EPS left out some costs"
+    "given": "Why did EPS grow faster than net earnings? Target's Q1 2025 net earnings rose 10.0%. Diluted EPS rose 11.7%. Fewer shares split the profit Revenue outgrew profit Target paid more dividends Adjusted EPS left out costs"
    },
    "lesson_line": "A shrinking share count lifts EPS. Check net income growth beside it.",
    "simple": "Fewer shares, because the profit grew 10.0% but was split over 1.6% fewer shares, so each share got more.",
@@ -1696,9 +1696,9 @@
    "unit": "F5.01",
    "why": "Fewer shares split the profit. EPS is net income divided by shares. Net earnings rose 10.0%, but the diluted share count fell 1.6%. So each share's slice grew faster, 11.7%. Target also bought back and retired 2.2 million shares in the quarter.",
    "wrong": {
-    "Adjusted EPS left out some costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count.",
-    "Revenue grew faster than profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
-    "Target paid a bigger dividend": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two."
+    "Adjusted EPS left out costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count.",
+    "Revenue outgrew profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
+    "Target paid more dividends": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two."
    }
   },
   "review_status": "draft",
@@ -1720,8 +1720,8 @@
   "prompt_json": {
    "choices": [
     "Its own past and other retailers",
-    "The stock market's average margin",
-    "NVIDIA's 73.4%, a bigger company",
+    "The market's average margin",
+    "NVIDIA's 73.4%, a big firm",
     "Its own 6.2% operating margin"
    ],
    "kind": "mcq",
@@ -1844,7 +1844,7 @@
     "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Gross profit is net revenue minus the cost of sales. Operating margin is income from operations divided by net revenue, shown as a percent: the profit kept from each dollar of sales. Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. CNBC counts Target among the retailers, beside Walmart and Home Depot. NVIDIA describes itself as a company in AI and accelerated computing. NVIDIA revenue in millions: $57,006 in Q3 FY26, $46,743 in Q2 FY26, $35,082 in Q3 FY25. Target, three months ended May 3, 2025 vs May 4, 2024, in millions: net sales $23,846 vs $24,531; cost of sales $17,128 vs $17,471."
    },
    "facts": {
-    "given": "What's the right yardstick for Target's gross margin? NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier. Its own past and other retailers NVIDIA's 73.4%, a bigger company The stock market's average margin Its own 6.2% operating margin"
+    "given": "What's the right yardstick for Target's gross margin? NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier. Its own past and other retailers NVIDIA's 73.4%, a big firm The market's average margin Its own 6.2% operating margin"
    },
    "lesson_line": "Judge a margin against its own history and its industry, not across industries.",
    "simple": "Compare it with Target's own past and with other retailers, because good margins differ from one industry to another.",
@@ -1853,8 +1853,8 @@
    "why": "Its own past and other retailers. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped.",
    "wrong": {
     "Its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations.",
-    "NVIDIA's 73.4%, a bigger company": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
-    "The stock market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry."
+    "NVIDIA's 73.4%, a big firm": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
+    "The market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry."
    }
   },
   "review_status": "draft",
@@ -2462,10 +2462,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Results come out weeks after the guide",
-    "Companies only guide when news is bad",
+    "Results come weeks after the guide",
+    "Firms only guide when news is bad",
     "The price is built on future profits",
-    "Analysts ignore the reported quarter"
+    "Analysts ignore reported results"
    ],
    "kind": "mcq",
    "q": "Why can guidance move a stock more than the quarter it just reported?",
@@ -2520,7 +2520,7 @@
     "summary": "Guidance looks ahead, and a stock's price rests on expected future profit growth. Guidance often drives the near-term share price more than anything else in the release. A company can beat estimates and still fall because its outlook is weak. Guidance is voluntary, though many companies give it. Guidance usually comes right after the quarterly report and is discussed with analysts. Actual above the consensus is a beat, below is a miss, and equal is in line."
    },
    "facts": {
-    "given": "Why can guidance move a stock more than the quarter it just reported? The price is built on future profits Companies only guide when news is bad Results come out weeks after the guide Analysts ignore the reported quarter"
+    "given": "Why can guidance move a stock more than the quarter it just reported? The price is built on future profits Firms only guide when news is bad Results come weeks after the guide Analysts ignore reported results"
    },
    "lesson_line": "Read the guide before you celebrate the beat.",
    "simple": "A stock is priced on the profits people expect next, and guidance speaks to those, while the report looks back.",
@@ -2528,9 +2528,9 @@
    "unit": "F5.02",
    "why": "The price is built on future profits. Schwab says a stock's price rests on expected future profit growth, and guidance looks ahead. The report covers a quarter that is already over. So the guide can be the top factor in the near-term price. FINRA notes a company can beat and still drop on a dour outlook. The guide can win, though not every time.",
    "wrong": {
-    "Analysts ignore the reported quarter": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over.",
-    "Companies only guide when news is bad": "No. Giving guidance is common practice for many companies.",
-    "Results come out weeks after the guide": "They come out together. Guidance usually arrives with the quarterly report."
+    "Analysts ignore reported results": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over.",
+    "Firms only guide when news is bad": "No. Giving guidance is common practice for many companies.",
+    "Results come weeks after the guide": "They come out together. Guidance usually arrives with the quarterly report."
    }
   },
   "review_status": "draft",
@@ -3547,9 +3547,9 @@
   "prompt_json": {
    "choices": [
     "Its forecast calmed investors",
-    "It missed, so the bar was low",
-    "Its stock split was announced",
-    "It ran up hard into the report"
+    "It missed, the bar was low",
+    "A stock split was announced",
+    "It ran up into the report"
    ],
    "kind": "mcq",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
@@ -3615,7 +3615,7 @@
     "summary": "Nvidia rose nearly 9% when its revenue guidance reassured investors. Nvidia had dropped the day after each of its previous four reports, though it met or beat each time. Nvidia's August 2026 earnings sailed past estimates. Nvidia was still limited in how much product it could supply. A miss usually sends the stock lower. A stock that ran up into its report can meet expectations and still stall or fall for lack of new buyers. Guidance often drives the near-term share price more than anything else in the release."
    },
    "facts": {
-    "given": "This time the stock rises nearly 9%. Going by CNBC's report, what was different? Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited. Its forecast calmed investors It missed, so the bar was low It ran up hard into the report Its stock split was announced"
+    "given": "This time the stock rises nearly 9%. Going by CNBC's report, what was different? Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited. Its forecast calmed investors It missed, the bar was low It ran up into the report A stock split was announced"
    },
    "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
    "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
@@ -3623,9 +3623,9 @@
    "unit": "F5.02",
    "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
    "wrong": {
-    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
-    "It ran up hard into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
-    "Its stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
+    "A stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast.",
+    "It missed, the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
+    "It ran up into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers."
    }
   },
   "review_status": "draft",
@@ -4090,8 +4090,8 @@
    "choices": [
     "Last year's full-year EPS",
     "The same quarter a year earlier",
-    "The quarter just before this one",
-    "The analysts' quarterly estimate"
+    "The quarter just before it",
+    "The analysts' estimate"
    ],
    "kind": "mcq",
    "q": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with?",
@@ -4132,7 +4132,7 @@
     "summary": "O'Neil's C: this quarter's EPS against the same quarter a year earlier, up more than 25%, and higher is better. O'Neil compares the latest quarter's EPS with the same quarter last year. Disnat's example: April to June EPS against April to June a year earlier. CFI's version of O'Neil's C: EPS up at least 25% on the same quarter a year before."
    },
    "facts": {
-    "given": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with? The same quarter a year earlier The quarter just before this one The analysts' quarterly estimate Last year's full-year EPS"
+    "given": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with? The same quarter a year earlier The quarter just before it The analysts' estimate Last year's full-year EPS"
    },
    "lesson_line": "O'Neil's C: this quarter's EPS against the same quarter last year.",
    "simple": "The same quarter a year earlier. O'Neil wants this quarter's EPS to have jumped against that same quarter last year.",
@@ -4141,8 +4141,8 @@
    "why": "The same quarter a year earlier. Investopedia, CFI and Disnat all describe O'Neil's C test the same way. It is this quarter's EPS against the same quarter a year before. Disnat's example is April to June this year against April to June last year. O'Neil wants a sharp jump on that comparison. It is not the quarter just before, not the analysts' estimate, and not a full year.",
    "wrong": {
     "Last year's full-year EPS": "That's closer to the A test, the annual record. C is one quarter against the same quarter.",
-    "The analysts' quarterly estimate": "That tells you beat or miss. The C test measures growth against the same quarter a year ago.",
-    "The quarter just before this one": "That's quarter over quarter. O'Neil's C test goes back a full year, to the same quarter."
+    "The analysts' estimate": "That tells you beat or miss. The C test measures growth against the same quarter a year ago.",
+    "The quarter just before it": "That's quarter over quarter. O'Neil's C test goes back a full year, to the same quarter."
    }
   },
   "review_status": "draft",
@@ -4295,10 +4295,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "EPS sets a new record each quarter",
-    "EPS beats the estimate each quarter",
+    "EPS sets a record each quarter",
+    "EPS beats estimates each quarter",
     "The growth rate rises each quarter",
-    "The stock rises after each report"
+    "The stock rises after reports"
    ],
    "kind": "mcq",
    "q": "On a growth screen, what does \"accelerating earnings\" mean?",
@@ -4353,7 +4353,7 @@
     "summary": "Growing at an increasing rate is acceleration; a declining rate is deceleration. In O'Neil's method, EPS growth that speeds up is a strong plus. O'Neil looks for companies whose earnings are accelerating. NVIDIA's first quarter of fiscal 2025: record revenue of $26.0 billion, up 262% year over year. Fourth quarter of fiscal 2025, ended January 26, 2025: revenue of $39.3 billion, up 78% year over year. The $39.3 billion was a record quarter."
    },
    "facts": {
-    "given": "On a growth screen, what does \"accelerating earnings\" mean? The growth rate rises each quarter EPS sets a new record each quarter EPS beats the estimate each quarter The stock rises after each report"
+    "given": "On a growth screen, what does \"accelerating earnings\" mean? The growth rate rises each quarter EPS sets a record each quarter EPS beats estimates each quarter The stock rises after reports"
    },
    "lesson_line": "Accelerating means the growth rate itself is climbing, quarter after quarter.",
    "simple": "It means the growth rate itself climbs each quarter, not just that earnings keep getting bigger.",
@@ -4361,9 +4361,9 @@
    "unit": "F5.03",
    "why": "The growth rate rises each quarter. Investopedia describes this as growing at an increasing rate. CFI calls accelerating EPS growth a strong positive sign in O'Neil's method. Stockopedia says O'Neil looks for earnings acceleration. It does not mean a new record, a beat of the estimate, or a price jump after the report. Records can come with slowing growth.",
    "wrong": {
-    "EPS beats the estimate each quarter": "That's a beat streak. It measures results against forecasts, not the growth rate.",
-    "EPS sets a new record each quarter": "Records can come with slowing growth. A bigger number each quarter isn't the same as faster growth.",
-    "The stock rises after each report": "That's the price reaction. Acceleration is about the earnings numbers themselves."
+    "EPS beats estimates each quarter": "That's a beat streak. It measures results against forecasts, not the growth rate.",
+    "EPS sets a record each quarter": "Records can come with slowing growth. A bigger number each quarter isn't the same as faster growth.",
+    "The stock rises after reports": "That's the price reaction. Acceleration is about the earnings numbers themselves."
    }
   },
   "review_status": "draft",
@@ -4949,9 +4949,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "B's, it squeezed out more profit",
-    "Same, EPS growth is what counts",
-    "Neither, 40% growth is too low",
+    "B's, it made more profit",
+    "Same, EPS growth counts",
+    "Neither, 40% is too low",
     "A's, real demand is behind it"
    ],
    "kind": "mcq",
@@ -5022,7 +5022,7 @@
     "summary": "Sales are much harder to manipulate than earnings. Earnings come from the company itself and can be shaped. O'Neil's method looks for strong sales as well as improving earnings. O'Neil's method looks for earnings and sales that grow and speed up. A growth stock grows sales and earnings faster than the market. O'Neil's C: this quarter's EPS against the same quarter a year earlier, up more than 25%, and higher is better. This version of O'Neil's floor for quarterly EPS growth is 18-20%. CFI's version of O'Neil's C: EPS up at least 25% on the same quarter a year before."
    },
    "facts": {
-    "given": "Whose EPS growth looks more solid? Two companies both grew EPS 40% from a year ago. A's sales grew 35%. B's sales fell 2%. A's, real demand is behind it B's, it squeezed out more profit Same, EPS growth is what counts Neither, 40% growth is too low"
+    "given": "Whose EPS growth looks more solid? Two companies both grew EPS 40% from a year ago. A's sales grew 35%. B's sales fell 2%. A's, real demand is behind it B's, it made more profit Same, EPS growth counts Neither, 40% is too low"
    },
    "lesson_line": "Check the sales line behind every EPS jump. Earnings are easier to shape than sales.",
    "simple": "A's, because its profit growth is backed by real sales growth, and sales are harder to dress up than earnings.",
@@ -5030,9 +5030,9 @@
    "unit": "F5.03",
    "why": "A's. Its earnings growth rides on sales growth. Fidelity notes sales are much harder to manipulate than earnings. Investopedia notes earnings come from the company itself and could be shaped. O'Neil's method looks for strong sales as well as improving earnings. B grew EPS while its sales fell, so the jump did not come from more customers buying.",
    "wrong": {
-    "B's, it squeezed out more profit": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
-    "Neither, 40% growth is too low": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it.",
-    "Same, EPS growth is what counts": "EPS can rise without customers buying more. Sales show whether the business itself is growing."
+    "B's, it made more profit": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
+    "Neither, 40% is too low": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it.",
+    "Same, EPS growth counts": "EPS can rise without customers buying more. Sales show whether the business itself is growing."
    }
   },
   "review_status": "draft",
@@ -5918,10 +5918,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Growers at under 20 times earnings",
+    "Growers under 20 times earnings",
     "Fast growers with a high or no P/E",
     "Companies with falling sales",
-    "Only overpriced stocks, so no loss"
+    "Only overpriced stocks, no loss"
    ],
    "kind": "mcq",
    "q": "What kind of future winner can that screen miss?",
@@ -5994,7 +5994,7 @@
     "summary": "Growth stocks often have high P/Es, or losses. A company losing money has no P/E. In Bulkowski's 10-bagger study, P/E was almost meaningless because many were unprofitable. A high P/E on a fast grower can turn out cheap if the growth continues. A higher P/E means buyers expect more growth and have bid the price up. With a net loss there is no usable P/E, so price-to-sales stands in. With losses or no earnings, the P/E shows as N/A. A low P/E can come from a declining business, and then it is no bargain."
    },
    "facts": {
-    "given": "What kind of future winner can that screen miss? You build a stock screen that only keeps stocks with a P/E under 20. Fast growers with a high or no P/E Only overpriced stocks, so no loss Companies with falling sales Growers at under 20 times earnings"
+    "given": "What kind of future winner can that screen miss? You build a stock screen that only keeps stocks with a P/E under 20. Fast growers with a high or no P/E Only overpriced stocks, no loss Companies with falling sales Growers under 20 times earnings"
    },
    "lesson_line": "A cheap-P/E filter can screen out tomorrow's leaders. That's why a growth screen starts with growth.",
    "simple": "Fast growers, because they often trade at high multiples of earnings, and money-losing ones have no price-to-earnings ratio at all.",
@@ -6003,8 +6003,8 @@
    "why": "Fast growers with a high or no P/E. Investopedia notes growth stocks may have low or even negative earnings, often making them high P/E stocks. A company losing money has no P/E, so a P/E filter drops it. Nasdaq's glossary says a high multiple reflects buyers' growth hopes, and Fidelity points to price-to-sales when there is a net loss. Bulkowski found P/E almost meaningless for finding 10-baggers, because many were unprofitable.",
    "wrong": {
     "Companies with falling sales": "That screen can let those in. A low P/E can come from a business in decline.",
-    "Growers at under 20 times earnings": "A P/E under 20 passes this screen, so those stay in. A filter can only miss what it throws out.",
-    "Only overpriced stocks, so no loss": "A high P/E isn't proof of overpricing. Fast growth can make a high P/E cheap later."
+    "Growers under 20 times earnings": "A P/E under 20 passes this screen, so those stay in. A filter can only miss what it throws out.",
+    "Only overpriced stocks, no loss": "A high P/E isn't proof of overpricing. Fast growth can make a high P/E cheap later."
    }
   },
   "review_status": "draft",
@@ -6026,7 +6026,7 @@
   "prompt_json": {
    "choices": [
     "The share price divided by the EPS",
-    "The EPS growth rate divided by the P/E",
+    "The EPS growth divided by the P/E",
     "The P/E divided by the EPS growth rate",
     "The P/E times the EPS growth rate"
    ],
@@ -6083,7 +6083,7 @@
     "summary": "PEG is the P/E divided by the earnings growth rate. PEG is the P/E divided by EPS growth. P/E on its own ignores future earnings growth. By convention a PEG of 1 or less is read as cheap for the growth. PEG is a rough check that can mislead on cyclical and high-growth stocks. P/E is the share price divided by earnings per share."
    },
    "facts": {
-    "given": "What is a stock's PEG ratio? The P/E divided by the EPS growth rate The share price divided by the EPS The EPS growth rate divided by the P/E The P/E times the EPS growth rate"
+    "given": "What is a stock's PEG ratio? The P/E divided by the EPS growth rate The share price divided by the EPS The EPS growth divided by the P/E The P/E times the EPS growth rate"
    },
    "lesson_line": "PEG is the P/E divided by the growth rate. It is a rough check, never a verdict on its own.",
    "simple": "PEG takes the price-to-earnings ratio and divides it by the earnings growth rate, so growth becomes part of the check.",
@@ -6091,7 +6091,7 @@
    "unit": "F5.03",
    "why": "The P/E divided by the EPS growth rate. Investopedia and Fidelity both define PEG that way. It puts growth back into the P/E, which on its own ignores future growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms.",
    "wrong": {
-    "The EPS growth rate divided by the P/E": "That's upside down. The P/E goes on top, and the growth rate goes underneath.",
+    "The EPS growth divided by the P/E": "That's upside down. The P/E goes on top, and the growth rate goes underneath.",
     "The P/E times the EPS growth rate": "PEG divides, it does not multiply. The P/E goes on top, and the growth rate goes underneath.",
     "The share price divided by the EPS": "That's the P/E itself. PEG takes that P/E and divides it by the growth rate."
    }
@@ -6980,9 +6980,9 @@
   "prompt_json": {
    "choices": [
     "At 9:30 a.m., the open that morning",
-    "At 8:30 a.m., when the call starts",
-    "At 9:30 a.m., the open the next day",
-    "At 7:00 a.m., when results come out"
+    "At 8:30 a.m., the call starts",
+    "At 9:30 a.m., the next day's open",
+    "At 7:00 a.m., the release"
    ],
    "kind": "mcq",
    "q": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them?",
@@ -7023,7 +7023,7 @@
     "summary": "JPMorgan set its third-quarter 2026 results for about 7:00 a.m. ET on Tuesday, Oct. 13, 2026, before the open. The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. Most companies release earnings before the open or after the close, not during regular trading. News released outside regular hours can move the stock sharply in extended-hours trading."
    },
    "facts": {
-    "given": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them? At 9:30 a.m., the open that morning At 7:00 a.m., when results come out At 8:30 a.m., when the call starts At 9:30 a.m., the open the next day"
+    "given": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them? At 9:30 a.m., the open that morning At 7:00 a.m., the release At 8:30 a.m., the call starts At 9:30 a.m., the next day's open"
    },
    "lesson_line": "A report before the open hits that day's open. Your last regular-session exit is the close before.",
    "simple": "At the open that morning, because the 7:00 release comes before regular trading starts at 9:30.",
@@ -7031,9 +7031,9 @@
    "unit": "F5.04",
    "why": "At 9:30 a.m., the open that morning. JPMorgan set its results for about 7:00 a.m. ET on Tuesday, Oct. 13, with its call at 8:30 a.m. Regular trading starts at 9:30 a.m. ET, so that same morning's open first takes the news. The stock can trade earlier in extended hours, but that is not the regular session.",
    "wrong": {
-    "At 7:00 a.m., when results come out": "That's the release time. Regular trading starts at 9:30 a.m. ET; anything earlier is extended hours.",
-    "At 8:30 a.m., when the call starts": "That's the call time. The regular session still opens at 9:30 a.m. ET.",
-    "At 9:30 a.m., the open the next day": "That's how a report after the close would play. This one came before the open."
+    "At 7:00 a.m., the release": "That's the release time. Regular trading starts at 9:30 a.m. ET; anything earlier is extended hours.",
+    "At 8:30 a.m., the call starts": "That's the call time. The regular session still opens at 9:30 a.m. ET.",
+    "At 9:30 a.m., the next day's open": "That's how a report after the close would play. This one came before the open."
    }
   },
   "review_status": "draft",
@@ -7390,10 +7390,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The stock can't really move much now",
+    "The stock can't move much now",
     "The news is out, so volatility fell",
-    "Fewer people are trading the options",
-    "Analysts have lowered their estimates"
+    "Fewer people trade the options",
+    "Analysts lowered their estimates"
    ],
    "kind": "mcq",
    "q": "The morning after a report, the live implied move reads far smaller than last night. Why?",
@@ -7451,7 +7451,7 @@
     "summary": "In the weeks before an earnings report, option volatility usually rises, which makes options pricier. Once the event passes, most of the uncertainty is gone and option prices reset to match. When the news is out, options tend to reprice fast. Option volatility often collapses after the first reaction to an earnings release. Right before earnings, near-term option volatility can be higher because a big move is priced in. The nearest at-the-money straddle shows the move the options market expects from the report."
    },
    "facts": {
-    "given": "The morning after a report, the live implied move reads far smaller than last night. Why? The news is out, so volatility fell The stock can't really move much now Analysts have lowered their estimates Fewer people are trading the options"
+    "given": "The morning after a report, the live implied move reads far smaller than last night. Why? The news is out, so volatility fell The stock can't move much now Analysts lowered their estimates Fewer people trade the options"
    },
    "lesson_line": "Read the implied move before the report. After it, the number deflates.",
    "simple": "The report is over, so the options no longer price in its big unknown, and the implied move shrinks.",
@@ -7459,9 +7459,9 @@
    "unit": "F5.04",
    "why": "The news is out, so volatility fell. In the weeks before a report, option volatility usually rises and makes options pricier. Once the news is out, most of the uncertainty is gone and options reprice fast. So the implied move shrinks. It does not mean the stock can't move. The options simply stopped pricing the report.",
    "wrong": {
-    "Analysts have lowered their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options.",
-    "Fewer people are trading the options": "The implied move is read from option prices, and they reprice fast once the news is out.",
-    "The stock can't really move much now": "It can still move. The options simply stopped pricing the report."
+    "Analysts lowered their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options.",
+    "Fewer people trade the options": "The implied move is read from option prices, and they reprice fast once the news is out.",
+    "The stock can't move much now": "It can still move. The options simply stopped pricing the report."
    }
   },
   "review_status": "draft",
@@ -8487,9 +8487,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The longest-dated puts listed",
+    "The longest-dated puts",
     "Far out-of-the-money calls",
-    "The call with the most volume",
+    "The call with most volume",
     "Nearest at-the-money straddle"
    ],
    "kind": "mcq",
@@ -8545,7 +8545,7 @@
     "summary": "The quickest read of the expected move is the nearest-expiry, at-the-money straddle. A straddle is a call and a put bought together at the same strike and expiry. Option traders often use the straddle price as the expected move after earnings. Right before a report, short-dated option prices show the reaction the market expects. The straddle's midpoint, less any intrinsic value, is a quick guide to the implied move. Cboe's note turned the implied standard deviation into an expected move with a two-thirds rule of thumb: one of several conventions."
    },
    "facts": {
-    "given": "Which options give the quickest read of the implied move? Nearest at-the-money straddle Far out-of-the-money calls The longest-dated puts listed The call with the most volume"
+    "given": "Which options give the quickest read of the implied move? Nearest at-the-money straddle Far out-of-the-money calls The longest-dated puts The call with most volume"
    },
    "lesson_line": "Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
    "simple": "The nearest at-the-money straddle, because a call plus a put at the strike nearest the price shows the move priced.",
@@ -8554,8 +8554,8 @@
    "why": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number.",
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
-    "The call with the most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle.",
-    "The longest-dated puts listed": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report."
+    "The call with most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle.",
+    "The longest-dated puts": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report."
    }
   },
   "review_status": "draft",
@@ -9264,7 +9264,7 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The stock will likely rise on the report",
+    "The stock likely rises on the report",
     "Options priced a smaller move than usual",
     "The options are mispriced and too cheap",
     "Options priced a bigger move than usual"
@@ -9315,7 +9315,7 @@
     "summary": "In August 2025 NVDA options priced about 6%, below the 7.39% average of its last six reactions. Compare the straddle price with the stock's past reactions to size up the expected move. Option prices generally do not say which way the stock will react. A move worked out from implied volatility describes how big the expected move is, not which way. Cboe found the Mag 7 options generally priced moves slightly below their historical averages ahead of earnings."
    },
    "facts": {
-    "given": "NVDA, August 2025: options priced about 6%. Its last six reactions averaged 7.39%. What does that tell you? Options priced a smaller move than usual Options priced a bigger move than usual The stock will likely rise on the report The options are mispriced and too cheap"
+    "given": "NVDA, August 2025: options priced about 6%. Its last six reactions averaged 7.39%. What does that tell you? Options priced a smaller move than usual Options priced a bigger move than usual The stock likely rises on the report The options are mispriced and too cheap"
    },
    "lesson_line": "Hold the implied move up against the stock's past reactions. That tells you if options expect a big one.",
    "simple": "Options priced a smaller move than usual, because about 6% is below the 7.39% average of its last six reactions.",
@@ -9325,7 +9325,7 @@
    "wrong": {
     "Options priced a bigger move than usual": "6% is below the 7.39% average, so it's smaller, not bigger.",
     "The options are mispriced and too cheap": "Below average alone doesn't make them wrong. Cboe found big tech options generally price moves slightly below their history.",
-    "The stock will likely rise on the report": "The implied move has no direction. It can't tell you up or down."
+    "The stock likely rises on the report": "The implied move has no direction. It can't tell you up or down."
    }
   },
   "review_status": "draft",
@@ -9535,8 +9535,8 @@
    "choices": [
     "Yes, the size was about as priced",
     "No, it went down instead of up",
-    "No, a drop that big is a surprise",
-    "Yes, options priced a drop of 8.4%"
+    "No, a drop that big is a shock",
+    "Yes, they priced a drop of 8.4%"
    ],
    "kind": "mcq",
    "q": "Did options get the reaction right?",
@@ -9595,7 +9595,7 @@
     "summary": "NVDA's three reports before August 2025 were on November 20, 2024, February 26, 2025 and May 28, 2025. After its February 2025 report, NVDA fell 8.48%. Options priced about 7% for NVDA's May 2025 report and about 8.4% for its February 2025 report. Option prices generally do not say which way the stock will react. Option prices say how far the stock may move, up or down. A move worked out from implied volatility describes how big the expected move is, not which way."
    },
    "facts": {
-    "given": "Did options get the reaction right? NVDA reported on February 26, 2025. Options priced about an 8.4% move. The stock fell 8.48%. Yes, the size was about as priced No, it went down instead of up No, a drop that big is a surprise Yes, options priced a drop of 8.4%"
+    "given": "Did options get the reaction right? NVDA reported on February 26, 2025. Options priced about an 8.4% move. The stock fell 8.48%. Yes, the size was about as priced No, it went down instead of up No, a drop that big is a shock Yes, they priced a drop of 8.4%"
    },
    "lesson_line": "Judge the implied move on size. A big drop that matches the priced move is the market getting it right.",
    "simple": "Yes, because the 8.48% drop was almost exactly the 8.4% move options priced, and options price size, not direction.",
@@ -9603,9 +9603,9 @@
    "unit": "F5.05",
    "why": "Yes, the size was about as priced. Options priced about 8.4% for NVDA's February 2025 report, and the stock fell 8.48%, Sosnick wrote. That is almost exactly the expected size. Direction was never part of the price: Cboe and OIC both say option prices describe how big, not which way. A big drop that matches the priced move is the market getting it right.",
    "wrong": {
-    "No, a drop that big is a surprise": "Big is relative. Options priced about 8.4%, and the stock fell 8.48%. That is the priced size.",
+    "No, a drop that big is a shock": "Big is relative. Options priced about 8.4%, and the stock fell 8.48%. That is the priced size.",
     "No, it went down instead of up": "Options didn't price a direction. A fall of the priced size is right on.",
-    "Yes, options priced a drop of 8.4%": "Options priced about 8.4% either way, not a drop. They got the size right; a direction was never priced."
+    "Yes, they priced a drop of 8.4%": "Options priced about 8.4% either way, not a drop. They got the size right; a direction was never priced."
    }
   },
   "review_status": "draft",
@@ -9872,19 +9872,19 @@
  },
  {
   "answer_json": {
-   "answer": "The report surprised the market"
+   "answer": "The report surprised the options market"
   },
   "difficulty": 3,
   "id": "si_6efc8b17e3cb",
   "lesson_origin": "session",
-  "lesson_text": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits. Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
+  "lesson_text": "The report surprised the options market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits. Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
   "module": "F5",
   "prompt_json": {
    "choices": [
     "The move will reverse the next day",
     "The options were priced too high",
     "Implied volatility will now rise",
-    "The report surprised the market"
+    "The report surprised the options market"
    ],
    "kind": "mcq",
    "q": "A stock moves twice its implied move after the report. What does that tell you?",
@@ -9935,13 +9935,13 @@
     "summary": "Right before a report, short-dated option prices show the reaction the market expects. Option prices signal the move the market expects after a report. Implied volatility reflects expected movement, and it often falls sharply after earnings. Compare the straddle price with the stock's past reactions to size up the expected move. A stock that moves less than implied fell short of what options expected; one that moves more beat it."
    },
    "facts": {
-    "given": "A stock moves twice its implied move after the report. What does that tell you? The report surprised the market The options were priced too high The move will reverse the next day Implied volatility will now rise"
+    "given": "A stock moves twice its implied move after the report. What does that tell you? The report surprised the options market The options were priced too high The move will reverse the next day Implied volatility will now rise"
    },
    "lesson_line": "Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
-   "simple": "The report surprised the market, because the stock moved twice as far as options had priced for it.",
+   "simple": "The report surprised the options market, because the stock moved twice as far as options had priced for it.",
    "tier": "expert",
    "unit": "F5.05",
-   "why": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
+   "why": "The report surprised the options market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
    "wrong": {
     "Implied volatility will now rise": "After a report, implied volatility often falls sharply. The event it was pricing is over.",
     "The move will reverse the next day": "Nothing in the implied move predicts tomorrow. Judge what happens next on its own.",
@@ -12862,7 +12862,7 @@
   "prompt_json": {
    "choices": [
     "Volume stays high for weeks after",
-    "Price snaps back to pre-report levels",
+    "Price snaps back to prior levels",
     "Price keeps moving the surprise's way",
     "Estimates creep up before the report"
    ],
@@ -12905,7 +12905,7 @@
     "summary": "After earnings beat expectations, prices have tended to keep rising for over 60 trading days; after misses, to keep falling. The drift was first documented in 1968, named in 1989, and is commonly put down to investors underreacting, among other factors. Both a stock's past move and its earnings surprise predicted drift in later returns. Several recent studies argue the classic drift has shrunk to almost nothing."
    },
    "facts": {
-    "given": "What is post-earnings-announcement drift? Price keeps moving the surprise's way Price snaps back to pre-report levels Volume stays high for weeks after Estimates creep up before the report"
+    "given": "What is post-earnings-announcement drift? Price keeps moving the surprise's way Price snaps back to prior levels Volume stays high for weeks after Estimates creep up before the report"
    },
    "lesson_line": "Drift means the reaction keeps going for a while. It was measured as an average, not a sure thing.",
    "simple": "Drift means that after a surprise, the price has tended to keep moving the same way for a while.",
@@ -12914,7 +12914,7 @@
    "why": "Price keeps moving the surprise's way. When earnings beat expectations, prices have tended to rise for over 60 trading days. When earnings miss, they have tended to keep falling. Ball and Brown first documented it in 1968. It is a tendency, not a promise, and several recent studies argue it has shrunk to the point of disappearance.",
    "wrong": {
     "Estimates creep up before the report": "That's about forecasts before the report. The drift comes after it.",
-    "Price snaps back to pre-report levels": "That's a reversal. The drift research found the move tended to continue.",
+    "Price snaps back to prior levels": "That's a reversal. The drift research found the move tended to continue.",
     "Volume stays high for weeks after": "Volume can stay high, but the drift is about price."
    }
   },
@@ -14230,7 +14230,7 @@
  },
  {
   "answer_json": {
-   "answer": "It's shrunk; studies split on size"
+   "answer": "It's shrunk, and studies split on size"
   },
   "difficulty": 3,
   "id": "si_def9bc4733af",
@@ -14239,10 +14239,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It has grown stronger in recent years",
-    "It is now mostly a large-stock effect",
-    "It's settled at about 60 trading days",
-    "It's shrunk; studies split on size"
+    "It has grown stronger recently",
+    "It's now mostly a large-stock effect",
+    "It's settled near 60 trading days",
+    "It's shrunk, and studies split on size"
    ],
    "kind": "mcq",
    "q": "What does recent research say about the classic post-earnings drift?",
@@ -14300,7 +14300,7 @@
     "summary": "Several recent studies argue the classic drift has shrunk to almost nothing. Other recent studies find the drift still exists. In his data, large stocks have shown no drift since 2006; microcaps only lost it recently. In recent years the classic drift has been close to zero in this paper's sample. The drift was first documented in 1968, named in 1989, and is commonly put down to investors underreacting, among other factors. After earnings beat expectations, prices have tended to keep rising for over 60 trading days; after misses, to keep falling."
    },
    "facts": {
-    "given": "What does recent research say about the classic post-earnings drift? It's shrunk; studies split on size It has grown stronger in recent years It is now mostly a large-stock effect It's settled at about 60 trading days"
+    "given": "What does recent research say about the classic post-earnings drift? It's shrunk, and studies split on size It has grown stronger recently It's now mostly a large-stock effect It's settled near 60 trading days"
    },
    "lesson_line": "I treat the drift as a maybe, not a plan. The stop and the chart come first.",
    "simple": "Recent research says the drift has shrunk, and studies disagree on how much is left.",
@@ -14308,9 +14308,9 @@
    "unit": "F5.07",
    "why": "It has shrunk, and studies split on how much is left. Several studies argue it has shrunk to the point of disappearance. Martineau finds none in large stocks since 2006. Others, like Ali and co-authors and Cox (2020), find it persists. The Philadelphia Fed paper finds the classic drift close to zero in recent years. Treat it as a maybe, never a plan.",
    "wrong": {
-    "It has grown stronger in recent years": "The recent debate runs the other way. Several studies argue it has shrunk to the point of disappearance.",
-    "It is now mostly a large-stock effect": "The reverse. Martineau finds no drift in large stocks since 2006, and microcaps lost it only recently.",
-    "It's settled at about 60 trading days": "Over 60 trading days was the classic finding. Newer work says it has shrunk, and studies still disagree."
+    "It has grown stronger recently": "The recent debate runs the other way. Several studies argue it has shrunk to the point of disappearance.",
+    "It's now mostly a large-stock effect": "The reverse. Martineau finds no drift in large stocks since 2006, and microcaps lost it only recently.",
+    "It's settled near 60 trading days": "Over 60 trading days was the classic finding. Newer work says it has shrunk, and studies still disagree."
    }
   },
   "review_status": "draft",
@@ -16181,7 +16181,7 @@
     "Members fell, more losses guided",
     "A currency gain inside the EPS",
     "The EPS beat over the estimate",
-    "The slight revenue miss on sales"
+    "The slight revenue miss"
    ],
    "kind": "mcq",
    "q": "What's the real news in this report?",
@@ -16268,7 +16268,7 @@
     "summary": "Netflix lost 200,000 subscribers where StreetAccount's survey expected 2.73 million added. Netflix guided to losing 2 million paid members in the second quarter of 2022. Netflix lost 0.2 million paid members in the quarter, against its own forecast of adding 2.5 million. Netflix earned $3.53 a share against a $2.89 Refinitiv consensus. Netflix's revenue was $7.87 billion against $7.93 billion expected. Netflix's first-quarter 2022 EPS was $3.53, and it included a $162 million non-cash currency gain. Subscriber growth had long been a key number for Netflix each quarter. Variety tied the after-hours drop to the subscriber loss and the forecast of more losses. After its first-quarter 2022 report, Netflix fell 35% in one day, on a revenue miss and a surprise subscriber loss. A company can beat and still fall when its outlook disappoints."
    },
    "facts": {
-    "given": "What's the real news in this report? Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter. Members fell, more losses guided The EPS beat over the estimate The slight revenue miss on sales A currency gain inside the EPS"
+    "given": "What's the real news in this report? Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter. Members fell, more losses guided The EPS beat over the estimate The slight revenue miss A currency gain inside the EPS"
    },
    "lesson_line": "Find the key number for each stock. For Netflix in 2022, that was members, not EPS.",
    "simple": "Members fell with more losses guided, because member growth had long been a key number for Netflix.",
@@ -16278,7 +16278,7 @@
    "wrong": {
     "A currency gain inside the EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way.",
     "The EPS beat over the estimate": "It's real, but it looks back. Members and the guide speak to what comes next.",
-    "The slight revenue miss on sales": "It missed, but only just: $7.87 billion against $7.93 billion. Variety tied the drop to the subscriber loss."
+    "The slight revenue miss": "It missed, but only just: $7.87 billion against $7.93 billion. Variety tied the drop to the subscriber loss."
    }
   },
   "review_status": "draft",

@@ -1062,9 +1062,9 @@
    "q": "What should the Oops-day low tag?",
    "choices": [
     "A rising 21-day or 50-day average",
-    "The 5-day average, a faster read",
-    "The 10-day average, our trail line",
-    "The 100-day average, a middle line"
+    "The 5-day average, a fast read",
+    "The 10-day average, our trail",
+    "The 100-day average, mid line"
    ],
    "answer": "A rising 21-day or 50-day average",
    "why": "The Oops-day low should sit within 0.5 ATR of the rising 21-day EMA or 50-day SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see.",
@@ -1074,9 +1074,9 @@
     "h21"
    ],
    "wrong": {
-    "The 5-day average, a faster read": "The card names the rising 21-day EMA or 50-day SMA, or a visible level. A 5-day average is not on that list.",
-    "The 10-day average, our trail line": "The 10-day is our trail for fast movers, not where the Oops-day low should tag. The card names the 21-day EMA or 50-day SMA.",
-    "The 100-day average, a middle line": "The card names the rising 21-day EMA or 50-day SMA. A 100-day average is not on that list."
+    "The 5-day average, a fast read": "The card names the rising 21-day EMA or 50-day SMA, or a visible level. A 5-day average is not on that list.",
+    "The 10-day average, our trail": "The 10-day is our trail for fast movers, not where the Oops-day low should tag. The card names the 21-day EMA or 50-day SMA.",
+    "The 100-day average, mid line": "The card names the rising 21-day EMA or 50-day SMA. A 100-day average is not on that list."
    },
    "house": true,
    "simple": "The low should tag a rising 21-day or 50-day average, or a clear level. The undercut needs something the market can see.",
@@ -1826,9 +1826,9 @@
    "q": "Under our gap rule, where is the stop now?",
    "choices": [
     "30.85, the first 30-minute low",
-    "31.12, the original stop price",
-    "Out at once; the loss is past 2R",
-    "The open, 30.95, the gap price"
+    "31.12, the original stop",
+    "Out now; the loss is past 2R",
+    "30.95, the gap-day open"
    ],
    "story": "You bought at 31.52 with the stop at 31.12. The next morning it gaps open at 30.95. The first 30-minute low is 30.85.",
    "answer": "30.85, the first 30-minute low",
@@ -1840,9 +1840,9 @@
     "h02"
    ],
    "wrong": {
-    "31.12, the original stop price": "The stop is already through. The 30-minute low is the new stop.",
-    "Out at once; the loss is past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
-    "The open, 30.95, the gap price": "The open is not the decision. The 30-minute low is."
+    "31.12, the original stop": "The stop is already through. The 30-minute low is the new stop.",
+    "Out now; the loss is past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
+    "30.95, the gap-day open": "The open is not the decision. The 30-minute low is."
    },
    "house": true,
    "simple": "The new stop is the low of the first 30 minutes, 30.85, because the gap went through the old stop.",
@@ -1868,8 +1868,8 @@
    "q": "What does our plan call for at 3R?",
    "choices": [
     "Sell a third, stop to breakeven",
-    "Sell it all and lock in the 3R",
-    "Sell half, leave the stop alone",
+    "Sell it all, lock in the 3R",
+    "Sell half, leave stop alone",
     "Hold all, nudge the stop up"
    ],
    "story": "You bought at 149.22 with the stop at 146.52. The Oops reaches 3R.",
@@ -1882,8 +1882,8 @@
     "h20"
    ],
    "wrong": {
-    "Sell it all and lock in the 3R": "Trims are thirds, and the last third is trailed.",
-    "Sell half, leave the stop alone": "The hard rule is a third.",
+    "Sell it all, lock in the 3R": "Trims are thirds, and the last third is trailed.",
+    "Sell half, leave stop alone": "The hard rule is a third.",
     "Hold all, nudge the stop up": "The first third comes off at 3R."
    },
    "house": true,
@@ -2021,9 +2021,9 @@
    "q": "Which Oops longs may you take here?",
    "choices": [
     "Only an A+ Oops, nothing less",
-    "Any A or A+ Oops, at full risk",
-    "Any Oops, but at half the size",
-    "None; Orange means mostly cash"
+    "Any A or A+ Oops, full risk",
+    "Any Oops, at half the size",
+    "None; Orange is mostly cash"
    ],
    "story": "A clean Oops reclaims the prior close, but the market reading is Orange.",
    "answer": "Only an A+ Oops, nothing less",
@@ -2034,9 +2034,9 @@
     "h26"
    ],
    "wrong": {
-    "Any A or A+ Oops, at full risk": "Orange takes only A+ setups, so an A is not enough. Full risk is for Green.",
-    "Any Oops, but at half the size": "Smaller and fewer is Yellow. Orange takes only A+ setups.",
-    "None; Orange means mostly cash": "Mostly cash is Red. Orange still allows an A+."
+    "Any A or A+ Oops, full risk": "Orange takes only A+ setups, so an A is not enough. Full risk is for Green.",
+    "Any Oops, at half the size": "Smaller and fewer is Yellow. Orange takes only A+ setups.",
+    "None; Orange is mostly cash": "Mostly cash is Red. Orange still allows an A+."
    },
    "house": true,
    "simple": "In an Orange market you take only A+ setups, so you pass on any Oops that grades lower.",
@@ -2170,7 +2170,7 @@
    "q": "What do you do about that later peak?",
    "choices": [
     "A new trade needs a new trigger",
-    "Buy it back now, you were right",
+    "Buy it back, you were right",
     "Blame the stop and widen it",
     "Skip it for good, it failed"
    ],
@@ -2185,7 +2185,7 @@
     "h28"
    ],
    "wrong": {
-    "Buy it back now, you were right": "Buy again only if the setup triggers again, as a new trade.",
+    "Buy it back, you were right": "Buy again only if the setup triggers again, as a new trade.",
     "Blame the stop and widen it": "A stop never moves wider.",
     "Skip it for good, it failed": "The stock is fine to trade again on a new trigger."
    },
@@ -2273,7 +2273,7 @@
     "An Oops, judged on yesterday's low",
     "A 2B, it reclaimed the same day",
     "A U&R, it undercut a key level",
-    "A Kicker, it opened over the close"
+    "A Kicker, it gapped up"
    ],
    "story": "Yesterday: low 83.10, close 83.90. Today opens at 83.50, trades under 83.10 and closes at 84.40. There is no older swing low nearby.",
    "answer": "An Oops, judged on yesterday's low",
@@ -2290,7 +2290,7 @@
    "wrong": {
     "A 2B, it reclaimed the same day": "A 2B breaks a swing low, not yesterday's low.",
     "A U&R, it undercut a key level": "A U&R needs a bigger level than yesterday's low. This broke yesterday's low and reclaimed the prior close the same day.",
-    "A Kicker, it opened over the close": "A Kicker gaps UP over a red day's close. This opened under the prior close."
+    "A Kicker, it gapped up": "A Kicker gaps UP over a red day's close. This opened under the prior close."
    },
    "house": true,
    "simple": "It is an Oops because it broke only yesterday's low and reclaimed the prior close in one day.",
@@ -2489,9 +2489,9 @@
    "q": "Oops or Go Signal?",
    "choices": [
     "A Go Signal, it fires on the hourly",
-    "An Oops, it undercut a slight range",
-    "A Kicker, it gapped up over a close",
-    "A 2B, it broke and reclaimed a low"
+    "An Oops, undercut a slight range",
+    "A Kicker, a gap up over a close",
+    "A 2B, it reclaimed a swing low"
    ],
    "story": "After a catalyst gap, a stock digests in an hourly flag. It undercuts a slight range and goes red to green in the first hour.",
    "answer": "A Go Signal, it fires on the hourly",
@@ -2503,9 +2503,9 @@
     "l_tb2"
    ],
    "wrong": {
-    "An Oops, it undercut a slight range": "The Oops is read on the daily candle, not an hourly flag.",
-    "A Kicker, it gapped up over a close": "A Kicker is a daily gap up over a red day.",
-    "A 2B, it broke and reclaimed a low": "A 2B breaks a swing low. This undercut a slight range inside an hourly flag."
+    "An Oops, undercut a slight range": "The Oops is read on the daily candle, not an hourly flag.",
+    "A Kicker, a gap up over a close": "A Kicker is a daily gap up over a red day.",
+    "A 2B, it reclaimed a swing low": "A 2B breaks a swing low. This undercut a slight range inside an hourly flag."
    },
    "house": true,
    "simple": "This fires on an hourly flag, so it is a Go Signal, while an Oops is read on the daily candle.",
@@ -2742,9 +2742,9 @@
    "q": "What did the daily chart miss?",
    "choices": [
     "The market was not Green",
-    "The undercut was too small",
-    "The close was far too weak",
-    "The stop was far too wide"
+    "The undercut was small",
+    "The close was too weak",
+    "The stop was too wide"
    ],
    "story": "A clean Oops: it undercut the prior low by 1.26% and closed at 0.85 of its range. You bought at 74.97 with the stop at 73.73. The next day it is stopped, and the index goes on to make a lower low.",
    "answer": "The market was not Green",
@@ -2757,9 +2757,9 @@
     "h04"
    ],
    "wrong": {
-    "The undercut was too small": "The undercut was 1.26% under the prior low. Any trade under the prior low counts.",
-    "The close was far too weak": "The close was at 0.85 of its range, a strong close.",
-    "The stop was far too wide": "The stop was 1.65% from the buy, inside about 3%."
+    "The undercut was small": "The undercut was 1.26% under the prior low. Any trade under the prior low counts.",
+    "The close was too weak": "The close was at 0.85 of its range, a strong close.",
+    "The stop was too wide": "The stop was 1.65% from the buy, inside about 3%."
    },
    "house": true,
    "simple": "The chart looked fine, but the market was not Green, and the index made a lower low.",
@@ -3408,7 +3408,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches o_loc (rising 21-day EMA or 50-day SMA). No second defensible choice; 10-day wrong note grounded in h21. No cross-answer."
+   "notes": "Key matches o_loc (rising 21-day EMA or 50-day SMA). No second defensible choice; 10-day wrong note grounded in h21. No cross-answer.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -3533,13 +3534,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 0.40; loss at the 30.85 low is 0.67 = about 1.7R, under the 2R ceiling (h07), so 30.85 is the new stop (h06). Choices use only story numbers. B20 is taught only here (owner flag)."
+   "notes": "R = 0.40; loss at the 30.85 low is 0.67 = about 1.7R, under the 2R ceiling (h07), so 30.85 is the new stop (h06). Choices use only story numbers. B20 is taught only here (owner flag).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Third at 3R is the hard rule (h05); breakeven at the first trim is tp2 and sits inside the rulebook's 2R to 5R window. Practice of waiting for 5R is flagged for the owner; 'our plan' keys the hard rule."
+   "notes": "Third at 3R is the hard rule (h05); breakeven at the first trim is tp2 and sits inside the rulebook's 2R to 5R window. Practice of waiting for 5R is flagged for the owner; 'our plan' keys the hard rule.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
@@ -3563,7 +3566,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -3587,7 +3591,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "dV, dVw, dVhi all quoted on the dossier row (187.05 on 09-09 is a few weeks after 08-14). Key follows B21. Distractors do not duplicate q32 now."
+   "notes": "dV, dVw, dVhi all quoted on the dossier row (187.05 on 09-09 is a few weeks after 08-14). Key follows B21. Distractors do not duplicate q32 now.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q43": {
    "status": "pass",
@@ -3605,7 +3610,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Open 83.50 < 83.90, low under 83.10, close 84.40 > 83.90 = Oops on yesterday's low; 'no older swing low' is stated. 2B and U&R tells quoted (l_tb1-3, l_ur1-2). Numbers differ from q25/q26."
+   "notes": "Open 83.50 < 83.90, low under 83.10, close 84.40 > 83.90 = Oops on yesterday's low; 'no older swing low' is stated. 2B and U&R tells quoted (l_tb1-3, l_ur1-2). Numbers differ from q25/q26.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3635,7 +3641,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Go Signal key rests on l_go1/l_go2 (hourly flag vs daily candle). The story mirrors the card definition and the term is taught only here, so it is a cue-matching item; accepted, owner flag on a walk-through stands."
+   "notes": "Go Signal key rests on l_go1/l_go2 (hourly flag vs daily candle). The story mirrors the card definition and the term is taught only here, so it is a cue-matching item; accepted, owner flag on a walk-through stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -3671,7 +3678,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "All story numbers appear in the dUBER row (1.26%, 0.85, 74.97, 73.73); 1.65% is in the quote and inside h04's 3%. Not-Green key follows dUBERn and o_mktr. Distractors are falsified by story numbers."
+   "notes": "All story numbers appear in the dUBER row (1.26%, 0.85, 74.97, 73.73); 1.65% is in the quote and inside h04's 3%. Not-Green key follows dUBERn and o_mktr. Distractors are falsified by story numbers.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "cut",

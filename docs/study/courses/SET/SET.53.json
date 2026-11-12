@@ -1925,12 +1925,12 @@
    "criterion": "rg.tries",
    "q": "Take the fourth try?",
    "choices": [
-    "No, 3 tries a week is the limit",
+    "No, 3 tries in a week is the limit",
     "Yes, each cross is its own trade",
     "Yes, but only at half size",
     "No, never retry after a stop-out"
    ],
-   "answer": "No, 3 tries a week is the limit",
+   "answer": "No, 3 tries in a week is the limit",
    "why": "No. On one stock we take at most 3 tries in a week and 6 in a month. Our card adds: after a third failed attempt in a week, stop trying. This cross would be the fourth.",
    "lesson_line": "Three failed tries and the week is done.",
    "facts": [
@@ -1965,8 +1965,8 @@
    "choices": [
     "No, a green candle is not the line",
     "Yes, the hourly candle is green",
-    "Yes, price rose a lot from the low",
-    "No, it needs to trade 4% over 80.00"
+    "Yes, price rallied off the low",
+    "No, it must trade 4% over 80.00"
    ],
    "answer": "No, a green candle is not the line",
    "why": "No. A green candle only means the hourly close, 79.10, is over its open, 78.60. The line is the prior close, 80.00, and price is still under it. The cross comes only when price trades at least a cent over 80.00.",
@@ -1978,8 +1978,8 @@
    ],
    "wrong": {
     "Yes, the hourly candle is green": "A green candle is a close over the open. The line is the prior close.",
-    "Yes, price rose a lot from the low": "Rising from the low is not crossing the line. 79.10 is still under 80.00.",
-    "No, it needs to trade 4% over 80.00": "The cross needs only a trade a cent over 80.00. The 4% is the most you may pay over the prior close, not the trigger."
+    "Yes, price rallied off the low": "Rising from the low is not crossing the line. 79.10 is still under 80.00.",
+    "No, it must trade 4% over 80.00": "The cross needs only a trade a cent over 80.00. The 4% is the most you may pay over the prior close, not the trigger."
    },
    "story": "The prior close was 80.00. The 10:30 hourly candle opened at 78.60 and closed at 79.10, a green candle. Price is 79.10.",
    "house": true,
@@ -2092,12 +2092,12 @@
    "criterion": "rg.stop_width",
    "q": "What do you do?",
    "choices": [
-    "Size down by the stop, or skip",
+    "Size down by the stop, or skip it",
     "Usual size; the setup is clean",
     "Pull the stop up to 3% and buy",
     "Skip; a stop must be under 1%"
    ],
-   "answer": "Size down by the stop, or skip",
+   "answer": "Size down by the stop, or skip it",
    "why": "Size down by the stop, or skip. Our card keeps the stop within about 3% of the entry, and this honest stop is 3.44% under the buy. The size comes from the stop, so a wider stop means fewer shares. Never pull the stop above the dip's low to make it fit.",
    "lesson_line": "Size from the honest stop.",
    "facts": [
@@ -3788,13 +3788,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own lesson_line now. Same mGreen fact as q02 at a later rung with numbers; acceptable."
+   "notes": "Own lesson_line now. Same mGreen fact as q02 at a later rung with numbers; acceptable.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "cut",
@@ -3823,7 +3825,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Size down or skip is cWidth verbatim and agrees with A3/A5 (size from the stop). 3.44% from dDE. Four choices 29-30 chars. 1% wrong note rests on cStop 'median 1%'."
+   "notes": "Size down or skip is cWidth verbatim and agrees with A3/A5 (size from the stop). 3.44% from dDE. Four choices 29-30 chars. 1% wrong note rests on cStop 'median 1%'.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",

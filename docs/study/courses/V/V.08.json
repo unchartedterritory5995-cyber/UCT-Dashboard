@@ -2540,13 +2540,13 @@
    "term": "American-style option",
    "q": "What does American-style mean on an option?",
    "choices": [
-    "Exercisable any time to expiry",
+    "Exercisable any time to expiration",
     "Exercisable only at expiration",
     "Listed on a US options exchange",
     "Settled in cash, not in shares"
    ],
-   "answer": "Exercisable any time to expiry",
-   "why": "Exercisable any time to expiry. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles.",
+   "answer": "Exercisable any time to expiration",
+   "why": "Exercisable any time to expiration. An American-style option can be exercised at any time on or before its expiration date. All standardized equity options are American-style. A European-style option can be exercised only at or just before expiration. The style says nothing about where an option trades or how it settles.",
    "lesson_line": "The style is about when you can exercise, not where the option trades.",
    "facts": [
     "f1",
@@ -3083,12 +3083,12 @@
    "term": "Vertical spread",
    "q": "What do you call buying one option and writing another, same type and expiry, at a different strike?",
    "choices": [
-    "Vertical spread",
+    "A vertical spread",
     "Calendar spread",
     "Diagonal spread",
     "Straddle"
    ],
-   "answer": "Vertical spread",
+   "answer": "A vertical spread",
    "why": "Vertical spread. It buys one option and writes another of the same type and expiration month at a different strike. A bull call spread is one: two calls, same expiration, different strikes. The other choices fail on that one shared expiration, or on mixing a call with a put.",
    "lesson_line": "A vertical spread: same type, same expiration, two strikes.",
    "facts": [
@@ -3200,13 +3200,13 @@
    "term": "Long straddle",
    "q": "What is a long straddle?",
    "choices": [
-    "Buy a call and a put, same strike",
+    "Buy a call and a put at the same strike",
     "Buy a call and a put, two strikes",
     "Sell a call and a put, same strike",
     "Buy the stock and buy a put"
    ],
-   "answer": "Buy a call and a put, same strike",
-   "why": "Buy a call and a put, same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle.",
+   "answer": "Buy a call and a put at the same strike",
+   "why": "Buy a call and a put at the same strike. A long straddle buys both with the same strike and expiration. It should profit if the stock makes a big move up or down. Paying two premiums sets a high bar to break even. Different strikes make it a strangle. Writing both is a short straddle.",
    "lesson_line": "A straddle bets on the size of the move, not the direction. You pay two premiums for it.",
    "facts": [
     "f157",
@@ -3471,13 +3471,13 @@
    "term": "Rolling",
    "q": "What does it mean to roll an option position?",
    "choices": [
-    "Close it, open a new strike or date",
+    "Close it and open a new strike or date",
     "Exercise it early to take the shares",
     "Add more contracts at a lower price",
     "Let it expire, then open a new one"
    ],
-   "answer": "Close it, open a new strike or date",
-   "why": "Close it, open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
+   "answer": "Close it and open a new strike or date",
+   "why": "Close it and open a new strike or date. Rolling closes an open option and opens a new one at a different strike, a different expiration or both. The two trades happen at the same time. Exercise uses the right, and averaging down adds to the same option. Letting it expire and then opening a new one is two steps, not one roll.",
    "lesson_line": "A roll is two trades at once: a close and a new open.",
    "facts": [
     "f52",
@@ -4088,9 +4088,9 @@
    "q": "Read as a rough probability, what does that delta suggest?",
    "choices": [
     "About a 10% chance it ends in the money",
-    "About a 10% chance it expires worthless",
-    "About a 15% chance it ends in the money",
-    "About a 0.1% chance it ends in the money"
+    "About a 10% chance it ends worthless",
+    "About 15% chance it ends in the money",
+    "About 0.1% chance it ends in the money"
    ],
    "answer": "About a 10% chance it ends in the money",
    "why": "About a 10% chance it ends in the money. Delta is an estimate of how much the premium may change for a $1 move in the stock. Some traders also read it as a rough probability of finishing in the money. OIC pairs a delta under .10 with under a 10% chance of being in the money. Such an option needs a strong move to be worth anything at expiry.",
@@ -4104,9 +4104,9 @@
     "f86"
    ],
    "wrong": {
-    "About a 10% chance it expires worthless": "That flips it. Read as odds, 0.10 is about a 10% chance of ending in the money. Expiring worthless is the likely result.",
-    "About a 15% chance it ends in the money": "That reads the $0.15 price as the odds. The price is the premium. Read as odds, the 0.10 delta gives about 10%.",
-    "About a 0.1% chance it ends in the money": "A 0.10 delta read as odds is about 10%, not 0.1%. OIC pairs a delta under .10 with under a 10% chance."
+    "About a 10% chance it ends worthless": "That flips it. Read as odds, 0.10 is about a 10% chance of ending in the money. Expiring worthless is the likely result.",
+    "About 15% chance it ends in the money": "That reads the $0.15 price as the odds. The price is the premium. Read as odds, the 0.10 delta gives about 10%.",
+    "About 0.1% chance it ends in the money": "A 0.10 delta read as odds is about 10%, not 0.1%. OIC pairs a delta under .10 with under a 10% chance."
    },
    "simple": "About a 10% chance, because some traders read a 0.10 delta as rough odds of the option ending in the money.",
    "deeper": {
@@ -4413,7 +4413,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -4503,7 +4504,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f65/f149. Thinned wrong notes are grounded in f11/f20/f54 and no longer give the full definitions behind q38/q40/q41. Simple is 20 words."
+   "notes": "Key from f65/f149. Thinned wrong notes are grounded in f11/f20/f54 and no longer give the full definitions behind q38/q40/q41. Simple is 20 words.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "pass",
@@ -4521,7 +4523,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q39": {
    "status": "pass",
@@ -4569,7 +4572,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right per f52 (simultaneously close and open). Why's last sentence says 'buying again' while the choice says 'open a new one' (a roll can sell the new option too), so the why narrows the choice it is rebutting. Reworded to match."
+   "notes": "Key right per f52 (simultaneously close and open). Why's last sentence says 'buying again' while the choice says 'open a new one' (a roll can sell the new option too), so the why narrows the choice it is rebutting. Reworded to match.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
@@ -4671,7 +4675,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f105 and f106 re-read on the OIC Delta page today. 'Read as a rough probability' removes the definition ambiguity; the worthless/15%/0.1% traps each get a grounded note. Choices 39 to 40 characters."
+   "notes": "f105 and f106 re-read on the OIC Delta page today. 'Read as a rough probability' removes the definition ambiguity; the worthless/15%/0.1% traps each get a grounded note. Choices 39 to 40 characters.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q64": {
    "status": "pass",

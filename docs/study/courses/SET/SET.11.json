@@ -1371,8 +1371,8 @@
    "q": "You buy at 50.00. The launch day's low is 48.60, the averages' bottom 46.20, the base low 44.10. Where does the stop go?",
    "choices": [
     "A few cents under 48.60",
-    "A few cents under 46.20",
-    "A few cents under 44.10",
+    "Just under 46.20",
+    "Just under 44.10",
     "At 50.00, the fill"
    ],
    "answer": "A few cents under 48.60",
@@ -1388,8 +1388,8 @@
    ],
    "house": true,
    "wrong": {
-    "A few cents under 46.20": "That is the bottom of the averages. It sits far outside the 3% habit. The stop goes under the launch day's low.",
-    "A few cents under 44.10": "That is the base low. It sits far outside the 3% habit.",
+    "Just under 46.20": "That is the bottom of the averages. It sits far outside the 3% habit. The stop goes under the launch day's low.",
+    "Just under 44.10": "That is the base low. It sits far outside the 3% habit.",
     "At 50.00, the fill": "A stop at the fill is breakeven. The stop moves there once 2R has traded, not on day one."
    },
    "simple": "The stop goes a few cents under the launch day's low, not under the averages or the base low.",
@@ -2362,9 +2362,9 @@
    "q": "Same shape. Pad A is the first one off a bottom; pad B forms after the stock has doubled. Which leans toward the higher grade?",
    "choices": [
     "Pad A; the run is still ahead",
-    "Pad B; it is a proven stock",
-    "Equal; the shape is the same",
-    "Pad B; the stock has momentum"
+    "Pad B; it is proven",
+    "Equal; same shape",
+    "Pad B; it carries momentum"
    ],
    "answer": "Pad A; the run is still ahead",
    "why": "Pad A. Our card says the first launchpad after the bottom grades higher than a late, repeated one. Haber agrees: a launchpad on an early-stage base carries far more weight than one formed after the stock has already doubled. Grading stays a judgment call. Shape is one input, and where the pad sits in the stock's cycle is another.",
@@ -2376,9 +2376,9 @@
    ],
    "house": true,
    "wrong": {
-    "Pad B; it is a proven stock": "Proven means the run already happened. A pad that forms after the stock has doubled carries far less weight (Haber).",
-    "Equal; the shape is the same": "Shape is one input to the grade. Where the pad sits in the stock's cycle is another.",
-    "Pad B; the stock has momentum": "Momentum behind it means the run already happened. The card ranks the first pad after the bottom above a late, repeated one."
+    "Pad B; it is proven": "Proven means the run already happened. A pad that forms after the stock has doubled carries far less weight (Haber).",
+    "Equal; same shape": "Shape is one input to the grade. Where the pad sits in the stock's cycle is another.",
+    "Pad B; it carries momentum": "Momentum behind it means the run already happened. The card ranks the first pad after the bottom above a late, repeated one."
    },
    "simple": "Pad A leans toward the higher grade, because a pad that forms after a big run carries less weight.",
    "tier": "extended",
@@ -2873,9 +2873,9 @@
    "q": "Launchpad?",
    "choices": [
     "No; the averages were not pinched",
-    "Yes; 2.78x volume is the A+ version",
-    "Yes; it cleared all three averages",
-    "No; a 4.8% bar is too big for a pad"
+    "Yes; 2.78x volume is A+",
+    "Yes; it cleared the averages",
+    "No; a 4.8% bar is too big"
    ],
    "answer": "No; the averages were not pinched",
    "why": "No. The averages had not converged. The 8, 21 and 50-day span 5.77% of price the day before, and the rule is 3% or less. A +4.8% bar on 2.78x volume through a loose bundle under a falling 200-day is a rally bar, not a launch. Volume grades a launch that exists. It cannot create the pad.",
@@ -2889,9 +2889,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; 2.78x volume is the A+ version": "Volume grades a launch that exists. A 5.77% spread means there was no pad to launch from.",
-    "Yes; it cleared all three averages": "It cleared loose averages under a falling 200-day. That is a rally bar, not a launch.",
-    "No; a 4.8% bar is too big for a pad": "A big bar is not a flaw: the push needs only 2% or more. The miss here is the loose averages."
+    "Yes; 2.78x volume is A+": "Volume grades a launch that exists. A 5.77% spread means there was no pad to launch from.",
+    "Yes; it cleared the averages": "It cleared loose averages under a falling 200-day. That is a rally bar, not a launch.",
+    "No; a 4.8% bar is too big": "A big bar is not a flaw: the push needs only 2% or more. The miss here is the loose averages."
    },
    "story": "The three averages span 5.77% of price the day before. A +4.8% bar on 2.78x volume breaks through them under a falling 200-day.",
    "simple": "No, because the averages were 5.77% apart and a pad needs them within 3%, so the big bar was just a rally.",
@@ -3602,7 +3602,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q12": {
    "status": "pass",
@@ -3770,7 +3771,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
    "status": "pass",
@@ -3854,7 +3856,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q54": {
    "status": "pass",

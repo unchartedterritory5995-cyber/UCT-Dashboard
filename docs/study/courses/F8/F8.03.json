@@ -913,8 +913,8 @@
    "q": "What was that sale?",
    "choices": [
     "Cutting a winner early",
-    "Freezing at the trigger",
-    "A planned partial sale",
+    "Freezing at entry",
+    "A planned partial",
     "Respecting your stop"
    ],
    "answer": "Cutting a winner early",
@@ -926,8 +926,8 @@
     "f32"
    ],
    "wrong": {
-    "Freezing at the trigger": "Freezing happens before you're in. You were already in the trade.",
-    "A planned partial sale": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
+    "Freezing at entry": "Freezing happens before you're in. You were already in the trade.",
+    "A planned partial": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
     "Respecting your stop": "Your stop was $38. The stock never got close."
    },
    "simple": "You cut a winner early, because you sold it all on a small dip far from your stop and your trim.",
@@ -1564,7 +1564,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "All prices from the story; $46 = 3R matches B19. f11 hedge ('can make') kept. f32 Farley line fits."
+   "notes": "All prices from the story; $46 = 3R matches B19. f11 hedge ('can make') kept. f32 Farley line fits.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "pass",

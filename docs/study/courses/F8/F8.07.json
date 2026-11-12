@@ -927,9 +927,9 @@
    "q": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it?",
    "choices": [
     "They run a warm-up routine first",
-    "They start cold and find a rhythm",
-    "They follow the same lucky ritual",
-    "They rest to save their energy"
+    "They start cold and ease in",
+    "They follow a lucky ritual",
+    "They rest to save energy"
    ],
    "answer": "They run a warm-up routine first",
    "why": "They run a warm-up routine first. Steenbarger notes that singers, musicians and athletes all have warm-up routines. A warm-up practises the skills you are about to use. Tendler says the same for trading: get your mind ready before you trade, the way an athlete readies the body. Skip it and you start dull, at risk of mistakes and missed chances. A warm-up is not a lucky habit or a rest. It is practice with a job to do.",
@@ -941,9 +941,9 @@
     "ta4b"
    ],
    "wrong": {
-    "They start cold and find a rhythm": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes.",
-    "They follow the same lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use.",
-    "They rest to save their energy": "Resting is not readying. Tendler: before you trade, get your mind ready, much like an athlete readies their body."
+    "They start cold and ease in": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes.",
+    "They follow a lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use.",
+    "They rest to save energy": "Resting is not readying. Tendler: before you trade, get your mind ready, much like an athlete readies their body."
    },
    "simple": "They run a warm-up routine first, because a warm-up gets your mind ready, the way an athlete gets the body ready.",
    "tier": "core",
@@ -1197,9 +1197,9 @@
    "q": "Your charts are marked up for today. What else do you check before the open?",
    "choices": [
     "Earnings dates and overnight news",
-    "Nothing, the charts are all I need",
-    "Where the market will close today",
-    "How to win back yesterday's loss"
+    "Nothing, charts are enough",
+    "Where the market will close",
+    "Winning back yesterday's loss"
    ],
    "answer": "Earnings dates and overnight news",
    "why": "Earnings dates and overnight news. Our rule: no new buys in the 3 days before an earnings report, so check each name's date. Schwab notes that news outside trading hours can make a stock open far from its last close. Investopedia's rules include keeping track of the events that affect stocks. Steenbarger's morning also takes an advance look at the economic reports due that day. Knowing them is not a reason to sit out: we trade Fed and CPI days like any other day.",
@@ -1214,9 +1214,9 @@
     "wc3"
    ],
    "wrong": {
-    "Nothing, the charts are all I need": "News outside trading hours can make a stock open far above or below its last close. Check it before you trade.",
-    "Where the market will close today": "Nobody knows that. Trading is about probabilities, not certainties. Prep covers what's on the calendar, not a forecast.",
-    "How to win back yesterday's loss": "That's revenge trading, planned in advance. Investopedia: don't try to make up for a losing trade by trading more."
+    "Nothing, charts are enough": "News outside trading hours can make a stock open far above or below its last close. Check it before you trade.",
+    "Where the market will close": "Nobody knows that. Trading is about probabilities, not certainties. Prep covers what's on the calendar, not a forecast.",
+    "Winning back yesterday's loss": "That's revenge trading, planned in advance. Investopedia: don't try to make up for a losing trade by trading more."
    },
    "simple": "Check earnings dates and overnight news: no new buys in the 3 days before earnings, and news can gap a stock.",
    "tier": "core",
@@ -1775,7 +1775,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from fa1/fa7/ta4a: the warm-up. Matches. Lengths 32/33/33/30, no tell; every note rests on fa7, ta4a or ta4b."
+   "notes": "Own answer from fa1/fa7/ta4a: the warm-up. Matches. Lengths 32/33/33/30, no tell; every note rests on fa7, ta4a or ta4b.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1823,7 +1824,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hb22 (B22) + wc2: earnings dates and overnight news. Matches. 3 days is in hb22; C32 handled correctly. Lengths 33/34/33/32. No longer hands over q04's key."
+   "notes": "Own answer from hb22 (B22) + wc2: earnings dates and overnight news. Matches. 3 days is in hb22; C32 handled correctly. Lengths 33/34/33/32. No longer hands over q04's key.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",

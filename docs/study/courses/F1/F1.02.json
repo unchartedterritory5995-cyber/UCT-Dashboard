@@ -858,9 +858,9 @@
    "q": "What does one share of a company's common stock give you?",
    "choices": [
     "Part ownership of the company",
-    "A loan you make to the company",
-    "A promised dividend each year",
-    "A vote on every company decision"
+    "A loan to the company",
+    "A promised yearly dividend",
+    "A vote on every decision"
    ],
    "answer": "Part ownership of the company",
    "why": "Part ownership. A share is an ownership stake, called equity, in the company. It gives you a claim on your proportional share of its assets and profits. It is not a loan to the company: that is a bond. It does not promise a dividend. Most stocks give a vote only on certain decisions, such as electing directors.",
@@ -874,9 +874,9 @@
     "f6"
    ],
    "wrong": {
-    "A loan you make to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
-    "A promised dividend each year": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
-    "A vote on every company decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
+    "A loan to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
+    "A promised yearly dividend": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
+    "A vote on every decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
    },
    "simple": "Part ownership. A share makes you an owner of a small slice of the company and its profits.",
    "tier": "core",
@@ -1437,12 +1437,12 @@
    "story": "A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange.",
    "q": "What should you know before you touch it?",
    "choices": [
-    "Little public info, higher risk",
-    "A low price means little downside",
-    "OTC stocks meet exchange standards",
-    "Penny stocks pay steady dividends"
+    "Little public info and higher risk",
+    "Low price means little downside",
+    "OTC stocks meet listing standards",
+    "Penny stocks pay dividends"
    ],
-   "answer": "Little public info, higher risk",
+   "answer": "Little public info and higher risk",
    "why": "Little public information, higher risk. Low-priced microcaps, also called penny stocks, trade mostly over the counter. Relatively little information is available on them compared with companies listed on national exchanges. The microcap sector has a long history of price manipulation and fraud. Penny stocks pay no dividends, and you can lose the money you put in. At UCT we skip it anyway: we trade only stocks at $10 or more that trade at least $20 million a day.",
    "lesson_line": "Little public information and a long fraud history. It is also under our $10 floor. I'd pass on that tip.",
    "facts": [
@@ -1456,11 +1456,11 @@
     "h1"
    ],
    "wrong": {
-    "A low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
-    "OTC stocks meet exchange standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
-    "Penny stocks pay steady dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
+    "Low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
+    "OTC stocks meet listing standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
+    "Penny stocks pay dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
    },
-   "simple": "Little public info, higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
+   "simple": "Little public info and higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
    "deeper": {
     "trap": "A cheap price feels like low risk. It is not. With little public information, you cannot check the story behind a tip. And the microcap sector has a long history of price manipulation."
    },
@@ -1580,7 +1580,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f1/f2 (ownership). Why now matches f2, f7, f5, f3; 'give a vote only on certain decisions' follows f3. Choices balanced, no tell."
+   "notes": "Key re-derived from f1/f2 (ownership). Why now matches f2, f7, f5, f3; 'give a vote only on certain decisions' follows f3. Choices balanced, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1676,7 +1677,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f26/f25. B23 now taught (h1 matches the rulebook verbatim); $10 and $20 million come from h1, $0.40 from the story. Choices 31-34 chars. Owner flag on F66 (friend's tip) left open, correctly."
+   "notes": "Key from f26/f25. B23 now taught (h1 matches the rulebook verbatim); $10 and $20 million come from h1, $0.40 from the story. Choices 31-34 chars. Owner flag on F66 (friend's tip) left open, correctly.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",

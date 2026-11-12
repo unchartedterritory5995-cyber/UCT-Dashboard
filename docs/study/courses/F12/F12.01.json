@@ -1051,9 +1051,9 @@
    "q": "What do you do?",
    "choices": [
     "Keep it; review the rule tonight",
-    "Widen it now, before it gets hit",
-    "Buy more to lower your average cost",
-    "Cancel the stop and just watch it"
+    "Widen it now, before it's hit",
+    "Buy more to lower your cost",
+    "Cancel the stop and watch it"
    ],
    "answer": "Keep it; review the rule tonight",
    "why": "Keep it, and review the rule after the close. Investopedia says a plan's signals don't change while you're trading, only when the market is closed. Fidelity warns against changing a plan as a knee-jerk reaction to a drop. Our stop only moves up, never down or wider. The one exception is our gap rule, and this is a dip, not a gap. A rule you fix tonight applies to your next trade.",
@@ -1065,9 +1065,9 @@
     "f29"
    ],
    "wrong": {
-    "Widen it now, before it gets hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade.",
-    "Buy more to lower your average cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
-    "Cancel the stop and just watch it": "Then nothing guards the trade, and you're deciding everything in the moment."
+    "Widen it now, before it's hit": "That's rewriting the plan mid-trade because it hurts. If the rule needs work, change it tonight, for your next trade.",
+    "Buy more to lower your cost": "That's adding to a loser, near the price that says you're wrong. It changes the plan and adds risk.",
+    "Cancel the stop and watch it": "Then nothing guards the trade, and you're deciding everything in the moment."
    },
    "skill": "process.plan",
    "simple": "Keep the stop you set last night, and change a rule only after the close, never in the middle of a trade.",
@@ -1092,9 +1092,9 @@
    "q": "The group drops and both stops hit. What did you lose?",
    "choices": [
     "2%, as each stop loses its 1%",
-    "1%, since it's really one idea",
+    "1%, as it's really one idea",
     "1%, the plan's per-trade cap",
-    "Under 1%, as the risk is split"
+    "Under 1%, as risk is split"
    ],
    "answer": "2%, as each stop loses its 1%",
    "calc": {
@@ -1112,9 +1112,9 @@
     "f42"
    ],
    "wrong": {
-    "1%, since it's really one idea": "It's one idea, but two full positions. Each one loses its 1% at its own stop.",
+    "1%, as it's really one idea": "It's one idea, but two full positions. Each one loses its 1% at its own stop.",
     "1%, the plan's per-trade cap": "The 1% limits each trade, not your total. Two stopped-out trades lose 1% each, and the losses add.",
-    "Under 1%, as the risk is split": "Two full positions don't split your risk. Each one loses its own 1% at its stop, and these two fell together."
+    "Under 1%, as risk is split": "Two full positions don't split your risk. Each one loses its own 1% at its stop, and these two fell together."
    },
    "skill": "process.plan",
    "simple": "2%, because each full position loses its own 1% at its stop, and a gap can make it more.",
@@ -1416,13 +1416,15 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2% re-derived by calc 1+1; f26 (double risk if both stops hit) and f42 (gaps) support the why. No correlation rule taught as ours (struck by the owner, section 5); Investopedia's 'must decide' credited to Investopedia. Choices 28-30, all in one pattern."
+   "notes": "2% re-derived by calc 1+1; f26 (double risk if both stops hit) and f42 (gaps) support the why. No correlation rule taught as ours (struck by the owner, section 5); Investopedia's 'must decide' credited to Investopedia. Choices 28-30, all in one pattern.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
    "status": "pass",

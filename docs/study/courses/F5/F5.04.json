@@ -970,9 +970,9 @@
    "q": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them?",
    "choices": [
     "At 9:30 a.m., the open that morning",
-    "At 7:00 a.m., when results come out",
-    "At 8:30 a.m., when the call starts",
-    "At 9:30 a.m., the open the next day"
+    "At 7:00 a.m., the release",
+    "At 8:30 a.m., the call starts",
+    "At 9:30 a.m., the next day's open"
    ],
    "answer": "At 9:30 a.m., the open that morning",
    "why": "At 9:30 a.m., the open that morning. JPMorgan set its results for about 7:00 a.m. ET on Tuesday, Oct. 13, with its call at 8:30 a.m. Regular trading starts at 9:30 a.m. ET, so that same morning's open first takes the news. The stock can trade earlier in extended hours, but that is not the regular session.",
@@ -984,9 +984,9 @@
     "f18"
    ],
    "wrong": {
-    "At 7:00 a.m., when results come out": "That's the release time. Regular trading starts at 9:30 a.m. ET; anything earlier is extended hours.",
-    "At 8:30 a.m., when the call starts": "That's the call time. The regular session still opens at 9:30 a.m. ET.",
-    "At 9:30 a.m., the open the next day": "That's how a report after the close would play. This one came before the open."
+    "At 7:00 a.m., the release": "That's the release time. Regular trading starts at 9:30 a.m. ET; anything earlier is extended hours.",
+    "At 8:30 a.m., the call starts": "That's the call time. The regular session still opens at 9:30 a.m. ET.",
+    "At 9:30 a.m., the next day's open": "That's how a report after the close would play. This one came before the open."
    },
    "simple": "At the open that morning, because the 7:00 release comes before regular trading starts at 9:30.",
    "tier": "core",
@@ -1198,9 +1198,9 @@
    "q": "The morning after a report, the live implied move reads far smaller than last night. Why?",
    "choices": [
     "The news is out, so volatility fell",
-    "The stock can't really move much now",
-    "Analysts have lowered their estimates",
-    "Fewer people are trading the options"
+    "The stock can't move much now",
+    "Analysts lowered their estimates",
+    "Fewer people trade the options"
    ],
    "answer": "The news is out, so volatility fell",
    "why": "The news is out, so volatility fell. In the weeks before a report, option volatility usually rises and makes options pricier. Once the news is out, most of the uncertainty is gone and options reprice fast. So the implied move shrinks. It does not mean the stock can't move. The options simply stopped pricing the report.",
@@ -1214,9 +1214,9 @@
     "f50"
    ],
    "wrong": {
-    "The stock can't really move much now": "It can still move. The options simply stopped pricing the report.",
-    "Analysts have lowered their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options.",
-    "Fewer people are trading the options": "The implied move is read from option prices, and they reprice fast once the news is out."
+    "The stock can't move much now": "It can still move. The options simply stopped pricing the report.",
+    "Analysts lowered their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options.",
+    "Fewer people trade the options": "The implied move is read from option prices, and they reprice fast once the news is out."
    },
    "simple": "The report is over, so the options no longer price in its big unknown, and the implied move shrinks.",
    "deeper": {
@@ -1595,7 +1595,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f27 (7:00 a.m. release, 8:30 call) + f17 (9:30 open). Choices 34-35. Stem 137 chars. Its lesson_line teaches the before-open half q12 applies; q12 is the synthesis item, so accepted as teaching, not a give-away."
+   "notes": "f27 (7:00 a.m. release, 8:30 call) + f17 (9:30 open). Choices 34-35. Stem 137 chars. Its lesson_line teaches the before-open half q12 applies; q12 is the synthesis item, so accepted as teaching, not a give-away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
    "status": "pass",
@@ -1637,7 +1638,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f71/f72/f73 (OIC, Tier 1). Choices 35-37, key is shortest. Volume wrong note now rests on f50/f73; weak but not unsupported."
+   "notes": "Key from f71/f72/f73 (OIC, Tier 1). Choices 35-37, key is shortest. Volume wrong note now rests on f50/f73; weak but not unsupported.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",

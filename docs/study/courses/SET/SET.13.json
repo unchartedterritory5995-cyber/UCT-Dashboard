@@ -1098,8 +1098,8 @@
    "q": "In one line, what is a high tight flag?",
    "choices": [
     "A short rest after a near-double",
-    "A long box after a modest run up",
-    "Pullbacks that shrink for months",
+    "A long box after a modest run",
+    "Pullbacks that keep shrinking",
     "A sharp rebound off a crash low"
    ],
    "answer": "A short rest after a near-double",
@@ -1115,8 +1115,8 @@
     "b10"
    ],
    "wrong": {
-    "A long box after a modest run up": "That is a flat base. The flag follows a far bigger, faster run and pauses for weeks, not months.",
-    "Pullbacks that shrink for months": "That is a VCP. The flag is one shelf a little under the high of the pole.",
+    "A long box after a modest run": "That is a flat base. The flag follows a far bigger, faster run and pauses for weeks, not months.",
+    "Pullbacks that keep shrinking": "That is a VCP. The flag is one shelf a little under the high of the pole.",
     "A sharp rebound off a crash low": "That is a V. Bulkowski says to avoid V shapes, where price drops hard into the start of the pole."
    },
    "simple": "A short pause after a near-double, because the stock rests near its high after a fast, huge run.",
@@ -1619,9 +1619,9 @@
    "q": "Which stop is ours on a high tight flag?",
    "choices": [
     "A few cents under the entry day's low",
-    "Just under the lowest low of the flag",
+    "Just under the flag's lowest low",
     "A flat 8% below the price you paid",
-    "One average day's range under the buy"
+    "One average day's range under entry"
    ],
    "answer": "A few cents under the entry day's low",
    "why": "A few cents under the entry day's low, or under the prior day's low. Stop first: the size comes from the stop. It usually sits within about 3% of the buy and only moves up. The flag low is the line that kills the idea, not the stop.",
@@ -1637,9 +1637,9 @@
     "c45"
    ],
    "wrong": {
-    "Just under the lowest low of the flag": "That is Bulkowski's stop. For us the flag low kills the idea but is not the stop. His study of a penny under the flag low averaged a 26% loss.",
+    "Just under the flag's lowest low": "That is Bulkowski's stop. For us the flag low kills the idea but is not the stop. His study of a penny under the flag low averaged a 26% loss.",
     "A flat 8% below the price you paid": "That is IBD's 8% sell rule, not our stop. It triggered on Taser, which then regained the buy point.",
-    "One average day's range under the buy": "Kullamagi uses the average range only as a cap on width. Our stop sits a few cents under the day's low."
+    "One average day's range under entry": "Kullamagi uses the average range only as a cap on width. Our stop sits a few cents under the day's low."
    },
    "house": true,
    "simple": "Our stop sits a few cents under the entry day's low, close to the buy, because the stop sets the size.",
@@ -2520,7 +2520,7 @@
    "q": "What relative strength do we want on this setup?",
    "choices": [
     "An RS rating of 80 or more",
-    "A rating over 50 is enough",
+    "A rating over 50 will do",
     "RS is not a factor here",
     "A rating of 99 or better"
    ],
@@ -2532,7 +2532,7 @@
     "i12"
    ],
    "wrong": {
-    "A rating over 50 is enough": "Our floor is 80, well above 50.",
+    "A rating over 50 will do": "Our floor is 80, well above 50.",
     "RS is not a factor here": "Buy leaders is our rule on every long setup except parabolic and mean-reversion trades.",
     "A rating of 99 or better": "Too narrow. Our floor is 80, not 99."
    },
@@ -2582,8 +2582,8 @@
    "story": "The stock was up 250% in the six months before this pole began. Now it doubles again and pauses tight.",
    "choices": [
     "Pass; it is too late in the move",
-    "Pass; a flag this tight is a trap",
-    "Take it; it is a fresh first base",
+    "Pass; a tight flag is a trap",
+    "Take it; a fresh first base",
     "Take it; momentum makes it A+"
    ],
    "answer": "Pass; it is too late in the move",
@@ -2595,8 +2595,8 @@
     "b05"
    ],
    "wrong": {
-    "Pass; a flag this tight is a trap": "Bulkowski: trade tight flags, not loose ones. Tight is not the problem; the 250% run before the pole is.",
-    "Take it; it is a fresh first base": "Our card wants the first or second big leg. A stock already up 250% in six months is not a fresh first base.",
+    "Pass; a tight flag is a trap": "Bulkowski: trade tight flags, not loose ones. Tight is not the problem; the 250% run before the pole is.",
+    "Take it; a fresh first base": "Our card wants the first or second big leg. A stock already up 250% in six months is not a fresh first base.",
     "Take it; momentum makes it A+": "Momentum this late is the risk, not the edge. The not-late line is a gate: no more than 200% up in the 6 months before the pole."
    },
    "house": true,
@@ -2844,12 +2844,12 @@
    "q": "Which card fits?",
    "story": "The stock rose 35% in six weeks. Then it tightened for four weeks with higher lows, riding its rising short averages.",
    "choices": [
-    "Qullamaggie breakout",
+    "The Qullamaggie breakout",
     "High tight flag setup",
     "A V off a crash low",
     "A flat base or a cup"
    ],
-   "answer": "Qullamaggie breakout",
+   "answer": "The Qullamaggie breakout",
    "why": "The Qullamaggie breakout. It needs only a 30% move in the past 1 to 3 months and rests 2 weeks to 2 months. A high tight flag needs the double in 8 weeks or less. This stock rose 35% in six weeks, so it fits his breakout, not the near-double. His stock surfs the rising 10- and 20-day through the rest.",
    "lesson_line": "The pole decides which card you are on.",
    "facts": [
@@ -2890,7 +2890,7 @@
     "Pass; it is a V off a crash",
     "Take it; the pole doubled",
     "Take it; the flag is tight",
-    "Pass; the rise was too fast"
+    "Pass; the run was too fast"
    ],
    "answer": "Pass; it is a V off a crash",
    "why": "Pass. Not a V: in the 40 sessions before the pole began, the stock must not fall over 30% from high to low. This one fell 45% in six weeks, so the pole is a rebound off a crash. Bulkowski: avoid V shapes, where price drops hard into the start of the pole. He says poles springing from flat bases work better.",
@@ -2904,7 +2904,7 @@
    "wrong": {
     "Take it; the pole doubled": "The double is real, but it starts from a crash. That is the V the card rules out.",
     "Take it; the flag is tight": "A tight flag does not fix where the pole began.",
-    "Pass; the rise was too fast": "Speed is part of the pattern. The rise takes 40 sessions or fewer, and five weeks fits."
+    "Pass; the run was too fast": "Speed is part of the pattern. The rise takes 40 sessions or fewer, and five weeks fits."
    },
    "house": true,
    "simple": "Pass, because the stock fell 45% before the pole began, which makes it a V off a crash, not a fresh launch.",
@@ -3115,9 +3115,9 @@
    "story": "A 123% pole, then a 16-day flag 17.2% deep. Volume in the flag runs 1.27x the pole's average.",
    "choices": [
     "Pass; supply is coming in",
-    "Take it; the pole is huge",
-    "Take it, but at half size",
-    "Pass; the flag is too deep"
+    "Take it; the pole is big",
+    "Take it at half size",
+    "Pass; flag is too deep"
    ],
    "answer": "Pass; supply is coming in",
    "why": "Pass. Flag volume ran 1.27x the pole's average. Our card ends the setup when flag volume runs above the pole's average, because supply is coming in, not drying up. IBD: volume generally dries up in a good flag. PDD, December 2020, had a 123% pole and a 17.2% flag, yet best 0.0R, stopped.",
@@ -3130,9 +3130,9 @@
     "i02"
    ],
    "wrong": {
-    "Take it; the pole is huge": "A huge pole does not cancel heavy selling in the flag.",
-    "Take it, but at half size": "Rising flag volume ends the setup. It is not a size cue.",
-    "Pass; the flag is too deep": "A flag 17.2% deep is inside IBD's usual 10% to 20%. Depth is not the failed line; volume is."
+    "Take it; the pole is big": "A huge pole does not cancel heavy selling in the flag.",
+    "Take it at half size": "Rising flag volume ends the setup. It is not a size cue.",
+    "Pass; flag is too deep": "A flag 17.2% deep is inside IBD's usual 10% to 20%. Depth is not the failed line; volume is."
    },
    "house": true,
    "simple": "Pass, because flag volume ran heavier than the pole's, which means supply is coming in, not drying up.",
@@ -3322,7 +3322,7 @@
    "choices": [
     "Sell a big part into the burst",
     "Hold it all for the trail",
-    "Add on strength; it is working",
+    "Add on strength; it works",
     "Move the stop to the flag low"
    ],
    "answer": "Sell a big part into the burst",
@@ -3335,9 +3335,9 @@
     "h21"
    ],
    "wrong": {
-    "Move the stop to the flag low": "The stop only moves up, and the flag low is far below.",
     "Hold it all for the trail": "Our rule for a climax run on a long you own is to sell a big part into it. The trail handles the rest.",
-    "Add on strength; it is working": "We never add. The full size went on at one price."
+    "Add on strength; it works": "We never add. The full size went on at one price.",
+    "Move the stop to the flag low": "The stop only moves up, and the flag low is far below."
    },
    "house": true,
    "simple": "Sell a big part into the burst, because these breakouts often go straight up and can fall back just as fast.",
@@ -3809,14 +3809,14 @@
    "q": "Which tightness cue marks the A+ flag on our card?",
    "choices": [
     "Weekly closes bunched together",
-    "Narrow daily ranges on every bar",
-    "Light volume on every flag day",
-    "A gap up through the flag's top"
+    "Narrow daily ranges every bar",
+    "Light volume on each flag day",
+    "A gap up through the flag top"
    ],
    "wrong": {
-    "Narrow daily ranges on every bar": "IBD's JDSU flag had wide weekly ranges and still had tight closes. Closes are the cue.",
-    "Light volume on every flag day": "Flag volume has its own line: at most 60% of the pole's is the A grade. It is not the tightness cue.",
-    "A gap up through the flag's top": "A gap is a trigger event. It says nothing about tight closes inside the flag."
+    "Narrow daily ranges every bar": "IBD's JDSU flag had wide weekly ranges and still had tight closes. Closes are the cue.",
+    "Light volume on each flag day": "Flag volume has its own line: at most 60% of the pole's is the A grade. It is not the tightness cue.",
+    "A gap up through the flag top": "A gap is a trigger event. It says nothing about tight closes inside the flag."
    },
    "answer": "Weekly closes bunched together",
    "why": "Closes that stay tight each week. Our card calls tight weekly closes through the flag the A+ tightness cue. That sits on top of the gate: the last 5 closes before the trigger within 10%. IBD's JDSU flag shows why: wild weekly ranges, relatively tight closes. Light volume grades the flag's volume, and a gap is a trigger event. Neither is the tightness cue.",
@@ -3876,14 +3876,14 @@
    "story": "Every chart test is met: a double in seven weeks off a quiet base, a tight flag and a trigger. Sales growth stalled last quarter. A big new contract drove the pole.",
    "choices": [
     "Buy it; the chart comes first",
-    "Pass; sales have to be growing",
-    "Wait until sales turn back up",
-    "Buy it, but only at half size"
+    "Pass; sales must be growing",
+    "Wait until sales turn up",
+    "Buy it, but at half size"
    ],
    "wrong": {
-    "Pass; sales have to be growing": "Growth is preferred, not required. A real catalyst counts, and the chart comes first.",
-    "Wait until sales turn back up": "Waiting on sales is not a rule. The chart sets the entry.",
-    "Buy it, but only at half size": "No rule halves the size for a sales dip. The size comes from the stop, and a real catalyst drove the pole."
+    "Pass; sales must be growing": "Growth is preferred, not required. A real catalyst counts, and the chart comes first.",
+    "Wait until sales turn up": "Waiting on sales is not a rule. The chart sets the entry.",
+    "Buy it, but at half size": "No rule halves the size for a sales dip. The size comes from the stop, and a real catalyst drove the pole."
    },
    "answer": "Buy it; the chart comes first",
    "why": "Buy it; the chart comes first. Growing sales and earnings, or a real catalyst, are preferred but not required. Here a big new contract drove the pole, and every chart test is met.",
@@ -4136,7 +4136,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c01/i01/i02/c02. Notes cite c33, b10, c02. Lengths 31 to 32. Note on q41 overlap is minor (q41 is outside this check)."
+   "notes": "Key follows c01/i01/i02/c02. Notes cite c33, b10, c02. Lengths 31 to 32. Note on q41 overlap is minor (q41 is outside this check).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "cut",
@@ -4226,7 +4227,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
+   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q17": {
    "status": "pass",
@@ -4370,7 +4372,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C31 (h14): RS 80 or more; Taser 98 RS in i12. Distractors plausible, no tell."
+   "notes": "C31 (h14): RS 80 or more; Taser 98 RS in i12. Distractors plausible, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",
@@ -4382,7 +4385,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass answer rests on c11 (200%/6 months) and p03; two Pass / two Take; each wrong choice is refuted by a cited fact. Card-proposal risk already flagged."
+   "notes": "Pass answer rests on c11 (200%/6 months) and p03; two Pass / two Take; each wrong choice is refuted by a cited fact. Card-proposal risk already flagged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q43": {
    "status": "pass",
@@ -4418,13 +4422,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "35% in six weeks, four-week rest and rising short averages fit c34/k01/k03; HTF, V and flat base each refuted by c34, c10-style story logic and c43. Bull-flag overlap is already an owner flag."
+   "notes": "35% in six weeks, four-week rest and rising short averages fit c34/k01/k03; HTF, V and flat base each refuted by c34, c10-style story logic and c43. Bull-flag overlap is already an owner flag.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "45% fall in six weeks (under 40 sessions) fails c10; Bulkowski b10/b11 back it; speed note rests on c48. Two Pass / two Take."
+   "notes": "45% fall in six weeks (under 40 sessions) fails c10; Bulkowski b10/b11 back it; speed note rests on c48. Two Pass / two Take.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -4454,7 +4460,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c17 and PDD d19/d20 support the key; the depth note rests on i02. Choices 25 to 26 characters, no tell."
+   "notes": "c17 and PDD d19/d20 support the key; the depth note rests on i02. Choices 25 to 26 characters, no tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "cut",
@@ -4484,7 +4491,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "By our rule (C34) a climax run on a long is sold into; story matches the burst (gaps, rising volume). Never add and stop-only-moves-up are in the rulebook. No tell."
+   "notes": "By our rule (C34) a climax run on a long is sold into; story matches the burst (gaps, rising volume). Never add and stop-only-moves-up are in the rulebook. No tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",
@@ -4562,7 +4570,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Weekly closes is the card's A+ cue (c50); JDSU i06 supports closes over ranges; light volume and gap notes rest on c08 and c06. The 10% gate sentence rests on c09."
+   "notes": "Weekly closes is the card's A+ cue (c50); JDSU i06 supports closes over ranges; light volume and gap notes rest on c08 and c06. The 10% gate sentence rests on c09.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q73": {
    "status": "pass",
@@ -4574,7 +4583,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy is right (c51, h31); size comes from the stop (h01). Balanced choices, grounded notes. Mild 'chart' echo with story is tolerable because the stem asks for the rule."
+   "notes": "Buy is right (c51, h31); size comes from the stop (h01). Balanced choices, grounded notes. Mild 'chart' echo with story is tolerable because the stem asks for the rule.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q75": {
    "status": "pass",

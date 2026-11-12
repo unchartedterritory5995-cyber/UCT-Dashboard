@@ -2753,13 +2753,13 @@
    "term": "Taper",
    "q": "In late 2021 the Fed began to taper. What does taper mean?",
    "choices": [
-    "Slow and then end bond buying",
+    "Slow and then end Fed bond buying",
     "Sell bonds the Fed already owns",
     "Cut the fed funds rate in steps",
     "Raise the fed funds rate slowly"
    ],
-   "answer": "Slow and then end bond buying",
-   "why": "Slow and then end bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later.",
+   "answer": "Slow and then end Fed bond buying",
+   "why": "Slow and then end Fed bond buying. In November 2021 the Fed announced a phaseout of its asset purchases. In December it doubled the pace of the taper, with purchases set to end by mid-March 2022. Tapering does not shrink holdings. Shrinking them is QT, which came later.",
    "lesson_line": "Taper is QE winding down, not QT. The Fed stops adding before it starts shrinking.",
    "facts": [
     "f57",
@@ -2999,13 +2999,13 @@
    "term": "Establishment survey",
    "q": "Which source produces the nonfarm payroll number?",
    "choices": [
-    "Establishment survey",
+    "The establishment survey",
     "Household survey",
     "Weekly jobless claims",
     "The Fed's Beige Book"
    ],
-   "answer": "Establishment survey",
-   "why": "Establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release.",
+   "answer": "The establishment survey",
+   "why": "The establishment survey. The jobs report uses two surveys. The establishment survey asks businesses, so it counts jobs on payrolls: nonfarm employment, hours and earnings by industry. The household survey asks people and produces the unemployment rate. Weekly jobless claims are a separate Labor Department release.",
    "lesson_line": "Payrolls from employers, unemployment rate from households. Two surveys, one report.",
    "facts": [
     "f100",
@@ -4114,7 +4114,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "upgraded wave8; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
    "status": "pass",
@@ -4156,7 +4157,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Establishment survey from f100/f90 before checking the key. New stem no longer rules out choices by wording. Beige Book is weak but not silly (Fed report from business contacts, f52). q17's why ('the establishment survey's payroll count') and w2 state the answer at lower rungs; accepted as teach-then-test."
+   "notes": "Establishment survey from f100/f90 before checking the key. New stem no longer rules out choices by wording. Beige Book is weak but not silly (Fed report from business contacts, f52). q17's why ('the establishment survey's payroll count') and w2 state the answer at lower rungs; accepted as teach-then-test.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q41": {
    "status": "pass",

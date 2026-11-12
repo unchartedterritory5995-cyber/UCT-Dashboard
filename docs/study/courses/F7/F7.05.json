@@ -1572,9 +1572,9 @@
    "q": "What does this breadth reading tell you?",
    "choices": [
     "Deeply oversold, with no upturn yet",
-    "Extreme oversold; the drop is ending",
+    "Oversold, so the drop is ending",
     "A bullish divergence is forming",
-    "Little; breadth only matters at tops"
+    "Breadth only matters at tops"
    ],
    "answer": "Deeply oversold, with no upturn yet",
    "why": "Deeply oversold, with no upturn yet. ChartSchool counts below 30% above the 50-day as oversold, and says levels vary by index. But oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times. ChartSchool waits for an upturn from oversold levels.",
@@ -1588,9 +1588,9 @@
     "f55"
    ],
    "wrong": {
-    "Extreme oversold; the drop is ending": "Oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times, and this share is still falling.",
+    "Oversold, so the drop is ending": "Oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times, and this share is still falling.",
     "A bullish divergence is forming": "In a bullish divergence, the A/D line holds above its low as the index makes a lower low. Here breadth is still falling.",
-    "Little; breadth only matters at tops": "Breadth matters at lows too. ChartSchool reads oversold levels and waits for an upturn from them."
+    "Breadth only matters at tops": "Breadth matters at lows too. ChartSchool reads oversold levels and waits for an upturn from them."
    },
    "simple": "It is deeply oversold, but no upturn has come, and oversold alone is not always a buy signal.",
    "deeper": {
@@ -1658,9 +1658,9 @@
    "q": "What do those repeated high readings tell you?",
    "choices": [
     "A sign of strength, not weakness",
-    "It's overbought, so go short now",
-    "The uptrend is about to end soon",
-    "Strength that rules out a pullback"
+    "It's overbought, so go short",
+    "The uptrend is about to end",
+    "Strength that rules out dips"
    ],
    "answer": "A sign of strength, not weakness",
    "why": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
@@ -1677,9 +1677,9 @@
     "f08"
    ],
    "wrong": {
-    "It's overbought, so go short now": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
-    "The uptrend is about to end soon": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend.",
-    "Strength that rules out a pullback": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances."
+    "It's overbought, so go short": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
+    "The uptrend is about to end": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend.",
+    "Strength that rules out dips": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances."
    },
    "simple": "It is a sign of strength, because in a strong uptrend this gauge can go overbought again and again.",
    "deeper": {
@@ -2097,7 +2097,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'deeply oversold, no turn yet' from the story (12% vs ChartSchool's 30%, share still falling). f25, f26, f29, f30 verbatim on the ChartSchool page; its 70/30 levels sit in its S&P 500 50-day example, so the S&P 500 story fits, and 12% is far enough below 30% that 'levels vary' does not flip it. No action keyed, so no clash with B18 or q27. 'Little; breadth only matters at tops' is the weakest distractor but a real misconception, and q16 uses the same shape. Could not break it."
+   "notes": "Decided 'deeply oversold, no turn yet' from the story (12% vs ChartSchool's 30%, share still falling). f25, f26, f29, f30 verbatim on the ChartSchool page; its 70/30 levels sit in its S&P 500 50-day example, so the S&P 500 story fits, and 12% is far enough below 30% that 'levels vary' does not flip it. No action keyed, so no clash with B18 or q27. 'Little; breadth only matters at tops' is the weakest distractor but a real misconception, and q16 uses the same shape. Could not break it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -2109,7 +2110,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 'Breadth is strong, not topping' overreaches: 'not topping' reads as a call that the uptrend is not ending, the exact opposite of distractor 3, and no quote says it. ChartSchool (f28, verbatim) says only 'a sign of strength, not weakness'. Key now uses f28's words; the why, simple and lesson line follow. Choices stay 32 to 34 chars; key not longest. Everything else verified on the page (f25, f26, f27)."
+   "notes": "Key 'Breadth is strong, not topping' overreaches: 'not topping' reads as a call that the uptrend is not ending, the exact opposite of distractor 3, and no quote says it. ChartSchool (f28, verbatim) says only 'a sign of strength, not weakness'. Key now uses f28's words; the why, simple and lesson line follow. Choices stay 32 to 34 chars; key not longest. Everything else verified on the page (f25, f26, f27).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

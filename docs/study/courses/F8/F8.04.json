@@ -807,9 +807,9 @@
    "q": "You're down on the day. A long-shot trade that would win it all back looks extra tempting. What's that pull called?",
    "choices": [
     "The break-even effect",
-    "The house money effect",
-    "The disposition effect",
-    "The overconfidence bias"
+    "House money effect",
+    "Disposition effect",
+    "Overconfidence bias"
    ],
    "answer": "The break-even effect",
    "why": "The break-even effect. Thaler and Johnson found that after prior losses, a chance to break even is especially attractive. So a long shot that could win it all back looks extra tempting. Its mirror is the house money effect: more risk taking after a gain. A way back to even is a feeling, not a setup.",
@@ -821,9 +821,9 @@
     "f61"
    ],
    "wrong": {
-    "The house money effect": "That's the mirror image: taking more risk after a gain.",
-    "The disposition effect": "That's holding losers too long and selling winners too soon. It isn't about chasing a way back to even.",
-    "The overconfidence bias": "That's overestimating your own skill. This pull comes from being down, not from feeling sure of yourself."
+    "House money effect": "That's the mirror image: taking more risk after a gain.",
+    "Disposition effect": "That's holding losers too long and selling winners too soon. It isn't about chasing a way back to even.",
+    "Overconfidence bias": "That's overestimating your own skill. This pull comes from being down, not from feeling sure of yourself."
    },
    "simple": "It's the break-even effect, because after losses, a chance to get back to even looks extra good.",
    "tier": "core",
@@ -1278,9 +1278,9 @@
    "q": "What did the study find about their afternoon trading?",
    "choices": [
     "Above-average risk to win it back",
-    "Lower risk to protect what's left",
-    "No change from their usual trading",
-    "Most stopped trading for the day"
+    "Lower risk to keep what's left",
+    "No change from usual trading",
+    "Most stopped trading that day"
    ],
    "answer": "Above-average risk to win it back",
    "why": "Above-average risk to win it back. Coval and Shumway studied proprietary traders at the Chicago Board of Trade. Traders with a losing morning regularly took above-average risk in the afternoon to recover. The authors call them highly loss-averse. Being a pro doesn't switch the pull off.",
@@ -1292,9 +1292,9 @@
     "f54"
    ],
    "wrong": {
-    "Lower risk to protect what's left": "That's what large institutions did in their currency trades, in a different study. These Chicago traders did the opposite.",
-    "No change from their usual trading": "The study found a clear shift after a losing morning: more risk, not the same.",
-    "Most stopped trading for the day": "That's the circuit breaker habit, and it's the right one. It isn't what this study found."
+    "Lower risk to keep what's left": "That's what large institutions did in their currency trades, in a different study. These Chicago traders did the opposite.",
+    "No change from usual trading": "The study found a clear shift after a losing morning: more risk, not the same.",
+    "Most stopped trading that day": "That's the circuit breaker habit, and it's the right one. It isn't what this study found."
    },
    "simple": "They took more risk than usual in the afternoon, trying to win back the losing morning.",
    "deeper": {
@@ -1472,9 +1472,9 @@
    "q": "When should your risk per trade go back to normal?",
    "choices": [
     "While your execution holds up",
-    "Right away, to win back the 4%",
+    "Right away, to win back 4%",
     "After your next big winner",
-    "Never, staying small is safer"
+    "Never, small is safer"
    ],
    "answer": "While your execution holds up",
    "why": "While your execution holds up. Our rules let risk per trade vary with recent results, from 0.25% to 2%. Schwab says to step back up as you show a new track record of executing your system. Tendler adds: once you size up without hurting execution, settle in before the next step. One winner, or the 4% you want back, doesn't decide it.",
@@ -1489,9 +1489,9 @@
     "h13"
    ],
    "wrong": {
-    "Right away, to win back the 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones.",
+    "Right away, to win back 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones.",
     "After your next big winner": "One winner is one result. P&L isn't a reliable measure over the short term.",
-    "Never, staying small is safer": "Too far. Your risk is meant to come back once your results and execution are back on track."
+    "Never, small is safer": "Too far. Your risk is meant to come back once your results and execution are back on track."
    },
    "simple": "Bring your risk back step by step while your trades keep following your plan, not to win money back fast.",
    "deeper": {
@@ -1704,7 +1704,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Before reading the key I picked the break-even effect: after prior losses, a chance to break even is especially attractive (f52, the Thaler and Johnson abstract, re-read on RePEc 2026-11-12). The stem says 'win it all back', which does not echo the word 'break-even'. The distractors are real and wrong: house money is risk after a gain (f53), disposition is holding losers and selling winners (f08, re-read on Investor.gov), and overconfidence is overestimating your skill (f61). Three choices say 'effect' and one says 'bias', and the lengths are balanced. No second defensible answer. The effect's"
+   "notes": "Before reading the key I picked the break-even effect: after prior losses, a chance to break even is especially attractive (f52, the Thaler and Johnson abstract, re-read on RePEc 2026-11-12). The stem says 'win it all back', which does not echo the word 'break-even'. The distractors are real and wrong: house money is risk after a gain (f53), disposition is holding losers and selling winners (f08, re-read on Investor.gov), and overconfidence is overestimating your skill (f61). Three choices say 'effect' and one says 'bias', and the lengths are balanced. No second defensible answer. The effect's",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1782,7 +1783,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
@@ -1812,7 +1814,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Before reading the key I said: step risk back up as execution holds (f21 Schwab, f47 Tendler, f16). The key matches and the distractors are wrong for grounded reasons (f41, f16). Two breaks against the rulebook. (1) The deeper trap ends 'Count clean trades taken by your plan, not dollars made'. That again pits P&L against execution, while A1 (h12) picks risk partly by recent results. The earlier checker removed the same clash from the why but not from the deeper. (2) The rulebook's B17 says there is no losing-streak rule and size is cut only by the drawdown ladder, whose first rung is 6% down."
+   "notes": "Before reading the key I said: step risk back up as execution holds (f21 Schwab, f47 Tendler, f16). The key matches and the distractors are wrong for grounded reasons (f41, f16). Two breaks against the rulebook. (1) The deeper trap ends 'Count clean trades taken by your plan, not dollars made'. That again pits P&L against execution, while A1 (h12) picks risk partly by recent results. The earlier checker removed the same clash from the why but not from the deeper. (2) The rulebook's B17 says there is no losing-streak rule and size is cut only by the drawdown ladder, whose first rung is 6% down.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

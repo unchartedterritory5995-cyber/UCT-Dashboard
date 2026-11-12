@@ -1288,8 +1288,8 @@
    "q": "You're watching for a breadth washout. Which reading fits?",
    "choices": [
     "Under 15% of stocks above their 50-day",
-    "Over 70% of stocks above their 50-day",
-    "The index at a new high, VIX near lows",
+    "Over 70% above their 50-day",
+    "Index at a new high, VIX near lows",
     "Volume drying up for a whole week"
    ],
    "answer": "Under 15% of stocks above their 50-day",
@@ -1303,8 +1303,8 @@
     "f43"
    ],
    "wrong": {
-    "Over 70% of stocks above their 50-day": "That's the overbought end. ChartSchool generally treats above 70% as overbought.",
-    "The index at a new high, VIX near lows": "That's calm, not panic. A washout comes with extreme fear.",
+    "Over 70% above their 50-day": "That's the overbought end. ChartSchool generally treats above 70% as overbought.",
+    "Index at a new high, VIX near lows": "That's calm, not panic. A washout comes with extreme fear.",
     "Volume drying up for a whole week": "Quiet volume isn't panic. A washout is a big, fearful drop, and capitulation comes on unusually high volume."
    },
    "simple": "Under 15% above their 50-day fits, because a washout means almost every stock has broken down.",
@@ -1995,7 +1995,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",

@@ -696,9 +696,9 @@
    "q": "Which kind of stock is usually the easiest to buy and sell quickly?",
    "choices": [
     "A large-cap stock",
-    "A small-cap stock",
-    "A micro-cap stock",
-    "A low-priced stock"
+    "A small-cap",
+    "A micro-cap",
+    "A cheap stock"
    ],
    "answer": "A large-cap stock",
    "why": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps. Well-known stocks with heavy daily volume are generally more liquid than low-priced, low-volume or obscure ones. Usually is the key word: stocks with higher trading volume are generally more liquid, so check the volume itself.",
@@ -712,9 +712,9 @@
     "f23"
    ],
    "wrong": {
-    "A small-cap stock": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder.",
-    "A micro-cap stock": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
-    "A low-priced stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them."
+    "A small-cap": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder.",
+    "A micro-cap": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
+    "A cheap stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them."
    },
    "simple": "A large-cap stock, because FINRA says large caps are usually more liquid than small or micro caps.",
    "tier": "core",
@@ -1345,9 +1345,9 @@
    "q": "What does our rule say about this stock?",
    "choices": [
     "We skip it: too few dollars a day",
-    "We trade it: the price is over $10",
-    "We trade it, but with a small size",
-    "We skip it until the price is $20"
+    "We trade it: price is over $10",
+    "We trade it at small size",
+    "We skip it until price is $20"
    ],
    "answer": "We skip it: too few dollars a day",
    "why": "We skip it. Our rule needs both lines: a price of $10 or more and at least $20 million traded a day. Price times volume here, $15 times 500,000 shares, is far under $20 million. The price passes; the dollars traded do not.",
@@ -1362,9 +1362,9 @@
     "f43"
    ],
    "wrong": {
-    "We trade it: the price is over $10": "The price passes, but our rule needs both lines. At $15, 500,000 shares a day is far under $20 million.",
-    "We trade it, but with a small size": "Size can't fix it. The $20 million line decides which stocks we trade at all, and illiquid stocks are not even watched.",
-    "We skip it until the price is $20": "The $20 million is dollars traded a day, not the share price. Our price line is $10, and $15 already clears it."
+    "We trade it: price is over $10": "The price passes, but our rule needs both lines. At $15, 500,000 shares a day is far under $20 million.",
+    "We trade it at small size": "Size can't fix it. The $20 million line decides which stocks we trade at all, and illiquid stocks are not even watched.",
+    "We skip it until price is $20": "The $20 million is dollars traded a day, not the share price. Our price line is $10, and $15 already clears it."
    },
    "tier": "extended",
    "risk": {
@@ -1464,7 +1464,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
    "status": "pass",
@@ -1572,7 +1573,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: skip ($15 x 500,000 = $7.5M < $20M; price passes). h1 is quoted exactly from sizing_rule.md B23, and the story teaches the rule. Choices are 2 skip and 2 trade at 33-34 chars, with no silly one. Wrong-notes rest on h1/h2. 'Far under' states no number. B23 is read as AVERAGE dollar volume (owner_flag already raised)."
+   "notes": "Solved cold: skip ($15 x 500,000 = $7.5M < $20M; price passes). h1 is quoted exactly from sizing_rule.md B23, and the story teaches the rule. Choices are 2 skip and 2 trade at 33-34 chars, with no silly one. Wrong-notes rest on h1/h2. 'Far under' states no number. B23 is read as AVERAGE dollar volume (owner_flag already raised).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

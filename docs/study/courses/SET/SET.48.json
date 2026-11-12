@@ -1198,9 +1198,9 @@
    "q": "ChartSchool: when does a bearish breakaway gap form?",
    "choices": [
     "After a rise, a top or a range",
-    "Near the end of a long decline",
-    "After one quiet, low-volume day",
-    "Midway through a fast decline"
+    "Near the end of a decline",
+    "After one quiet day",
+    "Midway in a fast decline"
    ],
    "answer": "After a rise, a top or a range",
    "why": "After a rise, a top or a range. ChartSchool says a bearish breakaway gap forms after an extended advance, an extended top or a consolidation period. A sideways range is a consolidation. Kell's DECK example fits: a gap down from highs, then a Wedge Drop, marked its 2021 top. ChartSchool calls a gap near the end of a long trend an exhaustion gap.",
@@ -1211,9 +1211,9 @@
     "m03"
    ],
    "wrong": {
-    "Near the end of a long decline": "ChartSchool calls a gap near the end of a downtrend an exhaustion gap.",
-    "Midway through a fast decline": "ChartSchool's list is an advance, a top or a consolidation. Mid-decline is none of them.",
-    "After one quiet, low-volume day": "One quiet day is not an extended advance, an extended top or a consolidation."
+    "Near the end of a decline": "ChartSchool calls a gap near the end of a downtrend an exhaustion gap.",
+    "After one quiet day": "One quiet day is not an extended advance, an extended top or a consolidation.",
+    "Midway in a fast decline": "ChartSchool's list is an advance, a top or a consolidation. Mid-decline is none of them."
    },
    "simple": "ChartSchool says a bearish breakaway gap comes after a long rise, a top or a sideways range.",
    "tier": "core",
@@ -1234,8 +1234,8 @@
    "q": "QuantRocket studied down gaps. Did it find small and large gaps behave alike?",
    "choices": [
     "No; small ones tend to recover",
-    "No; large ones tend to recover",
-    "Yes; both tend to keep dropping",
+    "No; big ones tend to recover",
+    "Yes; both tend to drop",
     "Yes; both tend to recover"
    ],
    "answer": "No; small ones tend to recover",
@@ -1247,8 +1247,8 @@
     "f03"
    ],
    "wrong": {
-    "No; large ones tend to recover": "It is the reverse. QuantRocket says large down gaps tend to keep dropping.",
-    "Yes; both tend to keep dropping": "QuantRocket says small down gaps tend to recover.",
+    "No; big ones tend to recover": "It is the reverse. QuantRocket says large down gaps tend to keep dropping.",
+    "Yes; both tend to drop": "QuantRocket says small down gaps tend to recover.",
     "Yes; both tend to recover": "QuantRocket says large down gaps tend to keep dropping."
    },
    "simple": "No, because QuantRocket says small down gaps tend to recover while large ones keep falling.",
@@ -1379,8 +1379,8 @@
    "q": "A bear gap leaves a full window. How does our lesson draw the zone?",
    "choices": [
     "A band: gap high to prior day's low",
-    "A single line at the gap day's high",
-    "A single line at the prior day's low",
+    "A line at the gap day's high",
+    "A line at the prior day's low",
     "A band: the gap day's own range"
    ],
    "answer": "A band: gap high to prior day's low",
@@ -1392,8 +1392,8 @@
    ],
    "house": true,
    "wrong": {
-    "A single line at the gap day's high": "That is the zone's bottom edge only. The zone is the whole band.",
-    "A single line at the prior day's low": "That is the zone's top edge only. The zone is the whole band.",
+    "A line at the gap day's high": "That is the zone's bottom edge only. The zone is the whole band.",
+    "A line at the prior day's low": "That is the zone's top edge only. The zone is the whole band.",
     "A band: the gap day's own range": "That is the gap day's own bar. The zone is the empty space above it, up to the prior day's low."
    },
    "simple": "Our lesson draws the gap zone as one band, from the gap day's high up to the prior day's low.",
@@ -2049,13 +2049,13 @@
    "criterion": "bg.not_stretched",
    "q": "A new short here?",
    "choices": [
-    "Skip; wait for the bounce",
+    "Skip it; wait for the bounce",
     "Short now; momentum is down",
     "Drop it; the move is over",
     "Short now with a tight stop"
    ],
    "story": "After a gap down the stock sits 20% under its 10-day average, with no bounce yet.",
-   "answer": "Skip; wait for the bounce",
+   "answer": "Skip it; wait for the bounce",
    "why": "Skip, and wait for the bounce. Our rule skips a short more than 10% under its 10-day average, and this stock is 20% under. 43% of the app's gap-day closes were past that line, which is the case for waiting. Skipping now does not end the read.",
    "lesson_line": "Too stretched means wait. The bounce comes first.",
    "facts": [
@@ -2441,8 +2441,8 @@
    "choices": [
     "First gap, down 7%, lower-third close",
     "Third gap, down 5.2%, 40% of range",
-    "First gap, down 3%, closed at the high",
-    "Second gap, down 6%, upper-half close"
+    "First gap, down 3%, closed high",
+    "Second gap, down 6%, upper half"
    ],
    "answer": "First gap, down 7%, lower-third close",
    "why": "The first gap, down 7%, with a close in the lower third. Our card wants the first gap since the top and a close down at least 5%. The close must also sit in the lower half. Only this choice passes all three. The others fail on a later gap, a close too high, or a drop under 5%.",
@@ -2454,8 +2454,8 @@
    "house": true,
    "wrong": {
     "Third gap, down 5.2%, 40% of range": "The close passes, but a third gap off the same top did worse.",
-    "First gap, down 3%, closed at the high": "The close must be down 5% or more and in the lower half.",
-    "Second gap, down 6%, upper-half close": "A second gap did worse, and the close must be in the lower half."
+    "First gap, down 3%, closed high": "The close must be down 5% or more and in the lower half.",
+    "Second gap, down 6%, upper half": "A second gap did worse, and the close must be in the lower half."
    },
    "simple": "The first gap down 7% with a weak close is cleanest, because it is the first gap and closes low.",
    "tier": "extended",
@@ -2597,9 +2597,9 @@
    "q": "Four study shorts lost, though each gap was textbook. What decided them?",
    "choices": [
     "Bounce, market, distance from top",
-    "The size of the gap, nothing more",
+    "The gap size, nothing more",
     "The date of the next report",
-    "Bad luck with the fills and slips"
+    "Bad luck with the fills"
    ],
    "answer": "Bounce, market, distance from top",
    "why": "The bounce, the market and the distance from the top. In all four losing study shorts the gap itself was textbook. The losses came from what surrounded the gap. So the gap is the level, and the bounce, the market and the distance from the top decide the trade.",
@@ -2612,9 +2612,9 @@
    ],
    "house": true,
    "wrong": {
-    "The size of the gap, nothing more": "In all four the gap was textbook. Size was not the problem.",
+    "The gap size, nothing more": "In all four the gap was textbook. Size was not the problem.",
     "The date of the next report": "Earnings timing is a separate rule. It did not decide these four.",
-    "Bad luck with the fills and slips": "Fills were not the issue. What surrounded the gap was."
+    "Bad luck with the fills": "Fills were not the issue. What surrounded the gap was."
    },
    "simple": "The surroundings decided them, because each gap was textbook and the losses came from what was around it.",
    "deeper": {
@@ -3221,8 +3221,8 @@
    "choices": [
     "It switches the retest read off",
     "It confirms the retest read",
-    "It gives a higher place to short",
-    "Nothing; only the 200-day counts"
+    "It sets a higher short entry",
+    "Nothing; the 200-day decides"
    ],
    "story": "A stock gapped down off its highs, then bounced and was turned back at its falling 50-day. Today it closes above that 50-day.",
    "answer": "It switches the retest read off",
@@ -3233,8 +3233,8 @@
    ],
    "wrong": {
     "It confirms the retest read": "A close back over the line the bounce failed at ends the read. It confirms nothing.",
-    "Nothing; only the 200-day counts": "Our card ends the read on a close above the 50-day the bounce failed at.",
-    "It gives a higher place to short": "A close back over the line is buyers winning. The read ends; it does not improve."
+    "It sets a higher short entry": "A close back over the line is buyers winning. The read ends; it does not improve.",
+    "Nothing; the 200-day decides": "Our card ends the read on a close above the 50-day the bounce failed at."
    },
    "house": true,
    "simple": "It ends the read, because the stock closed back above the 50-day line where the bounce had failed.",
@@ -3601,13 +3601,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "g02 re-read live verbatim (after an extended advance, an extended top or a consolidation period); g07a re-read live. Mid-decline is ChartSchool's continuation gap, not breakaway, so no second answer. m03 (Kell archive) could not be re-fetched (archive blocked) but is supporting only."
+   "notes": "g02 re-read live verbatim (after an extended advance, an extended top or a consolidation period); g07a re-read live. Mid-decline is ChartSchool's continuation gap, not breakaway, so no second answer. m03 (Kell archive) could not be re-fetched (archive blocked) but is supporting only.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Overreach: the m02 sentence is QuantRocket's conclusion paragraph, drawn indirectly (the unfiltered buy-on-gap test lost; a 20-day-filter version standing in for small gaps gained). The backtest never measured small against large gaps directly, so 'in the backtest small ones recovered' says more than the page. Reworded to attribute the claim to QuantRocket's conclusion. m04a verified as the first test."
+   "notes": "Overreach: the m02 sentence is QuantRocket's conclusion paragraph, drawn indirectly (the unfiltered buy-on-gap test lost; a 20-day-filter version standing in for small gaps gained). The backtest never measured small against large gaps directly, so 'in the backtest small ones recovered' says more than the page. Reworded to attribute the claim to QuantRocket's conclusion. m04a verified as the first test.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",
@@ -3715,7 +3717,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d21/d22 verified in dossier section 13 (the four losses are DIS, CIEN, BMRN, NFLX). Deeper uses d08 and d11 correctly. The deeper's CIEN and BMRN lines restate the cases in q36 and q45; it is the rung-8 synthesis shown after answering, so kept."
+   "notes": "d21/d22 verified in dossier section 13 (the four losses are DIS, CIEN, BMRN, NFLX). Deeper uses d08 and d11 correctly. The deeper's CIEN and BMRN lines restate the cases in q36 and q45; it is the rung-8 synthesis shown after answering, so kept.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
    "status": "cut",
@@ -3787,7 +3790,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q45": {
    "status": "pass",
@@ -3811,7 +3815,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",
@@ -3931,7 +3936,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q31": {
    "status": "cut",
@@ -3982,7 +3988,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c36 and the card's invalidations list: a close above the 50-day the bounce was rejected from ends the Version R read. No second answer. (Risk line cites B26 but no h fact; cosmetic.)"
+   "notes": "c36 and the card's invalidations list: a close above the 50-day the bounce was rejected from ends the Version R read. No second answer. (Risk line cites B26 but no h fact; cosmetic.)",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q74": {
    "status": "pass",

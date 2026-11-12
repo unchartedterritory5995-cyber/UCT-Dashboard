@@ -943,7 +943,7 @@
    "q": "What is post-earnings-announcement drift?",
    "choices": [
     "Price keeps moving the surprise's way",
-    "Price snaps back to pre-report levels",
+    "Price snaps back to prior levels",
     "Volume stays high for weeks after",
     "Estimates creep up before the report"
    ],
@@ -957,7 +957,7 @@
     "f62"
    ],
    "wrong": {
-    "Price snaps back to pre-report levels": "That's a reversal. The drift research found the move tended to continue.",
+    "Price snaps back to prior levels": "That's a reversal. The drift research found the move tended to continue.",
     "Volume stays high for weeks after": "Volume can stay high, but the drift is about price.",
     "Estimates creep up before the report": "That's about forecasts before the report. The drift comes after it."
    },
@@ -1592,12 +1592,12 @@
    "format": "mcq",
    "q": "What does recent research say about the classic post-earnings drift?",
    "choices": [
-    "It's shrunk; studies split on size",
-    "It has grown stronger in recent years",
-    "It is now mostly a large-stock effect",
-    "It's settled at about 60 trading days"
+    "It's shrunk, and studies split on size",
+    "It has grown stronger recently",
+    "It's now mostly a large-stock effect",
+    "It's settled near 60 trading days"
    ],
-   "answer": "It's shrunk; studies split on size",
+   "answer": "It's shrunk, and studies split on size",
    "why": "It has shrunk, and studies split on how much is left. Several studies argue it has shrunk to the point of disappearance. Martineau finds none in large stocks since 2006. Others, like Ali and co-authors and Cox (2020), find it persists. The Philadelphia Fed paper finds the classic drift close to zero in recent years. Treat it as a maybe, never a plan.",
    "lesson_line": "I treat the drift as a maybe, not a plan. The stop and the chart come first.",
    "facts": [
@@ -1609,9 +1609,9 @@
     "f60"
    ],
    "wrong": {
-    "It has grown stronger in recent years": "The recent debate runs the other way. Several studies argue it has shrunk to the point of disappearance.",
-    "It is now mostly a large-stock effect": "The reverse. Martineau finds no drift in large stocks since 2006, and microcaps lost it only recently.",
-    "It's settled at about 60 trading days": "Over 60 trading days was the classic finding. Newer work says it has shrunk, and studies still disagree."
+    "It has grown stronger recently": "The recent debate runs the other way. Several studies argue it has shrunk to the point of disappearance.",
+    "It's now mostly a large-stock effect": "The reverse. Martineau finds no drift in large stocks since 2006, and microcaps lost it only recently.",
+    "It's settled near 60 trading days": "Over 60 trading days was the classic finding. Newer work says it has shrunk, and studies still disagree."
    },
    "simple": "Recent research says the drift has shrunk, and studies disagree on how much is left.",
    "deeper": {
@@ -1800,7 +1800,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f60, 1968 from f61, shrink caveat from f62. Balanced choices. Reveal overlaps q24's topic, but as teaching after the answer, not a give-away in a stem."
+   "notes": "Key from f60, 1968 from f61, shrink caveat from f62. Balanced choices. Reveal overlaps q24's topic, but as teaching after the answer, not a give-away in a stem.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -1914,7 +1915,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",

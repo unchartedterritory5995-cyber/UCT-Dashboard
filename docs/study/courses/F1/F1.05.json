@@ -1214,7 +1214,7 @@
     "A thin print, not a firm price",
     "The price it will open at",
     "A cue to buy at market now",
-    "A real trade, so a solid price"
+    "A solid price, a real trade"
    ],
    "answer": "A thin print, not a firm price",
    "why": "A thin print, not a firm price. Only a few hundred shares have traded. With fewer people trading, one order can move the price more than in regular hours. The SEC warns extended-hours prices may not reflect regular-hours prices. The open, set by supply and demand at the open, is the real test.",
@@ -1232,7 +1232,7 @@
    "wrong": {
     "The price it will open at": "Not promised. The SEC warns extended-hours prices may not reflect prices in regular hours.",
     "A cue to buy at market now": "Many brokers take only limit orders this early, and thin trading can raise what you pay. Our rule is no new buys outside regular hours.",
-    "A real trade, so a solid price": "It is a real trade, but only a few hundred shares have traded. With few trades, one order can move the price more than in regular hours."
+    "A solid price, a real trade": "It is a real trade, but only a few hundred shares have traded. With few trades, one order can move the price more than in regular hours."
    },
    "simple": "It is a thin early print, not a firm price, because with so few shares trading one order can move it.",
    "deeper": {
@@ -1361,9 +1361,9 @@
    "q": "What's the most accurate read right now?",
    "choices": [
     "Real news, but a thin, shaky price",
-    "The official close is now 9% lower",
-    "Real news, so the drop will hold",
-    "Just noise the open will erase"
+    "The close is now 9% lower",
+    "Real news, so the drop holds",
+    "Just noise the open erases"
    ],
    "answer": "Real news, but a thin, shaky price",
    "why": "Real news, but a thin, shaky price. A wide quote and small trades show little trading interest. Extended-hours prices may not reflect the next day's open. FINRA notes trading can settle once people digest the results and regular hours resume. The official close is still the 4 p.m. price. Nothing here promises a rebound, and nothing promises the open will match the 9% drop.",
@@ -1378,9 +1378,9 @@
     "f10"
    ],
    "wrong": {
-    "The official close is now 9% lower": "The close is still the 4 p.m. price. After-hours trading doesn't change it.",
-    "Real news, so the drop will hold": "The news is real, but nothing promises the price holds. The SEC warns extended-hours prices may not reflect the next day's open.",
-    "Just noise the open will erase": "The news is real. The SEC says out-of-hours news can move a stock sharply, and nothing promises the open will undo it."
+    "The close is now 9% lower": "The close is still the 4 p.m. price. After-hours trading doesn't change it.",
+    "Real news, so the drop holds": "The news is real, but nothing promises the price holds. The SEC warns extended-hours prices may not reflect the next day's open.",
+    "Just noise the open erases": "The news is real. The SEC says out-of-hours news can move a stock sharply, and nothing promises the open will undo it."
    },
    "simple": "The news is real, but the after-hours price is thin and shaky, so the open may land somewhere else.",
    "deeper": {
@@ -1556,7 +1556,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Solved cold before reading the key: a thin print, not a firm price (story: a few hundred shares at 7:40 a.m.; f69 Schwab 'a single order can move a security's price more than it might during regular hours', verbatim on the live page; f4 SEC 'may not reflect the prices of those stocks during regular hours', verbatim on the live page; f3). Key matches. No second answer: 'A real trade, so a solid price' fails on 'solid'; 'The price it will open at' fails on f4/f25; 'A cue to buy at market now' fails on E58 (f76). Choices 25 to 30 characters, key ties the longest with a distractor of parallel shap"
+   "notes": "Solved cold before reading the key: a thin print, not a firm price (story: a few hundred shares at 7:40 a.m.; f69 Schwab 'a single order can move a security's price more than it might during regular hours', verbatim on the live page; f4 SEC 'may not reflect the prices of those stocks during regular hours', verbatim on the live page; f3). Key matches. No second answer: 'A real trade, so a solid price' fails on 'solid'; 'The price it will open at' fails on f4/f25; 'A cue to buy at market now' fails on E58 (f76). Choices 25 to 30 characters, key ties the longest with a distractor of parallel shap",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1580,7 +1581,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from f8/f4/f21/f24: real news, but a thin, shaky price. 'A stock you follow' removes the hold-through-earnings problem (B22). The replacement distractor 'Real news, so the drop will hold' removes the lone 'real news' tell, and its note rests on f4. 'Just noise' rests on f7. 9% comes from the story. The overlap with q15's key idea is accepted as review: q19 adds the real-news and official-close angles."
+   "notes": "Solved cold from f8/f4/f21/f24: real news, but a thin, shaky price. 'A stock you follow' removes the hold-through-earnings problem (B22). The replacement distractor 'Real news, so the drop will hold' removes the lone 'real news' tell, and its note rests on f4. 'Just noise' rests on f7. 9% comes from the story. The overlap with q15's key idea is accepted as review: q19 adds the real-news and official-close angles.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",

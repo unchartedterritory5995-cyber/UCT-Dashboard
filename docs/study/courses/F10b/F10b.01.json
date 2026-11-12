@@ -799,9 +799,9 @@
    "q": "Where do the shares you sell short usually come from?",
    "choices": [
     "Your broker lends them to you",
-    "The company issues new shares",
-    "The exchange lends them to you",
-    "Your broker buys them on margin"
+    "The company issues shares",
+    "The exchange lends them",
+    "Your broker buys on margin"
    ],
    "answer": "Your broker lends them to you",
    "why": "Your broker lends them to you. The SEC says the shares typically come from the broker's own inventory, the margin accounts of its other clients, or another lender. Because you don't own the shares, your broker must locate them before your short goes through. A short sale creates no new stock, and the exchange is not the lender. Nobody buys the shares for you either. You owe the borrowed shares back.",
@@ -812,9 +812,9 @@
     "f54"
    ],
    "wrong": {
-    "The company issues new shares": "A short sale creates no new stock. You sell shares that someone else owns and lent out.",
-    "The exchange lends them to you": "The loan comes through your broker, from its inventory, other clients' margin accounts or another lender.",
-    "Your broker buys them on margin": "A margin loan for buying is a loan of cash. A short borrows shares and sells them. Nobody buys them for you."
+    "The company issues shares": "A short sale creates no new stock. You sell shares that someone else owns and lent out.",
+    "The exchange lends them": "The loan comes through your broker, from its inventory, other clients' margin accounts or another lender.",
+    "Your broker buys on margin": "A margin loan for buying is a loan of cash. A short borrows shares and sells them. Nobody buys them for you."
    },
    "simple": "Your broker lends them, from its own stock, other clients' accounts or another lender.",
    "tier": "core",
@@ -865,9 +865,9 @@
    "q": "How is the fee to borrow shares for a short usually quoted?",
    "choices": [
     "As a percent per year",
-    "As a flat fee per trade",
-    "As a cut of your profit",
-    "Per share, paid up front"
+    "As a flat trade fee",
+    "As a cut of profit",
+    "Per share, up front"
    ],
    "answer": "As a percent per year",
    "why": "As a percent per year. Schwab and Investopedia both describe the borrow fee as an annualized rate. It accrues daily at the current rate, for the days the short is open. The most liquid shares can cost nothing to borrow. The least liquid can cost more than 100% a year. It is not a commission, and you owe it win or lose.",
@@ -880,9 +880,9 @@
     "f50"
    ],
    "wrong": {
-    "As a flat fee per trade": "That sounds like a commission. The borrow fee runs as a yearly rate for as long as you're short.",
-    "As a cut of your profit": "You owe it win or lose. It's charged on the value of the borrowed shares, not on your profit.",
-    "Per share, paid up front": "It isn't paid once at entry. It accrues daily at the current rate while the short is open."
+    "As a flat trade fee": "That sounds like a commission. The borrow fee runs as a yearly rate for as long as you're short.",
+    "As a cut of profit": "You owe it win or lose. It's charged on the value of the borrowed shares, not on your profit.",
+    "Per share, up front": "It isn't paid once at entry. It accrues daily at the current rate while the short is open."
    },
    "simple": "As a yearly percent of the position's value, charged for each day the short is open, win or lose.",
    "tier": "core",
@@ -1459,8 +1459,8 @@
    "q": "Is the short-sale price test on yet?",
    "choices": [
     "No, it trips in regular hours only",
-    "Yes, any 10% drop trips it at once",
-    "No, it covers just the small caps",
+    "Yes, any 10% drop trips it",
+    "No, it covers just small caps",
     "Yes, the bad news turns it on"
    ],
    "answer": "No, it trips in regular hours only",
@@ -1475,8 +1475,8 @@
     "f18"
    ],
    "wrong": {
-    "Yes, any 10% drop trips it at once": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
-    "No, it covers just the small caps": "It generally covers every exchange-listed stock, large or small.",
+    "Yes, any 10% drop trips it": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
+    "No, it covers just small caps": "It generally covers every exchange-listed stock, large or small.",
     "Yes, the bad news turns it on": "News doesn't trip it. Only a price drop of 10% or more from the prior close, in regular hours, does."
    },
    "simple": "No, because only trades in regular hours count, so the test can trip only once regular trading starts.",
@@ -1677,7 +1677,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f08 (Tier 1). Locate reason now from f43. No new stock is an inference from f08 (borrowed existing shares). Choices balanced. Pass."
+   "notes": "Key from f08 (Tier 1). Locate reason now from f43. No new stock is an inference from f08 (borrowed existing shares). Choices balanced. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1689,7 +1690,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Annualized rate agreed by Schwab f57 and Investopedia f66 (two Tier 2 publishers). Key not longest. Simple and why grounded (f56, f58, f66). Pass. Note: the yearly rates stated in q11, q20, q22 stems reinforce this key, but q05 sits at rung 2, before them."
+   "notes": "Annualized rate agreed by Schwab f57 and Investopedia f66 (two Tier 2 publishers). Key not longest. Simple and why grounded (f56, f58, f66). Pass. Note: the yearly rates stated in q11, q20, q22 stems reinforce this key, but q05 sits at rung 2, before them.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -1785,7 +1787,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: No, the trip is judged on regular-hours trades only (f35, f36, f37, SEC Rule 201 FAQ 1.2 and 1.1, confirmed live 2026-11-12). The story's 'Nothing restricted it yesterday' rules out a carry-over from a prior trip (f18), so the key is the only defensible choice. Choices are balanced (two Yes, two No, 29 to 34 characters). $40.00 and 12% come from the story; 9:30 and 4:00 from f36; 10% from f26. The deeper line on how long it stays on repeats the rule q17 tests, but q17 is rung 7 and q21 rung 8, so it does not spoil it."
+   "notes": "Decided cold: No, the trip is judged on regular-hours trades only (f35, f36, f37, SEC Rule 201 FAQ 1.2 and 1.1, confirmed live 2026-11-12). The story's 'Nothing restricted it yesterday' rules out a carry-over from a prior trip (f18), so the key is the only defensible choice. Choices are balanced (two Yes, two No, 29 to 34 characters). $40.00 and 12% come from the story; 9:30 and 4:00 from f36; 10% from f26. The deeper line on how long it stays on repeats the rule q17 tests, but q17 is rung 7 and q21 rung 8, so it does not spoil it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

@@ -65,9 +65,9 @@
   "prompt_json": {
    "choices": [
     "A log of when and why it happens",
-    "A new setup that suits you better",
-    "A full week away from the screens",
-    "More willpower when the urge hits"
+    "A new setup that suits you",
+    "A week away from the screens",
+    "More willpower in the moment"
    ],
    "kind": "mcq",
    "q": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it?",
@@ -150,7 +150,7 @@
     "summary": "Mapping is a fact-based record of when and how your emotions swing, so you can see the pattern and break it. Tendler's system has three stages, and the first is Map Your Pattern. Stage two digs for the hidden flaws and biases behind the problem. Stage three is correcting the problem, day after day. Go back over your past decisions and look for recurring mistakes and emotional triggers. Understanding your blind spots is the first step to avoiding costly mistakes. Fighting an emotion in the moment is a band-aid, not a fix. Sitting out the days your emotions run high is one of the work-arounds Tendler describes. Work-arounds help in the short term, but they are training wheels, not the fix. A mistake you repeat and can't stop yourself from making is driven by emotion."
    },
    "facts": {
-    "given": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it? A log of when and why it happens More willpower when the urge hits A full week away from the screens A new setup that suits you better"
+    "given": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it? A log of when and why it happens More willpower in the moment A week away from the screens A new setup that suits you"
    },
    "lesson_line": "Map it first. Then fix it.",
    "simple": "Keep a log of when and why it happens, because you have to see the pattern before you can fix it.",
@@ -158,9 +158,9 @@
    "unit": "F8.01",
    "why": "A log of when and why it happens. Tendler's first stage is Map Your Pattern: a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step to avoiding costly mistakes. Mapping is the first step, not the whole fix. Tendler's next stages find the root of the problem and then correct it, day after day.",
    "wrong": {
-    "A full week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
-    "A new setup that suits you better": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup.",
-    "More willpower when the urge hits": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it."
+    "A new setup that suits you": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup.",
+    "A week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
+    "More willpower in the moment": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it."
    }
   },
   "review_status": "draft",
@@ -181,9 +181,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "At month-end, all in one go",
-    "Never, forget it and move on",
-    "Only when it costs you a lot",
+    "At month-end, in one go",
+    "Never, just move on",
+    "Only when it costs a lot",
     "Same day, while it's fresh"
    ],
    "kind": "mcq",
@@ -239,7 +239,7 @@
     "summary": "Accomplished traders Steenbarger has worked with record their journal after the close. Write the clues down and build a detailed map of your reactions. Forgetting a mistake and moving on throws away the clues that could prevent the next one. A journal keeps your original reasons, which guards against hindsight bias. Mapping starts with a record of what happens before, during and after each mistake. Our rule B27: journal every trade the same day and review the week every weekend."
    },
    "facts": {
-    "given": "When should you write down a trading mistake? Same day, while it's fresh At month-end, all in one go Only when it costs you a lot Never, forget it and move on"
+    "given": "When should you write down a trading mistake? Same day, while it's fresh At month-end, in one go Only when it costs a lot Never, just move on"
    },
    "lesson_line": "Write it down today, while you still remember why you clicked.",
    "simple": "Write it the same day, while it's fresh, because a note made then still holds what you really thought.",
@@ -247,9 +247,9 @@
    "unit": "F8.01",
    "why": "Same day, while it's fresh. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. Our own rule says the same: ideally, journal every trade the same day and review the week every weekend. A note written that day keeps your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
    "wrong": {
-    "At month-end, all in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
-    "Never, forget it and move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one.",
-    "Only when it costs you a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes."
+    "At month-end, in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
+    "Never, just move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one.",
+    "Only when it costs a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes."
    }
   },
   "review_status": "draft",
@@ -583,10 +583,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The exact loss, down to the cent",
-    "Who or what is to blame for it",
+    "The exact loss to the cent",
+    "Who or what is to blame",
     "Your thoughts and feelings then",
-    "A promise to do better tomorrow"
+    "A promise to do better"
    ],
    "kind": "mcq",
    "q": "What would make this note useful for finding your pattern?",
@@ -649,7 +649,7 @@
     "summary": "Mapping starts with a record of what happens before, during and after each mistake. The emotions, thoughts, actions and decisions around a mistake are the data that explain it. Your emotional reactions repeat for the same reasons; they are not random. Naming how you feel is the first step to changing your state. Notice your emotional reactions when the market moves. After a big loss, people often blame someone or something else instead of owning their decisions. A vague goal isn't enough; spell out exactly how you'll improve."
    },
    "facts": {
-    "given": "What would make this note useful for finding your pattern? Your journal note on a losing trade reads: 'Down $400. Bad day.' Your thoughts and feelings then Who or what is to blame for it The exact loss, down to the cent A promise to do better tomorrow"
+    "given": "What would make this note useful for finding your pattern? Your journal note on a losing trade reads: 'Down $400. Bad day.' Your thoughts and feelings then Who or what is to blame The exact loss to the cent A promise to do better"
    },
    "lesson_line": "The P&L says what happened. Your thoughts and feelings say why.",
    "simple": "Write down what you thought and felt, because that part repeats, while the dollar loss only says what happened.",
@@ -657,9 +657,9 @@
    "unit": "F8.01",
    "why": "Your thoughts and feelings then. Tendler maps the emotions, thoughts, actions and decisions around a mistake, because they are the data that explain it. Steenbarger says naming how you feel is the first step. The dollar figure tells you what happened, not why. Add what came before, during and after the trade, and the pattern can show.",
    "wrong": {
-    "A promise to do better tomorrow": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it.",
-    "The exact loss, down to the cent": "You already have the number. What's missing is the why.",
-    "Who or what is to blame for it": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it."
+    "A promise to do better": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it.",
+    "The exact loss to the cent": "You already have the number. What's missing is the why.",
+    "Who or what is to blame": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it."
    }
   },
   "review_status": "draft",
@@ -1098,10 +1098,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A good trade, since it made money",
+    "A good trade, it made money",
     "A mistake, logged as a rule break",
-    "No log entry, since it's a winner",
-    "A new setup worth trading again"
+    "No log entry, it's a winner",
+    "A new setup worth repeating"
    ],
    "kind": "mcq",
    "q": "How do you log this trade?",
@@ -1167,7 +1167,7 @@
     "summary": "Getting paid for bad behavior makes it feel right, for a while. Outcome bias is judging a decision by how it turned out instead of by its reasoning. Judging by outcomes leads people to repeat risky choices and overlook good ones. Change the plan only when you have found a better way. A trading plan is written down and followed; you change it only when it doesn't work or you find a better way. Our rule C36: follow the rules; breaking one is not recommended. Our rule B27: journal every trade the same day and review the week every weekend."
    },
    "facts": {
-    "given": "How do you log this trade? Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green. A mistake, logged as a rule break A good trade, since it made money A new setup worth trading again No log entry, since it's a winner"
+    "given": "How do you log this trade? Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green. A mistake, logged as a rule break A good trade, it made money A new setup worth repeating No log entry, it's a winner"
    },
    "lesson_line": "A broken rule that pays still goes in the log as a mistake.",
    "simple": "Log it as a mistake, because you broke your plan, and a win can teach you to break it again.",
@@ -1175,9 +1175,9 @@
    "unit": "F8.01",
    "why": "A mistake, logged as a rule break. Your plan says buy only on a pullback, and you chased. Judge the decision, not the result. Judging by the outcome is outcome bias, and it leads people to repeat risky choices. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while. Our rule is to follow the rules. Change the plan only when you have found a better way, not after one win.",
    "wrong": {
-    "A good trade, since it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
-    "A new setup worth trading again": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
-    "No log entry, since it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
+    "A good trade, it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
+    "A new setup worth repeating": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
+    "No log entry, it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
    }
   },
   "review_status": "draft",
@@ -1758,9 +1758,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Fear of holding a trade overnight",
-    "Fear of losing money on a trade",
-    "Fear of buying a stock at a high",
+    "Fear of holding overnight",
+    "Fear of losing money",
+    "Fear of buying at a high",
     "Fear of being left out of a move"
    ],
    "kind": "mcq",
@@ -1795,7 +1795,7 @@
     "summary": "Steenbarger: FOMO is the fear of missing out on potential market moves. FOMO is the fear of missing out, and everyone feels it. FOMO is the feeling of being on the sidelines of something exciting, and its urgency drives impulsive decisions."
    },
    "facts": {
-    "given": "In trading, what is FOMO? Fear of being left out of a move Fear of losing money on a trade Fear of buying a stock at a high Fear of holding a trade overnight"
+    "given": "In trading, what is FOMO? Fear of being left out of a move Fear of losing money Fear of buying at a high Fear of holding overnight"
    },
    "lesson_line": "FOMO wants you in now, on somebody else's move.",
    "simple": "FOMO is the fear of being left out of a move others are making, and that urge pushes you into rushed trades.",
@@ -1803,9 +1803,9 @@
    "unit": "F8.02",
    "why": "Fear of being left out of a move. FOMO stands for the fear of missing out. In trading it is the fear of missing out on potential market moves. It feels like something exciting is happening while you sit on the sidelines. Its urgency drives rushed, impulsive decisions. It is not the fear of a loss: FOMO is about a gain you are not in.",
    "wrong": {
-    "Fear of buying a stock at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
-    "Fear of holding a trade overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in.",
-    "Fear of losing money on a trade": "That's the fear of loss. FOMO is the fear of being left out of a gain."
+    "Fear of buying at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
+    "Fear of holding overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in.",
+    "Fear of losing money": "That's the fear of loss. FOMO is the fear of being left out of a gain."
    }
   },
   "review_status": "draft",
@@ -3550,10 +3550,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Up to 10% above the buy point",
-    "Up to 5% above the buy point",
+    "Up to 10% above buy point",
+    "Up to 5% above buy point",
     "Up to 4% above the buy point",
-    "Any distance, if shares shrink"
+    "Any, if the shares shrink"
    ],
    "kind": "mcq",
    "q": "By our rule, how far above the buy point can you still buy?",
@@ -3601,7 +3601,7 @@
     "summary": "Our rule C28: never buy more than 4% above the buy point. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. IBD's buy zone runs 5% past the buy point after a breakout. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C29: skip a long more than 10% above its 10-day average."
    },
    "facts": {
-    "given": "By our rule, how far above the buy point can you still buy? Up to 4% above the buy point Up to 5% above the buy point Up to 10% above the buy point Any distance, if shares shrink"
+    "given": "By our rule, how far above the buy point can you still buy? Up to 4% above the buy point Up to 5% above buy point Up to 10% above buy point Any, if the shares shrink"
    },
    "lesson_line": "Our chase line is 4% above the buy point. Past it, we don't buy.",
    "simple": "Up to 4%, because our rule never buys more than 4% above the buy point.",
@@ -3609,9 +3609,9 @@
    "unit": "F8.02",
    "why": "Up to 4% above the buy point. Our rule: never buy more than 4% above the buy point. Inside that line, the stop stays under the buy point, so the distance grows and the shares shrink. IBD talks of a 5% buy zone; our line is 4%.",
    "wrong": {
-    "Any distance, if shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all.",
-    "Up to 10% above the buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
-    "Up to 5% above the buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point."
+    "Any, if the shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all.",
+    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
+    "Up to 5% above buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point."
    }
   },
   "review_status": "draft",
@@ -3737,7 +3737,7 @@
  },
  {
   "answer_json": {
-   "answer": "Skip today; plan it tonight"
+   "answer": "Skip today and plan it tonight"
   },
   "difficulty": 3,
   "id": "si_bd16da72d71c",
@@ -3746,7 +3746,7 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Skip today; plan it tonight",
+    "Skip today and plan it tonight",
     "Buy at market before it runs",
     "Buy now, set a stop later",
     "Short it, the gap is too big"
@@ -3815,7 +3815,7 @@
     "summary": "Our rule D39: entry, stop and size are written down before the open. Never let pressure rush you into buying. Our rule E57: we enter with market orders. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule D44: no setup, no trade; cash is a position. Steenbarger: however many trades you miss, new ones keep coming. Risk per share is the distance from your entry down to your stop."
    },
    "facts": {
-    "given": "What does our rule say to do? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Skip today; plan it tonight Buy at market before it runs Buy now, set a stop later Short it, the gap is too big"
+    "given": "What does our rule say to do? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Skip today and plan it tonight Buy at market before it runs Buy now, set a stop later Short it, the gap is too big"
    },
    "lesson_line": "No written plan before the open, no buy. Plan it tonight if it still looks good.",
    "simple": "Skip it today, because our rule needs the entry, stop and size written down before the market opens.",
@@ -4664,8 +4664,8 @@
    "choices": [
     "Cutting a winner early",
     "Respecting your stop",
-    "A planned partial sale",
-    "Freezing at the trigger"
+    "A planned partial",
+    "Freezing at entry"
    ],
    "kind": "mcq",
    "q": "What was that sale?",
@@ -4700,7 +4700,7 @@
     "summary": "Fear of loss leads investors to hold losers too long and sell winners too quickly. People tend to grab quick profits and sell a stock as soon as it shows a gain. Stay in the trade until price action gives you a reason to exit."
    },
    "facts": {
-    "given": "What was that sale? You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at the trigger A planned partial sale Respecting your stop"
+    "given": "What was that sale? You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at entry A planned partial Respecting your stop"
    },
    "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
    "simple": "You cut a winner early, because you sold it all on a small dip far from your stop and your trim.",
@@ -4708,8 +4708,8 @@
    "unit": "F8.03",
    "why": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop or your $46 trim, so no level in your plan said sell. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out.",
    "wrong": {
-    "A planned partial sale": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
-    "Freezing at the trigger": "Freezing happens before you're in. You were already in the trade.",
+    "A planned partial": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
+    "Freezing at entry": "Freezing happens before you're in. You were already in the trade.",
     "Respecting your stop": "Your stop was $38. The stock never got close."
    }
   },
@@ -6178,9 +6178,9 @@
   "prompt_json": {
    "choices": [
     "The break-even effect",
-    "The overconfidence bias",
-    "The house money effect",
-    "The disposition effect"
+    "Overconfidence bias",
+    "House money effect",
+    "Disposition effect"
    ],
    "kind": "mcq",
    "q": "You're down on the day. A long-shot trade that would win it all back looks extra tempting. What's that pull called?",
@@ -6221,7 +6221,7 @@
     "summary": "Break-even effect: after losses, a chance to get back to even looks especially attractive. House money effect: more risk taking after a gain. The disposition effect is holding losers too long and selling winners too soon. Overconfidence means overestimating your own skill and knowledge."
    },
    "facts": {
-    "given": "You're down on the day. A long-shot trade that would win it all back looks extra tempting. What's that pull called? The break-even effect The house money effect The disposition effect The overconfidence bias"
+    "given": "You're down on the day. A long-shot trade that would win it all back looks extra tempting. What's that pull called? The break-even effect House money effect Disposition effect Overconfidence bias"
    },
    "lesson_line": "Getting back to even is a feeling, not a setup.",
    "simple": "It's the break-even effect, because after losses, a chance to get back to even looks extra good.",
@@ -6229,9 +6229,9 @@
    "unit": "F8.04",
    "why": "The break-even effect. Thaler and Johnson found that after prior losses, a chance to break even is especially attractive. So a long shot that could win it all back looks extra tempting. Its mirror is the house money effect: more risk taking after a gain. A way back to even is a feeling, not a setup.",
    "wrong": {
-    "The disposition effect": "That's holding losers too long and selling winners too soon. It isn't about chasing a way back to even.",
-    "The house money effect": "That's the mirror image: taking more risk after a gain.",
-    "The overconfidence bias": "That's overestimating your own skill. This pull comes from being down, not from feeling sure of yourself."
+    "Disposition effect": "That's holding losers too long and selling winners too soon. It isn't about chasing a way back to even.",
+    "House money effect": "That's the mirror image: taking more risk after a gain.",
+    "Overconfidence bias": "That's overestimating your own skill. This pull comes from being down, not from feeling sure of yourself."
    }
   },
   "review_status": "draft",
@@ -7082,10 +7082,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Lower risk to protect what's left",
-    "Most stopped trading for the day",
+    "Lower risk to keep what's left",
+    "Most stopped trading that day",
     "Above-average risk to win it back",
-    "No change from their usual trading"
+    "No change from usual trading"
    ],
    "kind": "mcq",
    "q": "What did the study find about their afternoon trading?",
@@ -7130,7 +7130,7 @@
     "summary": "The study looked at professional traders at the Chicago Board of Trade. Those pros regularly took above-average risk in the afternoon to win back morning losses. Revenge trading usually means raising both the size and the number of trades to win losses back. In their currency trades, large institutions cut risk hard after losses and added only a little after gains, more so in older, more experienced funds."
    },
    "facts": {
-    "given": "What did the study find about their afternoon trading? A 2005 study followed pro traders at the Chicago Board of Trade. Some of them had a losing morning. Above-average risk to win it back Lower risk to protect what's left No change from their usual trading Most stopped trading for the day"
+    "given": "What did the study find about their afternoon trading? A 2005 study followed pro traders at the Chicago Board of Trade. Some of them had a losing morning. Above-average risk to win it back Lower risk to keep what's left No change from usual trading Most stopped trading that day"
    },
    "lesson_line": "Even pros chase a losing morning. That's why the rule goes in writing.",
    "simple": "They took more risk than usual in the afternoon, trying to win back the losing morning.",
@@ -7138,9 +7138,9 @@
    "unit": "F8.04",
    "why": "Above-average risk to win it back. Coval and Shumway studied proprietary traders at the Chicago Board of Trade. Traders with a losing morning regularly took above-average risk in the afternoon to recover. The authors call them highly loss-averse. Being a pro doesn't switch the pull off.",
    "wrong": {
-    "Lower risk to protect what's left": "That's what large institutions did in their currency trades, in a different study. These Chicago traders did the opposite.",
-    "Most stopped trading for the day": "That's the circuit breaker habit, and it's the right one. It isn't what this study found.",
-    "No change from their usual trading": "The study found a clear shift after a losing morning: more risk, not the same."
+    "Lower risk to keep what's left": "That's what large institutions did in their currency trades, in a different study. These Chicago traders did the opposite.",
+    "Most stopped trading that day": "That's the circuit breaker habit, and it's the right one. It isn't what this study found.",
+    "No change from usual trading": "The study found a clear shift after a losing morning: more risk, not the same."
    }
   },
   "review_status": "draft",
@@ -7383,9 +7383,9 @@
   "prompt_json": {
    "choices": [
     "After your next big winner",
-    "Never, staying small is safer",
+    "Never, small is safer",
     "While your execution holds up",
-    "Right away, to win back the 4%"
+    "Right away, to win back 4%"
    ],
    "kind": "mcq",
    "q": "When should your risk per trade go back to normal?",
@@ -7452,7 +7452,7 @@
     "summary": "Come back smaller, and add size back as you show you are executing your system again. After a string of losses, trade smaller while you review, and size back up once results recover. Raise size only while execution holds, and settle in before the next step up. Short-term P&L is not a reliable measure of how well you are trading. Our risk per trade runs from 0.25% to 2%, picked partly by recent results. Our drawdown ladder: normal cap under 6% down, then 10% at 6% down, 8% at 8%, 5% at 10%, no new trades at 15%. Our rules have no losing-streak rule: size is cut only by the drawdown ladder."
    },
    "facts": {
-    "given": "When should your risk per trade go back to normal? A tilt day cost you 4% last week. Since then you've cut your risk per trade and taken eight trades, all by your plan. While your execution holds up Right away, to win back the 4% After your next big winner Never, staying small is safer"
+    "given": "When should your risk per trade go back to normal? A tilt day cost you 4% last week. Since then you've cut your risk per trade and taken eight trades, all by your plan. While your execution holds up Right away, to win back 4% After your next big winner Never, small is safer"
    },
    "lesson_line": "Earn your risk back with execution, one step at a time.",
    "simple": "Bring your risk back step by step while your trades keep following your plan, not to win money back fast.",
@@ -7461,8 +7461,8 @@
    "why": "While your execution holds up. Our rules let risk per trade vary with recent results, from 0.25% to 2%. Schwab says to step back up as you show a new track record of executing your system. Tendler adds: once you size up without hurting execution, settle in before the next step. One winner, or the 4% you want back, doesn't decide it.",
    "wrong": {
     "After your next big winner": "One winner is one result. P&L isn't a reliable measure over the short term.",
-    "Never, staying small is safer": "Too far. Your risk is meant to come back once your results and execution are back on track.",
-    "Right away, to win back the 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones."
+    "Never, small is safer": "Too far. Your risk is meant to come back once your results and execution are back on track.",
+    "Right away, to win back 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones."
    }
   },
   "review_status": "draft",
@@ -8010,10 +8010,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buying what everyone else is buying",
-    "Fearing you'll miss out on a big move",
+    "Buying what the crowd is buying",
+    "Fearing you'll miss out on a move",
     "Overrating your own skill and knowledge",
-    "Holding losers too long to avoid a loss"
+    "Holding on to losers too long"
    ],
    "kind": "mcq",
    "q": "What does overconfidence bias mean?",
@@ -8047,7 +8047,7 @@
     "summary": "Overconfidence bias is overrating your own ability, knowledge and skill. Schwab: overconfidence is overrating your abilities with money, and it leads to risky bets and ignored data. The disposition effect, holding losers too long and selling winners too early, is a separate bias that overconfidence can feed."
    },
    "facts": {
-    "given": "What does overconfidence bias mean? Overrating your own skill and knowledge Fearing you'll miss out on a big move Holding losers too long to avoid a loss Buying what everyone else is buying"
+    "given": "What does overconfidence bias mean? Overrating your own skill and knowledge Fearing you'll miss out on a move Holding on to losers too long Buying what the crowd is buying"
    },
    "lesson_line": "Feeling sure is not the same as being right.",
    "simple": "It means rating your own skill and knowledge higher than they really are, which pushes you into risky bets.",
@@ -8055,9 +8055,9 @@
    "unit": "F8.05",
    "why": "Overrating your own skill and knowledge. Investopedia defines it as overestimating your abilities, knowledge and skills. Schwab names where it leads: risky bets and ignored data. It is not FOMO or following the crowd. It can feed the disposition effect, but that is a separate bias.",
    "wrong": {
-    "Buying what everyone else is buying": "That's herd behavior, following the crowd. Overconfidence is trusting your own call too much.",
-    "Fearing you'll miss out on a big move": "That's FOMO, the fear of missing out. Overconfidence is rating yourself too highly.",
-    "Holding losers too long to avoid a loss": "That's one half of the disposition effect, a separate bias that also sells winners too soon. Overconfidence can feed it, but the word means overrating yourself."
+    "Buying what the crowd is buying": "That's herd behavior, following the crowd. Overconfidence is trusting your own call too much.",
+    "Fearing you'll miss out on a move": "That's FOMO, the fear of missing out. Overconfidence is rating yourself too highly.",
+    "Holding on to losers too long": "That's one half of the disposition effect, a separate bias that also sells winners too soon. Overconfidence can feed it, but the word means overrating yourself."
    }
   },
   "review_status": "draft",
@@ -8202,19 +8202,19 @@
  },
  {
   "answer_json": {
-   "answer": "Taking more risk after a gain"
+   "answer": "Taking on more risk after a gain"
   },
   "difficulty": 1,
   "id": "si_808afcefd72c",
   "lesson_origin": "session",
-  "lesson_text": "Taking more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss. Profit in your account is your money. Risk it like your money.",
+  "lesson_text": "Taking on more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss. Profit in your account is your money. Risk it like your money.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "Trading with borrowed money",
     "Taking more risk after a loss",
     "Selling winners too early",
-    "Taking more risk after a gain"
+    "Taking on more risk after a gain"
    ],
    "kind": "mcq",
    "q": "What is the house money effect?",
@@ -8248,13 +8248,13 @@
     "summary": "Real-money experiments: after a gain people take more risk; after a loss, a chance to get back to even looks especially good. The house money effect: taking more risk with trading profits than with money you earned. The name comes from the casino: a gambler betting the house's money he just won."
    },
    "facts": {
-    "given": "What is the house money effect? Taking more risk after a gain Taking more risk after a loss Selling winners too early Trading with borrowed money"
+    "given": "What is the house money effect? Taking on more risk after a gain Taking more risk after a loss Selling winners too early Trading with borrowed money"
    },
    "lesson_line": "Profit in your account is your money. Risk it like your money.",
    "simple": "It is taking bigger risks after a win, as if the profit were the casino's money and not your own.",
    "tier": "core",
    "unit": "F8.05",
-   "why": "Taking more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss.",
+   "why": "Taking on more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss.",
    "wrong": {
     "Selling winners too early": "That's the disposition effect. House money is about raising your risk after a win.",
     "Taking more risk after a loss": "That's the break-even effect from the same study: grabbing at a chance to get back to even.",
@@ -8972,9 +8972,9 @@
   "prompt_json": {
    "choices": [
     "Can't tell skill from tailwind yet",
-    "Time to size up while the run lasts",
-    "My stock picking has jumped a level",
-    "Probably luck, so my method is weak"
+    "Size up while the run lasts",
+    "My picking has jumped a level",
+    "Luck, so my method is weak"
    ],
    "kind": "mcq",
    "q": "What's the honest read on your run?",
@@ -9037,7 +9037,7 @@
     "summary": "People give themselves too much credit for success and too little to chance or circumstance, and that turns successful investors overconfident. Taking too much credit for your wins is how overconfidence builds. Luck plays a part in results; a success is not always all skill. Judge a trade against your plan and against the market, not on its own. Sizing up after wins can be the hot hand fallacy, though in a rising market it can work for a while. Size that grows on wins can work in a strong trend, and a sudden reversal can turn it into large losses. More wins do hint at more ability, yet in the model the more successful trader can expect lower profits next, because he is more overconfident."
    },
    "facts": {
-    "given": "What's the honest read on your run? Your last five swing trades all worked. That same month the whole market rallied and most stocks went up. Can't tell skill from tailwind yet My stock picking has jumped a level Time to size up while the run lasts Probably luck, so my method is weak"
+    "given": "What's the honest read on your run? Your last five swing trades all worked. That same month the whole market rallied and most stocks went up. Can't tell skill from tailwind yet My picking has jumped a level Size up while the run lasts Luck, so my method is weak"
    },
    "lesson_line": "In a strong market, compare your results to the market before you grade yourself.",
    "simple": "You can't tell yet. Most stocks went up, so five wins can't show how good you are.",
@@ -9045,9 +9045,9 @@
    "unit": "F8.05",
    "why": "Can't tell skill from tailwind yet. When most stocks rose, five wins can't separate your skill from the market's lift. Wins do hint at some ability. But people give themselves too much credit for success and too little to chance or outside circumstance. Compare your results to the market, and let your plan, not the streak, set your size.",
    "wrong": {
-    "My stock picking has jumped a level": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
-    "Probably luck, so my method is weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much.",
-    "Time to size up while the run lasts": "That's the hot hand feeling. Size that grows on a run can turn a sudden reversal into a large loss."
+    "Luck, so my method is weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much.",
+    "My picking has jumped a level": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
+    "Size up while the run lasts": "That's the hot hand feeling. Size that grows on a run can turn a sudden reversal into a large loss."
    }
   },
   "review_status": "draft",
@@ -9556,8 +9556,8 @@
   "prompt_json": {
    "choices": [
     "It still fits under your 2% cap",
-    "The quarter's profit covers the risk",
-    "You feel sure about the next trades",
+    "The quarter's profit covers it",
+    "You feel sure about the next one",
     "A rule for it written before the run"
    ],
    "kind": "mcq",
@@ -9638,7 +9638,7 @@
     "summary": "Making the decisions, size included, before the trade and writing them into a plan can help you manage risk. Your trade plan sets how much you risk on one trade. A fixed risk limit exists to stop impulsive decisions. Past success can make you assume more gains are coming and wave off the downside. Growing size by a set, calculated rule is how gains compound, and it is not the house money effect. A risk rule is set as a percent of the account: under the 2% rule, at most 2% on any one trade. UCT's rule: never raise risk past the rules after a run of winners. At UCT, under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling. The house money effect: taking more risk with trading profits than with money you earned."
    },
    "facts": {
-    "given": "What would make that a plan and not euphoria? Best quarter you've had. You want to raise risk from 0.5% to 0.75% a trade, well under your 2% cap. A rule for it written before the run It still fits under your 2% cap You feel sure about the next trades The quarter's profit covers the risk"
+    "given": "What would make that a plan and not euphoria? Best quarter you've had. You want to raise risk from 0.5% to 0.75% a trade, well under your 2% cap. A rule for it written before the run It still fits under your 2% cap You feel sure about the next one The quarter's profit covers it"
    },
    "lesson_line": "Any change in size comes from a rule you wrote while you were calm.",
    "simple": "Only a rule written before the hot run makes it a plan, since a raise made at the peak is the streak deciding.",
@@ -9647,8 +9647,8 @@
    "why": "A rule for it written before the run. Setting your risk ahead of time is what a trade plan is for. Our rule: never raise risk past the rules after a run of winners. A change made up at your peak is the streak deciding, even under the cap. Feeling sure and having profit to spare are not tests.",
    "wrong": {
     "It still fits under your 2% cap": "The cap is a ceiling, not a reason. A raise with no rule behind it is still a mood.",
-    "The quarter's profit covers the risk": "That's the house money effect: treating profit as money you can afford to lose.",
-    "You feel sure about the next trades": "Feeling sure is what a hot run produces, so it can't be the test."
+    "The quarter's profit covers it": "That's the house money effect: treating profit as money you can afford to lose.",
+    "You feel sure about the next one": "Feeling sure is what a hot run produces, so it can't be the test."
    }
   },
   "review_status": "draft",
@@ -9927,10 +9927,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The rule you'll follow next time",
+    "The rule for next time",
     "The problem, described in detail",
     "Why your thinking was flawed",
-    "What the mistake cost in dollars"
+    "What the mistake cost"
    ],
    "kind": "mcq",
    "q": "In Tendler's mental hand history, what goes in step 1?",
@@ -9978,7 +9978,7 @@
     "summary": "Step 1: describe the problem in detail. Steps 1 and 2: describe the problem in detail, then explain why it makes sense that you react that way. You find the cause first, and the mental hand history is the tool for finding it. Step 3: explain why the logic from step 2 is flawed. Step 4: come up with a correction to that flawed logic."
    },
    "facts": {
-    "given": "In Tendler's mental hand history, what goes in step 1? The problem, described in detail The rule you'll follow next time What the mistake cost in dollars Why your thinking was flawed"
+    "given": "In Tendler's mental hand history, what goes in step 1? The problem, described in detail The rule for next time What the mistake cost Why your thinking was flawed"
    },
    "lesson_line": "Describe it fully before you try to fix it.",
    "simple": "Step 1 describes the problem in detail, and the later steps explain it, find the flaw and correct it.",
@@ -9986,8 +9986,8 @@
    "unit": "F8.06",
    "why": "The problem, described in detail. Tendler's step 1 reads: describe the problem in detail. It is a record of what happens, not a fix. Why it makes sense comes in step 2. The flaw in that logic comes in step 3. The correction comes in step 4.",
    "wrong": {
-    "The rule you'll follow next time": "A fix comes later, in step 4, and there it corrects your logic. Step 1 only describes the problem.",
-    "What the mistake cost in dollars": "The cost can be one detail. Step 1 is the full description of the problem, not just the bill.",
+    "The rule for next time": "A fix comes later, in step 4, and there it corrects your logic. Step 1 only describes the problem.",
+    "What the mistake cost": "The cost can be one detail. Step 1 is the full description of the problem, not just the bill.",
     "Why your thinking was flawed": "That's step 3. You can't find a flaw in logic you haven't laid out yet."
    }
   },
@@ -10875,8 +10875,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Push the feeling down and hold",
-    "Sell, then write it up tonight",
+    "Push the urge down and hold",
+    "Sell, write it up tonight",
     "Recall what you wrote about it",
     "Wait for the urge to pass"
    ],
@@ -10927,7 +10927,7 @@
     "summary": "Once it has deepened your understanding, you use your step 2 to 5 answers to correct your reactions in real time. When an emotion is triggered, ideally before it gets intense, remind yourself of what your answers say. Tendler's 'Injecting Logic' means using statements you prepared ahead of time to shift your thinking in the moment. Use the correction repeatedly, ideally as soon as the emotion is triggered. Controlling an emotion is different from correcting the problem behind it."
    },
    "facts": {
-    "given": "What does Tendler say to do right now? Your hand history is on cutting winners early, and your correction is clear. Today a winner pulls back, still inside your plan. You feel the urge to sell. Recall what you wrote about it Sell, then write it up tonight Push the feeling down and hold Wait for the urge to pass"
+    "given": "What does Tendler say to do right now? Your hand history is on cutting winners early, and your correction is clear. Today a winner pulls back, still inside your plan. You feel the urge to sell. Recall what you wrote about it Sell, write it up tonight Push the urge down and hold Wait for the urge to pass"
    },
    "lesson_line": "Write it after the session. Use it in the next one, the moment the urge shows up.",
    "simple": "Recall what you wrote right now, because the correction works best before the urge grows strong.",
@@ -10935,8 +10935,8 @@
    "unit": "F8.06",
    "why": "Recall what you wrote about it, now. Tendler says to use your step 2 to 5 answers to correct the reaction in real time. When the emotion is triggered, ideally before it gets too intense, remind yourself of what your answers say. Holding is right here, since the pullback is inside your plan. But holding by force is control, not correction.",
    "wrong": {
-    "Push the feeling down and hold": "Holding is fine, but forcing the feeling down is control, not correction. Your correction is logic you already wrote, so use it.",
-    "Sell, then write it up tonight": "Selling on the urge is the habit you set out to fix. The correction is for this moment.",
+    "Push the urge down and hold": "Holding is fine, but forcing the feeling down is control, not correction. Your correction is logic you already wrote, so use it.",
+    "Sell, write it up tonight": "Selling on the urge is the habit you set out to fix. The correction is for this moment.",
     "Wait for the urge to pass": "Tendler says use it early, as soon as the emotion is triggered. Waiting gives it time to build."
    }
   },
@@ -11122,10 +11122,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "His entry rules are the problem",
-    "He needs more willpower to stop",
+    "His entries are the problem",
+    "He needs more willpower",
     "He hasn't nailed down the cause",
-    "The method just doesn't fit him"
+    "The method doesn't fit him"
    ],
    "kind": "mcq",
    "q": "What does Tendler say is most likely?",
@@ -11184,7 +11184,7 @@
     "summary": "Lots of work and no progress usually means the root cause hasn't been found yet. A reader's problem: revenge trading when he tilts. He had worked on it for four months without success. Tendler's read on that trader: he judges progress too narrowly. Aim for new insight, not what you already know: a real correction usually needs something new uncovered. Controlling an emotion is different from correcting the problem behind it."
    },
    "facts": {
-    "given": "What does Tendler say is most likely? A day trader mapped his emotions, did a hand history on his revenge trading and believes he found the root. For 4 months he has tried a lot of things. A loss or two still sets him off. He hasn't nailed down the cause The method just doesn't fit him He needs more willpower to stop His entry rules are the problem"
+    "given": "What does Tendler say is most likely? A day trader mapped his emotions, did a hand history on his revenge trading and believes he found the root. For 4 months he has tried a lot of things. A loss or two still sets him off. He hasn't nailed down the cause The method doesn't fit him He needs more willpower His entries are the problem"
    },
    "lesson_line": "Real work and no progress means dig again. The root likely isn't found yet.",
    "simple": "He likely has not found the real cause yet, because lots of work with no progress usually means that.",
@@ -11192,9 +11192,9 @@
    "unit": "F8.06",
    "why": "He hasn't nailed down the cause. Tendler says that after a lot of work with the problem still there, the root cause likely hasn't been nailed down. Believing you found the root is not proof. In this real reader case the trader had tried for 4 months. Tendler suggested his definition of progress was too narrow. Dig again, and aim for something new.",
    "wrong": {
-    "He needs more willpower to stop": "Willpower is trying to control the emotion. Tendler says controlling it is different from correcting the problem.",
-    "His entry rules are the problem": "Revenge trades follow losses, whatever the setup. That points to his thinking, not his entries.",
-    "The method just doesn't fit him": "Tendler doesn't blame the method here. Lots of work with no progress likely means the root cause isn't found yet."
+    "He needs more willpower": "Willpower is trying to control the emotion. Tendler says controlling it is different from correcting the problem.",
+    "His entries are the problem": "Revenge trades follow losses, whatever the setup. That points to his thinking, not his entries.",
+    "The method doesn't fit him": "Tendler doesn't blame the method here. Lots of work with no progress likely means the root cause isn't found yet."
    }
   },
   "review_status": "draft",
@@ -11725,10 +11725,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "They rest to save their energy",
+    "They rest to save energy",
     "They run a warm-up routine first",
-    "They start cold and find a rhythm",
-    "They follow the same lucky ritual"
+    "They start cold and ease in",
+    "They follow a lucky ritual"
    ],
    "kind": "mcq",
    "q": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it?",
@@ -11769,7 +11769,7 @@
     "summary": "In most performance fields, top performers warm up before they perform. A warm-up practises the skills you are about to use. Get your mind ready before you trade, the way an athlete readies the body. Skip the warm-up and you start dull, at risk of mistakes and missed chances."
    },
    "facts": {
-    "given": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it? They run a warm-up routine first They start cold and find a rhythm They follow the same lucky ritual They rest to save their energy"
+    "given": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it? They run a warm-up routine first They start cold and ease in They follow a lucky ritual They rest to save energy"
    },
    "lesson_line": "Nobody serious performs cold. Warm up before the open.",
    "simple": "They run a warm-up routine first, because a warm-up gets your mind ready, the way an athlete gets the body ready.",
@@ -11777,9 +11777,9 @@
    "unit": "F8.07",
    "why": "They run a warm-up routine first. Steenbarger notes that singers, musicians and athletes all have warm-up routines. A warm-up practises the skills you are about to use. Tendler says the same for trading: get your mind ready before you trade, the way an athlete readies the body. Skip it and you start dull, at risk of mistakes and missed chances. A warm-up is not a lucky habit or a rest. It is practice with a job to do.",
    "wrong": {
-    "They follow the same lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use.",
-    "They rest to save their energy": "Resting is not readying. Tendler: before you trade, get your mind ready, much like an athlete readies their body.",
-    "They start cold and find a rhythm": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes."
+    "They follow a lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use.",
+    "They rest to save energy": "Resting is not readying. Tendler: before you trade, get your mind ready, much like an athlete readies their body.",
+    "They start cold and ease in": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes."
    }
   },
   "review_status": "draft",
@@ -12350,9 +12350,9 @@
   "prompt_json": {
    "choices": [
     "Earnings dates and overnight news",
-    "Where the market will close today",
-    "Nothing, the charts are all I need",
-    "How to win back yesterday's loss"
+    "Where the market will close",
+    "Nothing, charts are enough",
+    "Winning back yesterday's loss"
    ],
    "kind": "mcq",
    "q": "Your charts are marked up for today. What else do you check before the open?",
@@ -12414,7 +12414,7 @@
     "summary": "Our rule: no new buys in the 3 days before an earnings report. News outside trading hours can make a stock open far from its prior close. Keep track of the events that move stocks. Steenbarger's trading day starts with overseas markets, the day's scheduled economic reports and yesterday's indicators. Our rule: we trade Fed and CPI days like any other day. Don't trade more to win back a loss. Trading is about probabilities, not certainties."
    },
    "facts": {
-    "given": "Your charts are marked up for today. What else do you check before the open? Earnings dates and overnight news Nothing, the charts are all I need Where the market will close today How to win back yesterday's loss"
+    "given": "Your charts are marked up for today. What else do you check before the open? Earnings dates and overnight news Nothing, charts are enough Where the market will close Winning back yesterday's loss"
    },
    "lesson_line": "Before the bell, know each name's earnings date and the overnight news.",
    "simple": "Check earnings dates and overnight news: no new buys in the 3 days before earnings, and news can gap a stock.",
@@ -12422,9 +12422,9 @@
    "unit": "F8.07",
    "why": "Earnings dates and overnight news. Our rule: no new buys in the 3 days before an earnings report, so check each name's date. Schwab notes that news outside trading hours can make a stock open far from its last close. Investopedia's rules include keeping track of the events that affect stocks. Steenbarger's morning also takes an advance look at the economic reports due that day. Knowing them is not a reason to sit out: we trade Fed and CPI days like any other day.",
    "wrong": {
-    "How to win back yesterday's loss": "That's revenge trading, planned in advance. Investopedia: don't try to make up for a losing trade by trading more.",
-    "Nothing, the charts are all I need": "News outside trading hours can make a stock open far above or below its last close. Check it before you trade.",
-    "Where the market will close today": "Nobody knows that. Trading is about probabilities, not certainties. Prep covers what's on the calendar, not a forecast."
+    "Nothing, charts are enough": "News outside trading hours can make a stock open far above or below its last close. Check it before you trade.",
+    "Where the market will close": "Nobody knows that. Trading is about probabilities, not certainties. Prep covers what's on the calendar, not a forecast.",
+    "Winning back yesterday's loss": "That's revenge trading, planned in advance. Investopedia: don't try to make up for a losing trade by trading more."
    }
   },
   "review_status": "draft",

@@ -862,7 +862,7 @@
    "q": "You sell an iron condor for a net credit. Which pair of positions is it made of?",
    "choices": [
     "A bull put spread and a bear call spread",
-    "A bull call spread and a bear put spread",
+    "Bull call spread and bear put spread",
     "A short call and a short put alone",
     "A short straddle and a long strangle"
    ],
@@ -887,7 +887,7 @@
     "f20"
    ],
    "wrong": {
-    "A bull call spread and a bear put spread": "That pair opens for a debit. Schwab calls it the long iron condor, and it needs a sharp move.",
+    "Bull call spread and bear put spread": "That pair opens for a debit. Schwab calls it the long iron condor, and it needs a sharp move.",
     "A short call and a short put alone": "That's a short strangle or straddle. With no long options, nothing caps the loss.",
     "A short straddle and a long strangle": "That's the iron butterfly. Its short call and short put share one strike."
    },
@@ -1267,12 +1267,12 @@
    "story": "A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20.",
    "q": "Where are your two break-evens at expiry?",
    "choices": [
-    "46.80 and 53.20",
+    "At 46.80 and 53.20",
     "45.00 and 55.00",
     "41.80 and 58.20",
     "48.40 and 51.60"
    ],
-   "answer": "46.80 and 53.20",
+   "answer": "At 46.80 and 53.20",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1281,7 +1281,7 @@
      "credit": 3.2
     }
    },
-   "why": "46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit.",
+   "why": "At 46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit. The body is the 50 strike and the credit is 3.20, so 50 minus 3.20 and 50 plus 3.20. Beyond the wings at 45 and 55, the loss is capped at the body-to-wing distance minus the credit.",
    "lesson_line": "Iron butterfly break-evens sit the credit's distance either side of the body.",
    "facts": [
     "f22",
@@ -1290,11 +1290,11 @@
     "f23"
    ],
    "wrong": {
+    "45.00 and 55.00": "Those are the wings, where the max loss starts. The break-evens sit inside them.",
     "41.80 and 58.20": "That measures the credit from the wings. Break-evens are measured from the body, the 50 strike.",
-    "48.40 and 51.60": "That splits the credit in half. The whole 3.20 cushions each direction.",
-    "45.00 and 55.00": "Those are the wings, where the max loss starts. The break-evens sit inside them."
+    "48.40 and 51.60": "That splits the credit in half. The whole 3.20 cushions each direction."
    },
-   "simple": "46.80 and 53.20, because an iron butterfly breaks even at the middle strike plus or minus the full 3.20 credit.",
+   "simple": "At 46.80 and 53.20, because an iron butterfly breaks even at the middle strike plus or minus the full 3.20 credit.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1818,7 +1818,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right before looking (OIC f02 re-read live 2026-11-12; Fidelity f80). Choices 34-40 chars, A and B mirror each other, no tell. Wrong notes hold (f134, f88, f74, f21). One overreach: the lesson_line states as a definition that the put spread sits below the price and the call spread above it, but OIC f04 says only 'Typically' (a skewed condor can sit on one side). The why and simple already say 'usually'. Fix: lesson_line adds 'usually'. Rest unchanged."
+   "notes": "Key right before looking (OIC f02 re-read live 2026-11-12; Fidelity f80). Choices 34-40 chars, A and B mirror each other, no tell. Wrong notes hold (f134, f88, f74, f21). One overreach: the lesson_line states as a definition that the put spread sits below the price and the call spread above it, but OIC f04 says only 'Typically' (a skewed condor can sit on one side). The why and simple already say 'usually'. Fix: lesson_line adds 'usually'. Rest unchanged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1890,7 +1891,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (OIC f22, Fidelity f106: body plus or minus the credit). All four choices are 15 chars, no tell. 53.20 is calc'd; 46.80 and the distractor pairs are the question's own choices, which the rule allows. Wings note is correct from f23."
+   "notes": "Key right (OIC f22, Fidelity f106: body plus or minus the credit). All four choices are 15 chars, no tell. 53.20 is calc'd; 46.80 and the distractor pairs are the question's own choices, which the rule allows. Wings note is correct from f23.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",

@@ -680,9 +680,9 @@
    "q": "On an option chain, what does implied volatility tell you?",
    "choices": [
     "How big a move the market expects",
-    "How much the stock moved last month",
-    "Which way the stock will likely go",
-    "How much the option loses per day"
+    "How much it moved last month",
+    "Which way the stock will go",
+    "How much it loses per day"
    ],
    "answer": "How big a move the market expects",
    "term": "Implied volatility",
@@ -699,9 +699,9 @@
     "f23"
    ],
    "wrong": {
-    "How much the stock moved last month": "That's historical volatility, built from past prices. IV looks ahead.",
-    "Which way the stock will likely go": "IV has no direction. It sizes the expected swing, up or down.",
-    "How much the option loses per day": "That's theta, the daily cost of time. IV is about expected movement."
+    "How much it moved last month": "That's historical volatility, built from past prices. IV looks ahead.",
+    "Which way the stock will go": "IV has no direction. It sizes the expected swing, up or down.",
+    "How much it loses per day": "That's theta, the daily cost of time. IV is about expected movement."
    },
    "simple": "It shows how big a move the market expects, read from option prices, but not which way the stock will go.",
    "tier": "core",
@@ -835,7 +835,7 @@
    "choices": [
     "Expected 30-day S&P 500 volatility",
     "Past 30-day S&P 500 volatility",
-    "Which way the S&P 500 will go next",
+    "Which way the S&P 500 will go",
     "Trading volume on the S&P 500"
    ],
    "answer": "Expected 30-day S&P 500 volatility",
@@ -851,9 +851,9 @@
     "f14"
    ],
    "wrong": {
-    "Which way the S&P 500 will go next": "Like any implied volatility, it sizes the expected move, not its direction.",
-    "Trading volume on the S&P 500": "The VIX is built from S&P 500 option prices, not from trading volume.",
-    "Past 30-day S&P 500 volatility": "That looks back, like historical volatility. The VIX looks ahead, from option prices."
+    "Past 30-day S&P 500 volatility": "That looks back, like historical volatility. The VIX looks ahead, from option prices.",
+    "Which way the S&P 500 will go": "Like any implied volatility, it sizes the expected move, not its direction.",
+    "Trading volume on the S&P 500": "The VIX is built from S&P 500 option prices, not from trading volume."
    },
    "simple": "The VIX shows how much the S&P 500 is expected to move over the next 30 days, read from option prices.",
    "tier": "core",
@@ -1556,7 +1556,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided cold from f13/f1/f56: expected move size. Choices 33-35 chars, no tell; wrong notes grounded (f14/f57, f56, theta via the OIC Theta page f23). Teaches what w1 already teaches; no stem gives another key away."
+   "notes": "Key decided cold from f13/f1/f56: expected move size. Choices 33-35 chars, no tell; wrong notes grounded (f14/f57, f56, theta via the OIC Theta page f23). Teaches what w1 already teaches; no stem gives another key away.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "cut",
@@ -1586,7 +1587,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: expected 30-day S&P 500 volatility. f39 and f40 re-read today in Cboe's methodology PDF (text extracted), f41 'fear gauge' present. Key ties the longest choice (34 vs 34), no echo. Wrong notes grounded (f56, f40, f14). No leak into q22/q24."
+   "notes": "Decided cold: expected 30-day S&P 500 volatility. f39 and f40 re-read today in Cboe's methodology PDF (text extracted), f41 'fear gauge' present. Key ties the longest choice (34 vs 34), no echo. Wrong notes grounded (f56, f40, f14). No leak into q22/q24.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q07": {
    "status": "pass",

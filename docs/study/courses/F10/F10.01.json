@@ -487,7 +487,7 @@
     "Trade now at the best price available",
     "Trade only at a price you set",
     "Trade at today's closing price",
-    "Trade once the stock hits a set price"
+    "Trade once a set price is hit"
    ],
    "answer": "Trade now at the best price available",
    "why": "Trade now at the best price available. A market order generally fills right away, and FINRA calls it the most certain way to get filled. What it does not promise is the price. The fill can land away from the quote you saw.",
@@ -505,7 +505,7 @@
    "wrong": {
     "Trade only at a price you set": "That's a limit order. It trades at your price or better, or not at all.",
     "Trade at today's closing price": "A plain market order doesn't wait for the close. It trades at the best price available as soon as it can be filled.",
-    "Trade once the stock hits a set price": "A market order doesn't wait for any price. Stop orders and resting limit orders are the ones that wait."
+    "Trade once a set price is hit": "A market order doesn't wait for any price. Stop orders and resting limit orders are the ones that wait."
    },
    "simple": "A market order tells your broker to trade now at the best price available, without waiting for a price you name.",
    "tier": "core",
@@ -784,8 +784,8 @@
    "choices": [
     "A buy limit at $58",
     "A market buy now",
-    "A buy stop at $58",
-    "A buy limit at $62"
+    "A $58 buy stop",
+    "A $62 buy limit"
    ],
    "answer": "A buy limit at $58",
    "why": "A buy limit at $58. It rests below the market and can only fill at $58 or lower, so it fills only if the dip comes. A market buy fills now, near $62. A buy stop is entered above the current price, not below it.",
@@ -802,8 +802,8 @@
    ],
    "wrong": {
     "A market buy now": "That fills now, at about $62. It doesn't wait for the stock to dip to $58.",
-    "A buy stop at $58": "A buy stop is entered above the current price and turns into a market order there. It isn't the order that waits below.",
-    "A buy limit at $62": "That is where the stock trades now. A buy limit there can fill near $62 right away, before any dip."
+    "A $58 buy stop": "A buy stop is entered above the current price and turns into a market order there. It isn't the order that waits below.",
+    "A $62 buy limit": "That is where the stock trades now. A buy limit there can fill near $62 right away, before any dip."
    },
    "simple": "A buy limit at $58, because it waits below the price and can only fill at $58 or lower.",
    "tier": "core",
@@ -858,9 +858,9 @@
    "q": "What happens to your order?",
    "choices": [
     "It can fill right away, under $50",
-    "It waits until the stock hits $50",
-    "It fills only at exactly $50.00",
-    "It can't fill above the $49.71 ask"
+    "It waits until it hits $50",
+    "It fills only at $50.00",
+    "It can't fill above the ask"
    ],
    "answer": "It can fill right away, under $50",
    "why": "It can fill right away, under $50. Your $50.00 limit is above the $49.71 ask, so under the SEC's definition it is marketable. It fills at the best prices there, up to your limit. It does not wait for the breakout. A buy stop is the order that waits above the price.",
@@ -874,9 +874,9 @@
     "f47"
    ],
    "wrong": {
-    "It waits until the stock hits $50": "That's what a buy stop does. It sits above the price and turns into a market order when the price gets there.",
-    "It fills only at exactly $50.00": "A limit is your price or better. With sellers under $50 right now, you get their price.",
-    "It can't fill above the $49.71 ask": "The ask can move, and your order can be bigger than the size showing there. Your cap is your $50.00 limit, not the quote."
+    "It waits until it hits $50": "That's what a buy stop does. It sits above the price and turns into a market order when the price gets there.",
+    "It fills only at $50.00": "A limit is your price or better. With sellers under $50 right now, you get their price.",
+    "It can't fill above the ask": "The ask can move, and your order can be bigger than the size showing there. Your cap is your $50.00 limit, not the quote."
    },
    "simple": "It can fill right away, because a buy limit at or above the ask can trade now against the sellers there.",
    "deeper": {
@@ -900,9 +900,9 @@
    "q": "Where does your sell limit most likely fill?",
    "choices": [
     "Around $110, at the open",
-    "At exactly $105, your limit",
-    "No fill, the gap skipped it",
-    "At $104, the prior close"
+    "At $105, your limit",
+    "No fill, gap skipped it",
+    "At $104, prior close"
    ],
    "answer": "Around $110, at the open",
    "why": "Around $110, at the open. A sell limit can only fill at the limit or higher. The stock opened above your $105 limit, so the order fills at the open at about that price. This is Schwab's own example. Your limit is a floor, not a target.",
@@ -915,9 +915,9 @@
     "f06"
    ],
    "wrong": {
-    "At exactly $105, your limit": "Your limit is the least you'll take. When the market offers more, you get more.",
-    "No fill, the gap skipped it": "A gap doesn't skip a limit order. The price went past it in your favor, so it fills.",
-    "At $104, the prior close": "A sell limit can't fill below your $105 limit. The close is old news once the stock opens at $110."
+    "At $105, your limit": "Your limit is the least you'll take. When the market offers more, you get more.",
+    "No fill, gap skipped it": "A gap doesn't skip a limit order. The price went past it in your favor, so it fills.",
+    "At $104, prior close": "A sell limit can't fill below your $105 limit. The close is old news once the stock opens at $110."
    },
    "simple": "Around $110, because a sell limit fills at your price or higher, and the open at $110 is higher.",
    "deeper": {
@@ -941,9 +941,9 @@
    "q": "What risk does the buy limit carry that the market buy does not?",
    "choices": [
     "A missed fill if it runs past $50.30",
-    "A fill far above the quote you saw",
-    "A wait until the stock trades $50.30",
-    "A fill at exactly $50.30, no better"
+    "A fill far above the quote",
+    "A wait until it trades $50.30",
+    "A fill at $50.30, no better"
    ],
    "answer": "A missed fill if it runs past $50.30",
    "why": "A missed fill if it runs past $50.30. A buy limit can never fill worse than its limit, so in a fast move it can be left behind. A market buy almost always fills, but it has no price protection. It can fill away from the quote, especially in a fast market.",
@@ -963,9 +963,9 @@
     "f51"
    ],
    "wrong": {
-    "A fill far above the quote you saw": "That's the market buy's risk: no price protection. A buy limit at $50.30 can never fill above $50.30.",
-    "A wait until the stock trades $50.30": "$50.30 is above the $50.08 ask, so the limit is marketable. It can fill right away, at $50.30 or lower.",
-    "A fill at exactly $50.30, no better": "A buy limit fills at your limit or lower. With sellers at $50.08, it can fill below $50.30."
+    "A fill far above the quote": "That's the market buy's risk: no price protection. A buy limit at $50.30 can never fill above $50.30.",
+    "A wait until it trades $50.30": "$50.30 is above the $50.08 ask, so the limit is marketable. It can fill right away, at $50.30 or lower.",
+    "A fill at $50.30, no better": "A buy limit fills at your limit or lower. With sellers at $50.08, it can fill below $50.30."
    },
    "simple": "A missed fill, because a buy limit can't fill above $50.30, so a fast run past it leaves you out.",
    "deeper": {
@@ -1338,7 +1338,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived independently: trade now at the best price available (f01, f02, f11). Key and 'set price' choice tie at 37 characters, so length gives nothing away. The closing-price choice is hedged by 'plain' in its wrong note (MOC orders exist). The why and lesson line state that the price is not promised, which is q05's key, but only after answering; that is teaching before a rung-2 test, not a giveaway in a stem or choice. Every claim maps to f01/f02/f11/f12/f04/f06/f10."
+   "notes": "Derived independently: trade now at the best price available (f01, f02, f11). Key and 'set price' choice tie at 37 characters, so length gives nothing away. The closing-price choice is hedged by 'plain' in its wrong note (MOC orders exist). The why and lesson line state that the price is not promised, which is q05's key, but only after answering; that is teaching before a rung-2 test, not a giveaway in a stem or choice. Every claim maps to f01/f02/f11/f12/f04/f06/f10.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1392,7 +1393,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: buy limit at $58 (f05, f06, f32). Buy stop wrong by f10 (entered above the price); limit at $62 can fill now; market buy fills now (f01/f02). Pure mechanics ask, so no E57 conflict. Minor: choices converge on 'limit' and '$58', but each wrong choice is a real confusion; accepted."
+   "notes": "Re-derived: buy limit at $58 (f05, f06, f32). Buy stop wrong by f10 (entered above the price); limit at $62 can fill now; market buy fills now (f01/f02). Pure mechanics ask, so no E57 conflict. Minor: choices converge on 'limit' and '$58', but each wrong choice is a real confusion; accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q11": {
    "status": "pass",
@@ -1404,19 +1406,22 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper no longer recommends a buy stop for a breakout entry (the Schwab f50 web view E57 replaced). 'buys now' is slightly firmer than the key's 'can fill', but a $50.00 limit against a $49.71 ask is marketable (f21/f40/f44); accepted. Side note for the integrator: conflicts entry 3 still says 'q14 keys a marketable limit sent once the stock clears the level', which is stale after q14's reframe."
+   "notes": "Deeper no longer recommends a buy stop for a breakout entry (the Schwab f50 web view E57 replaced). 'buys now' is slightly firmer than the key's 'can fill', but a $50.00 limit against a $49.71 ask is marketable (f21/f40/f44); accepted. Side note for the integrator: conflicts entry 3 still says 'q14 keys a marketable limit sent once the stock clears the level', which is stale after q14's reframe.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived: a sell limit fills at the limit or higher (f05), so a $110 open fills it at about $110 (f37). 'Around' hedges the opening print. No second defensible answer. Choice lengths balanced (24/27/27/24). Deeper is a grounded counter-example (f05, f06) using only the stem's numbers. Schwab (s7) returned an authorization error on 2026-11-12, so f36/f37 could not be re-read; f05 (SEC) carries the floor logic and the open fill follows from it. Does not hand over q20's key (cancel the old order)."
+   "notes": "Derived: a sell limit fills at the limit or higher (f05), so a $110 open fills it at about $110 (f37). 'Around' hedges the opening print. No second defensible answer. Choice lengths balanced (24/27/27/24). Deeper is a grounded counter-example (f05, f06) using only the stem's numbers. Schwab (s7) returned an authorization error on 2026-11-12, so f36/f37 could not be re-read; f05 (SEC) carries the floor logic and the open fill follows from it. Does not hand over q20's key (cancel the old order).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived: the extra risk of the marketable $50.30 limit is a missed fill if the ask runs past it (f49, f06, f15); the market buy almost always fills (f19). 'Fill far above the quote' is excluded because the market buy carries that risk (f48, f12); 'wait until $50.30' is wrong because $50.30 is above the $50.08 ask (f21); 'exactly $50.30' is wrong by f05. One answer only, choices parallel 36/34/36/35. The deeper's closing line (entries are market orders, f51) agrees with E57. Integrator side note, outside these questions: conflicts entry 3 still says 'q14 keys a marketable limit sent once the st"
+   "notes": "Derived: the extra risk of the marketable $50.30 limit is a missed fill if the ask runs past it (f49, f06, f15); the market buy almost always fills (f19). 'Fill far above the quote' is excluded because the market buy carries that risk (f48, f12); 'wait until $50.30' is wrong because $50.30 is above the $50.08 ask (f21); 'exactly $50.30' is wrong by f05. One answer only, choices parallel 36/34/36/35. The deeper's closing line (entries are market orders, f51) agrees with E57. Integrator side note, outside these questions: conflicts entry 3 still says 'q14 keys a marketable limit sent once the st",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q15": {
    "status": "pass",

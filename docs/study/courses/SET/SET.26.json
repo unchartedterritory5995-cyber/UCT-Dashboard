@@ -1248,7 +1248,7 @@
    "q": "Where does our U&R stop go?",
    "choices": [
     "A few cents under the undercut low",
-    "A few cents under the level itself",
+    "A few cents under the level",
     "1% under the rising 50-day line",
     "A flat 3% under the buy price"
    ],
@@ -1262,7 +1262,7 @@
     "h04"
    ],
    "wrong": {
-    "A few cents under the level itself": "The level is where price came back. The stop goes under the undercut low, the lowest low while price was under the level.",
+    "A few cents under the level": "The level is where price came back. The stop goes under the undercut low, the lowest low while price was under the level.",
     "1% under the rising 50-day line": "Our stop is not tied to an average. It hangs on the undercut low.",
     "A flat 3% under the buy price": "About 3% is the usual limit on the stop's distance, not its place. The stop goes under the undercut low."
    },
@@ -1409,9 +1409,9 @@
    "q": "What do you do?",
    "choices": [
     "Pass; the report is too close",
-    "Buy it; the buyout will lift it",
-    "Buy it, but at half size only",
-    "Wait one session, then buy it"
+    "Buy it; the buyout lifts it",
+    "Buy it, at half size only",
+    "Wait a session, then buy it"
    ],
    "answer": "Pass; the report is too close",
    "why": "Pass. We make no new buys when a report is inside 3 sessions, and none with a buyout or deal pending. Both are true here, and either one alone is enough. The clean shape does not change that.",
@@ -1421,9 +1421,9 @@
     "h08"
    ],
    "wrong": {
-    "Buy it; the buyout will lift it": "A pending buyout or deal takes the name off the list, so there is no new buy.",
-    "Buy it, but at half size only": "Half size is still a new buy inside the window. The rule is a hard line.",
-    "Wait one session, then buy it": "One session later the report is still inside the window and the deal is still pending."
+    "Buy it; the buyout lifts it": "A pending buyout or deal takes the name off the list, so there is no new buy.",
+    "Buy it, at half size only": "Half size is still a new buy inside the window. The rule is a hard line.",
+    "Wait a session, then buy it": "One session later the report is still inside the window and the deal is still pending."
    },
    "house": true,
    "story": "A clean U&R of the 40.00 level triggers at 10:05. The company reports earnings in two sessions. A buyout deal was announced this morning.",
@@ -2017,9 +2017,9 @@
    "q": "Take it or pass?",
    "choices": [
     "Pass; the medium-term trend is down",
-    "Take it; the fast reclaim proves it",
-    "Take it; the 20-day is still rising",
-    "Wait for the 200-day to turn up first"
+    "Take it; the reclaim proves it",
+    "Take it; the 20-day is rising",
+    "Wait for the 200-day to turn up"
    ],
    "answer": "Pass; the medium-term trend is down",
    "why": "Pass. The card wants the 50-day at or above where it was 10 sessions ago. Here it is lower, so it is falling, and a falling 50-day or price under its averages is normally a pass. A quick, clean reclaim does not fix the trend.",
@@ -2029,9 +2029,9 @@
     "c33"
    ],
    "wrong": {
-    "Take it; the fast reclaim proves it": "The trap is only half the check. Under a falling 50-day, the context fails.",
-    "Take it; the 20-day is still rising": "The card checks the 50-day, and it is falling here. A rising 20-day does not fix that.",
-    "Wait for the 200-day to turn up first": "The 50-day is the line that fails here, so waiting on the 200-day does not fix it."
+    "Take it; the reclaim proves it": "The trap is only half the check. Under a falling 50-day, the context fails.",
+    "Take it; the 20-day is rising": "The card checks the 50-day, and it is falling here. A rising 20-day does not fix that.",
+    "Wait for the 200-day to turn up": "The 50-day is the line that fails here, so waiting on the 200-day does not fix it."
    },
    "house": true,
    "story": "A quick undercut and a reclaim in two sessions. The 50-day is lower than it was 10 sessions ago.",
@@ -2287,9 +2287,9 @@
    "q": "U&R or something else?",
    "choices": [
     "An Oops, read on one candle",
-    "A U&R of an older swing low",
-    "A Remount of the prior low",
-    "A breakout from a flat base"
+    "A U&R of an older low",
+    "A Remount of the old low",
+    "A flat-base breakout"
    ],
    "answer": "An Oops, read on one candle",
    "why": "An Oops. It opens under the prior close, trades under yesterday's low and reclaims the prior close the same day. A U&R needs a level that matters more than yesterday's low, and here that was the only level undercut. So it is judged on one candle. Deepvue's bullish reversal bar is close kin: an undercut of the previous day's low and a close above the previous close. SBUX was judged the same way.",
@@ -2301,9 +2301,9 @@
     "b1"
    ],
    "wrong": {
-    "A U&R of an older swing low": "No older low or other level was undercut. A U&R needs a level that matters more than yesterday's low.",
-    "A Remount of the prior low": "A Remount follows a long stay under a line. This was one day.",
-    "A breakout from a flat base": "There is no base breakout here. This is a one-day undercut and reclaim."
+    "A U&R of an older low": "No older low or other level was undercut. A U&R needs a level that matters more than yesterday's low.",
+    "A Remount of the old low": "A Remount follows a long stay under a line. This was one day.",
+    "A flat-base breakout": "There is no base breakout here. This is a one-day undercut and reclaim."
    },
    "house": true,
    "story": "The stock opened under its prior close and traded under yesterday's low. No other low or level was touched. It closed back over yesterday's close.",
@@ -2362,8 +2362,8 @@
    "q": "Which lesson owns this?",
    "choices": [
     "Gap Support at the gap low",
-    "A U&R at a prior swing low",
-    "A 2B at a prior swing low",
+    "A U&R at a swing low",
+    "A 2B at a swing low",
     "A Remount at the gap low"
    ],
    "answer": "Gap Support at the gap low",
@@ -2375,8 +2375,8 @@
     "c21"
    ],
    "wrong": {
-    "A U&R at a prior swing low": "The level is the gap-up day's low, so the Gap Support card applies.",
-    "A 2B at a prior swing low": "A 2B is one swing low on its first break. This level is a gap-up day's low.",
+    "A U&R at a swing low": "The level is the gap-up day's low, so the Gap Support card applies.",
+    "A 2B at a swing low": "A 2B is one swing low on its first break. This level is a gap-up day's low.",
     "A Remount at the gap low": "A Remount needs a long stay under a line. This was a dip and reclaim."
    },
    "house": true,
@@ -2408,9 +2408,9 @@
    "q": "Which setup is this?",
    "choices": [
     "A U&R of the average line",
-    "A 2B of the last swing low",
-    "An Oops at the prior close",
-    "A spring off a flat floor"
+    "A 2B of the swing low",
+    "An Oops at prior close",
+    "A spring off a floor"
    ],
    "answer": "A U&R of the average line",
    "why": "A U&R of the average line, here the 20-day EMA. A rising 20 EMA is a U&R level. One swing low on its first break is the 2B instead. Here the leader closed above a rising average, dipped under it and closed back above it. That is the U&R trap with an average as the level.",
@@ -2421,9 +2421,9 @@
     "v2"
    ],
    "wrong": {
-    "A 2B of the last swing low": "A 2B is one swing low, on its first break. A rising average is a U&R level.",
-    "An Oops at the prior close": "An Oops opens under the prior close and reclaims it the same day. This level is a rising average.",
-    "A spring off a flat floor": "The level here is a rising average, not the floor of a range."
+    "A 2B of the swing low": "A 2B is one swing low, on its first break. A rising average is a U&R level.",
+    "An Oops at prior close": "An Oops opens under the prior close and reclaims it the same day. This level is a rising average.",
+    "A spring off a floor": "The level here is a rising average, not the floor of a range."
    },
    "house": true,
    "story": "A leader closed above its rising 20-day EMA yesterday. Today it dipped under the line and closed back above it.",
@@ -2815,9 +2815,9 @@
    "q": "Is the open a valid buy?",
    "choices": [
     "Yes; over the level, within 4%",
-    "No; wait for the close above it",
+    "No; wait for a close above",
     "No; a gap means you skip it",
-    "Yes, but only if volume doubles"
+    "Yes, if volume doubles"
    ],
    "answer": "Yes; over the level, within 4%",
    "why": "Yes. Two closes under the level is inside the 3-session window. The open of 159.97 is back over 159.37, only 0.4% over. The buy must be no more than 4% over the level, so it is valid. WYNN bought the open, and 3R took 8 days.",
@@ -2831,9 +2831,9 @@
     "o2"
    ],
    "wrong": {
+    "No; wait for a close above": "The buy is a market order as price trades back over the level, so the open itself can be the trigger.",
     "No; a gap means you skip it": "A gap back over the level is allowed. WYNN did it and the open was only 0.4% over.",
-    "No; wait for the close above it": "The buy is a market order as price trades back over the level, so the open itself can be the trigger.",
-    "Yes, but only if volume doubles": "Morales says volume is generally not a factor. The trigger is the trade back over the level."
+    "Yes, if volume doubles": "Morales says volume is generally not a factor. The trigger is the trade back over the level."
    },
    "house": true,
    "story": "The level is 159.37. The stock closed under it two days running. The next morning it opens at 159.97.",
@@ -3234,7 +3234,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Card c04 + F62; t1 checked live on StockCharts; distractors distinct."
+   "notes": "Card c04 + F62; t1 checked live on StockCharts; distractors distinct.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "cut",
@@ -3264,7 +3265,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B22 + card c11; story gives 2 sessions and a pending deal; every distractor broken by the story."
+   "notes": "B22 + card c11; story gives 2 sessions and a pending deal; every distractor broken by the story.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -3366,7 +3368,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass; key rests on proposed card line c09 plus owner RBRK pass (c33). Owner to confirm."
+   "notes": "Pass; key rests on proposed card line c09 plus owner RBRK pass (c33). Owner to confirm.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q38": {
    "status": "pass",
@@ -3414,7 +3417,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story matches c22 exactly and excludes other levels; b1 checked on Deepvue docs; rests on D-103 default, flagged in risk."
+   "notes": "Story matches c22 exactly and excludes other levels; b1 checked on Deepvue docs; rests on D-103 default, flagged in risk.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "cut",
@@ -3426,13 +3430,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "c26 quote stopped at 'gap-up day's low' and never said Gap Support or still-open gap; card needs a 4% gap on 2x volume but the story said only 'hard' and 'heavy', and reclaim timing was open. Patch c26 quote (verbatim card lookalike tell, 31 words), put numbers and a same-day close in the story."
+   "notes": "c26 quote stopped at 'gap-up day's low' and never said Gap Support or still-open gap; card needs a 4% gap on 2x volume but the story said only 'hard' and 'heavy', and reclaim timing was open. Patch c26 quote (verbatim card lookalike tell, 31 words), put numbers and a same-day close in the story.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Question fields hold, but its two key facts are fragments that do not say what the claims say: c25 never says 'it is a U&R', c24 never says 'one swing low'. Patch both quotes to the full card lookalike tell (verbatim, 22 and 24 words)."
+   "notes": "Question fields hold, but its two key facts are fragments that do not say what the claims say: c25 never says 'it is a U&R', c24 never says 'one swing low'. Patch both quotes to the full card lookalike tell (verbatim, 22 and 24 words).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q49": {
    "status": "pass",
@@ -3492,7 +3498,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass; keys on proposed 3-session window (D-036) and intraday trigger (D-003). Owner to confirm."
+   "notes": "Pass; keys on proposed 3-session window (D-036) and intraday trigger (D-003). Owner to confirm.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q59": {
    "status": "pass",

@@ -741,12 +741,12 @@
    "format": "mcq",
    "q": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover?",
    "choices": [
-    "About 68% of outcomes",
+    "About 68% of the outcomes",
     "About 50% of outcomes",
     "About 95% of outcomes",
     "About 99% of outcomes"
    ],
-   "answer": "About 68% of outcomes",
+   "answer": "About 68% of the outcomes",
    "why": "About 68%. That is what a one standard deviation range holds. Two standard deviations hold about 95%, and three hold about 99%. These figures come from a bell-curve model of returns. They are estimates, not promises.",
    "lesson_line": "One standard deviation holds about 68% of outcomes. The rest lands outside it.",
    "facts": [
@@ -1354,12 +1354,12 @@
    "story": "A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day.",
    "q": "Using the Rule of 16, was it a big day against what its options price?",
    "choices": [
-    "No, a day's expected move is $1.20",
+    "No, a day's expected move is about $1.20",
     "Yes, a move near 2% is a big day",
     "Yes, a normal day is only about 1%",
     "No, a day's expected move is $19.20"
    ],
-   "answer": "No, a day's expected move is $1.20",
+   "answer": "No, a day's expected move is about $1.20",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1457,8 +1457,8 @@
    "q": "If that keeps up, what tends to happen to your calls?",
    "choices": [
     "Losing value from too little movement",
-    "Holding value, the stock hasn't fallen",
-    "Gaining value, high IV pays the buyer",
+    "Holding value, it hasn't fallen",
+    "Gaining value, high IV pays buyers",
     "Steady until IV itself comes down"
    ],
    "answer": "Losing value from too little movement",
@@ -1470,8 +1470,8 @@
     "f9"
    ],
    "wrong": {
-    "Holding value, the stock hasn't fallen": "Not falling isn't enough. A call loses time value every quiet day.",
-    "Gaining value, high IV pays the buyer": "A big priced move means you paid up for movement. If the movement doesn't come, that value drains away.",
+    "Holding value, it hasn't fallen": "Not falling isn't enough. A call loses time value every quiet day.",
+    "Gaining value, high IV pays buyers": "A big priced move means you paid up for movement. If the movement doesn't come, that value drains away.",
     "Steady until IV itself comes down": "Time value is lost each day, not only when IV falls. A buyer needs moves that outpace that daily loss."
    },
    "simple": "Your calls tend to lose value, because the stock moves less than the options priced and time decay keeps eating them.",
@@ -1546,12 +1546,12 @@
    "format": "mcq",
    "q": "Same stock, same IV. Two tools show different one-day expected moves. What most likely explains it?",
    "choices": [
-    "One uses 365 days a year, one 252",
+    "One uses 365 days a year, one uses 252",
     "One tool is using a broken formula",
     "One shows up moves, one shows down",
     "One includes the stock's dividend"
    ],
-   "answer": "One uses 365 days a year, one 252",
+   "answer": "One uses 365 days a year, one uses 252",
    "why": "The day count. Some tools annualize over 365 calendar days, others over 252 trading days. Cboe's VIX uses 365 calendar days, while the Rule of 16 uses about 252 trading days. Same IV, a different daily number: dividing by the square root of 365 gives a smaller day than dividing by about 16. Neither is wrong. Check which one your tool uses before you compare.",
    "lesson_line": "Know your tool's day count before you compare. Calendar days and trading days give different daily moves.",
    "facts": [
@@ -1563,9 +1563,9 @@
     "f3"
    ],
    "wrong": {
+    "One tool is using a broken formula": "Both conventions are in use. Cboe's VIX annualizes over 365 calendar days; the Rule of 16 uses 252 trading days.",
     "One shows up moves, one shows down": "The expected move is the same size both ways. It has no direction.",
-    "One includes the stock's dividend": "The expected move uses only the price, the IV and the time. A dividend is not in the formula.",
-    "One tool is using a broken formula": "Both conventions are in use. Cboe's VIX annualizes over 365 calendar days; the Rule of 16 uses 252 trading days."
+    "One includes the stock's dividend": "The expected move uses only the price, the IV and the time. A dividend is not in the formula."
    },
    "simple": "The tools count the year differently, one with 365 calendar days and one with 252 trading days, so the daily number differs.",
    "deeper": {
@@ -1676,7 +1676,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f22/f41/f55: about 68%. Key matches; four parallel choices, no tell; 95%/99% from f42/f43, bell curve f32. Minor, not fixable inside this lesson: the stems of q06, q14 and q21 state 68%, but w1 teaches it before any question, so it is taught, not leaked."
+   "notes": "Own answer from f22/f41/f55: about 68%. Key matches; four parallel choices, no tell; 95%/99% from f42/f43, bell curve f32. Minor, not fixable inside this lesson: the stems of q06, q14 and q21 state 68%, but w1 teaches it before any question, so it is taught, not leaked.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
    "status": "pass",
@@ -1772,7 +1773,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 60*32/100/16 = 1.20, $1.10 inside, so No. Stem now names the Rule of 16, so the 365 count cannot give a second number. Two Yes / two No, lengths 32-35. Every wrong note grounded (f49, f44, calc). No leak into q10/q12."
+   "notes": "Own answer: 60*32/100/16 = 1.20, $1.10 inside, so No. Stem now names the Rule of 16, so the 365 count cannot give a second number. Two Yes / two No, lengths 32-35. Every wrong note grounded (f49, f44, calc). No leak into q10/q12.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
    "status": "pass",
@@ -1790,7 +1792,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f15/f16: losing value. Key matches, 37 chars, not the longest (38). Story no longer pairs 40% with 2.5% a day, so it no longer hints q10 or q12. Wrong notes grounded (f16, f15)."
+   "notes": "Own answer from f15/f16: losing value. Key matches, 37 chars, not the longest (38). Story no longer pairs 40% with 2.5% a day, so it no longer hints q10 or q12. Wrong notes grounded (f16, f15).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",
@@ -1802,7 +1805,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f71/f58: the day count. Key matches; choices 33-34 chars, no lone absolute now. Wrong notes grounded (f71, f3/f58, f5)."
+   "notes": "Own answer from f71/f58: the day count. Key matches; choices 33-34 chars, no lone absolute now. Wrong notes grounded (f71, f3/f58, f5).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
    "status": "pass",

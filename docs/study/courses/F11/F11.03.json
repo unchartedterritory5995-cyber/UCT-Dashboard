@@ -752,9 +752,9 @@
    "q": "You move from swing trades to day trades. Which part of your trade plan can you drop?",
    "choices": [
     "None: every part stays in the plan",
-    "The stop, since you'll be watching",
-    "The size, it's only for a few hours",
-    "The exit, you're out by the close"
+    "The stop, you'll be watching",
+    "The size, it's only a few hours",
+    "The exit, out by the close"
    ],
    "answer": "None: every part stays in the plan",
    "why": "None of them. Schwab's day-trading page says a day trader still plans when to enter and exit, how much to risk, and what to trade. Only the clock is shorter. Watching the screen is not a stop. Our rule is a real stop order with the broker, not one kept in your head. Being out by the close is a deadline, not an exit price.",
@@ -770,9 +770,9 @@
     "h22"
    ],
    "wrong": {
-    "The stop, since you'll be watching": "Watching isn't a stop. Our rule is a real stop order with the broker, and a fast market can fill below your price.",
-    "The size, it's only for a few hours": "Size is what caps the loss. Shares come from the dollars you'll risk over the distance to the stop.",
-    "The exit, you're out by the close": "The close is a deadline, not an exit plan. You still need the price that says you're wrong."
+    "The stop, you'll be watching": "Watching isn't a stop. Our rule is a real stop order with the broker, and a fast market can fill below your price.",
+    "The size, it's only a few hours": "Size is what caps the loss. Shares come from the dollars you'll risk over the distance to the stop.",
+    "The exit, out by the close": "The close is a deadline, not an exit plan. You still need the price that says you're wrong."
    },
    "simple": "None of them, because a day trade still needs a stop, a size and an exit, just over less time.",
    "tier": "core",
@@ -1132,9 +1132,9 @@
    "q": "What must this plan cover that a day trade plan can skip?",
    "choices": [
     "Whether to sit through reports",
-    "Where the first 10-minute low is",
-    "Which hourly bar you'll buy on",
-    "Nothing extra, the stop covers it"
+    "The first 10-minute low",
+    "Which hourly bar to buy on",
+    "Nothing, the stop covers it"
    ],
    "answer": "Whether to sit through reports",
    "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
@@ -1156,9 +1156,9 @@
     "f15"
    ],
    "wrong": {
-    "Where the first 10-minute low is": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
-    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap.",
-    "Which hourly bar you'll buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock."
+    "The first 10-minute low": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
+    "Which hourly bar to buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock.",
+    "Nothing, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap."
    },
    "simple": "Whether to sit through reports, because a six-month hold spans reports that can gap the stock past your stop.",
    "tier": "extended",
@@ -1534,8 +1534,8 @@
    "choices": [
     "Swing trades: days to a few weeks",
     "Day trades, closed by the bell",
-    "Position trades held up to a year",
-    "A new style picked for each trade"
+    "Position trades up to a year",
+    "A new style for each trade"
    ],
    "answer": "Swing trades: days to a few weeks",
    "simple": "Swing trades, because our rule is to hold for days to a few weeks, longer only while a winner keeps working.",
@@ -1548,8 +1548,8 @@
    ],
    "wrong": {
     "Day trades, closed by the bell": "A day trade opens and closes the same day. Our rule is to swing trade, for days to a few weeks.",
-    "Position trades held up to a year": "Our rule says days to a few weeks. A winner may run longer, but only while it keeps working.",
-    "A new style picked for each trade": "Our rule names one style. We swing trade, and a winner can be held longer while it keeps working."
+    "Position trades up to a year": "Our rule says days to a few weeks. A winner may run longer, but only while it keeps working.",
+    "A new style for each trade": "Our rule names one style. We swing trade, and a winner can be held longer while it keeps working."
    },
    "tier": "core",
    "risk": {
@@ -1630,7 +1630,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right on my own read (f11, f15, f42: a day trade plan still sets entry, exit and risk; D41/h22 real broker stop). Two defects. (1) The why and the stop note teach D41 as 'Our rule' but the question has no \"house\": true; the earlier checker flagged this and the merged file still lacks it. (2) The key 'None: stop, size and exit all stay' reads as 'the stop stays the same', which clashes with q08 in the same lesson, whose key is that where the stop sits changes from style to style. Reworded the key so it says every part stays IN the plan (34 chars, the others 33-36, no length tell). Wrong not"
+   "notes": "Key right on my own read (f11, f15, f42: a day trade plan still sets entry, exit and risk; D41/h22 real broker stop). Two defects. (1) The why and the stop note teach D41 as 'Our rule' but the question has no \"house\": true; the earlier checker flagged this and the merged file still lacks it. (2) The key 'None: stop, size and exit all stay' reads as 'the stop stays the same', which clashes with q08 in the same lesson, whose key is that where the stop sits changes from style to style. Reworded the key so it says every part stays IN the plan (34 chars, the others 33-36, no length tell). Wrong not",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
    "status": "pass",
@@ -1696,7 +1697,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right on my own read: a six-month hold spans quarterly reports (i01, i02), gaps can jump a stop (f08, f27, f28, h19), and B22 (h16) makes hold-through-a-report a rule only a held trade needs. No second defensible answer. Defects: (1) the why teaches B22 as 'Our rule' but \"house\": true is missing (the previous checker's notes say it was added; the file does not have it). (2) The why and the 'Nothing extra' note say the Fidelity stop sold near 90 'after overnight earnings', but no cited quote contains 'earnings': f38 is cut off at 'the night before and', f39 and f40 say only near 90 and gapp"
+   "notes": "Key right on my own read: a six-month hold spans quarterly reports (i01, i02), gaps can jump a stop (f08, f27, f28, h19), and B22 (h16) makes hold-through-a-report a rule only a held trade needs. No second defensible answer. Defects: (1) the why teaches B22 as 'Our rule' but \"house\": true is missing (the previous checker's notes say it was added; the file does not have it). (2) The why and the 'Nothing extra' note say the Fidelity stop sold near 90 'after overnight earnings', but no cited quote contains 'earnings': f38 is cut off at 'the night before and', f39 and f40 say only near 90 and gapp",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q13": {
    "status": "pass",
@@ -1750,7 +1752,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Swing trades is right: C35 (h27) word for word. The distractors are the other styles plus a per-trade pick, 30-33 chars, and the key is not the longest. The day-trade note rests on f12. It does not answer q22."
+   "notes": "Swing trades is right: C35 (h27) word for word. The distractors are the other styles plus a per-trade pick, 30-33 chars, and the key is not the longest. The day-trade note rests on f12. It does not answer q22.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q22": {
    "status": "pass",

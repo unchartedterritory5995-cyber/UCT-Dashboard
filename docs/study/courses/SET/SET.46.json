@@ -881,8 +881,8 @@
    "q": "On a daily chart, what does an AVWAP anchored to a stock's high show?",
    "choices": [
     "Volume-weighted cost since the anchor",
-    "The average close of the last 50 days",
-    "The highest price since the anchor day",
+    "The 50-day average close",
+    "The highest price since the anchor",
     "The open price of the anchor day"
    ],
    "answer": "Volume-weighted cost since the anchor",
@@ -895,9 +895,9 @@
     "x04"
    ],
    "wrong": {
-    "The open price of the anchor day": "The anchor day is where the sum starts. The line moves with every day after it.",
-    "The average close of the last 50 days": "That is a 50-day moving average. It has no anchor and no volume weight.",
-    "The highest price since the anchor day": "That is a level, not an average. The AVWAP is the average price paid, weighted by volume."
+    "The 50-day average close": "That is a 50-day moving average. It has no anchor and no volume weight.",
+    "The highest price since the anchor": "That is a level, not an average. The AVWAP is the average price paid, weighted by volume.",
+    "The open price of the anchor day": "The anchor day is where the sum starts. The line moves with every day after it."
    },
    "house": true,
    "simple": "It shows the average price buyers have paid since the high, with busy days counting more.",
@@ -2463,9 +2463,9 @@
    "story": "After weeks under a flat AVWAP, the stock opens under the line and closes 0.23 ATR over it.",
    "choices": [
     "A poke inside the noise; pass",
-    "A clean reclaim; buy tomorrow",
-    "A U&R of the line; buy tomorrow",
-    "Too stretched; wait for a dip"
+    "A clean reclaim; go long",
+    "A U&R of the line; go long",
+    "Stretched; wait for a dip"
    ],
    "answer": "A poke inside the noise; pass",
    "why": "A poke, so pass. Our card proposes a reclaim-day close 0.3 to 1.0 ATR over the line. At 0.23 ATR the close is under that range. It is not stretched; it is the opposite. CAG in 2019 closed 0.23 ATR over its line, a marginal poke inside the noise. It chopped to 2.7R before the December gap did the real work.",
@@ -2477,9 +2477,9 @@
     "c24"
    ],
    "wrong": {
-    "A clean reclaim; buy tomorrow": "Clean starts at 0.3 ATR over the line. This is inside the noise.",
-    "Too stretched; wait for a dip": "The reverse. Stretched is past 1.0 ATR. At 0.23 the close is too small, not too far.",
-    "A U&R of the line; buy tomorrow": "A U&R closes back above within 3 sessions. This one sat under the line for weeks."
+    "A clean reclaim; go long": "Clean starts at 0.3 ATR over the line. This is inside the noise.",
+    "A U&R of the line; go long": "A U&R closes back above within 3 sessions. This one sat under the line for weeks.",
+    "Stretched; wait for a dip": "The reverse. Stretched is past 1.0 ATR. At 0.23 the close is too small, not too far."
    },
    "house": true,
    "simple": "A poke, because 0.23 ATR over the line is too small to count, so you pass.",
@@ -2501,12 +2501,12 @@
    "q": "By our card, which setup is it?",
    "story": "After weeks under the AVWAP from its high, a stock opens 0.91 ATR above the line and closes higher.",
    "choices": [
-    "A gap setup, not a reclaim",
+    "A gap setup, not an AVWAP reclaim",
     "A clean reclaim from below",
     "A U&R of the AVWAP line",
     "A Remount of the AVWAP line"
    ],
-   "answer": "A gap setup, not a reclaim",
+   "answer": "A gap setup, not an AVWAP reclaim",
    "why": "A gap setup, not an AVWAP reclaim. Our card proposes that the reclaim day not open more than 0.5 ATR over the line. This one opened 0.91 ATR over, so the line was never retaken from below in regular hours. The card judges it as a gap setup, a Kicker or a gap. Shannon reads a gap over AVWAPs as buyers back in control. That split is ours.",
    "lesson_line": "Look at the open. A gap over the line is judged as a gap.",
    "facts": [
@@ -3022,9 +3022,9 @@
    "story": "The market reading is Orange. A reclaim triggers, and you grade the setup a B.",
    "choices": [
     "No; Orange is A+ setups only",
-    "Yes; at full size as in Green",
+    "Yes; full size as in Green",
     "Yes; Orange means half size",
-    "No; Orange means no new longs"
+    "No; Orange means no longs"
    ],
    "answer": "No; Orange is A+ setups only",
    "why": "No. Our rulebook reads the market as a guide. Green is full risk per grade, and Yellow is smaller and fewer. Orange takes only A+ setups. Red is mostly cash and shorts. A B setup waits in Orange. Orange narrows the setups; it is not a size setting.",
@@ -3034,9 +3034,9 @@
     "c17"
    ],
    "wrong": {
+    "Yes; full size as in Green": "Full risk per grade is Green. Orange takes only A+ setups.",
     "Yes; Orange means half size": "Orange is about grade, not size. A B setup waits.",
-    "Yes; at full size as in Green": "Full risk per grade is Green. Orange takes only A+ setups.",
-    "No; Orange means no new longs": "Right verdict, wrong reading. Red is mostly cash and shorts. Orange still takes A+ setups."
+    "No; Orange means no longs": "Right verdict, wrong reading. Red is mostly cash and shorts. Orange still takes A+ setups."
    },
    "house": true,
    "simple": "No, in an Orange market we take only A+ setups, and this one is a B.",
@@ -3120,12 +3120,12 @@
    "q": "Write the plan: entry, stop, first trim.",
    "story": "A stock sits above a rising 200-day. After weeks under a flat AVWAP, it closes 0.5 ATR over it. The day's high is 36.40 and its low 35.80. Next session it trades over that high, at 36.41.",
    "choices": [
-    "Market 36.41; stop 35.77; third at 3R",
+    "Market at 36.41; stop 35.77; third at 3R",
     "Market 36.41; stop 35.77; all out at 3R",
     "Market at the close; stop at the line",
     "Market 36.41; stop 35.80; third at 3R"
    ],
-   "answer": "Market 36.41; stop 35.77; third at 3R",
+   "answer": "Market at 36.41; stop 35.77; third at 3R",
    "why": "Market at 36.41, stop at 35.77, a third at 3R. Entries are market orders, so the trade over the reclaim day's high is the fill. The stop sits a few cents under the reclaim day's low of 35.80, not exactly on it. The hard rule for the first trim is a third at 3R.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
    "facts": [
@@ -3136,8 +3136,8 @@
     "c15"
    ],
    "wrong": {
-    "Market at the close; stop at the line": "The line is not the stop. Ours sits a few cents under the reclaim day's low.",
     "Market 36.41; stop 35.77; all out at 3R": "At 3R the hard rule takes a third, not all. Another third goes at 5R, then the rest trails.",
+    "Market at the close; stop at the line": "The line is not the stop. Ours sits a few cents under the reclaim day's low.",
     "Market 36.41; stop 35.80; third at 3R": "35.80 is the low itself. The stop sits a few cents under the day's low, not exactly on it."
    },
    "house": true,
@@ -3398,7 +3398,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market 36.41 (E57 h22), stop a few cents under the 35.80 low (F62 h24), a third at 3R (B19 h05). Only one choice puts the stop a few cents under the low, so 35.77 is unique. Numbers all from the story. The close-entry choice is a D-003 option but is rejected on its stop, not its entry, so the key does not pick the trigger. No longer answered by w2 or q19. Pass."
+   "notes": "Market 36.41 (E57 h22), stop a few cents under the 35.80 low (F62 h24), a third at 3R (B19 h05). Only one choice puts the stop a few cents under the low, so 35.77 is unique. Numbers all from the story. The close-entry choice is a D-003 option but is rejected on its stop, not its entry, so the key does not pick the trigger. No longer answered by w2 or q19. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
    "status": "cut",
@@ -3500,7 +3501,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story gives the member's grade (B), so the item tests only F65 (h26): Orange takes only A+ setups; card no_trade lists 'Orange below A+'. Red/no-new-longs choice correctly called a wrong reason; half-size choice rebutted by Yellow. Why notes the reading is a guide. Balanced choices. Pass."
+   "notes": "Story gives the member's grade (B), so the item tests only F65 (h26): Orange takes only A+ setups; card no_trade lists 'Orange below A+'. Red/no-new-longs choice correctly called a wrong reason; half-size choice rebutted by Yellow. Why notes the reading is a guide. Balanced choices. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q62": {
    "status": "pass",
@@ -3524,13 +3526,15 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c04 + d21/d22 (0.23 ATR poke); U&R note per c24; balanced choices."
+   "notes": "Key c04 + d21/d22 (0.23 ATR poke); U&R note per c24; balanced choices.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c05/d24, stem says 'By our card'; Shannon's view stated as counter (e02)."
+   "notes": "Key c05/d24, stem says 'By our card'; Shannon's view stated as counter (e02).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q50": {
    "status": "pass",
@@ -3566,7 +3570,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived independently: volume-weighted average price since the anchor (c08 formula, c23 'average cost since one named event'). Choices near equal length, each distractor wrong for its own reason, all share 'anchor' so no echo tell. Does not give away q17 or q52 from the stem. Pass."
+   "notes": "Derived independently: volume-weighted average price since the anchor (c08 formula, c23 'average cost since one named event'). Choices near equal length, each distractor wrong for its own reason, all share 'anchor' so no echo tell. Does not give away q17 or q52 from the stem. Pass.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
    "status": "pass",

@@ -966,13 +966,13 @@
    "story": "Your plan: buy the breakout over $50.20. Stop at $48.90. Target at $52.80. The stock trades at $49.80, and you'll be away all day.",
    "q": "Which three orders make the bracket, listed as entry, target, stop?",
    "choices": [
-    "Buy stop, sell limit, sell stop",
+    "Buy stop, sell limit and sell stop",
     "Buy limit, sell limit, sell stop",
     "Buy stop, sell stop, sell limit",
     "Market buy, sell limit, sell stop"
    ],
-   "answer": "Buy stop, sell limit, sell stop",
-   "why": "Buy stop, sell limit, sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20.",
+   "answer": "Buy stop, sell limit and sell stop",
+   "why": "Buy stop, sell limit and sell stop. The stock is at $49.80, under the $50.20 breakout. A buy stop sits above the market, so it buys only if the price reaches $50.20. You don't have to watch for it. Once you're in, the sell limit waits above at $52.80 for the target, and the sell stop waits below at $48.90. At $50.20 the buy stop becomes a market order, so the entry can fill above $50.20.",
    "lesson_line": "Breakout entry: buy stop. Target: sell limit. Stop: sell stop.",
    "facts": [
     "f39",
@@ -1393,7 +1393,7 @@
    "q": "What risk have you left open?",
    "choices": [
     "A 1,000-share short if it hits $8",
-    "None, the shares are already sold",
+    "None, the shares are sold",
     "Only missing gains above $13",
     "A loss on 1,000 shares below $8"
    ],
@@ -1406,7 +1406,7 @@
     "f17"
    ],
    "wrong": {
-    "None, the shares are already sold": "That's the trap. The loose stop doesn't know your shares are gone, so it can still sell 1,000 you don't have.",
+    "None, the shares are sold": "That's the trap. The loose stop doesn't know your shares are gone, so it can still sell 1,000 you don't have.",
     "Only missing gains above $13": "That's a cost, but the bigger risk is the loose stop selling shares you don't own.",
     "A loss on 1,000 shares below $8": "Those shares were sold at $13. A stop-out now sells shares you don't own, which opens a short, not a loss on shares you hold."
    },
@@ -1475,9 +1475,9 @@
    "q": "What do you do with the stop leg?",
    "choices": [
     "Leave it where the plan put it",
-    "Cancel it and watch the bounce",
+    "Cancel it, watch the bounce",
     "Move it down to $46 for room",
-    "Turn it into a stop-limit order"
+    "Make it a stop-limit order"
    ],
    "answer": "Leave it where the plan put it",
    "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Our rule: the stop only moves up, never down or wider. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
@@ -1494,9 +1494,9 @@
     "f83"
    ],
    "wrong": {
-    "Cancel it and watch the bounce": "Cancel the stop leg and the target stays open, but nothing protects you if the bounce never comes.",
+    "Cancel it, watch the bounce": "Cancel the stop leg and the target stays open, but nothing protects you if the bounce never comes.",
     "Move it down to $46 for room": "That's widening the stop because you feel sure. Your loss grows past what you planned.",
-    "Turn it into a stop-limit order": "A stop-limit fills only at its set price or better. In a fast slide it can sit unfilled while you keep the falling shares."
+    "Make it a stop-limit order": "A stop-limit fills only at its set price or better. In a fast slide it can sit unfilled while you keep the falling shares."
    },
    "simple": "Leave the stop where it is, because you chose it calmly before the trade and a hunch is no reason to risk more.",
    "deeper": {
@@ -1634,7 +1634,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: buy stop, sell limit, sell stop. Key matches. Buy-limit wrong is right (marketable at 49.80, f01); market-buy wrong fits the away-all-day story. All numbers from the story. Owner E57 (entries are market orders) is not contradicted: the why says the buy stop becomes a market order at 50.20 (f09); the risk flag stays for the owner. No tell, no overlap with q01/q12."
+   "notes": "Solved cold: buy stop, sell limit, sell stop. Key matches. Buy-limit wrong is right (marketable at 49.80, f01); market-buy wrong fits the away-all-day story. All numbers from the story. Owner E57 (entries are market orders) is not contradicted: the why says the buy stop becomes a market order at 50.20 (f09); the risk flag stays for the owner. No tell, no overlap with q01/q12.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -1706,7 +1707,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f69 = a 1,000-share short at $8; matches. Choices 28-33 chars, no length tell. Wrong notes grounded (f17, f69); the $10 cost comes from the story. Minor for the owner: Investopedia's $8 stop on a $10 buy is a 20% stop, far wider than A13's about 3%. It is not keyed."
+   "notes": "Own answer from f69 = a 1,000-share short at $8; matches. Choices 28-33 chars, no length tell. Wrong notes grounded (f17, f69); the $10 cost comes from the story. Minor for the owner: Investopedia's $8 stop on a $10 buy is a 20% stop, far wider than A13's about 3%. It is not keyed.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
@@ -1718,7 +1720,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right and could not be broken (A4: the stop never moves down or wider; no gap so B20 does not apply). Fixes: (1) the owner's rule h5 governs this exact case but was not cited; added to facts and one line in the why. (2) risk reason claimed Fidelity agrees on keeping the planned stop, but f29 only says cancelling one exit leaves the other open; reason corrected."
+   "notes": "Key is right and could not be broken (A4: the stop never moves down or wider; no gap so B20 does not apply). Fixes: (1) the owner's rule h5 governs this exact case but was not cited; added to facts and one line in the why. (2) risk reason claimed Fidelity agrees on keeping the planned stop, but f29 only says cancelling one exit leaves the other open; reason corrected.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q23": {
    "status": "pass",

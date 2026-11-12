@@ -793,9 +793,9 @@
    "q": "What is the trigger on a wick play?",
    "choices": [
     "A break of the prior day's high",
-    "The close of the wick day itself",
-    "A dip to the 21 EMA after day 2",
-    "A close over the prior day's high"
+    "The wick day's own close",
+    "A later dip to the 21 EMA",
+    "A close over the prior high"
    ],
    "answer": "A break of the prior day's high",
    "why": "A break of the prior day's high. Our card names the trigger the prior day's high break. TaPlot: the trigger is price moving over the high of the wick inside day. The move over the high is the trigger, not a close above it. It is not the wick day's close either. Buying day 1 skips the hold, and the hold is the signal.",
@@ -807,9 +807,9 @@
     "cNot"
    ],
    "wrong": {
-    "The close of the wick day itself": "Buying day 1 itself skips the hold. The hold is the signal.",
-    "A dip to the 21 EMA after day 2": "That is Manrav's pullback-to-the-21-EMA entry. Our card lists it as not ours.",
-    "A close over the prior day's high": "The trigger is price moving over the prior day's high. It does not wait for a close."
+    "The wick day's own close": "Buying day 1 itself skips the hold. The hold is the signal.",
+    "A later dip to the 21 EMA": "That is Manrav's pullback-to-the-21-EMA entry. Our card lists it as not ours.",
+    "A close over the prior high": "The trigger is price moving over the prior day's high. It does not wait for a close."
    },
    "house": true,
    "simple": "The trigger is price breaking over the prior day's high, not a close above it.",
@@ -1552,9 +1552,9 @@
    "q": "Did day 2 hold above the body?",
    "choices": [
     "Yes, the low stayed above the body",
-    "No, it opened too high in the wick",
-    "No, it never touched day 1's close",
-    "Yes, the open is all that counts"
+    "No, it opened too high",
+    "No, it never hit day 1's close",
+    "Yes, the open is what counts"
    ],
    "answer": "Yes, the low stayed above the body",
    "why": "Yes. Day 1 closed at 75.89, above its 74.00 open, so its body top is 75.89. Day 2 opened at 80.99, inside the wick. Its low of 78.60 never reached the body. TaPlot: holding in the wick without trading in the body is a sign of strength. The open alone proves nothing. The low has to stay out of the body.",
@@ -1566,9 +1566,9 @@
     "tp2"
    ],
    "wrong": {
-    "No, it opened too high in the wick": "An open inside the wick is the start of the hold. Above the body top and under the high is fine.",
-    "No, it never touched day 1's close": "Touching the close would mean trading into the body. The hold is staying out of it.",
-    "Yes, the open is all that counts": "An open in the wick is only the start. The hold means the low stays out of the body."
+    "No, it opened too high": "An open inside the wick is the start of the hold. Above the body top and under the high is fine.",
+    "No, it never hit day 1's close": "Touching the close would mean trading into the body. The hold is staying out of it.",
+    "Yes, the open is what counts": "An open in the wick is only the start. The hold means the low stays out of the body."
    },
    "story": "Day 1 opened 74.00, ran to 83.30 and closed at 75.89. Day 2 opened 80.99 and its low was 78.60.",
    "house": true,
@@ -1906,9 +1906,9 @@
    "q": "Which stop plan is NOT ours?",
    "choices": [
     "Staggered stops at the 10 and 20 EMAs",
-    "A stop a few cents under day 2's low",
-    "A real stop order placed with a broker",
-    "Gap past the stop: first 30-minute low"
+    "A stop just under day 2's low",
+    "A real stop order with a broker",
+    "Gap past stop: first 30-minute low"
    ],
    "answer": "Staggered stops at the 10 and 20 EMAs",
    "why": "Staggered stops at the 10 and 20 EMAs. Our card lists that as TraderLion's plan from one review, and we do not use it. Our stop is a real broker order a few cents under day 2's low, the prior day's low at the buy. The one change allowed is the gap rule. On a gap against the stop, the low of the first 30-minute bar becomes the new stop.",
@@ -1922,9 +1922,9 @@
     "h06"
    ],
    "wrong": {
-    "A stop a few cents under day 2's low": "That is ours for a buy over the prior day's high.",
-    "A real stop order placed with a broker": "That is ours. Every position has one.",
-    "Gap past the stop: first 30-minute low": "That is ours. On a gap against the stop, the low of the first 30-minute bar becomes the new stop."
+    "A stop just under day 2's low": "That is ours for a buy over the prior day's high.",
+    "A real stop order with a broker": "That is ours. Every position has one.",
+    "Gap past stop: first 30-minute low": "That is ours. On a gap against the stop, the low of the first 30-minute bar becomes the new stop."
    },
    "house": true,
    "simple": "Staggered stops at the 10 and 20 EMAs, because that is another trader's plan. Ours sits just under day 2's low.",
@@ -2217,13 +2217,13 @@
    "criterion": "wk.day2_strict",
    "q": "By Deepvue's test, which day 2 is a wick play?",
    "choices": [
-    "Low 12.40, high 12.80",
+    "Low 12.40 and high 12.80",
     "Low 12.10, high 12.70",
     "Low 12.50, high 13.20",
     "Low 11.80, high 12.20"
    ],
-   "answer": "Low 12.40, high 12.80",
-   "why": "Low 12.40, high 12.80. Deepvue's test: day 2's low is above the larger of day 1's open or close. Its high is below day 1's high. That puts it above the body top of 12.30 and under the high of 13.00. The whole day sits inside the wick.",
+   "answer": "Low 12.40 and high 12.80",
+   "why": "Low 12.40 and high 12.80. Deepvue's test: day 2's low is above the larger of day 1's open or close. Its high is below day 1's high. That puts it above the body top of 12.30 and under the high of 13.00. The whole day sits inside the wick.",
    "lesson_line": "Above the body top, under the high.",
    "facts": [
     "dv1",
@@ -2237,7 +2237,7 @@
    },
    "story": "Day 1 has a high of 13.00 and a body top of 12.30. Four candidates for day 2 follow.",
    "house": true,
-   "simple": "Low 12.40, high 12.80, because it is the only day 2 that stays above the body top and under day 1's high.",
+   "simple": "Low 12.40 and high 12.80, because it is the only day 2 that stays above the body top and under day 1's high.",
    "deeper": {
     "counter": "An ordinary inside day may sit anywhere inside day 1's range. Low 11.80, high 12.20 may be one, yet it sits under the body top. Only a day 2 above the body top and under the high passes Deepvue's test."
    },
@@ -2307,8 +2307,8 @@
    "choices": [
     "No, a planned loss; the run ended",
     "Yes, the stop was too tight",
-    "Yes, you should have held through",
-    "No, but the wick play rule failed"
+    "Yes, you should have held on",
+    "No, but the rule failed"
    ],
    "answer": "No, a planned loss; the run ended",
    "why": "No. The stop did its job. You bought at 101.33 with a 1.1% stop, and the next session's low of 99.49 took it. A perfect-looking wick play at the end of a run is still a 1%-stop bet on one more push. The rule did not fail. The run was over.",
@@ -2321,8 +2321,8 @@
    ],
    "wrong": {
     "Yes, the stop was too tight": "The stop is the exit, and it did its job. In the next 20 sessions the stock never traded above 102.53.",
-    "Yes, you should have held through": "The stop is the exit. It only moves up, never down or wider.",
-    "No, but the wick play rule failed": "The rule did not fail. The run was over, and the stop took a planned loss."
+    "Yes, you should have held on": "The stop is the exit. It only moves up, never down or wider.",
+    "No, but the rule failed": "The rule did not fail. The run was over, and the stop took a planned loss."
    },
    "story": "You buy at 101.33 with a 1.1% stop. The next session's low is 99.49 and you are stopped out. In the next 20 sessions it never trades above 102.53.",
    "house": true,
@@ -2751,9 +2751,9 @@
    "q": "Is this a wick play?",
    "choices": [
     "Yes, day 2 sits inside the wick",
-    "No, a red day 1 cannot set it up",
-    "No, day 2 is under day 1's open",
-    "Yes, it broke over day 1's high"
+    "No, a red day cannot set it up",
+    "No, day 2 is under the open",
+    "Yes, it broke day 1's high"
    ],
    "answer": "Yes, day 2 sits inside the wick",
    "why": "Yes. Day 1 is red, so its body top is the open, 32.46. Day 2's low of 32.57 is above it. Its high of 33.36 is under day 1's high of 34.00. The whole day sits inside the wick. The close, 32.11, is the bottom of a red body, not the test line.",
@@ -2765,9 +2765,9 @@
     "tIn"
    ],
    "wrong": {
-    "No, day 2 is under day 1's open": "The open is 32.46. Day 2's low of 32.57 is above it.",
-    "No, a red day 1 cannot set it up": "A red day can set it up. Deepvue's test uses the larger of the open and close, so a red day's top is its open.",
-    "Yes, it broke over day 1's high": "Day 2's high of 33.36 is under day 1's 34.00, so it did not break it. It stayed inside the wick."
+    "No, a red day cannot set it up": "A red day can set it up. Deepvue's test uses the larger of the open and close, so a red day's top is its open.",
+    "No, day 2 is under the open": "The open is 32.46. Day 2's low of 32.57 is above it.",
+    "Yes, it broke day 1's high": "Day 2's high of 33.36 is under day 1's 34.00, so it did not break it. It stayed inside the wick."
    },
    "story": "Day 1 is red: open 32.46, high 34.00, close 32.11. Day 2 trades between 32.57 and 33.36.",
    "house": true,
@@ -3186,7 +3186,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (cTrig, tp4). But the why ('bought at market as price crosses it'), the simple line ('you buy at market') and the close-over note ('Our card buys at market as price crosses the trigger') state q06's key (same rung 1, fill 'market') and q63's key word for word. Refute the close choice with the trigger itself (tp4: price moving over the high) and drop the market-order wording and cOrder."
+   "notes": "Key right (cTrig, tp4). But the why ('bought at market as price crosses it'), the simple line ('you buy at market') and the close-over note ('Our card buys at market as price crosses the trigger') state q06's key (same rung 1, fill 'market') and q63's key word for word. Refute the close choice with the trigger itself (tp4: price moving over the high) and drop the market-order wording and cOrder.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -3318,7 +3319,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "upgraded wave5; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q28": {
    "status": "pass",
@@ -3372,7 +3374,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cNot verbatim: TraderLion's staggered EMA stops are not ours. The other three are ours (h24/cStopA, h18, h06). Holds under D-008 since F62 puts the stop under the day's low."
+   "notes": "cNot verbatim: TraderLion's staggered EMA stops are not ours. The other three are ours (h24/cStopA, h18, h06). Holds under D-008 since F62 puts the stop under the day's low.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q37": {
    "status": "pass",
@@ -3414,7 +3417,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer by dv1: low above 12.30 and high below 13.00; only 12.40/12.80 passes (12.10 under the body top, 13.20 over the high, 11.80/12.20 under the body top). Key matches. All choices one format, no tell. Naming Deepvue's test keeps the strict reading the only key (owner flag on D-115 stands). q50 teaches the rule, q43 applies it: recall then application."
+   "notes": "Own answer by dv1: low above 12.30 and high below 13.00; only 12.40/12.80 passes (12.10 under the body top, 13.20 over the high, 11.80/12.20 under the body top). Key matches. All choices one format, no tell. Naming Deepvue's test keeps the strict reading the only key (owner flag on D-115 stands). q50 teaches the rule, q43 applies it: recall then application.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q44": {
    "status": "pass",
@@ -3426,7 +3430,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no, a planned loss (dAZ, dAZ3, dAZ2; dAZ2 is on dossier lines 940-941, wrapped, and verbatim in the card). 101.33 with a 1.1% stop is about 100.21; a low of 99.49 stops it. The 102.53 ceiling refutes 'too tight'. Two Yes, two No, no length tell. Minor: risk reasons still cite B21, no longer used."
+   "notes": "Own answer: no, a planned loss (dAZ, dAZ3, dAZ2; dAZ2 is on dossier lines 940-941, wrapped, and verbatim in the card). 101.33 with a 1.1% stop is about 100.21; a low of 99.49 stops it. The 102.53 ceiling refutes 'too tight'. Two Yes, two No, no length tell. Minor: risk reasons still cite B21, no longer used.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q46": {
    "status": "pass",
@@ -3492,7 +3497,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: red day, body top = open 32.46; day 2 low 32.57 > 32.46 and high 33.36 < 34.00, so inside the wick (dv1, dTT). Key matches. Two Yes and two No; key not the longest; each distractor is a real misreading (red day cannot qualify; reading the open; same-day push). Numbers from the story and dTT."
+   "notes": "Own answer: red day, body top = open 32.46; day 2 low 32.57 > 32.46 and high 33.36 < 34.00, so inside the wick (dv1, dTT). Key matches. Two Yes and two No; key not the longest; each distractor is a real misreading (red day cannot qualify; reading the open; same-day push). Numbers from the story and dTT.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q57": {
    "status": "pass",

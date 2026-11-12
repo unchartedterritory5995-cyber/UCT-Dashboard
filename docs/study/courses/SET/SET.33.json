@@ -1384,7 +1384,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20, h05, h21 and c38 verbatim; 19.8R is d01. Key is the default ladder and the choices are balanced (31 to 32). 'It likely left well before the old stop' is hedged and follows h21. Wrong notes true."
+   "notes": "h20, h05, h21 and c38 verbatim; 19.8R is d01. Key is the default ladder and the choices are balanced (31 to 32). 'It likely left well before the old stop' is hedged and follows h21. Wrong notes true.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q61": {
    "status": "cut",
@@ -1456,7 +1457,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New. c18 verbatim: hourly close back over the prior day's close by the end of the second hourly candle. c19 supports 'pivot buys its own candle's high'. Key is not the longest and the choices are all real lines. Rung 3 comes after q03, so it does not pre-answer it, and it sits before q45 and q46 that use the definition."
+   "notes": "New. c18 verbatim: hourly close back over the prior day's close by the end of the second hourly candle. c19 supports 'pivot buys its own candle's high'. Key is not the longest and the choices are all real lines. Rung 3 comes after q03, so it does not pre-answer it, and it sits before q45 and q46 that use the definition.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q70": {
    "status": "pass",
@@ -3643,9 +3645,9 @@
    "q": "Under our default ladder, which trims came off on the way up?",
    "choices": [
     "A third at 3R and a third at 5R",
-    "Half at 2R, the rest at the stop",
-    "All of it, sold at the first 3R",
-    "Half at 5R and the rest at 10R"
+    "Half at 2R, rest at the stop",
+    "All of it, sold at first 3R",
+    "Half at 5R, the rest at 10R"
    ],
    "answer": "A third at 3R and a third at 5R",
    "why": "A third at 3R and a third at 5R. The last third trails and sells on a close under the 10-day or 21-day. It likely left well before the old stop. Most scan trades touched the fixed stop at some point, usually after the targets. The trims keep the result.",
@@ -3658,9 +3660,9 @@
     "d01"
    ],
    "wrong": {
-    "Half at 2R, the rest at the stop": "2R is not a trim level. The default ladder is a third at 3R and a third at 5R, then a trail.",
-    "All of it, sold at the first 3R": "The hard rule is a third at 3R, not all of it. The rest keeps working.",
-    "Half at 5R and the rest at 10R": "The ladder is thirds, not halves. After the third at 3R comes a third at 5R, then the trail."
+    "Half at 2R, rest at the stop": "2R is not a trim level. The default ladder is a third at 3R and a third at 5R, then a trail.",
+    "All of it, sold at first 3R": "The hard rule is a third at 3R, not all of it. The rest keeps working.",
+    "Half at 5R, the rest at 10R": "The ladder is thirds, not halves. After the third at 3R comes a third at 5R, then the trail."
    },
    "house": true,
    "simple": "We take a third at 3R and a third at 5R, then trail the last third, so the reversal does not hand back the gain.",
@@ -4013,9 +4015,9 @@
    "q": "A Go Signal is the hourly lookalike of a pivot. Which line must price reclaim by the second hourly candle?",
    "choices": [
     "The prior day's close",
-    "The pivot candle's high",
-    "The 9:30 to 10:00 high",
-    "The rising 20-day EMA"
+    "The pivot's high",
+    "The 9:30-10:00 high",
+    "The rising 20 EMA"
    ],
    "answer": "The prior day's close",
    "simple": "A Go Signal reclaims the prior day's close on the hourly chart. A pivot buys its own candle's high.",
@@ -4026,9 +4028,9 @@
     "c19"
    ],
    "wrong": {
-    "The pivot candle's high": "That is the pivot's line, on 30-minute bars. A Go Signal is read on hourly bars against the prior close.",
-    "The 9:30 to 10:00 high": "That is the opening range breakout's line. A Go Signal uses the prior day's close.",
-    "The rising 20-day EMA": "A daily average is not the line. A Go Signal is a close back over the prior day's close."
+    "The pivot's high": "That is the pivot's line, on 30-minute bars. A Go Signal is read on hourly bars against the prior close.",
+    "The 9:30-10:00 high": "That is the opening range breakout's line. A Go Signal uses the prior day's close.",
+    "The rising 20 EMA": "A daily average is not the line. A Go Signal is a close back over the prior day's close."
    },
    "tier": "core",
    "risk": {

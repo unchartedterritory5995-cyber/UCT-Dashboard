@@ -947,15 +947,15 @@
    "q": "On average, how have bear markets compared with bull markets in length?",
    "choices": [
     "Bears have been much shorter",
-    "Bears have been much longer",
-    "They have run about the same",
-    "There's no pattern either way"
+    "Bears have run much longer",
+    "They've run about the same",
+    "There's no pattern"
    ],
    "answer": "Bears have been much shorter",
    "wrong": {
-    "Bears have been much longer": "The reverse. Periods of decline have been shorter than periods of growth.",
-    "They have run about the same": "Not close. Schwab puts the average bear far shorter than the average bull.",
-    "There's no pattern either way": "There is one. Schwab and Morningstar both find bear markets shorter than bull markets."
+    "Bears have run much longer": "The reverse. Periods of decline have been shorter than periods of growth.",
+    "They've run about the same": "Not close. Schwab puts the average bear far shorter than the average bull.",
+    "There's no pattern": "There is one. Schwab and Morningstar both find bear markets shorter than bull markets."
    },
    "why": "Much shorter. Since 1966 the average bear market lasted roughly 14 months, far shorter than the average bull, Schwab says. Morningstar agrees that periods of decline have been shorter than periods of growth. Bulkowski's Dow data put the average bull at 3 years. The exact averages differ by period and method, so only the direction is firm.",
    "lesson_line": "Bears hurt fast. Bulls take their time.",
@@ -1861,7 +1861,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: bears shorter (f07 'far shorter', f15 'shorter than periods of growth'). New 'no pattern' choice is a real misconception and its note is grounded in f07 and f15. Lengths 27-29, no tell. Morningstar 403 on 2026-11-12 recorded; Schwab f07 carries the direction alone."
+   "notes": "Own answer: bears shorter (f07 'far shorter', f15 'shorter than periods of growth'). New 'no pattern' choice is a real misconception and its note is grounded in f07 and f15. Lengths 27-29, no tell. Morningstar 403 on 2026-11-12 recorded; Schwab f07 carries the direction alone.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",

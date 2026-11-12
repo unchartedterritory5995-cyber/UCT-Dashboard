@@ -1316,9 +1316,9 @@
    "q": "A very narrow inside day, with the stop only 0.8% away. How does it compare with a normal-sized pause?",
    "choices": [
     "Not better; narrow is not a plus",
-    "Better; a tighter bar is stronger",
-    "Better; its stop is much smaller",
-    "The same; only the shape counts"
+    "Better; tighter is stronger",
+    "Better; its stop is smaller",
+    "The same; only shape counts"
    ],
    "answer": "Not better; narrow is not a plus",
    "why": "Not better. Do not treat a tiny inside day, an NR4 or an NR7 as better. A sliver's low sits inside the day's noise, so it is the weak end.",
@@ -1330,9 +1330,9 @@
    ],
    "house": true,
    "wrong": {
-    "Better; a tighter bar is stronger": "The card says not to treat a tiny inside day, an NR4 or an NR7 as better.",
-    "Better; its stop is much smaller": "The stop only sets the share count. Our risk is the percent we set, and a stop that small sits inside the day's noise.",
-    "The same; only the shape counts": "Size counts. A tiny sliver is not better, and its low sits in the noise."
+    "Better; tighter is stronger": "The card says not to treat a tiny inside day, an NR4 or an NR7 as better.",
+    "Better; its stop is smaller": "The stop only sets the share count. Our risk is the percent we set, and a stop that small sits inside the day's noise.",
+    "The same; only shape counts": "Size counts. A tiny sliver is not better, and its low sits in the noise."
    },
    "simple": "Not better. A very narrow day is not a plus, because its low sits in the noise.",
    "deeper": {
@@ -1396,9 +1396,9 @@
    "q": "An inside day's high is 50.00. How do we buy the break?",
    "choices": [
     "At market as it trades over 50.00",
-    "A limit order under the inside low",
+    "A limit order under the low",
     "A limit order a cent over 50.00",
-    "In premarket if it gaps over 50.00"
+    "In premarket on a gap up"
    ],
    "answer": "At market as it trades over 50.00",
    "why": "At market, once it trades over the high, in regular hours. Entries are market orders, bought as price trades through the high. There are no new buys outside regular trading hours, so a premarket gap is not bought there. A limit under the low waits for the very weakness that cancels the buy.",
@@ -1410,9 +1410,9 @@
    ],
    "house": true,
    "wrong": {
-    "A limit order under the inside low": "A limit under the low waits for the very weakness that cancels the buy.",
-    "In premarket if it gaps over 50.00": "No new buys outside regular trading hours.",
-    "A limit order a cent over 50.00": "Entries are market orders, not limit orders."
+    "A limit order under the low": "A limit under the low waits for the very weakness that cancels the buy.",
+    "A limit order a cent over 50.00": "Entries are market orders, not limit orders.",
+    "In premarket on a gap up": "No new buys outside regular trading hours."
    },
    "simple": "We buy at market as price trades over the high, and only in regular hours.",
    "deeper": {
@@ -1758,9 +1758,9 @@
    "q": "What now?",
    "choices": [
     "Out now; the loss is past 2R",
-    "The new stop is the 46.70 low",
-    "Hold for the gap to fill back",
-    "Sell half now, hold the rest"
+    "New stop is the 46.70 low",
+    "Hold for the gap to fill",
+    "Sell half, hold the rest"
    ],
    "answer": "Out now; the loss is past 2R",
    "why": "Out. A gap through the stop hands it to the first 30-minute low, with a ceiling: past 2R, get out. One R is the buy minus the stop. The low of 46.70 is further below the buy than two of those.",
@@ -1772,9 +1772,9 @@
    ],
    "house": true,
    "wrong": {
-    "The new stop is the 46.70 low": "The 30-minute low becomes the stop only while the loss is inside 2R. This one is past it, so you are out.",
-    "Hold for the gap to fill back": "Hope is not a rule. The gap rule has a ceiling, and this is past it.",
-    "Sell half now, hold the rest": "Past 2R the rule is get out, not scale out. Half now and half hoped for is not the plan."
+    "New stop is the 46.70 low": "The 30-minute low becomes the stop only while the loss is inside 2R. This one is past it, so you are out.",
+    "Hold for the gap to fill": "Hope is not a rule. The gap rule has a ceiling, and this is past it.",
+    "Sell half, hold the rest": "Past 2R the rule is get out, not scale out. Half now and half hoped for is not the plan."
    },
    "story": "You bought the break at 50.00 with the stop at 48.70. The next morning it gaps open at 47.80. The first 30-minute bar's low is 46.70.",
    "simple": "The first 30-minute low is more than 2R below the buy, so the rule says get out.",
@@ -2130,12 +2130,12 @@
    "criterion": "id.not_setup_alone",
    "q": "Our test bought every qualifying inside day: 101,129 buys. How many reached 3R before a fixed stop?",
    "choices": [
-    "About one in four, 26.7%",
+    "About one in four, at 26.7%",
     "About half, a coin flip",
     "About nine in ten, 88.2%",
     "About one in five, 18.2%"
    ],
-   "answer": "About one in four, 26.7%",
+   "answer": "About one in four, at 26.7%",
    "why": "About one in four: 26.7% reached 3R and 88.2% were eventually stopped inside the 60-day window. A stricter count of the same buys gives 30.7% to 3R, so the truth sits between the two. The bar alone is near random; the rule set is a filter, not an edge by itself.",
    "lesson_line": "The bar is a filter. The stock, the location, the market and the trail are the edge.",
    "facts": [
@@ -2677,8 +2677,8 @@
    "q": "Take the break?",
    "choices": [
     "No; the stock is too stretched",
-    "Yes; the bar is clean and tight",
-    "Yes, but on half the usual size",
+    "Yes; the bar is clean",
+    "Yes, but on half size",
     "No; earnings were too recent"
    ],
    "answer": "No; the stock is too stretched",
@@ -2689,8 +2689,8 @@
     "h08"
    ],
    "wrong": {
-    "Yes; the bar is clean and tight": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
-    "Yes, but on half the usual size": "Half size does not cure a stretch. Skip the long over the line.",
+    "Yes; the bar is clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
+    "Yes, but on half size": "Half size does not cure a stretch. Skip the long over the line.",
     "No; earnings were too recent": "The earnings rule covers the 3 days before a report. This report is already past. The stretch is the problem."
    },
    "house": true,
@@ -2857,9 +2857,9 @@
    "q": "Trade them tomorrow?",
    "choices": [
     "Wait for the indexes to break",
-    "Yes; the inside days point up",
-    "No; skip inside days all week",
-    "Yes; leaders ignore the index"
+    "Yes; inside days point up",
+    "No; skip them all week",
+    "Yes; leaders ignore it"
    ],
    "answer": "Wait for the indexes to break",
    "why": "Wait. When the indexes print a cluster of inside days, wait for the break. Contraction comes before expansion, in either direction. The market carries part of the edge, and it has not picked a side.",
@@ -2870,9 +2870,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the inside days point up": "An inside day does not call a direction. Contraction comes before expansion, in either direction.",
-    "No; skip inside days all week": "The card says wait for the break, not skip the week.",
-    "Yes; leaders ignore the index": "The market carries part of the edge, and the indexes have not picked a side. Even a leader trades into that."
+    "Yes; inside days point up": "An inside day does not call a direction. Contraction comes before expansion, in either direction.",
+    "No; skip them all week": "The card says wait for the break, not skip the week.",
+    "Yes; leaders ignore it": "The market carries part of the edge, and the indexes have not picked a side. Even a leader trades into that."
    },
    "story": "SPY, QQQ and IWM, the big index ETFs, all printed inside days today. Your focus list holds a few inside-day breaks for tomorrow.",
    "simple": "Wait for the indexes to break first. After a quiet stretch the move can go either way.",
@@ -3342,9 +3342,9 @@
    "q": "Size follows the setup's grade. What happens to the size on a B- setup?",
    "choices": [
     "Sized down from normal size",
-    "Sized up, as for an A+ setup",
-    "Normal size, the same as a B",
-    "Skipped; only A and B trade"
+    "Sized up, as for an A+",
+    "Normal size, same as a B",
+    "Skipped; A and B only"
    ],
    "answer": "Sized down from normal size",
    "why": "Sized down. Our rule sets size by grade: A and B setups are normal size, A+ is sized up, and B- or lower is sized down. How a setup earns its grade is a judgment call, not a checklist.",
@@ -3355,9 +3355,9 @@
    ],
    "house": true,
    "wrong": {
-    "Sized up, as for an A+ setup": "A+ setups are sized up. B- or lower is sized down.",
-    "Normal size, the same as a B": "A and B setups are normal size. B- or lower is sized down.",
-    "Skipped; only A and B trade": "The rule says B- or lower is sized down. It does not say to skip it."
+    "Sized up, as for an A+": "A+ setups are sized up. B- or lower is sized down.",
+    "Normal size, same as a B": "A and B setups are normal size. B- or lower is sized down.",
+    "Skipped; A and B only": "The rule says B- or lower is sized down. It does not say to skip it."
    },
    "simple": "It is sized down. A and B setups are normal size, A+ is sized up, and B- or lower is sized down.",
    "tier": "core",
@@ -3485,7 +3485,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c08 carries the key (do not treat a tiny inside day as better). 'The same' could look half-right from the scan (stops of 2% or tighter: 27.1% vs 25.9%), but its clause 'only the shape counts' is false, so the key is the only fully true choice. The 'simple' line generalises the 0.4 ATR sliver noise point a little, but the stem says 'very narrow', so it holds."
+   "notes": "c08 carries the key (do not treat a tiny inside day as better). 'The same' could look half-right from the scan (stops of 2% or tighter: 27.1% vs 25.9%), but its clause 'only the shape counts' is false, so the key is the only fully true choice. The 'simple' line generalises the 0.4 ATR sliver noise point a little, but the stem says 'very narrow', so it holds.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
    "status": "pass",
@@ -3497,7 +3498,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E57, E58 and the card's trigger (a cent over, bought at market) carry the key. D-038 accepts a resting buy-stop, and the distractor is a LIMIT order a cent over, so it is still wrong under E57. Choice lengths are even."
+   "notes": "E57, E58 and the card's trigger (a cent over, bought at market) carry the key. D-038 accepts a resting buy-stop, and the distractor is a LIMIT order a cent over, so it is still wrong under E57. Choice lengths are even.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -3557,7 +3559,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 1.30; 46.70 is 3.30 below, about 2.5R, past 2R, so out (h06/h07). Choices balanced."
+   "notes": "R = 1.30; 46.70 is 3.30 below, about 2.5R, past 2R, so out (h06/h07). Choices balanced.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
    "status": "pass",
@@ -3617,7 +3620,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "101,129 buys and 26.7%, 18.2%, 88.2% verified in dossier line 1002; 30.7% and 76,719 verified in d07c. Key is not the longest; 18.2% distractor is correctly the 5R share."
+   "notes": "101,129 buys and 26.7%, 18.2%, 88.2% verified in dossier line 1002; 30.7% and 76,719 verified in d07c. Key is not the longest; 18.2% distractor is correctly the 5R share.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q36": {
    "status": "pass",
@@ -3707,7 +3711,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "14% over the 10-day is past 10% (h13). The 3-day earnings rule does not apply to a past report. D-017 stays flagged."
+   "notes": "14% over the 10-day is past 10% (h13). The 3-day earnings rule does not apply to a past report. D-017 stays flagged.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
    "status": "pass",
@@ -3737,7 +3742,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c26 supports waiting for the break. Key is 1 character longer than the others but is not a Yes/No form, which is right here because a flat No would over-claim. Accepted."
+   "notes": "c26 supports waiting for the break. Key is 1 character longer than the others but is not a Yes/No form, which is right here because a flat No would over-claim. Accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q56": {
    "status": "pass",
@@ -3803,7 +3809,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Rulebook D38 (h38) and E50 (h50) quoted exactly; key is the rulebook's. Taught as a size rule, not a grading checklist. Guessable from the minus sign but correct and grounded."
+   "notes": "Rulebook D38 (h38) and E50 (h50) quoted exactly; key is the rulebook's. Taught as a size rule, not a grading checklist. Guessable from the minus sign but correct and grounded.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

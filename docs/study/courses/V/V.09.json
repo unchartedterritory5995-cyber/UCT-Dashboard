@@ -3586,13 +3586,13 @@
    "story": "A company puts out its quarterly earnings press release after the close.",
    "q": "Which SEC form must carry the text of that release?",
    "choices": [
-    "Form 8-K",
+    "Form 8-K filing",
     "Form 10-Q",
     "Form 10-K",
     "No filing"
    ],
-   "answer": "Form 8-K",
-   "why": "Form 8-K. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited).",
+   "answer": "Form 8-K filing",
+   "why": "Form 8-K filing. FINRA says a company that issues an earnings press release must file a Form 8-K. That 8-K must include the text of the release. The 8-K is the current report for major events. Most companies announce results before they file the 10-Q (quarterly, unaudited) or the 10-K (annual, audited).",
    "lesson_line": "The 8-K is the fast filing. The full 10-Q or 10-K usually comes later.",
    "facts": [
     "f30",
@@ -4169,7 +4169,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8-K per f30, f45. The No-filing note is split and grounded (f27, f30). q58 plays before it, so the why's audited/unaudited line spoils nothing."
+   "notes": "8-K per f30, f45. The No-filing note is split and grounded (f27, f30). q58 plays before it, so the why's audited/unaudited line spoils nothing.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q60": {
    "status": "pass",

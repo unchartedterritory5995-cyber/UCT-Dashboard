@@ -475,13 +475,13 @@
    "format": "mcq",
    "q": "Which of these gives you the number of shares to buy?",
    "choices": [
-    "Dollars at risk ÷ risk per share",
+    "Dollars at risk ÷ the risk per share",
     "Account size ÷ the share price",
     "Dollars at risk ÷ the share price",
     "Dollars at risk × risk per share"
    ],
-   "answer": "Dollars at risk ÷ risk per share",
-   "why": "Dollars at risk ÷ risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares.",
+   "answer": "Dollars at risk ÷ the risk per share",
+   "why": "Dollars at risk ÷ the risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares.",
    "lesson_line": "Dollars at risk divided by risk per share gives the risk-based size.",
    "facts": [
     "f02",
@@ -566,8 +566,8 @@
    "q": "What is our default stop on a new long trade?",
    "choices": [
     "Low of the day or prior day's low",
-    "A flat 10% under your entry price",
-    "Wherever it fits the size you want",
+    "A flat 10% under your entry",
+    "Wherever it fits your size",
     "Just under the 50-day average"
    ],
    "answer": "Low of the day or prior day's low",
@@ -579,8 +579,8 @@
     "h07"
    ],
    "wrong": {
-    "A flat 10% under your entry price": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
-    "Wherever it fits the size you want": "That's back to front. The stop comes first, and the size comes from it.",
+    "A flat 10% under your entry": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
+    "Wherever it fits your size": "That's back to front. The stop comes first, and the size comes from it.",
     "Just under the 50-day average": "That is a different tool. Our default is the day's low or the prior day's low, a real low the stock just made."
    },
    "simple": "Our default stop is the low of the day or the prior day's low, read off the chart before you size.",
@@ -906,8 +906,8 @@
    "choices": [
     "A gap can open below your stop",
     "None, the risk is still 0.4%",
-    "The risk is really 1%, not 0.4%",
-    "Risk that low means you can add"
+    "The risk is really 1%",
+    "Low risk means you can add"
    ],
    "answer": "A gap can open below your stop",
    "why": "A gap can open below your stop. On paper, 40% of the account times a 1% stop is 0.4% risk. That math assumes you sell at the stop. A triggered stop becomes a market order, and the fill can be far from your stop price. If the stock gaps past it, the order fills at the next available price. With that much of the account in one stock, a gap hurts. This is why a tight stop never justifies a bigger position than our 40% cap.",
@@ -921,8 +921,8 @@
    ],
    "wrong": {
     "None, the risk is still 0.4%": "Only if you get filled at the stop. A gap past it costs more than the risk you planned.",
-    "The risk is really 1%, not 0.4%": "On paper it is 0.4%: 40% of the account times a 1% stop. The danger is a gap past the stop on that much size.",
-    "Risk that low means you can add": "Paper risk only holds if you are filled at the stop. A gap can break that, so low paper risk is no reason to add."
+    "The risk is really 1%": "On paper it is 0.4%: 40% of the account times a 1% stop. The danger is a gap past the stop on that much size.",
+    "Low risk means you can add": "Paper risk only holds if you are filled at the stop. A gap can break that, so low paper risk is no reason to add."
    },
    "simple": "The catch is that a gap can open below your stop, so the loss could be bigger than planned.",
    "deeper": {
@@ -1302,15 +1302,15 @@
    "q": "What does our earnings rule tell you to do?",
    "choices": [
     "Sell it before the report",
-    "Halve it and hold the rest",
-    "Hold it and trust the stop",
-    "Add more before the report"
+    "Halve it, hold the rest",
+    "Hold it, trust the stop",
+    "Add more before earnings"
    ],
    "answer": "Sell it before the report",
    "wrong": {
-    "Halve it and hold the rest": "Investopedia says some traders halve their size before a report. Our rule is stricter: below 5R, you do not hold through it.",
-    "Hold it and trust the stop": "A stop does not cap the loss. It becomes a market order, and after a gap the fill can be far below it.",
-    "Add more before the report": "Adding puts more money into a gap the stop cannot catch. We also open no new buys in the 3 days before a report."
+    "Halve it, hold the rest": "Investopedia says some traders halve their size before a report. Our rule is stricter: below 5R, you do not hold through it.",
+    "Hold it, trust the stop": "A stop does not cap the loss. It becomes a market order, and after a gap the fill can be far below it.",
+    "Add more before earnings": "Adding puts more money into a gap the stop cannot catch. We also open no new buys in the 3 days before a report."
    },
    "lesson_line": "Into earnings, hold only if you are up 5R. Otherwise sell.",
    "facts": [
@@ -1392,7 +1392,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Dollars at risk / risk per share. Each distractor has its own failure. The cap is addressed in lesson_line (risk-based size)."
+   "notes": "Dollars at risk / risk per share. Each distractor has its own failure. The cap is addressed in lesson_line (risk-based size).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
    "status": "pass",
@@ -1410,7 +1411,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches h01 and A3/F62 (few cents under is in the why). Distractors are different wrong ideas; no length tell."
+   "notes": "Matches h01 and A3/F62 (few cents under is in the why). Distractors are different wrong ideas; no length tell.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q09": {
    "status": "pass",
@@ -1464,7 +1466,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (gap past the stop; paper risk 40% x 1% = 0.4%). The lesson_line calls a 40% position 'giant', but 40% is the owner's own cap (A7) and the story sits exactly at it. Reword so it teaches the gap, not the size."
+   "notes": "Key right (gap past the stop; paper risk 40% x 1% = 0.4%). The lesson_line calls a 40% position 'giant', but 40% is the owner's own cap (A7) and the story sits exactly at it. Reword so it teaches the gap, not the size.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q18": {
    "status": "pass",
@@ -1524,7 +1527,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer right under B22 (up 2R, below 5R, so out; a partial hold is still a hold through the report). Form tell: three choices carry a comma reason clause and the key is the only bare action. Make all four parallel."
+   "notes": "Answer right under B22 (up 2R, below 5R, so out; a partial hold is still a hold through the report). Form tell: three choices carry a comma reason clause and the key is the only bare action. Make all four parallel.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   }
  }
 }

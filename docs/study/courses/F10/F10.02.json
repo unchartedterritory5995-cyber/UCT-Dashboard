@@ -1147,9 +1147,9 @@
    "q": "What happened to your order?",
    "choices": [
     "Triggered, but nothing sold",
-    "It sold at the $47.50 limit",
-    "It sold near the $44 open",
-    "The gap canceled the order"
+    "It sold at $47.50",
+    "It sold near $44",
+    "Gap canceled the order"
    ],
    "answer": "Triggered, but nothing sold",
    "why": "Triggered, but nothing sold. The $44 open is below the $48 stop, so the stop triggered. The order then became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill. It stays working and fills only if the stock trades back up to $47.50. Meanwhile you still own a falling stock.",
@@ -1162,9 +1162,9 @@
     "f48"
    ],
    "wrong": {
-    "It sold at the $47.50 limit": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
-    "It sold near the $44 open": "That's what a plain stop does. A stop-limit won't sell below its limit.",
-    "The gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
+    "It sold at $47.50": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
+    "It sold near $44": "That's what a plain stop does. A stop-limit won't sell below its limit.",
+    "Gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
    },
    "simple": "It triggered but nothing sold, because the stock opened under your $47.50 limit and a sell limit will not fill below it.",
    "tier": "extended",
@@ -1334,7 +1334,7 @@
     "Buy stop-limit: stop $50, limit $50.50",
     "Plain buy stop at $50, no limit",
     "Plain buy limit at $50.50, no stop",
-    "Buy stop-limit: stop $50.50, limit $50"
+    "Stop-limit: stop $50.50, limit $50"
    ],
    "answer": "Buy stop-limit: stop $50, limit $50.50",
    "why": "Stop $50, limit $50.50. The stop waits above the price for the break through $50. Once triggered, the limit caps the price at $50.50 or lower. A plain buy stop becomes a market order and can pay any gap. The reversed order triggers late and then only buys on a pullback.",
@@ -1350,9 +1350,9 @@
     "h11"
    ],
    "wrong": {
-    "Buy stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run.",
     "Plain buy stop at $50, no limit": "That gets you in on the break, but as a market order. If it gaps well past $50, you pay the gap.",
-    "Plain buy limit at $50.50, no stop": "A buy limit fills at $50.50 or lower. With the stock at $49.20, it buys right away, before any break."
+    "Plain buy limit at $50.50, no stop": "A buy limit fills at $50.50 or lower. With the stock at $49.20, it buys right away, before any break.",
+    "Stop-limit: stop $50.50, limit $50": "Backward. It triggers at $50.50, then only buys at $50 or lower, after the break has already run."
    },
    "simple": "A buy stop-limit with a $50 stop and a $50.50 limit, because it buys the break but caps the price paid.",
    "deeper": {
@@ -1664,7 +1664,8 @@
    "status": "pass",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q16": {
    "status": "pass",
@@ -1694,7 +1695,8 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: buy stop-limit, stop $50, limit $50.50 (f41, f7, f19). Matches. Tied longest with its reversal (both 38), so length carries no signal. Third-person story plus h10/h11 deeper counter keep it clear of E57. Its lesson_line sets up q21 but does not hand over q21's gap case (teach then test)."
+   "notes": "Own answer: buy stop-limit, stop $50, limit $50.50 (f41, f7, f19). Matches. Tied longest with its reversal (both 38), so length carries no signal. Third-person story plus h10/h11 deeper counter keep it clear of E57. Its lesson_line sets up q21 but does not hand over q21's gap case (teach then test).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
    "status": "pass",
