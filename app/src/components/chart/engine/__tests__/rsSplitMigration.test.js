@@ -18,7 +18,7 @@ import { describe, it, expect } from 'vitest'
 import { registerDefinitions, resolveInputs, RS_LINE_V5_RAW, RS_LINE_SLIM_RAW } from '../nativeRegistry'
 import { validateInstance, normalizeInstances } from '../instances'
 import { unavailableInstances } from '../unavailableInstances'
-import { checkInstanceInput } from '../instanceControls'
+import { checkInstanceInput, addInstance, ensureLegacyInstance, setInstanceInput } from '../instanceControls'
 import { pickServerInputs } from '../serverCompute'
 import { planBindings } from '../pool'
 import { legendChips } from '../readout'
@@ -181,5 +181,56 @@ describe('the member\'s "Save as my default" blob (map §(b) row 7) holding remo
     const inst = { instanceId: 'rsLine:d', defId: 'rsLine', inputs: { ...blob } }
     for (const [, def] of BOTH) expect(validateInstance(inst, registryOf(def)).ok).toBe(true)
     expect(pickServerInputs(SLIM, resolveInputs(SLIM, inst.inputs))).not.toHaveProperty('view')
+  })
+})
+
+describe('Show average is ON for a NEW UCT RS Line and changes nothing already saved (2026-11-11)', () => {
+  const REG = registryOf(SLIM)
+  const instOf = (cs) => cs.indicatorInstances.find((i) => i.defId === 'rsLine')
+  const keysOf = (inst) => planBindings([inst], REG, [], {}).bind.map((b) => b.plotKey)
+
+  it('the DECLARED default stays false (it is what a saved instance without the key means); the new-copy value rides meta.createInputs', () => {
+    expect(SLIM.inputs.find((i) => i.key === 'showAverage').default).toBe(false)
+    expect(SLIM.meta.createInputs).toEqual({ showAverage: true })
+  })
+
+  it('addInstance (Chart Settings > Indicators > Add) stores showAverage true and the average + shade plan', () => {
+    const inst = instOf(addInstance(mergeChartSettings(null), 'rsLine', REG))
+    expect(inst.inputs.showAverage).toBe(true)
+    expect(resolveInputs(SLIM, inst.inputs).showAverage).toBe(true)
+    expect(keysOf(inst)).toContain('rsMa')
+  })
+
+  it('ensureLegacyInstance (turning it on from the legacy toggle) also creates it with the average on', () => {
+    const inst = instOf(ensureLegacyInstance(mergeChartSettings(null), 'rsLine', REG))
+    expect(inst.inputs.showAverage).toBe(true)
+  })
+
+  it('a member can still switch it off on the new copy, and it stays off', () => {
+    const cs0 = addInstance(mergeChartSettings(null), 'rsLine', REG)
+    const id = instOf(cs0).instanceId
+    const cs1 = setInstanceInput(cs0, id, 'showAverage', false, REG)
+    const inst = instOf(cs1)
+    expect(inst.inputs.showAverage).toBe(false)
+    expect(keysOf(inst)).not.toContain('rsMa')
+  })
+
+  for (const [name, inst] of Object.entries(SHAPES)) {
+    if (name === 'slimEra') continue // stored showAverage: true — unaffected by definition
+    it(`SAVED ${name}: no showAverage stored, so it still resolves OFF, draws no average, and a settings round trip adds no key`, () => {
+      expect(Object.prototype.hasOwnProperty.call(inst.inputs, 'showAverage')).toBe(false)
+      expect(resolveInputs(SLIM, inst.inputs).showAverage).toBe(false)
+      expect(keysOf(inst)).not.toContain('rsMa')
+      const round = mergeChartSettings({ indicatorInstances: [inst] })
+      const out = normalizeInstances(round.indicatorInstances, REG)
+      expect(out.kept.find((i) => i.instanceId === inst.instanceId).inputs).not.toHaveProperty('showAverage')
+      // a legacy:rsLine mirror toggle on a chart that already holds this instance revives nothing new
+      const again = ensureLegacyInstance({ ...round, indicatorInstances: [inst] }, 'rsLine', REG)
+      expect(again.indicatorInstances.find((i) => i.instanceId === inst.instanceId).inputs).not.toHaveProperty('showAverage')
+    })
+  }
+
+  it('a stored slim-era showAverage: true is untouched', () => {
+    expect(resolveInputs(SLIM, SHAPES.slimEra.inputs).showAverage).toBe(true)
   })
 })

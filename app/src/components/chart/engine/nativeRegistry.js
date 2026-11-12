@@ -5043,8 +5043,9 @@ const RS_LINE_V5_RAW = {
 // ⭐ `rsMa` DRAWS ONLY WHILE `showAverage` HOLDS (`plots[].activeWhen` on a data
 // plot: `defSchema.validatePlotActiveWhen` admits it on a server definition for a
 // presentation key the server never hears of — the `fill.activeWhen` rule), and
-// the shade is gated on the same switch, so the two can never disagree. Off by
-// default: on the price pane the line alone is the look.
+// the shade is gated on the same switch, so the two can never disagree. The
+// declared default is OFF (what a saved instance without the key means); a NEW
+// instance is born ON through `meta.createInputs` (see the note there).
 const RS_LINE_SLIM_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -5058,6 +5059,16 @@ const RS_LINE_SLIM_RAW = {
       'leader', 'leadership', 'price relative', 'benchmark', 'rs rating', 'red day', 'custom benchmark'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ A NEW UCT RS LINE ARRIVES WITH THE AVERAGE AND ITS SHADE ON (Deepvue ships its
+    // 21 EMA with the green/red shade on, and our own plan said so).
+    // ⛔ The DECLARED default stays false on purpose: it is also what a SAVED instance
+    // without the key means (`resolveInputs` fills an absent key from it), and every
+    // instance saved before this change (v1 shape, migrated, v5 era) lacks
+    // `showAverage`, so flipping the default would turn the average on across every
+    // saved chart. `createInputs` is the door for exactly this split
+    // (`instanceControls.createInputsOf`): written onto a NEW instance by `addInstance`
+    // and `ensureLegacyInstance` only. Pinned by `rsSplitSlim.test.js`.
+    createInputs: { showAverage: true },
     // No `legendFallback`: with the live value missing the pane label prints the
     // server's dated last RS value, muted (`readout.readoutFallbackValue`, A8).
     // ⭐ THE INPUTS THE SERVER DECLARES, trimmed (the header above says why each
@@ -5126,7 +5137,7 @@ const RS_LINE_SLIM_RAW = {
       placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
       tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Simple',
-      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. Off by default: on the price chart the line alone is the classic look.' },
+      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. On when you add the indicator (like Deepvue\'s 21 EMA); turn it off for the line alone.' },
     { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
       tooltip: 'A blue dot where the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
     { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
