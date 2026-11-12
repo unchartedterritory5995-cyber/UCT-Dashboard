@@ -758,8 +758,8 @@ def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     # of a 29th key). What changed is the DIFF, which adds the event and price
     # addresses on top of the grid — so this difference is now EMPTY, and it is
     # asserted as an equality rather than loosened to `>= 30`.
-    assert len(expected) == 45, (  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
-        f"the catalog has {len(expected)} addresses, not 45 — the matrix and "
+    assert len(expected) == 48, (  # 2026-11-12 (RS Exit Warnings): 45 -> 48, +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+        f"the catalog has {len(expected)} addresses, not 48 — the matrix and "
         "the catalog have drifted apart")
     # ⭐ 2026-11-04 — EXCEPT the CLOSED-ONLY addresses, BY DECISION: `ma_cross` is
     # judged on the closed bar under either lane (`ev.CLOSED_ONLY_ADDRESSES`), so
@@ -783,11 +783,11 @@ def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     assert sorted(first["created"]) == sorted(expected)
     again = soak.arm("owner-1", "SPY", "5", 30)
     assert again["created"] == [], "re-arming duplicated the matrix"
-    assert len(soak.soak_rows()) == 45  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(soak.soak_rows()) == 48 # 2026-11-12 (RS Exit Warnings): +3 rs_exit;  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
     out = soak.verify()
-    assert out["armed"] == 45  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
-    assert out["visible_to_shadow"] == 45, (  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert out["armed"] == 48  # 2026-11-12 (RS Exit Warnings): +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert out["visible_to_shadow"] == 48, (  # 2026-11-12 (RS Exit Warnings): +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
         "the shadow lane cannot see the matrix — the soak would observe nothing "
         "and Task 8's three-session gate would pass VACUOUSLY")
     assert out["deliverable_now"] == 0
@@ -823,7 +823,7 @@ def test_the_soak_matrix_CANNOT_deliver_even_when_every_alert_triggers(
         "owner")
     assert fl.count_fires() == 0, "a snoozed alert consumed its episode key"
     # and the lane the soak exists to feed still sees every one of them
-    assert len({a["id"] for a in ias.list_active()}) == 45  # 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len({a["id"] for a in ias.list_active()}) == 48  # 2026-11-12 (RS Exit Warnings): 45 -> 48, +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 45 = 44 - 3 withheld Mansfield + 4 split; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 
 def test_route_latency_states_the_worst_case_per_timeframe(client):

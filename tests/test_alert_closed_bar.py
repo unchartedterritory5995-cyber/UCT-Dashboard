@@ -488,7 +488,7 @@ def test_the_rs_partition_is_measured_on_the_calendar_probe_not_the_forming_shap
     CALENDAR encoding (D / W only — the instant encoding is refused by type)."""
     from api.services import indicator_alert_service as ias
     assert ias._is_calendar_encoded(spy_daily)
-    assert len(ev.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    assert len(ev.RS_ADDRESSES) == 19  # 2026-11-12 (RS Exit Warnings): 16 -> 19, +3 rs_exit; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
     for address in ev.RS_ADDRESSES:
         assert ev.value_function(address)(spy_daily, {}) is None, address
         assert ev._last_non_none(alert_series.series_for(address, spy_daily, {})) is None, address
@@ -514,7 +514,7 @@ def test_the_series_table_covers_every_address_and_nothing_else():
     side that is still hand-written.
     """
     assert set(alert_series.SERIES_FUNCS) == set(ev.all_addresses())
-    assert len(alert_series.SERIES_FUNCS) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 28 levels + 2 events + close + ma_cross + 11 rs_line.* (2026-11-06, RS 2b-05)
+    assert len(alert_series.SERIES_FUNCS) == 51  # 2026-11-12 (RS Exit Warnings): 48 -> 51, +rs_exit.quickBreak/quicksand/deadBreak; 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 28 levels + 2 events + close + ma_cross + 11 rs_line.* (2026-11-06, RS 2b-05)
 
 
 def test_series_for_asserts_its_length_rather_than_trusting_it(wick):
@@ -909,7 +909,7 @@ def test_the_measured_closed_lane_dead_set_is_exactly_chikou_today():
     # the non-vacuity floor: the measurement EXCLUDED things, it did not pass
     # everything through.
     assert ias.closed_lane_pad("rsi", instant, {}) == 0
-    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(ev.all_addresses()) == 51  # 2026-11-12 (RS Exit Warnings): 48 -> 51, +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
 
 def test_the_docstring_cannot_contradict_the_constant():
     """⛔⛔ PROSE ABOUT A SAFETY SWITCH, RAILED AGAINST THE SWITCH ITSELF.

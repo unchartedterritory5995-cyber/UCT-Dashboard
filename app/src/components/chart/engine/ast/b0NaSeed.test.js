@@ -199,21 +199,44 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
       + 'settled which one TradingView draws, so neither is drawn')
   })
 
-  it.each([[2, 'sma'], [5, 'ta.sma']])('a warm-up update (v%i): the host and the member door refuse `pine:cycle`; the runtime lane refuses too', (v, sma) => {
-    // ⭐ review N2 — the runtime lane may meet an earlier wall of its own (`runtime:conditional-history`
-    // for a stated seed in v1/v2); both refuse and nothing is drawn, and the member door shows the
-    // host's sentence. In v3+ the runtime lane refuses `pine:cycle` first since engine 49
-    // (`v3SelfDeclaration.test.js`, `warmupSeed`/`warmupNa`)
-    const src = pine(v, [`x = na(x[1]) ? na : x[1] * 0.9 + ${sma}(close, 5) * 0.1`, 'plot(x)'])
+  // ⭐ ENGINE 50 (review ENG48-1096 note 2) — the warm-up `U` (a `ta.*` call in the update) was the
+  // one spelling the rails above never wrote, and the runtime lane once met its own
+  // `runtime:conditional-history` wall there first. Measured at engine 50: with the `na` seed every
+  // door refuses `pine:cycle` with the ONE sentence in every pragma (the runtime lane's engine-48
+  // check sits before that wall), so this pins the runtime lane's guard AND message, not just "it
+  // refuses". The STATED-seed warm-up is the case that still differs, in v1/v2 only (pinned below).
+  it.each([[null, 'sma'], [2, 'sma'], [3, 'sma'], [5, 'ta.sma'], [6, 'ta.sma']])('a warm-up update, `na` seed (pragma %s): screen, pane, runtime and the member door refuse `pine:cycle` with ONE sentence', (v, sma) => {
+    const src = pineAt(v, [`x = na(x[1]) ? na : x[1] * 0.9 + ${sma}(close, 5) * 0.1`, 'plot(x)'])
     const sentence = `${REFUSALS['pine:cycle']} — ${selfReferenceSentence('x', v)}`
-    for (const r of [hostRefusal(src), hostRefusal(src, { strict: true })]) {
+    for (const r of [hostRefusal(src), hostRefusal(src, { strict: true }), runtimeRefusal(src)]) {
       expect(r && r.guard).toBe('pine:cycle')
       expect(r.message).toBe(sentence)
     }
-    expect(runtimeRefusal(src)).not.toBe(null)
     const door = memberPaneDefinition({ source: src, id: 'u_eng48', name: 'eng48' })
     expect(door.ok).toBe(false)
     expect(door.guard).toBe('pine:cycle')
+  })
+
+  it('a warm-up update, STATED seed: v1/v2 compile it (host draws; the runtime lane refuses `runtime:conditional-history`, a wall of its own); v3+ refuses `pine:cycle` at every door', () => {
+    // ⚠️ honestly pinned: in v1/v2 the doors still differ here (the screen, the pane and the member
+    // door draw it; `buildRuntimeIr` refuses by its own conditional-history wall). Nothing is
+    // over-refused: the spelling compiles in v1/v2 and the runtime lane only declines to draw it.
+    const lines = (sma) => [`x = na(x[1]) ? 0.0 : x[1] * 0.9 + ${sma}(close, 5) * 0.1`, 'plot(x)']
+    for (const v of [null, 2]) {
+      const src = pineAt(v, lines('sma'))
+      expect(hostRefusal(src)).toBe(null)
+      expect(hostRefusal(src, { strict: true })).toBe(null)
+      expect(runtimeRefusal(src).guard).toBe('runtime:conditional-history')
+      expect(memberPaneDefinition({ source: src, id: 'u_eng48', name: 'eng48' }).ok).toBe(true)
+    }
+    for (const v of [5]) {
+      const src = pineAt(v, lines('ta.sma'))
+      const sentence = `${REFUSALS['pine:cycle']} — ${selfReferenceSentence('x', v)}`
+      for (const r of [hostRefusal(src), hostRefusal(src, { strict: true }), runtimeRefusal(src)]) {
+        expect(r && r.guard).toBe('pine:cycle')
+        expect(r.message).toBe(sentence)
+      }
+    }
   })
 
   it('controls: a stated seed and a test that is not a bare history read still translate in v2, in both lanes (v3+: engine 49)', () => {

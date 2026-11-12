@@ -333,7 +333,11 @@ describe('⛔ DIV-4 r1 — a reached runtime.error, and a script below v4', () =
       'study("div4 v3", overlay = true)',
       'hi = highest(high, 3)[1]',
       'lo = lowest(low, 3)[1]',
-      'trend = close > hi ? 1 : close < lo ? -1 : nz(trend[1], 1)',
+      // ⭐ engine 50: declared once, then updated with `:=` — the v3 spelling TradingView compiles.
+      // (`trend = … nz(trend[1], 1)` reads its own history in its declaration, does not compile in
+      // v3+, and since engine 50 refuses `pine:cycle` at every door even when only a paint reads it.)
+      'trend = 0',
+      'trend := close > hi ? 1 : close < lo ? -1 : nz(trend[1], 1)',
       'b = barssince(trend == 1 and trend[1] == -1)',
       's = barssince(trend == -1 and trend[1] == 1)',
       'plot(close)',
