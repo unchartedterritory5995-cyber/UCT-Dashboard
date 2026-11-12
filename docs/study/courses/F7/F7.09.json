@@ -1864,12 +1864,11 @@
    "format": "tf",
    "q": "Each Select Sector index behind the sector funds holds only stocks that are in the S&P 500.",
    "answer": "True",
-   "why": "True. Each of the eleven Select Sector indexes is built from S&P 500 stocks only. Together they hold every S&P 500 company. GICS gives each company one sector, but a sector fund tracks only its sector's S&P 500 stocks.",
-   "lesson_line": "A sector fund holds only its sector's S&P 500 stocks.",
+   "why": "True. Each Select Sector index has a rule: every stock in it must be in the S&P 500. Together the indexes cover every S&P 500 company. So a sector fund holds S&P 500 stocks only.",
+   "lesson_line": "A sector fund holds only S&P 500 stocks.",
    "facts": [
     "f11",
-    "f45",
-    "f07"
+    "f45"
    ],
    "simple": "True, because each sector index is built only from stocks in the S&P 500.",
    "tier": "core",
@@ -2040,7 +2039,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True is right: f11 (s03 prospectus, re-read live: 'each of the component securities in the Index is a constituent of the S&P 500 Index') and f45. Two fixes. (1) Why says 'GICS gives every company a sector'; the w1 checker already removed that overreach ('each company': GICS skips shells and funds), and f07 says 'Each company'. (2) Lesson_line 'not every stock in that sector' asserts GICS sectors hold stocks outside the S&P 500; no cited quote says so."
+   "notes": "Key True is right and both quotes are verbatim on their pages (f11 on the s03 EDGAR prospectus, 11 hits, one per fund; f45 on the s09 XLE page). No second defensible answer. Breaks found in the why: (1) the sentence 'GICS gives each company one sector, but a sector fund tracks only its sector's S&P 500 stocks' is a non-sequitur ('but' joins two unrelated facts) and hands over q02's answer (a company sits in only one GICS sector); (2) 'each of the eleven Select Sector indexes' hints q01's answer (11 sectors). Fix drops f07 and the GICS sentence, drops the count, keeps every claim inside f11 and"
   }
  }
 }

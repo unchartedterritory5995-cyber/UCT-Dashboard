@@ -1563,16 +1563,16 @@
    "skill": "history.data_calendar",
    "rung": 9,
    "format": "scenario",
-   "story": "Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump. Stock futures fall further.",
+   "story": "Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump and Treasury yields drop. Stock futures fall further.",
    "q": "Why can weak jobs news hit stocks even as rate cuts get likelier?",
    "choices": [
     "It signals lower profits ahead",
     "Rate cuts are bad for stocks",
-    "Futures ignored the jobs report",
+    "Treasury yields rose on the news",
     "The cut was already priced in"
    ],
    "answer": "It signals lower profits ahead",
-   "why": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while the odds of a cut jumped.",
+   "why": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while Treasury yields fell sharply and the odds of a cut jumped.",
    "lesson_line": "Weak jobs news cuts two ways: lower rates, but lower earnings too.",
    "facts": [
     "f58",
@@ -1580,12 +1580,13 @@
     "f55",
     "f70",
     "f72",
-    "f73"
+    "f73",
+    "f69"
    ],
    "wrong": {
     "Rate cuts are bad for stocks": "Lower rates are usually a plus. Research finds a signal of lower rates is good news for stocks.",
-    "Futures ignored the jobs report": "They fell further right after the news, and Treasury yields dropped sharply. They were reacting to it.",
-    "The cut was already priced in": "It wasn't. Futures traders raised the odds of a cut to 75.5%, up from 40% the day before."
+    "The cut was already priced in": "It wasn't. Futures traders raised the odds of a cut to 75.5%, up from 40% the day before.",
+    "Treasury yields rose on the news": "Yields fell sharply after the report, as the odds of a cut jumped. Rising rates were not the problem that day."
    },
    "simple": "Weak jobs news can mean lower rates, which helps stocks, but also weaker profits ahead, which hurts them.",
    "deeper": {
@@ -1641,8 +1642,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f01). Tell: the key is the longest choice (33 chars vs 32, 29, 28). Fixed by lengthening one distractor in f05's own words; the key stays as is for Word Match. Lengths now 33, 32, 35, 29."
+   "fixed": false,
+   "notes": "My answer before the key: average change in consumer prices (f01). Matches. f02, f05, f06, f07 re-read live on the BLS CPI FAQ today, verbatim. Choices 33/32/35/29, key not longest, no lone absolute. Each distractor is a real other index (PPI f05, ECI f06) or the national-average misread (f07). Simple restates f01, no overreach. Does not answer q07 (CPI being most widely used points away from the PCE key, which is the intended trap)."
   },
   "q02": {
    "status": "pass",
@@ -1659,8 +1660,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f20). But its why and the claims wrong note state f26 (count does not depend on benefits), which is exactly q10's True statement. q04 (rung 2) then answers q10 (rung 4), and no walkthrough teaches f26, so q10 becomes recall of a reveal. Refute the claims distractor with f20 and f45 instead; f26 is left to q10."
+   "fixed": false,
+   "notes": "My answer before the key: household survey (f20). Matches. Choices 30/30/27/32, no tell. Claims distractor refuted with f20 and f45 only; f26 is no longer stated, so q10 is not answered. The why and the businesses note restate that payrolls come from businesses (q03's answer), but w1 step 2 teaches both openly, so no new leak. Head-count note 'not every jobless person counts as unemployed' (f32, f33) hints at q17 only in general; q10's why already teaches the 4-week rule. Minor: the why's last sentence repeats its first; harmless."
   },
   "q05": {
    "status": "pass",
@@ -1780,7 +1781,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f58; 75.5% and 'fell further' re-read live on CNBC). Tell: key 'It points to lower profits ahead' is the longest choice (32 vs 31, 29, 28). Shortened to f58's own verb 'signals' (30 chars). Minor: two distractors are refuted by the story itself; left."
+   "notes": "Key right (f58; f72, f73 re-read live on CNBC today: 'fell further', 'sharply lower', 75.5% from 40% on Thursday). Break: 'Futures ignored the jobs report' contradicts the question's own premise (weak jobs news hit stocks) and the story's 'fall further', so it is a silly choice under README rule 'a wrong choice is never obviously silly'. Replaced with 'Treasury yields rose on the news', a real misreading (rising yields pressure stocks, f69) refuted by f72; story now says yields drop so it is decidable from the page (still 4 sentences). Key 30 vs 32/28/29, not longest. Overlap noted: q21's why "
   }
  }
 }

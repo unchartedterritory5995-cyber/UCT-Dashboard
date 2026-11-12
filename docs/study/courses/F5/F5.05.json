@@ -1130,12 +1130,12 @@
    "rung": 7,
    "format": "scenario",
    "story": "NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%.",
-   "q": "How did the realized move compare with what options priced?",
+   "q": "What is the realized move divided by the implied move, and what does it say?",
    "choices": [
+    "About 2.15x, bigger than priced",
     "About 0.46x, smaller than priced",
-    "About 1x, right on the price",
-    "About 2x, far bigger than priced",
-    "Can't tell without the strike"
+    "About 0.54x, smaller than priced",
+    "About 1x, right on the price"
    ],
    "answer": "About 0.46x, smaller than priced",
    "calc": {
@@ -1158,12 +1158,12 @@
    ],
    "wrong": {
     "About 1x, right on the price": "Right on would need a move near 7%. The stock moved 3.25%.",
-    "About 2x, far bigger than priced": "That's backwards. The move was smaller than priced, not bigger.",
-    "Can't tell without the strike": "The size comparison needs only the priced move and the real move. The strike does not change it."
+    "About 2.15x, bigger than priced": "That divides the wrong way: 7 over 3.25. Put the realized move on top: 3.25 over 7.",
+    "About 0.54x, smaller than priced": "That's the shortfall, 7 minus 3.25, over 7. The ratio is 3.25 divided by 7, about 0.46."
    },
    "simple": "About 0.46x, because the 3.25% rise was less than half of the 7% move options priced.",
    "deeper": {
-    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Put the realized move on top. Then read it: under one is smaller than priced, over one is bigger."
+    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Subtracting first gives the shortfall, not the ratio. Put the realized move on top and divide. Under one is smaller than priced, over one is bigger."
    },
    "tier": "extended",
    "risk": {
@@ -1400,7 +1400,7 @@
     "Implied volatility will now rise"
    ],
    "answer": "The report surprised the market",
-   "why": "The report surprised the market. Options price the reaction the market expects before a report. A move twice that size means the news landed far outside that expectation. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
+   "why": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
    "lesson_line": "Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
    "facts": [
     "f17",
@@ -1410,7 +1410,7 @@
     "f54"
    ],
    "wrong": {
-    "The options were priced too high": "Backwards. The move beat what options priced. OIC says such options are sometimes called outperforming expectations.",
+    "The options were priced too high": "Backwards. The stock moved more than options priced, not less. Priced too high would show as a move that fell short.",
     "The move will reverse the next day": "Nothing in the implied move predicts tomorrow. Judge what happens next on its own.",
     "Implied volatility will now rise": "After a report, implied volatility often falls sharply. The event it was pricing is over."
    },
@@ -1548,8 +1548,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 2.5 is right (calc). But the why's last clause 'so the report was a real surprise' states q24's key in q24's own words, and q11 (rung 5) plays before q24 (rung 9), so q11 answers q24. Dropped the clause; the f54 sentence already says what over one means."
+   "fixed": false,
+   "notes": "Own answer before key: 10 / 4 = 2.5 (calc matches, numbers from the stem). Stem names the direction of the divide, so no second answer. f54 re-fetched on optionseducation.org/news/may-keytakeaways: 'outperforming expectations' and 'sometimes referred to' found; the why says 'sometimes called', faithful. Why no longer states q24's key. Simple stays within the why. One cross-item note: q24's why repeated q11's OIC sentence word for word; repaired on the q24 side."
   },
   "q12": {
    "status": "pass",
@@ -1585,13 +1585,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (3.25/7 = 0.46, calc). TELL: 0.46x appears in two of four choices, so a member who picks the repeated number gets the key without the skill, and then 'under one is smaller' decides it. Cut the duplicate-number choice (3 choices are allowed); the wrong-way 2x divide stays as the real trap and the deeper trap still teaches the reading. Also the why said 'OIC calls that options underperforming expectations'; f54 says the options are 'sometimes referred to' that way, the same misattribution fixed in q11/q24."
+   "notes": "Key right: 3.25 / 7 = 0.464 (calc). f42/f43/f45 re-fetched from the IBKR page with a plain client: '+3.25% gain', 'May 28, 2025)', 'the 7% that was expected last quarter' all present; NVDA did report May 28, 2025. Breaks: (1) after the earlier cut, only one choice says 'smaller' and the other three are ruled out by seeing 3.25 < 7, so the ratio skill is never tested; and 0.46x is the lone precise number beside round 1x/2x, a precision tell. (2) deeper.trap opens 'Two traps.' but now describes one trap and an instruction. (3) the stem 'How did ... compare' does not name the divide. Fix: stem na"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (8.48% vs about 8.4%, f44/f45; size not direction f19/f52). SILLY CHOICE: 'No, it moved twice the priced move' against 8.4% and 8.48% in the story fools nobody. Replaced with the real misconception the deeper trap and q20 describe: judging a big drop as a miss without comparing it to the priced move. Numbers only from the story. Yes/No still two and two; lengths 30-34, key not longest."
+   "fixed": false,
+   "notes": "Own answer before key: yes on size, 8.48 vs about 8.4 (ratio about 1.01), with direction never priced. f44 '(-8.48%)' and f45 'the 8.4% that was priced in two quarters ago' found on the IBKR page (plain client); NVDA reported Feb 26, 2025, matches f42. f19/f20 Cboe and f52 OIC ('magnitude of expected movement, not direction', re-fetched) back the direction point. Tried to break: 'Yes, options priced a drop of 8.4%' is the only other Yes and is wrong because no direction was priced; two Yes, two No; lengths 30-34, key not longest; each distractor a real misreading with its own note. Teaches the"
   },
   "q19": {
    "status": "pass",
@@ -1627,7 +1627,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f17/f34 plus f54). The why's f54 attribution is fixed, but the wrong note for 'The options were priced too high' still says 'OIC says the options outperformed expectations', dropping OIC's 'sometimes referred to', and 'not that they were too dear' is no OIC claim. Rewritten to f54's words. Lesson-level: q21's lesson line ('Twice the priced move or more means the news landed far outside...') previews this key; q21 is not in this check's scope, so flagged only."
+   "notes": "Own answer before key: the report surprised the market (f17/f34: options price the expected reaction; f54: more than implied beats it). Key matches; 'surprise' is an inference from those quotes, not a quote, but the only defensible one of the four. Rulebook section 9 has nothing against 'judge the chart on its own merits'. Breaks: (1) the why's OIC sentence is copied word for word from q11's why, and the wrong note repeats it a third time; (2) 'A move twice that size means the news landed far outside that expectation' copies q21's why. Fix rewords both. STILL OPEN, OUTSIDE THIS CHECK: q21 (run"
   },
   "q25": {
    "status": "pass",

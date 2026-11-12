@@ -1627,8 +1627,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New choice 'None, the moves are too small' is a lone negative that fights the stem's premise (some part IS under pressure), so it is eliminated on sight, and at 29 characters it is 81% longer than the 16-character key (plan rule 3: about 25%). Its note restates the story; no fact backs 'too small'. Replaced with 'Mid-cap stocks', a real confusion the lesson already treats as one (q08's bank has 'mid'), failing for a different reason (misreading what IWM tracks), grounded in f59 and f61."
+   "fixed": false,
+   "notes": "Derived Small-cap stocks before reading the key: only IWM (Russell 2000, small caps, f59/f61) is down. No second defensible choice: QQQ (Nasdaq-100, f49/f50) and SPY (S&P 500 large caps, f42/f43) are up; no fund tracks mid caps and the wrong note says why. Choice lengths 14-24, key 16, not longest; key does not echo the story (story names IWM, not small caps). Numbers 0.3/0.4/2.1 come from the story. No em dash, no rulebook conflict (B18 untouched). Rung 5 after q08 (rung 4), so it does not leak q08's blank."
   },
   "q10": {
    "status": "pass",
@@ -1651,8 +1651,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived (f81 vs f79/f80, f82). But 'It did not leave stocks' (why) and 'It didn't leave stocks' (wrong note) claim a market-wide net flow no cited fact measures; the S&P 500 and Nasdaq both fell. The facts support only 'not altogether' (Russell 2000 up 3.6%, f81; rotation, f83). Softened both; deeper already says it this way."
+   "fixed": false,
+   "notes": "Derived Into small caps first: Russell 2000 +3.6% vs S&P -0.9% and Nasdaq Composite -2%. Re-fetched AP (f79, f80, f81 verbatim) and CNBC (f82, f83, f84, f89 phrases present). f82 says the CPI reading sent rates lower and investors into small caps, which grounds the key and the higher-rates note; f83 grounds the big tech note. 'Altogether' wording matches what the facts support (f81 + f83). Key 15 chars, not longest; story names the Russell 2000, not small caps, so the key is not echoed. Simple and deeper stay within the why. q14 restates its own inputs, so q13 does not answer it; q15's breadth"
   },
   "q14": {
    "status": "pass",
@@ -1687,8 +1687,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False is right (h1: $5 million < $20 million). But the lesson relies on a rule it has not taught yet: q19 is rung 6, and B23 is taught only in q17's why at rung 9; no walkthrough teaches it, and F1.02 is the second Foundations lesson. 'Under our rule' asks a member to recall a rule they have not seen. The stem now states the rule, so the question tests applying both tests (the trap: it passes on price). Numbers: $10 and $20 million from h1, $12 and $5 million from the question. 117 characters, sentences of 13 and 11 words."
+   "fixed": false,
+   "notes": "Derived False first: $5 million is under the $20 million line even though $12 clears $10. h1 matches rulebook B23 verbatim (sizing_rule.md section 9). $10/$20 million from h1, $12/$5 million from the question. Stem about 117 chars, states the rule so it no longer relies on q17 (rung 9), and does not answer q17 (whose key is about OTC info and fraud). TF balance in the lesson: q03 T, q06 F, q10 T, q15 F, q19 F. No em dash, plain voice. 'Fails on trading' in the why is slightly loose but not wrong."
   }
  }
 }

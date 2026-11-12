@@ -979,7 +979,7 @@
     "f48",
     "f50"
    ],
-   "simple": "True, because the VIX tracks how big traders expect price swings to be, and that jumps when stocks drop.",
+   "simple": "True, because the VIX tracks the price swings the market expects, and that expectation jumps when stocks drop sharply.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1478,7 +1478,7 @@
    "skill": "history.bottoms",
    "rung": 7,
    "format": "scenario",
-   "story": "A hotter-than-expected inflation report hits. The index drops as much as 2.4% to its lowest level in nearly two years. It closes up 2.6%.",
+   "story": "The index has fallen six days in a row. Then a hotter-than-expected inflation report hits. It drops as much as 2.4%, to its lowest level in nearly two years. It closes up 2.6%.",
    "q": "What's your read on this close?",
    "choices": [
     "Bad news failed. A clue, not proof",
@@ -1510,7 +1510,7 @@
    ],
    "wrong": {
     "Bear rally. Sell into the bounce": "No one can tell yet. Investopedia says there is no sure way to spot a bear market rally until it unwinds.",
-    "Likely a follow-through day. Buy a bit": "It can't be one yet. It ended a six-day losing streak, so it was day one. A follow-through day comes several days into a rally attempt, on higher volume.",
+    "Likely a follow-through day. Buy a bit": "Too early for that. It ended a six-day losing streak, so this was day one of a rally attempt. A follow-through day typically comes several days in, on higher volume.",
     "Probably noise. Nothing to note yet": "It's worth noting. Turns form while the headlines are still bad, and a big reversal on bad news is one clue to watch."
    },
    "simple": "Price shrugging off bad news is a good sign to note, but one day like this proves nothing on its own.",
@@ -1935,7 +1935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True on an unhedged statement, but the why said 'Usually, not always: it is a tendency, not a law', which concedes the case for False and makes the reveal argue against its own key. The statement mirrors Investopedia f47 ('when the S&P falls sharply, the VIX rises'), so keep it and make the why match the source instead of undercutting it."
+   "notes": "Key True is right: f47 (Investopedia) says it word for word, and f50 (ChartSchool) agrees. The why now backs its own key. Only the simple line has a problem. 'how big traders expect price swings to be' reads at first as 'big traders' (large traders), which the why never says. Reworded to match the why (f21, f47). No number involved. It does not answer q21: q03 is about direction, q21 about where the VIX peaked."
   },
   "q04": {
    "status": "pass",
@@ -2025,7 +2025,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Lone-hedge tell is still there. The key ('A clue, not proof') is the only measured choice; the three distractors are all confident ('Start buying here', 'Sell into the bounce', 'Safe to ignore it'), so a member who has learned this lesson's 'clue, not proof' pattern picks the key without reading the case. Give two distractors a hedge of their own. Each stays clearly wrong: day one cannot be a follow-through day (f98, f67), and a big reversal on bad news is a signpost to note (f72, f32/f33). 'Bear rally' stays confident because a hedged bear-rally read would be defensible (f39)."
+   "notes": "Key is right (f32, f33, f34, f72, f39), and the tell is gone: two distractors are hedged and one is confident. Two weak spots. (1) The follow-through day wrong note says 'It ended a six-day losing streak, so it was day one', but the story never mentions the streak. A member is marked down for a fact they never saw. (2) 'It can't be one yet' is stronger than f67, which says a follow-through day 'typically' comes several days after a low. Fix: put the streak in the story, from f98 (AP quote re-read live on 2026-11-12: 'The gains ended a six-day losing streak'), and say 'typically' in the note. T"
   },
   "q19": {
    "status": "pass",
@@ -2048,14 +2048,14 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Absolute tell: all three distractors carried a strong word ('exact', 'clear', 'gone') and the key was the only plain statement. Swap 'The VIX called the exact bottom day' for a plain wrong read that the question's own numbers refute (33.57 on Oct. 12 is below 36.45 on March 7). Lengths 32-37, key 35 and not the longest. 'Fear was gone' stays, because the softer 'faded' would be defensible (the VIX was lower)."
+   "fixed": false,
+   "notes": "I got the key on my own from the stem's numbers (36.45 on March 7 is above 33.57 on Oct. 12), which are f22, f23 and f08. f49 (ChartSchool's 2008 example) and f51 back the lesson. Stem 114 chars. Choices 32-37, key 35, not the longest. Distractors mix plain and strong wording, so the key has no tell. Each wrong note is refuted by the stem's own numbers or by f51. I found no second defensible answer. No overlap with q03 or q22 beyond sharing f51."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "(1) The stem's 'What confirmed this divergence?' names the answer to q04's fill (bank word 'divergence'), so the two questions answer each other. (2) The key rests on one publisher: CMT f82, re-read live 2026-11-12 ('once the index moved back above the June lows, the divergence was confirmed'). ChartSchool f56/f95 back the divergence itself, not what confirms it, so risk 0 ('two publishers agree') overstates the support. Fix: credit the CMT writer in the stem, stop naming the concept, and correct the risk. Stem is 133 chars."
+   "fixed": false,
+   "notes": "I got the key on my own from f82 (CMT: 'once the index moved back above the June lows, the divergence was confirmed'). The stem credits the CMT analyst, so one Tier 2 publisher is enough, and the risk note says so. Stem 133 chars. Choices 32-38, key 33, not the longest. The Fed note is grounded in f29 (still hiking in December 2022), the VIX note in f51. The stem no longer names 'divergence', so it does not give away q04's fill. The why and lesson_line use the word, but only after the member answers, and q04 (rung 2) comes before q22 (rung 8)."
   },
   "q23": {
    "status": "pass",
@@ -2078,8 +2078,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem/choice mismatch tell: the stem asks 'What's the read?' but only the key gives a market read; the three distractors are bare stop or adding actions, so the key stands out by its shape. The wrong notes also lean only on rules the lesson never teaches (A5 no adding, D41 a real stop order), where each could be refuted from the lesson's own facts (f78, f90) too. Fix: ask for the read and the move, give every choice a read plus an action, and ground every wrong note in both a web fact and the house rule. Lengths 35-38, key 36 and not the longest. The key is unchanged and agrees with the owner's"
+   "fixed": false,
+   "notes": "I got the key on my own. f78 (worse internals at a new low: the bottom isn't in) gives the read, and section 9 gives the action. A4 (h1) says the stop is the exit and only moves up. A5 (h2) says no adding. D41 (h3) says every position has a real stop order. The owner's answer in sizing_rule.md ('my stop is my stop most of the time') also backs 'let your stops work' over a discretionary cut. I checked the h1-h3 quotes: they are verbatim in section 9. Each distractor breaks a house rule in its action: add, lower the stop, cancel stops. So even the defensible-sounding 'shakeout' read stays wrong."
   },
   "q27": {
    "status": "pass",

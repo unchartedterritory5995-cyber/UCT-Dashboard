@@ -796,6 +796,12 @@
    "source": "h1",
    "quote": "New traders start at 0.25% risk per trade until 50 journaled trades followed the rules, then size up.",
    "claim": "C37: new traders start at 0.25% risk until 50 journaled trades followed the rules."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low; in Orange only if everything else grades A+ (F65)",
+   "claim": "The card's A+ list names the index above its AVWAP from the last low."
   }
  ],
  "walkthroughs": [
@@ -2577,10 +2583,12 @@
    "criterion": "av.index_above_avwap",
    "q": "On our card, the index sitting above its AVWAP from its last major low grades a reclaim up.",
    "answer": "True",
-   "why": "True. Our card's A+ list names the index above its AVWAP from the last low. The card means QQQ or SPY above its AVWAP from the most recent major low or follow-through day. It counts toward the grade.",
+   "why": "True. Our card's A+ list names the index above its AVWAP from the last low. The card means QQQ or SPY above its AVWAP from the most recent major low or follow-through day. A cue is a hint, not a score: our rulebook keeps grading a judgment, with no fixed checklist.",
    "lesson_line": "A plus on our card: the index above its own AVWAP from its last major low.",
    "facts": [
-    "c18"
+    "c18",
+    "c31",
+    "hb_e50"
    ],
    "house": true,
    "simple": "True. Our card counts it toward an A+ when the index is above its own AVWAP from its last big low.",
@@ -2658,7 +2666,7 @@
    "wrong": {
     "A reclaim after weeks under": "A reclaim comes from below after weeks under the line. This never went under.",
     "A U&R of the gap day's low": "A U&R dips under a prior low and closes back above it. This one held the low and never dipped under.",
-    "A Remount of a moving average": "A Remount takes back a moving average or a flat level. This stock never lost a line to take back."
+    "A Remount of a moving average": "A Remount takes back a moving average or a flat level. Here the stock held the gap day's low from above."
    },
    "house": true,
    "simple": "Gap Support, because the stock turned up above the gap day's low and never went under the line.",
@@ -2813,7 +2821,7 @@
     "The 50-day, sold on a touch"
    ],
    "answer": "The 10-day or 21-day trail",
-   "why": "The trail. Our plan takes a third at 3R and another at 5R, then trails the last third. The default trail is the 10-day average for fast movers or the 21-day for steadier ones. It sells on a close below that average. Our rule moves the stop to breakeven at 2R to 5R, ideally, so the first stop is not the exit here.",
+   "why": "The trail. Our plan takes a third at 3R and another at 5R, then trails the last third. The default trail is the 10-day average for fast movers or the 21-day for steadier ones. It sells on a close below that average. Our rule moves the stop to breakeven at 2R to 5R, ideally. Either way, the plan for the last third is the trail, not the first stop.",
    "lesson_line": "Two thirds banked; a trail decides the rest.",
    "facts": [
     "c29",
@@ -3273,8 +3281,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Thin story against the unit's own rule: the stem says only that a stock closes back over the line, and the key calls that an AVWAP reclaim, while q22 keys that one close back over is NOT a reclaim without weeks under (c24). Fixed by adding 'after weeks under it' to the stem (q reworded: lineage needed) and one sentence to the why from c24."
+   "fixed": false,
+   "notes": "Derived AVWAP reclaim before reading key: a line that starts on an event day and moves daily, retaken after weeks under (c23, c24). Remount out (an MA has no anchor day), U&R out (weeks, not 3 sessions), flat level out (line moves). A downtrend line from the high would also 'start on the high day and move', but it is not a choice, so the key is unique within the set. Minor: the flat-level wrong note says the line moves 'with price and volume', which the stem does not say; true of an AVWAP by c08, so left. Stem does not answer q22's key."
   },
   "q28": {
    "status": "pass",
@@ -3315,8 +3323,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c01; d17/d18). Tell: the story's 'dips' signals a small move before the member compares 3.9 with 4. Story now says 'falls' (same number, d18)."
+   "fixed": false,
+   "notes": "3.9 ATR < 4 ATR (c01, d17, d18). Failing one gate suffices, so the thin story still decides; the Yes options would need every gate. 'Falls' (not 'dips') removes the earlier tell. Percent distractor rebutted (card measures in ATR). Anchor rule (D-082) not keyed. Pass."
   },
   "q55": {
    "status": "cut",
@@ -3328,7 +3336,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two silly choices ('Nothing; just hold it for the rebound', a hope option; 'A fixed profit target at 10R', which cannot protect a slide), the key is a give-away of q24's old stem (fixed there too), and the why stated the stop 'sits at breakeven or higher' as fact where B19 says 'ideally'. New distractors are real misconceptions each wrong for its own reason (the line as exit, c13; a slower average sold on a touch, E52); the key is no longer the longest choice."
+   "notes": "Key right (E51 h20, E52 h21; the trail plans the last third). Defect in the why: 'Our rule moves the stop to breakeven at 2R to 5R, ideally, so the first stop is not the exit here' draws a firm conclusion from an 'ideally' (B19); if the stop was not moved, the first stop still stands with the broker. Reworded so the why says the trail is the plan for the last third without claiming the stop has moved."
   },
   "q57": {
    "status": "pass",
@@ -3345,8 +3353,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answered before it is asked: walk-through w2 narrates this exact plan (buy at market 17.70, stop 17.50 under the reclaim day's low), and q19's stem gives 'Bought at 17.70 with the stop at 17.50', which leaves only the trim to choose. Also its 17.69 / 17.53 were derived, not read off the NOW bars (cold check 2026-11-10 left them 'to be confirmed'). Re-cast on numbers the story itself states (an unnamed stock, no real-example claim); every price in the key and notes is in the story or is the story's low minus three cents."
+   "fixed": false,
+   "notes": "Market 36.41 (E57 h22), stop a few cents under the 35.80 low (F62 h24), a third at 3R (B19 h05). Only one choice puts the stop a few cents under the low, so 35.77 is unique. Numbers all from the story. The close-entry choice is a D-003 option but is rejected on its stop, not its entry, so the key does not pick the trigger. No longer answered by w2 or q19. Pass."
   },
   "q67": {
    "status": "cut",
@@ -3381,8 +3389,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (C28 h11, calc 4.8%). Wrong note for the wider-stop choice ('is the mistake, not the fix') rests on no cited fact; regrounded in h11."
+   "fixed": false,
+   "notes": "Calc (52.40 - 50.00) / 50.00 = 4.8%, over C28's 4% (h11, c20). Distractors each wrong for a stated reason; 'failed' choice correctly rebutted (still over the trigger, c12 is a close back under). No length tell. Pass."
   },
   "q31": {
    "status": "pass",
@@ -3441,14 +3449,14 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c09). x03 (verified on ChartSchool 2026-11-12) is about converging Anchored VWAP lines, but the why and a wrong note applied it to any 'converging lines', here a 50-day SMA. Why now quotes it as AVWAP lines; the wrong note rests on p03 and c09."
+   "fixed": false,
+   "notes": "Key c09 (A+ cue: the AVWAP sits at a second level, the 50-day named). p03 checked in context on the CMT transcript: he describes bids landing where an anchor and other levels meet, 'So it's more likely when we have that confluence', so the claim is fair. x03 now correctly limited to AVWAP lines. w3 teaches the MAS case first, but q58's story is generic and tests applying it. E50 hedge present. Pass."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key follows F65 (h26). Defect: the key rested on turning one card cue (c10, 3% overhead) into 'not an A+', a fixed-checklist grade that E50 (rulebook section 9) says is not ours; the why also restated q20's answer. Story now gives the member's own grade (a B), so the question tests only the Orange reading. c10 and hb_e50 dropped."
+   "fixed": false,
+   "notes": "Story gives the member's grade (B), so the item tests only F65 (h26): Orange takes only A+ setups; card no_trade lists 'Orange below A+'. Red/no-new-longs choice correctly called a wrong reason; half-size choice rebutted by Yellow. Why notes the reading is a guide. Balanced choices. Pass."
   },
   "q62": {
    "status": "pass",
@@ -3513,8 +3521,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and lesson_line say 'cost' / 'average buyer's cost', which c08 (a formula) does not say; c23 ('the volume-weighted average cost since one named event') does. Added c23 to facts. Key, choices and why otherwise sound."
+   "fixed": false,
+   "notes": "Derived independently: volume-weighted average price since the anchor (c08 formula, c23 'average cost since one named event'). Choices near equal length, each distractor wrong for its own reason, all share 'anchor' so no echo tell. Does not give away q17 or q52 from the stem. Pass."
   },
   "q03": {
    "status": "pass",
@@ -3609,8 +3617,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong choice 'No; the line broke, so get out' is a non-sequitur (by Thursday it is back over the line, and the story holds no position), and its wrong note rests on 'after the buy', a premise the story never states. Replaced with a real misconception wrong for a different reason (the close-over size, c04); the two-No/two-Yes balance is kept so no lone verdict tells."
+   "fixed": false,
+   "notes": "Derived No: a few days under a rising line is a dip, not weeks under a flattened line (c24, b03). Other gates (c02 first reclaim, real fall) would also say No, but no choice offers them, so no second defensible answer. Two Yes / two No, lengths balanced. Story's 'held above the AVWAP from its March high for months' reads as a swing high the stock later exceeded; plausible. Keys no count (D-083 kept out). Pass."
   },
   "q23": {
    "status": "pass",
@@ -3621,8 +3629,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Cross-answer: the stem states that the last third trails the 10-day or 21-day, which is exactly q56's key ('What protects the last third?'). Stem reworded to test only touch against close (q reworded: lineage needed); the why still teaches the last-third trail after the member answers."
+   "fixed": false,
+   "notes": "False per E52 (h21): sell on a close below, not an intraday touch. Stem no longer names the last third, so it no longer states q56's key; the why's last-third line comes only after the answer. 'The moment' is an absolute in a False item, but it is the tested content (touch vs close). Pass."
   },
   "q33": {
    "status": "pass",
@@ -3639,8 +3647,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (B21 h28, E56 h29). Leading story: 'triggers a new buy' presupposes the Yes answer to 'Buy again?' and echoes the key's 'new trade'. Story reworded so the trigger trading is stated without saying 'buy'."
+   "fixed": false,
+   "notes": "Key from B21 (h28) and E56 (h29), both verbatim in sizing_rule.md section 9. Story stipulates the setup forms again, so the first-reclaim count (c02) does not bite. Story no longer says 'buy', no echo. LIN deeper matches d15/d16 (stopped next session 2019-09-16, 3R 39 sessions later). Two Yes / two No. Pass."
   },
   "q39": {
    "status": "pass",
@@ -3657,20 +3665,20 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c16, A3 h01, A5 h03). The AVWAP-stop wrong note ('the reclaim day's low is' the stop) cites no stop-location fact; added c15 and reworded to c15's few cents under the reclaim day's low."
+   "fixed": false,
+   "notes": "Key is c16's first branch (size down from the honest wider stop) with A3/A5 (h01, h03); skip is not offered, so no second defensible choice; 'simple' adds the skip branch correctly. Pull-up-to-3% is c16's 'never tighten into the noise'; AVWAP stop rebutted by c15. Consistent with b_minus 'stop wider than 3%' as a grade cue. Pass."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Ungrounded key: the only cited quote (c18) states the index condition but nothing about grading, and 'grades a reclaim up' plus 'a proposed cue, not a gate' come from the card's unquoted status/gate fields. The card's grading list does say it verbatim: grading.a_plus[9] = \"av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low; in Orange only if everything else grades A+ (F65)\" (22 words). INTEGRATOR: add it as fact c31 (source c1, claim: 'The card's A+ list names the index above its AVWAP from the last low.'). Why and lesson line now claim only what c18 an"
+   "notes": "Still ungrounded: the only cited quote, c18, states the index condition but says nothing about grading, while the stem's 'grades a reclaim up', the why's 'A+ list' and the simple's 'counts toward an A+' all rest on the card's grading.a_plus line, which is not a lesson fact. The previous checker asked the integrator to add it as c31; it was never added (facts end at c30). Fix: add fact c31 (verbatim card grading.a_plus line, 21 words, checked in docs/study/setups/criteria/19-avwap-reclaim.json line 1000), cite it, and tie the cue to E50 like q20 and q58 do."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Unsupported wrong choice: 'A Kicker over a red day's high' relies on a Kicker definition no cited fact gives (c05 only names a Kicker), and its note 'Nothing here gaps over a red day's high' is unknowable from a story that opens with an earnings gap up. Replaced with a Remount, defined in c23 and wrong for its own reason."
+   "notes": "Key right: Gap Support holds the gap-up day's low from above (c25); never under the line, so not a reclaim; never undercut, so not a U&R. Defect: the Remount wrong note says 'This stock never lost a line to take back', which overreaches the story (it only says the stock never closed under the earnings AVWAP; drifting back for days it may well have lost a short average). Reworded to what the story states."
   },
   "w1": {
    "status": "pass",

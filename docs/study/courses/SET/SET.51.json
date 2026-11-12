@@ -2669,7 +2669,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "mr.prior_trend_a",
-   "q": "The turn prints the next morning. What does this chart say?",
+   "q": "The turn prints the next morning. How do you read it?",
    "choices": [
     "A broken trend, not a stretch",
     "Too small a run to be a leader",
@@ -2677,7 +2677,7 @@
     "A stretched leader, ripe to bounce"
    ],
    "answer": "A broken trend, not a stretch",
-   "why": "A broken trend, not a stretch. The card files this case as a broken leader, not a stretched one. It slid through the 50-day right after a parabolic top. Form A wants a leader above its 200-day and 50-day the day before the flush. This one was already under its 50-day. The marks were there, eight down closes, a 3x flush and RSI(2) at 0. Marks do not fix a broken trend.",
+   "why": "A broken trend, not a stretch. An eight-day slide through the 50-day, right after a parabolic top, is a broken leader, not a stretched one. The marks were there: eight down closes, a 3x flush and RSI(2) at 0. Marks do not fix a broken trend.",
    "lesson_line": "Eight red days through the 50-day is a break, not a stretch.",
    "facts": [
     "dEL",
@@ -2694,7 +2694,7 @@
    "house": true,
    "simple": "It was a broken trend, because eight down days through the 50-day after a parabolic top is a break, not a stretch.",
    "deeper": {
-    "trap": "The trap is reading the marks alone. Eight straight down days, a 3x volume flush and RSI(2) at 0 all shout oversold. But the slide went through the 50-day right after a parabolic top, so the leader broke before the flush. Check the trend gate first: above the 200-day and the 50-day the day before the flush."
+    "trap": "The trap is reading the marks alone. Eight straight down days, a 3x volume flush and RSI(2) at 0 all shout oversold. But the slide went through the 50-day right after a parabolic top. That is a broken leader, not a stretched one. Check the trend before you count marks."
    },
    "tier": "expert",
    "risk": {
@@ -2772,12 +2772,13 @@
     "dSB2",
     "h02",
     "h24",
-    "h28"
+    "h28",
+    "cJ"
    ],
    "wrong": {
     "Yes, you should have held it": "The stop is the exit. It only moves up, never down or wider.",
-    "Yes, the stop was too tight here": "The stop sat a few cents under the day's low, as our rule says. The stop is the exit, and it never moves wider.",
-    "No, so buy it back right away": "Not a mistake, but a stopped trade is closed. Buy again only if the setup triggers again, as a new trade with its own stop."
+    "Yes, the stop was too tight here": "Any stop above 99.80 was hit that day, and 99.80 is far under the buy. The stop never moves wider.",
+    "No, so buy it back right away": "Not a mistake, but the trade is closed. Buying back now buys the falling price, not a turn."
    },
    "story": "You buy at 105.48 with the stop at 103.39. Day one trades down to 99.80 and closes at 101.13, in the lower quarter of its range. The index makes a new low.",
    "house": true,
@@ -3122,9 +3123,10 @@
     "Pass; the drop is too big to buy"
    ],
    "answer": "Wait for the turn; over the 200-day",
-   "why": "Wait for the turn. This is an earnings flush 13% under the rising 50-day, in a stock still 20% above its 200-day. The 200-day rule is met. The trigger is the turn, not the falling price, so you do not buy this close. The next day it turned and closed at 3R.",
+   "why": "Wait for the turn. This is an earnings flush 13% under the rising 50-day, after a 59% run, in a stock still 20% above its 200-day. The 200-day rule is met. The trigger is the turn, not the falling price, so you do not buy this close. The next day it turned and closed at 3R.",
    "lesson_line": "A leader flush well above the 200-day: wait for the turn.",
    "facts": [
+    "dKR",
     "dKR1",
     "dKR2",
     "h10",
@@ -3150,9 +3152,10 @@
    },
    "tier": "expert",
    "risk": {
-    "score": 3,
+    "score": 4,
     "reasons": [
      "rests on the owner's rulebook (sizing_rule.md section 9) and a held decision (D-003); the example is read from our own bars, not yet owner-reviewed",
+     "the form A anchor is open (the day before the flush or before the slide began): on the strict reading this flush may fail the 50-day gate, an owner flag",
      "fixed before (cold check 2026-11-10)"
     ]
    },
@@ -3265,15 +3268,14 @@
    "criterion": "mr.trim_2",
    "q": "Our plan sells the last third at 5R.",
    "answer": "False",
-   "why": "False. Our plan sells the first third at 3R and another third at 5R. The last third is trailed, not sold at a set level. The default trail is the 10-day average for fast movers and the 21-day for steadier ones, sold on a close below it.",
+   "why": "False. Our plan sells the first third at 3R and another third at 5R. The last third is trailed, not sold at a set level.",
    "lesson_line": "Two thirds come off by 5R. The last third trails.",
    "facts": [
     "h20",
-    "h05",
-    "h21"
+    "h05"
    ],
    "house": true,
-   "simple": "False, because the last third is not sold at 5R but trails under a moving average until the price closes below it.",
+   "simple": "False, because the last third is not sold at 5R. It is trailed.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -3437,14 +3439,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'A fresh low, no support near' was near-silly: the stem asks for something to lean on and the choice says no support. Replaced with 'The lower Bollinger band', a real misreading that fails on cH (not on the list) and bl2. The note avoids naming mark 2 so it does not answer q07."
+   "fixed": false,
+   "notes": "Key derived from cH before reading it; the other three fail on ra3, cH (rising, not falling) and cC/bl2. Choices 24-29 chars, no tell. Teaching overlap with q31 (middle of a range) is rung-ordered teaching, not a give-away."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The choice 'No, wait for RSI(2) under 5' printed q03's answer (RSI(2) under 5) in a choice. The resolver took these thresholds out of q14's choices for the same reason. The number is now gone. The choice still fails on h10, and it is not the longest."
+   "fixed": false,
+   "notes": "B26 (h10) as written; the story rules out a parabolic long (no gaps, no burst, tPa1). Two Yes, two No; numbers are the story's. sc1 supports. Its why defines a parabolic long, which q47 later applies: teaching, not a give-away."
   },
   "q11": {
    "status": "pass",
@@ -3515,8 +3517,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why measured the run 'to the close the day before the flush', which no cited quote supports: cA anchors only the averages to that day, while the only fact naming the 63-day low (dMe) and the card's own measure field anchor the run 'before the slide'. Its last sentence ('Under 25%, there is no leader's run behind the flush, and we pass') and lesson_line also state q50's key ('No leader's run behind it'). Fixed: anchored to dMe, give-away removed. Stem text changes: needs a lineage entry."
+   "fixed": false,
+   "notes": "Calc recomputed: (41.60-32.00)/32.00 = 30.0%. Anchor 'before the slide' matches dMe and the card's measure field; 25% from cA. Risk already records the open anchor."
   },
   "q23": {
    "status": "pass",
@@ -3622,8 +3624,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the key sat in a near-twin pair ('A real stop; all out...' and 'A real stop; a third off at 3R'). A test-wise member drops to a 50% guess. The key now names Connors' exit alone. q06 cannot answer it, because the key says nothing about stops. The why now says Connors uses no stop and we keep one (sc4, h18)."
+   "fixed": false,
+   "notes": "Key is Connors' exit (sc5); the other three are ours (h05, h20, h21). Not the longest choice. Key holds under D-013 Option 2 too (no plan of ours sells all at the 5-day)."
   },
   "q41": {
    "status": "pass",
@@ -3664,8 +3666,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story sentence is 23 words (limit 22) and states the last-day gap twice. Split; key, choices and notes unchanged."
+   "fixed": false,
+   "notes": "Four straight gap downs and 45% off the peak fit tPa1; card seed uses the same numbers. Keyed on the type, as the conflicts require. Wrong notes grounded (tPa2, tMA, tUR)."
   },
   "q48": {
    "status": "pass",
@@ -3689,19 +3691,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two problems. (1) The stem said 'Stopped out next day', which ruled out all three bullish readings and left the lone bearish key: a hindsight tell. (2) The story did not say the stock was under its 50-day the day before the flush, which the why asserts. The stem is now asked before the trade. The story puts the 50-day break on day seven. A second not-a-buy choice ('Too small a run to be a leader') fails on cA against the story's 58%."
+   "notes": "Stem says 'What does this chart say?' but there is no chart, only a story. The why and the trap rest the key on the strict anchor ('under its 50-day the day before the flush'); the source only says the eight-day slide went through the 50-day and the flush closed under it, and the same strict anchor is the open owner flag that q62's KRYS key may fail. Rest the key on dEL (the card's own filing), which holds on either anchor; also fix a comma splice."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The story's 'after a five-day slide' is in no fact. The deeper ties the story to ILMN (320.55 / 311.69, dIL1), so a reader takes five days as ILMN's history. The ungrounded number is removed. The key and notes are fine (B21, cM, cK)."
+   "fixed": false,
+   "notes": "Key per h28 and cM; story numbers match dIL1 and dIL2 (second session after the turn). Wrong notes grounded (h28, cK, h29). Comes before q53 in order, so q53's notes do not pre-answer it."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why says 'Here it filled where it was set': no fact supports the fill price (dSB1 gives only the stop and the day's low, 99.80; a gap under 103.39 would not fill there). Wrong note 'A wider stop only makes the loss bigger' is unsupported (a stop under 99.80 would not have been hit that day). Both reworded to what dSB1, dSB2, h24 and h02 state."
+   "notes": "Wrong note 'The stop sat a few cents under the day's low' states a fact about this trade that neither the story nor dSB1/dSB2 gives. The note on 'No, so buy it back right away' restates B21, which is q52's key. Replaced with a calc from the story (any stop above 99.80 was hit; 99.80 is 5.4% under 105.48) and with cJ (buying back now buys the falling price)."
   },
   "q54": {
    "status": "pass",
@@ -3755,7 +3757,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong note says 'a rising 200-day'; dKR2 says the 50-day is rising and the stock is 20% above its 200-day, nothing about the 200-day's slope. Reworded to dKR2's words."
+   "notes": "Key is the only defensible choice, but it presents KRYS as a go candidate while cA's strict anchor (above the 50-day the day before the flush) is unproven for KRYS: dKR has the flush 12.6% under the 50-day after a 17.9% slide, and the facts never place the prior close. The risk does not record this open anchor. Added the risk reason and the 59% run from dKR so the why covers form A's run, not only the 200-day."
   },
   "q63": {
    "status": "pass",
@@ -3784,14 +3786,14 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Keys the second third at 5R (E51) inside the trims plan the conflicts tie to D-013 (Option 2 would change it) but carries no depends_on. Tag added; content passes (calc 120.38 recomputed; dKR1 supports 5R two sessions later)."
+   "fixed": false,
+   "notes": "Calc recomputed: 109.13 + 5 x 2.25 = 120.38. dKR1 supports 5R two sessions later; h20 the second third at 5R. D-013 tag present."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Same as q64: the thirds-and-trail plan rests on D-013 and the question is untagged. Tag added; content passes (h20, h05, h21)."
+   "notes": "Key False per h20 is right, but the why and simple say the trail is 'sold on a close below it' / 'until the price closes below it', which hands over q34's key (rung 5, 'On a close under the 10-day' against 'The first trade under the 10-day'). q65 is rung 4, so it is shown first. Trail detail removed; h21 dropped."
   },
   "q66": {
    "status": "cut",
@@ -3800,10 +3802,10 @@
    "notes": "cut in wave5: see the resolver's notes"
   },
   "q67": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the story names 'its 3x ETF' and no other vehicle, so the key repeats the story's words. Story reworded so every fund on the index is above its 200-day (B26 still met). An index flush is the card's form B, pending D-002 (the conflicts keep forms out of keys), so D-002 joins D-009 in depends_on. Key per h33 (E54) unchanged."
+   "fixed": false,
+   "notes": "Duplicate of q66 (rung 2, 'What do our rules say about 3x ETFs?' keyed 'Preferred, with no extra rules'): both rest on the single fact h33, and q66 answers q67 outright. It is also an index trade, which the lesson's conflicts promise not to ask (D-009: 'no index or ETF question'; form B pending D-002). No other fact can make it distinct."
   }
  }
 }

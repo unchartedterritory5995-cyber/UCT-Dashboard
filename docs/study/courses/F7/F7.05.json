@@ -1657,13 +1657,13 @@
    "story": "The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times.",
    "q": "What do those repeated high readings tell you?",
    "choices": [
-    "Breadth is strong, not topping",
+    "A sign of strength, not weakness",
     "It's overbought, so go short now",
     "The uptrend is about to end soon",
     "Strength that rules out a pullback"
    ],
-   "answer": "Breadth is strong, not topping",
-   "why": "Breadth is strong, not topping. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. Multiple overbought readings are a sign of strength, not weakness. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
+   "answer": "A sign of strength, not weakness",
+   "why": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
    "lesson_line": "In an uptrend, repeated overbought breadth is strength, not a sell signal.",
    "facts": [
     "f28",
@@ -1681,7 +1681,7 @@
     "The uptrend is about to end soon": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend.",
     "Strength that rules out a pullback": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances."
    },
-   "simple": "Breadth is strong, because in a strong uptrend repeated overbought readings are a sign of strength, not weakness.",
+   "simple": "It is a sign of strength, because in a strong uptrend this gauge can go overbought again and again.",
    "deeper": {
     "trap": "Overbought sounds like a sell. In a strong uptrend this gauge can go overbought again and again, and ChartSchool ignored those readings. High readings are not the warning. The warning is the index making new highs while fewer stocks join in."
    },
@@ -1917,7 +1917,7 @@
    "format": "scenario",
    "house": true,
    "story": "Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks.",
-   "q": "Under our rules, what decides whether you take the trade?",
+   "q": "Under our rules, which of these decides when the account trades?",
    "choices": [
     "The app's own market reading",
     "Your setup's grade, A+ to B-",
@@ -2084,8 +2084,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and choices sound (f10, f61); 'watch price' sits on two choices, so no lone hedge. But the lesson line 'Price tells you when to act' and the why's 'before you act' teach price as the trade trigger, which q27 (B18) says is the app's market reading. Reworded to f55's point (do not trade on the indicator; confirm with price) without naming a trigger."
+   "fixed": false,
+   "notes": "Decided 'bullish divergence, fewer stocks falling, confirm with price' before the key: matches. f10 (ChartSchool) and f61 (Investopedia) re-read on fresh fetches, f55 verbatim on Investopedia. Choices 33 to 38 chars, key not longest, 'watch price' on two choices so no lone hedge. The mirrored 'bearish divergence' distractor and 'buy with size' are both cleanly wrong. Why says confirm with price (f55), not that price is the trade trigger, so no clash with B18. q19's wrong note describes a bullish divergence, but only as feedback after q17."
   },
   "q18": {
    "status": "pass",
@@ -2096,8 +2096,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two defects. (1) Rulebook: 'What does breadth tell you to do?' keyed a ChartSchool plan (wait for breadth and price to turn up) for a cash trader who wants to buy. Our rules speak to that (B18: the app's reading decides when the account trades; F68: start buying when the reading turns Green), and q27 teaches that breadth is not our filter, so the two questions contradict. (2) Tell: the key was the lone careful choice against two 'buy now' choices and one absolute. Reframed as a breadth read with no action key; the story now states the share is still falling, so 'no upturn yet' comes from the q"
+   "fixed": false,
+   "notes": "Decided 'deeply oversold, no turn yet' from the story (12% vs ChartSchool's 30%, share still falling). f25, f26, f29, f30 verbatim on the ChartSchool page; its 70/30 levels sit in its S&P 500 50-day example, so the S&P 500 story fits, and 12% is far enough below 30% that 'levels vary' does not flip it. No action keyed, so no clash with B18 or q27. 'Little; breadth only matters at tops' is the weakest distractor but a real misconception, and q16 uses the same shape. Could not break it."
   },
   "q20": {
    "status": "pass",
@@ -2109,7 +2109,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key, choices and wrong notes sound (f28, f26, f27); key is the shortest choice. But the lesson line 'Dips to oversold that turn back up are the chances' teaches ChartSchool's breadth buy timing as our own, unattributed, which q27 (B18) says is the app's reading. Lesson line now keeps f28 and f27's point only."
+   "notes": "Key 'Breadth is strong, not topping' overreaches: 'not topping' reads as a call that the uptrend is not ending, the exact opposite of distractor 3, and no quote says it. ChartSchool (f28, verbatim) says only 'a sign of strength, not weakness'. Key now uses f28's words; the why, simple and lesson line follow. Choices stay 32 to 34 chars; key not longest. Everything else verified on the page (f25, f26, f27)."
   },
   "q22": {
    "status": "pass",
@@ -2120,8 +2120,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key sound (f99, f14, f100, f101); choices 31 to 40 chars, key not longest. The why and simple say each failing stock 'adds to the declines', but no cited quote says it: f100's quote says failing stocks list on the Nasdaq, not how they count. f18 (a decline counts -1) carries it; added. mcoscillator.com returned HTTP 403 on this check (unreachable), so f99 to f101 rest on the earlier checker's fetch."
+   "fixed": false,
+   "notes": "Decided 'Nasdaq A/D line quirk, not a bearish call' before the key: matches. mcoscillator.com answered on this check (HTTP 200): f99, f100, f101 verbatim; the same article calls the Nasdaq's A-D line 'a horrible indicator because of its persistent bearish bias' and says each failing stock is 'contributing to the Declines column', which backs both the key and the 'adds to the declines' line (f18 also carries it). Its divergence warning in that article is about Nasdaq 100 A-D data, not the Composite line in the story, so 'not a crash call' stands. f14, f15 verbatim on ChartSchool, f62 on Investo"
   },
   "q24": {
    "status": "pass",
@@ -2145,7 +2145,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct on h01 (B18, verbatim in sizing_rule.md section 9) and h02 (D38, verbatim). Choices 28 to 31 chars, key not longest; no absolute. Checked the grade choice as a second answer: the story fixes the grade at A, and D38 says grades set size, so it is not defensible here. Only change: 'Your A breakout triggers' reads like a typo; now says 'Your A setup breaks out', the rulebook's own wording ('A and B setups')."
+   "notes": "Key right on h01 (B18) and h02 (D38), both verbatim in sizing_rule.md section 9. But the stem 'what decides whether you take the trade?' says more than B18: whether a trade is taken also turns on other section 9 rules (B26 200-day line, B22 earnings, A3 the stop must fit, C28 chasing). B18 says the market reading decides when the account trades. Stem now uses B18's own words and 'which of these'. All other fields unchanged."
   }
  }
 }

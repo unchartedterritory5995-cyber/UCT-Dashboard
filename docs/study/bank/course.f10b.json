@@ -1786,7 +1786,7 @@
   "difficulty": 3,
   "id": "si_929b0defd74a",
   "lesson_origin": "session",
-  "lesson_text": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. Our rule skips a short when the borrow fee is high. At 85% a year, far above the 1.5% average SEC staff found, I'd cover. The borrow rate floats. When it jumps, redo the math. A high fee fails our rule.",
+  "lesson_text": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. At 85% a year, far above the 1.5% average SEC staff found, I'd cover. As a new trade it would fail our rule, which skips a short when the borrow fee is high. The borrow rate floats. When it jumps, redo the math. As a new trade, a high fee fails our rule.",
   "module": "F10b",
   "prompt_json": {
    "choices": [
@@ -1802,7 +1802,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is anchoring on your entry rate. The fee floats with the market for the shares. Adding more at a costly borrow raises the bill and bets on a drop the fee does not predict."
+    "trap": "The trap is anchoring on your entry rate. The fee floats with the market for the shares. Adding more at a costly borrow raises the bill and bets on a drop the fee does not promise."
    },
    "depth": {
     "sources": [
@@ -1868,13 +1868,13 @@
    "facts": {
     "given": "What should you do first? You're short a stock with a low borrow fee. Overnight the fee jumps to 85% a year. The stock hasn't moved. Redo the math at the new rate Nothing, your entry rate is locked Add more, a pricey borrow means a drop Nothing, fees only hit when you cover"
    },
-   "lesson_line": "The borrow rate floats. When it jumps, redo the math. A high fee fails our rule.",
-   "simple": "Redo the math at 85% a year. A fee that high fails our rule, so I'd cover.",
+   "lesson_line": "The borrow rate floats. When it jumps, redo the math. As a new trade, a high fee fails our rule.",
+   "simple": "Redo the math at 85% a year, because at that fee the trade would fail our rule as a new trade.",
    "tier": "expert",
    "unit": "F10b.01",
-   "why": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. Our rule skips a short when the borrow fee is high. At 85% a year, far above the 1.5% average SEC staff found, I'd cover.",
+   "why": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. At 85% a year, far above the 1.5% average SEC staff found, I'd cover. As a new trade it would fail our rule, which skips a short when the borrow fee is high.",
    "wrong": {
-    "Add more, a pricey borrow means a drop": "A costly borrow means lendable shares are scarce. It doesn't promise a drop, and adding raises your bill.",
+    "Add more, a pricey borrow means a drop": "A high fee often comes from scarce lendable shares. It doesn't promise a drop, and adding raises your bill.",
     "Nothing, fees only hit when you cover": "The fee accrues every day you're short. Waiting just runs up the bill.",
     "Nothing, your entry rate is locked": "The rate floats. Interest accrues daily at the prevailing rate, not your entry rate."
    }
@@ -3006,7 +3006,7 @@
   "difficulty": 2,
   "id": "si_a4b144560759",
   "lesson_origin": "session",
-  "lesson_text": "Just over the $84 high. Schwab's example shorts below $80 with the buy stop at the $84 bounce high. A climb back over that high says the idea is wrong. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high. On a short, the buy stop sits a few cents above the high, not exactly on it.",
+  "lesson_text": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, to limit the loss to $4 a share. Our stop sits a few cents under the day's low, not exactly on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high. Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
   "module": "F10b",
   "prompt_json": {
    "choices": [
@@ -3016,7 +3016,7 @@
     "No stop until in profit"
    ],
    "kind": "mcq",
-   "q": "Where does your buy stop go?",
+   "q": "Under our rules, where does your buy stop go?",
    "story": "A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80.",
    "subject": "F10b.02#q10"
   },
@@ -3071,22 +3071,29 @@
       "quote": "Shorts are our long setups reversed, for almost every setup.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Schwab's example: a stock falls from $90 to $66, bounces to $84, and looks ready to drop again. Short only below $80, with the buy stop at the $84 bounce high: $4 a share at risk. In Schwab's example, $74 is the profit target, where the short is closed. A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. Our rule: the stop sits a few cents past the low, not exactly on it. Our rule: shorts are our long setups reversed."
+    "summary": "Schwab's example: a stock falls from $90 to $66, bounces to $84, and looks ready to drop again. Short only below $80, with the buy stop at the $84 bounce high: $4 a share at risk. In Schwab's example, $74 is the profit target, where the short is closed. A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. Our rule: the stop sits a few cents past the low, not exactly on it. Our rule: shorts are our long setups reversed. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "Where does your buy stop go? A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80. At $74, your profit target Just under the $66 low Just over the $84 high No stop until in profit"
+    "given": "Under our rules, where does your buy stop go? A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80. At $74, your profit target Just under the $66 low Just over the $84 high No stop until in profit"
    },
-   "lesson_line": "On a short, the buy stop sits a few cents above the high, not exactly on it.",
-   "simple": "Just over $84, because a move back above that bounce high means the drop you are betting on failed.",
+   "lesson_line": "Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
+   "simple": "Just over $84. Schwab puts the stop at that bounce high, and our rule puts it a few cents past it, not on it.",
    "tier": "core",
    "unit": "F10b.02",
-   "why": "Just over the $84 high. Schwab's example shorts below $80 with the buy stop at the $84 bounce high. A climb back over that high says the idea is wrong. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high.",
+   "why": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, to limit the loss to $4 a share. Our stop sits a few cents under the day's low, not exactly on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high.",
    "wrong": {
-    "At $74, your profit target": "That's where you'd take the profit. The stop guards the move against you, and on a short that's up, above $80.",
-    "Just under the $66 low": "That's where a long's stop would sit. A short loses as price rises, so a stop down there never protects you.",
-    "No stop until in profit": "The risk starts the moment you're short. Without a buy stop, nothing limits the loss if it rallies."
+    "At $74, your profit target": "That's where Schwab's example takes the profit. A short's stop guards the move against you, and that move is up, above $80.",
+    "Just under the $66 low": "That's where a long's stop would sit. A short loses as the price rises, so a stop down there never protects you.",
+    "No stop until in profit": "The risk starts the moment you're short. Our rule: every position has a real stop order with the broker."
    }
   },
   "review_status": "draft",

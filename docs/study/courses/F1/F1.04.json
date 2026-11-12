@@ -1085,7 +1085,7 @@
    },
    "simple": "Expect a lower price, because a thin stock may lack the buyers to take 6,000 shares fast.",
    "deeper": {
-    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. That is why we never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
+    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. Our rule guards against it: never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
    },
    "tier": "extended",
    "risk": {
@@ -1178,11 +1178,11 @@
     "The usual 2 million a day",
     "Today's 14 million shares",
     "Neither, volume doesn't cap it",
-    "A short average with today"
+    "Tomorrow's volume, when you buy"
    ],
    "answer": "The usual 2 million a day",
-   "why": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the normal day, not the news day.",
-   "lesson_line": "Cap your size by the normal day, not the news day.",
+   "why": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Today's 14 million is one day, not the average. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the average day, not the news day.",
+   "lesson_line": "Cap your size by the average day, not the news day.",
    "facts": [
     "h2",
     "f14",
@@ -1194,12 +1194,12 @@
    ],
    "wrong": {
     "Today's 14 million shares": "That's one news day. A single day can trade far above the stock's average.",
-    "A short average with today": "One news day drags a short average far above normal. Cap your size by the usual day, not an average the spike inflated.",
-    "Neither, volume doesn't cap it": "It does. Our rule: never own more than 1% of a stock's average daily volume."
+    "Neither, volume doesn't cap it": "It does. Our rule: never own more than 1% of a stock's average daily volume.",
+    "Tomorrow's volume, when you buy": "That's one day too, and you can't know it before you buy. Our rule caps you at 1% of the average day."
    },
-   "simple": "The usual 2 million a day, because our cap is 1% of a normal day, and one news day runs far above normal.",
+   "simple": "The usual 2 million a day, because our cap is 1% of the average day, and one news day runs far above it.",
    "deeper": {
-    "trap": "The quiet trap is a short average that includes the news day. One 14 million day among a few 2 million days drags that average far above normal. Take the cap from a normal stretch of days, so one spike does not raise it."
+    "trap": "The trap is sizing off the news day. Our rule caps you at 1% of the average day. Any single day can run far above the average, so size from the average, not from one 14 million day."
    },
    "tier": "expert",
    "risk": {
@@ -1517,14 +1517,14 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key B is correct by the calc (60). The 'Same' wrong-note states 'A trades about $6 million a day' and 'ten times that'. No calc or quote gives either number (the calc covers only B). Reworded the note so it has no ungrounded number. Everything else passes."
+   "fixed": false,
+   "notes": "Solved cold: A = 3,000,000 x $2 = $6M, B = 400,000 x $150 = $60M, so B. Key matches; the calc gives 60. f43 (price times volume) and f57 (market cap = outstanding shares) support the key and the market-cap wrong note. Distractors are real misreads (share count, decimal slip, market cap). No length tell (key 23 chars, others 25-27). No em dashes; choices 40 chars or fewer. Why restates the q07 definition, but only after answering, and it doesn't give away q07, q08, q19 or q22."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Solved cold: a lower price (f20), backed by f21/f35/f58/f36. Choices are balanced and the longest one is a distractor. Deeper sentence 2 reads wrong: 'A position ... is the hard part on the way out' makes the position the hard part. Rewrote it. The h2 line is fine."
+   "notes": "Key is right and solid (f20, f21, f30, f35, f36, f58). Only break: deeper.trap says 'That is why we never own more than 1%...'. The rulebook (D42) states the rule but never gives its reason, so 'That is why' claims a cause the owner never stated. Reworded to say the rule guards against the trap, which is still grounded in h2. Everything else is unchanged."
   },
   "q15": {
    "status": "pass",
@@ -1542,7 +1542,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two defects. (1) Rulebook: the stem 'Which volume should you size the position around?' teaches the web view that volume sets size. Our rulebook sets size from the stop (A3/A5). Volume only CAPS size (D42, h2). The stem now asks what caps the size, and the key now rests on h2 as ours, so house:true is added. (2) Silly choice: 'Neither, it doesn't matter' breaks README rule 10. It is replaced by 'Neither, volume doesn't cap it', which is refuted by h2. Lengths: 25/25/30/26."
+   "notes": "Solved cold: the usual 2 million, by the 1% of average daily volume rule (h2). Break: 'A short average with today' is a second defensible answer under the literal rule. D42 says 'average daily volume' with no window and no rule about leaving out spike days, so a 5-day average that includes today is still an average daily volume. The wrong note and deeper.trap ('take the cap from a normal stretch of days') add a method that no fact or the rulebook states. Fix: swap that choice for a clearly wrong one (tomorrow's single-day volume, which you can't know and which isn't an average). Rewrite deeper"
   },
   "q18": {
    "status": "pass",

@@ -1381,28 +1381,29 @@
    "skill": "fund.estimates",
    "rung": 8,
    "format": "scenario",
-   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again.",
+   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited.",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
    "choices": [
     "Its forecast calmed investors",
-    "Its supply limits had cleared",
     "It missed, so the bar was low",
+    "It ran up hard into the report",
     "Its stock split was announced"
    ],
    "answer": "Its forecast calmed investors",
-   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited.",
+   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
    "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
    "facts": [
     "f68",
     "f69",
     "f82",
     "f83",
+    "f19",
     "f4",
     "f38"
    ],
    "wrong": {
-    "Its supply limits had cleared": "CNBC says the opposite. Nvidia is still limited in how much it can supply.",
-    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates.",
+    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
+    "It ran up hard into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
     "Its stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
    },
    "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
@@ -1592,8 +1593,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f21, f55). But the why's last sentence 'And it is an estimate, not a promise' answers q11 (TF: guidance is a promise -> False) two rungs before q11 is asked. Dropped it and f22."
+   "fixed": false,
+   "notes": "Key per f21/f55/f7; range per f39. Key 37 chars, not longest (38). No answer leak to q11 now. Wrong notes grounded (f9, f26, f24)."
   },
   "q04": {
    "status": "pass",
@@ -1610,8 +1611,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f37, f38). The distractor 'Guidance is a guaranteed number' is q11's statement in other words (q06 rung 3 comes before q11 rung 4), so q06 answers q11. Swapped it for a real misconception grounded in f23. Also the closing 'It can, though not every time.' had no clear subject."
+   "fixed": false,
+   "notes": "Key per f37/f38; f3 for the dour-outlook line. Distractors are real misreads, each answered by f24, f2/f30, f23. Lengths 36-38, key not longest. Teaches the principle q17 applies, same as w2: scaffolding, not a leak."
   },
   "q07": {
    "status": "pass",
@@ -1634,14 +1635,14 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right (f49, f81). The why says 'Companies often guide low', but f43 says companies 'may intentionally undershoot'; 'often' overreaches the quote. Reworded to what f43 says. Deeper trap is fine."
+   "fixed": false,
+   "notes": "True per f49 (78%/77%) and f81 (67%). LSEG page re-read live: 83.2% and 'long-term average of 67%' are S&P 500 earnings beats. 'Some companies guide low on purpose' matches f43 'may intentionally undershoot'."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f22, f28, f15). The Resolver removed the unsupported 'best forecast' from the simple, but the lesson line still says 'management's best estimate'. No fact says 'best'."
+   "fixed": false,
+   "notes": "False per f22, f28, f15, f27. Lesson line no longer says 'best'. No other question answers it."
   },
   "q12": {
    "status": "pass",
@@ -1677,7 +1678,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: CNBC (re-read live) says 'plunged 17% on Friday after the chipmaker issued lackluster guidance and warned of a supply shortage'. But 'The quarter's earnings' is contradicted by the story's own 15 vs 8 cents (silly), and 'The quarter's revenue' rests on a revenue beat the story never gives (thin story). Story now states the revenue beat and the GAAP loss (f13, from Intel's 8-K). The GAAP loss is a real misread that F5.01 teaches. Down to 3 choices so no choice is contradicted by the story."
+   "notes": "Key right: CNBC Jan 23 re-read live, 17% drop tied to lackluster guidance and a supply warning. But 'Its stock buyback news' is a silly filler: nothing in the story or any source mentions a buyback (CNBC page checked: none), so it eliminates itself. Dropped it; back to 3 choices as the earlier checker intended. 'A one-time gain in the beat' stays: a real misread the lesson teaches (f31, f57), answered by CNBC's stated causes."
   },
   "q18": {
    "status": "pass",
@@ -1689,7 +1690,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f68, re-read live). But CNBC says only 'meeting or beating' for the prior four reports. I re-read the page and it does not say any of them was a beat. So 'It finally beat analysts' estimates' cannot be shown wrong: if all four only met, it would be true. The why's 'a beat was not new' and the simple's 'beating had not lifted the stock' assume the same unproven thing. Dropped that choice and reworded so the text claims only 'met or beat'. Key shortened so it is not the longest (all three are 29 chars)."
+   "notes": "Key right (f68). Two breaks: (1) 'Its stock split was announced' is ungrounded filler; the CNBC page (re-read live) never mentions a split, so the wrong note's 'nothing in the coverage' is the only basis, and no fact backs it. (2) Story too thin: 'Its supply limits had cleared' is forward-looking news a learner could pick by the lesson's own logic, and only the article (unseen) rules it out. Fix: the story states supply is still limited (f83), the supply and split choices go, and a run-up choice ruled out by FINRA f4 comes in. 'It missed' note now also cites f19."
   },
   "q20": {
    "status": "cut",

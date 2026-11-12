@@ -798,22 +798,21 @@
     "A close over the prior day's high"
    ],
    "answer": "A break of the prior day's high",
-   "why": "A break over the prior day's high, bought at market as price crosses it. Our card names the trigger the prior day's high break. TaPlot: the trigger is price moving over the high of the wick inside day. It is not the wick day's close. Buying day 1 skips the hold, and the hold is the signal.",
+   "why": "A break of the prior day's high. Our card names the trigger the prior day's high break. TaPlot: the trigger is price moving over the high of the wick inside day. The move over the high is the trigger, not a close above it. It is not the wick day's close either. Buying day 1 skips the hold, and the hold is the signal.",
    "lesson_line": "The trigger is a break of the prior day's high.",
    "facts": [
     "cTrig",
     "tp4",
-    "cOrder",
     "mDay1",
     "cNot"
    ],
    "wrong": {
     "The close of the wick day itself": "Buying day 1 itself skips the hold. The hold is the signal.",
     "A dip to the 21 EMA after day 2": "That is Manrav's pullback-to-the-21-EMA entry. Our card lists it as not ours.",
-    "A close over the prior day's high": "Our card buys at market as price crosses the trigger. It does not wait for a close."
+    "A close over the prior day's high": "The trigger is price moving over the prior day's high. It does not wait for a close."
    },
    "house": true,
-   "simple": "The trigger is price breaking over the prior day's high, and you buy at market as it happens.",
+   "simple": "The trigger is price breaking over the prior day's high, not a close above it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -910,12 +909,12 @@
     "cLead",
     "cTrend",
     "tp6",
-    "tp5",
-    "h10"
+    "h10",
+    "h14"
    ],
    "wrong": {
     "RS 85, but sitting under its 200-day": "No longs below the 200-day, unless it is a parabolic long.",
-    "RS 55, above both its moving averages": "RS 55 is under our floor of 80, so it is not a leader. TaPlot: not every wick play is buyable.",
+    "RS 55, above both its moving averages": "RS 55 is under our floor of 80, so it is not a leader.",
     "RS 85, with its 50-day under its 200-day": "Our card wants the close above both averages, with the 50-day above the 200-day."
    },
    "house": true,
@@ -2011,7 +2010,7 @@
    "wrong": {
     "A wick play": "A wick play's day 2 opens below day 1's high, inside the wick. This gapped over the high.",
     "An inside day": "An inside day stays inside yesterday's range. This went over it.",
-    "An Oops": "An Oops opens under the prior close and dips under the prior low. This gapped up instead."
+    "An Oops": "This opened with a gap over yesterday's high, not under yesterday's close."
    },
    "story": "Yesterday was a red day that closed in the bottom of its range. Today gapped 3% over yesterday's high.",
    "house": true,
@@ -2097,8 +2096,8 @@
    ],
    "wrong": {
     "A wick play": "A wick play holds in the prior day's upper wick. This day opened under the prior close and left a lower wick.",
-    "A Kicker": "A Kicker gaps up over a weak day's close and through its high. This opened under yesterday's close.",
-    "An Oops": "An Oops trades under the prior day's low before it reclaims it. This day held above yesterday's low."
+    "A Kicker": "This day opened under yesterday's close. It did not gap up over yesterday's high.",
+    "An Oops": "This day held above yesterday's low and never traded under it."
    },
    "story": "Today opened under yesterday's close and swept below a support level. It held above yesterday's low. Buyers stepped in and left a long lower wick.",
    "house": true,
@@ -2174,28 +2173,29 @@
    "q": "Valid or void?",
    "choices": [
     "Void; it traded into the body",
-    "Valid; the push is what counts",
+    "Valid; it closed back in the wick",
     "Valid; the open was in the wick",
-    "Void; it pushed over day 1's high"
+    "Void; it opened above day 1's close"
    ],
    "answer": "Void; it traded into the body",
-   "why": "Void. Day 1 opened at 40.00 and closed at 42.00, so its body runs from 40.00 up to 42.00. Day 2 sold off to 40.30, near the bottom of the body, before it pushed. Our card treats day 2 trading well into the body as a no-trade. The push that came later does not undo it. TaPlot's sign of strength is holding in the wick without trading in the body.",
-   "lesson_line": "A push after a drop into the body is not the hold.",
+   "why": "Void. Day 1 opened at 40.00 and closed at 42.00, so its body runs from 40.00 up to 42.00. Day 2 sold off to 40.30, near the bottom of the body. Our card treats day 2 trading well into the body as a no-trade. The close back in the wick does not undo it. TaPlot's sign of strength is holding in the wick without trading in the body.",
+   "lesson_line": "A close back in the wick does not undo a drop into the body.",
    "facts": [
     "gInv",
     "tp3",
-    "dv1"
+    "dv1",
+    "tOo"
    ],
    "wrong": {
-    "Valid; the push is what counts": "The hold has to work first. Trading well into the body voids it.",
     "Valid; the open was in the wick": "The open was fine. The sell-off into the body is what failed.",
-    "Void; it pushed over day 1's high": "Pushing over day 1's high is not the fault. The drop to 40.30, into the body, is what voids it."
+    "Valid; it closed back in the wick": "Where day 2 closes is not the test. The drop to 40.30, well into the body, voids it.",
+    "Void; it opened above day 1's close": "Opening above the body top, in the wick, is what a wick play's day 2 does. The fault is the drop to 40.30."
    },
-   "story": "Day 1 opened 40.00, ran to 46.00 and closed at 42.00. Day 2 opened at 44.50, sold off to 40.30, then pushed back over 46.00.",
+   "story": "Day 1 opened 40.00, ran to 46.00 and closed at 42.00. Day 2 opened at 44.50, sold off to 40.30, and closed at 45.20. Its high was 45.80.",
    "house": true,
-   "simple": "Void, because day 2 dropped well into day 1's body before it pushed, and that breaks the hold.",
+   "simple": "Void, because day 2 dropped well into day 1's body, and a close back in the wick does not fix that.",
    "deeper": {
-    "trap": "The trap is judging by the push. Day 2 got back over day 1's high, so it looks like the setup worked. But the drop to 40.30 had already broken the hold. A wick play is about where day 2 trades all day, not where it ends up."
+    "trap": "The trap is judging by the close. Day 2 ended back in the wick, so it looks like the hold worked. But the drop to 40.30 had already broken it. A wick play is about where day 2 trades all day, not where it ends up."
    },
    "tier": "extended",
    "risk": {
@@ -2932,7 +2932,7 @@
    "q": "What do you do on day 3?",
    "choices": [
     "Buy; 3.72% is inside the 4% limit",
-    "Skip; buy only at the trigger price",
+    "Skip; the open is past the 4% limit",
     "Buy, with the stop under day 1's low",
     "Buy, raising the stop to keep size"
    ],
@@ -2949,8 +2949,8 @@
    ],
    "wrong": {
     "Buy, raising the stop to keep size": "The stop stays under the buy point. Chasing costs size, not risk: the shares shrink.",
-    "Skip; buy only at the trigger price": "The buy is a market order, not a wait for one price. We skip only an open more than 4% over the trigger.",
-    "Buy, with the stop under day 1's low": "Moving the stop under day 1's low is a named mistake. The stop stays a few cents under day 2's low."
+    "Buy, with the stop under day 1's low": "Moving the stop under day 1's low is a named mistake. The stop stays a few cents under day 2's low.",
+    "Skip; the open is past the 4% limit": "25.90 is 3.72% over 24.97. We skip only an open more than 4% over the trigger, so this is inside it."
    },
    "story": "Day 2's high is 24.96, so the trigger is 24.97. On day 3 the stock opens at 25.90, above that trigger.",
    "house": true,
@@ -3167,8 +3167,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Same fact tested the same way as q04: 'A long upper wick on its own is a reason to buy' (False) and 'Buying the wick day itself is the setup' (False) are one proposition (do not buy day 1), and each reveal answers the other. Re-aimed at cFail's own reading (attributed to our card, not a candle prediction), which also helps the lesson's True/False balance (9 False to 4 True before). cFail verbatim in the card (failure_mode, line 14); tp3 verbatim."
+   "fixed": false,
+   "notes": "Own answer True from cFail (verbatim in card). Attributed to our card, so not a candle prediction. q04 is cut, so no twin. No tell."
   },
   "q03": {
    "status": "pass",
@@ -3186,7 +3186,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (cTrig 'PREV DAY HIGH BREAK', tp4, cOrder). 'A gap under day 1's low on day 2' is a silly choice for a long trigger (no member would pick it), leaving three real choices. Replaced with a real misconception the card refutes: waiting for a close over the trigger (cOrder: a market order when price crosses the trigger). gInv and tp3 only supported the removed note, so they are dropped."
+   "notes": "Key right (cTrig, tp4). But the why ('bought at market as price crosses it'), the simple line ('you buy at market') and the close-over note ('Our card buys at market as price crosses the trigger') state q06's key (same rung 1, fill 'market') and q63's key word for word. Refute the close choice with the trigger itself (tp4: price moving over the high) and drop the market-order wording and cOrder."
   },
   "q06": {
    "status": "pass",
@@ -3204,7 +3204,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: RS 85 with close > 50-day > 200-day passes cLead and cTrend; the others fail h10 or cTrend or the 80 floor. Defect: the why and the wrong note call RS 55 'a laggard', a label no cited fact gives to RS 55 (cLead/h14 only set the leader floor at 80; mLag does not define a laggard by number). Reworded to what the facts carry: under our floor of 80, not a leader. (q29, outside this chunk, has the same label.)"
+   "notes": "Key right (cLead, cTrend, h10). The RS 55 note ends 'TaPlot: not every wick play is buyable', which is q17's key (rung 3, shown after this rung 2 question: a laggard is not buyable even with a perfect pattern). Note trimmed to the RS floor, grounded in h14/cLead; tp5 dropped, h14 added."
   },
   "q09": {
    "status": "pass",
@@ -3293,14 +3293,14 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per cInvStop, but that line is the card's proposal (status proposed, basis 'my proposal'), and the risk metadata wrongly calls it 'house rule from the owner's rulebook (A4)'. Stem now says 'On our card' (as q64/q65 were fixed) and the risk reason names the true source."
+   "fixed": false,
+   "notes": "Own answer: cancelled (cInvStop verbatim). Stem says 'on our card'; distractors distinct (later trigger, wider stop, delay). Related to q65 (both day 3 under day 2's low) but q23 rests on the stop rule and q65 on the strict no-trigger rule; neither key is stated by the other."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (mStop), but q07's reveal (rung 1, shown first) ends 'Moving it under day 1's low for room is a named mistake', which is this stem word for word, so q07 answers q24. Turned into an application with given numbers, so the member has to place the stop rather than recall the sentence. 29.97 sits under day 1's low of 30.00; the stop goes a few cents under day 2's low of 30.35 (cStopA, h24, h01). All numbers come from the stem."
+   "fixed": false,
+   "notes": "Own answer False: stop a few cents under 30.35; 29.97 is under day 1's low (mStop). Numbers are SWKS's real lows (dSW) given in the stem. Application of q07's recall; does not reveal q20's 189.01 or q21's 30.32."
   },
   "q25": {
    "status": "pass",
@@ -3365,8 +3365,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (dLH: the 3R and 5R trims and the trail bank a wick play; the dossier row LHX shows 5R on day 11). Tell: the key is the only choice that takes any profit, and 'Holding it all for a bounce' and 'A wider stop in the selloff' are not parts of the plan at all and are plainly not what 'banked' a gain (silly). Replaced them with two real plan parts that did not bank the gain here: a breakeven stop alone (h05; exits flat) and the time stop (h15; only for a trade under 1R after 10 days). Story reworded to 'the original stop price' so it does not imply the reader left the stop unmoved. h02 no"
+   "fixed": false,
+   "notes": "Own answer: the trims and the trail (dLH, h20, h21). LHX 5R on day 11 confirmed in dossier row 5 and the card's evidence line. Breakeven and time-stop notes are correct (h05, h15). No length tell."
   },
   "q36": {
    "status": "pass",
@@ -3384,7 +3384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: a weak red day closing low, then a gap over its high, is tKi1's Kicker; tKi2 rules out a wick play's day 2 opening above day 1's high. Tell: the stem 'Wick play or Kicker?' names two of the four choices, so 'An inside day' and 'An Oops' read as padding the stem already excluded. Stem made neutral."
+   "notes": "Key right (tKi1: gap over the high after a weak close). But the Oops note ('An Oops opens under the prior close and dips under the prior low') is the full Oops definition, which answers q39 (same rung 7, an Oops story: opened under the prior close, fell under the prior low). Note rewritten to refute from the story only."
   },
   "q39": {
    "status": "pass",
@@ -3396,7 +3396,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second defensible answer: 'An inside day'. An inside day is a range relation, and the story never says the sweep left yesterday's range, so the day can be both an inside day and a Go Signal; the wrong note ('The open under the close and the sweep make this a Go Signal') does not refute it. Fixed by stating the day held above yesterday's low and swapping the inside day for an Oops, which tOo now refutes cleanly (an Oops trades under the prior day's low). tGo still fits: opens under the prior close, sweeps support, leaves a lower wick as buyers step in."
+   "notes": "Key right (tGo). But the Kicker note ('A Kicker gaps up over a weak day's close and through its high') is q38's key definition and its story (same rung 7), and the Oops note restates q39's shape. Notes rewritten to refute from this story's own facts."
   },
   "q41": {
    "status": "pass",
@@ -3408,7 +3408,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: body 40.00 to 42.00; a low of 40.30 is 1.70 under the body top, well into the body, before the push; the card's failure_mode ('Day 2 trades into day 1's body before the push') and gInv make it void. Key right; choices and notes clean. Only defect: risk.reasons still cites the old numbers ('a drop to 74.10'), which no longer exist in this question. Fixed the stale reason."
+   "notes": "Second defensible answer: 'Void; it pushed over day 1's high'. Day 2 pushed over 46.00, so its high is above day 1's high; Deepvue (dv1, cited here) requires day 2's high under the prior high, and the strict form needs an inside day. The note 'Pushing over day 1's high is not the fault' leans on the same-day form, which is pending (D-115) and kept out of every wrong note. Fixed: day 2 now closes back in the wick with a high under 46.00, so the only fault is the drop into the body; the trap becomes judging by the close."
   },
   "q43": {
    "status": "pass",
@@ -3425,8 +3425,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (dAZ, dAZ3 verbatim at card line 1085; dAZ2 'the rule did not fail, the run was over'). Two defects. (1) 'No, so buy it back the next morning' tests the same misconception, with the same B21 note, as q47's 'Buy back at once', and this note hands q47 its key. Replaced with a real misconception dAZ2 refutes directly (blaming the setup). (2) The 'stop was too tight' note argued from 'well inside the usual 3%', which does not show the stop was not too tight (3% is a usual size, not a floor); the card's own 20-session fact refutes it. h28, cStopA and h04 no longer used."
+   "fixed": false,
+   "notes": "Own answer: no, a planned loss (dAZ, dAZ3, dAZ2; dAZ2 is on dossier lines 940-941, wrapped, and verbatim in the card). 101.33 with a 1.1% stop is about 100.21; a low of 99.49 stops it. The 102.53 ceiling refutes 'too tight'. Two Yes, two No, no length tell. Minor: risk reasons still cite B21, no longer used."
   },
   "q46": {
    "status": "pass",
@@ -3437,8 +3437,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (dAN card line 1103, dAN2 dossier line 954, h28; the card's AXON row also says 'a re-entry needs a new setup (B21)'). Defects: (1) 'Move the old stop lower next time' was refuted with A4 ('the stop only moves up'), but A4 governs moving a live stop, not where a new trade's stop is set; the why and deeper repeated that misapplied rule. Reworded the choice and refuted it with A3 (h01: a few cents under the prior day's low). (2) 'Buy back at once, it is working now' contradicts the story at the moment of the fill (it had just reversed); now 'to catch the run'. h02 replaced by h01."
+   "fixed": false,
+   "notes": "Own answer: take the loss, rebuy only on a new trigger (dAN, dAN2, h28). Lower-stop note grounded in h01. Does not give q32's count or q45's key."
   },
   "q48": {
    "status": "cut",
@@ -3473,14 +3473,14 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key rested on the 50-day under the 200-day, which the card itself calls the dossier's proposal; the owner's hard rule B26 (h10: no longs below the 200-day) also fails here and is the stronger reason. Key moved to the close under the 200-day; the 50/200 fact stays in the why. Choice lengths rebalanced (key not the longest)."
+   "fixed": false,
+   "notes": "Own answer: pass, close under the 200-day (B26, dTS). Checked dTS's 'close' against the chart date: TSLA 2018-06-08 close (about 317.66 pre-split) against a 200-day near 325 fits 2.2% under, so it is day 2's close. Close above the 50-day follows from the two percentages (0.978 vs 0.898 of the 200-day)."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h23). The wrong note 'The trigger has to print in the regular session' is in no fact and clashes with q61, where an open already over the trigger is bought at market. Note reworded to what h23 says."
+   "fixed": false,
+   "notes": "Own answer: no, not outside regular hours (h23). Notes clean. For whoever owns q63 (not in this set): q63's why says 'It goes in only during regular trading hours', which states q54's key at the same rung 3."
   },
   "q55": {
    "status": "pass",
@@ -3522,7 +3522,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right, but it is arithmetic with a thin margin (24.97 x 1.04 = 25.97 against 25.90) and carried no calc. Added the calc (3.72%) and put the number in the why and simple."
+   "notes": "Key right (3.72% < 4%; calc checks: 0.93 / 24.97 = 3.72). Tell: the key is the only choice carrying a number and it does the arithmetic for the member ('3.72% is inside the 4% limit'), so the calc is never tested; the lone Skip is a weak foil. Key and a mirrored Skip now both name the limit without the number, so the member must compute. why, simple, calc unchanged."
   },
   "w1": {
    "status": "pass",
@@ -3562,14 +3562,14 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (cNoTrig: over unless day 3 is an inside day in the same wick; a day 3 under day 2's low is not). Defect: q65 (rung 4) is seen before q64 (rung 6), and its why ('Only an inside day 3 in the same wick rolls it forward one day') and lesson_line ('or an inside day 3 that rolls it') state q64's key outright. The resolver closed this on the stem only. Why and lesson line now give the over branch without spelling out the roll-forward."
+   "fixed": false,
+   "notes": "Own answer True (cNoTrig: over unless day 3 is an inside day in the same wick; a day 3 under day 2's low is not inside day 2's range, the reading q64's story uses). Why no longer states q64's roll-forward key. Overlaps q23 in scenario but not in key or rule."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 12,000 right (calc 1% of 1,200,000; h19). The choice 'No ceiling, since the setup is clean' is the lone absolute and a weak, near-silly distractor. Replaced with a real misconception, splitting the buy over days to get around the cap; h19 caps what you own."
+   "fixed": false,
+   "notes": "Own answer 12,000 (1% of 1,200,000, calc; h19). q62's recall comes at rung 4, before this rung 7 application. Distractors are real (day-2 volume, raw risk size, splitting the buy)."
   }
  }
 }

@@ -1141,21 +1141,13 @@
    "story": "Stock A has a P/E of 15, with EPS growing 5% a year. Stock B has a P/E of 45, with EPS growing 45% a year.",
    "q": "Measured against its growth, which one is pricier?",
    "choices": [
-    "A, with a PEG of 3",
-    "B, with a P/E of 45",
-    "Neither, both PEGs look fair",
-    "Can't tell, PEG needs prices"
+    "A, the slow grower, PEG 3",
+    "B, the fast grower, PEG 1",
+    "They cost about the same",
+    "Can't tell without prices"
    ],
-   "answer": "A, with a PEG of 3",
-   "calc": {
-    "fn": "arith",
-    "args": {
-     "expr": "pe / growth",
-     "pe": 15,
-     "growth": 5
-    }
-   },
-   "why": "A, with a PEG of 3. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
+   "answer": "A, the slow grower, PEG 3",
+   "why": "A, the slow grower. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
    "lesson_line": "A low P/E with slow growth can cost more per point of growth than a high P/E.",
    "facts": [
     "f21",
@@ -1166,11 +1158,11 @@
     "f01"
    ],
    "wrong": {
-    "B, with a P/E of 45": "Its P/E is higher, but so is its growth. Against growth, B's PEG is 1 and A's is 3.",
-    "Neither, both PEGs look fair": "Against growth they're far apart: a PEG of 3 for A, 1 for B.",
-    "Can't tell, PEG needs prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E."
+    "They cost about the same": "Against growth they're far apart: a PEG of 3 for A, 1 for B.",
+    "Can't tell without prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E.",
+    "B, the fast grower, PEG 1": "Its P/E is higher, but so is its growth. Against growth, B's PEG is 1 and A's is 3."
    },
-   "simple": "A is pricier, because its PEG of 3 costs far more per point of growth than B's PEG of 1.",
+   "simple": "A is pricier. Its PEG is 3, against 1 for B, so you pay more for each point of growth.",
    "deeper": {
     "trap": "PEG is only as good as the growth number you feed it. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms. B's PEG of 1 assumes its 45% growth keeps coming. If that forecast is too high, B is pricier than it looks. Use PEG to compare two stocks, never as a buy signal on its own."
    },
@@ -1182,7 +1174,15 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "wave6",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "pe / growth",
+     "pe": 15,
+     "growth": 5
+    }
+   }
   },
   {
    "key": "q17",
@@ -1698,7 +1698,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "TELL: 'A, with a PEG of 3' was the only choice naming PEG, the measure the stem asks for ('measured against its growth'). With f34's 1-or-less convention, a member could pick it without working out B. The validator needs the calc's 3 in the key, so the key stays. Fix: two distractors now name PEG too, as real misreadings ('Neither, both PEGs look fair'; 'Can't tell, PEG needs prices'). Key is now the shortest choice (18 vs 19/28/28), and no choice gives B's PEG. Their wrong notes keep the earlier text (f20, f33, f01). Answer, calc, why, simple and deeper are unchanged."
+   "notes": "Key is right (A: 15/5=3, B: 45/45=1, A pricier against growth; I solved it before reading the key). Broken on two counts: (1) the key choice 'A, with a PEG of 3' is the only choice carrying a computed PEG, a tell that hands over the work; (2) with the story's 15 and 5 it reveals PEG = P/E / growth, which answers q25 and gives away q15's method. Fix: neutral symmetric choices with no numbers, similar lengths; why/wrong/simple updated to match. Calc, story, q, facts, lesson_line, deeper unchanged. B's PEG of 1 rests on the story's 45/45 and f34's 'A PEG of 1'. Fidelity quotes f33/f34 verified on"
   },
   "q17": {
    "status": "pass",
@@ -1751,8 +1751,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct: Fidelity f33, re-fetched today and confirmed with f34 and f36. Investopedia f20 could not be fetched today (WebFetch refused www.investopedia.com), so it was not re-checked here; it passed earlier checks. Defect: the distractor 'The share price divided by sales' plus its note 'That's price-to-sales' gives a definition no cited quote has (f36 only names the P/S ratio), and P/S is not plainly 'share price divided by sales'. Replaced with a real formula slip, multiplying instead of dividing, whose note f20/f33 support. f36 is dropped from facts because nothing cites it now."
+   "fixed": false,
+   "notes": "Solved cold: P/E divided by EPS growth rate; matches f20 (Investopedia) and f33 (Fidelity, verified live). Distractors are real errors (P/E itself, inverted, multiplied), lengths 33-38, no tell, no absolutes. Why and simple stay inside f19/f20/f33/f34/f22; wrong note for P/E grounded in f01. It teaches the definition q15/q16 build on but answers neither (both still need the arithmetic). No em dashes, voice fine. Investopedia page blocked our fetch this pass; Fidelity quotes confirmed."
   },
   "q26": {
    "status": "pass",

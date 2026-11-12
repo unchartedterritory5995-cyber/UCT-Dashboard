@@ -1323,13 +1323,13 @@
     "h10"
    ],
    "wrong": {
-    "Leave it. That move is gone": "Not necessarily. After the report you can decide fresh if you still want it.",
+    "Leave it. That move is gone": "That decides before you've looked. Once the numbers are out, you can study them and the reaction, then decide.",
     "Rebuy at the old size and old stop": "Your old trade ended when you sold. A new buy needs its own stop, and the size comes from that stop.",
-    "Buy it now before it runs more": "Buying because it might run more is a chase. Our rule: never buy more than 4% above the buy point. Set the stop first, and the size comes from it."
+    "Buy it now before it runs more": "That's fear of missing out, not a plan. A new buy needs a buy point and a stop first. Our rule: never buy more than 4% above the buy point."
    },
    "simple": "Judge it fresh, because once the numbers are out you can study them and decide if you still want it.",
    "deeper": {
-    "trap": "An 8% gap up can leave the price far above any buy point. Our rule: never buy more than 4% above the buy point. If the gap is past that, wait for a new setup rather than chase it."
+    "trap": "After a strong gap up, the urge is to buy at once or give up on it. Neither is a plan. Treat it as a new trade: a buy point, a stop first, and size from the stop. Our rule: never buy more than 4% above the buy point."
    },
    "tier": "extended",
    "risk": {
@@ -1505,7 +1505,7 @@
    "skill": "fund.earnings_decision",
    "rung": 9,
    "format": "scenario",
-   "story": "You're up 40%, or 8R, in a leader you've held for months. It's a normal-size position. It reports after the close, and options price a move of about 9%.",
+   "story": "You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%.",
    "q": "Our rule lets you hold this one through. Which belief about the gap holds up?",
    "choices": [
     "Still up about 27% after a 9% gap",
@@ -1529,6 +1529,7 @@
     "f49",
     "f28",
     "f27",
+    "f3",
     "f5",
     "f32",
     "h4"
@@ -1538,7 +1539,7 @@
     "Leaders don't gap down on reports": "Any stock can tumble on its numbers, even one that ran up into a great report.",
     "The priced 9% is the most it can drop": "The expected move is no cap. It doesn't promise a size, and the gap can be bigger."
    },
-   "simple": "Still up about 27%, because even a full 9% gap leaves your 40% gain well above your entry.",
+   "simple": "Still up about 27%, because a 9% gap off a 40% gain still leaves you well above your entry.",
    "deeper": {
     "trap": "Up 40% sounds like plenty, but our rule measures the cushion in R, not in percent. Here 8R clears our 5R line. On a wider stop, the same 40% might not."
    },
@@ -1805,8 +1806,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (a gap hits fewer shares; f35, f32, f51) and choices have no length tell. But the why's 'size is the part a holder controls' overreaches: a holder also controls whether to hold at all, which is our own answer under B22. Reworded to 'size sets what a gap costs'. Owner flag on Cabot's size premise stands."
+   "fixed": false,
+   "notes": "Own answer before the key: a gap hits every share, so fewer shares means a smaller hit (f35 Cboe, f32 Fidelity, f51 Cabot names the practice). Matches. Stem credits the practice to 'some traders', and a week away is outside B22's 3-day no-buy window, so no clash with section 9. No length tell (key 28 chars, others 30-32). Every distractor is a real misconception with a correct note. Numbers (3 days, 5R) come from h4. Minor: the wrong note 'A gap fills your stop at the open either way' means a gap down through the stop; readable in context. It restates B22 like q14, q27 and q18 do; prior checke"
   },
   "q12": {
    "status": "pass",
@@ -1854,13 +1855,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f24, f46, B21's new-trade logic, A3 via h8). But the new distractor 'Chase it now before it runs more' labels itself with the word members learn is wrong (C28 'No chasing'), so it eliminates itself: a tell. Reworded to the impulse without the label; the wrong note now names it a chase. Answer, why and deeper unchanged."
+   "notes": "Key is right (f24 Schwab, f46 StockCharts: study the numbers and the reaction, then decide; A3 via h8 for a new stop). But the deeper note says an 8% gap 'can leave the price far above any buy point' and to 'wait for a new setup rather than chase it'. That overreaches and fights our own setups: TRADE_PLANS.md gives the Kicker a day-1 30-minute opening-range entry and Gap Support an entry at the close as the gap holds, so a gap day creates its own buy point. The 'Buy it now' wrong note also calls a motive 'a chase', while C28 defines a chase by distance from the buy point. And the 'Leave it' wr"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is supported (Cabot f47/f50 plus B22 as ours). But 'run the same way on every stock' can be read as 'do the same thing with every stock', which B22 contradicts (hold the 5R ones, sell the rest), so a member who knows our rule could defend False. Stem now says one rule is applied to every stock. Why, simple, deeper unchanged."
+   "fixed": false,
+   "notes": "Own answer True: Cabot f47 (plan ahead of time, follow it for all your stocks) and f50; StockCharts f40 (Bowley sells before every report) is a second publisher running one rule on every stock; B22 (h4) is ours, one rule that gives different actions by cushion. After the earlier fix, 'one rule is applied to every stock' no longer reads as 'do the same thing with every stock', so False is not defensible. True/False keys stay balanced (F,F,F,T,T,T). Why, simple and deeper are grounded (f42, f43, f50, f5). States B22 like the other reveals; accepted as practice per the earlier ruling."
   },
   "q21": {
    "status": "pass",
@@ -1884,7 +1885,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc rechecked: 1.40 x 0.91 = 1.274, about 27%. But the stem asks which REASON to hold holds up and keys the percent cushion, while the deeper note says our rule measures the cushion in R, not percent. That teaches the w3-era percent view B22 replaced. Stem now says our rule lets you hold (8R past 5R) and asks which belief about the gap holds up; the why says we hold for the 8R, not the percent. Choices, answer, calc, simple, lesson line and deeper unchanged."
+   "notes": "Calc rechecked: 1.40 x 0.91 = 1.274, about 27%; key right and every distractor wrong (f32, f27, f3/f5). Two repairs. (1) The story's 'It's a normal-size position' clashes with section 9: a leader held for months at 8R would already have sold a third at 3R (B19) and a third at 5R (E51), so a member who knows our rules stalls on it. The sentence plays no part in the key, so it is dropped. (2) The simple line's 'even a full 9% gap' hints the priced move is the full move, the exact belief a distractor tests; reworded. f3 added for the 'Leaders don't gap down' note ('shares might jump or tumble'). "
   },
   "q25": {
    "status": "cut",

@@ -1460,15 +1460,15 @@
    "skill": "basics.etfs",
    "rung": 8,
    "format": "scenario",
-   "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund on it.",
+   "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day.",
    "q": "About how much does the 3x fund gain over the five days, before fees?",
    "choices": [
-    "About 15.9%, more than 3x",
-    "Exactly 15.3%, 3x the index",
-    "About 14.7%, less than 3x",
-    "Exactly 15%, 3% times 5 days"
+    "15.9%, more than 3x",
+    "15.3%, 3x the index",
+    "14.7%, less than 3x",
+    "15%, 3% times 5 days"
    ],
-   "answer": "About 15.9%, more than 3x",
+   "answer": "15.9%, more than 3x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1487,9 +1487,9 @@
     "f7"
    ],
    "wrong": {
-    "Exactly 15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it.",
-    "About 14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
-    "Exactly 15%, 3% times 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%."
+    "15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it.",
+    "14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
+    "15%, 3% times 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%."
    },
    "simple": "About 15.9%, because in a steady climb each day's gain lands on a bigger balance, so the fund beats 3x.",
    "deeper": {
@@ -1620,8 +1620,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f1, f2, f4, f24). Defect: the ETN choice 'A bank's IOU tied to an index' and its note ('That's an ETN') assert ETNs are tied to an index, which no cited fact says (f26 only says unsecured debt, typically from a bank, not pooled). FINRA's page does say 'their returns are linked to a market index or other benchmark' (re-fetched 2026-11-12), but no fact in the file carries it. Fix the choice so f26 supports it in full. If you would rather keep the index hook, add that FINRA sentence (s8) as a new fact and cite it instead. Lengths after fix: 33/33/38/31, key not the longest."
+   "fixed": false,
+   "notes": "My answer before the key: 'A fund that trades on an exchange' (f1, f2, f4, f24). Key matches. Wrong notes grounded: single stock vs f2; day's close vs f23 (next calculated NAV) and f4; ETN vs f26 (unsecured debt, typically a bank, not pooled, holds no assets). Choice text 'Unsecured debt issued by a bank' is now fully backed by f26, so the earlier index-hook defect is gone. Lengths 33/33/38/31; key not the longest. Expanding the acronym is a mild giveaway, acceptable at rung 1. Feedback overlaps q02 (trades all day), but q01 does not state q02's statement as a key; accepted like the other feed"
   },
   "q02": {
    "status": "pass",
@@ -1704,8 +1704,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc right (9000/3 = 3000), and the facts support it (f7, f67, f68). Defect: the stem 'the one-day dollar swing of $9,000 in a plain fund' reads two ways. It could mean a $9,000 holding, or a $9,000 swing, and the second can't be answered. Restated as a holding, with no sizing step. It is still pure one-day dollar math, in line with the rulebook (A3, A5) and the declined item 71. 109 characters."
+   "fixed": false,
+   "notes": "My answer before the key: 9000 / 3 = $3,000 (calc matches). f7, f67 back the daily 3x multiple; f18 backs the multiple working on losses too; f68 backs 'one day only, drifts if held longer'. Stem now says 'hold $9,000', so the old holding-vs-swing ambiguity is gone; 108 characters. Not a sizing step, so no conflict with A3/A5; E54 (no extra rules) and declined item 71 are not contradicted: the item states no rule, only one-day dollar math, hedged with 'about' and 'before fees'. Comes after q07 and q10, so it gives away neither."
   },
   "q16": {
    "status": "pass",
@@ -1728,8 +1728,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "My answer is False, from f38. With no absolute word, a reader takes the conditional as a general claim, so False holds. q05's distractor note teaches the same point earlier, but in another format; accepted. Defect: the why ('depends on the path the index takes, not just where it ends') and the deeper trap ('the ups and downs along the way decide the result') rest on path facts the question does not cite. f43 (same start and end: inverse fund down 0.02% calm vs 1.82% volatile) and f10 (daily reset makes returns diverge) support them. Add both to facts. Text unchanged."
+   "fixed": false,
+   "notes": "My answer before the key: False, from f38 (FINRA: losses possible even when the index is down over the longer term for an inverse ETP). Key matches. Tried the 'it usually does, so True' reading: the statement is an unhedged conditional, a counterexample makes it false, and f38 gives one in general; no lone absolute to tell. f43 and f10 now back the path-dependence sentences in the why and deeper; f17 backs 'magnified in volatile markets'. q05's earlier feedback teaches the same point (accepted before). It does not give away q22 (no 0.02/1.82 numbers in the text) and only hints at q23, which q1"
   },
   "q20": {
    "status": "pass",
@@ -1741,7 +1741,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc right: 1.03^5 = 1.1593, so 15.9%. 1.01^5 = 1.0510, so the story's 5.1% (a given) and 15.3% are right. No length or hedge tell (two 'About', two 'Exactly'). Defect: the why's last sentence says 'Larger daily moves and lower volatility help a 3x fund'. That misreads f69, which says larger index GAINS/LOSSES (net move) help. Larger daily moves ARE volatility, and that hurts. As written, it contradicts q16 and q22. Restated to match f69."
+   "notes": "Calc right: 1.03^5 = 1.1593, so 15.9%; 1.01^5 = 1.0510 (story's 5.1%), 3 x 5.1 = 15.3. f69 (re-fetched on ProShares 2026-11-12: 'Smaller index gains/losses and higher index volatility contribute to returns worse than the Daily Target') and f77 (Fidelity, re-fetched) back the key; the why's last sentence now matches f69. Defect 1 (tell): the stem asks 'About how much' while two choices start with 'Exactly'; a test-wise reader drops both and is left with a 50/50 between the two 'About' choices. Fix: drop 'About'/'Exactly' from all four choices (lengths 19/19/19/20, key not longest). Defect 2 (th"
   },
   "q22": {
    "status": "pass",

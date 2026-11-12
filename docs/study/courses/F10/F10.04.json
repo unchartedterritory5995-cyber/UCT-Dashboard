@@ -1401,10 +1401,10 @@
    "story": "You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote.",
    "q": "You sell with a limit at $87.50. What does the limit protect you from?",
    "choices": [
-    "Getting less than $87.50 a share",
     "Getting less than tomorrow's open",
+    "Getting less than $87.50 a share",
     "Getting only part of your order",
-    "Getting filled by pros who know more"
+    "Getting less than $88 a share"
    ],
    "answer": "Getting less than $87.50 a share",
    "why": "Getting less than $87.50 a share. A sell limit can only execute at the limit price or higher. Fidelity says the same holds in its extended-hours sessions. That is all it protects. An after-hours price on news may not hold into the next open. Thin trading can fill you in part, or not at all.",
@@ -1417,13 +1417,12 @@
     "f22",
     "f53",
     "f28",
-    "f42",
-    "f20"
+    "f42"
    ],
    "wrong": {
     "Getting only part of your order": "A limit can't promise a full fill. In extended hours an order may fill in part, or not at all.",
     "Getting less than tomorrow's open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
-    "Getting filled by pros who know more": "A limit sets your price, not who takes the other side. Many extended-hours traders are professionals with more information."
+    "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at its limit or higher, so a fill at $87.50 is allowed."
    },
    "simple": "It stops you selling for less than $87.50 a share, but it can't promise a full fill or tomorrow's price.",
    "deeper": {
@@ -1693,14 +1692,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper trap is supported (f18, f29, f16) but its first sentence misplaces 'after hours' ('the safeguards you know from the regular session after hours' reads as safeguards of an after-hours regular session), and it says 'after hours' while the question covers all extended hours (pre-market too). Reworded; same facts, no new claim."
+   "fixed": false,
+   "notes": "Decided False before the key, from f18 (SEC: volatility mechanisms 'may be limited or not available' in extended hours). Why hedges on 'may' correctly. Simple and deeper stay within f18/f29/f16. No tell, does not answer another question, no conflict with the rulebook (E58 bars only new buys). Investor.gov returned 403 to WebFetch; f18 matches the SEC bulletin's known wording."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: 400 x ($1.00 + $0.25) = $500; calc recomputes 500. Sizing given in the stem matches A5 (risk / (entry - stop)). Key and why are fine. Defect: the deeper trap says FINRA's $50 stop 'can get significantly less than $50', dropping FINRA's 'potentially' (f27, re-read on finra.org 2026-11-12: 'less—and potentially significantly less—than $50 per share'). That overstates the quote. Fixed to keep FINRA's hedge."
+   "fixed": false,
+   "notes": "Computed independently: 400 x (1.00 + 0.25) = 500. Sizing 400/1.00 = 400 matches rulebook A5. Every number is in the question or calc. Why grounded in f08/f44/f09, deeper in f27. It does not give away q15 or q21."
   },
   "q21": {
    "status": "pass",
@@ -1712,7 +1711,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: a sell limit only executes at the limit or higher (f10, f26, f54), so it guards against getting under $87.50 and nothing else; partial fill (f28, f42) and next open (f22, f30) are not covered. Matches; key 32 chars, not the longest; 'pros' distractor wrong on f20. Defect: the story's '4:05 p.m.' is a clock time no fact supports, has no time zone, and leans on the regular close time this unit deliberately never states (conflicts note on session times); also 'it beats earnings' makes the stock beat earnings. Story rewritten without the clock time. Owner note (not changed): holding in"
+   "notes": "Key is right (f10/f54: a sell limit fills only at the limit or higher). Two breaks. (1) Tell: the key is the only choice that repeats a price from the stem ($87.50), so a guesser can match it. (2) The distractor 'Getting filled by pros who know more' and its wrong-text restate q07's answer (extended-hours traders are pros with more information), and the choice is weak. Fix: swap that distractor for 'Getting less than $88 a share' so two choices name a price. A sell limit at $87.50 can fill between $87.50 and $88, so it does not protect against that. That is unambiguous and grounded in f10. Dro"
   },
   "q23": {
    "status": "pass",
@@ -1729,8 +1728,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: 1% of 800,000 = 8,000 (h3 = D42 verbatim, sizing_rule.md line 192); calc recomputes 8000. $50 x 800,000 keeps it inside B23. Defects: (1) 'our 1% rule' is ambiguous: '1% rule' widely means risking 1% of the account, and A1 also speaks of 1% risk, so a member can misread the cap; the stem now names the cap as 1% of average daily volume. (2) With the rule stated it is a one-step calc, not a rung 7 Prove item; set to rung 5 (extended, like q13-q15). (3) lesson_line 'Bigger orders are hard to fill' overreaches f60 (its example is 100 times daily volume), so it now says orders large nex"
+   "fixed": false,
+   "notes": "Computed independently: 1% of 800,000 = 8,000. h3 quotes rulebook D42 word for word. Consistent with B23: $50 x 800,000 = $40M a day, above the $20M floor. The $50 is a harmless distractor. Under A5/A7 the account cap could only lower the size, never raise it, and the stem names the 1% cap as the rule in play, so 8,000 is the only reading. It does not answer q10."
   }
  }
 }

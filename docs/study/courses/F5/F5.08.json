@@ -1541,16 +1541,16 @@
    "rung": 7,
    "format": "scenario",
    "story": "Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. Its release says $4.20 billion of restructuring charges are in that number. Without them, EPS would be $1.24 higher.",
-   "q": "How do you read the EPS line?",
+   "q": "Before you call this EPS line a beat or a miss, what do you need to know?",
    "choices": [
-    "Unclear: the charges muddy it",
-    "A miss: $1.76 is under $2.22",
-    "A beat: add back the $1.24",
-    "Roughly in line, either way"
+    "What the $2.22 estimate included",
+    "Meta's EPS a year earlier",
+    "How the stock moved after hours",
+    "Whether revenue beat its estimate"
    ],
-   "answer": "Unclear: the charges muddy it",
-   "why": "Unclear: the charges muddy it. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher, above $2.22. You don't know whether the $2.22 estimate allowed for the charges, and CNBC said they made the comparison difficult. Compare an estimate and an actual only on the same basis. The stock closed up 23% the next day.",
-   "lesson_line": "When a big charge sits in EPS, compare like with like before you call a beat or a miss.",
+   "answer": "What the $2.22 estimate included",
+   "why": "What the $2.22 estimate included. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher. CNBC said the charges made the comparison with $2.22 difficult. Compare an estimate and an actual only on the same basis. If the estimate counted the charges, compare it with $1.76. If not, compare it with the figure without them.",
+   "lesson_line": "When a big charge sits in EPS, check what the estimate counted before you call a beat or a miss.",
    "facts": [
     "f31",
     "f25",
@@ -1558,23 +1558,22 @@
     "f23",
     "f32",
     "f91",
-    "f37",
-    "f39"
+    "f02"
    ],
    "wrong": {
-    "A miss: $1.76 is under $2.22": "It is under, but $4.20 billion of charges sit inside the $1.76. You don't know if the $2.22 counted them.",
-    "A beat: add back the $1.24": "Without the charges, EPS would be $1.24 higher, above $2.22. But you don't know if the estimate left the charges out.",
-    "Roughly in line, either way": "Neither version is close. $1.76 is well under $2.22, and $1.24 higher is well over it."
+    "Meta's EPS a year earlier": "That's growth, a separate test. Beat and miss compare the actual with the estimate, not with last year.",
+    "How the stock moved after hours": "A price shows how the market reacted. It doesn't tell you what the estimate counted.",
+    "Whether revenue beat its estimate": "Revenue is its own line. It can't tell you whether the EPS estimate counted the charges."
    },
-   "simple": "It is unclear, because big charges sit inside the $1.76 and you don't know if the $2.22 estimate counted them.",
+   "simple": "You need to know what the $2.22 estimate counted, because $4.20 billion of charges sit inside the $1.76.",
    "deeper": {
-    "trap": "The trap is to pick a side fast. As reported, $1.76 under $2.22 looks like a miss. Add back the $1.24 and it looks like a beat. Neither call is safe until you know what the estimate included. When a charge is this big, read the rest of the report: revenue, costs and guidance."
+    "trap": "The trap is to pick a side fast. As reported, $1.76 is under $2.22. Add back the $1.24 and the picture changes. Neither call is safe until you know what the estimate included. Then read the rest of the report: revenue, costs and guidance."
    },
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
-     "the unclear call rests on CNBC's judgment plus Fidelity's same-basis rule",
+     "the key rests on CNBC's judgment plus Fidelity's same-basis rule",
      "fixed before"
     ]
    },
@@ -1940,13 +1939,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: unclear (f31 says the comparison is difficult, f91 says compare only on the same basis, f25/f26 put the charges in EPS). Matches key. Defect: the miss wrong-note says 'That's not a like-for-like comparison' as a fact. Nobody knows whether the $2.22 estimate counted the charges (the key's own reason), so if it did, the comparison IS like for like. The note overreached and contradicted the key's logic. Reworded to match the beat note."
+   "notes": "Own answer before the key: as reported $1.76 is under $2.22, which is a miss by FINRA's own definition (f02, Tier 1: actual against consensus), and CNBC (f31) says the charges make the comparison difficult. Broken: 'A miss: $1.76 is under $2.22' is a second defensible answer. The literal Tier 1 rule makes it a miss, and q21 in this same lesson uses Meta's reported $1.76 below $2.22 as its example of a miss that rallied. So q19 marks wrong the reading q21 relies on. The key 'Unclear' is also the lone hedge among decisive choices (a tell). The why and the in-line wrong-note also say '$1.24 highe"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: False (Nike f68/f74 and Netflix f13/f18 beat and fell; Alphabet f79/f81 beat and rose; f03, f88). Matches key. Defect: 'In percent, the three beats are close in size' is a computed claim (about 21.7%, 22.1%, 25.2%) with no calc in this question and no quote. The rule forbids computed claims without a calc. The ranking also cuts against it: Alphabet had the largest beat AND the only jump. Dropped the sentence; 'All three beat' plus two falls refutes the statement on quoted facts alone."
+   "fixed": false,
+   "notes": "Own answer: False. Nike ($1.01 vs 83c, f68), Netflix ($3.53 vs $2.89, f13) and Alphabet ($1.89 vs $1.51, f79) all beat. Nike fell nearly 20% (f74) and Netflix 35% in one day (f18), while Alphabet rose 10% (f81). In dollars, Netflix's beat is bigger than Alphabet's, yet it fell, so beat size does not set the move. FINRA (f03) and Schwab (f88) back this. The key matches. Every number in the why, simple and deeper is quoted, and the computed percent sentence is gone. f68 and f74 were re-checked live and are verbatim. 'Next day' fits all three (Nike Friday, Alphabet Friday, Netflix next session pe"
   },
   "q21": {
    "status": "pass",
@@ -1957,8 +1956,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: a warning about Target's costs (f43, then f56/f57/f60 Target's cost-driven miss, f62/f63 CNBC mirror/confirm). Matches key. New choices 29-36 chars, key not longest, no lone hedge; distractors are real misconceptions. h1 quote checked verbatim against sizing_rule.md section 9 B22; the closing rule line is accurate and keys no trade action (owner flag stands). Defect: the story says Walmart 'blamed food and fuel inflation', which hands over q17's key (sales held; costs hit profit) word for word. Dropped that clause: sales beat plus profit miss still points to costs, the rule q17 tea"
+   "fixed": false,
+   "notes": "Own answer: a warning about Target's costs. Walmart's sales beat plus a profit miss points at costs (f43). Target's cost-driven miss came a day later (f56, f57, f60), and CNBC said it mirrored and confirmed Walmart's story (f62, f63). The key matches. f63 and f64 were re-checked live. May 17, 2022 was a Tuesday, which matches the story. The story no longer names Walmart's cause, so it does not hand over q17's key, and q22 comes after q17. The distractors are real misconceptions, each refuted by a quote. The key is 30 characters, not the longest. The h1 quote is verbatim from sizing_rule.md sec"
   },
   "q23": {
    "status": "pass",
@@ -1969,8 +1968,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: midpoint (26 + 28.5) / 2 = 27.25 (calc), between Refinitiv $27.1B (f33) and the $27.3B average (f35); Bloomberg called it in line. Matches key. Key 33 chars, not longest; top and bottom-end traps are live now. Defect: the why honestly says FactSet scores guided EPS ranges (f92), but the three wrong-notes and the deeper trap say 'FactSet reads a guided range' with no 'EPS'. That stretches f92 to revenue, which it does not cover. Reworded to say EPS and to read this range the same way."
+   "fixed": false,
+   "notes": "Own answer: the midpoint (26 + 28.5) / 2 = 27.25 (calc), which sits between Refinitiv's $27.1B (f33, re-checked live, verbatim incl. 'Refinitv') and the $27.3B average (f35, re-checked live; Fortune byline 'Kurt Wagner and Bloomberg'). It is close, not a beat or a miss. The key matches. f92 was extracted from the FactSet PDF and is verbatim. FactSet defines guidance as EPS only, and the why, wrong-notes and deeper now all say 'EPS' and apply it to this range by analogy. Bloomberg's 'in line' (f35) is a second publisher backing the central reading. The top-end, bottom-end and 'can't say' choice"
   }
  }
 }

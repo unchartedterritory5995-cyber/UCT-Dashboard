@@ -1079,7 +1079,7 @@
     "About 12 months": "It was still falling a year in. It closed at 1,638.80 on April 4, 2001, and the low was still ahead.",
     "About 24 months": "That counts only the whole years from 2000 to 2002. The months from March to October bring it to 31."
    },
-   "simple": "It took about 31 months, because the Nasdaq kept falling from March 2000 until October 2002.",
+   "simple": "It took about 31 months, from the March 2000 peak to the October 2002 low.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1600,9 +1600,9 @@
     "f11",
     "f33"
    ],
-   "simple": "True, because broad stock prices fell more in 2002, the third year, than in 2000 or 2001.",
+   "simple": "True, because broad indexes fell about 20% in 2002, a bigger net drop than in 2000 or 2001.",
    "deeper": {
-    "trap": "Which year was worst can depend on the index. For broad stock prices, 2002 was the worst of the three. The tech-heavy Nasdaq fell 39% in 2000 alone, against about 20% for broad indexes in 2002. Always check which index a claim is about."
+    "trap": "The trap is mixing up indexes. For broad stock prices, 2002 was the worst of the three years. The tech-heavy Nasdaq fell 39% in 2000 alone, more than the broad indexes' fall of about 20% in 2002. Always check which index a claim is about."
    },
    "tier": "expert",
    "risk": {
@@ -1745,7 +1745,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right: the calc gives 31 months, March 2000 (f02) to October 2002 (f11). But the 'About 3 months' note says 'That's crash speed', and no cited fact supports a crash taking 3 months. Rewrote it on f09 and f11, and added f09 to facts. The other notes are grounded (f07; whole-years arithmetic)."
+   "notes": "My answer before the key: 31 months (March 2000 f02 to October 2002 f11; calc 24+7=31). Key matches, choices tie on length, wrong notes grounded (f09, f07, whole-years arithmetic). Only break: the simple line says the Nasdaq 'kept falling from March 2000 until October 2002', which overreaches and clashes with the lesson's own point (q02, w2) that it rallied almost 40% on the way down. Reworded to the peak-to-low span. Lesson-level note, not this item's to fix: q08's stem names the October 2002 low, which is q15's key, but q02, q09 and w1 name it too, so it is taught content."
   },
   "q09": {
    "status": "pass",
@@ -1835,13 +1835,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True is right (f39). But the why and deeper both claim that for the Nasdaq, 2000 was worse than 2002. The only quotes are 39% in 2000 (f33) and 'more than 30 percent' in 2002 (f40), and 'more than 30' does not prove less than 39. That is an inference no quote supports. Reworded both to state the two Nasdaq numbers without ranking them, keeping the 'check which index' lesson. All numbers come from f33, f39 and f40."
+   "notes": "My answer before the key: True (f39, confirmed word for word on the live Feb 2003 MPR page, with f40). Key right. Break: the deeper trap still opens 'Which year was worst can depend on the index', which implies the Nasdaq's worst year was not 2002. No quote ranks the Nasdaq's years (39% in 2000, f33; 'more than 30 percent' in 2002, f40), so that is the same unsupported inference the last pass removed from the why. Rewrote the trap to compare only what the quotes support (39% > about 20%). The simple line only restated the stem with 'because'; it now gives the grounded reason (f40, f39)."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer is price, from f68 and f75, with f80 and f81 showing the expert was wrong. The reframe keeps the question to evidence, so nothing conflicts with sizing_rule.md section 9 (B18 and F68 govern when to trade, not what confirms a turn). Tell: three choices read 'Let X decide: ...', and only the key breaks the pattern with 'not anyone's forecast', which dismisses the other three. Rebuilt the key in the same parallel form (36 characters, not the longest). The wrong notes are unchanged and grounded (f81, f63, f47, f48, f64). The why and simple still open with 'Let price decide' and remain c"
+   "fixed": false,
+   "notes": "My answer before the key: let price decide (f68, f75; f80/f81 show the expert call was wrong). Key matches. Tried: second answer (none; NBER and news notes grounded in f63, f47, f49, f64), length tell (key 36, others 37-39, parallel form), scale of 'last rally top' (story names the Jan 6 level and says 'last big rally', in line with q19 and the conflicts note), rulebook (B18 market filter governs when to trade, not what confirms a turn; F66 never trade from someone else's call agrees with rejecting the expert). Every number in the why is in f24, f25, f22, f47. First-person lesson line is F7 ho"
   }
  }
 }

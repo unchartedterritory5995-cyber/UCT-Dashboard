@@ -1468,12 +1468,12 @@
    "q": "Which trail width fits best?",
    "choices": [
     "10%, beyond its usual swing",
+    "5%, about one typical day",
     "2%, to keep nearly every cent",
-    "30%, so no dip ever trips it",
-    "10%, but set from the entry"
+    "30%, so no dip ever trips it"
    ],
    "answer": "10%, beyond its usual swing",
-   "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so 10% clears one ordinary down day. It still keeps most of the 60% gain if the trend breaks. Too tight gets shaken out. Too loose gives back most of the win.",
+   "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so a 2% or 5% trail gets hit by a normal down day. 10% clears that and still keeps most of the 60% gain if the trend breaks. Too loose gives back most of the win.",
    "lesson_line": "Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
    "facts": [
     "f50",
@@ -1486,9 +1486,9 @@
    "wrong": {
     "2%, to keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
     "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
-    "10%, but set from the entry": "A trail follows the price up as it rises. Fixed under the entry, it hands back the whole 60% gain."
+    "5%, about one typical day": "A typical day moves 4% to 6%, so a 6% down day goes right through a 5% trail. Normal noise would shake the trade out."
    },
-   "simple": "10%, because it clears a typical 4% to 6% day but still keeps most of the gain.",
+   "simple": "10%, because it sits wider than a typical 4% to 6% day but still keeps most of the gain.",
    "deeper": {
     "trap": "The 30% trail feels safe because nothing trips it. But 30% off the high of a 60% winner hands back most of the gain. Where to set a trail depends on your time frame and how much the stock swings. Our own default trail is not a percent: it is the 10-day or 21-day average, sold on a close below it."
    },
@@ -1507,8 +1507,8 @@
    "skill": "orders.stops",
    "rung": 9,
    "format": "scenario",
-   "story": "Your plan says trail under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
-   "q": "How do you keep your stop trailing it?",
+   "story": "A trader keeps a resting stop order just under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
+   "q": "How does the trader keep that stop trailing the line?",
    "choices": [
     "Raise the stop by hand under the line",
     "Enter a 10% trailing stop order",
@@ -1516,7 +1516,7 @@
     "Lower it to give the stock room on dips"
    ],
    "answer": "Raise the stop by hand under the line",
-   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So you move your stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
+   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So the trader moves the stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
    "lesson_line": "Trailing an average is your job. Move the stop up under it as it climbs.",
    "facts": [
     "f11",
@@ -1529,12 +1529,12 @@
    ],
    "wrong": {
     "Enter a 10% trailing stop order": "That trails 10% under the high. It's a different line from the 10-day average.",
-    "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and your stop falls behind.",
-    "Lower it to give the stock room on dips": "Lowering the stop on a dip breaks our stop rule. It hands back the gain you're protecting."
+    "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and the stop falls behind.",
+    "Lower it to give the stock room on dips": "Lowering a stop on a dip breaks our stop rule. It hands back the gain the stop protects."
    },
    "simple": "Move the stop up by hand, because a trailing stop order follows a set percent or dollar amount, not an average.",
    "deeper": {
-    "trap": "Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead. Know which one your plan means before you set the order."
+    "counter": "This is how a resting stop trails an average, not our default. Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead."
    },
    "tier": "expert",
    "risk": {
@@ -1615,8 +1615,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is right (f1, f6, f24). Fix: 'simple' said a stop fires 'at any time in the day', which overreaches the file's own conflicts note (Schwab stops trigger only in the standard session) and disagrees with the why ('at any point in the session'). Simple now says 'during the session'."
+   "fixed": false,
+   "notes": "Own answer True before the key (f1: stop becomes market order when the stop price is reached; f6: a short-term intraday move can trigger it; f24 FINRA rapid move then rebound). Matches. f6, f1 verified live on investor.gov bulletin 15; f24 verified live on FINRA. Simple ('during the session') agrees with the why and the conflicts note. No absolute/hedge tell in a TF statement; no clash with E52 (that is the trail, not a stop order). Does not hand another question its key; q24's deeper repeats the idea later, which is fine."
   },
   "q08": {
    "status": "pass",
@@ -1633,8 +1633,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (buy stop at $50, f2, f28, f36) is right as order mechanics, but the question asked what 'you' should do and the lesson_line told the member 'To buy a breakout, put a buy stop above the price'. E57 (h10): our entries are market orders. That teaches a web view the rulebook replaced, the same defect the resolver fixed in q20 and q21 but left here. Reframed to a trader, lesson_line made descriptive, deeper counter added from h10."
+   "fixed": false,
+   "notes": "Own answer: a buy stop at $50 (f2 above the price, f28 market buy when it hits, f36 buy on a break). Matches. Buy limit at $50 is marketable at $48.50 (f19); market now ignores the condition; sell stop is a sell. Key 18 chars, not longest. Third-person story plus h10 counter keeps it clear of E57. All numbers from the story. f2, f19, f36 verified live (SEC bulletins 14/15, Schwab). Weak but not silly distractor: sell stop."
   },
   "q11": {
    "status": "pass",
@@ -1651,8 +1651,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (f20, f21, f33: an untriggered day stop cancels at that day's close). Fix: TELL. The key was the lone 'Nothing sells' against three 'They sell ...' choices, so the odd one out gave it away. Choices rebuilt as two 'Gone' and two 'Live' states, each wrong for its own grounded reason (f21, f4). Question reworded to fit; key 35 chars, longest 38."
+   "fixed": false,
+   "notes": "Own answer: gone, an untriggered day order generally cancels at that day's close (f20, f21 verified live on investor.gov bulletin 14; f33 verified on Schwab). Matches. Story fixes the time in force as Day, so broker defaults cannot create a second answer. Choices 34-38 chars, key 35, two Gone/two Live so no odd-one-out. 'Gone; it sold at Monday's close' is contradicted by the story (stock held above the stop) but models a real misconception (day order = sells at close). Why hedges 'generally' as f21 does. D41 (h06) used correctly."
   },
   "q14": {
    "status": "pass",
@@ -1712,13 +1712,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key (10%) holds from f17, f50, f51: wider than a 4% to 6% day, far tighter than a 30% give-back; deeper teaches our default trail (h09). Fix: the story is third person ('A trader') but a choice and its note said 'your entry', a voice slip that also makes the choice read oddly. Now 'the entry'. Nothing else changed."
+   "notes": "Key 10% is right (f50, f51, f17 verified live on Investopedia and the SEC bulletin). TELL: 10% appears in two choices, so a test-wise reader narrows to those two and then drops 'set from the entry' because a trail by definition follows the price. Replaced that distractor with a 5% trail that sits inside the 4% to 6% daily move, a real too-tight misreading. All numbers come from the question; 10% off a 1.6x high keeps 44 of 60 points (most), 30% keeps 12 (gives back most). Deeper unchanged."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key (raise the stop by hand under the rising 10-day) holds from f11, f43 and A4 (h07). Fix: the lesson_line still said 'Move the stop up under it, never down', the same A4 absolute the resolver removed from q18 and q24's notes because A4 carries the B20 gap exception this lesson does not teach. Lesson_line no longer states the absolute."
+   "notes": "Key holds as order mechanics (f11 SEC: a trailing stop is a percent or dollar amount; f43, f45 Schwab; all verified live). Break: the story says 'Your plan says trail under the 10-day', and our plan is E52 (sell on a close below the average), while the key keys a resting stop under the line that triggers intraday. The deeper itself says 'Know which one your plan means', i.e. the story is too thin to say which. Fixed by making the story third person and stating a resting stop order, the same reframe used in q10, q20, q23; deeper becomes a counter that contrasts our close rule (h09). Choices, ke"
   }
  }
 }

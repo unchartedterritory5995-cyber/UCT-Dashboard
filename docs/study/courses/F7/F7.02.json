@@ -1461,8 +1461,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is right (f06, re-read on the live Fed page 2026-11-12). Lesson_line still opens with the general claim 'Crashes travel.', which one case does not support. Fix keeps it to Black Monday, using f01's 'global financial crisis'."
+   "fixed": false,
+   "notes": "Own answer True before reading the key: f06 re-read verbatim on the live Fed History page 2026-11-12 ('Even before US markets opened for trading on Monday morning, stock markets in and around Asia began plunging.'). Statement says 'falling' for 'plunging', which is a fair simplification, not an overreach. Lesson_line 'Black Monday was global' rests on f01 ('first contemporary global financial crisis'). Why and simple say only f06 and f02. tf keys across the lesson: 2 True, 3 False, no pattern tell. Does not answer a later item: q19 states the opening-bell crash in its own stem. No em dash, no "
   },
   "q10": {
    "status": "pass",
@@ -1521,14 +1521,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: f51 (SEC) says a triggered stop becomes a market order; f52 (FINRA) says the fill can be far off. That is how a stop order works by definition, so the 1987 setting is acceptable. Defect: the wrong note on 'Only after a market-wide halt ends' says 'Exchanges had no way to pause'. f16 says only that exchanges were 'powerless to intervene', and on Black Monday the NYSE did delay and halt single stocks (search 2026-11-12, uncited). Fix keeps only what f31 supports. The owner's B20/D41 question stays open in owner_flags."
+   "fixed": false,
+   "notes": "Own answer before the key: a triggered sell-stop becomes a market order and fills at the going price (f51, verified verbatim on investor.gov 2026-11-12; f52 confirmed on FINRA via fetch). Key matches. Tried to break: no second defensible choice (stop-limit, exact fill and the halt are each wrong on f51 or f31); choice lengths 34-39, key not the longest; key words are not in the story. Rulebook: the key states order mechanics only and agrees with A7 ('a gap can jump the stop'); it does not say what our trader should do, so it does not contradict B20 (30-minute gap rule) or D41 (real broker stop"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f18 to f21). The new Fed choice is a real hole-shaped wrong answer, grounded by f22/f62. Two 'None,' choices against two others is no tell. Defect: lesson_line 'Size for the crash that doesn't come back' is advice no cited fact or rulebook line states. Fix keeps the grounded history (f21)."
+   "fixed": false,
+   "notes": "Own answer before the key: the hole is generalizing from two quick recoveries; 1929 is the counter-case (f18-f21, all verbatim on the live Fed History 1929 page 2026-11-12). Key matches. 'Both made new highs within two years' holds: 2020 record Aug 18, 2020 (f46); 1987 'less than two years later' (f15). Tried to break: 'The Fed won't step in next time' is an unknowable prediction the plan does not rest on, and its note is grounded (f22 'sprang into action', f62 banks stayed open while the stock market collapsed); 'breakers' note grounded by f32 and f34; 'always' in a distractor marks only that"
   },
   "q21": {
    "status": "pass",

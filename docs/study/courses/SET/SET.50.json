@@ -1244,12 +1244,14 @@
    "lesson_line": "A spring is bought at the floor, not on the breakout.",
    "facts": [
     "w05",
-    "c31"
+    "c31",
+    "c13",
+    "c15"
    ],
    "house": true,
    "simple": "False. Pruden writes that Wyckoff warned against buying breakouts, and we buy a spring at the floor.",
    "deeper": {
-    "counter": "The median stop in our scan came from a mixed plan: a buy over the top, with the stop under the spring low. The card rejects that plan for a spring. A spring is bought at the floor, with the stop a few cents under the spring low."
+    "counter": "The app's scanner plan mixes the two: a buy over the top, with the stop under the spring low. Our card rejects it for a spring: a median 12.5% stop, and 1% reached 3R. A spring is bought at the floor, with the stop a few cents under the spring low."
    },
    "tier": "core",
    "risk": {
@@ -1681,14 +1683,14 @@
     },
     "round": 2
    },
-   "why": "1.92%. Stop distance is the buy minus the stop, divided by the buy: (62.50 - 61.30) / 62.50 = 1.92%. It sits inside the about 3% our stops usually stay within.",
-   "lesson_line": "Stop distance in percent is the gap over the entry.",
+   "why": "1.92%. Stop distance is the buy minus the stop, divided by the buy: (62.50 - 61.30) / 62.50 = 1.92%. That is inside the 3% or so that our stops usually stay within.",
+   "lesson_line": "Stop distance in percent: buy minus stop, divided by the buy.",
    "facts": [
     "h04"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 1.92% under the buy, inside the about 3% our stops usually stay within.",
+   "simple": "The stop is 1.92% under the buy, inside the 3% or so that our stops usually stay within.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2573,7 +2575,7 @@
     "A shakeout spring": "Over 1 ATR is a shakeout, but over 2 ATR is a breakdown, not a spring. This dropped 2.5 ATR.",
     "An undercut and rally": "A U&R undercuts a level, such as a rising average, and rallies back. This was a straight-line flush."
    },
-   "simple": "It is a capitulation, because a 2.5 ATR drop is far deeper than a spring's dip of 1 ATR at most.",
+   "simple": "It is a capitulation: a 2.5 ATR flush on 2x volume under the fast averages, far past a spring's 1 ATR.",
    "deeper": {
     "trap": "Depth is the tell. A spring's dip is 0.1 to 1 ATR under a flat floor. Over 1 ATR our card calls it a shakeout that grades lower. Over 2 ATR is a breakdown, and a 2 ATR flush on 2x volume under the fast averages is a capitulation, a different setup with different rules."
    },
@@ -2712,13 +2714,14 @@
     "Market 47.40; stop 47.20; hold a month",
     "Buy over 52.80; stop 46.92; third at 3R"
    ],
-   "story": "A flat shelf runs from 47.20 to 52.80 with four floor touches. A one-day dip to 46.95, 0.2 ATR under the floor, closes back inside. The next open is 47.40.",
+   "story": "A flat shelf runs from 47.20 to 52.80 with four floor touches. A quiet one-day dip to 46.95, 0.2 ATR under the floor, closes back inside. The next open is 47.40.",
    "answer": "Market 47.40; stop 46.92; third at 3R",
    "why": "Market 47.40, stop 46.92, a third at 3R. Entries are market orders, here at the next open. The stop goes a few cents under the 46.95 spring low, not on the 47.20 floor. The first trim is the hard rule, a third at 3R.",
    "lesson_line": "Entry at the reclaim, stop under the spring low, a third at 3R.",
    "facts": [
     "h22",
     "h24",
+    "h05",
     "c15",
     "c17",
     "c13"
@@ -2948,7 +2951,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "spr.index_sprung",
-   "q": "How does that change the setup?",
+   "q": "How does the index's move change the setup?",
    "choices": [
     "Stronger; this is the best case",
     "No change; only the stock matters",
@@ -2967,7 +2970,7 @@
    ],
    "house": true,
    "wrong": {
-    "No change; only the stock matters": "The index matters. Wyckoff times the buy with a turn in the stock market index.",
+    "No change; only the stock matters": "The index matters. Our card says a spring is best when the index has just sprung back.",
     "Weaker; the bounce is used up": "An index that has just sprung back is the best case for a spring, not a late one.",
     "Pass; the index is still correcting": "The index just sprang back from its correction low. Our card calls that the best case."
    },
@@ -3593,8 +3596,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: the lesson itself calls a 1 to 2 ATR dip a spring that grades lower (q45 'It is a spring, since 1.4 ATR is under 2'; q49 'shakeout spring'), so '2' fits 'a spring dips from 0.1 to about ___ ATR'. Re-cut on c10's own line so only 1 fits (2 is a breakdown, not a shakeout)."
+   "fixed": false,
+   "notes": "c10 verbatim on the card: over 1 ATR is a shakeout (grade lower), over 2 ATR is a breakdown. 2 does not fit because over 2 ATR is a breakdown, not a shakeout."
   },
   "q08": {
    "status": "pass",
@@ -3617,14 +3620,14 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c05). The distractor 'Red only, when we hold cash' is silly and self-contradicting (buy springs while holding cash). Replaced with a real misconception, buying springs when fear peaks, with a note from h26/c05."
+   "fixed": false,
+   "notes": "c05 + F65 (h26). 'best' handles Orange A+ exception. Its why mentions Red = mostly cash, which q27 later applies; teaching overlap, not a giveaway of a stem."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two distractors were the same idea (an up-trend), one with the absolute 'every single week', and the key (40) was the longest. Replaced one with the real height-vs-flat confusion (c07) and shortened the key."
+   "fixed": false,
+   "notes": "c08 verbatim; height distractor c07 correctly separated. No second defensible answer."
   },
   "q13": {
    "status": "pass",
@@ -3636,7 +3639,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two defects. (1) The stem keys a claim about Wyckoff that rests on one Tier 2 publisher (Pruden, w05); c13 is about a mixed scanner plan, not about Wyckoff, so the support rule is not met. The stem now attributes it to Pruden, like q17, q58 and q59. (2) The why and deeper.counter give the 12.5% median stop and 1% to 3R, which is q32's key evidence (q32 asks what is wrong with that exact plan, key 'The stop is far from the entry'); the same class as the q47/q37 giveaway the Resolver removed. Dropped them and the deeper (null = remove the field). Stem reworded, so it needs lineage."
+   "notes": "Key False is right (w05, Pruden PDF not extractable here, so taken as recorded). The deeper counter 'The median stop in our scan came from a mixed plan' is garbled and leans on c13/c15 without citing them. Rewritten and facts added."
   },
   "q15": {
    "status": "pass",
@@ -3665,8 +3668,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c23, c29), but the key 'No; no range behind the dip' (27 chars) is the longest choice (others 22 to 24), the length tell the README bans. Shortened the key; wrong notes unchanged."
+   "fixed": false,
+   "notes": "c23 verbatim covers the exact story; volume distractor is clearly off since the story gives no volume."
   },
   "q23": {
    "status": "pass",
@@ -3684,13 +3687,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answered by walk-through w2, shown before the questions: 'We buy at 171.85 with the stop ... 169.42, which is 1.41% away.' Moved to new numbers; calc checked: (62.50 - 61.30) / 62.50 x 100 = 1.92. HWM facts dropped."
+   "notes": "Calc correct: (62.50-61.30)/62.50*100 = 1.92. lesson_line 'the gap over the entry' is misleading (a gap is a trading term) and 'inside the about 3%' is ungrammatical."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (t06, d12, c24). Two defects. (1) 'The leader's dip was too shallow' is a non-sequitur about the stock when the question asks about the index (a silly choice); replaced by the real trap, reading QQQ's same-day spring as the turn, which tests whether the member saw the close back under. (2) The why's c06 sentence ('springs are best when the index has just sprung back') states q61's key at the same rung (7); dropped it and c06 from facts."
+   "fixed": false,
+   "notes": "t06 verified on ChartSchool (step 5); d12 verbatim in the dossier. A failed QQQ spring means no index turn yet. Note: its wrong-choice text for 'Nothing; only the stock matters' was duplicated word for word in q61 (fixed there)."
   },
   "q31": {
    "status": "pass",
@@ -3719,14 +3722,14 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c21, h21). 'We never trail; we sell at the highs' is a silly choice carrying the lone absolute. Replaced with a real misconception, leaving the first stop where it is, grounded in c15 and c21; kept longer than the key (37 vs 35) so the key is not the longest. c15 added to facts."
+   "fixed": false,
+   "notes": "E52 (h21) + c21 verbatim; trail is for the last third after 3R and 5R (h20). No break."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the key was the only precise figure (4.8R) among round ones (1R, 20R, 3R). Distractors given equally precise figures."
+   "fixed": false,
+   "notes": "c22 verbatim (median 4.8R, 72% 3R or more). Distractor values are wrong values, not claims. q51's deeper also states 4.8R but q51 sits later (rung 8), so it does not give q37 away."
   },
   "q38": {
    "status": "pass",
@@ -3774,7 +3777,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c06). The distractor 'Pass; the index must lead first' is muddled: in the story the index already sprang last week, so it did lead. Its wrong note ('We ask only that the index has just sprung back') turns c06's 'best when' into a requirement no fact supports, and the why's 'The index does not have to lead first' has no fact. Replaced the distractor with a real misconception (the index is still in a correction) and rewrote the why from c06, c05 and t01 only."
+   "notes": "Key right (c06). Stem 'How does that change the setup?' has a vague 'that' (the index or the Green reading). The wrong text for 'No change; only the stock matters' is copied word for word from q28."
   },
   "q62": {
    "status": "pass",
@@ -3785,8 +3788,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Near an earnings report' does not answer 'where in the range' and nobody holds that view: a silly, off-category choice. Replaced with a real misconception (timing is random), failed by t02/f07/w06. h08 no longer needed."
+   "fixed": false,
+   "notes": "Late in the range: ChartSchool t02 and Fraser f07 checked on the live pages; Pruden w06 is a PDF not extracted here. Distractors are clearly wrong."
   },
   "q17": {
    "status": "pass",
@@ -3797,8 +3800,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Only the floor itself' contradicts the stem's 'Besides the floor'; 'The 200-day for good' is odd wording; 'A brand new all-time low' is near-silly. Rewritten as balanced choices, every note on c12, h10 (B26) or c09."
+   "fixed": false,
+   "notes": "c12 verbatim; 200-day excluded by B26 (h10) and the card ('It must stay above the 200-day'). No break found."
   },
   "q25": {
    "status": "pass",
@@ -3809,14 +3812,14 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Pass now; buy the quiet test later' is defensible if the reading turns Green before the test; second defensible answer. Replaced with a real misconception (short it because Red means shorts), failed by B26: shorts only below the 200-day. Keeps a two Pass / two Yes split; key not longest."
+   "fixed": false,
+   "notes": "F65 Red = mostly cash and shorts; card springs Green or Yellow; short ruled out by B26 (above 200-day). Half size with a tighter stop is clearly wrong. Cosmetic only: 'Yes, at half size' uses a comma where the others use a semicolon."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (u04, c04). Tell: the key is the only choice that repeats the story's word 'buyout'. Reworded the key so it pairs with 'Keep it on the list for later'; wrong notes unchanged."
+   "fixed": false,
+   "notes": "u04 verified verbatim on the Substack page; c04 on the card. Keep-for-later distractor is correctly excluded by 'take it off my list'."
   },
   "q44": {
    "status": "pass",
@@ -3827,32 +3830,32 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'A flat base breakout' is a silly choice for a dip under an average. Replaced with the real lookalike, a 2B (c28), which differs only by its level."
+   "fixed": false,
+   "notes": "c27 (card text has lowercase 'a U&R's level', case only), c29, c28, c35. Rising 50-day with no flat range = U&R; 2B and spring excluded by the level."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The story copied c32's definition word for word ('breaks yesterday's low and reclaims yesterday's close on one candle'), so the key was the quote (the defect q64 was cut for). Story paraphrased. 'A flat base breakout' was silly for a dip story; dropped to three real lookalikes."
+   "fixed": false,
+   "notes": "c32/c33 verbatim; story matches the card's Oops definition exactly."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story named the 5, 9 and 20-day as the 'fast averages', a mapping no cited quote gives; now says fast averages (c35's word). 'A flat base breakout' was silly for a straight-line fall; replaced with the U&R lookalike (c27). Residual: the burst boxes c35 requires are not in the story or taught in the lesson; the key holds only as the closest card, so the why says so."
+   "notes": "Key right (c35). The simple line overreaches: depth alone (2.5 ATR) makes a breakdown per c10, not a capitulation; the capitulation needs the flush on 2x volume under the fast averages."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper asserted 'It fell through the stop on the entry day' for TSLA with no cited fact (d14 gives only the range and run; d13 is uncited and its quote no longer matches the dossier, which dropped 'never traded above the entry' on 2026-11-10). Deeper now claims only d14's numbers. Key, choices and notes pass (c25, h28 B21, h02 A4, h41 D41)."
+   "fixed": false,
+   "notes": "A4 (h02), B21 (h28), D41 (h41), c25 verbatim. Story numbers (17.9%, 73%) from d14 are noise but grounded."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answered by walk-through w1, shown before the questions: 'We buy at market, 21.43. The stop ... 21.22 ... A third comes off at 3R.' Moved to new numbers given in the story (dip 0.25 under the floor = 0.2 ATR at an ATR of 1.25); GIS facts dropped from the why."
+   "notes": "Key right: market at the next open, stop 46.92 a few cents under the 46.95 low (stop 1.01%, range 11.9% tall). But the card's trigger buys the next open only after a quiet dip (a loud dip waits for the test), and the story gives no volume. Add 'quiet'. The why calls 3R 'the hard rule', which is B19 (h05), not cited; add h05."
   },
   "q54": {
    "status": "pass",
@@ -4025,8 +4028,8 @@
   "q77": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right and backed by two publishers (t08 and t09 verified on ChartSchool; w09 verified in the s2.pdf text). The why states 'Twice the range height is in no source' as a universal fact, but c39 is the card's claim about its own sources. Credited it to the card, as the wrong note and the deeper already do."
+   "fixed": false,
+   "notes": "t09 verified on ChartSchool (only quotation marks around 'cause' differ); c39 verbatim on the card; w09 is a Pruden PDF not extracted here."
   }
  }
 }

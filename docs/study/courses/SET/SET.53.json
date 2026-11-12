@@ -2284,12 +2284,12 @@
    "criterion": "rg.timing",
    "q": "Red to green or Go Signal?",
    "choices": [
-    "A red-to-green, not a Go Signal",
+    "A red to green, not a Go Signal",
     "A Go Signal off the 2 pm cross",
     "An Oops reversal at the open bar",
     "Neither; a cross after noon is void"
    ],
-   "answer": "A red-to-green, not a Go Signal",
+   "answer": "A red to green, not a Go Signal",
    "why": "A red-to-green trigger. A cross at 2 pm, or with no flag under it, is a trigger, not a Go Signal. A Go Signal is the red to green with a timer and a level. A late cross is not void either: we have no time-of-day rule. It only grades lower.",
    "lesson_line": "No flag, no timer: only a trigger.",
    "facts": [
@@ -2300,10 +2300,10 @@
    ],
    "wrong": {
     "A Go Signal off the 2 pm cross": "A Go Signal is the red to green with a timer and a level. A 2 pm cross with no flag under it is a trigger.",
-    "An Oops reversal at the open bar": "An Oops opens under the prior low. Nothing here says that.",
+    "An Oops reversal at the open bar": "An Oops opens under the prior day's low. This one opened above it.",
     "Neither; a cross after noon is void": "We have no time-of-day rule. A late cross is still a trigger. It only grades lower."
    },
-   "story": "The cross came at 14:00. There was no tight hourly flag under it.",
+   "story": "It opened 1% under the prior close, above yesterday's low. The cross came at 14:00. There was no tight hourly flag under it.",
    "house": true,
    "simple": "It is a plain red to green, because a 2 pm cross with no flag lacks a Go Signal's timer and level.",
    "tier": "extended",
@@ -2796,14 +2796,14 @@
    "criterion": "rg.trigger",
    "q": "Take it?",
    "choices": [
-    "Take it: buy the cross at market",
-    "Wait for the close, then buy",
+    "Yes, take it: setup and trigger pass",
     "Pass; it opened red under the line",
-    "Buy at the open, before the cross"
+    "Buy at the open, before the cross",
+    "Wait for it to clear yesterday's high"
    ],
-   "answer": "Take it: buy the cross at market",
-   "why": "Take it: buy the cross at market. A leader above its 200-day pulls back four sessions to a rising 20-day EMA, and the dip tags it. It trades over the 85.00 prior close in the first hour. The market is Green and no report is near. Buy at market on the cross, with the stop a few cents under the 83.60 dip low.",
-   "lesson_line": "Setup, trigger, stop: buy the cross at market.",
+   "answer": "Yes, take it: setup and trigger pass",
+   "why": "Yes. A leader above its 200-day pulls back four sessions to a rising 20-day EMA, and the dip to 83.60 tags it. It dips under the 85.00 prior close and trades back over it. The market is Green and no report is near. The stop goes a few cents under the 83.60 dip low.",
+   "lesson_line": "Setup and trigger both in: take the trade.",
    "facts": [
     "cSetup",
     "cAbove",
@@ -2811,22 +2811,21 @@
     "cSupport",
     "cLine",
     "cStop",
-    "cBack",
-    "h22",
+    "h01",
     "h26",
     "cEarn",
     "mAnt"
    ],
    "wrong": {
-    "Wait for the close, then buy": "Our entries are market orders on the cross. The trigger is the first trade over the prior close, not the close.",
     "Pass; it opened red under the line": "Opening red is how a red to green starts. It needs a dip under the line before the cross.",
-    "Buy at the open, before the cross": "Buying under the line in anticipation is a named mistake. Wait for the trade over the prior close."
+    "Buy at the open, before the cross": "Buying under the line in anticipation is a named mistake. Wait for the trade over the prior close.",
+    "Wait for it to clear yesterday's high": "The red-to-green line is the prior close, 85.00, and price is already over it."
    },
-   "story": "A leader above its 200-day pulls back four sessions to its rising 20-day EMA. It opens at 84.10 against a prior close of 85.00, and the dip to 83.60 tags the EMA. It trades over 85.00 in the first hour. The market is Green and the report is weeks away.",
+   "story": "A leader above its 200-day pulls back four sessions to its rising 20-day EMA. It opens at 84.10 against a prior close of 85.00, and the dip to 83.60 tags the EMA. It trades over 85.00 in the first hour and closes the day over it. The market is Green and the report is weeks away.",
    "house": true,
-   "simple": "Take it, because the setup and the trigger are both there, so you buy the cross at market.",
+   "simple": "Take it, because the setup and the trigger are both there.",
    "deeper": {
-    "trap": "The trap is waiting for the close to prove the trade. Our entries are market orders, and the trigger is the first trade over the prior close. If it fails, the stop under the dip low is the exit."
+    "trap": "The trap is passing because it opened red. Opening under the line is how a red to green starts. The setup is in place and price is back over 85.00, so the trigger is in. The stop a few cents under the 83.60 dip low is the exit."
    },
    "tier": "expert",
    "risk": {
@@ -2837,9 +2836,6 @@
      "fixed before (+1)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
    "batch": "wave5"
   },
   {
@@ -3165,12 +3161,12 @@
    "q": "How many shares do you buy?",
    "story": "Your risk math says 40,000 shares, and the 40% position cap allows more. The stock trades 3,000,000 shares a day on average.",
    "choices": [
-    "30,000, the 1% ceiling",
+    "30,000, the volume ceiling",
     "40,000, the risk math",
     "20,000 now, 10,000 more later",
     "40,000; the ceiling is a guide"
    ],
-   "answer": "30,000, the 1% ceiling",
+   "answer": "30,000, the volume ceiling",
    "why": "30,000. We never own more than 1% of a stock's average daily volume, and 1% of 3,000,000 is 30,000. The size is the smaller number, so that ceiling caps the 40,000 the risk math gives. The 40% cap allows more, so it does not bind. The full size goes in at one price.",
    "lesson_line": "Check the volume ceiling after the risk math. It caps the size.",
    "facts": [
@@ -3731,8 +3727,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (cBack, h02). But the why and a wrong note say 'The stop never moves down or wider', while q63 in the same lesson teaches 'the one time a stop may move down' (B20; h02 itself says 'The one exception is the gap rule'). The lesson contradicted itself. Now: the stop only moves up, the gap rule is the one exception, and there was no gap."
+   "fixed": false,
+   "notes": "Key Hold matches cBack, h02 (A4), h30. Close 95.90 and the buy/stop come from the story; dTW grounds 96.35 line. Overlaps q12 (same idea as TF) by rung design, not a leak of the stem."
   },
   "q25": {
    "status": "pass",
@@ -3832,8 +3828,8 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story now matches the dossier ('the next morning's first hour traded down through the stop'), good. But the wrong note 'A green close is a good sign' has no cited fact; replaced with a grounded note (h02)."
+   "fixed": false,
+   "notes": "Key matches dNV1 and A4/D41. Open was above the stop, so the gap rule does not apply. 1.2% grounded in dNV1. Two Yes/two No; no tell."
   },
   "q42": {
    "status": "cut",
@@ -3850,14 +3846,14 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Thin story: it never says the stock is still under the prior close, yet the key, the why ('reclaimed the low, not the prior close') and the Go Signal note ('has not crossed the prior close yet') all depend on it; if it had also crossed, 'A plain red to green' would be defensible. Story now states it."
+   "fixed": false,
+   "notes": "Key matches tOo; not over the prior close so not a red to green (cLine, mGreen). No second defensible answer."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (tGo, tGo2). Go Signal wrong note said 'is neither', which reads as unclear and swaps tGo2's 'level' for 'flag'. Re-worded on tGo and tGo2 verbatim."
+   "notes": "Story did not rule out an Oops open (q44 says one day can be both), so the Oops distractor was only refuted by silence; story now states the open was above yesterday's low. Also the noun 'A red-to-green' hyphenated, unlike every other key."
   },
   "q46": {
    "status": "pass",
@@ -3874,8 +3870,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (cShortL, h10). The mirror wrong note's absolute 'A leader above its 200-day is never shorted' overreaches the rulebook: B26 allows a parabolic short above the 200-day. Re-worded to the rule as the why states it."
+   "fixed": false,
+   "notes": "Key matches B26 (h10) and cShortL; no parabolic in story. Distractors each refuted by the hard 200-day rule."
   },
   "q49": {
    "status": "pass",
@@ -3904,8 +3900,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Thin story: 'Was the trade a mistake?' and the simple ('you followed the rules') assume a qualifying setup the story never gives; a learner could argue the trade broke a rule. The dossier lists AMD 2024-03-14 among 'Four valid setups that lost (every gate passed, stopped before 3R)', so the story states it as a given. 2.29% checks: 4.47/194.80. Consider adding that dossier line as a fact."
+   "fixed": false,
+   "notes": "2.29% = (194.80-190.33)/194.80, in dAMD. Key matches h01/h02; first-hour note matches cTiming and dAMD2. No second answer."
   },
   "q54": {
    "status": "pass",
@@ -3929,7 +3925,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right. But the story said the leader 'drifts two weeks' to the EMA, while the card's setup (cSetup, cStruct) is a pullback of 1 to 5 sessions, so the story conflicted with a rule the unit teaches. Also, the why said 'the gap down tags it' but the story never said the dip tags the EMA (cSupport). The story is invented, so it now pulls back four sessions and the dip tags the EMA. cSupport and cStruct are now cited."
+   "notes": "rg.trigger is pending-owner (D-003, options: first trade / 5-minute close / day's close). The distractor 'Wait for the close, then buy' is option c, so it becomes right if the owner picks c, and the key 'buy the cross at market' takes a side; the file's own conflicts note says the trigger is kept out of every key. Rewritten so the key holds under every option."
   },
   "q58": {
    "status": "pass",
@@ -3940,8 +3936,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (dAP: 612.33 under 624.73; cEma). But the wrong note on 'Watch for the cross; it is a leader' said 'Strength in the past is not the test', which reads as if the leader test (RS 80 or more, cLeader) does not count. dNear says APP passed every other gate, so it was a leader. The note now says leadership is one gate and the falling EMA fails another. cLeader cited."
+   "fixed": false,
+   "notes": "612.33 vs 624.73 in dAP; asof 2025-10-16 is the day before the dossier's 2025-10-17 gap. dNear: fails only this gate, so the 200-day and stretch distractors are refuted. Rests on a proposed (not owner) gate, already risk-flagged."
   },
   "q60": {
    "status": "cut",
@@ -4001,7 +3997,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h19: 1% of 3,000,000 = 30,000; calc). But two choices were silly: '45,000, the clean setup' and '60,000, for the tight stop' both sat above a risk-math answer that already counts the stop, and no fact backs either. They are now real misunderstandings: start small and add (h30, mStart), and treating the volume ceiling as a guide like the market reading (h26 says the reading is a guide; h19 says 'never'). The story no longer needs the clean-setup and tight-stop line. Calc unchanged."
+   "notes": "Key right (calc 3,000,000 x 0.01 = 30,000; D42 caps it). But the keyed choice '30,000, the 1% ceiling' prints the 1% rule, which answers q68 (2,400,000 -> 24,000) and q67 outright. Name the ceiling without the number."
   },
   "q67": {
    "status": "pass",
@@ -4024,8 +4020,8 @@
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right. The why's 'Until then the stop stays where it was set' is unsupported: A4 lets a stop move up at any time; no fact says it must stay put before 2R. Sentence dropped; cStop no longer needed."
+   "fixed": false,
+   "notes": "False matches cBE and B19 (2R to 5R). q69/q72 mention breakeven at the 3R trim but do not give away the 0.5R item."
   },
   "q71": {
    "status": "pass",

@@ -1965,11 +1965,12 @@
     "n1",
     "l4",
     "l2b",
-    "dNear"
+    "dNear",
+    "dTTD"
    ],
    "wrong": {
     "The volume; 2.5x is still too low": "The test needs 2 times the volume, and 2.5x clears it.",
-    "The fall; a 34% drop is too deep": "Each near-miss fails exactly one gate. Here that gate is the gap, not the fall.",
+    "The fall; a 34% drop is too deep": "A deep fall is not a fail. The rule likes a stock that fell first, like one down 27% in 60 sessions.",
     "The close; 4.5% up is too small": "The long needs a close back above the prior close the same day, and 4.5% up does that. The gap is what fails."
    },
    "house": true,
@@ -2176,12 +2177,12 @@
    "q": "Which news makes the better read?",
    "choices": [
     "The vague note; less news to fight",
-    "The earnings miss on heavy volume",
+    "The miss; major news, heavy volume",
     "Neither; only the close matters",
     "Both the same; any dated news counts"
    ],
-   "answer": "The earnings miss on heavy volume",
-   "why": "The earnings miss on heavy volume. A News Failure needs a dated catalyst, and the close is read against that news. The card's B- cue is small or unclear news with volume barely above normal. The vague note has both, so it is the weaker read.",
+   "answer": "The miss; major news, heavy volume",
+   "why": "The earnings miss. A News Failure needs a dated catalyst, and the close is read against that news. The card's B- cue is small or unclear news with volume barely above normal. The vague note has both, so it is the weaker read. The miss is major news on heavy volume.",
    "lesson_line": "Big, clear news and heavy volume make the stronger read.",
    "facts": [
     "g2",
@@ -3402,7 +3403,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "nf.above_200",
-   "q": "Our 200-day rule has a parabolic exception. What makes a move parabolic?",
+   "q": "In our rulebook, what makes a move parabolic?",
    "choices": [
     "A 3-5 day burst, a final leg",
     "One big gap on twice the volume",
@@ -3552,8 +3553,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 46.00 right (40 + 3*2). The deeper example says SEDG's 'best move reached 10.5R'; the quote '31.83 | 30.23 | 5.0% | 10.5R (1)' only means best R with the column header dHead ('Best R (days to 3R)'), which is not cited. Add dHead."
+   "fixed": false,
+   "notes": "Solved first: 40 + 3*(40-38) = 46.00; matches key and calc. hB19/n15 support the 3R first third; SEDG deeper example matches dSEDGb (31.83, 30.23, 5.0%, 10.5R, 3R in 1 day) and dSEDGw. No second answer, no leak to q12/q42/q66/q67."
   },
   "q18": {
    "status": "pass",
@@ -3655,7 +3656,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (dSTX). Three defects: (1) the wrong note on 'The close' says 'Even a 1% up-close at the top of the range counts', which is q39's key (rung 5, same band), so q34 answers q39; (2) the story names an earnings report (a real catalyst), so the 4% gap must be grounded for named news too (l4), not only the no-news stand-in (n1); (3) the lesson_line 'Under 4% is a Red to Green' overreaches: an under-4% gap that keeps falling is no Red to Green. Fixed the note on l2b, the why on l4, the lesson line; dZSw dropped."
+   "notes": "Key right (3.1% gap under the 4% stand-in, dSTX/l4/n1). Weak spot: the wrong-answer note for 'The fall' is circular (only says the gate is the gap). It should say why a deep fall is not a fail: the card likes the crowded, fallen case (dTTD: 'The crowded case the rule likes (down 27% in 60 sessions)'). Added dTTD to facts."
   },
   "q35": {
    "status": "pass",
@@ -3691,7 +3692,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (g2 B- cue, l3). Defects: (1) story said 'thin volume' but the why claims it matches g2's 'volume barely above normal'; thin is not barely above normal (and thin would fail n1's 2x). Story, why and simple now say 'barely above normal'. (2) 'The vague note; it fooled nobody' was a silly choice; replaced by a real misconception, wrong by g2."
+   "notes": "Key right (g2: small or unclear news, volume barely above normal is the B- cue). Tell: the key was the only choice without the 'X; reason' form, so it stood out. Recast the key to the same form using only the story's words (major, heavy volume). Distractors and their wrong notes unchanged."
   },
   "q41": {
    "status": "pass",
@@ -3786,8 +3787,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right from dBase and dBase2. The deeper trap names AAOI at 30.2R and SEDG at 10.5R as big winners; '30.2R' and '10.5R' only mean best R through the column header dHead, which is not cited. Add dHead."
+   "fixed": false,
+   "notes": "Solved first: 33.4% to 3R means most do not win; dBase2 states about two losses per 3R winner; hD45 kills the win-streak choice. Why notes the fixed-stop caveat (dBaseHow). AAOI 30.2R and SEDG 10.5R match dAAOIb/dSEDGb. Minor: 'He is right' for an ungendered friend, same style as q60, not a tell."
   },
   "q57": {
    "status": "pass",
@@ -3828,8 +3829,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Numbers verified verbatim in the dossier (lines 1039-1042: long 603 events 32.0% to 3R; top quarter 500 events 31% to 3R); False is right. One overreach: the why said 'The top-quarter close raises the grade', but the card's grade-up (n2) needs the top 25% AFTER an undercut of the prior day's low. Why reworded to state the card's full cue."
+   "fixed": false,
+   "notes": "Solved first: dTopQ 31% (500 events) vs dLongs 32.0% (603 events); even at the rounding edge 31.4% < 32.0%, so False holds. Quotes verified in the dossier (line-wrapped). Why separates the card grade-up (n2) from the test result. Stem mentions the top quarter but does not answer q13 (which needs the undercut)."
   },
   "q64": {
    "status": "cut",
@@ -3901,7 +3902,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right from hB26p (verbatim in sizing_rule.md B26). Two defects: (1) the simple gives only the up-burst boxes, while the lesson's exception is a parabolic LONG, a burst down (hB26m), so a member could read 'three straight up days' as the long's test; (2) the wrong note 'That is the news stand-in' needs n1, not cited."
+   "notes": "Key right (hB26p: a 3-5 day final leg, boxes, more boxes stronger; hB26m mirror for longs). Leak: the stem 'Our 200-day rule has a parabolic exception' answers q05 (TF: a long must be above the 200-day unless it is a parabolic long). Stem reworded to drop the 200-day exception."
   }
  }
 }

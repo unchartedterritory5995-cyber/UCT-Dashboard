@@ -1911,7 +1911,7 @@
    "choices": [
     "No; it is an earnings reaction",
     "Yes; earnings fear is still panic",
-    "Yes; 20% clears the 15% bar",
+    "Yes; a 20% fall is deep enough",
     "No; it fell too slowly to count"
    ],
    "story": "A leader drops 20% in two days right after it reports earnings.",
@@ -1927,7 +1927,7 @@
    "wrong": {
     "No; it fell too slowly to count": "Speed is not the test here. The report inside the flush window sets it apart.",
     "Yes; earnings fear is still panic": "The card keeps them apart. An earnings reaction is not a panic flush.",
-    "Yes; 20% clears the 15% bar": "Clearing 15% is one test. The report inside the window rules it out."
+    "Yes; a 20% fall is deep enough": "20% clears the 15% stretch, but that is one test. The report inside the window rules it out."
    },
    "simple": "No. A drop right after earnings is a reaction to news, and we keep that apart from a panic flush.",
    "tier": "core",
@@ -2274,13 +2274,13 @@
    "criterion": "cap.above_200",
    "q": "Which rule stops the buy?",
    "choices": [
-    "The 200-day rule: no longs under it",
-    "The stretch rule: 15% off the high",
-    "The flush rule: at least 2 ATR",
-    "The volume rule: at least 2x average"
+    "The 200-day rule: where price sits",
+    "The stretch rule: the fall off the high",
+    "The flush rule: the drop in ATR",
+    "The volume rule: versus the average"
    ],
    "story": "The reclaim closes 15.9% under the 200-day. The stock slid for two months, then dropped 2.19 ATR on 3.48x volume, 17.6% off its high. It fails our parabolic-long test.",
-   "answer": "The 200-day rule: no longs under it",
+   "answer": "The 200-day rule: where price sits",
    "why": "The 200-day rule. We take no longs below the 200-day SMA unless it is a parabolic long, and this one fails that test. The flush, the volume and the stretch all clear their bars: 2.19 ATR, 3.48 times and 17.6%.",
    "lesson_line": "Under the 200-day, no long unless it is a parabolic long.",
    "facts": [
@@ -2293,9 +2293,9 @@
    ],
    "house": true,
    "wrong": {
-    "The stretch rule: 15% off the high": "17.6% off the high clears the 15% stretch.",
-    "The flush rule: at least 2 ATR": "2.19 ATR clears the 2 ATR bar.",
-    "The volume rule: at least 2x average": "3.48 times clears the 2 times bar."
+    "The stretch rule: the fall off the high": "17.6% off the high clears the 15% stretch.",
+    "The flush rule: the drop in ATR": "2.19 ATR clears the 2 ATR bar.",
+    "The volume rule: versus the average": "3.48 times clears the 2 times bar."
    },
    "simple": "The 200-day rule stops it, because we take no longs under the 200-day unless it is a parabolic long.",
    "tier": "extended",
@@ -2829,13 +2829,13 @@
    "criterion": "cap.stretch_stock",
    "q": "Capitulation, or something milder?",
    "choices": [
-    "Milder; it is far short of 15%",
+    "Milder; the stretch is too small",
     "Capitulation; heavy volume is enough",
     "Capitulation; it hit its 50-day",
     "Parabolic Long; it fell 6% in a day"
    ],
    "story": "A leader drops 6% in one day into its 50-day on heavy volume. It is 7% off its 10-day high.",
-   "answer": "Milder; it is far short of 15%",
+   "answer": "Milder; the stretch is too small",
    "why": "Milder. A capitulation needs a 2 ATR flush on 2x volume and 15% or more off the 10-session high. This stock is only 7% off its 10-day high. A one-day drop into a level in a leader is often a mean-reversion leader flush, a different setup.",
    "lesson_line": "Measure the stretch. 7% is a pullback.",
    "facts": [
@@ -3484,7 +3484,7 @@
     "Pass; only a pullback in a leader",
     "Pass; 2.23x volume is too light",
     "Watch it; 2.95 ATR is a deep flush",
-    "Watch it; 12.9% is close to 15%"
+    "Watch it; 12.9% is close enough"
    ],
    "answer": "Pass; only a pullback in a leader",
    "why": "Pass. The volume and the ATR clear their bars. But the low was only 12.9% under the 10-day high close, and a stock needs 15%. It was a dip to the rising 50-day in a leader: a pullback, not a capitulation.",
@@ -3501,7 +3501,7 @@
    "wrong": {
     "Pass; 2.23x volume is too light": "2.23x clears the 2x volume bar. The stretch is what fails.",
     "Watch it; 2.95 ATR is a deep flush": "The ATR clears 2, but the stretch is short of 15%.",
-    "Watch it; 12.9% is close to 15%": "A rule is a line. The stretch needs 15%, and 12.9% is short of it."
+    "Watch it; 12.9% is close enough": "A rule is a line. The stretch needs 15%, and 12.9% is short of it."
    },
    "chart": {
     "sym": "AMZN",
@@ -4083,14 +4083,14 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: all three wrong choices carry an overclaim ('full control', 'for good', 'now confirmed') and the key is the lone plain one, so a test-wise member picks it unread. Without the absolutes, 'buyers took control' and 'big funds selling' become half-true under w01 (larger interests absorb, some funds do sell). Replaced with misreadings that are wrong without an absolute, each grounded (k01, m01, m02). w01 quote re-found on StockCharts 2026-11-12; the TraderLion archive (k01) was unreachable to WebFetch again, as the risk note says. Choice lengths set so the key (33) is not the longest."
+   "fixed": false,
+   "notes": "Key matches Kell (k01) and Wyckoff w01 (re-found on ChartSchool 2026-11-12). Distractors clearly wrong; no tell."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Simple and lesson_line call the drop 'a fade'. No cited fact says that, and 'fade' is trading slang with another meaning. Reworded to c04 and c02."
+   "fixed": false,
+   "notes": "Card c04 says it plainly; Wyckoff w05 quote re-found. False is unambiguous."
   },
   "q06": {
    "status": "pass",
@@ -4137,8 +4137,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The band wrong-note says 'supporting evidence of a stretch'. c09 says 'supporting evidence only' and does not mention a stretch. Trimmed to the quote."
+   "fixed": false,
+   "notes": "Round number is on the card's c07 list; others are not. FIGR quote u02 re-found on the Substack post."
   },
   "q15": {
    "status": "pass",
@@ -4155,8 +4155,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc right (28 / 8 = 3.5). 'So this qualifies' overreaches: the question only measures the index stretch; a capitulation needs more than the stretch. Reworded to say it meets the stretch."
+   "fixed": false,
+   "notes": "(500-472)/8 = 3.5 by calc. Bracco's 3 ATR remark (u04) re-found; he applies it to the S&P, and the card treats QQQ as an index read (its own seed)."
   },
   "q18": {
    "status": "pass",
@@ -4234,7 +4234,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Silly choices: 'the earnings rule' and 'the 4% chase limit' are dismissed only because the story never mentions a report or a chase (their own notes say so), and with the story saying 'fails our parabolic-long test' the key is a give-away. Rebuilt so every choice is a rule the story's numbers touch: flush 2.19 ATR (c01), volume 3.48x (c02), stretch 17.6% off the high (c05; d27 quotes 17.6% off the high, the dossier's drop column measured against the 10-day high close), and the 15.9%-under-200 detail now tempts the stretch reading. Key format made uniform ('rule: ...'). Parabolic-long reading s"
+   "notes": "Key right (B26, h10; story says it fails the parabolic-long test). But the three distractors spell out the flush, volume and stretch bars (2 ATR, 2x, 15%), answering q01, q06 and q07 and turning this into reading the bars off the choices. Choices now name the rules without their bars; wrong notes keep the numbers. Key reworded to match the other choices' form, so it is not the lone rule statement."
   },
   "q36": {
    "status": "cut",
@@ -4251,8 +4251,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (calc 0.70 / 0.20 = 3.5R, past B20's 2R ceiling). Defects: (1) 'Move the stop down to 19.00' uses an ungrounded number no rule or story gives; the real trap is applying the gap rule (stop to the 30-min low, 19.30) without its ceiling, so that is now the distractor. (2) 'simple' said 'the gap put the loss at 3.5R'; the gap open at 19.70 was 1.5R, the first 30 minutes took it to 3.5R. (3) Key reworded so 3.5R reads as the distance of 19.30 under the entry."
+   "fixed": false,
+   "notes": "Calc (20-19.3)/0.2 = 3.5R; B20 plus its 2R ceiling (h06, h07) gives Out. 'Set the stop at 19.30' is the rule without its ceiling. Matches the rulebook."
   },
   "q41": {
    "status": "pass",
@@ -4311,8 +4311,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The Oops note says 'This stock drifted with no gap', but the story never says so (c41: an Oops comes in an orderly pullback, so the story does not rule it out). Added 'with no gaps' to the story. The parabolic note's 'burst down' rests on c51, which was not cited; c51 added."
+   "fixed": false,
+   "notes": "Six sessions, light volume, rising 20 EMA, no gaps fits the card's moving-average pullback (c50); 'no gaps' rules out the Oops (c41)."
   },
   "q55": {
    "status": "pass",
@@ -4341,8 +4341,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The story 'falls Thursday and Friday' shows only 1 lower close before the Friday flush. q32 teaches c10, which needs at least 2 lower closes before the flush day, so a member applying the lesson can call this not a capitulation. (The dossier counts OKTA's 2 lower closes 'into and including the flush day'.) The story now states the numbers d07 gives (2.67 ATR, 23.4%, 2.28x) and leaves out the day count. OWNER FLAG: 4 of the 10 textbook examples (ICE, ROKU, OKTA, HIMS) have 2 lower closes including the flush, so they fail c10 as written. The card or the examples need a ruling."
+   "fixed": false,
+   "notes": "OKTA row d07-d09 verified (4% above its 200-day, so B26 does not bar it). Reclaim is the card's daily trigger (c13); open under the low and Friday close are clearly wrong."
   },
   "q01": {
    "status": "pass",
@@ -4360,7 +4360,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The wrong-note 'Two days is fast' has no cited fact behind it. Reworded so it rests on c17 and d31."
+   "notes": "Key right (c17). Distractor 'Yes; 20% clears the 15% bar' states the stock stretch bar, which hands over q07's key (15%). Reworded without the bar; wrong note keeps it for after the answer."
   },
   "q28": {
    "status": "pass",
@@ -4384,7 +4384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (7% far short of c05's 15%). The Parabolic Long note claimed 'One 6% day ... is not a burst', a day count no cited quote gives (hla1 says only 'a burst down'; the burst count is held, D-002). Re-grounded on hla1 + c38."
+   "notes": "Key right (c05, c37). The key 'far short of 15%' states the stock stretch bar, handing over q07's key. Reworded to 'the stretch is too small'; the why and wrong notes keep 15% for after the answer."
   },
   "q52": {
    "status": "pass",
@@ -4413,14 +4413,14 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem 'Watch it for a reclaim, or pass?' contradicts the distractor 'Watch it; buy the next green close' and frames out 'Buy the close', letting a member eliminate by wording. Stem shortened. Why's numbers checked against the dossier columns (drop = flush low vs highest 10-session close; ATR = low under prior close)."
+   "fixed": false,
+   "notes": "LYV row d04-d06 verified in the dossier (Drop column is off the 10-day high close). Only the watch-and-wait-for-reclaim choice fits c12/c13; ticker and date not given away."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and notes right. The why used both 12.9% (d21) and 13% (d23) for the same dip, two numbers for one fact; dropped the rounded one."
+   "notes": "Key right (d21-d23, c05). Distractor 'close to 15%' gives away the 15% bar (q07's key). Reworded to 'close enough'; the wrong note keeps the 15% for after the answer."
   },
   "q10": {
    "status": "cut",
@@ -4461,8 +4461,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: 'a day three sessions earlier' could fall before the decline began. Then the second flush is still the biggest bar of the decline and meets c03's ideal ('of the decline or of the year'). The story now says the earlier day was in the same decline. The choice 'both pass 2x' also gave away q06's key; changed to 'both pass'."
+   "fixed": false,
+   "notes": "c03 'ideally the highest volume of the decline' decides it; both pass the 2x floor. Minor: q67 (TF) states the same fact, but a TF statement does not give its own truth away."
   },
   "q67": {
    "status": "pass",
@@ -4514,20 +4514,20 @@
   "q75": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Neutral; 17% is the middle' is a silly choice: no one reads 17 on a 0 to 100 gauge as the middle. Replaced it with a real misreading of what T2108 counts (c30 defines it)."
+   "fixed": false,
+   "notes": "17% sits inside the card's 'near or under 15% to 20%' (c30). u06 quote re-found. The wrong note on 'Mild' is right: T2108 counts stocks above their 40-day."
   },
   "q76": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The wrong-note 'The crash may have another leg' leans on d12, which is not cited. Reworded to c49."
+   "fixed": false,
+   "notes": "c49 says holding up or stretched, not breaking down; key follows. No second defensible answer."
   },
   "q77": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why teaches 'or the next morning' as fact, but that is one side of pending D-002 (the other option needs the gap on the climax day itself). The key holds under both options, so only the why changes. 'mirrored from our parabolic long' is reworded to fit c51."
+   "fixed": false,
+   "notes": "Gap down on the climax day is box 5 (c53) and mirrors B26. 'Growing losses' for box 3 matches Bracco's own post, where range expansion means a larger percent gain than the day before (re-fetched 2026-11-12). Distractors are separate checks."
   },
   "q78": {
    "status": "pass",

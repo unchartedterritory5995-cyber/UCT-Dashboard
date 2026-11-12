@@ -1543,18 +1543,16 @@
     "As soon as it's 1R up"
    ],
    "answer": "Once it's 2R to 5R up",
-   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop sits at your entry and only moves up. It is not a promise of no loss: a gap can still fill you below it.",
-   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up.",
+   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop only moves up, never down or wider. The one exception is the gap rule.",
+   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up, except under the gap rule.",
    "facts": [
     "h03",
-    "h13",
-    "f22",
-    "f49"
+    "h13"
    ],
    "wrong": {
     "The day after you buy": "Too early. The move comes once the trade is 2R to 5R ahead, not on a date.",
     "As soon as it's 1R up": "Too early for us. Our rule waits until the trade is 2R to 5R ahead.",
-    "Never, it never moves": "Our stop never moves down or wider, but it does move up. At 2R to 5R it goes to breakeven."
+    "Never, it never moves": "Our stop never moves down or wider, except under the gap rule. But it does move up: at 2R to 5R it goes to breakeven."
    },
    "simple": "Once it's 2R to 5R up. That is when our rule moves the stop to your entry.",
    "tier": "core",
@@ -2130,7 +2128,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two defects. (1) The key 'At the first trim, 3R' keys a course convention, not the owner's words: B19 says 'Move the stop to breakeven at 2R to 5R, ideally' (h03), and the resolver's own owner flag 3 says the 3R point is unconfirmed. A key must teach the rulebook, so it now keys B19's window. (2) As a rung 2 choice shown before q09 (rung 3), 'the first trim, 3R' handed q09 its key, since only q09's key contains 3R. The new key names no trim level."
+   "notes": "Key is right: B19 / h03 says breakeven at 2R to 5R, ideally. All four choices are 21 characters, no tell, and no second defensible answer. Three problems, all in the teaching text. (1) The why and the 'Never' wrong-note say the stop 'only moves up' / 'never moves down or wider' with no exception. The same lesson's q34 and h13 teach the gap rule (B20) as the one exception, where the new stop can sit below the old one. (2) The why's last sentence ('a gap can still fill you below it') states q16's answer (True, a breakeven stop can still lose money). It also conflicts with q34: under B20 a gap th"
   },
   "q28": {
    "status": "cut",

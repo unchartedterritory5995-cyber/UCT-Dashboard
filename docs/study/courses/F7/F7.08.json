@@ -720,7 +720,7 @@
    ],
    "answer": "The dot-com bubble bursting",
    "why": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002.",
-   "lesson_line": "When the market's leaders trade at lofty prices, their fall can drag the whole market down for years.",
+   "lesson_line": "When a few sectors trade at lofty prices, their fall can drag the whole market down for years.",
    "facts": [
     "f13",
     "f14",
@@ -729,13 +729,12 @@
     "f44",
     "f04",
     "f20",
-    "f21",
-    "f46"
+    "f54"
    ],
    "wrong": {
     "A collapse in home prices": "That was 2007-09. Falling home prices helped spark that crisis.",
-    "A pandemic shutting the economy": "That was 2020, a fall that took weeks, not years.",
-    "The US losing its AAA rating": "That came in 2011, when Standard & Poor's cut the US credit rating from AAA to AA+."
+    "A pandemic shutting the economy": "That was the early 2020 fall, which was pandemic-fueled.",
+    "The US losing its AAA rating": "That came years later, when Standard & Poor's cut the US credit rating from AAA to AA+."
    },
    "simple": "The dot-com bubble bursting, because tech stocks had climbed to lofty prices and then fell hard, dragging the market down.",
    "tier": "core",
@@ -1289,8 +1288,8 @@
    "q": "What does the record since 2000 say?",
    "choices": [
     "Falls vary a lot in speed and depth",
-    "Most falls are over within weeks",
-    "Every fall stops near a 20% drop",
+    "Most big falls are over within weeks",
+    "Every big fall stops near a 20% drop",
     "The slow slides turn out the mildest"
    ],
    "answer": "Falls vary a lot in speed and depth",
@@ -1304,9 +1303,9 @@
     "f43"
    ],
    "wrong": {
-    "Every fall stops near a 20% drop": "Not so. 2020 fell 33.9%, and 2007-09 went on to 56.8%.",
     "The slow slides turn out the mildest": "The reverse here. 2000-02 took 30.5 months and fell 49.1%, more than 2020's 33.9% in 33 days.",
-    "Most falls are over within weeks": "Not most. 2000-02 took 30.5 months and 2007-09 took 17 months."
+    "Every big fall stops near a 20% drop": "Not so. 2020 fell 33.9%, and 2007-09 went on to 56.8%.",
+    "Most big falls are over within weeks": "Not most. 2000-02 took 30.5 months and 2007-09 took 17 months."
    },
    "simple": "Falls vary a lot, because 2020 dropped 33.9% in 33 days while 2000-02 took 30.5 months to drop 49.1%.",
    "deeper": {
@@ -1407,8 +1406,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f02 57%, f45 56.8%). Cross-question tell: the choice label 'The 2022 inflation bear market' names q06's key (what drove 2022: hot inflation), and 'The 2000-02 dot-com bust' names q04's key (what set off 2000-02). Both are visible in the question text, not only in feedback. Also the 2020 wrong note 'It was the fastest' states q07's key. Fix: cause-neutral year labels (13-16 chars, key not the lone longest), 2020 note trimmed to depth only. Every number unchanged and from f02, f45, f44, f46, f35, f38."
+   "fixed": false,
+   "notes": "Decided 2007-09 before the key: f02 57% (Fed History), f45 56.8% (S&P DJI table, re-read live on CNBC), vs f44 49.1%, f46 33.9%, 2022 4,796.56 to 3,577.03 (calc 25.4%, not stated). Choices 13-16 chars, cause-neutral, no tell. Why, wrong notes and simple use only cited numbers; 'ranks only these four falls' guards the date dependence. Question text gives away no other key."
   },
   "q02": {
    "status": "pass",
@@ -1426,7 +1425,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f49, f56). One overreach: why says the Nasdaq fell 'most steeply'; f14 says only 'a particularly steep drop in the Nasdaq'. Reworded to the quote. The giveaway of this key by q01/q07's 'dot-com bust' label is fixed under q01 and q07."
+   "notes": "Key right: f49 (CNBC, re-read live: 'The bursting of the Tech Bubble led directly to the 2000-2002 bear market') and f56 (Fox, re-read live). Two defects. (1) lesson_line says 'When the market's leaders trade at lofty prices': f14 says 'lofty valuations of some sectors', not leaders, and the line frames leaders as the danger in a course whose rulebook (section 9, C31) teaches 'Buy leaders'. Reworded to the quote's 'some sectors'. (2) The pandemic wrong note 'a fall that took weeks, not years' states q07's key (2020 was the fastest), the same giveaway the q01 fix removed. Reworded to name the y"
   },
   "q05": {
    "status": "pass",
@@ -1443,8 +1442,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f54 33 days, f46 1.1 months). Same cross-question tell as q01: the labels 'The 2022 inflation bear market' and 'The 2000-02 dot-com bust' state q06's and q04's keys in the choice text. Fix: cause-neutral year labels, matching q01; numbers unchanged (f54, f46, f45, f44, f35, f38). The key is tied shortest, not longest."
+   "fixed": false,
+   "notes": "Decided 2020 before the key: f54 33 days, f46 1.1 months (re-read live), vs f45 17 months, f44 30.5 months, 2022 Jan 3 to Oct 12 (f35, f38). Among the four choices no second answer. Choices 13-16 chars, key tied shortest. The why keeps 2022 as 'far longer than 33 days' and does not state q14's nine months. Lesson_line overlaps q19's theme (falls vary), which is teaching, not a giveaway in question text."
   },
   "q08": {
    "status": "pass",
@@ -1473,8 +1472,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f22, f24, f23). Two overreaches: simple says a falling oil price weighed on US stocks broadly, but f23 ties falling oil to energy and materials stocks; lesson_line says 'for months', which no cited quote gives (f22's quote has no time span). Both reworded to what f22 and f23 say."
+   "fixed": false,
+   "notes": "Decided China worries and falling oil from f22, f24, f23 (Fed MPR Feb 2016) before the key. Choices 28-31 chars, key not longest. Simple and lesson_line keep falling oil tied to energy stocks as f23 says. Lesson-level minor carried (not this question's defect): the distractors are the causes other questions teach (q04/q06/q10 feedback), so a member who has seen them can eliminate; each wrong note is grounded. Wrong notes repeat q06/q10 wording for the same distractor, which states the same cited fact, not a copied why."
   },
   "q13": {
    "status": "cut",
@@ -1503,8 +1502,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f36, f37, f38: 4,305.20 on August 16 to 3,577.03 on October 12, below the June 16 close). Choices 32-38 chars, key not longest, story no longer echoes the key. One unsupported claim in deeper: 'Many traders read a two-month rally ... as proof' has no source. Reworded as the trap itself. Minor, no change: w3 narrates this same 2022 case before the questions."
+   "fixed": false,
+   "notes": "Decided 'new low' from f36 3,666.77 (Jun 16), f37 4,305.20 (Aug 16), f38 3,577.03 (Oct 12) before the key; Oct 12 is inside the 60-bar forward window. No second answer on closes or intraday. Choices 32-38 chars, key not longest; story says 'low' and so does a distractor, so no echo tell. 'Within two months' (Aug 16 to Oct 12) checks out; record line f39/f52; hindsight f48 re-read live. The chart (asof 2022-08-16) anchors the otherwise generic story, and w3 teaches this case on purpose."
   },
   "q17": {
    "status": "pass",
@@ -1522,7 +1521,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f54, f46, f44, f45). Three defects: (1) the choice 'Most falls end in weeks, like 2020' names q07's key (2020 was the fast one) in question text; (2) the wrong note 'Some stop near there' rests on no cited fact; (3) 'Only 2020 was that fast' overreaches, since the lesson's own f19 has 2011 falling sharply over weeks. Fixed: neutral choice wording (32 chars, key 35, longest is a distractor at 36), wrong notes use only cited numbers."
+   "notes": "Key right (f54, f46, f44, f45). One second-answer risk: the friend's claim is about BIG falls, but the choice 'Most falls are over within weeks' drops 'big', and read broadly (all pullbacks) it is defensible, since many smaller dips do end in weeks; the wrong note only refutes it with the two long bears. Same for 'Every fall stops near a 20% drop'. Fix: add 'big' to both (36 chars each); the key stays 35, the other distractor 36, so no length tell. Wrong notes re-keyed, text and numbers unchanged."
   },
   "q20": {
    "status": "pass",

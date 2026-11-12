@@ -1772,20 +1772,20 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f34). Gives away q04: the why states 'eight scheduled meetings a year, plus others as needed' one screen before q04 asks whether there are twelve. Dropped that sentence and f3/f30 (f30's quote also carries the count). Everything else rests on f34, f10, f35, f4."
+   "fixed": false,
+   "notes": "Decided FOMC before reading the key; f34 re-read live on the NY Fed EFFR page (verbatim), f35 verbatim. Trading sets the effective rate, not the range, so 'Banks, by trading' is wrong without ambiguity. Key is the shortest choice. The why no longer gives away q04's meeting count. A small leak remains: the 'Banks, by trading' choice and the effective-rate sentence show that fed funds trades between banks, which points to q02's key. w1 step 1 already teaches this before any question, and removing it would mean dropping a real distractor, so it was left as is."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f9, f1). The wrong note on the inflation-goal choice said '2% a year on PCE prices', which is q05's answer. q05 comes later. Reworded the note so it does not give the number. It rests on f6 and f9. Why and simple are fine."
+   "fixed": false,
+   "notes": "Key right (f9, f1 Tier 1). Answer is 33 chars, so it fits a Word Match tile; the four choices are 31-33 chars. The inflation-goal note no longer gives q05's 2%. The mortgage note rests on f12. Gives away nothing later in the lesson."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'prices' right. Two problems in the why. First, 'which the FOMC puts at 2% a year' gives away q05 (zero-percent goal, False). Second, 'They are commonly known as the dual mandate' wrongly says the three goals are the dual mandate. f5 says the act lists three goals, yet the mandate is called dual. Rewrote the why from f4, f5 and f6, and smoothed the simple's 'and that means'."
+   "fixed": false,
+   "notes": "'prices' right (f4, f5, f6). The why now treats the act's three goals and the dual mandate correctly, and gives no 2% (q05 is safe). 'Stock prices' is a real misreading, and the why names it. The lesson line rests on f16."
   },
   "q04": {
    "status": "pass",
@@ -1862,14 +1862,14 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key rests on f78, f79 and f46. The 'Any cut' note says 'A cut can come with a weak economy', but no listed fact supports it. f8 (cut to support the economy when it weakens) supports it and is now cited. All other parts pass: choices balanced, deeper rests on f60, no time in the story."
+   "fixed": false,
+   "notes": "Key decided independently from the story (futures implied 50, Fed gave 25). It rests on f79 (Investopedia) and f61 (Fed Board research), two publishers that agree. f60 re-read live on the FEDS abstract. Choices are 33-39 chars and the key is not the longest. The absolutes ('Any', 'whenever') are only in distractors. 'Markets react to the surprise, not to the move itself' is a fair paraphrase of f61 in context. Could not re-fetch Investopedia (it blocks this client); f78 and f79 were confirmed by the earlier checker."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right from f40 (Treasury columns checked: 3-month 1.90, 2-year 2.97, 10-year 2.93). The new simple is good. A distractor said 'Both spreads are inverted today', but the story is dated July 6, 2022, so 'today' reads wrong. Dropped 'today' and updated the wrong map to match. The key is not the longest choice."
+   "fixed": false,
+   "notes": "Worked it out first: 2.93-2.97 = -0.04 (2s10s inverted), 2.93-1.90 = +1.03 (positive). The f40 row maps cleanly to Treasury's columns (1Mo 1.36, 2Mo 1.70, 3Mo 1.90, 2Yr 2.97, 10Yr 2.93); the Jan and Dec rows map the same way. Key is not the longest choice. The wrong notes use only the story's numbers, and the trap rests on f54. Does not give away q18 (the NY Fed model's spread is not named) or q23."
   },
   "q18": {
    "status": "pass",
@@ -1886,8 +1886,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'Little' rests on f55. The tell is fixed: the key is the shortest choice, and two choices carry hedges. The lesson line said 'I want to see an inversion hold for months'. That is a first-person rule in no source and not in the rulebook. It also stretches f55, which says 'monthly or quarterly average'. Rewrote it from f55."
+   "fixed": false,
+   "notes": "f55 re-read verbatim in the NY Fed PDF (ci12-5): 'inversions in daily or intraday data often prove to be false signals'. It agrees with f83 (Investopedia), so two publishers support the key. The key (32 chars) is the shortest choice, and the hedges are split ('often' in the key, 'usually' in a distractor). The wrong notes rest on f38 and f59. The lesson line is now grounded in f55. Small note: the deeper trap mostly repeats the why, which is acceptable. Does not answer q23."
   },
   "q21": {
    "status": "pass",

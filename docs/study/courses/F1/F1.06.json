@@ -1062,7 +1062,7 @@
    "wrong": {
     "The $3 billion stock": "A mid cap tends to swing less than a small cap.",
     "The $40 billion stock": "Large caps tend to be steadier than mid caps and small caps.",
-    "The $900 billion stock": "A mega cap is usually the steadiest of the four."
+    "The $900 billion stock": "It is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    },
    "simple": "The $600 million stock, because smaller companies tend to swing more, though it is a tendency and not a promise.",
    "deeper": {
@@ -1318,13 +1318,13 @@
    "story": "A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide.",
    "q": "What's the biggest risk if you buy here?",
    "choices": [
-    "A crash you can't get out of",
+    "A crash that's hard to exit",
     "Missing the rest of the move",
     "Paying a few cents too much",
     "Getting shaken out too early"
    ],
-   "answer": "A crash you can't get out of",
-   "why": "A crash you can't get out of. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "answer": "A crash that's hard to exit",
+   "why": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "lesson_line": "On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
    "facts": [
     "f20",
@@ -1341,7 +1341,7 @@
     "Paying a few cents too much": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into.",
     "Getting shaken out too early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard."
    },
-   "simple": "A crash you can't get out of, because when promoters dump a tiny float the price can fall in seconds.",
+   "simple": "A crash that's hard to exit, because when promoters dump a tiny float the price can fall in seconds.",
    "deeper": {
     "trap": "The move already made looks like proof. FINRA says these schemes rely on the fear of missing out. A text, an ad or a group chat can pull people in. The promoters buy first, push the price, then sell. On a tiny float with a wide spread, getting out can be hard just when you need to."
    },
@@ -1513,7 +1513,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper opener 'can fail on any one day' is not in f11, which speaks of any particular company, not any day. Reworded to match f11. Rest unchanged; it no longer states q15's direction."
+   "notes": "Key re-derived before reading it: the $600 million stock (f10 FINRA, f60 Fidelity; both quotes re-read live on 2026-11-12, f10 and f11 verbatim on finra.org, f60 verbatim on fidelity.com). $600M is small-cap on f6, $3B mid on f5, $40B large on f5. Choices balanced (20-22 chars), no tell, no second defensible answer; 'most likely' matches the tendency wording. Break found: the wrong note for 'The $900 billion stock' says 'A mega cap is usually the steadiest of the four'. FINRA's page compares only large, mid and small caps and says nothing about mega-cap volatility (checked live). The only supp"
   },
   "q14": {
    "status": "pass",
@@ -1555,7 +1555,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key and B23 teaching check out: f67 matches sizing_rule.md section 9 B23 verbatim; the why now teaches the rule (we skip sub-$10 names). Two unsupported phrases fixed: the note on 'Paying a few cents too much' said 'a fast collapse with no buyers' (f23 says selling is hard without big losses, not that there are no buyers); the lesson line said 'the exit can vanish in seconds' (f22 says the crash can come in seconds). Both reworded to what f22/f23 say."
+   "notes": "Key re-derived before reading it: the fast dump that is hard to sell into (f22, f23, FINRA, re-read live 2026-11-12: 'sometimes in a matter of seconds', 'difficult ... to sell their holdings without incurring substantial losses'). f20, f21, f24, f25 also verbatim on the live page. f67 matches sizing_rule.md section 9 B23 word for word; $3 is under $10, so the why's rule line is right and nothing contradicts the rulebook. Break found: the key 'A crash you can't get out of' is the lone absolute among the choices and overreaches f23, which says selling is difficult without big losses, not impossi"
   },
   "q21": {
    "status": "pass",

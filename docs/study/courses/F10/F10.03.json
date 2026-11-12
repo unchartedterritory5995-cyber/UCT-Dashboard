@@ -1480,7 +1480,7 @@
     "Turn it into a stop-limit order"
    ],
    "answer": "Leave it where the plan put it",
-   "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
+   "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Our rule: the stop only moves up, never down or wider. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
    "lesson_line": "The bracket made the call when you were calm. Let it keep it.",
    "facts": [
     "f66",
@@ -1489,6 +1489,7 @@
     "f75",
     "f49",
     "f44",
+    "h5",
     "f29",
     "f83"
    ],
@@ -1505,7 +1506,7 @@
    "risk": {
     "score": 0,
     "reasons": [
-     "Investopedia, Interactive Brokers, Schwab and Fidelity agree on keeping the planned stop"
+     "Investopedia, Interactive Brokers and Schwab back setting exits before the trade; the owner's rulebook (A4, h5) says the stop never moves down or wider"
     ]
    },
    "batch": "wave6"
@@ -1632,8 +1633,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct mechanically (f39, f04, f47, f01, f09), but under the owner's rulebook E57 ('Entries are market orders') and TRADE_PLANS' 'at market as it trades through', a UCT member can defend 'Market buy, sell limit, sell stop' read as: send it as the stock trades through $50.20. The story never says why the entry must rest ahead of time. Fix: the story says you'll be away all day, so a resting buy stop is the only way to take the break; the why grounds that in FINRA f15 (no need to watch the price) and the market-buy note says so. Every number is from the story. Owner flag on E57 still stands"
+   "fixed": false,
+   "notes": "Solved cold: buy stop, sell limit, sell stop. Key matches. Buy-limit wrong is right (marketable at 49.80, f01); market-buy wrong fits the away-all-day story. All numbers from the story. Owner E57 (entries are market orders) is not contradicted: the why says the buy stop becomes a market order at 50.20 (f09); the risk flag stays for the owner. No tell, no overlap with q01/q12."
   },
   "q09": {
    "status": "pass",
@@ -1686,8 +1687,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (f27, f63, f64); no second defensible choice; 'gain locked in' refuted by f09/f27. One wrong-note is unsupported: 'Chasing moves your entry and your risk' rests on no cited fact. Replaced with a note grounded in the question itself ($41 vs the $40 entry). Side note for the owner: the story's $40.00 limit entry is the member's choice; E57 says we enter at market."
+   "fixed": false,
+   "notes": "Solved cold: confirm a working stop on the 300 shares you own. Fidelity f27 checked live on the page. Investopedia f63 could not be fetched (blocked); quote taken as verified earlier. The why's 'may stay active only until' is a fair reading of 'will remain active until ... end of the trading session'. Chase choice is also ruled out by A5 (no adding). Choice lengths balanced; no other question answers it (q21 is the exit-side partial)."
   },
   "q18": {
    "status": "pass",
@@ -1717,7 +1718,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper trap is copied: its first sentence repeats the why word for word ('set before the trade, when you could think it through'). The rest repeats the 'Cancel it' wrong-note (f29). Replaced with a trap that adds the point the question turns on, grounded in f56 (avoid emotional decisions once the trade is placed), already cited."
+   "notes": "Key is right and could not be broken (A4: the stop never moves down or wider; no gap so B20 does not apply). Fixes: (1) the owner's rule h5 governs this exact case but was not cited; added to facts and one line in the why. (2) risk reason claimed Fidelity agrees on keeping the planned stop, but f29 only says cancelling one exit leaves the other open; reason corrected."
   },
   "q23": {
    "status": "pass",

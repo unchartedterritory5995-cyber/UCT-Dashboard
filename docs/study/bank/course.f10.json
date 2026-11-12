@@ -1742,13 +1742,13 @@
     "It worked: it fills at $18.75 later"
    ],
    "kind": "mcq",
-   "q": "Your order never filled. How do you grade it?",
+   "q": "Your order never filled. Judged only as an order, how did it do?",
    "story": "A stock gaps up on news. You set a buy limit at $18.75, the most you'd pay. It opens at $19.60, never trades below $19.40, and runs to $23.",
    "subject": "F10.01#q21"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is grading by outcome. The stock ran to $23, so a fill looks like it would have paid. A market order would have filled, but with no price protection. A missed trade and a worse fill are different risks."
+    "trap": "The trap is grading by outcome. The stock ran to $23, so a fill looks like it would have paid. A market order would have filled, but with no price protection. A missed trade and a worse fill are different risks. Our rule takes the worse-fill risk: entries are market orders."
    },
    "depth": {
     "sources": [
@@ -1793,12 +1793,19 @@
       "quote": "For example, an earnings report or other news event might trigger a sharp drop in the stock and fill a buy limit order, only to see the stock continue to move lower against the trader.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders. (\"57, No i market order everything.\") The stop still sits with the broker (D41).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Use a limit order when getting the right price matters more than getting filled fast. A limit order may never fill, and it can only fill once the stock reaches your price. A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. A market order has no price protection and can fill far from the bid or ask on your screen. If good news opens that stock at $110, the $105 sell limit fills at the open at $110. Bad news can drop a stock through a resting buy limit, fill it, and keep falling."
+    "summary": "Use a limit order when getting the right price matters more than getting filled fast. A limit order may never fill, and it can only fill once the stock reaches your price. A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. A market order has no price protection and can fill far from the bid or ask on your screen. If good news opens that stock at $110, the $105 sell limit fills at the open at $110. Bad news can drop a stock through a resting buy limit, fill it, and keep falling. Our rule E57: we enter every trade with a market order, and the stop stays with the broker."
    },
    "facts": {
-    "given": "Your order never filled. How do you grade it? A stock gaps up on news. You set a buy limit at $18.75, the most you'd pay. It opens at $19.60, never trades below $19.40, and runs to $23. It worked: price capped, no fill It failed: you missed the run to $23 It worked: it fills at $18.75 later It failed: a gap up should fill it"
+    "given": "Your order never filled. Judged only as an order, how did it do? A stock gaps up on news. You set a buy limit at $18.75, the most you'd pay. It opens at $19.60, never trades below $19.40, and runs to $23. It worked: price capped, no fill It failed: you missed the run to $23 It worked: it fills at $18.75 later It failed: a gap up should fill it"
    },
    "lesson_line": "Grade the order by what it was built to do. A limit that never fills kept your price cap.",
    "simple": "It worked, because a limit's job is to cap your price, and it bought nothing above $18.75.",
@@ -1806,8 +1813,8 @@
    "unit": "F10.01",
    "why": "It worked: price capped, no fill. A limit is for when the right price matters more than a quick fill. The stock never traded at $18.75 or lower, so there was nothing to fill. Whether a capped entry suited this trade is a separate call from whether the order worked.",
    "wrong": {
-    "It failed: a gap up should fill it": "A gap fills a resting limit only when it moves past the limit in your favor. For a buy limit, that is a gap down. This gap went up.",
-    "It failed: you missed the run to $23": "That grades the outcome. A limit is for when the right price matters more than a quick fill, so a missed run is the cost it accepts.",
+    "It failed: a gap up should fill it": "A gap can fill a resting buy limit only by opening at or below the limit. This gap went up, above $18.75.",
+    "It failed: you missed the run to $23": "That grades the outcome, not the order. A limit is for when the right price matters more than a quick fill, so a missed run is the cost it accepts.",
     "It worked: it fills at $18.75 later": "Nothing promises a later fill. A buy limit fills only if the stock trades at $18.75 or lower, and it may never."
    }
   },
@@ -4068,14 +4075,14 @@
   "difficulty": 3,
   "id": "si_f0d7543ba802",
   "lesson_origin": "session",
-  "lesson_text": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so 10% clears one ordinary down day. It still keeps most of the 60% gain if the trend breaks. Too tight gets shaken out. Too loose gives back most of the win. Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
+  "lesson_text": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so a 2% or 5% trail gets hit by a normal down day. 10% clears that and still keeps most of the 60% gain if the trend breaks. Too loose gives back most of the win. Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "2%, to keep nearly every cent",
-    "10%, but set from the entry",
+    "5%, about one typical day",
+    "30%, so no dip ever trips it",
     "10%, beyond its usual swing",
-    "30%, so no dip ever trips it"
+    "2%, to keep nearly every cent"
    ],
    "kind": "mcq",
    "q": "Which trail width fits best?",
@@ -4134,17 +4141,17 @@
     "summary": "Too tight a trail gets hit by normal swings; too loose a trail gives back most of the win. Where to set a trailing stop depends on your time frame and how much the stock swings. Short-term swings can set off a trailing stop, so the trail distance needs care. As the stock moves your way, the trailing stop follows it by the set amount. Leave only the first stop in place and a winning trade can turn into a loser. E52: our trail is the 10-day for fast movers or the 21-day for steadier ones, selling on a close below it."
    },
    "facts": {
-    "given": "Which trail width fits best? A trader is up 60% on a strong stock and trails it with a percent trailing stop. On a typical day it moves 4% to 6%. 10%, beyond its usual swing 2%, to keep nearly every cent 30%, so no dip ever trips it 10%, but set from the entry"
+    "given": "Which trail width fits best? A trader is up 60% on a strong stock and trails it with a percent trailing stop. On a typical day it moves 4% to 6%. 10%, beyond its usual swing 5%, about one typical day 2%, to keep nearly every cent 30%, so no dip ever trips it"
    },
    "lesson_line": "Set the trail wider than the normal noise and tighter than the gain you'd hate to give back.",
-   "simple": "10%, because it clears a typical 4% to 6% day but still keeps most of the gain.",
+   "simple": "10%, because it sits wider than a typical 4% to 6% day but still keeps most of the gain.",
    "tier": "expert",
    "unit": "F10.02",
-   "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so 10% clears one ordinary down day. It still keeps most of the 60% gain if the trend breaks. Too tight gets shaken out. Too loose gives back most of the win.",
+   "why": "10%. A trail has to sit wider than the stock's normal swings, or ordinary noise trips it. This stock moves 4% to 6% on a typical day, so a 2% or 5% trail gets hit by a normal down day. 10% clears that and still keeps most of the 60% gain if the trend breaks. Too loose gives back most of the win.",
    "wrong": {
-    "10%, but set from the entry": "A trail follows the price up as it rises. Fixed under the entry, it hands back the whole 60% gain.",
     "2%, to keep nearly every cent": "A typical 4% to 6% day goes right through a 2% trail. Noise would shake the trade out of a good trend.",
-    "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win."
+    "30%, so no dip ever trips it": "A 30% drop from the high takes back most of a 60% gain. Too loose gives back the win.",
+    "5%, about one typical day": "A typical day moves 4% to 6%, so a 6% down day goes right through a 5% trail. Normal noise would shake the trade out."
    }
   },
   "review_status": "draft",
@@ -4161,7 +4168,7 @@
   "difficulty": 3,
   "id": "si_6a26ab1d0601",
   "lesson_origin": "session",
-  "lesson_text": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So you move your stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average. Trailing an average is your job. Move the stop up under it as it climbs.",
+  "lesson_text": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So the trader moves the stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average. Trailing an average is your job. Move the stop up under it as it climbs.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -4171,13 +4178,13 @@
     "Raise the stop by hand under the line"
    ],
    "kind": "mcq",
-   "q": "How do you keep your stop trailing it?",
-   "story": "Your plan says trail under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
+   "q": "How does the trader keep that stop trailing the line?",
+   "story": "A trader keeps a resting stop order just under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
    "subject": "F10.02#q24"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead. Know which one your plan means before you set the order."
+    "counter": "This is how a resting stop trails an average, not our default. Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead."
    },
    "depth": {
     "sources": [
@@ -4234,17 +4241,17 @@
     "summary": "A trailing stop's price is set as a percent or a dollar amount away from the current price, not as a fixed price. A trailing stop is a way to move a basic stop order up automatically. One choice on a winning trade is to trail the stop up as the price rises. One kind of trailing stop is a close through a moving average, such as the 20-day or 50-day. On a long position, a trailing stop never moves down. A4: our stop only moves up, never down or wider; the gap rule is the one exception. E52: our trail is the 10-day for fast movers or the 21-day for steadier ones, selling on a close below it."
    },
    "facts": {
-    "given": "How do you keep your stop trailing it? Your plan says trail under the 10-day average. Today the 10-day sits at $58.90, and it's rising. Raise the stop by hand under the line Enter a 10% trailing stop order Set it at $58.90 once and leave it Lower it to give the stock room on dips"
+    "given": "How does the trader keep that stop trailing the line? A trader keeps a resting stop order just under the 10-day average. Today the 10-day sits at $58.90, and it's rising. Raise the stop by hand under the line Enter a 10% trailing stop order Set it at $58.90 once and leave it Lower it to give the stock room on dips"
    },
    "lesson_line": "Trailing an average is your job. Move the stop up under it as it climbs.",
    "simple": "Move the stop up by hand, because a trailing stop order follows a set percent or dollar amount, not an average.",
    "tier": "expert",
    "unit": "F10.02",
-   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So you move your stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
+   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So the trader moves the stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
    "wrong": {
     "Enter a 10% trailing stop order": "That trails 10% under the high. It's a different line from the 10-day average.",
-    "Lower it to give the stock room on dips": "Lowering the stop on a dip breaks our stop rule. It hands back the gain you're protecting.",
-    "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and your stop falls behind."
+    "Lower it to give the stock room on dips": "Lowering a stop on a dip breaks our stop rule. It hands back the gain the stop protects.",
+    "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and the stop falls behind."
    }
   },
   "review_status": "draft",
@@ -6097,7 +6104,7 @@
   "difficulty": 3,
   "id": "si_e12499549ead",
   "lesson_origin": "session",
-  "lesson_text": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan. The bracket made the call when you were calm. Let it keep it.",
+  "lesson_text": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Our rule: the stop only moves up, never down or wider. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan. The bracket made the call when you were calm. Let it keep it.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -6161,6 +6168,13 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "Fidelity Investments: Conditional Trading (Active Trader Pro help)",
       "quote": "However, canceling either one of your secondary orders will not have an impact on the other two open orders.",
       "tier": 2,
@@ -6174,7 +6188,7 @@
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
      }
     ],
-    "summary": "A bracket fits when you decided the stop and target before the trade. A bracket helps you plan and avoid emotional decisions once the trade is on. A bracket makes it easier to stick to your plan. A resting target means no second-guessing the exit in the moment. With the bracket attached, you don't have to come back and re-decide the risk once the entry fills. Decide your exits before you place the trade. At Fidelity, cancel one exit of a bracket and the other orders stay open. Once its stop price is reached, a stop-limit order becomes a limit order, filled only at its set price or better."
+    "summary": "A bracket fits when you decided the stop and target before the trade. A bracket helps you plan and avoid emotional decisions once the trade is on. A bracket makes it easier to stick to your plan. A resting target means no second-guessing the exit in the moment. With the bracket attached, you don't have to come back and re-decide the risk once the entry fills. Decide your exits before you place the trade. Our rule: the stop is the exit, and it only moves up, never down or wider. At Fidelity, cancel one exit of a bracket and the other orders stay open. Once its stop price is reached, a stop-limit order becomes a limit order, filled only at its set price or better."
    },
    "facts": {
     "given": "What do you do with the stop leg? Your bracket has a stop at $47.50 and a target at $56. The stock slides to $48. You feel sure it will bounce. Leave it where the plan put it Cancel it and watch the bounce Move it down to $46 for room Turn it into a stop-limit order"
@@ -6183,7 +6197,7 @@
    "simple": "Leave the stop where it is, because you chose it calmly before the trade and a hunch is no reason to risk more.",
    "tier": "expert",
    "unit": "F10.03",
-   "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
+   "why": "Leave it where the plan put it. You set the stop before the trade, when you could think it through. The bracket is there so you don't re-decide your exits as the price moves. Our rule: the stop only moves up, never down or wider. Feeling sure it will bounce is not a reason to give a loser more room. Cancelling the stop or moving it down lets the loss grow past your plan.",
    "wrong": {
     "Cancel it and watch the bounce": "Cancel the stop leg and the target stays open, but nothing protects you if the bounce never comes.",
     "Move it down to $46 for room": "That's widening the stop because you feel sure. Your loss grows past what you planned.",
@@ -8241,7 +8255,7 @@
   "prompt_json": {
    "choices": [
     "Getting less than $87.50 a share",
-    "Getting filled by pros who know more",
+    "Getting less than $88 a share",
     "Getting less than tomorrow's open",
     "Getting only part of your order"
    ],
@@ -8311,19 +8325,12 @@
       "quote": "A limit order may fill only in part (or not at all) before the session ends.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/how-does-extended-hours-trading-work"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-      "quote": "Investors should note that many of the extended-hours traders are professional traders who, by nature of their profession, generally have access to more information than individual investors.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
      }
     ],
-    "summary": "A buy limit never pays more than its limit; a sell limit never takes less. A limit order that fills gets your limit price or better. In extended hours, you never fill worse than your limit. An extended-hours fill can be worse than the price the next regular session offers. Extended-hours prices may not match the close or the next morning's open. News plus thin, volatile extended-hours trading can push a price further than it can hold. In extended hours, your order may fill in part or not at all, and the price may be worse than in the regular session. In extended hours, a limit order may fill only in part, or not at all. Many extended-hours traders are professionals with more information than individual investors."
+    "summary": "A buy limit never pays more than its limit; a sell limit never takes less. A limit order that fills gets your limit price or better. In extended hours, you never fill worse than your limit. An extended-hours fill can be worse than the price the next regular session offers. Extended-hours prices may not match the close or the next morning's open. News plus thin, volatile extended-hours trading can push a price further than it can hold. In extended hours, your order may fill in part or not at all, and the price may be worse than in the regular session. In extended hours, a limit order may fill only in part, or not at all."
    },
    "facts": {
-    "given": "You sell with a limit at $87.50. What does the limit protect you from? You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote. Getting less than $87.50 a share Getting less than tomorrow's open Getting only part of your order Getting filled by pros who know more"
+    "given": "You sell with a limit at $87.50. What does the limit protect you from? You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote. Getting less than tomorrow's open Getting less than $87.50 a share Getting only part of your order Getting less than $88 a share"
    },
    "lesson_line": "After-hours prices on news can overshoot. A limit sets your price; it can't promise a fill.",
    "simple": "It stops you selling for less than $87.50 a share, but it can't promise a full fill or tomorrow's price.",
@@ -8331,7 +8338,7 @@
    "unit": "F10.04",
    "why": "Getting less than $87.50 a share. A sell limit can only execute at the limit price or higher. Fidelity says the same holds in its extended-hours sessions. That is all it protects. An after-hours price on news may not hold into the next open. Thin trading can fill you in part, or not at all.",
    "wrong": {
-    "Getting filled by pros who know more": "A limit sets your price, not who takes the other side. Many extended-hours traders are professionals with more information.",
+    "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at its limit or higher, so a fill at $87.50 is allowed.",
     "Getting less than tomorrow's open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
     "Getting only part of your order": "A limit can't promise a full fill. In extended hours an order may fill in part, or not at all."
    }
@@ -10173,7 +10180,7 @@
   "difficulty": 1,
   "id": "si_d094871bf4fe",
   "lesson_origin": "session",
-  "lesson_text": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop sits at your entry and only moves up. It is not a promise of no loss: a gap can still fill you below it. Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up.",
+  "lesson_text": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop only moves up, never down or wider. The one exception is the gap rule. Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up, except under the gap rule.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -10202,35 +10209,21 @@
       "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
-      "quote": "It is also common to move your stop loss to break even or beyond when an initial profit target is hit. That way, the remaining position you have open is almost 'risk-free.'",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
-      "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
      }
     ],
-    "summary": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our stop only moves up, never down or wider; the gap rule is the one exception. Moving the stop to breakeven after the first target is common, and Investopedia itself only calls the rest almost risk-free. A triggered stop is a market order, and the fill can be far from the stop price."
+    "summary": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our stop only moves up, never down or wider; the gap rule is the one exception."
    },
    "facts": {
     "given": "When does our stop move up to breakeven? Once it's 2R to 5R up The day after you buy Never, it never moves As soon as it's 1R up"
    },
-   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up.",
+   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up, except under the gap rule.",
    "simple": "Once it's 2R to 5R up. That is when our rule moves the stop to your entry.",
    "tier": "core",
    "unit": "F10.05",
-   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop sits at your entry and only moves up. It is not a promise of no loss: a gap can still fill you below it.",
+   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop only moves up, never down or wider. The one exception is the gap rule.",
    "wrong": {
     "As soon as it's 1R up": "Too early for us. Our rule waits until the trade is 2R to 5R ahead.",
-    "Never, it never moves": "Our stop never moves down or wider, but it does move up. At 2R to 5R it goes to breakeven.",
+    "Never, it never moves": "Our stop never moves down or wider, except under the gap rule. But it does move up: at 2R to 5R it goes to breakeven.",
     "The day after you buy": "Too early. The move comes once the trade is 2R to 5R ahead, not on a date."
    }
   },

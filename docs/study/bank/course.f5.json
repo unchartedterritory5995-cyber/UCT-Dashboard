@@ -1698,7 +1698,7 @@
    "wrong": {
     "Adjusted EPS left out some costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count.",
     "Revenue grew faster than profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
-    "Target paid a bigger dividend": "EPS is the profit per share as if all of it were paid out. A common dividend doesn't change that math."
+    "Target paid a bigger dividend": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two."
    }
   },
   "review_status": "draft",
@@ -1822,6 +1822,13 @@
      {
       "accessed": "2026-11-08",
       "name": "NVIDIA Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR): NVIDIA Announces Financial Results for Third Quarter Fiscal 2026 (November 19, 2025)",
+      "quote": "NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "NVIDIA Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR): NVIDIA Announces Financial Results for Third Quarter Fiscal 2026 (November 19, 2025)",
       "quote": "GAAP ($ in millions, except earnings per share) Q3 FY26 Q2 FY26 Q3 FY25 Q/Q Y/Y Revenue $57,006 $46,743 $35,082 22% 62%",
       "tier": 1,
       "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm"
@@ -1834,7 +1841,7 @@
       "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
      }
     ],
-    "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Gross profit is net revenue minus the cost of sales. Operating margin is income from operations divided by net revenue, shown as a percent: the profit kept from each dollar of sales. Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. CNBC counts Target among the retailers, beside Walmart and Home Depot. NVIDIA revenue in millions: $57,006 in Q3 FY26, $46,743 in Q2 FY26, $35,082 in Q3 FY25. Target, three months ended May 3, 2025 vs May 4, 2024, in millions: net sales $23,846 vs $24,531; cost of sales $17,128 vs $17,471."
+    "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Gross profit is net revenue minus the cost of sales. Operating margin is income from operations divided by net revenue, shown as a percent: the profit kept from each dollar of sales. Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. CNBC counts Target among the retailers, beside Walmart and Home Depot. NVIDIA describes itself as a company in AI and accelerated computing. NVIDIA revenue in millions: $57,006 in Q3 FY26, $46,743 in Q2 FY26, $35,082 in Q3 FY25. Target, three months ended May 3, 2025 vs May 4, 2024, in millions: net sales $23,846 vs $24,531; cost of sales $17,128 vs $17,471."
    },
    "facts": {
     "given": "What's the right yardstick for Target's gross margin? NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier. Its own past and other retailers NVIDIA's 73.4%, a bigger company The stock market's average margin Its own 6.2% operating margin"
@@ -3535,18 +3542,18 @@
   "difficulty": 3,
   "id": "si_243e5edc84cb",
   "lesson_origin": "session",
-  "lesson_text": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited. Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
+  "lesson_text": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed. Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
   "module": "F5",
   "prompt_json": {
    "choices": [
     "Its forecast calmed investors",
-    "Its supply limits had cleared",
+    "It missed, so the bar was low",
     "Its stock split was announced",
-    "It missed, so the bar was low"
+    "It ran up hard into the report"
    ],
    "kind": "mcq",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
-   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again.",
+   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited.",
    "subject": "F5.02#q19"
   },
   "reveal_json": {
@@ -3585,6 +3592,13 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "Investopedia: What Earnings Surprises Mean for Stock Prices (updated April 2, 2026)",
+      "quote": "A negative earnings surprise will usually result in a decline in share price.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/e/earningssurprise.asp"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
       "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher, causing share prices to hold steady or perhaps fall.",
       "tier": 1,
@@ -3598,20 +3612,20 @@
       "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react"
      }
     ],
-    "summary": "Nvidia rose nearly 9% when its revenue guidance reassured investors. Nvidia had dropped the day after each of its previous four reports, though it met or beat each time. Nvidia's August 2026 earnings sailed past estimates. Nvidia was still limited in how much product it could supply. A stock that ran up into its report can meet expectations and still stall or fall for lack of new buyers. Guidance often drives the near-term share price more than anything else in the release."
+    "summary": "Nvidia rose nearly 9% when its revenue guidance reassured investors. Nvidia had dropped the day after each of its previous four reports, though it met or beat each time. Nvidia's August 2026 earnings sailed past estimates. Nvidia was still limited in how much product it could supply. A miss usually sends the stock lower. A stock that ran up into its report can meet expectations and still stall or fall for lack of new buyers. Guidance often drives the near-term share price more than anything else in the release."
    },
    "facts": {
-    "given": "This time the stock rises nearly 9%. Going by CNBC's report, what was different? Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again. Its forecast calmed investors Its supply limits had cleared It missed, so the bar was low Its stock split was announced"
+    "given": "This time the stock rises nearly 9%. Going by CNBC's report, what was different? Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited. Its forecast calmed investors It missed, so the bar was low It ran up hard into the report Its stock split was announced"
    },
    "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
    "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
    "tier": "expert",
    "unit": "F5.02",
-   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited.",
+   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
    "wrong": {
-    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates.",
-    "Its stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast.",
-    "Its supply limits had cleared": "CNBC says the opposite. Nvidia is still limited in how much it can supply."
+    "It missed, so the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
+    "It ran up hard into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
+    "Its stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
    }
   },
   "review_status": "draft",
@@ -5169,19 +5183,19 @@
  },
  {
   "answer_json": {
-   "answer": "A, with a PEG of 3"
+   "answer": "A, the slow grower, PEG 3"
   },
   "difficulty": 2,
   "id": "si_477f52c15c74",
   "lesson_origin": "session",
-  "lesson_text": "A, with a PEG of 3. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech. A low P/E with slow growth can cost more per point of growth than a high P/E.",
+  "lesson_text": "A, the slow grower. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech. A low P/E with slow growth can cost more per point of growth than a high P/E.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "B, with a P/E of 45",
-    "Neither, both PEGs look fair",
-    "A, with a PEG of 3",
-    "Can't tell, PEG needs prices"
+    "B, the fast grower, PEG 1",
+    "They cost about the same",
+    "A, the slow grower, PEG 3",
+    "Can't tell without prices"
    ],
    "kind": "mcq",
    "q": "Measured against its growth, which one is pricier?",
@@ -5249,17 +5263,17 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Measured against its growth, which one is pricier? Stock A has a P/E of 15, with EPS growing 5% a year. Stock B has a P/E of 45, with EPS growing 45% a year. A, with a PEG of 3 B, with a P/E of 45 Neither, both PEGs look fair Can't tell, PEG needs prices"
+    "given": "Measured against its growth, which one is pricier? Stock A has a P/E of 15, with EPS growing 5% a year. Stock B has a P/E of 45, with EPS growing 45% a year. A, the slow grower, PEG 3 B, the fast grower, PEG 1 They cost about the same Can't tell without prices"
    },
    "lesson_line": "A low P/E with slow growth can cost more per point of growth than a high P/E.",
-   "simple": "A is pricier, because its PEG of 3 costs far more per point of growth than B's PEG of 1.",
+   "simple": "A is pricier. Its PEG is 3, against 1 for B, so you pay more for each point of growth.",
    "tier": "extended",
    "unit": "F5.03",
-   "why": "A, with a PEG of 3. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
+   "why": "A, the slow grower. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
    "wrong": {
-    "B, with a P/E of 45": "Its P/E is higher, but so is its growth. Against growth, B's PEG is 1 and A's is 3.",
-    "Can't tell, PEG needs prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E.",
-    "Neither, both PEGs look fair": "Against growth they're far apart: a PEG of 3 for A, 1 for B."
+    "B, the fast grower, PEG 1": "Its P/E is higher, but so is its growth. Against growth, B's PEG is 1 and A's is 3.",
+    "Can't tell without prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E.",
+    "They cost about the same": "Against growth they're far apart: a PEG of 3 for A, 1 for B."
    }
   },
   "review_status": "draft",
@@ -7927,7 +7941,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Earnings season starts well before the SEC's deadline for filing the quarterly report.",
+   "q": "Earnings season starts well before the SEC's deadline for filing the required reports.",
    "subject": "F5.04#q25"
   },
   "reveal_json": {
@@ -7942,23 +7956,16 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Form 10-Q (glossary)",
-      "quote": "The report must be filed for each of the first three fiscal quarters of the company's fiscal year.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/form-10-q"
-     },
-     {
-      "accessed": "2026-11-08",
       "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
       "quote": "The multi-week period following the end of each quarter when most public companies release their earnings reports is known as earnings season.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/earnings-season"
      }
     ],
-    "summary": "Companies choose their own report date, and most report well before the SEC filing deadline. A company files a quarterly report (10-Q) for each of its first three fiscal quarters. Earnings season is the few weeks after each quarter ends, when most public companies report."
+    "summary": "Companies choose their own report date, and most report well before the SEC filing deadline. Earnings season is the few weeks after each quarter ends, when most public companies report."
    },
    "facts": {
-    "given": "Earnings season starts well before the SEC's deadline for filing the quarterly report."
+    "given": "Earnings season starts well before the SEC's deadline for filing the required reports."
    },
    "lesson_line": "Most results come out before the filing deadline. Don't wait for the filing to find the date.",
    "simple": "True, because most companies put out their results before they file the forms the SEC requires.",
@@ -9424,19 +9431,19 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Can't tell without the strike",
-    "About 2x, far bigger than priced",
+    "About 1x, right on the price",
+    "About 0.54x, smaller than priced",
     "About 0.46x, smaller than priced",
-    "About 1x, right on the price"
+    "About 2.15x, bigger than priced"
    ],
    "kind": "mcq",
-   "q": "How did the realized move compare with what options priced?",
+   "q": "What is the realized move divided by the implied move, and what does it say?",
    "story": "NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%.",
    "subject": "F5.05#q17"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Put the realized move on top. Then read it: under one is smaller than priced, over one is bigger."
+    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Subtracting first gives the shortfall, not the ratio. Put the realized move on top and divide. Under one is smaller than priced, over one is bigger."
    },
    "depth": {
     "sources": [
@@ -9495,7 +9502,7 @@
      "fn": "arith",
      "result": 0.46
     },
-    "given": "How did the realized move compare with what options priced? NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%. About 0.46x, smaller than priced About 1x, right on the price About 2x, far bigger than priced Can't tell without the strike"
+    "given": "What is the realized move divided by the implied move, and what does it say? NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%. About 2.15x, bigger than priced About 0.46x, smaller than priced About 0.54x, smaller than priced About 1x, right on the price"
    },
    "lesson_line": "A reaction well under the priced move tells you something too. The market braced for more than it got.",
    "simple": "About 0.46x, because the 3.25% rise was less than half of the 7% move options priced.",
@@ -9503,9 +9510,9 @@
    "unit": "F5.05",
    "why": "About 0.46x, smaller than priced. Divide the realized move by the implied move: 3.25 divided by 7 is about 0.46. Options priced about 7% for NVDA's May 28, 2025 report, and the stock rose 3.25%, Sosnick wrote. Under one means a smaller move than priced. OIC says the options are then sometimes called underperforming expectations. The rise itself is not the point: options price size, not direction.",
    "wrong": {
+    "About 0.54x, smaller than priced": "That's the shortfall, 7 minus 3.25, over 7. The ratio is 3.25 divided by 7, about 0.46.",
     "About 1x, right on the price": "Right on would need a move near 7%. The stock moved 3.25%.",
-    "About 2x, far bigger than priced": "That's backwards. The move was smaller than priced, not bigger.",
-    "Can't tell without the strike": "The size comparison needs only the priced move and the real move. The strike does not change it."
+    "About 2.15x, bigger than priced": "That divides the wrong way: 7 over 3.25. Put the realized move on top: 3.25 over 7."
    }
   },
   "review_status": "draft",
@@ -9870,7 +9877,7 @@
   "difficulty": 3,
   "id": "si_6efc8b17e3cb",
   "lesson_origin": "session",
-  "lesson_text": "The report surprised the market. Options price the reaction the market expects before a report. A move twice that size means the news landed far outside that expectation. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits. Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
+  "lesson_text": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits. Twice the priced move means the report caught the market off guard. Note it, then judge the chart on its own merits.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -9934,11 +9941,11 @@
    "simple": "The report surprised the market, because the stock moved twice as far as options had priced for it.",
    "tier": "expert",
    "unit": "F5.05",
-   "why": "The report surprised the market. Options price the reaction the market expects before a report. A move twice that size means the news landed far outside that expectation. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
+   "why": "The report surprised the market. Before a report, short-dated option prices show the reaction the market expects, Cboe says. A move twice that size went far past it. OIC has a name for a move bigger than implied: the options are sometimes said to be outperforming expectations. It does not predict the next day. And implied volatility often falls sharply after a report rather than rising. Note the surprise, then judge the chart on its own merits.",
    "wrong": {
     "Implied volatility will now rise": "After a report, implied volatility often falls sharply. The event it was pricing is over.",
     "The move will reverse the next day": "Nothing in the implied move predicts tomorrow. Judge what happens next on its own.",
-    "The options were priced too high": "Backwards. The move beat what options priced. OIC says such options are sometimes called outperforming expectations."
+    "The options were priced too high": "Backwards. The stock moved more than options priced, not less. Priced too high would show as a move that fell short."
    }
   },
   "review_status": "draft",
@@ -11490,7 +11497,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "An 8% gap up can leave the price far above any buy point. Our rule: never buy more than 4% above the buy point. If the gap is past that, wait for a new setup rather than chase it."
+    "trap": "After a strong gap up, the urge is to buy at once or give up on it. Neither is a plan. Treat it as a new trade: a buy point, a stop first, and size from the stop. Our rule: never buy more than 4% above the buy point."
    },
    "depth": {
     "sources": [
@@ -11541,8 +11548,8 @@
    "unit": "F5.06",
    "why": "Judge it fresh, like a new trade. Once the numbers are out, you can study them, watch the reaction and decide if you still want it. If you buy, it's a new trade with a new entry and its own stop. The size comes from that stop. Our default stop sits a few cents under the day's low or the prior day's low.",
    "wrong": {
-    "Buy it now before it runs more": "Buying because it might run more is a chase. Our rule: never buy more than 4% above the buy point. Set the stop first, and the size comes from it.",
-    "Leave it. That move is gone": "Not necessarily. After the report you can decide fresh if you still want it.",
+    "Buy it now before it runs more": "That's fear of missing out, not a plan. A new buy needs a buy point and a stop first. Our rule: never buy more than 4% above the buy point.",
+    "Leave it. That move is gone": "That decides before you've looked. Once the numbers are out, you can study them and the reaction, then decide.",
     "Rebuy at the old size and old stop": "Your old trade ended when you sold. A new buy needs its own stop, and the size comes from that stop."
    }
   },
@@ -11928,7 +11935,7 @@
    ],
    "kind": "mcq",
    "q": "Our rule lets you hold this one through. Which belief about the gap holds up?",
-   "story": "You're up 40%, or 8R, in a leader you've held for months. It's a normal-size position. It reports after the close, and options price a move of about 9%.",
+   "story": "You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%.",
    "subject": "F5.06#q24"
   },
   "reveal_json": {
@@ -11961,6 +11968,13 @@
      {
       "accessed": "2026-11-08",
       "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
+      "quote": "A company’s shares might jump or tumble after investors compare the actual results to estimates.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/earnings-season"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
       "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher, causing share prices to hold steady or perhaps fall.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/earnings-season"
@@ -11980,7 +11994,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Where you have no profit yet, sell some shares before the report. Checking the expected move on a position you own helps you decide whether to hold through the report. The expected move is not a promise of size and says nothing about direction. A stock that ran up into a great report can still stall or fall for lack of new buyers. Stop orders do not protect you from gaps. B22: no new buys in the 3 days before a report, and we hold through a report only if the trade is up 5R."
+    "summary": "Where you have no profit yet, sell some shares before the report. Checking the expected move on a position you own helps you decide whether to hold through the report. The expected move is not a promise of size and says nothing about direction. A stock can jump or tumble once the results are compared with estimates. A stock that ran up into a great report can still stall or fall for lack of new buyers. Stop orders do not protect you from gaps. B22: no new buys in the 3 days before a report, and we hold through a report only if the trade is up 5R."
    },
    "facts": {
     "calc": {
@@ -11992,10 +12006,10 @@
      "fn": "arith",
      "result": 27.0
     },
-    "given": "Our rule lets you hold this one through. Which belief about the gap holds up? You're up 40%, or 8R, in a leader you've held for months. It's a normal-size position. It reports after the close, and options price a move of about 9%. Still up about 27% after a 9% gap My stop will cap the loss Leaders don't gap down on reports The priced 9% is the most it can drop"
+    "given": "Our rule lets you hold this one through. Which belief about the gap holds up? You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%. Still up about 27% after a 9% gap My stop will cap the loss Leaders don't gap down on reports The priced 9% is the most it can drop"
    },
    "lesson_line": "Hold through a report only past 5R. Even then, the move can be bigger than priced.",
-   "simple": "Still up about 27%, because even a full 9% gap leaves your 40% gain well above your entry.",
+   "simple": "Still up about 27%, because a 9% gap off a 40% gain still leaves you well above your entry.",
    "tier": "expert",
    "unit": "F5.06",
    "why": "Still up about 27%. A 9% gap off a 40% gain leaves you about 27% above your entry. You hold because you're up 8R, past our 5R line, not because of the percent. The move can be bigger than the 9% priced. A stop can't cap the loss inside a gap.",
@@ -13366,9 +13380,16 @@
       "quote": "A stock that gaps up on strong earnings only to reverse and close weak or in the red is not what we want to see",
       "tier": 2,
       "url": "https://www.tramondo.ch/en/power-earnings-gap/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: ChartSchool: Gaps and Gap Analysis",
+      "quote": "Breakaway gaps are exciting. These occur when the price action is breaking out of a trading range or congestion area.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis"
      }
     ],
-    "summary": "A gap that fills on the same day it happens is called fading. Without enough buying, a gap up stalls or falls below its opening price. The up gap only stands if price stays above the previous day's high all day. An earnings gap that reverses and closes weak or red is not the setup."
+    "summary": "A gap that fills on the same day it happens is called fading. Without enough buying, a gap up stalls or falls below its opening price. The up gap only stands if price stays above the previous day's high all day. An earnings gap that reverses and closes weak or red is not the setup. A breakaway gap breaks price out of a trading range."
    },
    "facts": {
     "given": "What did the day tell you? A stock gaps up 10% on earnings. Sellers hit it all day. By the close it's back below yesterday's close. It faded: buyers didn't hold the gap It's a breakaway gap: buy the next open It still counts as a gap up today Buy it: it's cheaper than the open"
@@ -13381,7 +13402,7 @@
    "wrong": {
     "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day.",
     "It still counts as a gap up today": "It didn't last to the close. A gap stands only while price stays above yesterday's high all day.",
-    "It's a breakaway gap: buy the next open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap."
+    "It's a breakaway gap: buy the next open": "A breakaway gap breaks out of a trading range. This one gave back the whole gap the same day."
    }
   },
   "review_status": "draft",
@@ -13556,7 +13577,7 @@
   "difficulty": 2,
   "id": "si_f73a69d5c9dd",
   "lesson_origin": "session",
-  "lesson_text": "Just under $46.30. Our default stop goes a few cents under the low of the day or the prior day's low. On a gap-up day the day-one low is the nearer of the two. A stop right under your entry can trip on a quick dip that bounces back. The stop comes first and the size comes from it, never the reverse. Bulkowski's reading of the Kacher and Morales rules also sells on a close below the gap-day low. Day one, I risk against the day-one low. If that breaks, the buyers lost.",
+  "lesson_text": "Just under $46.30. Our default stop goes a few cents under the low of the day or the prior day's low. On a gap-up day the day-one low is the nearer of the two. A stop right under your entry can trip on a quick dip that bounces back. The stop comes first and the size comes from it, never the reverse. Bulkowski's reading of the Kacher and Morales rules also sells on a close below the gap-day low. Day one, I risk against the day-one low. If it breaks, the stop is my exit.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -13572,7 +13593,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "A stop under your entry feels safer, but it is the wrong line. Earnings days swing hard, and a quick dip can trigger a stop and then bounce right back. The day's low is where buyers stepped in. If it sits far below your entry, buy fewer shares. Do not move the stop closer to fit a bigger size."
+    "trap": "A stop under your entry feels safer, but it is the wrong line. Earnings days swing hard, and a quick dip can trigger a stop and then bounce right back. Our default line is the day's low. If it sits far below your entry, buy fewer shares, or skip the trade. Do not move the stop closer to fit a bigger size."
    },
    "depth": {
     "sources": [
@@ -13587,6 +13608,13 @@
       "accessed": "2026-11-12",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
       "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
@@ -13633,12 +13661,12 @@
       "url": "https://www.tramondo.ch/en/power-earnings-gap/"
      }
     ],
-    "summary": "Our default stop is the low of the day or the prior day's low. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. In Bulkowski's reading of their rules, Kacher and Morales sell on a close below the gap day's low. A quick, sharp dip can trigger a stop, and the stock can then bounce right back. Picking the size before measuring entry to stop is the big mistake. Several recent studies argue the classic drift has shrunk to almost nothing. An up gap forms when the day's low stays above the previous day's high. Earnings gap days are very volatile and can sell off sharply."
+    "summary": "Our default stop is the low of the day or the prior day's low. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our stop is the exit: it only moves up, never down or wider, except under our gap rule. In Bulkowski's reading of their rules, Kacher and Morales sell on a close below the gap day's low. A quick, sharp dip can trigger a stop, and the stock can then bounce right back. Picking the size before measuring entry to stop is the big mistake. Several recent studies argue the classic drift has shrunk to almost nothing. An up gap forms when the day's low stays above the previous day's high. Earnings gap days are very volatile and can sell off sharply."
    },
    "facts": {
     "given": "Where does our default stop go? You buy an earnings gap late on day one at $47.60. The day's low was $46.30 and its high $47.90. Just under $46.30, the day's low Just under $47.60, your entry Wherever it fits the size you want No stop: the drift will carry it"
    },
-   "lesson_line": "Day one, I risk against the day-one low. If that breaks, the buyers lost.",
+   "lesson_line": "Day one, I risk against the day-one low. If it breaks, the stop is my exit.",
    "simple": "Just under $46.30, because our default stop sits a few cents under the day's low.",
    "tier": "extended",
    "unit": "F5.07",
@@ -16262,28 +16290,28 @@
  },
  {
   "answer_json": {
-   "answer": "Unclear: the charges muddy it"
+   "answer": "What the $2.22 estimate included"
   },
   "difficulty": 3,
   "id": "si_dba8829421d4",
   "lesson_origin": "session",
-  "lesson_text": "Unclear: the charges muddy it. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher, above $2.22. You don't know whether the $2.22 estimate allowed for the charges, and CNBC said they made the comparison difficult. Compare an estimate and an actual only on the same basis. The stock closed up 23% the next day. When a big charge sits in EPS, compare like with like before you call a beat or a miss.",
+  "lesson_text": "What the $2.22 estimate included. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher. CNBC said the charges made the comparison with $2.22 difficult. Compare an estimate and an actual only on the same basis. If the estimate counted the charges, compare it with $1.76. If not, compare it with the figure without them. When a big charge sits in EPS, check what the estimate counted before you call a beat or a miss.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A beat: add back the $1.24",
-    "Roughly in line, either way",
-    "A miss: $1.76 is under $2.22",
-    "Unclear: the charges muddy it"
+    "How the stock moved after hours",
+    "Whether revenue beat its estimate",
+    "Meta's EPS a year earlier",
+    "What the $2.22 estimate included"
    ],
    "kind": "mcq",
-   "q": "How do you read the EPS line?",
+   "q": "Before you call this EPS line a beat or a miss, what do you need to know?",
    "story": "Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. Its release says $4.20 billion of restructuring charges are in that number. Without them, EPS would be $1.24 higher.",
    "subject": "F5.08#q19"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is to pick a side fast. As reported, $1.76 under $2.22 looks like a miss. Add back the $1.24 and it looks like a beat. Neither call is safe until you know what the estimate included. When a charge is this big, read the rest of the report: revenue, costs and guidance."
+    "trap": "The trap is to pick a side fast. As reported, $1.76 is under $2.22. Add back the $1.24 and the picture changes. Neither call is safe until you know what the estimate included. Then read the rest of the report: revenue, costs and guidance."
    },
    "depth": {
     "sources": [
@@ -16331,33 +16359,26 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Morningstar: Meta shares soar 23% on revenue beat, efficiency drive (Lukas Strobl, 2 February 2023)",
-      "quote": "Meta's Nasdaq-listed shares closed up 23% at $188, the highest price since June 2022.",
-      "tier": 2,
-      "url": "https://www.morningstar.com.au/insights/stocks/231500/meta-shares-soar-23-on-revenue-beat-efficiency-drive"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "CNBC: Meta shares rocket 23%, one of the best days in over a decade (Rohan Goswami, February 2, 2023, updated 4:00 PM EST)",
-      "quote": "Meta shares jumped over 23% on Thursday, one of the stocks best day in nearly a decade, with a slew of analyst upgrades coming off the back of a fourth-quarter revenue beat and optimistic prognostications from CEO Mark Zuckerberg.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2023/02/02/meta-stock-rockets-20percent-on-solid-earnings-analyst-reactions.html"
+      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
+      "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/earnings-season"
      }
     ],
-    "summary": "CNBC: the charges made Meta's EPS hard to compare with the $2.22 estimate. Meta's fourth-quarter costs included $4.20 billion of restructuring charges. Without the restructuring charges, Meta's fourth-quarter diluted EPS would have been $1.24 higher. Meta's fourth-quarter 2022 diluted EPS was $1.76, down 52% from $3.67 a year earlier (release table). Meta reported EPS of $1.76. Compare an estimate and an actual only on the same accounting basis. Meta closed up 23% the day after the report. CNBC: Meta jumped over 23% the day after the report, on the revenue beat and Zuckerberg's outlook."
+    "summary": "CNBC: the charges made Meta's EPS hard to compare with the $2.22 estimate. Meta's fourth-quarter costs included $4.20 billion of restructuring charges. Without the restructuring charges, Meta's fourth-quarter diluted EPS would have been $1.24 higher. Meta's fourth-quarter 2022 diluted EPS was $1.76, down 52% from $3.67 a year earlier (release table). Meta reported EPS of $1.76. Compare an estimate and an actual only on the same accounting basis. Actual above the consensus is a beat, below is a miss, equal is in line, for earnings and for revenue."
    },
    "facts": {
-    "given": "How do you read the EPS line? Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. Its release says $4.20 billion of restructuring charges are in that number. Without them, EPS would be $1.24 higher. Unclear: the charges muddy it A miss: $1.76 is under $2.22 A beat: add back the $1.24 Roughly in line, either way"
+    "given": "Before you call this EPS line a beat or a miss, what do you need to know? Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. Its release says $4.20 billion of restructuring charges are in that number. Without them, EPS would be $1.24 higher. What the $2.22 estimate included Meta's EPS a year earlier How the stock moved after hours Whether revenue beat its estimate"
    },
-   "lesson_line": "When a big charge sits in EPS, compare like with like before you call a beat or a miss.",
-   "simple": "It is unclear, because big charges sit inside the $1.76 and you don't know if the $2.22 estimate counted them.",
+   "lesson_line": "When a big charge sits in EPS, check what the estimate counted before you call a beat or a miss.",
+   "simple": "You need to know what the $2.22 estimate counted, because $4.20 billion of charges sit inside the $1.76.",
    "tier": "extended",
    "unit": "F5.08",
-   "why": "Unclear: the charges muddy it. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher, above $2.22. You don't know whether the $2.22 estimate allowed for the charges, and CNBC said they made the comparison difficult. Compare an estimate and an actual only on the same basis. The stock closed up 23% the next day.",
+   "why": "What the $2.22 estimate included. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher. CNBC said the charges made the comparison with $2.22 difficult. Compare an estimate and an actual only on the same basis. If the estimate counted the charges, compare it with $1.76. If not, compare it with the figure without them.",
    "wrong": {
-    "A beat: add back the $1.24": "Without the charges, EPS would be $1.24 higher, above $2.22. But you don't know if the estimate left the charges out.",
-    "A miss: $1.76 is under $2.22": "It is under, but $4.20 billion of charges sit inside the $1.76. You don't know if the $2.22 counted them.",
-    "Roughly in line, either way": "Neither version is close. $1.76 is well under $2.22, and $1.24 higher is well over it."
+    "How the stock moved after hours": "A price shows how the market reacted. It doesn't tell you what the estimate counted.",
+    "Meta's EPS a year earlier": "That's growth, a separate test. Beat and miss compare the actual with the estimate, not with last year.",
+    "Whether revenue beat its estimate": "Revenue is its own line. It can't tell you whether the EPS estimate counted the charges."
    }
   },
   "review_status": "draft",

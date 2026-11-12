@@ -1526,7 +1526,7 @@
   "difficulty": 3,
   "id": "si_5fe66c1fe830",
   "lesson_origin": "session",
-  "lesson_text": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The line was a close at 4,915.32, and the index never closed there in that sell-off. Closes make the call. A scary intraday low isn't a bear market until a close makes it official.",
+  "lesson_text": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The index never closed a full 20% below the record in that sell-off. Closes make the call. A scary intraday low isn't a bear market until a close makes it official.",
   "module": "F7",
   "prompt_json": {
    "choices": [
@@ -1627,11 +1627,11 @@
    "simple": "No, because it closed 18.9% below the record, short of 20%, and only closes count.",
    "tier": "extended",
    "unit": "F7.01",
-   "why": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The line was a close at 4,915.32, and the index never closed there in that sell-off.",
+   "why": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The index never closed a full 20% below the record in that sell-off.",
    "wrong": {
     "No, it was only 1.57% off the record": "That's the one-day move. The 20% is measured from the record close, and it closed 18.9% below it.",
     "Yes, it fell past 20% during the session": "Intraday doesn't count. S&P Dow Jones Indices measures the 20% on closing prices.",
-    "Yes, nearly 19% down is close enough": "Close isn't enough. The line was a close at or below 4,915.32, a full 20% under the record."
+    "Yes, nearly 19% down is close enough": "Close isn't enough. The test is a close a full 20% below the record, and 18.9% falls short."
    }
   },
   "review_status": "draft",
@@ -2185,7 +2185,7 @@
    "wrong": {
     "Add more, it's resting for the next leg": "It might break up into a new Stage 2, and then you hold. Adding before that is guessing the break.",
     "Hold it all, the long trend is up": "The climb has stalled. In Stage 3 the method takes profits, and a downside break means sell.",
-    "Short it now, before the break": "That's guessing the breakout. A range is neutral until it breaks, and Dow Theory warns against anticipating it."
+    "Short it now, before the break": "That's guessing the break. You can't tell which way a range will break until it does, and Dow Theory warns against anticipating it."
    }
   },
   "review_status": "draft",
@@ -2202,7 +2202,7 @@
   "difficulty": 3,
   "id": "si_086bc42c0aaa",
   "lesson_origin": "session",
-  "lesson_text": "Pass, or take it at a small size. A market 22% below its record and under a falling average is in a downtrend. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Short of Green, that means less or none. These are guides that vary, not hard caps. Let the market reading set the size. In a falling market I buy less, or nothing.",
+  "lesson_text": "Pass, or take it at a small size. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. So in Red, a new long gets little or nothing. These are guides that vary, not hard caps. Let the market reading set the size. When it reads Red, I buy little or nothing.",
   "module": "F7",
   "prompt_json": {
    "choices": [
@@ -2213,12 +2213,12 @@
    ],
    "kind": "mcq",
    "q": "How do you treat that breakout?",
-   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. A stock on your list breaks out of a base today.",
+   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. The app's market reading is Red. A stock on your list breaks out of a base today.",
    "subject": "F7.01#q27"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is judging the stock alone. IBD's rule of thumb is that 3 of 4 stocks move in the same direction as the market. With the index 22% below its record and under a falling average, new buys are riskier."
+    "trap": "The trap is judging the stock alone. IBD says that if the overall market is in a downtrend, even the best stocks find it very hard to move higher. A Red reading is our cue to sit mostly in cash."
    },
    "depth": {
     "sources": [
@@ -2238,29 +2238,8 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: Maximizing Profits: Three Stocks in Three Phases (David Keller, CMT, The Mindful Investor, 2023-10-06)",
-      "quote": "While GOOGL was above two upward-sloping moving averages, here we find the price is below two downward-sloping moving averages.",
-      "tier": 2,
-      "url": "https://stockcharts.com/articles/mindfulinvestor/2023/10/maximizing-profits-three-stock-974.html"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Investor's Business Daily: IBD University, CAN SLIM: Market Direction",
       "quote": "You can have all the other six traits lined up, but if the overall market is in a downtrend, it will be very hard for even the best stocks to move higher.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/can-slim/market-direction/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, CAN SLIM: Market Direction",
-      "quote": "That's because 3 of 4 stocks move in the same direction as the general market, either up or down.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/can-slim/market-direction/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, CAN SLIM: Market Direction",
-      "quote": "Making new buys in a correction is riskier, since most stocks will follow the market's downward trend.",
       "tier": 2,
       "url": "https://www.investors.com/ibd-university/can-slim/market-direction/"
      },
@@ -2270,6 +2249,13 @@
       "quote": "The reality of the situation is that nobody knows where and when the primary trend will end.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: Maximizing Profits: Three Stocks in Three Phases (David Keller, CMT, The Mindful Investor, 2023-10-06)",
+      "quote": "While GOOGL was above two upward-sloping moving averages, here we find the price is below two downward-sloping moving averages.",
+      "tier": 2,
+      "url": "https://stockcharts.com/articles/mindfulinvestor/2023/10/maximizing-profits-three-stock-974.html"
      },
      {
       "accessed": "2026-11-09",
@@ -2286,20 +2272,20 @@
       "url": "https://www.thepatternsite.com/Stages.html"
      }
     ],
-    "summary": "Our rule (F65): the app's market reading guides size and count: Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Our rule (A10): sizing by market condition is a guide that varies, not a hard cap. In a downtrend, price sits below falling moving averages. In a market downtrend, even the best stocks find it very hard to rise. IBD's rule of thumb: 3 of 4 stocks move in the same direction as the general market. New buys are riskier when the market is falling, since most stocks follow it down. Nobody knows where or when the main trend will end. Stage 1 is a sideways base after a decline: price moves around a flattening 30-week average. Stage 2 is the advance: price breaks out of the Stage 1 range on strong volume and climbs."
+    "summary": "Our rule (F65): the app's market reading guides size and count: Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Our rule (A10): sizing by market condition is a guide that varies, not a hard cap. In a market downtrend, even the best stocks find it very hard to rise. Nobody knows where or when the main trend will end. In a downtrend, price sits below falling moving averages. Stage 1 is a sideways base after a decline: price moves around a flattening 30-week average. Stage 2 is the advance: price breaks out of the Stage 1 range on strong volume and climbs."
    },
    "facts": {
-    "given": "How do you treat that breakout? The S&P 500 sits 22% below its record close, under a falling 30-week average. A stock on your list breaks out of a base today. Pass, or take it at a small size Full size, a breakout is a breakout Pass, the stock itself is in Stage 4 Buy now, the market will turn soon"
+    "given": "How do you treat that breakout? The S&P 500 sits 22% below its record close, under a falling 30-week average. The app's market reading is Red. A stock on your list breaks out of a base today. Pass, or take it at a small size Full size, a breakout is a breakout Pass, the stock itself is in Stage 4 Buy now, the market will turn soon"
    },
-   "lesson_line": "Let the market reading set the size. In a falling market I buy less, or nothing.",
-   "simple": "Pass or go small, because most stocks follow the market, and new buys are riskier while it falls.",
+   "lesson_line": "Let the market reading set the size. When it reads Red, I buy little or nothing.",
+   "simple": "Pass or go small, because a Red reading means mostly cash and shorts.",
    "tier": "expert",
    "unit": "F7.01",
-   "why": "Pass, or take it at a small size. A market 22% below its record and under a falling average is in a downtrend. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Short of Green, that means less or none. These are guides that vary, not hard caps.",
+   "why": "Pass, or take it at a small size. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. So in Red, a new long gets little or nothing. These are guides that vary, not hard caps.",
    "wrong": {
-    "Buy now, the market will turn soon": "Nobody knows where or when a trend will end. Meanwhile most stocks follow the market's downward trend.",
-    "Full size, a breakout is a breakout": "Not in this market. IBD says that in a market downtrend, even the best stocks find it very hard to rise.",
-    "Pass, the stock itself is in Stage 4": "That's the index's picture, not the stock's. A breakout from a base is how Weinstein's Stage 2 starts."
+    "Buy now, the market will turn soon": "Nobody knows where or when a trend will end. Until the reading changes, Red means mostly cash and shorts.",
+    "Full size, a breakout is a breakout": "Not when the reading is Red. IBD says that in a market downtrend, even the best stocks find it very hard to rise.",
+    "Pass, the stock itself is in Stage 4": "Right to pass, wrong reason. A breakout from a base is how Weinstein's Stage 2 starts. You pass because the reading is Red."
    }
   },
   "review_status": "draft",
@@ -5341,7 +5327,7 @@
     "given": "About how many months did the Nasdaq take to fall from its March 2000 peak to its October 2002 low? About 31 months About 3 months About 12 months About 24 months"
    },
    "lesson_line": "Long bears take years, not weeks. Don't rush to call the low.",
-   "simple": "It took about 31 months, because the Nasdaq kept falling from March 2000 until October 2002.",
+   "simple": "It took about 31 months, from the March 2000 peak to the October 2002 low.",
    "tier": "core",
    "unit": "F7.03",
    "why": "About 31 months. The Nasdaq's highest close was 5,048.62 on March 10, 2000. Its lowest close was 1,114.11 on October 9, 2002. March 2000 to October 2002 is 31 months by the calendar. More than a year in, it was still making new lows, at 1,638.80 on April 4, 2001.",
@@ -6633,7 +6619,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Which year was worst can depend on the index. For broad stock prices, 2002 was the worst of the three. The tech-heavy Nasdaq fell 39% in 2000 alone, against about 20% for broad indexes in 2002. Always check which index a claim is about."
+    "trap": "The trap is mixing up indexes. For broad stock prices, 2002 was the worst of the three years. The tech-heavy Nasdaq fell 39% in 2000 alone, more than the broad indexes' fall of about 20% in 2002. Always check which index a claim is about."
    },
    "depth": {
     "sources": [
@@ -6672,7 +6658,7 @@
     "given": "In the dot-com bear, broad stock prices fell more in 2002 than in either 2000 or 2001."
    },
    "lesson_line": "The third year of this bear was the worst for the broad market. Long bears don't always fade out quietly.",
-   "simple": "True, because broad stock prices fell more in 2002, the third year, than in 2000 or 2001.",
+   "simple": "True, because broad indexes fell about 20% in 2002, a bigger net drop than in 2000 or 2001.",
    "tier": "expert",
    "unit": "F7.03",
    "why": "True. The Fed's report says net declines in stock prices in 2002 exceeded those of either of the two years before. Broad indexes fell about 20% in 2002. The Nasdaq has its own numbers: it fell 39% in 2000 and more than 30% in 2002."
@@ -7334,7 +7320,7 @@
     "given": "The VIX rises when the S&P 500 falls sharply."
    },
    "lesson_line": "Stocks down hard, VIX up. Investopedia calls it the Fear Index.",
-   "simple": "True, because the VIX tracks how big traders expect price swings to be, and that jumps when stocks drop.",
+   "simple": "True, because the VIX tracks the price swings the market expects, and that expectation jumps when stocks drop sharply.",
    "tier": "core",
    "unit": "F7.04",
    "why": "True. The VIX measures the market's expected near-term volatility, read from S&P 500 option prices. Investopedia says the two often move opposite: when the S&P falls sharply, the VIX rises. ChartSchool says sharp declines often bring big VIX spikes as panic grips the market."
@@ -8504,7 +8490,7 @@
    ],
    "kind": "mcq",
    "q": "What's your read on this close?",
-   "story": "A hotter-than-expected inflation report hits. The index drops as much as 2.4% to its lowest level in nearly two years. It closes up 2.6%.",
+   "story": "The index has fallen six days in a row. Then a hotter-than-expected inflation report hits. It drops as much as 2.4%, to its lowest level in nearly two years. It closes up 2.6%.",
    "subject": "F7.04#q18"
   },
   "reveal_json": {
@@ -8594,7 +8580,7 @@
     "summary": "On Oct. 13, 2022, stocks fell hard on a worse-than-expected inflation report, then roared back. That day the S&P 500 was down as much as 2.4%, touched a near two-year low, and closed up 2.6%. Analysts offered possible reasons for the reversal, but little that was concrete. A follow-through day: several days into a rally attempt, a major index rises strongly on higher volume. Capitulation is only certain in hindsight, after the rebound. On Oct. 14, 2022, the S&P 500 closed at 3,583.07, back near its Oct. 12 low close. Turns from correction to recovery form amid fear and bad headlines, not clarity. Headlines and news are a poor guide to the start of a new uptrend. Oct. 13, 2022 was the S&P 500's first up day after six straight losing days. The S&P 500 closed at 3,577.03 on Oct. 12, 2022, the lowest 2022 close in FRED's table. You can't be sure a rally is a bear rally until it fails."
    },
    "facts": {
-    "given": "What's your read on this close? A hotter-than-expected inflation report hits. The index drops as much as 2.4% to its lowest level in nearly two years. It closes up 2.6%. Bad news failed. A clue, not proof Likely a follow-through day. Buy a bit Bear rally. Sell into the bounce Probably noise. Nothing to note yet"
+    "given": "What's your read on this close? The index has fallen six days in a row. Then a hotter-than-expected inflation report hits. It drops as much as 2.4%, to its lowest level in nearly two years. It closes up 2.6%. Bad news failed. A clue, not proof Likely a follow-through day. Buy a bit Bear rally. Sell into the bounce Probably noise. Nothing to note yet"
    },
    "lesson_line": "Watch how price reacts to bad news. When it stops falling on bad news, pay attention.",
    "simple": "Price shrugging off bad news is a good sign to note, but one day like this proves nothing on its own.",
@@ -8603,7 +8589,7 @@
    "why": "Bad news failed. A worse-than-expected inflation report sent the index down as much as 2.4% to a near two-year low. It closed up 2.6%, ending a six-day losing streak. AP said analysts offered little that was concrete to explain it. That is a clue to watch, not a signal to buy.",
    "wrong": {
     "Bear rally. Sell into the bounce": "No one can tell yet. Investopedia says there is no sure way to spot a bear market rally until it unwinds.",
-    "Likely a follow-through day. Buy a bit": "It can't be one yet. It ended a six-day losing streak, so it was day one. A follow-through day comes several days into a rally attempt, on higher volume.",
+    "Likely a follow-through day. Buy a bit": "Too early for that. It ended a six-day losing streak, so this was day one of a rally attempt. A follow-through day typically comes several days in, on higher volume.",
     "Probably noise. Nothing to note yet": "It's worth noting. Turns form while the headlines are still bad, and a big reversal on bad news is one clue to watch."
    }
   },
@@ -11286,17 +11272,17 @@
  },
  {
   "answer_json": {
-   "answer": "Breadth is strong, not topping"
+   "answer": "A sign of strength, not weakness"
   },
   "difficulty": 3,
   "id": "si_84ad46a03831",
   "lesson_origin": "session",
-  "lesson_text": "Breadth is strong, not topping. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. Multiple overbought readings are a sign of strength, not weakness. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were the buying chances. In an uptrend, repeated overbought breadth is strength, not a sell signal.",
+  "lesson_text": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances. In an uptrend, repeated overbought breadth is strength, not a sell signal.",
   "module": "F7",
   "prompt_json": {
    "choices": [
     "It's overbought, so go short now",
-    "Breadth is strong, not topping",
+    "A sign of strength, not weakness",
     "Strength that rules out a pullback",
     "The uptrend is about to end soon"
    ],
@@ -11378,13 +11364,13 @@
     "summary": "Repeated overbought readings are a sign of strength, not weakness. In a strong trend this gauge can go overbought (uptrend) or oversold (downtrend) again and again. ChartSchool treats above 70% as overbought and below 30% as oversold, and says the levels vary by index. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were used as buying chances. In a strong trend the high-low index can stay at an extreme for a long time. In a strong trend this gauge can stay near its extremes. Above 50% gives a bullish bias (most stocks above their average); below 50% gives a bearish bias. Oversold alone is not always a buy signal; it is often wiser to wait for an upturn. An A/D line that fails to confirm the index's new highs shows narrowing participation."
    },
    "facts": {
-    "given": "What do those repeated high readings tell you? The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. Breadth is strong, not topping It's overbought, so go short now The uptrend is about to end soon Strength that rules out a pullback"
+    "given": "What do those repeated high readings tell you? The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times. A sign of strength, not weakness It's overbought, so go short now The uptrend is about to end soon Strength that rules out a pullback"
    },
    "lesson_line": "In an uptrend, repeated overbought breadth is strength, not a sell signal.",
-   "simple": "Breadth is strong, because in a strong uptrend repeated overbought readings are a sign of strength, not weakness.",
+   "simple": "It is a sign of strength, because in a strong uptrend this gauge can go overbought again and again.",
    "tier": "extended",
    "unit": "F7.05",
-   "why": "Breadth is strong, not topping. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. Multiple overbought readings are a sign of strength, not weakness. In ChartSchool's uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
+   "why": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
    "wrong": {
     "It's overbought, so go short now": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
     "Strength that rules out a pullback": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances.",
@@ -11863,7 +11849,7 @@
     "Your setup's grade, A+ to B-"
    ],
    "kind": "mcq",
-   "q": "Under our rules, what decides whether you take the trade?",
+   "q": "Under our rules, which of these decides when the account trades?",
    "story": "Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks.",
    "subject": "F7.05#q27"
   },
@@ -11919,7 +11905,7 @@
     "summary": "Our rule: the app's market reading is the filter that decides when the account trades. Our rule: a setup's grade sets the size, not whether we trade. An A/D line that fails to confirm the index's new highs shows narrowing participation. Narrowing participation often shows up as a bearish divergence between the A/D line and its index. More new highs than lows favors the bulls; more new lows favors the bears. A divergence is a condition, not a signal."
    },
    "facts": {
-    "given": "Under our rules, what decides whether you take the trade? Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks. The app's own market reading Your setup's grade, A+ to B- The A/D line's six-week slide New lows outnumbering new highs"
+    "given": "Under our rules, which of these decides when the account trades? Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks. The app's own market reading Your setup's grade, A+ to B- The A/D line's six-week slide New lows outnumbering new highs"
    },
    "lesson_line": "Breadth warns. The app's market reading decides when we trade.",
    "simple": "The app's market reading decides when we trade, and the breadth here is a warning about fewer stocks, not our filter.",
@@ -16458,18 +16444,18 @@
   "difficulty": 3,
   "id": "si_0457081d73e0",
   "lesson_origin": "session",
-  "lesson_text": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while the odds of a cut jumped. Weak jobs news cuts two ways: lower rates, but lower earnings too.",
+  "lesson_text": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while Treasury yields fell sharply and the odds of a cut jumped. Weak jobs news cuts two ways: lower rates, but lower earnings too.",
   "module": "F7",
   "prompt_json": {
    "choices": [
     "The cut was already priced in",
     "Rate cuts are bad for stocks",
-    "Futures ignored the jobs report",
+    "Treasury yields rose on the news",
     "It signals lower profits ahead"
    ],
    "kind": "mcq",
    "q": "Why can weak jobs news hit stocks even as rate cuts get likelier?",
-   "story": "Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump. Stock futures fall further.",
+   "story": "Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump and Treasury yields drop. Stock futures fall further.",
    "subject": "F7.07#q24"
   },
   "reveal_json": {
@@ -16519,22 +16505,29 @@
       "quote": "Following the report, futures traders raised the odds of a cut at the meeting to 75.5%, up from 40% on Thursday, according to CME Group data.",
       "tier": 2,
       "url": "https://www.cnbc.com/2025/08/01/jobs-report-july-2025.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "CBS News (with The Associated Press): Dow plummets more than 1,000 points as inflation burns hot (CBS/AP, Sept. 13, 2022)",
+      "quote": "In the meantime, higher rates also pressure prices of stocks, bonds and other investments.",
+      "tier": 2,
+      "url": "https://www.cbsnews.com/news/stocks-down-us-inflation-report-2022-09-13"
      }
     ],
-    "summary": "Jobs news carries two messages: where interest rates are going and where corporate earnings are going. The same jobs news can be good or bad for stocks, depending on the state of the economy. On average, stronger-than-expected activity news went with higher stocks, and hotter-than-expected price news with lower stocks. July 2025 payrolls rose 73,000 against a forecast of 100,000. After the weak July 2025 report, stock futures fell and Treasury yields dropped. The weak report raised the odds of a Fed rate cut."
+    "summary": "Jobs news carries two messages: where interest rates are going and where corporate earnings are going. The same jobs news can be good or bad for stocks, depending on the state of the economy. On average, stronger-than-expected activity news went with higher stocks, and hotter-than-expected price news with lower stocks. July 2025 payrolls rose 73,000 against a forecast of 100,000. After the weak July 2025 report, stock futures fell and Treasury yields dropped. The weak report raised the odds of a Fed rate cut. Higher rates pressure stock prices."
    },
    "facts": {
-    "given": "Why can weak jobs news hit stocks even as rate cuts get likelier? Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump. Stock futures fall further. It signals lower profits ahead Rate cuts are bad for stocks Futures ignored the jobs report The cut was already priced in"
+    "given": "Why can weak jobs news hit stocks even as rate cuts get likelier? Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump and Treasury yields drop. Stock futures fall further. It signals lower profits ahead Rate cuts are bad for stocks Treasury yields rose on the news The cut was already priced in"
    },
    "lesson_line": "Weak jobs news cuts two ways: lower rates, but lower earnings too.",
    "simple": "Weak jobs news can mean lower rates, which helps stocks, but also weaker profits ahead, which hurts them.",
    "tier": "expert",
    "unit": "F7.07",
-   "why": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while the odds of a cut jumped.",
+   "why": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while Treasury yields fell sharply and the odds of a cut jumped.",
    "wrong": {
-    "Futures ignored the jobs report": "They fell further right after the news, and Treasury yields dropped sharply. They were reacting to it.",
     "Rate cuts are bad for stocks": "Lower rates are usually a plus. Research finds a signal of lower rates is good news for stocks.",
-    "The cut was already priced in": "It wasn't. Futures traders raised the odds of a cut to 75.5%, up from 40% the day before."
+    "The cut was already priced in": "It wasn't. Futures traders raised the odds of a cut to 75.5%, up from 40% the day before.",
+    "Treasury yields rose on the news": "Yields fell sharply after the report, as the odds of a cut jumped. Rising rates were not the problem that day."
    }
   },
   "review_status": "draft",
@@ -17053,7 +17046,7 @@
   "difficulty": 1,
   "id": "si_11cc00608c77",
   "lesson_origin": "session",
-  "lesson_text": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002. When the market's leaders trade at lofty prices, their fall can drag the whole market down for years.",
+  "lesson_text": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002. When a few sectors trade at lofty prices, their fall can drag the whole market down for years.",
   "module": "F7",
   "prompt_json": {
    "choices": [
@@ -17120,33 +17113,26 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Federal Reserve Board: Monetary Policy Report, February 29, 2012, Part 2: Recent Economic and Financial Developments",
-      "quote": "Equity prices roughly retraced these losses during the fourth quarter of 2011 and early 2012",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/mpr_20120229_part2.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "CNBC: The S&P 500 is now in an official bear market, according to S&P Dow Jones Indices (Scott Schnipper, June 13, 2022; table source: S&P Dow Jones Indices)",
-      "quote": "2/19/2020 3/23/2020 3386.15 2237.40 1.1 -33.9",
+      "name": "Charles Schwab: Market Correction: What Does It Mean? (Schwab Center for Financial Research)",
+      "quote": "a case in point is the S&P 500's pandemic-fueled bear market in early 2020, which lasted a mere 33 days from the previous high on February 19 to the trough on March 23.",
       "tier": 2,
-      "url": "https://www.cnbc.com/2022/06/13/sp-500-is-in-official-bear-market-according-to-sp-dow-jones-indices.html"
+      "url": "https://www.schwab.com/learn/story/market-correction-what-does-it-mean"
      }
     ],
-    "summary": "Most major US stock indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell from those highs, the Nasdaq steeply, as investors worried about lofty valuations and higher rates. The tech bubble bursting caused the 2000-02 bear market. Fox Business (Ned Davis data): the S&P 500 lost 49% from March 2000 to October 2002, set off by the dot-com bubble bursting. S&P DJI: the 2000-02 bear ran from March 24, 2000 (1,527.46) to October 9, 2002 (776.76), 30.5 months, down 49.1%. Falling home prices helped spark the 2007-08 financial crisis, through losses on mortgage-related assets. In August 2011, S&P cut the US long-term credit rating from AAA to AA+. Stocks roughly won back those 2011 losses by the fourth quarter of 2011 and early 2012. S&P DJI: the 2020 fall ran from February 19 (3,386.15) to March 23, 2020 (2,237.40), 1.1 months, down 33.9%."
+    "summary": "Most major US stock indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell from those highs, the Nasdaq steeply, as investors worried about lofty valuations and higher rates. The tech bubble bursting caused the 2000-02 bear market. Fox Business (Ned Davis data): the S&P 500 lost 49% from March 2000 to October 2002, set off by the dot-com bubble bursting. S&P DJI: the 2000-02 bear ran from March 24, 2000 (1,527.46) to October 9, 2002 (776.76), 30.5 months, down 49.1%. Falling home prices helped spark the 2007-08 financial crisis, through losses on mortgage-related assets. In August 2011, S&P cut the US long-term credit rating from AAA to AA+. The S&P 500's 2020 fall took 33 days, from its February 19 high to its March 23 trough."
    },
    "facts": {
     "given": "What set off the 2000-02 bear market in US stocks? The dot-com bubble bursting A collapse in home prices A pandemic shutting the economy The US losing its AAA rating"
    },
-   "lesson_line": "When the market's leaders trade at lofty prices, their fall can drag the whole market down for years.",
+   "lesson_line": "When a few sectors trade at lofty prices, their fall can drag the whole market down for years.",
    "simple": "The dot-com bubble bursting, because tech stocks had climbed to lofty prices and then fell hard, dragging the market down.",
    "tier": "core",
    "unit": "F7.08",
    "why": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002.",
    "wrong": {
     "A collapse in home prices": "That was 2007-09. Falling home prices helped spark that crisis.",
-    "A pandemic shutting the economy": "That was 2020, a fall that took weeks, not years.",
-    "The US losing its AAA rating": "That came in 2011, when Standard & Poor's cut the US credit rating from AAA to AA+."
+    "A pandemic shutting the economy": "That was the early 2020 fall, which was pandemic-fueled.",
+    "The US losing its AAA rating": "That came years later, when Standard & Poor's cut the US credit rating from AAA to AA+."
    }
   },
   "review_status": "draft",
@@ -18426,8 +18412,8 @@
   "prompt_json": {
    "choices": [
     "Falls vary a lot in speed and depth",
-    "Most falls are over within weeks",
-    "Every fall stops near a 20% drop",
+    "Most big falls are over within weeks",
+    "Every big fall stops near a 20% drop",
     "The slow slides turn out the mildest"
    ],
    "kind": "mcq",
@@ -18480,7 +18466,7 @@
     "summary": "The S&P 500's 2020 fall took 33 days, from its February 19 high to its March 23 trough. S&P DJI: the 2020 fall ran from February 19 (3,386.15) to March 23, 2020 (2,237.40), 1.1 months, down 33.9%. S&P DJI: the 2000-02 bear ran from March 24, 2000 (1,527.46) to October 9, 2002 (776.76), 30.5 months, down 49.1%. S&P DJI: the 2007-09 bear ran from October 9, 2007 (1,565.15) to March 9, 2009 (676.53), 17 months, down 56.8%. S&P Dow Jones Indices' table lists each S&P 500 bear market's start and end date, prices, length in months and % change."
    },
    "facts": {
-    "given": "What does the record since 2000 say? A friend says every big market fall looks like 2008: a slide of more than a year that cuts stocks in half. Falls vary a lot in speed and depth Most falls are over within weeks Every fall stops near a 20% drop The slow slides turn out the mildest"
+    "given": "What does the record since 2000 say? A friend says every big market fall looks like 2008: a slide of more than a year that cuts stocks in half. Falls vary a lot in speed and depth Most big falls are over within weeks Every big fall stops near a 20% drop The slow slides turn out the mildest"
    },
    "lesson_line": "Don't plan for one kind of fall. Plan for fast and slow, shallow and deep.",
    "simple": "Falls vary a lot, because 2020 dropped 33.9% in 33 days while 2000-02 took 30.5 months to drop 49.1%.",
@@ -18488,8 +18474,8 @@
    "unit": "F7.08",
    "why": "Falls vary a lot in speed and depth. The 2020 fall took 33 days and cut the S&P 500 by 33.9%. The 2000-02 fall took 30.5 months and cut it by 49.1%. The 2007-09 fall took 17 months and cut it by 56.8%. So 2008 is one shape among several, not the template.",
    "wrong": {
-    "Every fall stops near a 20% drop": "Not so. 2020 fell 33.9%, and 2007-09 went on to 56.8%.",
-    "Most falls are over within weeks": "Not most. 2000-02 took 30.5 months and 2007-09 took 17 months.",
+    "Every big fall stops near a 20% drop": "Not so. 2020 fell 33.9%, and 2007-09 went on to 56.8%.",
+    "Most big falls are over within weeks": "Not most. 2000-02 took 30.5 months and 2007-09 took 17 months.",
     "The slow slides turn out the mildest": "The reverse here. 2000-02 took 30.5 months and fell 49.1%, more than 2020's 33.9% in 33 days."
    }
   },
@@ -20977,7 +20963,7 @@
   "difficulty": 1,
   "id": "si_4dbd5abfc0ef",
   "lesson_origin": "session",
-  "lesson_text": "True. Each of the eleven Select Sector indexes is built from S&P 500 stocks only. Together they hold every S&P 500 company. GICS gives each company one sector, but a sector fund tracks only its sector's S&P 500 stocks. A sector fund holds only its sector's S&P 500 stocks.",
+  "lesson_text": "True. Each Select Sector index has a rule: every stock in it must be in the S&P 500. Together the indexes cover every S&P 500 company. So a sector fund holds S&P 500 stocks only. A sector fund holds only S&P 500 stocks.",
   "module": "F7",
   "prompt_json": {
    "choices": [
@@ -21004,25 +20990,18 @@
       "quote": "The eleven Select Sector Indexes (each a “Select Sector Index”) upon which the Select Sector SPDR Funds are based together comprise all of the companies in the S&P 500.",
       "tier": 1,
       "url": "https://www.ssga.com/us/en/individual/etfs/state-street-energy-select-sector-spdr-etf-xle"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "MSCI: The Global Industry Classification Standard (GICS)",
-      "quote": "Each company is assigned a single GICS® classification in each of the four tiers, according to its principal business activity.",
-      "tier": 1,
-      "url": "https://www.msci.com/indexes/index-resources/gics"
      }
     ],
-    "summary": "Each sector fund tracks one of eleven Select Sector indexes, built only from S&P 500 stocks. The eleven sector funds' indexes together hold every S&P 500 company. Each company gets one GICS classification at each level, by its main business."
+    "summary": "Each sector fund tracks one of eleven Select Sector indexes, built only from S&P 500 stocks. The eleven sector funds' indexes together hold every S&P 500 company."
    },
    "facts": {
     "given": "Each Select Sector index behind the sector funds holds only stocks that are in the S&P 500."
    },
-   "lesson_line": "A sector fund holds only its sector's S&P 500 stocks.",
+   "lesson_line": "A sector fund holds only S&P 500 stocks.",
    "simple": "True, because each sector index is built only from stocks in the S&P 500.",
    "tier": "core",
    "unit": "F7.09",
-   "why": "True. Each of the eleven Select Sector indexes is built from S&P 500 stocks only. Together they hold every S&P 500 company. GICS gives each company one sector, but a sector fund tracks only its sector's S&P 500 stocks."
+   "why": "True. Each Select Sector index has a rule: every stock in it must be in the S&P 500. Together the indexes cover every S&P 500 company. So a sector fund holds S&P 500 stocks only."
   },
   "review_status": "draft",
   "skill_id": "history.sectors",

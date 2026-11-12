@@ -1219,7 +1219,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "A stock gaps up on news. You set a buy limit at $18.75, the most you'd pay. It opens at $19.60, never trades below $19.40, and runs to $23.",
-   "q": "Your order never filled. How do you grade it?",
+   "q": "Your order never filled. Judged only as an order, how did it do?",
    "choices": [
     "It worked: price capped, no fill",
     "It failed: you missed the run to $23",
@@ -1235,16 +1235,17 @@
     "f05",
     "f48",
     "f37",
-    "f38"
+    "f38",
+    "f51"
    ],
    "wrong": {
-    "It failed: you missed the run to $23": "That grades the outcome. A limit is for when the right price matters more than a quick fill, so a missed run is the cost it accepts.",
+    "It failed: you missed the run to $23": "That grades the outcome, not the order. A limit is for when the right price matters more than a quick fill, so a missed run is the cost it accepts.",
     "It worked: it fills at $18.75 later": "Nothing promises a later fill. A buy limit fills only if the stock trades at $18.75 or lower, and it may never.",
-    "It failed: a gap up should fill it": "A gap fills a resting limit only when it moves past the limit in your favor. For a buy limit, that is a gap down. This gap went up."
+    "It failed: a gap up should fill it": "A gap can fill a resting buy limit only by opening at or below the limit. This gap went up, above $18.75."
    },
    "simple": "It worked, because a limit's job is to cap your price, and it bought nothing above $18.75.",
    "deeper": {
-    "trap": "The trap is grading by outcome. The stock ran to $23, so a fill looks like it would have paid. A market order would have filled, but with no price protection. A missed trade and a worse fill are different risks."
+    "trap": "The trap is grading by outcome. The stock ran to $23, so a fill looks like it would have paid. A market order would have filled, but with no price protection. A missed trade and a worse fill are different risks. Our rule takes the worse-fill risk: entries are market orders."
    },
    "tier": "expert",
    "risk": {
@@ -1336,8 +1337,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived from f01/f02/f11: right. Simple said 'A market order trades right away', an unhedged claim; f02 says 'Generally ... executed immediately' and the why says 'generally'. The simple may not claim more than the proper answer. Restated as the instruction the order gives, which matches the question and still does not state q05's key."
+   "fixed": false,
+   "notes": "Derived independently: trade now at the best price available (f01, f02, f11). Key and 'set price' choice tie at 37 characters, so length gives nothing away. The closing-price choice is hedged by 'plain' in its wrong note (MOC orders exist). The why and lesson line state that the price is not promised, which is q05's key, but only after answering; that is teaching before a rung-2 test, not a giveaway in a stem or choice. Every claim maps to f01/f02/f11/f12/f04/f06/f10."
   },
   "q02": {
    "status": "pass",
@@ -1408,14 +1409,14 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived from f05, f36, f37: right. The new deeper only restated the why, the lesson line and the '$105' wrong note ('the least you'll take', 'floor'), a copied explanation that adds nothing. Replaced with a counter-example grounded in f05/f06, using only the stem's own $104 and $105; f06 added to facts. It does not teach q20's or q21's key."
+   "fixed": false,
+   "notes": "Derived: a sell limit fills at the limit or higher (f05), so a $110 open fills it at about $110 (f37). 'Around' hedges the opening print. No second defensible answer. Choice lengths balanced (24/27/27/24). Deeper is a grounded counter-example (f05, f06) using only the stem's numbers. Schwab (s7) returned an authorization error on 2026-11-12, so f36/f37 could not be re-read; f05 (SEC) carries the floor logic and the open fill follows from it. Does not hand over q20's key (cancel the old order)."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-derived: the limit's extra risk is a missed fill (f49, f15, f06) while a market buy almost always fills (f19). Key right, one answer only. Two defects: (1) form tell, the key was the lone 'No fill if...' against three parallel 'A ...' noun phrases, and it tied for longest; now 'A missed fill if it runs past $50.30', parallel and 36 characters (ties, not longest). (2) The wrong note for 'A wait until...' said it fills 'at the ask or better', but the story is a fast market and the limit allows fills up to $50.30 (f05, f47); now 'at $50.30 or lower'. Note: the deeper's last sentence states E57"
+   "fixed": false,
+   "notes": "Derived: the extra risk of the marketable $50.30 limit is a missed fill if the ask runs past it (f49, f06, f15); the market buy almost always fills (f19). 'Fill far above the quote' is excluded because the market buy carries that risk (f48, f12); 'wait until $50.30' is wrong because $50.30 is above the $50.08 ask (f21); 'exactly $50.30' is wrong by f05. One answer only, choices parallel 36/34/36/35. The deeper's closing line (entries are market orders, f51) agrees with E57. Integrator side note, outside these questions: conflicts entry 3 still says 'q14 keys a marketable limit sent once the st"
   },
   "q15": {
    "status": "pass",
@@ -1432,8 +1433,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc re-run: pct_change(25, 27.25) = 9.0, key right; the stem no longer hands over q16's key. Defects: (1) the simple was circular ('9%, because ... sits 9% above'), giving no reason; (2) why and lesson line said a market ORDER 'pays that gap', true only for a buy (a sell gets the gap); now 'market buy'. The why still names the f31 fact q16 tests, but only after answering and as the reason the calc matters; accepted."
+   "fixed": false,
+   "notes": "Calc re-run: (27.25 - 25) / 25 = 9%. Every number comes from the stem or the calc. Deeper's 'smaller number' (2.25/27.25 = 8.3%) is right and gives no new number. The why repeats f31, which is q16's key, but only as the reason after answering, and q16 comes before q17. Describes the market buy and does not recommend a premarket buy, so no E58 conflict."
   },
   "q18": {
    "status": "pass",
@@ -1457,13 +1458,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Re-derived from f14, f05, f06: grading the order by its job, 'It worked: price capped, no fill' is right; choices balanced two/two, key shortest, wrong notes grounded (f06, f05, f37, f38). Defect: the simple's reason only explained why it did not fill (which the stem already says), not why it worked. Now gives the one reason: a limit's job is to cap the price. E57 tension stays with the owner flag already raised."
+   "notes": "Key is right if the order is judged as an order (f14, f05, f06). Two defects. (1) A second defensible answer: the stem 'How do you grade it?' asks for a trade grade. Under the owner's E57 ('No i market order everything') a member can fairly grade the entry as failed because it missed the run to $23. That makes 'It failed: you missed the run to $23' defensible. q10 and q14 were already reframed as order mechanics for the same E57 conflict. Fix: the stem now asks how the order did, judged only as an order, and the deeper names our market-order rule (f51 added). (2) The wrong note for 'a gap up s"
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rule matches f51 (sizing_rule.md line 217, verbatim). Defects: (1) the stem opened 'Our rule:' and then restated the rule, so it asserts its own answer (leads to True); (2) the why showed the internal code 'E57' to members; (3) 'so a fast move does not leave us out' turns f19's 'almost always' into an absolute and gives the owner a reason he never stated. Rewritten to ask, using the owner's 'market order everything' as the test against the lesson's limit-entry habit; answer stays True, so the unit's True/False balance (3/3) holds."
+   "fixed": false,
+   "notes": "True by f51, word for word from sizing_rule.md line 217 (E57, 'market order everything'), so 'even when the stock is moving fast' is covered. The why's 'every one of them' matches 'everything'. The stop with the broker is D41, which f51 quotes. 'Almost always fills' keeps f19's hedge. The stem uses a question form, not a statement of the rule. q14's deeper also states the rule, but only after answering. No code like 'E57' is shown to members. No conflict with E58."
   },
   "q23": {
    "status": "pass",

@@ -1231,7 +1231,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "bg.gap_day",
-   "q": "In QuantRocket's down-gap backtest, did small and large gaps behave alike?",
+   "q": "QuantRocket studied down gaps. Did it find small and large gaps behave alike?",
    "choices": [
     "No; small ones tend to recover",
     "No; large ones tend to recover",
@@ -1239,19 +1239,19 @@
     "Yes; both tend to recover"
    ],
    "answer": "No; small ones tend to recover",
-   "why": "No. In QuantRocket's backtest, stocks tended to recover after small down gaps and keep dropping after large ones. Its first test bought just after the open and held to the close. It is one vendor's backtest, not a promise for one stock. Fleckenstein, for his short, also wanted a severe decline for that stock.",
-   "lesson_line": "In QuantRocket's backtest, small down gaps recovered and large ones kept dropping.",
+   "why": "No. QuantRocket concludes that stocks tend to recover after small down gaps and keep dropping after large ones. Its first test bought just after the open and held to the close. It is one vendor's backtest, not a promise for one stock. Fleckenstein, for his short, also wanted a severe decline for that stock.",
+   "lesson_line": "QuantRocket: small down gaps tend to recover, large ones keep dropping.",
    "facts": [
     "m02",
     "m04a",
     "f03"
    ],
    "wrong": {
-    "No; large ones tend to recover": "It is the reverse. In the test, large down gaps tended to keep dropping.",
-    "Yes; both tend to keep dropping": "In the test, small down gaps tended to recover.",
-    "Yes; both tend to recover": "In the test, large down gaps tended to keep dropping."
+    "No; large ones tend to recover": "It is the reverse. QuantRocket says large down gaps tend to keep dropping.",
+    "Yes; both tend to keep dropping": "QuantRocket says small down gaps tend to recover.",
+    "Yes; both tend to recover": "QuantRocket says large down gaps tend to keep dropping."
    },
-   "simple": "No, because in that backtest small down gaps tended to recover while large ones kept falling.",
+   "simple": "No, because QuantRocket says small down gaps tend to recover while large ones keep falling.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2003,12 +2003,12 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "bg.market",
-   "q": "Does the market help a short here?",
+   "q": "By our card, does the market help a short here?",
    "choices": [
     "No; it needs a Red or Orange market",
     "Yes; the stock is under its 200-day",
     "Yes; Yellow still allows a short",
-    "No; only a Red reading helps a short"
+    "No; a 20-day rejection does not count"
    ],
    "story": "A stock under its own 200-day gapped down off its highs. The bounce was rejected at the 20-day. The market reading is Yellow.",
    "answer": "No; it needs a Red or Orange market",
@@ -2017,6 +2017,7 @@
    "facts": [
     "c14",
     "c25",
+    "c39",
     "d08",
     "d09"
    ],
@@ -2024,7 +2025,7 @@
    "wrong": {
     "Yes; the stock is under its 200-day": "That meets the stock's rule. The market rule is separate: Red or Orange.",
     "Yes; Yellow still allows a short": "Our card asks for a Red or Orange reading. Yellow is neither.",
-    "No; only a Red reading helps a short": "Right call, wrong reason. An Orange reading helps too."
+    "No; a 20-day rejection does not count": "Our card counts a bounce to the 20-day. The no comes from the market: Yellow is not Red or Orange."
    },
    "simple": "No, because our short needs a Red or Orange market reading, and Yellow is neither.",
    "deeper": {
@@ -3557,8 +3558,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c09, g04, m01, b01). Leak: the 'Support for a later long' wrong note said 'A gap up leaves support', which is q33's whole key (gap up -> support for a long). Rewritten onto c09 only."
+   "fixed": false,
+   "notes": "Decided cold: resistance (c09). g04, m01 (Schaeffer's, re-read live), b01 (Bulkowski, re-read live), g03 verified. Distractors each answered by a quote; no leak into q33 now."
   },
   "q05": {
    "status": "pass",
@@ -3569,8 +3570,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (g01, c05). Shape tell: three choices read 'The X is under yesterday's Y' and the key alone read 'Its high stays under...'. Key restated in the same form so the odd one out is not the answer."
+   "fixed": false,
+   "notes": "g01 re-read live on ChartSchool TA 101 Part 15; c05 in the card. Choices share one shape, no tell. Definition item; q12/q65 apply it at higher rungs (spiral, not a giveaway)."
   },
   "q08": {
    "status": "pass",
@@ -3581,8 +3582,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key agrees with c08/h02/h28/h20a. Simple overreaches: 'we never add or widen the stop' drops A4's gap-rule exception (B20 can set the new stop at the 30-minute low, below the old stop), and its colon is an aside the validator bars in simple. Replaced. Note for the integrator: q55 keys the same idea in nearly the same words ('A warning; let the stop decide'); reinforcement at a higher rung, not a giveaway, but the overlap is close."
+   "fixed": false,
+   "notes": "Key agrees with c08, h02 (A4), h28 (A5), h20a (B20); story does not say the gap is through the stop, so 'exit at the open' is wrong under B20. Overlap note kept: q55 keys the same idea in near-identical words ('A warning; let the stop decide') at rung 8; q09's why also states q80's rule. Treated as rung-2 rule then scenario reinforcement, not a giveaway, but the integrator may want q55 reworded."
   },
   "q10": {
    "status": "pass",
@@ -3599,14 +3600,14 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right by g02. Defects: (1) grammar tell: 'after what' fits the key and one distractor but not 'Near the end of...' or 'Midway through...', so two choices fall out on grammar; (2) key was the longest choice (34 chars); (3) the why misquotes m03: Kell says a gap down from highs FOLLOWED BY A WEDGE DROP marked the DECK top, not the gap alone. Stem reworded to 'when', key shortened, why quotes m03 fully. Kell is kept as the second publisher; integrator note: the Kell line restates q48's key (reinforcement, q48 is a higher rung)."
+   "fixed": false,
+   "notes": "g02 re-read live verbatim (after an extended advance, an extended top or a consolidation period); g07a re-read live. Mid-decline is ChartSchool's continuation gap, not breakaway, so no second answer. m03 (Kell archive) could not be re-fetched (archive blocked) but is supporting only."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right by m02 (verbatim, re-read 2026-11-12). Defect: stem, why, lesson_line and simple claim the small/large finding is a same-day, open-to-close result. WebFetch 2026-11-12: only the FIRST (v1) buy test states '1 minute after the open and hold until the close'; the small-vs-large lesson comes from the revised v2 test, whose holding period the page does not state. 'So it describes the gap day itself' and 'during the day' are unsupported. Re-scoped to 'QuantRocket's backtest'; the why keeps m04a only for what it says (the first test). Integrator: m04a's claim 'a same-day test' should read '"
+   "notes": "Overreach: the m02 sentence is QuantRocket's conclusion paragraph, drawn indirectly (the unfiltered buy-on-gap test lost; a 20-day-filter version standing in for small gaps gained). The backtest never measured small against large gaps directly, so 'in the backtest small ones recovered' says more than the page. Reworded to attribute the claim to QuantRocket's conclusion. m04a verified as the first test."
   },
   "q15": {
    "status": "pass",
@@ -3623,8 +3624,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c11, c22, b03). Two wrong notes were not supported: 'Heavy volume makes the drop real' is in no fact, and 'A new low tomorrow is still a reflex short' stretches c11, which is about the gap day's close. Both notes now rest on b03/c11 and c22 only. Owner flag on c29 vs c11 stands; the key holds on c11's 'never'."
+   "fixed": false,
+   "notes": "c11 is the card's rule verbatim; b03 re-read live (28%, 23 days; the sample's event days fell 15% to 70%, so the 15% story fits). 'Short a break of today's low' is not Version R (retest) and not Version P (no burst). Two Wait and two Short choices, no tell."
   },
   "q21": {
    "status": "pass",
@@ -3701,8 +3702,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key direction right (c04, c19), but 'Lower odds' / 'Same odds' claim a probability: the card's test measured R (later gaps -0.22R), not a hit rate. Restated as a weaker read, which c04's 'did worse' supports. Note: q49's wrong note ('a third gap off the same top did worse') states this key; q49 is outside this check."
+   "fixed": false,
+   "notes": "Considered 'Pass' as a rival (bg.first_gap carries gate: true), but the card's own grading lists 'a second or third gap off the same top' under b_minus, so 'a weaker read' matches the card. c04, c19, c32 verbatim. A zone exists for any gap (c32)."
   },
   "q50": {
    "status": "pass",
@@ -3773,14 +3774,14 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right by c23 (gap up, closes red, after a burst). Defect: two distractors carry reasons that contradict the story outright ('the burst is down' against three up days; 'bad news gapped' against a gap up), so they are eliminated by reading the stem, not by knowing the setups: silly choices. Stripped the reasons so the item tests the four definitions; wrong notes re-keyed and kept on c22, c21, c24."
+   "fixed": false,
+   "notes": "c23 and B26's parabolic burst (three up days, climax-day gap up) fit the story; bear gap gaps down, News Failure and Parabolic Long excluded by c21/c24. No second answer."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key by c14 (Red or Orange); story gives Yellow directly; rulebook F65/D46 does not contradict. Defect in the deeper: 'The stock chart was fine' has no cited quote for CIEN (the resolver removed the 200-day claim for the same reason, and d21 is not cited). Trimmed to what d08/d09 say. Owner flag on Yellow stands."
+   "notes": "The 'right call, wrong reason' distractor 'No; only a Red reading helps a short' leans on a rulebook tension: section 9 names shorts only under Red (D46; F65 says Orange is only A+ setups), while the card adds Orange (c14, c34). A learner reading the rulebook can defend Red-only. The stem also does not say whose rule. Fix: anchor the stem on our card and swap that distractor for a plainly false reason grounded in c39."
   },
   "q37": {
    "status": "pass",
@@ -3815,8 +3816,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "OI re-case verified: d23, d24, d25 are verbatim in dossier section 12 row 3. Three defects: (1) tell, the story said 'the first gap since the top' and the key repeated 'A first gap'; (2) 'Pass; the gap was too small' was silly against a stated 13.5% drop; (3) the lesson line claimed a 'weak close', but the story never gives the lower-half close c03 needs. Story reworded so the key is derived, distractor replaced by a real misconception (a stall ends the read, against c06), lesson line and facts trimmed (c03 out, c06 in)."
+   "fixed": false,
+   "notes": "d23, d24, d25 verbatim in the dossier (OI: 23 sessions, -7.9% open, -13.5%, 6.7x, full window, rejection +15 sessions). Key holds whatever D-001 rules: the story gives no 200-day or market, and Version R's trigger is under the rejection candle's low, not the next open."
   },
   "q59": {
    "status": "pass",
@@ -3980,8 +3981,8 @@
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right on c36. Leak left in: the lesson line still said 'the 50-day or the 200-day', which is q74's whole key (close above the 200-day ends the read), and the 'Nothing' note's 'also' implied it. Both now name only the 50-day."
+   "fixed": false,
+   "notes": "c36 and the card's invalidations list: a close above the 50-day the bounce was rejected from ends the Version R read. No second answer. (Risk line cites B26 but no h fact; cosmetic.)"
   },
   "q74": {
    "status": "pass",
@@ -4009,8 +4010,8 @@
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible reading: the card has two parabolic climax lines. c35 (Version P) closes near the middle or high, but c23 (the Parabolic Short's main form, taught in q28) only 'closes red', which can be a lower-half close, so a member could call the statement True. Restated as a requirement: no card line calls for a lower-half climax close, so False holds under both."
+   "fixed": false,
+   "notes": "c35 verbatim; the card's measure is (close-low)/(high-low) >= 0.5, so a lower-half close fails exactly. False is clean."
   },
   "q79": {
    "status": "pass",
@@ -4021,14 +4022,14 @@
   "q80": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New. h20/h21 verbatim in sizing_rule.md B20; key right and taught as the rulebook says. Two defects: (1) 'gaps down on earnings' while you still own it runs into B22 (hold through a report only if up 5R), which the item never addresses; the story now says overnight. (2) The deeper said 'Our rule does not wait', but B20 waits 30 minutes; now 'does not wait for a bounce'."
+   "fixed": false,
+   "notes": "h20 and h21 verbatim in sizing_rule.md B20; the story puts the gap through the stop, so B20 applies. Distractors each wrong by the rule's text."
   },
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "New. c39 verbatim on the card (bg.bounce); key right. Leak: the why defined the rejection candle (c17), which is q17's whole key; replaced with c39's own 'no close above the zone's top edge'. The simple was circular ('reads the bounce where it fails there'); now rests on c39's 25 sessions."
+   "fixed": false,
+   "notes": "c39 verbatim. Key one character longer than the next choice, not a real tell. Does not give away q59, q60 or q73."
   }
  }
 }

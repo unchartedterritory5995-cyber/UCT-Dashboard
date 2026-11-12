@@ -1466,10 +1466,10 @@
    },
    "wrong": {
     "Yes, it fell past 20% during the session": "Intraday doesn't count. S&P Dow Jones Indices measures the 20% on closing prices.",
-    "Yes, nearly 19% down is close enough": "Close isn't enough. The line was a close at or below 4,915.32, a full 20% under the record.",
+    "Yes, nearly 19% down is close enough": "Close isn't enough. The test is a close a full 20% below the record, and 18.9% falls short.",
     "No, it was only 1.57% off the record": "That's the one-day move. The 20% is measured from the record close, and it closed 18.9% below it."
    },
-   "why": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The line was a close at 4,915.32, and the index never closed there in that sell-off.",
+   "why": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The index never closed a full 20% below the record in that sell-off.",
    "lesson_line": "Closes make the call. A scary intraday low isn't a bear market until a close makes it official.",
    "facts": [
     "f31",
@@ -1721,7 +1721,7 @@
    "answer": "Trim it, and sell if it breaks down",
    "wrong": {
     "Add more, it's resting for the next leg": "It might break up into a new Stage 2, and then you hold. Adding before that is guessing the break.",
-    "Short it now, before the break": "That's guessing the breakout. A range is neutral until it breaks, and Dow Theory warns against anticipating it.",
+    "Short it now, before the break": "That's guessing the break. You can't tell which way a range will break until it does, and Dow Theory warns against anticipating it.",
     "Hold it all, the long trend is up": "The climb has stalled. In Stage 3 the method takes profits, and a downside break means sell."
    },
    "why": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 10-day or 21-day average, and we sell on a close below it.",
@@ -1752,7 +1752,7 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. A stock on your list breaks out of a base today.",
+   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. The app's market reading is Red. A stock on your list breaks out of a base today.",
    "q": "How do you treat that breakout?",
    "choices": [
     "Pass, or take it at a small size",
@@ -1762,33 +1762,31 @@
    ],
    "answer": "Pass, or take it at a small size",
    "wrong": {
-    "Full size, a breakout is a breakout": "Not in this market. IBD says that in a market downtrend, even the best stocks find it very hard to rise.",
-    "Pass, the stock itself is in Stage 4": "That's the index's picture, not the stock's. A breakout from a base is how Weinstein's Stage 2 starts.",
-    "Buy now, the market will turn soon": "Nobody knows where or when a trend will end. Meanwhile most stocks follow the market's downward trend."
+    "Full size, a breakout is a breakout": "Not when the reading is Red. IBD says that in a market downtrend, even the best stocks find it very hard to rise.",
+    "Pass, the stock itself is in Stage 4": "Right to pass, wrong reason. A breakout from a base is how Weinstein's Stage 2 starts. You pass because the reading is Red.",
+    "Buy now, the market will turn soon": "Nobody knows where or when a trend will end. Until the reading changes, Red means mostly cash and shorts."
    },
-   "simple": "Pass or go small, because most stocks follow the market, and new buys are riskier while it falls.",
-   "why": "Pass, or take it at a small size. A market 22% below its record and under a falling average is in a downtrend. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. Short of Green, that means less or none. These are guides that vary, not hard caps.",
-   "lesson_line": "Let the market reading set the size. In a falling market I buy less, or nothing.",
+   "simple": "Pass or go small, because a Red reading means mostly cash and shorts.",
+   "why": "Pass, or take it at a small size. At UCT the app's market reading guides how much we buy. Green means full risk per grade. Yellow means smaller and fewer, Orange only A+ setups, Red mostly cash and shorts. So in Red, a new long gets little or nothing. These are guides that vary, not hard caps.",
+   "lesson_line": "Let the market reading set the size. When it reads Red, I buy little or nothing.",
    "deeper": {
-    "trap": "The trap is judging the stock alone. IBD's rule of thumb is that 3 of 4 stocks move in the same direction as the market. With the index 22% below its record and under a falling average, new buys are riskier."
+    "trap": "The trap is judging the stock alone. IBD says that if the overall market is in a downtrend, even the best stocks find it very hard to move higher. A Red reading is our cue to sit mostly in cash."
    },
    "facts": [
     "h01",
     "h03",
-    "f61",
     "f86",
-    "f87",
-    "f88",
     "f51",
+    "f61",
     "f64",
     "f65"
    ],
    "tier": "expert",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
-     "teaches the owner's market reading (B18, F65, A10) as ours",
-     "the story gives no app reading; the key fits every reading short of Green"
+     "teaches the owner's market reading (B18, F65, A10, D46) as ours",
+     "fixed before (checker 2026-11-12)"
     ]
    },
    "batch": "wave6"
@@ -1922,8 +1920,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f03: 12% is more than 10%, less than 20%); choices balanced, key not the longest, wrong notes grounded (f03, f06, f05). Defect: the simple gives a non sequitur reason ('since nobody can tell yet whether a correction will become a bear market' does not explain why it is correction territory). Fixed the simple to give the band, from f03."
+   "fixed": false,
+   "notes": "Own answer before key: 12% below the record is more than 10% and less than 20% (f03), so correction territory; nothing else is knowable (f05, f17). Matches. Choices 31-37 chars, key not longest, no lone hedge. Wrong notes grounded (f06 six of 27 since November 1974, f05). Deeper grounded (f12 three to four months; f06). The six-of-27 point it reveals is already taught in walkthrough w2, so it does not hand q10 its answer. No rulebook conflict. Could not break it."
   },
   "q16": {
    "status": "pass",
@@ -1953,7 +1951,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right by calc (6,144.15 to 4,982.77 = 18.9%) and f19, f31. Defect: the choice 'No, it was only 1.57% off the record' uses a number the story never gives, so it reads as a random, silly distractor, and the deeper trap ('reading the day's change') has no day's change to read. Fixed the story to give the day's move from f39 ('declined 1.57% to end at 4,982.77'); the choice becomes the real misreading the deeper describes."
+   "notes": "Key right: calc 6,144.15 to 4,982.77 = 18.9% (recomputed 18.902), and S&P DJI counts closes (f19, f31). Quotes f32, f39 re-read on the live CNBC pages 2026-11-12: verbatim. Defect: the why and the 'close enough' wrong note give the 20% line as 4,915.32, which is the exact key of q17 (numeric, same record close). In a challenge or review pool that draws q20 before q17, q20 hands q17 its answer. Fixed: both now say 'a close a full 20% below the record' without the number; f43 and f91 still ground 'never closed there'. Everything else unchanged."
   },
   "q21": {
    "status": "pass",
@@ -1989,13 +1987,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right as Weinstein's method (f68, f69, f70). Defect against the rulebook (section 9 E52): the why tacks on our trail without saying it differs, so a member can read 'trim in Stage 3' as UCT's way; and the lesson_line's second sentence ('Lighten up and let the break decide.') stands as unframed advice. Fixed: the why says that is Weinstein's way and then gives ours from h02 (E52), and the lesson_line keeps one framed sentence. Note: q26 cites house fact h02 without 'house': true; it is asked as Weinstein's method, not ours, so left as is."
+   "notes": "Own answer before key: long climb, then months sideways with the 30-week flattening and slicing price = Stage 3 (f68); Weinstein: traders take profits, investors sell half, hold on an upside break, sell on a downside break (f69, f70, re-read on thepatternsite.com/Stages.html 2026-11-12, verbatim). 'Trim it, and sell if it breaks down' is the best choice; no second defensible one. Why already frames this as Weinstein's way and gives our E52 trail (h02), so no rulebook conflict. Defect: the 'Short it now' wrong note says 'A range is neutral until it breaks'. f56 says a range is accumulation OR d"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer from the rulebook: F65/h01 (Green full; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts) with A10/h03 (guides, not caps): any reading short of Green means less or none, so 'Pass, or take it at a small size' is right. Defects: (1) the why lists Yellow, Orange and Red but never Green and never links the story's market to them, so the lesson relies on a mapping it never teaches; fixed by naming Green and stating that every reading short of Green means less or none (h01), and by grounding 'downtrend' in the story's falling average (f61, added to facts). (2) The full"
+   "notes": "House question. Own answer: the rulebook ties size to the app's market reading (B18, F65/h01, A10/h03, D46), not to how far the index is off its high. The story gives no reading, and an index 22% down under a falling 30-week average can still read Green early in a new uptrend (F68 even covers the reading turning Green after a correction), where F65 says full risk per grade. So the key depends on an unstated reading; the file's own risk note admits 'the key fits every reading short of Green'. Second issue: the deeper states IBD's '3 of 4 stocks move in the same direction as the market' and the "
   }
  }
 }

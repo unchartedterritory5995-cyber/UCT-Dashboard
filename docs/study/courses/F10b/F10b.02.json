@@ -1055,7 +1055,7 @@
    "rung": 4,
    "format": "scenario",
    "story": "A stock drops from $90 to $66, bounces to $84, then starts to roll over. You'll short only if it breaks below $80.",
-   "q": "Where does your buy stop go?",
+   "q": "Under our rules, where does your buy stop go?",
    "choices": [
     "At $74, your profit target",
     "Just under the $66 low",
@@ -1063,8 +1063,8 @@
     "No stop until in profit"
    ],
    "answer": "Just over the $84 high",
-   "why": "Just over the $84 high. Schwab's example shorts below $80 with the buy stop at the $84 bounce high. A climb back over that high says the idea is wrong. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high.",
-   "lesson_line": "On a short, the buy stop sits a few cents above the high, not exactly on it.",
+   "why": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, to limit the loss to $4 a share. Our stop sits a few cents under the day's low, not exactly on it. Shorts are our long setups reversed, so the buy stop goes a few cents over the high.",
+   "lesson_line": "Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
    "facts": [
     "f73",
     "f74",
@@ -1072,14 +1072,15 @@
     "f50",
     "f51",
     "h62",
-    "h47"
+    "h47",
+    "h41"
    ],
    "wrong": {
-    "At $74, your profit target": "That's where you'd take the profit. The stop guards the move against you, and on a short that's up, above $80.",
-    "Just under the $66 low": "That's where a long's stop would sit. A short loses as price rises, so a stop down there never protects you.",
-    "No stop until in profit": "The risk starts the moment you're short. Without a buy stop, nothing limits the loss if it rallies."
+    "At $74, your profit target": "That's where Schwab's example takes the profit. A short's stop guards the move against you, and that move is up, above $80.",
+    "Just under the $66 low": "That's where a long's stop would sit. A short loses as the price rises, so a stop down there never protects you.",
+    "No stop until in profit": "The risk starts the moment you're short. Our rule: every position has a real stop order with the broker."
    },
-   "simple": "Just over $84, because a move back above that bounce high means the drop you are betting on failed.",
+   "simple": "Just over $84. Schwab puts the stop at that bounce high, and our rule puts it a few cents past it, not on it.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1193,9 +1194,8 @@
    "simple": "B. Its 6 million short is a big slice of its 20 million float, while A's is a sliver of its float.",
    "tier": "extended",
    "risk": {
-    "score": 3,
+    "score": 1,
     "reasons": [
-     "computed key",
      "fixed before"
     ]
    },
@@ -1841,7 +1841,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: just over $84 (Schwab f74 puts the buy stop at the $84 bounce high; F62 'a few cents under the day's low, not exactly on it' mirrored through D47). Key matches and no choice offers $84 exactly, so no second answer. Defects: (1) the why teaches our rule (h62, h47, Tier 3) but the merged question has no \"house\": true; the resolver's own note asked the integrator to set it and it was not set. (2) lesson_line adds 'the high that would prove you wrong', a generalisation no quote states (F62 speaks of the day's low only). The trimmed line keeps only what h62 and h47 give. The F62-day's-l"
+   "notes": "Own answer: just over the $84 bounce high. It is the only choice that is a buy stop above the price (f50, f74). The key matches, and no choice offers 'at $84', so there is no second answer. Defects: (1) the key's 'just over, not on it' comes from the owner's rule (h62 F62 mirrored through h47 D47), but the question still has no \"house\": true. The previous checker's note says this was fixed, but the field is not in the file. The README says a house rule is asked as ours, so the q now says 'Under our rules'. (2) 'A climb back over that high says the idea is wrong' (why) and 'the drop you are bet"
   },
   "q11": {
    "status": "pass",
@@ -1859,7 +1859,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: B (6M of 20M float against 40M of 2B, f92/f97 ratio and percent of float). Key matches; choices 23-26, key ties 'Unclear without the prices', no tell. why/simple carry no computed number, so no calc is needed. Defect: the merged file still carries \"calc\": {} (an empty calc with no fn), which the validator may reject and which promises a computation that is not there. Drop the field (null below = delete it)."
+   "notes": "Own answer: B. 6M short against a 20M float, compared with 40M against a 2B float (f92 judge it as a ratio, f97 percent of float is the better gauge, f91 big companies have more shares short just from size). The key matches. Choices are 23-26 chars, and the key is not the longest. 'Unclear without the prices' is a real misunderstanding, and its wrong note is correct, since price does not change the ratio. No volume is given, so a days-to-cover reading is not offered as a choice. why and simple use only the question's numbers. Defect: the file still carries \"calc\": {}. The previous checker said"
   },
   "q14": {
    "status": "pass",
@@ -1936,8 +1936,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer from B26 (h26): pass, shorts only below the 200-day unless parabolic. Key matches, but the story hands over both conditions in the rule's own words ('trades above its 200-day average', 'isn't in a parabolic run') and the key repeats 'above its 200-day': the story-echo tell, and a thin story that tests nothing but reading. Fix: give the price and the 200-day as numbers from the question itself so the member must place the stock against the line; the key states the rule rather than the story. Choices 32-35, key not longest, two Pass and two Short kept."
+   "fixed": false,
+   "notes": "Own answer from h26 (B26, verified in sizing_rule.md section 9: 'shorts only below the 200-day, never above it unless it is a parabolic short'): pass. $48 is above the $41 200-day, and the story says the stock had no parabolic burst. The key matches. The member has to place the price against the line, so the key no longer just echoes the story. Choices are 32-35 chars, and the key is not the longest. Two Pass and two Short choices, so no lone-absolute tell. Each wrong note rests on h26. The numbers come only from the story. house is true, and the q is asked as ours. It does not give away q24 o"
   },
   "q27": {
    "status": "pass",

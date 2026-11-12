@@ -901,7 +901,7 @@
     "Stop orders": "Schwab says stop orders aren't eligible in extended hours, and Fidelity takes limit orders only.",
     "Stop-limit orders": "A stop-limit isn't a plain limit order. Schwab and Fidelity take only limit orders out of hours."
    },
-   "simple": "Limit orders: many brokers take nothing else outside regular hours, so you must name your price.",
+   "simple": "Limit orders: many brokers accept no other order type outside regular hours.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1227,7 +1227,6 @@
     "f9",
     "f18",
     "f29",
-    "f21",
     "f76"
    ],
    "wrong": {
@@ -1237,7 +1236,7 @@
    },
    "simple": "It is a thin early print, not a firm price, because with so few shares trading one order can move it.",
    "deeper": {
-    "trap": "An early print can look like a head start. Buying it is the trap: our rule is no new buys outside regular hours. Out of hours, an order may fill only partly, or at a worse price than in regular hours. Trading can settle once regular hours resume, so let the open speak first."
+    "trap": "An early print can look like a head start. Buying it is the trap: our rule is no new buys outside regular hours. Out of hours, an order may fill only partly, or at a worse price than in regular hours. The open comes from supply and demand at the open, so let it speak first."
    },
    "tier": "extended",
    "risk": {
@@ -1503,7 +1502,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key solved cold from f9/f58/f68: Limit orders. The why and lesson line are grounded, and the E58 close (f76) is correct. One defect in an unchanged wrong note: 'Those are what brokers keep out' states for every broker what f9 says only of 'many', which makes the market-order line overreach. Reworded to 'many' and grounded the worse-fill half on FINRA f18 (added to facts). Everything else is unchanged."
+   "notes": "Solved cold before reading the key: Limit orders (f9 SEC 'many brokerage firms currently accept only limit orders', re-read on the live investor.gov page; f58 Fidelity, live page: limit orders accepted, 'all other order types are ineligible'; f68 and f66 Schwab, live pages, verbatim). Key matches. No second answer: Stop-limit is ruled out by Fidelity's 'all other order types are ineligible' and Schwab's 'accepts only limit orders'. The key is the shortest choice, not a tell. Question 73 characters, choices 11 to 17. Wrong notes are grounded (f9+f18, f66+f58, f68+f58). The E58 close matches siz"
   },
   "q07": {
    "status": "pass",
@@ -1557,7 +1556,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key solved cold from f69/f4/f3: a thin print, not a firm price. The new key is 29 characters (not the longest), parallels 'A real trade, so a solid price' and has no lone hedge. The why, the wrong notes and the first-person lesson line (allowed for judgment, README 5) pass. One defect in the new deeper.trap: it calls buying 'at market' the trap and then says 'Many brokers take only limit orders this early'. That reads as if a pre-market limit buy were fine, which E58 replaced (f76: no new buys outside regular trading hours). Rewritten so the trap is buying at all, with our rule stated. Each se"
+   "notes": "Solved cold before reading the key: a thin print, not a firm price (story: a few hundred shares at 7:40 a.m.; f69 Schwab 'a single order can move a security's price more than it might during regular hours', verbatim on the live page; f4 SEC 'may not reflect the prices of those stocks during regular hours', verbatim on the live page; f3). Key matches. No second answer: 'A real trade, so a solid price' fails on 'solid'; 'The price it will open at' fails on f4/f25; 'A cue to buy at market now' fails on E58 (f76). Choices 25 to 30 characters, key ties the longest with a distractor of parallel shap"
   },
   "q16": {
    "status": "pass",

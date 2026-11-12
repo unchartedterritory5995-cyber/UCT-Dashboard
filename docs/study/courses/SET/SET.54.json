@@ -1855,12 +1855,11 @@
     "Short it; 5% up is overextended"
    ],
    "answer": "Pass; the buy point has passed",
-   "why": "Pass; the buy point has passed. Never buy more than 4% above the buy point, and this is 5%. Chasing costs size, not risk: the stop stays under the day's low, so the distance grows and the shares shrink. The next way in is the second entry, the first pullback on lighter volume that holds VWAP. Shorting is out too: we short only below the 200-day.",
-   "lesson_line": "Missed it means missed it. The pullback that holds is the next trigger.",
+   "why": "Pass; the buy point has passed. Never buy more than 4% above the buy point, and this is 5%. Chasing costs size, not risk: the stop stays under the day's low, so the distance grows and the shares shrink. Past 4%, our card says to use the second entry. Shorting is out too: we short only below the 200-day.",
+   "lesson_line": "Missed it means missed it. Past 4%, the next way in is the second entry.",
    "facts": [
     "c03",
-    "c14",
-    "m12",
+    "c04",
     "h11",
     "h12",
     "h10",
@@ -1873,9 +1872,9 @@
     "Buy now; the momentum is the proof": "Past 4% above the first bar's high is a chase. Our rule says never buy more than 4% above the buy point."
    },
    "house": true,
-   "simple": "Pass, because 5% is past our 4% chase line. The next way in is the first pullback that holds VWAP.",
+   "simple": "Pass, because 5% is past our 4% chase line. Past it, the card's next way in is the second entry.",
    "deeper": {
-    "trap": "Chasing looks like it only costs a little price. The real cost is size. The stop stays under the day's low, so every cent you chase widens the gap to the stop. That shrinks the shares you can own. Past 4%, the plan is not a smaller chase. It is the first pullback that holds VWAP."
+    "trap": "Chasing looks like it only costs a little price. The real cost is size. The stop stays under the day's low, so every cent you chase widens the gap to the stop. That shrinks the shares you can own. Past 4%, the plan is not a smaller chase. It is the second entry."
    },
    "tier": "core",
    "risk": {
@@ -2845,7 +2844,7 @@
    "format": "scenario",
    "criterion": "od.stop",
    "q": "What was this loss?",
-   "story": "TSEM, 2026-09-17: you buy a drive at 216.48 with the stop at 214.23. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
+   "story": "TSEM, 2026-09-17: you buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
    "choices": [
     "A reason to widen the next stop",
     "The plan working; a 1R loss",
@@ -2853,21 +2852,20 @@
     "A sign the setup does not work"
    ],
    "answer": "The plan working; a 1R loss",
-   "why": "The plan working: a 1R loss. The stop sat under the first bar's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 was short of the first trim at 3R. The rulebook allows a breakeven stop from 2R, ideally, but does not require it at 2.1R. A tight stop is not a free stop.",
+   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 was short of the first trim at 3R. The rulebook allows a breakeven stop from 2R, ideally, but does not require it at 2.1R. A tight stop is not a free stop.",
    "lesson_line": "The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
    "facts": [
     "d18",
     "d19",
-    "d33",
     "h24",
+    "c04",
     "h05",
-    "h02",
-    "c28"
+    "h02"
    ],
    "wrong": {
     "A reason to widen the next stop": "The stop only moves up, never down or wider. The stop under the day's low did its job.",
-    "A broken rule; the stop was tight": "The stop sat under the first bar's low, as the rule says. The rule was followed.",
-    "A sign the setup does not work": "One stop-out says little. In our scan, four in ten strict drives were stopped on the drive day."
+    "A broken rule; the stop was tight": "The stop sat under the day's low, as the rule says. The rule was followed.",
+    "A sign the setup does not work": "One stop-out says little about a setup. The loss was the 1R planned at the buy."
    },
    "house": true,
    "simple": "It was the plan working, because the stop sat where the rule puts it and the loss was the 1R you planned.",
@@ -3271,12 +3269,12 @@
     "c32",
     "h16",
     "h20",
-    "c31"
+    "h05"
    ],
    "house": true,
    "simple": "True, because we swing trade with our own trims at 3R and 5R, not SMB's scalp exits.",
    "deeper": {
-    "trap": "The trap is switching plans mid-trade. Selling a swing drive at the first slowdown, the way a scalp exits, turns our plan into SMB's. Switching from a hold to a scalp or back is a named mistake. Pick the plan before the entry and keep it: a third at 3R, a third at 5R, then the trail."
+    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are a third at 3R, a third at 5R, then the trail on the rest."
    },
    "tier": "expert",
    "risk": {
@@ -3577,8 +3575,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem asked 'which bar's high', so 'The opening print itself' was eliminable by the stem's grammar (a tell). Stem reworded; key, choices and notes unchanged and still grounded (c01, c02, c35, c37)."
+   "fixed": false,
+   "notes": "Key right on the card (c01, c02); ORB and Kicker distractors grounded (c35, c37). No tell, no leak."
   },
   "q08": {
    "status": "cut",
@@ -3589,14 +3587,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is right (m04, m05). But the why said 'Our card reads it the same way' and then cited c34's 'bought by about 9:40', ten minutes in, which a member can read as contradicting 'a 5-6 minute delay is unusual'. Now rests on c05 (over in minutes) instead."
+   "fixed": false,
+   "notes": "m04 and m05 verified verbatim on smbtraining.com (the-opening-drive-play-ua). Key True; c05 (over in minutes, low in the first bar) gives the house support. Hedged 'usually' matches the source."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Lone 'Not a drive' against three 'A drive ...' choices was a tell, and 'half size' repeats the q06/q30 distractor. 'A drive at half size' replaced by a wait-for-bar-2 misconception that c08 rules out (the test is the first 5-minute bar's volume). Why said 'the 5-minute break'; c09 says 'the ORB' (opening range break), so reworded to match."
+   "fixed": false,
+   "notes": "Key right (c08). c09 number (-0.02R) is in the card quote; m11 verified on smbtraining.com. Distractors are real misreadings."
   },
   "q15": {
    "status": "pass",
@@ -3637,14 +3635,14 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h13: more than 10% over the 10-day is skipped). 'Both of the two' and 'Neither of the two' are unnatural English; reworded plainly. Key stays not the longest."
+   "fixed": false,
+   "notes": "Key right (h13, c26). MXL figures in d15/d17. Lesson line 21 words. Easy for rung 5 but unambiguous."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False is right (c16). The why's last sentence ('under the Parabolic Short's own rules') rests on c17, which was not cited. Added."
+   "fixed": false,
+   "notes": "Key False right (c16, h10b); b05 verified verbatim on theonelanceb.com. Overlap with q67 (climax day belongs to the Parabolic Short) is inherent to the card's adjacent lines c16/c17; q67 tests ownership of the failed drive against EP and Kicker, a different ask."
   },
   "q34": {
    "status": "pass",
@@ -3667,8 +3665,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (A3/h01, A5/h03). The choice 'Tighten the stop to keep 1% size' mixes risk and size (1% is the risk, not the position size); reworded to what tightening actually keeps, the share count, as the deeper already says."
+   "fixed": false,
+   "notes": "Key right (h01/A3, h03/A5, d30). WDC numbers in d29. Choices balanced; 'mental stop' rebutted by h18/D41."
   },
   "q39": {
    "status": "pass",
@@ -3691,8 +3689,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story never said the stock drives, so 'the drive's rules' rested on elimination only; it now states a green first bar and a trade through its high. The lesson line ('a leader with less is a drive') and the deeper's last sentence stated a rule no quote gives (a sub-10% gap with no news can still be a Kicker or no setup). Both rescoped."
+   "fixed": false,
+   "notes": "Key right: 4.7% with no catalyst, not neglected, fails c36; up day fails c37; base not burst fails c16. Lesson line 20 words."
   },
   "q46": {
    "status": "pass",
@@ -3722,7 +3720,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Giveaway: the choice 'A reason to re-enter at once' and its note ('we buy again only on a new trigger') answer q53 (PAYC: buy again? only on a new trigger). Replaced with a common wrong reading grounded in c28, and the re-entry lines left to q53."
+   "notes": "Key right, but two problems. (1) The wrong note for 'A sign the setup does not work' says 'four in ten strict drives were stopped on the drive day' (c28), which is q55's key, and q51 comes before q55. (2) The why and a wrong note say 'the stop sat under the first bar's low', which no cited quote holds (d18's quote ends at the stop price; the first-bar-low clause is only in the dossier text outside it), and the story never said where the stop sat, so 'a broken rule; the stop was tight' could not be ruled out from the story. Story now states the stop is under the day's low (the question grounds "
   },
   "q52": {
    "status": "pass",
@@ -3733,8 +3731,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story and trap said PAYC 'bounces for the rest of the day'; no cited quote supports it (d23's quote ends at the 10:35 stop; the recovery is outside it). Story, why and trap now rest only on d22/d23 and use the urge to re-enter instead. Choices balanced; key unchanged (h28, h29, h02)."
+   "fixed": false,
+   "notes": "Key right (h28/B21, h29/E56, h02/A4). PAYC facts d22/d23 match the story. Distractors are real urges."
   },
   "q54": {
    "status": "pass",
@@ -3745,8 +3743,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The deeper counter says 'a third comes off at 3R and 5R' but no cited fact supports the trims; h05 and h20 added. Every number (41, 59, 21, 41.5%, 87.8%, 17.1%, 9.8%, 2x, RS 80, 10:00, 3%) verified in dossier section 12 (bold markers aside). Key and choices pass."
+   "fixed": false,
+   "notes": "Key right: 41.5% (d31) is about four in ten; 87.8% trap is real. All numbers in d31/d33/d35. Leak from q51's old wrong note is fixed under q51."
   },
   "q58": {
    "status": "pass",
@@ -3770,7 +3768,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The True statement spelled out the trim plan (a third at 3R, a third at 5R, then trail), which answers q18 ('when does the first third come off?') and q42 (no second trim, False). The statement now tests only that SMB's scalp exits are not ours (m09 verified on smbtraining.com, c32, h16); the trims stay in the why. 'Borrow the entry' in the old lesson line had no cited fact; replaced."
+   "notes": "Key True right (m09 verified, c32, h16). But the deeper says 'Switching from a hold to a scalp or back is a named mistake', which is q62's key ('Switching plans mid-trade'), and q61 sits right before q62. Also 'selling at the first slowdown, the way a scalp exits' describes SMB's scalp exits with no quote. Deeper rewritten without either; c31 dropped, h05 added for 'a third at 3R'."
   },
   "q62": {
    "status": "pass",
@@ -3799,8 +3797,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key was the longest choice (31 vs 30/26/24 chars), a length tell. Distractors lengthened so the closest wrong one is longest; notes re-keyed. Key unchanged (c04, h24, k02; Kullamagi's 'The stop is at the lows of the day' verified on qullamaggie.com)."
+   "fixed": false,
+   "notes": "Key right (c04, h24/F62). 'Exactly on the first bar's low' is the real F62 trap. k02 'stop is at the lows of the day' verified on qullamaggie.com earlier; supports, does not key."
   },
   "q04": {
    "status": "pass",
@@ -3817,8 +3815,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Lone 'No long' against three 'Buy' choices was a tell; 'Buy it; the volume overrides' replaced by a second no-long choice with a wrong reason (m11 grounds that elevated volume is what a drive wants). 'It is a hard rule' in the why and a note was in no cited quote (h10 does not say it); removed."
+   "fixed": false,
+   "notes": "Key right (h10/B26, c23). No choice offers the parabolic-long exception, and the why names it, so no second defensible key among the choices. Noted: the why's exception line previews q57, acceptable as teaching."
   },
   "q07": {
    "status": "pass",
@@ -3853,8 +3851,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: a drive could run to the 9:30 to 10:00 high, pull back, and break that same high at 10:05, which is the second entry (c14) as well as an ORB. Stem now says nothing broke the first 5-minute bar's high before 10:00, so no drive and no second entry fired; the second-entry note is re-grounded on c14 ('after the drive')."
+   "fixed": false,
+   "notes": "Key right (c35). Green yesterday rules out the Kicker (c37); 'nothing broke the first 5-minute high' rules out the drive and the second entry. Lengths 135 chars, under 140."
   },
   "q17": {
    "status": "pass",
@@ -3890,7 +3888,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two-way giveaway: the key 'Pass; wait for the first pullback' answers q34 (next entry after a missed trigger = a light pullback that holds VWAP). Key reworded to c03's own words. Story now states the stock is a leader's drive above its 200-day, which the short wrong-note and why rely on (c23, h10)."
+   "notes": "Key right (c03, h11, h12). But the why, simple, lesson line and deeper all spell out q34's key ('the first pullback on lighter volume that holds VWAP'), and q24 comes before q34. Rewritten to name only 'the second entry' (c03's own words); m12 and c14 dropped, c04 added for 'the stop stays under the day's low'."
   },
   "q26": {
    "status": "pass",
@@ -3901,8 +3899,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False is right on the card (c15). The last why sentence stated as fact that the first-bar-low stop 'belonged to the first entry, not to this one', which reads against A3's default (day's low) for any entry. Scoped to the card."
+   "fixed": false,
+   "notes": "Key False right (c15); m14 verified on smbtraining.com ('use the retracement high/low as a price to place your stop'). Noted: the stem links the second entry to a pullback, which helps q34; that is q34's design (one pullback choice), outside this set."
   },
   "q28": {
    "status": "pass",
@@ -3925,8 +3923,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c11 settled as a warning, D-136; A4). But the question asks 'What does the rulebook say?' and the rulebook (section 9) has no weak-close line; the warning is the card's. Asked as 'our rules'."
+   "fixed": false,
+   "notes": "Key right (c11, h02/A4); 24% under one third is from the story. Asked as 'our rules', correct since the warning is the card's."
   },
   "q42": {
    "status": "pass",
@@ -3943,8 +3941,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: the why and deeper put SMB's line in our mouth ('We do not trust trends'; 'SMB's line is that we do not trust'). m08's 'we' is SMB's. Attributed plainly."
+   "fixed": false,
+   "notes": "Key right (h03b/A5). m08, m10, m13 verified on smbtraining.com and attributed to SMB. 1R not a trim level (h05)."
   },
   "q56": {
    "status": "cut",

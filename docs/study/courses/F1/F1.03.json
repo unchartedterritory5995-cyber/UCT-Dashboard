@@ -774,7 +774,7 @@
     "f20"
    ],
    "wrong": {
-    "It waits until $12.40 has size": "A market order doesn't wait. It generally executes right away. A limit order is the one that waits.",
+    "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
     "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
     "Some at $12.40, rest cancelled": "A market order doesn't drop the rest. In the SEC's example, the other 500 shares could execute at a higher price."
    },
@@ -1056,18 +1056,17 @@
    "skill": "basics.spread",
    "rung": 9,
    "format": "tf",
-   "q": "A tight spread shows a stock is liquid enough for your size.",
+   "q": "Two stocks show the same tight spread. That means they are about equally liquid.",
    "answer": "False",
-   "why": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you about liquidity. The spread shows the best prices, not how many shares sit there. Check the size at the price and how much the stock trades before you send size.",
-   "lesson_line": "A tight spread is a start. Size and volume finish the check.",
+   "why": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you into thinking they are equally liquid. The spread only shows the best prices. Liquidity means buyers and sellers ready to trade with your order. Check how much each stock trades, not just the spread.",
+   "lesson_line": "Same tight spread, different stocks. Check how much each one trades before you call it liquid.",
    "facts": [
     "f27",
-    "f10",
-    "f28",
     "f17",
-    "f5"
+    "f10",
+    "f3"
    ],
-   "simple": "False, a thin stock can show a tight spread with few shares behind it, so check size and volume too.",
+   "simple": "False, a barely traded stock can show the same tight spread as a busy one, so check how much it trades too.",
    "deeper": {
     "example": "Picture two stocks, both quoted with the same tight spread. One trades heavily every day. The other barely trades. On the screen they look the same. Send a big market order into the thin one and it can fill at price after price. The spread was tight, but the market behind it was not deep."
    },
@@ -1185,8 +1184,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'ask' is right (f2). The resolver removed q06's key from the why, but the lesson_line still says 'A market buy pays at or near the ask'. That is q06's key and almost word for word q06's own lesson_line, at the same rung. Fix: a lesson_line about q02's own term, and f7 is dropped because nothing cites it any more."
+   "fixed": false,
+   "notes": "Derived 'ask' from f2 before reading the key; matches. f2 and f3 checked against s1 as quoted. Bank words are all real quote terms, and none fits the blank except ask. The why and simple define the bid and the spread in passing (q01, q03, q04 territory), but w1 teaches all three before any question and q01 and q04 do the same in return, so this is recall of the walkthrough, not a giveaway. The lesson_line no longer carries q06's key. Every claim sits on f1, f2, f3, f31."
   },
   "q03": {
    "status": "pass",
@@ -1203,8 +1202,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f8). The why says flat out 'A market order fills at or near the current bid or ask, not the last trade'. f7 hedges ('generally will execute'), and the plan says to state the hedge where the source hedges. 'not the last trade' also overreaches: the fill can match the last trade by chance. The simple has the same flat claim. Fix adds 'generally' and says the fill 'can differ from' the last trade."
+   "fixed": false,
+   "notes": "False derived from f8 before reading the key. The SEC Types of Orders page (s2) and Understanding Order Types page (s3) were downloaded fresh, and f8 and f7 are word for word on them. The why now hedges like the source ('generally', 'can differ'), and the fast-market line rests on f20. The absolute 'will get' mirrors the misconception the SEC names, so it is the belief being tested, not a tell. The lesson's six tf items are still 3 True / 3 False. Note for the lesson, not this question: q06's wrong note ('The last trade already happened. Your fill comes from the quote as it stands now.') and q"
   },
   "q06": {
    "status": "pass",
@@ -1246,7 +1245,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 'Some at $12.40, rest higher' derived from f10 and f11; it matches and is not the longest choice. 'Some at $12.40, rest cancelled' pairs with the key, but it is a real belief that fails for a different reason, so it is kept. Defect: the why says that in the SEC's example 500 of 1,000 shares 'filled' at the quote. f11 is hypothetical ('The order could have 500 shares execute at $3.00'), and the wrong note has the same overstatement. Fix uses 'could'. Every number is from the story or from f11."
+   "notes": "Key derived from the story plus f10 and f11 before reading it; matches. f9, f10 and the f11 SEC example are word for word on the fresh s3 page. Not the longest choice. $12.40 fits B23, and a market buy fits E57. Defect: the wrong note for 'It waits until $12.40 has size' ends 'A limit order is the one that waits'. No fact cited on q12 supports that (f12, f14 and f21 are not on the question). It also leans toward q15's answer (a limit at the bid may never fill) at the same rung. Fix: the note now argues only from f9 and f10, with no limit-order claim. The other two notes and every other field s"
   },
   "q13": {
    "status": "pass",
@@ -1281,8 +1280,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Three defects. (1) Thin story: 'which order type caps the price you pay?' is answered by f14's definition alone, and the after-hours story has no effect on the key at rung 8. (2) It is answered earlier: q15 (rung 5) already teaches 'A limit order protects your price' in its why and lesson_line. (3) 'A buy at today's closing price' is not an order type, so it is close to silly, and 'If you did buy here' invites a buy that E58 forbids. Rewritten so the story decides the key: what the after-hours quote does (f15, f16), with f38 and our E58 (f39) taught in the why. Only facts already in the file a"
+   "fixed": false,
+   "notes": "Derived 'a wider spread' from f15 before reading the key; matches. f15, f16 and f38 were confirmed word for word on a fresh download of the SEC extended-hours bulletin (page dated June 6, 2022). f38 says 'currently', and the why's 'Many brokers accept only limit orders after hours' still holds at the big US brokers as of 2026-11. The risk entry already flags the date. The earnings story is the real trap (news feels like liquidity), and the key keeps the SEC's 'generally' as 'expect'. Not the longest choice. The why teaches E58 as ours and agrees with the rulebook. The question does not ask the"
   },
   "q19": {
    "status": "pass",
@@ -1294,7 +1293,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "False is right: f10 (SEC, Tier 1) plus f27 and f28. Two defects. (1) Tell: 'on its own' flags insufficiency, so the statement leans False. The flat 'A tight spread shows ...' still reads clearly False on f10, f27 and f28, and other flat statements in the set are True (q03, q19). (2) The deeper uses numbers no fact, calc or question gives ('a penny wide', 'millions of shares a day'). They are replaced with words grounded in f27 and f10. Overlap with q16's lesson_line is noted; the formats differ and the support differs (f27), so it is kept, as the resolver decided. Text changed: the integrator "
+   "notes": "False is right, and f27 was checked in context on the fresh Fidelity page. JKL is a stock trading about 10 million shares a day, set against one trading 100, so 'heavily traded stock and a barely traded one' is a fair reading. Defect: the question is answered earlier in the lesson. q16 (rung 7) has the lesson_line 'I want a tight spread AND real size at the price. One without the other costs you.' and the deeper 'Read spread and size together, never one alone.' q12's lesson_line says 'Read the size before you send size'. Both state the 'for your size' version of q20 outright before rung 9, and"
   },
   "q21": {
    "status": "pass",
@@ -1305,8 +1304,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Derived 'It becomes a market order' from f13 before reading the key; matches. Not the longest choice. 'It becomes a limit order' pairs with the key, but it is the real stop-limit confusion, so it is kept. 'It waits for a better price' is close to silly: no one holds the belief that a triggered stop waits for a better price. It is replaced with a real one, mixing up a stop order with a price alert, which also ties to D41 (a real stop with the broker). It fails against f13 and f9 for a different reason than the other two wrong choices. It does not answer q11; it teaches the trigger rule q11 then"
+   "fixed": false,
+   "notes": "Derived 'It becomes a market order' from f13 before reading the key; matches. f13 and f9 are word for word on the fresh s3 page. Not the longest choice. 'It becomes a limit order' is the real stop-limit mix-up, and the stem says 'a stop order', which the SEC defines apart from a stop-limit, so there is no second right answer. 'It only sends you an alert' is a real beginner belief, and it ties to D41. q22 (rung 3) teaches the trigger, and q11 (rung 4) applies it to a quote with the bid as the fill. That is a ladder, not a giveaway. Minor: the 'fills at exactly the stop' note nearly repeats q11'"
   }
  }
 }

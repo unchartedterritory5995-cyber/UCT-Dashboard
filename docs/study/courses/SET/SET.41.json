@@ -785,6 +785,12 @@
    "source": "s6",
    "quote": "To be decisive, prices must not only push through the line but close beyond it by a margin equal to about 3% of the stock's [or commodity's] price.",
    "claim": "Brandt, quoting the classic rule: a decisive break closes beyond the line by about 3% of the price."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "A bull flag needs a 20% pole in the 20 sessions before and a pause of 3 to 15 sessions",
+   "claim": "Card: a bull flag needs a 20% pole in the 20 sessions before and a pause of 3 to 15 sessions."
   }
  ],
  "walkthroughs": [
@@ -1485,7 +1491,7 @@
    ],
    "answer": "Not this setup; pass on it",
    "why": "Not this setup. Our card rules out a stock that sits under falling averages acting as resistance before the entry. Kell says it is best to avoid a downtrend when the moving averages act as resistance, guiding the stock lower. A trendline break wants the fast averages already reclaimed or held on the trigger day.",
-   "lesson_line": "Falling averages overhead are supply. Wait for a leader.",
+   "lesson_line": "Under falling averages that act as resistance: not this setup.",
    "facts": [
     "c32",
     "x12",
@@ -1592,15 +1598,14 @@
     },
     "round": 1
    },
-   "why": "Pass. A gap open more than 4% above the line is no trade, and 41.80 is 4.5% over 40.00. Chasing costs size, not risk. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "why": "Pass. A gap open more than 4% above the line is no trade, and 41.80 is 4.5% over 40.00. Our rulebook says never buy more than 4% above the buy point.",
    "lesson_line": "More than 4% over the line is no trade. Let it go.",
    "facts": [
     "c13",
-    "h11",
-    "h12"
+    "h11"
    ],
    "wrong": {
-    "Buy at market; it has momentum": "Over the 4% cap, the stop stays far away and the shares shrink. That is a chase.",
+    "Buy at market; it has momentum": "Momentum does not lift the cap. A gap open more than 4% over the line is no trade.",
     "Buy half size; less to lose": "Half of a chase is still a chase. A gap open more than 4% over the line is no trade.",
     "Buy; the open is above the line": "Above the line is not enough. A gap open more than 4% over the line is no trade."
    },
@@ -1827,14 +1832,13 @@
     "The 200-day simple moving average"
    ],
    "answer": "The old high where the line starts",
-   "why": "The old high where the line starts. Our card calls the first anchor high overhead supply. It is context, not a rule. Bulkowski found price reached the start of the line 77% of the time in his study. So expect a fight there. It is not a target, and no pattern target replaces the R-based trims.",
+   "why": "The old high where the line starts. Our card calls the first anchor high overhead supply. It is context, not a rule. On a break, the prior day's high and the 200-day sit under the price, and 3R is a trim level.",
    "lesson_line": "The anchor high is overhead. Know where it is before you buy.",
    "facts": [
     "c31",
-    "x10",
-    "c20",
     "c12",
-    "c07"
+    "c07",
+    "c20"
    ],
    "wrong": {
     "The prior day's high at the trigger": "The trigger trades above the prior day's high, so it sits under the price. Supply is the old high.",
@@ -1842,7 +1846,7 @@
     "The 200-day simple moving average": "A stock we buy closes above its 200-day, so the 200-day is under the price, not overhead."
    },
    "house": true,
-   "simple": "The old high where the line starts, because price often climbs back to that high and sellers wait there.",
+   "simple": "The old high where the line starts, because our card calls that first anchor high overhead supply.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1872,10 +1876,9 @@
    "lesson_line": "The flag is the setup. The line is how you get in.",
    "facts": [
     "c39",
-    "c44",
-    "c37",
-    "c29",
-    "c40"
+    "c46",
+    "c40",
+    "c29"
    ],
    "wrong": {
     "Line is the setup; flag is the context": "When the line is the top of a flag, the flag is the setup and the line is its trigger.",
@@ -2028,28 +2031,30 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "tl.volume",
-   "q": "What was the flaw in this trade?",
-   "story": "A break barely clears the line, closing 0.4% over it on thin volume. You buy it. Next day it closes back under, and the stop trades.",
+   "q": "Which does this trade match?",
+   "story": "A break barely clears the line, closing 0.4% over it on thin volume. You buy it, stop a few cents under the day's low. Next day it closes back under, and the stop trades.",
    "choices": [
-    "The break itself was too weak",
-    "The stop was too tight for the line",
-    "Nothing; valid breaks just fail",
-    "Buying before the close confirmed it"
+    "The card's named failure mode",
+    "A stop set too tight for the line",
+    "A buy past the 4% chase limit",
+    "Proof the setup does not work"
    ],
-   "answer": "The break itself was too weak",
-   "why": "The break itself was too weak. The Insider says a break with volume matters more than one without. Our card lists this failure: a weak-volume break that barely clears the line closes back under it, and the stop goes. The close back under is a warning, and the stop is the exit.",
-   "lesson_line": "A barely-there break on thin volume is a weak break.",
+   "answer": "The card's named failure mode",
+   "why": "The card's named failure mode. Our card lists it: a weak-volume break that barely clears the line closes back under it the next day, and the stop goes. The stop is the exit, so the trade ends there.",
+   "lesson_line": "A barely-there break on thin volume is the card's failure mode.",
    "facts": [
     "c33",
-    "x07"
+    "c15",
+    "c13",
+    "h02"
    ],
    "wrong": {
-    "The stop was too tight for the line": "The stop followed the rule. The weakness was the break itself.",
-    "Buying before the close confirmed it": "The day did close over the line, 0.4% over it. A buy at the close would have taken the same weak break.",
-    "Nothing; valid breaks just fail": "Valid breaks can lose, but this one showed its weakness on the day: thin volume and a close barely over the line."
+    "A stop set too tight for the line": "The stop sat a few cents under the day's low, as the rule says. The weak spot was the break.",
+    "A buy past the 4% chase limit": "The close was only 0.4% over the line, well inside the 4% limit.",
+    "Proof the setup does not work": "One loss proves nothing. This is the failure our card names, a weak break."
    },
    "house": true,
-   "simple": "The flaw was the break itself, because it barely cleared the line on thin volume.",
+   "simple": "It matches the failure our card names: a thin-volume break that barely clears the line falls back, and the stop goes.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2746,9 +2751,9 @@
    "q": "In our test the stop never moved and no trims were taken. Many reached 3R first, yet 78.8% were stopped. What do we do?",
    "choices": [
     "Sell into strength, then trail",
-    "The line itself is a bad signal",
-    "Wider stops would have won more",
-    "Drop the stop and let winners run"
+    "Stop trading line breaks",
+    "Widen the stop to stay in longer",
+    "Drop the stop; let winners run"
    ],
    "answer": "Sell into strength, then trail",
    "why": "Sell into strength, then trail. In our test the stop never moved and nothing was sold early, and 78.8% were eventually stopped. Many had reached 3R before the stop. That is what a fixed stop without trims does. So we sell a third at 3R, a third at 5R, and trail the rest.",
@@ -2763,9 +2768,9 @@
     "c15"
    ],
    "wrong": {
-    "Drop the stop and let winners run": "The stop is the exit and it stays. The fix is to sell into strength at 3R and 5R, not to trade without a stop.",
-    "The line itself is a bad signal": "Many reached 3R first, so the entries worked. The exits gave the gains back.",
-    "Wider stops would have won more": "The test points at the exits, not the stop's width. Our stop sits a few cents under the trigger day's low."
+    "Stop trading line breaks": "Many reached 3R first, so the entries worked. The exits gave the gains back.",
+    "Widen the stop to stay in longer": "The stop never moves down or wider. The test points at the exits, not the stop.",
+    "Drop the stop; let winners run": "The stop is the exit and it stays. The fix is to sell into strength at 3R and 5R."
    },
    "house": true,
    "simple": "Sell into strength and trail the rest, because a stop that never moves gives back what winners already made.",
@@ -2799,7 +2804,7 @@
    ],
    "answer": "Stop under 29.40; a third at 3R",
    "why": "Stop a few cents under 29.40, a third off at 3R. The stop goes a few cents under the trigger day's low as it stands at entry, not on the line. A third comes off at 3R, a third at 5R, and the rest trails.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
+   "lesson_line": "The stop goes under the day's low, not on the line.",
    "facts": [
     "c12",
     "c15",
@@ -3311,8 +3316,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Two questions answer each other: q08's 3% distractor, its why (two sentences on the 3% filter) and its deeper trap teach exactly what q64 (TF) and q65 (scenario) test, so q08's feedback hands over both keys. Replaced the 3% distractor with a volume-only misread grounded on c12, cut the 3% teaching from why and deeper, dropped c14 from facts. Key no longer tied for longest."
+   "fixed": false,
+   "notes": "Key from c12 (verbatim in card), h22, h23. Distractors are real misreads; no length tell; why does not hand over q09/q64/q65 any more. D-003 still pending (risk recorded)."
   },
   "q09": {
    "status": "cut",
@@ -3396,7 +3401,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Lone-No tell: the key was the only pass against three buy choices (the pilot's lone Yes/No tell). 'Fine in a strong market' rested on an absence ('no market exception') rather than a quote; replaced by a pass for a reason the story never gives. Kell x12 is unreachable to this checker (web.archive.org blocked); the key rests on c32 alone, a proposed card line (owner flag)."
+   "notes": "Key holds on c32 (verbatim). lesson_line overreached: 'Wait for a leader' is a non sequitur (the story stock may be a leader; the problem is the averages) and 'supply' is not the card's word (resistance). lesson_line only."
   },
   "q23": {
    "status": "pass",
@@ -3414,7 +3419,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second defensible answer: 'Pass; buy a dip back under 4%' also answers No to 'Buy the open?', and its exclusion rests on 'A later dip does not reopen it', which no fact says. The card's own measure is fill vs line (<= 4%), and rulebook C28 (which wins) only bars buying more than 4% above the buy point. Replaced D with a real misunderstanding (above the line is enough) and dropped the unsupported sentence."
+   "notes": "Key and calc right (1.80/40.00 = 4.5%; c13 gap rule). But the why ('Chasing costs size... the distance grows and the shares shrink') hands over q65's key ('Fewer shares for the same risk'), and it is untrue here: bought at the open of a gap day, the stop goes under the trigger day's low as it stands, which is the open, so the stop is not far away. Same flaw in the momentum wrong note. Dropped h12."
   },
   "q26": {
    "status": "cut",
@@ -3456,19 +3461,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem asked for the 'first overhead supply', but c31 says the first ANCHOR high is overhead supply, not that it is the first supply; g4 (a key level just above) is taught in this lesson and could sit closer. Stem now asks which level our card calls overhead supply."
+   "notes": "Key right (c31, card mistakes list). The why's 'It is not a target, and no pattern target replaces the R-based trims' hands over q59's key (False) and q40's key (trims replace a target). Removed that and the 77% line (x10) it leaned on; simple's 'sellers wait there' had no quote."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The why said 'a trendline break on its own needs no pole' with no cited fact, and the lesson never taught what makes the story a flag. Now grounded in the card's bull-flag lookalike (new fact c44, verbatim in the card's lookalikes). Add c44 (top-level new_facts) to the lesson's facts."
+   "notes": "Key right (c39). But the why's numbers (20% pole in the 20 sessions before, a 3 to 15 session pause) are in no cited quote: the earlier checker's new fact was filed as c44, which collides with the existing c44 (the 10/21 EMA gate), so the pole quote never reached the lesson. New fact c46 is verbatim in the card's 02-bull-flag lookalike tell. Dropped c44 and c37 (not used). Lesson needs c46 added to its facts."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong-note logic flaw: the trendline note said a trendline break has the fast EMAs 'reclaimed or held' and then 'This stock lost them first', but 'reclaimed' already means lost first, so the note contradicts the card. The launchpad note ('fell under its 20 EMA first') did not rule a launchpad out. Key was the longest choice by one char and echoed the story's '20 EMA'. Key reworded to the card's 'after a decline' (c40); notes now use the card's real tell (the closes under the 20 EMA; 'already reclaimed or held' vs this bar taking them back; launchpad needs the 8/21/50 pinch)."
+   "fixed": false,
+   "notes": "Key from c40 (verbatim): 12 of 15 closes under the 20 EMA, a 4-day range, the reclaim. Notes use the card's own tells (c41, c37, c45). No length tell."
   },
   "q35": {
    "status": "pass",
@@ -3486,7 +3491,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the stem 'What was the weak spot?' is echoed by the key 'The break itself was too weak'. Stem reworded so 'Nothing; valid breaks just fail' is a live contender and the key no longer mirrors the question; simple updated to match. Key and notes otherwise grounded (c33, x07). D-069 flag stands."
+   "notes": "Second defensible answer: 'Nothing; valid breaks just fail'. q48 (LBTYA, 0.39% over the line, stop traded, 'You followed every rule') keys 'A planned loss', and under D-069's default volume is a cue, so a thin-volume break is still valid and the loss is planned. The card files this as its failure mode, not a mistake. Re-asked as which case it matches; the why no longer quotes x07, which handed over q52's key."
   },
   "q38": {
    "status": "pass",
@@ -3563,8 +3568,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Thin story / rule never taught: the story never names a high tight flag and 'doubles in a few weeks' is an ungrounded number; no cited fact defines a high tight flag, so a member who learned c39 (a flag's line is its trigger, q33) would defensibly pick 'Through the falling line'. Story now names the pattern, so the item tests c43 as cited."
+   "fixed": false,
+   "notes": "Story names the high tight flag; key from c43 (verbatim); why separates it from q33's plain flag (c39). No length tell."
   },
   "q51": {
    "status": "pass",
@@ -3594,19 +3599,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Thin stem: 'What does that show?' gives only the 78.8% stopped, from which 'The line itself is a bad signal' is a defensible reading; the key needs the 3R fact, which sits only in the why. The key is also a prescription, not something the stat 'shows'. Stem now carries 'Many reached 3R first' (d22, no number added) and asks what we do; 'no trims were taken' avoids echoing the key's 'Sell'."
+   "notes": "Key right (d22, d25, h05, h20, A11). Tell: the stem asks 'What do we do?' but two distractors ('The line itself is a bad signal', 'Wider stops would have won more') are conclusions, not actions, so only two choices answer the question. Recast as actions; 'Widen the stop' is now ruled out by h02 (never wider)."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Ungrounded number: the key's 29.35 (five cents under 29.40) comes from no quote or calc; the card and rulebook say only 'a few cents under'. Choices now say 'under 29.40' vs 'on the line' (all 31 chars, no length tell); why, simple and notes follow."
+   "notes": "Key right (c15, h24, h01, c20, h20); 2x2 choices, no tell. lesson_line contradicts the item: 'Write it before the open' while the stop depends on the day's low so far, which is only known during the day. lesson_line only."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'B's wider stop buys fewer shares' is wrong for two different stocks: shares also depend on price (h03). At the same risk the wider stop gives a smaller POSITION. The why also claimed A has 'both' cues though the story never gives drying volume, and simple said B has 'none of that' though the story never says B is loose. Reworded to what the story states."
+   "fixed": false,
+   "notes": "Key A holds under both readings of size: at the same risk B's 4% stop buys a smaller position (h03), and Yellow is smaller and fewer (g5/F65). Why speaks only to cues the story gives."
   },
   "q58": {
    "status": "pass",
@@ -3629,8 +3634,8 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the key 'Take it; above 200-day, tight drift' echoed the stem's own words ('drifts tight'). Key now names only what the member reads off the chart. MCK bars on the asof date were not re-read by this checker; the 200-day read rests on d08 (trigger day)."
+   "fixed": false,
+   "notes": "Re-read MCK daily bars: 2025-02-24 close 605.76 over a 200-day SMA of 567.79; trigger 2025-02-25 low 601.45 (stop 601.40, d06). Key right; distractors grounded (c09, c29)."
   },
   "q62": {
    "status": "pass",
@@ -3659,8 +3664,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True verified against c44 (card line 373, verbatim). Only defect: 'also' has no antecedent in a shuffled bank, so the statement reads as a fragment. Dropped it."
+   "fixed": false,
+   "notes": "True from c44 (card line 373, verbatim). Overlaps q22/q34 in teaching but gives no other key away. D-021 risk recorded."
   }
  }
 }

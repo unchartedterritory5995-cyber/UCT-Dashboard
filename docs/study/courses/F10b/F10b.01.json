@@ -1506,8 +1506,8 @@
     "Nothing, fees only hit when you cover"
    ],
    "answer": "Redo the math at the new rate",
-   "why": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. Our rule skips a short when the borrow fee is high. At 85% a year, far above the 1.5% average SEC staff found, I'd cover.",
-   "lesson_line": "The borrow rate floats. When it jumps, redo the math. A high fee fails our rule.",
+   "why": "Redo the math at the new rate. The borrow rate isn't locked at entry. Interest accrues daily at the current rate, so your fee now builds at 85% a year. Schwab gives this kind of overnight jump as an example. It says the short may no longer make sense. At 85% a year, far above the 1.5% average SEC staff found, I'd cover. As a new trade it would fail our rule, which skips a short when the borrow fee is high.",
+   "lesson_line": "The borrow rate floats. When it jumps, redo the math. As a new trade, a high fee fails our rule.",
    "facts": [
     "f60",
     "f61",
@@ -1520,12 +1520,12 @@
    ],
    "wrong": {
     "Nothing, your entry rate is locked": "The rate floats. Interest accrues daily at the prevailing rate, not your entry rate.",
-    "Add more, a pricey borrow means a drop": "A costly borrow means lendable shares are scarce. It doesn't promise a drop, and adding raises your bill.",
+    "Add more, a pricey borrow means a drop": "A high fee often comes from scarce lendable shares. It doesn't promise a drop, and adding raises your bill.",
     "Nothing, fees only hit when you cover": "The fee accrues every day you're short. Waiting just runs up the bill."
    },
-   "simple": "Redo the math at 85% a year. A fee that high fails our rule, so I'd cover.",
+   "simple": "Redo the math at 85% a year, because at that fee the trade would fail our rule as a new trade.",
    "deeper": {
-    "trap": "The trap is anchoring on your entry rate. The fee floats with the market for the shares. Adding more at a costly borrow raises the bill and bets on a drop the fee does not predict."
+    "trap": "The trap is anchoring on your entry rate. The fee floats with the market for the shares. Adding more at a costly borrow raises the bill and bets on a drop the fee does not promise."
    },
    "tier": "expert",
    "risk": {
@@ -1784,14 +1784,14 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct under f35, f36, f37 (Tier 1). Fix: the stem no longer has the member planning a premarket short. Our rulebook bars new buys outside regular hours (E58), and shorts mirror our longs (D47). The question only needs the test's state before the open, so it now asks just that. Choices, why, deeper and wrong notes unchanged."
+   "fixed": false,
+   "notes": "Decided cold: No, the trip is judged on regular-hours trades only (f35, f36, f37, SEC Rule 201 FAQ 1.2 and 1.1, confirmed live 2026-11-12). The story's 'Nothing restricted it yesterday' rules out a carry-over from a prior trip (f18), so the key is the only defensible choice. Choices are balanced (two Yes, two No, 29 to 34 characters). $40.00 and 12% come from the story; 9:30 and 4:00 from f36; 10% from f26. The deeper line on how long it stays on repeats the rule q17 tests, but q17 is rung 7 and q21 rung 8, so it does not spoil it."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Fix. (1) The story had the member already short a hard-to-borrow stock at 20% a year, a short D48 says to skip; it now starts from a low fee, so only the overnight jump makes the fee high. (2) Re-price the trade reads as changing an order price; the key is now Redo the math at the new rate and the stem asks what to do first, which matches the why ending I'd cover. The why says Schwab gives this kind of overnight jump as an example (f60) with no 20% left. The owner flag (does D48 govern a held short) stands."
+   "notes": "Key is right: the rate floats and accrues daily at the prevailing rate (f58), Schwab's own 20% to 85% overnight example says the short may no longer make sense (f60, f61). Breaks: (1) the why and simple say an 85% fee 'fails our rule, so I'd cover'. D48 (f82) says 'Skip a short', an entry rule; whether it governs a short you already hold is the open owner flag noted in verify, so the house claim overreaches. The fix keeps 'I'd cover' as the mentor's own judgment (README voice: first person for judgment, backed by f61) and applies D48 only to a new trade. (2) The wrong note for 'Add more' rever"
   },
   "q23": {
    "status": "pass",
@@ -1802,8 +1802,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix: three choices began We short and only the key began We skip, an odd-one-out tell. The half size distractor is replaced with We skip it only if the fee is high, which tests D48's either-trigger reading. Its wrong note and the why (Either one is enough) come from f82. Key D48 per sizing_rule.md section 9."
+   "fixed": false,
+   "notes": "Decided cold from sizing_rule.md section 9, D48: 'Skip a short when the stock is hard to borrow or the borrow fee is high.' Hard to borrow alone triggers it, so 'We skip the short trade' is the only defensible choice; 'only if the fee is high' fails the 'or'. No exception for setup grade or a paid fee exists in section 9 (B26's parabolic exception is about the 200-day line, not borrow). Choices balanced (two skip, two short), key is the shortest. It answers no other question. Note for the lesson, outside this scope: q19 and q20 whys (rungs 7 and 8) restate D48, so they would give q24 away only"
   }
  }
 }

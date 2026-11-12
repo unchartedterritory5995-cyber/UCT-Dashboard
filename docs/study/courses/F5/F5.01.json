@@ -640,6 +640,12 @@
    "source": "s13",
    "quote": "Target's earnings follow updates from other retailers, including Walmart and Home Depot.",
    "claim": "CNBC counts Target among the retailers, beside Walmart and Home Depot."
+  },
+  {
+   "id": "f79",
+   "source": "s11",
+   "quote": "NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.",
+   "claim": "NVIDIA describes itself as a company in AI and accelerated computing."
   }
  ],
  "walkthroughs": [
@@ -1478,7 +1484,7 @@
    ],
    "wrong": {
     "Revenue grew faster than profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
-    "Target paid a bigger dividend": "EPS is the profit per share as if all of it were paid out. A common dividend doesn't change that math.",
+    "Target paid a bigger dividend": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two.",
     "Adjusted EPS left out some costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count."
    },
    "simple": "Fewer shares, because the profit grew 10.0% but was split over 1.6% fewer shares, so each share got more.",
@@ -1521,6 +1527,7 @@
     "f06",
     "f34",
     "f78",
+    "f79",
     "f48",
     "f30"
    ],
@@ -1575,8 +1582,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f02). Wrong note for 'Cash the company has on hand' said 'Cash is on the balance sheet', which no cited fact supports. Reworded to rest on f01/f02. The 'Profit earned per share' note names EPS, so f04 is added to facts. Changed lesson_line and net-income note are fine (f02, f08) and no longer answer q02."
+   "fixed": false,
+   "notes": "Solved cold: money brought in from sales (f02 top line; f01 over a period). Choices 23-28 chars, key not longest, distractors are real confusions (net income f08, EPS f04, cash). Wrong notes grounded. The EPS wrong note names EPS, but w1 step 2 already states q04's answer, so no new leak. No duplicate term 'revenue' elsewhere in courses."
   },
   "q02": {
    "status": "pass",
@@ -1629,8 +1636,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 62 right (calc 57006/35082-1, f47/f48). New deeper is grounded (f48: $46,743M, 22%, 62%). lesson_line said 'Always divide by the year-ago figure', an absolute that is wrong for quarter-over-quarter growth and clashes with q11's lesson_line; scoped to year over year."
+   "fixed": false,
+   "notes": "Computed cold: 57006/35082 = 1.62494, so 62.49% rounds to 62 (close to the .5 line but on the right side; $57.0B/$35.1B also gives 62). Matches f47 (up 62%) and f48 table row, both re-fetched from the NVIDIA 8-K on 2026-11-12. calc fn yoy_growth exists in courses_lib. Stem 128 chars. Deeper 22% and $46,743M are in f48. Scoped lesson_line no longer clashes with q11."
   },
   "q11": {
    "status": "pass",
@@ -1701,20 +1708,20 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f55 beat both, f56 fell more than 2%, f21). The new deeper trap repeated the why's FINRA sentence almost word for word (copied explanation). Rewritten to add the guidance step, grounded in f25 and f21; f25 added to facts."
+   "fixed": false,
+   "notes": "False is right. f55/f56 re-fetched from CNBC 2026-11-12: $1.59 vs $1.36, $155.67B vs $155.04B, 'The stock fell more than 2% in extended trading.' Why does not claim the fall was caused by the outlook (it cites FINRA f21 as a general possibility), which keeps it accurate. Deeper is grounded in f25/f21 and no longer copies the why. Lesson-level note for the resolver: the why says Amazon beat on EPS, which is q07's key; q07 is rung 3 and its own stem gives both numbers, so the leak is minor."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Solved cold: fewer shares (f31: net earnings +10.0%, diluted EPS +11.7%, diluted shares -1.6%; f04). New story is fine and makes the member infer. The dividend wrong note said a dividend 'doesn't move EPS', unsupported by any cited fact and not true of preferred dividends; reworded to f05's wording, as q16 does."
+   "notes": "Key right (f31: net earnings +10.0%, diluted EPS +11.7%, diluted shares -1.6%; f04). Story does not name the cause, choices balanced, key not longest. Defect: the dividend wrong note is copied almost word for word from q16's dividend note ('EPS is the profit per share as if all of it were paid out'), a copied explanation. Reworded to rest on f04's formula instead, which also points the member at the two parts of EPS."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f07, f69, f71, f78; f78 quote re-fetched from CNBC 2026-11-12 and is on the page). Defects: (1) why and wrong note said NVIDIA is 'outside retail' / a 'different industry' with no cited fact; fixed with new fact f79 (s11 About NVIDIA, fetched 2026-11-12), now stated in the story. (2) 'A 50% rule of thumb for every firm' was a near-silly choice with a lone absolute, an invented number and the word 'firm'; replaced with a market-average distractor. (3) 'a bigger company' was unsupported; now grounded by f48 ($57,006M) vs f30 ($23,846M). (4) The stem printed 28.2%, q12's numeric key; t"
+   "notes": "Key right (f07 SEC: desirable ratios vary by industry; f71 Fidelity: compare similar companies and the industry; f69; f78 Target among retailers; f33 own year-ago 28.8%). Defect: the story, why and a wrong note state NVIDIA is in 'AI and accelerated computing', and the verify note says this rests on new fact f79, but f79 was never added to the facts array or to q24's facts. Ungrounded claim as the file stands. Quote re-fetched 2026-11-12 from the s11 8-K, About NVIDIA: 'NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.' Fix: add that fact as f79 to the file's facts and"
   }
  }
 }

@@ -2773,7 +2773,7 @@
    "why": "Some at $12.40, rest higher. Only 300 shares show at the $12.40 ask, and a market order generally fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. A better fill is possible, but it is never promised. The SEC's own example works the same way: 500 of 1,000 shares could fill at the quote, the rest higher.",
    "wrong": {
     "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
-    "It waits until $12.40 has size": "A market order doesn't wait. It generally executes right away. A limit order is the one that waits.",
+    "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
     "Some at $12.40, rest cancelled": "A market order doesn't drop the rest. In the SEC's example, the other 500 shares could execute at a higher price."
    }
   },
@@ -3314,7 +3314,7 @@
   "difficulty": 3,
   "id": "si_b65bde6f6784",
   "lesson_origin": "session",
-  "lesson_text": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you about liquidity. The spread shows the best prices, not how many shares sit there. Check the size at the price and how much the stock trades before you send size. A tight spread is a start. Size and volume finish the check.",
+  "lesson_text": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you into thinking they are equally liquid. The spread only shows the best prices. Liquidity means buyers and sellers ready to trade with your order. Check how much each stock trades, not just the spread. Same tight spread, different stocks. Check how much each one trades before you call it liquid.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -3322,7 +3322,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A tight spread shows a stock is liquid enough for your size.",
+   "q": "Two stocks show the same tight spread. That means they are about equally liquid.",
    "subject": "F1.03#q20"
   },
   "reveal_json": {
@@ -3340,20 +3340,6 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
-      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
-      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
-     },
-     {
-      "accessed": "2026-11-08",
       "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
       "quote": "Liquidity refers to the existence of buyers and sellers who are willing to trade with incoming orders and the degree of price competition among buyers and sellers.",
       "tier": 1,
@@ -3361,22 +3347,29 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
-      "quote": "ETFs that are more liquid and have higher trading volume typically have tighter or smaller spreads.",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
      }
     ],
-    "summary": "A heavily traded stock and a barely traded one can both show tight spreads, so the spread alone can mislead you about liquidity. A big market order can fill at several prices when one price does not hold enough shares. The number of shares showing at the best bid or ask is usually small. Liquidity means there are buyers and sellers ready to trade with your order, competing on price. More liquid, higher-volume funds usually have tighter spreads."
+    "summary": "A heavily traded stock and a barely traded one can both show tight spreads, so the spread alone can mislead you about liquidity. Liquidity means there are buyers and sellers ready to trade with your order, competing on price. A big market order can fill at several prices when one price does not hold enough shares. The bid sits below the ask, and the gap between them (ask minus bid) is the spread."
    },
    "facts": {
-    "given": "A tight spread shows a stock is liquid enough for your size."
+    "given": "Two stocks show the same tight spread. That means they are about equally liquid."
    },
-   "lesson_line": "A tight spread is a start. Size and volume finish the check.",
-   "simple": "False, a thin stock can show a tight spread with few shares behind it, so check size and volume too.",
+   "lesson_line": "Same tight spread, different stocks. Check how much each one trades before you call it liquid.",
+   "simple": "False, a barely traded stock can show the same tight spread as a busy one, so check how much it trades too.",
    "tier": "expert",
    "unit": "F1.03",
-   "why": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you about liquidity. The spread shows the best prices, not how many shares sit there. Check the size at the price and how much the stock trades before you send size."
+   "why": "False. Fidelity warns that a heavily traded stock and a barely traded one can both show tight spreads. That can mislead you into thinking they are equally liquid. The spread only shows the best prices. Liquidity means buyers and sellers ready to trade with your order. Check how much each stock trades, not just the spread."
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -4721,7 +4714,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. That is why we never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
+    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. Our rule guards against it: never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
    },
    "depth": {
     "sources": [
@@ -4983,11 +4976,11 @@
   "difficulty": 3,
   "id": "si_0632aa406ce6",
   "lesson_origin": "session",
-  "lesson_text": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the normal day, not the news day. Cap your size by the normal day, not the news day.",
+  "lesson_text": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Today's 14 million is one day, not the average. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the average day, not the news day. Cap your size by the average day, not the news day.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A short average with today",
+    "Tomorrow's volume, when you buy",
     "The usual 2 million a day",
     "Neither, volume doesn't cap it",
     "Today's 14 million shares"
@@ -4999,7 +4992,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The quiet trap is a short average that includes the news day. One 14 million day among a few 2 million days drags that average far above normal. Take the cap from a normal stretch of days, so one spike does not raise it."
+    "trap": "The trap is sizing off the news day. Our rule caps you at 1% of the average day. Any single day can run far above the average, so size from the average, not from one 14 million day."
    },
    "depth": {
     "sources": [
@@ -5056,17 +5049,17 @@
     "summary": "Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks. Traders often use average daily volume as a benchmark for how big a trade should be. Any single day can trade far above or far below the average. Volume spikes usually come on earnings, reports or news. You judge volume as high or low by comparing it with past periods or with an average. Average volume is the total volume over a period divided by the number of bars in it. Average daily volume is the average number of shares traded per day over a set time frame, and it gives a read on liquidity."
    },
    "facts": {
-    "given": "Which volume should cap the size of your buy? A stock usually trades about 2 million shares a day. News hits, and today it trades 14 million. You plan to buy it tomorrow. The usual 2 million a day Today's 14 million shares Neither, volume doesn't cap it A short average with today"
+    "given": "Which volume should cap the size of your buy? A stock usually trades about 2 million shares a day. News hits, and today it trades 14 million. You plan to buy it tomorrow. The usual 2 million a day Today's 14 million shares Neither, volume doesn't cap it Tomorrow's volume, when you buy"
    },
-   "lesson_line": "Cap your size by the normal day, not the news day.",
-   "simple": "The usual 2 million a day, because our cap is 1% of a normal day, and one news day runs far above normal.",
+   "lesson_line": "Cap your size by the average day, not the news day.",
+   "simple": "The usual 2 million a day, because our cap is 1% of the average day, and one news day runs far above it.",
    "tier": "expert",
    "unit": "F1.04",
-   "why": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the normal day, not the news day.",
+   "why": "The usual 2 million a day. Our rule: never own more than 1% of a stock's average daily volume. Today's 14 million is one day, not the average. Any single day can trade far above the average, and volume spikes usually come on earnings, reports or news. So cap your size by the average day, not the news day.",
    "wrong": {
-    "A short average with today": "One news day drags a short average far above normal. Cap your size by the usual day, not an average the spike inflated.",
     "Neither, volume doesn't cap it": "It does. Our rule: never own more than 1% of a stock's average daily volume.",
-    "Today's 14 million shares": "That's one news day. A single day can trade far above the stock's average."
+    "Today's 14 million shares": "That's one news day. A single day can trade far above the stock's average.",
+    "Tomorrow's volume, when you buy": "That's one day too, and you can't know it before you buy. Our rule caps you at 1% of the average day."
    }
   },
   "review_status": "draft",
@@ -6124,7 +6117,7 @@
     "given": "Outside regular hours, many brokers accept only one order type. Which one? Limit orders Market orders Stop orders Stop-limit orders"
    },
    "lesson_line": "Out of hours, many brokers take only limit orders. We make no new buys then anyway.",
-   "simple": "Limit orders: many brokers take nothing else outside regular hours, so you must name your price.",
+   "simple": "Limit orders: many brokers accept no other order type outside regular hours.",
    "tier": "core",
    "unit": "F1.05",
    "why": "Limit orders. The SEC notes that many brokers accept only limit orders in extended hours. Fidelity accepts limit orders only, and every other order type is ineligible then. Schwab says its extended sessions accept only limit orders, and its stop orders do not execute then. Thin trading is the risk: less price competition can raise costs and make fills harder. Not every broker is the same, so check yours. Our own rule is simpler: we make no new buys outside regular hours.",
@@ -6826,7 +6819,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "An early print can look like a head start. Buying it is the trap: our rule is no new buys outside regular hours. Out of hours, an order may fill only partly, or at a worse price than in regular hours. Trading can settle once regular hours resume, so let the open speak first."
+    "trap": "An early print can look like a head start. Buying it is the trap: our rule is no new buys outside regular hours. Out of hours, an order may fill only partly, or at a worse price than in regular hours. The open comes from supply and demand at the open, so let it speak first."
    },
    "depth": {
     "sources": [
@@ -6880,13 +6873,6 @@
       "url": "https://www.nasdaq.com/stock-market-trading-hours-for-nasdaq"
      },
      {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Extended-Hours Trading: Know the Risks",
-      "quote": "However, trading might become smoother once investors have had time to review and absorb more information about the results and regular trading hours resume.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/extended-hours-trading"
-     },
-     {
       "accessed": "2026-11-12",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
       "quote": "E58. No new buys outside regular trading hours. (\"58, that is fine.\")",
@@ -6894,7 +6880,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "An extended-hours price may not match the regular-session close or the next day's open. With fewer people trading, one order can move the price more than it would in regular hours. Extended hours usually have less trading interest and price competition, which can raise costs, blur the real price and make fills harder. The next day's opening price comes from supply and demand at the open. Many brokers accept only limit orders in extended hours. In extended hours an order may fill partly or not at all, and a fill may be at a worse price than in regular hours. Extended hours have higher volatility and less liquidity: fewer people trading and bigger price moves. After an out-of-hours earnings move, trading can settle once people digest the results and the regular session opens. Our rule: we make no new buys outside regular trading hours."
+    "summary": "An extended-hours price may not match the regular-session close or the next day's open. With fewer people trading, one order can move the price more than it would in regular hours. Extended hours usually have less trading interest and price competition, which can raise costs, blur the real price and make fills harder. The next day's opening price comes from supply and demand at the open. Many brokers accept only limit orders in extended hours. In extended hours an order may fill partly or not at all, and a fill may be at a worse price than in regular hours. Extended hours have higher volatility and less liquidity: fewer people trading and bigger price moves. Our rule: we make no new buys outside regular trading hours."
    },
    "facts": {
     "given": "How should you read that $26.00 print? At 7:40 a.m. ET a stock prints $26.00. It closed yesterday at $24.00. Only a few hundred shares have traded so far. A thin print, not a firm price The price it will open at A cue to buy at market now A real trade, so a solid price"
@@ -8684,7 +8670,7 @@
    "wrong": {
     "The $3 billion stock": "A mid cap tends to swing less than a small cap.",
     "The $40 billion stock": "Large caps tend to be steadier than mid caps and small caps.",
-    "The $900 billion stock": "A mega cap is usually the steadiest of the four."
+    "The $900 billion stock": "It is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    }
   },
   "review_status": "draft",
@@ -9182,19 +9168,19 @@
  },
  {
   "answer_json": {
-   "answer": "A crash you can't get out of"
+   "answer": "A crash that's hard to exit"
   },
   "difficulty": 3,
   "id": "si_19fe95f4a958",
   "lesson_origin": "session",
-  "lesson_text": "A crash you can't get out of. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day. On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
+  "lesson_text": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day. On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
   "module": "F1",
   "prompt_json": {
    "choices": [
     "Missing the rest of the move",
     "Paying a few cents too much",
     "Getting shaken out too early",
-    "A crash you can't get out of"
+    "A crash that's hard to exit"
    ],
    "kind": "mcq",
    "q": "What's the biggest risk if you buy here?",
@@ -9267,13 +9253,13 @@
     "summary": "The public float is the shares everyday investors can trade, and pump-and-dump schemes try to buy up a big part of it. Whoever controls a big share of the float can push the price around more easily. When the promoters sell, the crash can come in seconds. A fast dump can make it hard for other holders to sell without big losses. Promoters may use a text or an ad to pull people into a group chat that pushes the stock. These schemes count on the fear of missing out. Getting in and out of a low-float stock can be hard. We trade only stocks priced $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "What's the biggest risk if you buy here? A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide. A crash you can't get out of Missing the rest of the move Paying a few cents too much Getting shaken out too early"
+    "given": "What's the biggest risk if you buy here? A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide. A crash that's hard to exit Missing the rest of the move Paying a few cents too much Getting shaken out too early"
    },
    "lesson_line": "On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
-   "simple": "A crash you can't get out of, because when promoters dump a tiny float the price can fall in seconds.",
+   "simple": "A crash that's hard to exit, because when promoters dump a tiny float the price can fall in seconds.",
    "tier": "expert",
    "unit": "F1.06",
-   "why": "A crash you can't get out of. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "why": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "wrong": {
     "Getting shaken out too early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard.",
     "Missing the rest of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
@@ -11116,7 +11102,7 @@
  },
  {
   "answer_json": {
-   "answer": "About 15.9%, more than 3x"
+   "answer": "15.9%, more than 3x"
   },
   "difficulty": 3,
   "id": "si_f28758bd7a45",
@@ -11125,14 +11111,14 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "About 14.7%, less than 3x",
-    "Exactly 15.3%, 3x the index",
-    "Exactly 15%, 3% times 5 days",
-    "About 15.9%, more than 3x"
+    "14.7%, less than 3x",
+    "15.3%, 3x the index",
+    "15%, 3% times 5 days",
+    "15.9%, more than 3x"
    ],
    "kind": "mcq",
    "q": "About how much does the 3x fund gain over the five days, before fees?",
-   "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund on it.",
+   "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day.",
    "subject": "F1.07#q21"
   },
   "reveal_json": {
@@ -11176,7 +11162,7 @@
      "fn": "arith",
      "result": 15.9
     },
-    "given": "About how much does the 3x fund gain over the five days, before fees? The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund on it. About 15.9%, more than 3x Exactly 15.3%, 3x the index About 14.7%, less than 3x Exactly 15%, 3% times 5 days"
+    "given": "About how much does the 3x fund gain over the five days, before fees? The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day. 15.9%, more than 3x 15.3%, 3x the index 14.7%, less than 3x 15%, 3% times 5 days"
    },
    "lesson_line": "A clean trend compounds in a 3x fund's favor. Chop is what bleeds it.",
    "simple": "About 15.9%, because in a steady climb each day's gain lands on a bigger balance, so the fund beats 3x.",
@@ -11184,9 +11170,9 @@
    "unit": "F1.07",
    "why": "About 15.9%. Each day the fund aims for three times the index's 1%. In a steady trend each gain lands on a bigger balance, so five days compound to about 15.9%. That beats three times the index's 5.1%. Larger index gains and lower volatility help a 3x fund; small net moves and chop do the opposite.",
    "wrong": {
-    "About 14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
-    "Exactly 15%, 3% times 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%.",
-    "Exactly 15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it."
+    "14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
+    "15%, 3% times 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%.",
+    "15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it."
    }
   },
   "review_status": "draft",

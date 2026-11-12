@@ -101,7 +101,7 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
 
 
 def _load(path: str) -> dict:
-    return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    return json.loads(pathlib.Path(path).read_text(encoding="utf-8-sig"))
 
 
 def main(argv=None) -> int:

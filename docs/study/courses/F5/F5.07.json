@@ -1203,12 +1203,13 @@
     "f54",
     "f22",
     "f11",
-    "f73"
+    "f73",
+    "f15"
    ],
    "wrong": {
     "It still counts as a gap up today": "It didn't last to the close. A gap stands only while price stays above yesterday's high all day.",
     "Buy it: it's cheaper than the open": "Cheaper isn't a reason. The buyers just lost the day.",
-    "It's a breakaway gap: buy the next open": "A breakaway gap holds and leaves the range behind. This one gave back the whole gap."
+    "It's a breakaway gap: buy the next open": "A breakaway gap breaks out of a trading range. This one gave back the whole gap the same day."
    },
    "simple": "It faded, because the gap filled the same day, so the buyers could not hold it.",
    "tier": "core",
@@ -1310,10 +1311,11 @@
    ],
    "answer": "Just under $46.30, the day's low",
    "why": "Just under $46.30. Our default stop goes a few cents under the low of the day or the prior day's low. On a gap-up day the day-one low is the nearer of the two. A stop right under your entry can trip on a quick dip that bounces back. The stop comes first and the size comes from it, never the reverse. Bulkowski's reading of the Kacher and Morales rules also sells on a close below the gap-day low.",
-   "lesson_line": "Day one, I risk against the day-one low. If that breaks, the buyers lost.",
+   "lesson_line": "Day one, I risk against the day-one low. If it breaks, the stop is my exit.",
    "facts": [
     "h1",
     "h2",
+    "h3",
     "f45",
     "f7",
     "f59",
@@ -1328,7 +1330,7 @@
    },
    "simple": "Just under $46.30, because our default stop sits a few cents under the day's low.",
    "deeper": {
-    "trap": "A stop under your entry feels safer, but it is the wrong line. Earnings days swing hard, and a quick dip can trigger a stop and then bounce right back. The day's low is where buyers stepped in. If it sits far below your entry, buy fewer shares. Do not move the stop closer to fit a bigger size."
+    "trap": "A stop under your entry feels safer, but it is the wrong line. Earnings days swing hard, and a quick dip can trigger a stop and then bounce right back. Our default line is the day's low. If it sits far below your entry, buy fewer shares, or skip the trade. Do not move the stop closer to fit a bigger size."
    },
    "tier": "extended",
    "risk": {
@@ -1846,13 +1848,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key, why and the f11 note are right (f54, f22 re-checked live). One distractor reads 'buy tomorrow open', which is broken English; reworded to 'buy the next open' (39 chars) and its wrong-note key moved with it."
+   "notes": "Own answer before key: it faded (f54 same-day fill; back below yesterday's close = pre-gap level, f53/f24). Key matches; no tell (key 36 chars, mid band). Break found: the breakaway wrong-note says 'A breakaway gap holds and leaves the range behind', which overreaches (f50 in this lesson describes breakaway breakouts that fail) and no breakaway fact is cited in q13. Reworded to a grounded claim and f15 added. f11 re-checked live on ChartSchool 2026-11-12. Close-to-open gap (f20) does not rescue 'still counts as a gap up': f11/f13 cover the daily chart and the key is clearly best."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key A is right (f26, f27 re-checked live on the Bowley article). The B wrong-note said 'sellers ran the session after the open', but the story only gives B's close near its low, not its path through the day. Now it matches the why: sellers pushed it down into the close."
+   "fixed": false,
+   "notes": "Own answer A before key (f26, f27 re-checked live on the Bowley article 2026-11-12: closing near the high, buyers swarming until the bell). Choices balanced (31-33 chars, parallel 'X: ... is what counts'), no lone absolute. B held the gap (f11) but closed near its low, so not buyers all session. 'Neither: volume' answered by the story giving no volume. No give-away of q08 or q22."
   },
   "q15": {
    "status": "pass",
@@ -1864,7 +1866,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key matches A3 and h1. But q17 (same rung 6) uses the same $63.50 entry with a $58.80 stop, which gives away 'just under $58.90' whenever q17 comes first, and same-rung order is not guaranteed. New story numbers break the link. The stop now sits within about 3% of the buy, so q16 also fits A13 (q17's wide stop stays an owner flag). The wrong-note 'Earnings days swing hard' had no cited fact, so f75 is added. 'The line the buyers defended' is dropped from simple because no fact says it."
+   "notes": "Own answer before key: just under $46.30 (A3/h2, F62 few cents; prior day's low not offered, and under f9 it sits lower). Key matches; 2.7% from entry fits A13. Choices balanced. Break found: the previous pass dropped 'the line the buyers defended' from simple because no fact says it, but the deeper still says 'The day's low is where buyers stepped in' and the lesson_line 'If that breaks, the buyers lost', same unsupported claim. Replaced with h2/h3-grounded wording (default line; skip if the honest stop does not fit; the stop is the exit) and h3 added to facts."
   },
   "q17": {
    "status": "pass",
@@ -1893,8 +1895,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "B is right (f17, f32, f52). But the key and why said B 'is late in its run', which f21 says no one can know on the gap day. The story only shows a long run behind it. Key reworded to 'follows a long run' (30 chars, same length band), and the why and simple to match. Wrong notes unchanged."
+   "fixed": false,
+   "notes": "Own answer B before key (f17 re-checked live on ChartSchool 2026-11-12; f32, f52 agree; same size and volume neutralise f36's tall-gap clue). Key now says 'follows a long run', consistent with f21/q20 (type unknowable on the day) and the why frames it as odds. Wrong notes grounded (f50, f33). Minor: the key is the only 'B' choice against two 'A' and one 'Same'; inherent to a two-stock item and the A choices carry real temptations, so not treated as a tell. q04's stem states the general rule, but that is rung-2 scaffolding, not a give-away of this scenario."
   },
   "q22": {
    "status": "pass",
@@ -1929,8 +1931,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key follows C29 (h5 matches section 9 word for word). One choice was silly: the stem asked 'What does our rule say to do?' and the choice said 'the strong gap beats the rule', which cannot be what a rule says. Stem changed to 'What do you do?' and that choice replaced with the real temptation in the story (strong close and volume). The tighter-stop note said 'not where it fits', which is unclear, so it now names both default stops from h2. The 14% comes from the question and the 10% from h5."
+   "fixed": false,
+   "notes": "Own answer: skip (C29; h5 matches sizing_rule.md section 9 C29 word for word). 14% comes from the story, 10% from h5. No section 9 exception for earnings gaps; B22 (3 days before a report) does not apply after the report. Distractors are real temptations each refuted by a rule: A5/h4 no adding, A3/h2 and section 2.4 never tighten the stop. Key not the longest (34 vs 39). Its stop wrong-note appears only after answering and q16 sits on a lower rung, so it gives nothing away."
   }
  }
 }
