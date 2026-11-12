@@ -19257,6 +19257,8 @@ function objectBlockRunsOf(trees, hits, makeResolverRaw) {
 /** The input kinds whose default is a drawing's value (C16), by the key it answers. */
 const STATIC_INPUT_KIND = Object.freeze({
   'input.int': 'n', 'input.float': 'n', 'input.bool': 'b', 'input.color': 'hex',
+  // v4's `input(…, type = input.integer)` (the v4 name of the int input type)
+  'input.integer': 'n',
 })
 const STATIC_STR_FNS = new Set(['str.lower', 'str.upper', 'str.replace', 'str.replace_all', 'str.split',
   'str.contains', 'str.startswith', 'str.endswith', 'str.tostring', 'str.length'])
