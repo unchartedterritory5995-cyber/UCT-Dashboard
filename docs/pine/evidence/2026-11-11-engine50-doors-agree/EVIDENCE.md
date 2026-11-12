@@ -31,8 +31,11 @@ does not compile:
     HARD refusal (`hardRefusals`, the mechanism a `strategy()` declaration uses): the whole script
     refuses `pine:cycle` with the one v3+ sentence, read or not. This is review option (a), refusing
     at the declaration site, done after the walk so no fold changes.
-  - `declaredAsVariable(env, name)`: "declared before" for the host counts a binding that is not a
-    function (`kind: 'fn'`, or an opaque `isFunction` one). Note 3.
+  - `declaredAsVariable(env, name)`: "declared before" for the host counts a VARIABLE only (note 3).
+    The host env is one map for both namespaces, so it reads a variable-only record, not the kind
+    of the latest binding: every site that binds a function under a name (the folded `fn`, an
+    overload's opaque, `markOpaque` for a function that did not fold) records the variable it
+    covers (`hidesVariable`, from `variableBeneath`). See "Review PR #1141" below.
   - `blockDeclarationReadsOwnHistory(stmts, i, name)`: the block-valued detector (note 6), asked by
     both lanes. True when the declaration's `if` condition, `else if` conditions, arms (the whole
     `if`/`else` chain) or `switch` subject/arms read `name[k]`. Conservative: a block that declares
@@ -251,6 +254,53 @@ before each heavy run: 12.3-14.5 GB.
   INCONCLUSIVE 140; after MATCH 181 / DIVERGE 48 / INCONCLUSIVE 140; `verdicts.json` byte-identical.
   No MATCH became a refusal.
 
+## Review PR #1141 (changes required) and the fix
+Finding 1, a FALSE refusal new in engine 50: the host env is one map, so `x(…) =>` defined after a
+variable `x` overwrote the variable's binding with `{kind: 'fn'}`, and `declaredAsVariable` (which
+asked that binding's kind) answered "not declared". A function-local `x` that shadows the global
+variable and reads `x[1]` was then refused `pine:cycle`, called or not, with a false "does not compile"
+sentence (shadowing a global is a warning in v5). The reviewer's input, v4/v5/v6:
+
+```
+x = close
+x(a) => a * 2
+f(s) =>
+    x = if s > 100
+        nz(x[1]) + 1
+    else
+        0.0
+    x
+plot(f(close) + x(1))
+```
+
+was OK x4 at engine 49 and pine:cycle / pine:cycle / OK / pine:cycle at the first engine-50 head.
+- Fix: the variable-only record (`hidesVariable` / `variableBeneath`, "What changed"), at all three
+  sites that bind a function under a name, and therefore inside the body of a function named `x` too
+  (its own binding carries the record into the body's env). The runtime frontend's scope never held
+  functions, so its "declared before" was already a variable-only answer; its rows did not move.
+- Rails (v4/v5/v6, every door's engine-49 path, none `pine:cycle`): the call-site shadow (pine:state /
+  pine:state / OK / pine:state), the block shadow (OK x4), uncalled (OK / OK / runtime:statement / OK),
+  the no-arg `x() => 2.0` block variant (OK / OK / runtime:statement / OK), inside `x(a) =>` itself
+  (pine:state / OK / OK / OK), beneath an overload and beneath an unreadable function header, and the
+  function-BEFORE-variable control (pine:state / pine:state / OK / pine:state); the record asked directly.
+- Reviewer probe (`eng50-review`, 444 rows) head vs base: **32 rows moved, all intended** (colour-only,
+  unread, uncalled function, note 3, the block-valued `if`/`switch` forms and their unread/uncalled
+  variants, v3+), **0 controls**; no control row says `pine:cycle`; every `pine:cycle` row carries one
+  message. My own probe: unchanged from the first engine-50 head on all 444 rows (0 v1/v2 rows moved).
+- Mutations (copy, edit, run the five focused files, now 539 tests, restore from the copy, hash-object
+  == committed blob): C1 control (no-op) GREEN 539/539; V1 `variableBeneath` ignores the record KILLED
+  (22); V2 the folded-`fn` site records nothing KILLED (18); V3 the overload site records nothing KILLED
+  (3); V4 `markOpaque` records nothing KILLED (3); V5 back to "the kind of the latest binding" KILLED
+  (22). (Engine 50's N5 targeted the old one-line `declaredAsVariable`; V1/V5 replace it.)
+- Runs after the fix: focused five files 539/539; `v3SelfDeclaration` 436/436; hostParity `--host node
+  --check` HP-1 GREEN 166/166 and `--mutation-control` HP-4 GREEN (no digest moved: identity unchanged,
+  no parity case uses these shapes); the outcome census over the 1605 sources, engine-49 blobs vs this
+  head: 0 differences. The whole-folder run (`ast`, `runtime/__tests__`, `engine/__tests__`) was started
+  under the heavy lock at handback and its result is reported separately.
+
+Finding 2 (wording): a bare `x = x + 1` does not refuse `pine:cycle`; see "Not proven / open". Neither
+this file nor the PR claims otherwise; the controls list it as `pine:undefined`, unchanged.
+
 ## Engine bump: yes (50)
 Member-served output changes (v3+ scripts in the shapes above, drawn at engine 49 by the screen, the
 pane and the member door, now refuse by name) and a member-visible sentence changes (OZ N-2). None of
@@ -272,9 +322,16 @@ the 1605 census sources moves.
 - `x = switch …` in v3/v4 now refuses `pine:cycle`; `switch` does not exist before v5, so TradingView
   refuses those scripts for that reason too. The sentence stays true (the declaration does read itself);
   not railed below v5.
-- A variable declared, then a function of the same name, then `x = nz(x[1]) + 1` would now be refused:
-  the host env keeps only the latest binding of a name, so the function hides the earlier variable from
-  `declaredAsVariable`. Pine rejects redeclaring a variable in one scope anyway; census count 0.
+- ⚰️ This listed "a variable declared, then a function of the same name, then `x = nz(x[1]) + 1` would now
+  be refused" as an accepted edge. It was not an edge: the same one-map confusion refused a function-local
+  `x` shadowing the global variable, which TradingView compiles (review PR #1141 finding 1). Fixed by the
+  variable-only record; such a script keeps its engine-49 path now.
+- A bare self read is NOT a `pine:cycle` refusal (review PR #1141 finding 2): `x = x + 1` reads a name
+  nothing declared, so where a plot reads it every door refuses `pine:undefined` (TradingView's own error;
+  unchanged since engine 49), but UNREAD, or in a function nothing calls, it is still drawn at every door
+  (`x = x + 1` / `plot(close)`: OK x4 in v3+; `f(s) => x = x + s; x` / `plot(close)`: OK x4). TradingView
+  does not compile either (undeclared identifier); a leniency left alone here, because the eager refusal
+  is for history reads (`selfReferencingDeclaration` answers false for a bare read by design).
 - `runtime:failed` (the VM's own stop, `runtimeColumns.js` RF) still embeds the stopping error's text in
   parentheses, by design for the collection errors that word their own reason, but also for a JS
   exception or an `ObjectRunError` reaching the VM (measured: "this script stopped on bar 1 of 300 when
