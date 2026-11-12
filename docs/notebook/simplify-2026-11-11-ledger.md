@@ -261,3 +261,22 @@ Pre-existing tests changed: `loadFailedConsumers.test.js` (the sample route's re
 Tests touched beyond the review cases: `NoteEditorPage.rails.test.jsx` (the Find rail awaits the lazy find bar); `NotebookTab.lazyViews.test.js` (SavedViewsMenuGroup, onboarding/SampleNotebookDoor and lib/reviewDraftRun are lazy); `sampleNotebook.test.js` (pins `SAMPLE_WRITE_URL`, the client's own literal for the door rail, to the keys module's route). Copy (4h): tourStart cards, RegistryToursGate's failure notice, FirstRunSheet's write failure, image-docx step; pinned by tourStart.test.js, RegistryToursGate.test.jsx, GenericTourEngine.c1.test.jsx. A last grep of member-visible strings for Learn, on Home, Research home, Notebook home and toolbar's Templates finds comments only.
 
 Pre-existing red, not changed: `lib/widgetFormula/widgetFormula.lazy.test.js` NON-VACUITY (its roots are hardcoded without TodayHome; red on master `bb74818ef2` too). `a11y/surfaceCoverage.test.js` "every recipe ... registered" passes alone but can hit its 15 s timeout inside a large batch.
+
+## Go-live wave 1, fix round 2
+
+The lazy find bar's delay was React, not the chunk: a `React.lazy` component suspends on its first render even when its module is in hand (the factory's `import()` is a fresh promise, read as pending), the `<Suspense>` commits its fallback, and react-dom 19.2 holds the retry's reveal until FALLBACK_THROTTLE_MS (300 ms) after that fallback. Measured in Chromium on a minimal page (warmed chunk, Ctrl+F, wait 150 ms, type "qq" at 80 ms): `lazy` + `<Suspense>` 305 ms to the field holding focus (6/6 runs, both letters in the note); the component drawn directly 3 ms (0 letters in the note).
+
+So the chunks this branch made lazy that a member types into (or keys through) the moment they open are fetched ahead into a module-level slot (`lib/heldModule.js`: idle, press, one in-place retry, then `failed`, never a reload) and drawn straight from it:
+- the find bar and table toolbar (`components/notebook/EditorToolSlots.jsx`): with the chunk in hand the real bar mounts in the press's own commit; before it lands a stand-in field (same name, focused in a layout effect) keeps what is typed and the real bar takes it as its query, caret at the end; Esc closes the stand-in; a failed fetch says "Find could not be loaded." with Try again. The table toolbar stays absent on a failed fetch and is asked for again on the next editor mount;
+- the notes list's AI section (`components/notebook/NotebookAiPanelSlot.jsx`, warmed on idle and on pointer/focus of "AI"; a failed fetch says "Ask could not be loaded." with Try again and Close);
+- the View menu's saved views group (a slot in NotebookTab.jsx; a failed fetch leaves it undrawn).
+
+To pay for the slots without giving bytes back, the rollup editor (`RollupEditor.jsx`, native selects, drawn only while a rollup is set up or edited) left the first open the same way (`RollupEditorSlot` in PropertiesSection.jsx, warmed on idle); `rollupReady` moved to `lib/formula/computed.js` (re-exported from RollupEditor.jsx).
+
+First-open bytes: 2,258,071 B across 83 JS chunks, PASS (budget 2,260,793; fix round 1 head 2,258,099).
+
+Minors: the Daily brief holds only what has not been drawn yet while a walkthrough is wanted (once Notices or the note sections are on screen they stay); the sample add-failure sentence is `SAMPLE_ADD_FAILED` in sampleNotebookKeys.js, read by the add hook and by `SAMPLE_COPY.addFailed`.
+
+Tests: new `EditorToolSlots.test.jsx`, `NotebookAiPanelSlot.test.jsx`, `PropertiesSection.rollupSlot.test.jsx`; recipes `editor-find-stand-in` and `notebook-ai-panel-failed` in `a11y/simplifyMenus.a11y.test.jsx` (entries in notebookSurfaces.js); `NotebookTab.lazyViews.test.js` (NotebookAiPanel is reached through its slot); `TodayHome.homeNotes.test.jsx` (a tour after drawing); `sampleNotebook.test.js` (one add-failure sentence).
+
+Seen and not changed (master-era): FormulaEditor (typed into) still loads through `lazyChunk` + `<Suspense>`, so its first open per page load carries the same ~300 ms hold.
