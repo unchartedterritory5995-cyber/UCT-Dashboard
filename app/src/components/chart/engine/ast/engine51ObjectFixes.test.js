@@ -83,6 +83,16 @@ describe('1 · a named address is placed by its name (keltner-center-of-gravity-
     expect(opsOf(T(`${TABLE}    line.delete(id=l)\n`), 'delete')).toHaveLength(1)
   })
 
+  it('a getter takes a named `id` (line.get_y2(id=l) is line.get_y2(l))', () => {
+    const lab = (g) => opsOf(T(`${TABLE}    label.new(bar_index, ${g}, "x")\n`), 'create').filter((o) => o.family === 'label')
+    const pos = lab('line.get_y2(l)')
+    const named = lab('line.get_y2(id=l)')
+    expect(pos).toHaveLength(1)
+    expect(pos[0].props.y.v).toBe('get')
+    expect(named).toHaveLength(1)
+    expect(named[0].props.y).toEqual(pos[0].props.y)
+  })
+
   it('a call Pine would not place is refused by name, never read by position', () => {
     for (const call of ['table.cell(t, colum=0, row=1, text="x")', 'table.cell(t, column=0, 1, "x")', 'table.cell(t, 0, column=1, row=1)']) {
       const t = T(`${TABLE}    ${call}\n`)
