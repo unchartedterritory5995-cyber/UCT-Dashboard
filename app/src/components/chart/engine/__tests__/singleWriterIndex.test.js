@@ -167,10 +167,17 @@ const WRITERS = [
     note: 'B IS the writer, so its guard is NEGATED: `if (!barsPushActiveRef.current) return`.',
   },
   {
-    id: 'D', what: 'updateChart post-setData re-top',
+    id: 'D', what: 'updateChart post-setData re-top (the Finnhub branch)',
     witness: 'CandlestickSeries',
     guarded: true, freezesOnProvisionalStale: true,
-    note: 'A BRANCH, not an early return: push-owned re-top vs Finnhub re-top.',
+    note: 'A BRANCH, not an early return: push-owned re-top (D-retop) vs Finnhub re-top.',
+  },
+  {
+    id: 'D-retop', what: 'Writer D push / store re-top (`_writerDRef.retop`): after setData and on the BarStore devRev channel',
+    witness: '_vUpD',
+    guarded: true, freezesOnProvisionalStale: true,
+    note: 'P3-S1 review fix 1 MOVED this branch out of updateChart (not a new writer): ONE function, ' +
+          'two triggers. It owns the branch condition (BARSTORE || barsPushActiveRef) && !provisionalStaleRef.',
   },
   {
     id: 'F', what: 'custom-TF live developing bar',

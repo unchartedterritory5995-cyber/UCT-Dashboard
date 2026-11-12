@@ -12418,10 +12418,12 @@ export default function StockChart({
     // setData() overwrites with API data (stale by seconds/minutes).
     // P3-S1: under BARSTORE this branch is THE re-top — from the snapshot's developing bar
     // (seeded into liveBarRef above); the Finnhub re-top below is never taken.
-    if ((BARSTORE || barsPushActiveRef.current) && !provisionalStaleRef.current) {
-      // Writer D's re-top: ONE function, two triggers — this setData and the store's devRev
-      // channel (`_writerDRef`, next to the updateChart effect).
-      _writerDRef.current.retop()
+    // Writer D's push / store re-top: ONE function (`_writerDRef.retop`, next to the updateChart
+    // effect), two triggers — this setData and the store's devRev channel. It owns its branch
+    // condition `(BARSTORE || barsPushActiveRef.current) && !provisionalStaleRef.current` and
+    // returns whether it was taken; the Finnhub re-top is the else branch, as before.
+    if (_writerDRef.current.retop()) {
+      // re-topped from the push / store developing bar
     } else if (_retopLive?.price && lastBarRef.current
                && !(['D', 'W', 'M'].includes(resolvedTf)
                     && (sessionOwnsDailyRef.current
@@ -14861,6 +14863,9 @@ export default function StockChart({
     /** THE seed of the held developing bar (legacy reconcile result, or the store's). */
     seed(bar) { liveBarRef.current = bar },
     retop() {
+      // THE BRANCH (not a guard): push / store owns the developing bar, and no provisional
+      // stale cache is on screen (Writer D freeze). False ⇒ the caller's Finnhub branch.
+      if (!(BARSTORE || barsPushActiveRef.current) || provisionalStaleRef.current) return false
       // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
       // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
       // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
@@ -14896,6 +14901,7 @@ export default function StockChart({
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
       }
+      return true
     },
   }
   _storeDevPaintRef.current = () => {
@@ -14903,7 +14909,7 @@ export default function StockChart({
     // Only onto the series updateChart seeded for THIS (sym, tf): a switch repaints by setData.
     if (liveBarSeriesRef.current !== `${sym}|${resolvedTf}`) return
     _writerDRef.current.seed(_writerDRef.current.storeBar())
-    if (!provisionalStaleRef.current) _writerDRef.current.retop()
+    _writerDRef.current.retop()   // its own branch: frozen while a provisional stale cache shows
   }
   // Fold push frames buffered during a timeframe-switch hold (see onRealtimeBar) onto the new
   // tf's first real paint — the subscribe seed is never lost. Runs after the updateChart effect
