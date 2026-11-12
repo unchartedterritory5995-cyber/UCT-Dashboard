@@ -61,6 +61,9 @@ function fieldRow(spec, ctx, v, p) {
   const { field, kind } = spec
   const raw = p ? p[spec.ours] : undefined
   if (kind === 'colour') {
+    // ⛔ ONLY THE FIELDS THE CAPTURE HOLDS ARE GRADED: an absent colour key is
+    // undecoded, never read as the na colour (review #1150 note 1).
+    if (!has(v, spec.vendor)) return { field, state: 'undecoded', vendor: 'absent', ours: ourHex(raw) }
     const vendorInt = v[spec.vendor]
     const vendor = ctx.readVendorColour(vendorInt)
     if (isThemeColour(raw)) return { field, state: 'themeRelative', vendor, ours: String(raw) }
@@ -157,7 +160,9 @@ export function pairRecords(capture, objects) {
     let differsOnlyByCreationOrder = false
     if (differs(graded)) {
       const alt = alignById(vendor, ours)
-      differsOnlyByCreationOrder = alt.unpairedVendor === unpairedVendor && alt.unpairedOurs === unpairedOurs
+      // a record one side lacks is a difference no re-ordering explains (review #1150 note 2)
+      differsOnlyByCreationOrder = unpairedVendor === 0 && unpairedOurs === 0
+        && alt.unpairedVendor === 0 && alt.unpairedOurs === 0
         && !differs(alt.pairs.map(rowsOf))
     }
     families[family] = { unpairedVendor, unpairedOurs, pairs: graded, differsOnlyByCreationOrder }

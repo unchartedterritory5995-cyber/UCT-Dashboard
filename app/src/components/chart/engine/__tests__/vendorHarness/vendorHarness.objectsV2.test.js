@@ -220,3 +220,60 @@ describe('objects v2 — pairing', () => {
     expect(compareObjectsV2({ verdict: 'MATCH', reason: 'r' }, null).verdict).toBe('MATCH')
   })
 })
+
+// ── review #1150 — rails for the rules a mutant survived, and the three notes ──
+describe('objects v2 — review #1150 rails', () => {
+  const vBox = (id, over = {}) => ({ id, x1: 0, y1: 20, x2: 1, y2: 10, c: BLUE, bc: BLUE, ts: 'auto', tc: 0xffffffff, tva: 'center', tha: 'center', tw: 'none', t: '', ...over })
+  const oBox = (id, over = {}) => ({ family: 'box', id, props: { left: 5, top: 20, right: 6, bottom: 10, border_color: '#2962FF', bgcolor: '#2962FF', ...over } })
+  const lab = (id, over = {}) => ({ id, x: 0, y: 5, yl: 'pr', t: 'A', st: 'ldn', ci: BLUE, tci: 0xffffffff, sz: 'normal', ta: 'center', tt: '', ...over })
+  const oLab = (id, over = {}) => ({ family: 'label', id, props: { x: 1, y: 5, text: 'A', color: '#2962FF', textcolor: '#FFFFFF', ...over } })
+
+  it('note 1: an ABSENT vendor colour key is undecoded, never read as the na colour', () => {
+    const rec = vBox(1)
+    delete rec.bc
+    const row = fam(v2({ boxes: [rec] }, [oBox(1, { bgcolor: 'transparent' })]), 'boxes')
+    expect(row.byField.bgcolor).toEqual({ agree: 0, differ: 0, notGraded: 1 })
+    expect(row.undecoded['bgcolor=absent']).toBe(1)
+  })
+
+  it('note 2: "only in creation order" is never said while a record is unpaired', () => {
+    const r = v2({ labels: [lab(0, { t: 'Z' }), lab(1, { t: 'A' }), lab(3, { t: 'C' }), lab(9, { t: 'B' })] },
+      [oLab(1, { text: 'A' }), oLab(2, { text: 'B' }), oLab(3, { text: 'C' })])
+    expect(r.verdict).toBe('DIVERGE')
+    expect(fam(r, 'labels').unpairedVendor).toBe(1)
+    expect(fam(r, 'labels').differsOnlyByCreationOrder).toBe(false)
+    expect(r.differsOnlyByCreationOrder).toBe(false)
+    expect(r.reason).not.toMatch(/ONLY in creation order/)
+  })
+
+  it('note 3: fills are withheld only by OUR side\'s own list, never inferred from withheld lines', () => {
+    const v1Lines = { verdict: 'MATCH', reason: 'r', counts: [{ family: 'lines', withheld: true }] }
+    const fill = { family: 'linefill', id: 9, props: { line1: { __ref: 1 }, line2: { __ref: 2 }, color: '#2962FF' } }
+    const pairing = pairRecords(capOf({ lines: [], linefills: [] }), objs([fill]))
+    expect(compareObjectsV2(v1Lines, pairing).verdict).toBe('DIVERGE')
+    const withheld = compareObjectsV2(v1Lines, pairing, ['line', 'linefill'])
+    expect(withheld.verdict).toBe('MATCH')
+    expect(fam(withheld, 'linefills').withheld).toBe(true)
+  })
+
+  it('note 6: a v2 that paired nothing says so', () => {
+    expect(compareObjectsV2({ verdict: 'MATCH', reason: 'r' }, null).pairedNothing).toBe(true)
+    expect(v2({ lines: [vLine(1)] }, [oLine(1)]).pairedNothing).toBe(false)
+  })
+
+  it('M4: a pair undrawn on BOTH sides is still graded on its prices', () => {
+    const r = v2({ lines: [vLine(1, { y1: null, y2: 12 })] }, [oLine(1, { y1: NaN, y2: 13 })])
+    expect(r.verdict).toBe('DIVERGE')
+    expect(r.first).toMatchObject({ family: 'lines', field: 'y2' })
+  })
+
+  it('M5: text placement is graded when ONE side has text and the other has none', () => {
+    const row = fam(v2({ boxes: [vBox(1, { t: '', tc: 0xffffffff })] }, [oBox(1, { text: 'X', text_color: '#F23645' })]), 'boxes')
+    expect(row.byField.text_color.differ).toBe(1)
+  })
+
+  it('M10: an absent or null vendor text is never read as ours', () => {
+    const rec = lab(1, { t: null })
+    expect(fam(v2({ labels: [rec] }, [oLab(1, { text: 'A' })]), 'labels').byField.text.differ).toBe(1)
+  })
+})

@@ -110,7 +110,7 @@ export function objectsV2Of(capture, ours, verdict) {
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairRecords(capture, ours.objects)
     : null
-  return compareObjectsV2(verdict.objects, pairing)
+  return compareObjectsV2(verdict.objects, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
 }
 
 /**

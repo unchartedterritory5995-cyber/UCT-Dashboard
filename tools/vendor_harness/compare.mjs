@@ -1164,7 +1164,7 @@ export const OBJECTS_V2_FIELDS = Object.freeze({
       { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
     ]),
     vendorKeysNotGraded: Object.freeze(['x1', 'x2']),
-    ungraded: Object.freeze({ left: X_UNGRADED, right: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture' }),
+    ungraded: Object.freeze({ left: X_UNGRADED, right: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'not recorded by the capture for boxes' }),
   }),
   tables: Object.freeze({
     ourFamily: 'table',
@@ -1237,11 +1237,12 @@ export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', '
  *        no record could be paired (our object lane did not run, or the capture
  *        recorded no objects)
  */
-export function compareObjectsV2(v1, pairing) {
+export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
   const ungraded = Object.fromEntries(OBJECTS_V2_FAMILIES.map((f) => [f, Object.keys(OBJECTS_V2_FIELDS[f].ungraded)]))
   if (!v1) return null
   if (!pairing) {
-    return { verdict: v1.verdict, v1: v1.verdict, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
+    // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
+    return { verdict: v1.verdict, v1: v1.verdict, pairedNothing: true, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
   }
   const families = []
   // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
@@ -1250,8 +1251,20 @@ export function compareObjectsV2(v1, pairing) {
   // tables, as in v1's RUNTIME_FAMILY, and the fills with their lines).
   const withheld = new Set((v1.counts || []).filter((r) => r && r.withheld).map((r) => r.family))
   if (withheld.has('tables')) withheld.add('tableCells')
-  // a fill lives between two lines: withheld lines withhold their fills too
-  if (withheld.has('lines')) withheld.add('linefills')
+  // ⛔ What OUR side withheld by name is read from its own list
+  // (`ourSide.js` withheldFamilies, our family names), never inferred: a fill
+  // our side still holds is graded even when its lines were withheld
+  // (review #1150 note 3).
+  const OUR_TO_V2 = { line: 'lines', label: 'labels', box: 'boxes', table: 'tables', linefill: 'linefills' }
+  for (const fam of oursWithheldFamilies || []) {
+    const f = OUR_TO_V2[fam]
+    if (f) withheld.add(f)
+    if (f === 'tables') withheld.add('tableCells')
+  }
+  // a fill lives between two lines: withheld lines explain fills our side does
+  // NOT hold, and only those. A fill our side still holds is graded.
+  const lf = pairing.families.linefills
+  if (withheld.has('lines') && lf && lf.pairs.length === 0 && lf.unpairedOurs === 0) withheld.add('linefills')
   for (const f of OBJECTS_V2_FAMILIES) {
     const p = pairing.families[f]
     if (!p) continue
@@ -1307,6 +1320,7 @@ export function compareObjectsV2(v1, pairing) {
   return {
     verdict,
     v1: v1.verdict,
+    pairedNothing: false,
     differsOnlyByCreationOrder: diverging.length > 0 && diverging.every((r) => r.differsOnlyByCreationOrder),
     reason: `${fieldsSaid}; v1: ${v1.reason}; not graded: x coordinates (the capture holds no bar index or time), xloc`,
     first,
