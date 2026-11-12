@@ -1,7 +1,7 @@
 # BarStore (client) — P2a core
 
 Status: P2a of the chart-data consolidation program (2026-11-11). Built OFF TO THE SIDE:
-`app/src/data/barStore/` is imported by no runtime module yet. P2b adds persist / network /
+`app/src/data/barStore/` is wired into the chart behind the P3-S1 `BARSTORE` switch (default off, §P3-S1). P2b adds persist / network /
 liveFeed, P2c the prefetch facade, P3 makes StockChart a pure renderer over it. Server side:
 [bar-contract.md](bar-contract.md) (P1).
 
@@ -158,3 +158,66 @@ absence rule, the rev gate, the stream-live tick gate or the foreign check each 
 - Wire shape = legacy: `&warm=1` on non-urgent prefetchBars, prefetchBar, durable / grid / deep / replay warms and prepareForDisplay; never on urgent rows, intent, typed or daily-prepare. `priority: true` → `front` (head of its lane rank). A one-shot ask of a subscribed key rides the chart's rank, never warm; a chart joining a warm still waiting in the lane promotes it (`promoteLaneRequest`).
 - prepareForDisplay: a LOCAL copy is `current` only by the legacy paint rule (`isCacheCurrentForView`, view session); else the server is asked. Daily: S1 reads the store key `keyOf({sym, tf})` (useBarSnapshot) — there is no SWR preload. Typed warm: legacy `_typedCachePaints` with the hydrated savedAt; S1 ADAPTER ITEM: never returns `stale-answer` (pinned by test).
 - A forming row restored from the caches is `DEV_SRC.LOCAL` (closes as a `local` row), so `serverTailOf` never mistakes it for the server tail. A `fetchOnce` aborted while queued behind a scroll-back is dropped from the queue.
+
+## P3-S1 — the chart's bar source behind ONE switch
+
+`components/chart/barStoreSwitch.js`: `BARSTORE` = build const `VITE_BARSTORE === '1'`, overridden
+per browser by `localStorage['uct.barStore']` (`'1'` on / `'0'` off), read ONCE at module load.
+StockChart picks its bar hook at module scope (`const useChartBars = BARSTORE ? useBarSnapshotBars
+: useLegacyChartBars`) — one call site, a fixed hook order. **Default OFF**: it swaps every chart's
+bar path, so the owner approves the live switch separately (ledger: `VITE_BARSTORE`).
+
+`components/chart/useBarSnapshotBars.js` takes the legacy hook's parameters and returns the SAME
+24 bindings from ONE `useBarSnapshot(keyOf({sym, tf, session}))`. What a snapshot may paint:
+
+| status | intraday frame | live writers (`provisionalStaleRef`) |
+|---|---|---|
+| empty | nothing | — |
+| provisional | context: held rows minus the last (cached-while-forming) candle | frozen |
+| context / current / updating | the snapshot (`adapter.legacyBars`) | live; frozen if the tail is > 8 h old |
+| unavailable | nothing; `data.no_data` | — |
+
+D/W/M: a local-only copy paints only when `marketSession.dailyCachePaintVerdict` (with the today
+seed, `persist.savedAtOf`) says `ok` and its last bar passes the value sanity check; a server-backed
+snapshot always paints. Writer D (StockChart `updateChart`) seeds `liveBarRef` from
+`data.developing` (= `snapshot.developing`) and re-tops it after every setData; the Finnhub re-top
+branch is not taken under BARSTORE.
+
+Adapter items (§P2c): the handoff prepares through the facade with an abort signal; its D/W/M fast
+path and `useDayFacts` read `prefetch.peekBars` (the store's held set) before the mem cache; the
+type-to-search door uses the facade's `warmTypedSymbol` (never `'stale-answer'`); there is no SWR
+preload — `chartKeyFor` equals the facade's `keyFor` for every tf × session.
+
+Reducer fix found by the acceptance matrix: a forming bar RESTORED from a cache (`DEV_SRC.LOCAL`,
+not ticked) is replaced whole by the server's answer for the same bucket (it used to keep its stale
+close through Writer D's "live close stands" rule). Railed: `reducer.test.js` INVARIANT.
+
+### Legacy selector → BarStore rule (or intentionally dropped)
+
+| legacy behaviour (useLegacyChartBars.js) | under BARSTORE |
+|---|---|
+| IDB read once per (sym, tf) in render; mem fast path | `persist.hydrate` on subscribe (mem synchronous, then IDB) |
+| cross-ticker guards (`idbReadyForRef`, `data.ticker`, `sameSymTf`, load seq) | S7 key identity; `useBarSnapshot` returns the new key's snapshot in the same render |
+| 60m answer on the other grid refused | reducer: `cache_key` / `grid` identity |
+| `since=` from the IDB / mem tail (+1 s back-off), `repairFromT` hole re-ask | network `deltaFrom` / mutable-window deltas; holes inside a sealed span are the server's absences — `repairFromT` **dropped** |
+| fresh / behind / gapped + `isCacheCurrentForView` (`_idbNotCurrent`, mem refused) | `status.js` (one freshness contract): provisional vs context |
+| `_staleContext`, `_idbProvisional` (+ Part 2 drop-last) | status provisional → context minus last, writers frozen |
+| daily paint authority, `idbStaleDaily`, `_memTailStaleDaily`, `_idbDailyLastInsane` | same predicates on a local-only D snapshot |
+| `_idbBasisMismatch` close-compare + `idbDelete` purge | server rows replace local rows over the answer span; `history_rev` / `cache_key` reset. **Dropped** for local rows left of the server window (returns `false`) |
+| keep deeper IDB over a shallow full set; `spliceDeepLeftOfFresh` | reducer: local rows OLDER than the server-covered region are kept |
+| delta merged in render; no-op poll skip | reducer merge (one snapshot); a no-op returns the same snapshot |
+| split-fetch `/api/bars-history` (edge, `d=` date), Fix 2 cold-tail paint, fp dwell | **dropped**: D/W/M depth = `ensure({depth})` on the store's one URL builder; edge history is a follow-up |
+| intraday `@hist` IDB segment | **dropped** (the store persists its series; windows re-fetched) |
+| left windows (`_loadOlder`), 900 ms dwell, PREFETCH_WINDOWS warm | `store.scrollBack` (#1116 seam rule); same dwell + loop |
+| background warm of the other tfs (sequential, abort on switch, `&warm=1`) | facade `prefetch` at background rank, `&warm=1`, aborted on switch (the lane gate bounds concurrency) |
+| SWR poll cadence / dedupe / Retry-After / catch-up budget | network.js (same modules); `_tailCatchupRef` is a fresh state, so the badge's DELAYED (budget spent) is not reached — **dropped** |
+| replay `to=` window, no polling | windowed key (`@to=`), read once |
+| custom tf: base SWR + resample | base key subscription + memoized `resampleForSpec` |
+| W/M synthesized from the mem Daily | resample of the held D snapshot |
+| `developingTail` compose from the outgoing / finer tf (W-O) | **dropped**: the tf-switch hold keeps the previous frame until the server answers |
+| `_tfSwitchHold`, `dailyRepairTodayRef`, `provisionalStaleRef`, axis-ratchet reset, T1/T3 marks | kept (derived from the snapshot + `savedAt`) |
+| watchdog `mutate(payload, {revalidate:false})` injection | `mutate` = kick of the key's one request; the payload is not merged (one merge path) |
+| `joinPendingBars`, `instFetcher` abort-on-switch | the lane's join; the subscription's AbortController |
+| `window.__uctBarsDebug` traces | **dropped** |
+| IDB first-paint timeouts (600 ms / 4 s once the browser has a cache) | **dropped**: the request never waits on the cache read (same request count) |
+| compare SWR | `useCompareBars`, shared by both hooks |

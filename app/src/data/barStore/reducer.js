@@ -495,7 +495,14 @@ function applyRest(state, action, ctx, kind) {
       const nb = mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym })
       dev = nb.kind === 'drop' ? null : fromChartDev(nb.bar, devIn.rev, DEV_SRC.SERVER)
     } else if (devIn.t === dev.t) {
-      if (devIn.legacy && !finite(dev.rev)) {
+      if (dev.src === DEV_SRC.LOCAL && !dev.ticked) {
+        // A forming bar RESTORED from the caches is a copy taken while the bucket was forming
+        // (its close is as old as the copy), not a live observation: the server's answer for the
+        // same bucket replaces it whole — as a server row replaces a non-sealed local one. Only a
+        // bar live ticks have touched since (`ticked`) keeps its close (Writer D's rule below).
+        const nb = mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym })
+        dev = nb.kind === 'drop' ? null : fromChartDev(nb.bar, devIn.rev, DEV_SRC.SERVER)
+      } else if (devIn.legacy && !finite(dev.rev)) {
         // Writer D's rule (no revs to order by): server open, H/L union, live close stands.
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)

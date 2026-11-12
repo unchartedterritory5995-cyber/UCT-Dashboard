@@ -185,6 +185,43 @@ describe('BarStore reducer', () => {
     expect(reduce(s2, { type: 'mem-hit', payload: { cache_key: 'b1:SIM:5:other', bars: [bar(T(570))] } }, ctx)).toBe(s2)
   })
 
+  // ⭐ INVARIANT (P3-S1): a forming bar RESTORED from a cache never outvotes the server's answer
+  // for the same bucket — whatever its (stale) values, whichever answer shape (legacy / P1
+  // contract), intraday and daily. Only live ticks folded in after the restore keep their close.
+  it('INVARIANT: the server answer for the forming bucket replaces a restored (local) forming bar whole', () => {
+    let seed = 7
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+    const KD = keyOf({ sym: 'SIM', tf: 'D' })
+    for (let i = 0; i < 60; i++) {
+      const daily = i % 2 === 1
+      const K = daily ? KD : K5
+      const tDev = daily ? DAY : T(610)
+      const prior = daily ? '2026-11-09' : T(605)
+      const sv = { o: 100, h: 100 + 1 + rnd() * 3, l: 100 - 1 - rnd() * 3, c: 100 + (rnd() - 0.5) * 2, v: 50 + Math.floor(rnd() * 50) }
+      // A copy taken mid-bucket: a narrower range and an older close than the server's.
+      const lo = { o: 100, h: 100 + rnd() * (sv.h - 100), l: 100 - rnd() * (100 - sv.l), v: Math.floor(rnd() * sv.v) }
+      lo.c = lo.l + rnd() * (lo.h - lo.l)
+      const s1 = reduce(initialState(K, ctx), { type: 'idb-hit', payload: { bars: [bar(prior), { t: tDev, ...lo }] } }, ctx)
+      expect(s1.developing?.src, `seed ${i}: the restored forming bar is LOCAL`).toBe('local')
+      const rows = [bar(prior), { t: tDev, ...sv }]
+      const payload = (i % 4 < 2) ? { bars: rows } : contract(rows, daily
+        ? { grid: 'plain', cache_key: 'b1:SIM:D:plain', complete_through: null, developing: { t: tDev, ...sv, rev: 1000 } }
+        : { complete_through: T(605) + 300, developing: { t: tDev, ...sv, rev: 1000 } })
+      const s2 = reduce(s1, { type: 'rest-full', payload }, ctx)
+      const d = s2.developing
+      expect([d.o, d.h, d.l, d.c, d.v], `seed ${i} (${daily ? 'D' : '5m'}, ${i % 4 < 2 ? 'legacy' : 'contract'})`)
+        .toEqual([sv.o, sv.h, sv.l, sv.c, sv.v])
+      expect(d.src).toBe('server')
+    }
+    // CONTROL: a restored bar a live tick touched keeps its LIVE close (H/L union, server open).
+    const down = { nowMs: NOW, streamLive: false }
+    const s1 = reduce(initialState(K5, ctx), { type: 'idb-hit', payload: { bars: [bar(T(605)), bar(T(610), 100, 100.5, 99.8, 100.1)] } }, ctx)
+    const s2 = reduce(s1, { type: 'tick-fallback', event: { price: 100.3, ts: NOW } }, down)
+    expect(s2.developing.ticked).toBe(true)
+    const s3 = reduce(s2, { type: 'rest-full', payload: { bars: [bar(T(605)), bar(T(610), 100, 100.4, 99.6, 100.2)] } }, ctx)
+    expect([s3.developing.h, s3.developing.l, s3.developing.c]).toEqual([100.5, 99.6, 100.3])
+  })
+
   it('scroll-back prepends older history only', () => {
     const s1 = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([bar(T(600)), bar(T(605))], { complete_through: T(605) }) }, ctx)
     const s2 = reduce(s1, { type: 'scroll-back', payload: { bars: [bar(T(590)), bar(T(595)), bar(T(600), 1, 2, 0.5, 1)] } }, ctx)

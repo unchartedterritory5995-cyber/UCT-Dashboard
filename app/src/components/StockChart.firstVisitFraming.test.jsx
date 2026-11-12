@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, act } from '@testing-library/react'
 
 // Two first-visit chart fixes (2026-10-18), measured on production:
@@ -99,55 +100,78 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers() })
 
-const mod = await import('./StockChart')
-const StockChart = mod.default
+let mod, StockChart, __barStore
 
-describe('first visit: a cache read stuck behind the pack ingest', () => {
-  // Make this browser "have a cache": one ticker resolves from IDB.
-  const primeCached = async () => {
-    idb.AAA = { bars: days(300), lastT: '2026-10-16', savedAt: Date.now() }
-    const r = render(<StockChart sym="AAA" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
-    r.unmount()
-  }
-
-  it('while the pack is still ingesting, the server is asked after the short wait', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    await primeCached()
-    idb.BBB = 'hang'
-    render(<StockChart sym="BBB" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-    expect(barsCalls().some(u => u.includes('/api/bars/BBB'))).toBe(true)
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    mod = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
+    StockChart = mod.default; __barStore = mod.__barStore
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
   })
 
-  it('CONTROL: once the pack has ingested, a stuck read is waited on (has data, just busy)', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    localStorage.setItem('barspack.version', '2026-10-16')
-    await primeCached()
-    idb.CCC = 'hang'
-    render(<StockChart sym="CCC" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-    expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(false)
-    await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
-    expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(true)
-  })
-})
+  describe('first visit: a cache read stuck behind the pack ingest', () => {
+    // Make this browser "have a cache": one ticker resolves from IDB.
+    const primeCached = async () => {
+      idb.AAA = { bars: days(300), lastT: '2026-10-16', savedAt: Date.now() }
+      const r = render(<StockChart sym="AAA" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+      r.unmount()
+    }
 
-describe('a symbol switch restates its frame from the newest bar', () => {
-  it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
-    barsBy.LONG = days(600)
-    barsBy.SHORT = days(300)
-    const { rerender } = render(<StockChart sym="LONG" tf="D" />)
-    await act(async () => { await new Promise(r => setTimeout(r, 300)) })
-    H.scrolls.length = 0
-    rerender(<StockChart sym="SHORT" tf="D" />)
-    await act(async () => { await new Promise(r => setTimeout(r, 300)) })
-    expect(H.scrolls.length).toBeGreaterThan(0)
-    const pos = H.scrolls[H.scrolls.length - 1]
-    // The offset is measured from SHORT's newest bar (index 299), so it is a small right
-    // pad, never ~300 bars of the previous symbol's longer axis.
-    expect(pos).toBeGreaterThan(-1)
-    expect(pos).toBeLessThan(40)
-    expect(H.range.to - 299).toBeCloseTo(pos, 5)
+    it('while the pack is still ingesting, the server is asked after the short wait', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      await primeCached()
+      idb.BBB = 'hang'
+      render(<StockChart sym="BBB" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+      expect(barsCalls().some(u => u.includes('/api/bars/BBB'))).toBe(true)
+    })
+
+    // ⚠️ THE ONE CASE WHOSE EXPECTATION DIFFERS BY SOURCE (P3-S1, listed in the PR as an
+    // intentionally dropped legacy behaviour). The legacy selector gates its request on the IDB
+    // read (patient 4 s once this browser has shown a cache). The BarStore never waits on a
+    // cache: subscribing starts the hydrate AND the key's one request together, and whichever
+    // lands first paints (a local copy only under its paint rule). Same request count — the
+    // legacy daily path full-fetched after the read anyway — so the stuck read costs no delay.
+    it(barStoreOn
+      ? 'BARSTORE: a stuck cache read never holds the request (hydrate runs beside it)'
+      : 'CONTROL: once the pack has ingested, a stuck read is waited on (has data, just busy)', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      localStorage.setItem('barspack.version', '2026-10-16')
+      await primeCached()
+      idb.CCC = 'hang'
+      render(<StockChart sym="CCC" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+      if (barStoreOn) {
+        expect(barsCalls().filter(u => u.includes('/api/bars/CCC')).length).toBe(1)
+        return
+      }
+      expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(false)
+      await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
+      expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(true)
+    })
+  })
+
+  describe('a symbol switch restates its frame from the newest bar', () => {
+    it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
+      barsBy.LONG = days(600)
+      barsBy.SHORT = days(300)
+      const { rerender } = render(<StockChart sym="LONG" tf="D" />)
+      await act(async () => { await new Promise(r => setTimeout(r, 300)) })
+      H.scrolls.length = 0
+      rerender(<StockChart sym="SHORT" tf="D" />)
+      await act(async () => { await new Promise(r => setTimeout(r, 300)) })
+      expect(H.scrolls.length).toBeGreaterThan(0)
+      const pos = H.scrolls[H.scrolls.length - 1]
+      // The offset is measured from SHORT's newest bar (index 299), so it is a small right
+      // pad, never ~300 bars of the previous symbol's longer axis.
+      expect(pos).toBeGreaterThan(-1)
+      expect(pos).toBeLessThan(40)
+      expect(H.range.to - 299).toBeCloseTo(pos, 5)
+    })
   })
 })

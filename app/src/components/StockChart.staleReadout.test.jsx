@@ -23,7 +23,8 @@
  * printed VALUES, and the fix is a symbol stamp on the bars themselves.
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, waitFor, act } from '@testing-library/react'
 
 // Two tickers with disjoint, unmistakable price bands — no value of one can be
@@ -86,7 +87,7 @@ vi.mock('../context/AuthContext', () => ({
 vi.mock('../utils/barsIDB', () => ({
   idbGet: async () => null, idbPut: async () => {}, mergeDelta: (_a, b) => b,
   idbDelete: async () => {}, idbDeleteIntraday: async () => {}, idbCountKeys: async () => 0,
-  idbImportPack: async () => {}, idbApplyDelta: async () => {},
+  idbImportPack: async () => {}, idbApplyDelta: async () => {}, idbPutMonotonic: async () => {},
   _findRecentBarByT: () => null, _closeMismatch: () => false,
 }))
 
@@ -124,50 +125,62 @@ beforeEach(() => {
   }))
 })
 
-const { default: StockChart } = await import('./StockChart')
+let StockChart, __barStore
 
 const CHART_PROPS = { tf: 'D', alwaysShowLegend: true, height: 400 }
 
 /** Every number the bar-info strip could print for A, as it would be formatted. */
 const A_VALUES = [A.close, A.open, A.high, A.low].map(v => v.toFixed(2))
 
-describe('stale readout identity', () => {
-  it('does not print the previous ticker\'s O/H/L/C under the new ticker', async () => {
-    const { container, rerender } = render(<StockChart sym={A.sym} {...CHART_PROPS} />)
-
-    // A is fully painted: its close reaches the strip.
-    await waitFor(() => {
-      expect(container.textContent).toContain(A.close.toFixed(2))
-    }, { timeout: 4000 })
-
-    // Switch to a ticker whose bars have not arrived.
-    await act(async () => {
-      rerender(<StockChart sym={B.sym} {...CHART_PROPS} />)
-      await new Promise(r => setTimeout(r, 0))
-    })
-
-    // The 500ms interval that kept the stale payload alive gets a chance to fire.
-    await act(async () => { await new Promise(r => setTimeout(r, 700)) })
-
-    const text = container.textContent
-    for (const v of A_VALUES) {
-      expect(text, `readout printed ${A.sym}'s ${v} while showing ${B.sym}`).not.toContain(v)
-    }
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    const m = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
+    StockChart = m.default; __barStore = m.__barStore
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
   })
 
-  it('shows no readout at all rather than a wrong one', async () => {
-    const { container, rerender } = render(<StockChart sym={A.sym} {...CHART_PROPS} />)
-    await waitFor(() => {
-      expect(container.textContent).toContain(A.close.toFixed(2))
-    }, { timeout: 4000 })
+  describe('stale readout identity', () => {
+    it('does not print the previous ticker\'s O/H/L/C under the new ticker', async () => {
+      const { container, rerender } = render(<StockChart sym={A.sym} {...CHART_PROPS} />)
 
-    await act(async () => {
-      rerender(<StockChart sym={B.sym} {...CHART_PROPS} />)
-      await new Promise(r => setTimeout(r, 700))
+      // A is fully painted: its close reaches the strip.
+      await waitFor(() => {
+        expect(container.textContent).toContain(A.close.toFixed(2))
+      }, { timeout: 4000 })
+
+      // Switch to a ticker whose bars have not arrived.
+      await act(async () => {
+        rerender(<StockChart sym={B.sym} {...CHART_PROPS} />)
+        await new Promise(r => setTimeout(r, 0))
+      })
+
+      // The 500ms interval that kept the stale payload alive gets a chance to fire.
+      await act(async () => { await new Promise(r => setTimeout(r, 700)) })
+
+      const text = container.textContent
+      for (const v of A_VALUES) {
+        expect(text, `readout printed ${A.sym}'s ${v} while showing ${B.sym}`).not.toContain(v)
+      }
     })
 
-    // `computeLatestCrosshair` must return null, not a half-filled candle: no
-    // stray "O"/"H"/"L"/"C" field carrying a number from the old ticker.
-    expect(container.textContent).not.toMatch(/\d+\.\d{2}/)
+    it('shows no readout at all rather than a wrong one', async () => {
+      const { container, rerender } = render(<StockChart sym={A.sym} {...CHART_PROPS} />)
+      await waitFor(() => {
+        expect(container.textContent).toContain(A.close.toFixed(2))
+      }, { timeout: 4000 })
+
+      await act(async () => {
+        rerender(<StockChart sym={B.sym} {...CHART_PROPS} />)
+        await new Promise(r => setTimeout(r, 700))
+      })
+
+      // `computeLatestCrosshair` must return null, not a half-filled candle: no
+      // stray "O"/"H"/"L"/"C" field carrying a number from the old ticker.
+      expect(container.textContent).not.toMatch(/\d+\.\d{2}/)
+    })
   })
 })

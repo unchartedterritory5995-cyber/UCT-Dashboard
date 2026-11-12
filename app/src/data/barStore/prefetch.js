@@ -51,13 +51,17 @@
 //   prepare on a symbol switch really cancels the request (network.fetchOnce ref-counts its
 //   one-shot waiters; a subscribed chart or another prepare keeps it alive).
 //
-// ⛔ NOT WIRED. Nothing imports this module yet; P3 S1 swaps the `utils/prefetchBars` imports
-// for this one behind the BARSTORE switch. The facade exports the SAME names with the SAME
-// parameter shapes (prefetch.facade.test.js derives the list from the app's import graph).
+// ⭐ WIRED BEHIND THE BARSTORE SWITCH (P3-S1, components/chart/barStoreSwitch.js): with it on,
+// the symbol handoff (prepare / peek), useDayFacts, the type-to-search warm (ChartPane) and the
+// chart's background warm of its other timeframes come here; every other warmer keeps
+// `utils/prefetchBars` until P3-S3 (they fill mem / IDB, which the store hydrates from). The
+// facade exports the SAME names with the SAME parameter shapes (prefetch.facade.test.js derives
+// the list from the app's import graph), plus `peekBars` (the memPeek readers' replacement).
 
 import { getBarStore } from './index'
 import { keyOf, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
 import { DAILY_POLL_MS } from './network'
+import { legacyBars } from './adapter'
 import { fullBarsFor } from '../../utils/barsBackfill'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
@@ -243,6 +247,20 @@ export function createPrefetch(o = {}) {
     if (!key) return true
     if (!S().peek(key)) _hydrate(key)   // the mem half lands synchronously
     return DISPLAYABLE.includes(S().peek(key)?.status)
+  }
+
+  /**
+   * SYNCHRONOUS: the bars the store holds for (sym, tf) in the legacy shape (adapter.legacyBars,
+   * sealed + developing), or null. The P3-S1 replacement of the `memPeek` readers (the handoff's
+   * daily fast path, useDayFacts): an unseen key is hydrated, its mem half in this same call.
+   */
+  function peekBars(sym, tf) {
+    const key = keyFor(sym, tf)
+    if (!key) return null
+    if (!S().peek(key)) _hydrate(key)
+    const s = S().peek(key)
+    const rows = s ? legacyBars(s) : null
+    return rows?.length ? rows : null
   }
 
   function _own(key) { preparing.set(key, (preparing.get(key) || 0) + 1) }
@@ -440,7 +458,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, prepareForDisplay, prepareDailyForDisplay,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol,
@@ -458,6 +476,7 @@ export const peek = (key) => _f().peek(key)
 export const ensure = (key, opts) => _f().ensure(key, opts)
 export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf) { return _f().peekDisplayable(sym, tf) }
+export function peekBars(sym, tf) { return _f().peekBars(sym, tf) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
