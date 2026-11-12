@@ -42,8 +42,8 @@ Local files and a local server, not Artifacts (he cannot use them).
 | Wave | Lessons | Questions | Status |
 |---|---|---|---|
 | Pilot | SET.07, F9.02, F6.04 | 117 in, 113 live | DONE, commit 8d38c1f902. 33 agents, 6.03M tokens. Owner has not yet reviewed it. |
-| 1 | SET.08 to SET.11 | 287 (49 full path, 238 light) | RUNNING, workflow run `wf_30dcada7-1b0`, scratch `wave1`. Next: integrate. |
-| 2 | SET.12 to SET.21 | 652 | not started |
+| 1 | SET.08 to SET.11 | 287 (49 full path, 238 light) | Workflow DONE (60 agents, 12.1M tokens, about 42k per question; light path about 32k). Integrated and WRITTEN into the lesson files (0 validator problems). Final re-check: full path 12% of questions needed another fix, light path 28%. VERIFY round running: run `wf_d90db44c-837` over 61 fixed questions (script `overbuild-verify.js`, args `wave1_verify_args.json`). Then: apply `--check <scratch>/agents/wave1/verify/<unit>.check.json` with an empty upgrade file, gen_courses, strict audit, tests, quote check, commit. NOT yet committed. |
+| 2 | SET.12 to SET.21 | 652 (balanced planner: 105 full-route, 547 light-route, 21 chunks) | RUNNING, run `wf_b969ceca-6df`, scratch `wave2`, args `wave2_args.json`. Next: sync_scratch, integrate_wave, verify the fixed questions, gates, commit. |
 | 3 | SET.22 to SET.31 | 667 | not started |
 | 4 | SET.32 to SET.46 | 670 | not started |
 | 5 | SET.47 to SET.54 | 503 | not started |
