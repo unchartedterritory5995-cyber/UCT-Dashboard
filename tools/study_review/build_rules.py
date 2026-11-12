@@ -99,6 +99,13 @@ def main():
         d["nq"] = sum(rules[k].get("nq", 0) for k in keys)
         d["ndep"] = dep.get(d["id"], 0)
         out.append(d)
+    # plain-English summaries written for the owner (a sidecar file next to this script, so a rebuild keeps them)
+    plain_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plain_decisions.json")
+    if os.path.exists(plain_path):
+        plain = json.load(open(plain_path, encoding="utf-8"))
+        for d in out:
+            if d["id"] in plain:
+                d["plain"] = plain[d["id"]]
     # Part 3 opens with the decisions that settle the most questions (stable: register order breaks ties)
     out.sort(key=lambda d: -d["ndep"])
     with open(os.path.join(DATA, "rules.json"), "w", encoding="utf-8", newline="\n") as fh:

@@ -26,6 +26,7 @@ button, textarea, select { font: inherit; color: inherit; }
 .progress b { color: var(--fg); }
 .saved { font-size: 14px; color: var(--good); min-width: 70px; text-align: right; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--panel2); border-radius: 12px; padding: 4px; }
+#tab3 { order: 1; } #tab4 { order: 2; } #tab1 { order: 3; } #tab2 { order: 4; }
 .tab { min-height: 46px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--mute); font: 600 15px var(--body); cursor: pointer; padding: 4px 8px; line-height: 1.2; }
 .tab small { display: block; font: 400 12px var(--body); }
 .tab.on { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.25); border-color: var(--line); }
@@ -280,7 +281,7 @@ details p, details div { margin: 6px 0; }
     if (min < 90) return 'about ' + min + ' min left at your pace';
     return 'about ' + (Math.round(min / 6) / 10) + ' hours left at your pace';
   }
-  var STAGE_NAME = { 1: 'Part 1 · Claude changed or doubts', 2: 'Part 2 · every question', 3: 'Part 3 · rules waiting on you', 4: 'Part 4 · sample review' };
+  var STAGE_NAME = { 1: 'Optional · changed or doubted', 2: 'Optional · every question', 3: 'Step 1 · decisions', 4: 'Step 2 · sample review' };
   function tabLabel(stage) {
     var q = buildQueue(stage), d = 0; q.forEach(function (id) { if (decided(id)) d++; });
     return STAGE_NAME[stage] + '<small>' + (d >= q.length && q.length ? '✓ finished' : nf(d) + ' of ' + nf(q.length) + ' done') + '</small>';
@@ -380,7 +381,7 @@ details p, details div { margin: 6px 0; }
       b.onclick = function () { var q3 = buildQueue(3), i = q3.indexOf('dec:' + b.getAttribute('data-dec')); if (i >= 0) setStage(3, i); };
     });
   }
-  var GUIDE = '<div class="guide"><b>How this works</b><ol><li>One question at a time, with the right answer already marked in green.</li><li><b>Good as is</b> (Enter), <b>Change it</b> (C) or <b>Remove it</b> (X). For Change and Remove, tap the reasons that fit and add your own words.</li><li>Under each question is <b>the rule it teaches</b>. Say if the rule looks right or needs work. That fixes the rule for every question built on it.</li><li><b>Part 3</b> holds the decisions behind the rules. One answer there settles many rules and questions at once.</li></ol><button class="primary" id="guideOk" type="button">Got it</button></div>';
+  var GUIDE = '<div class="guide"><b>How this works</b><ol><li>One question at a time, with the right answer already marked in green.</li><li><b>Good as is</b> (Enter), <b>Change it</b> (C) or <b>Remove it</b> (X). For Change and Remove, tap the reasons that fit and add your own words.</li><li>Under each question is <b>the rule it teaches</b>. Say if the rule looks right or needs work. That fixes the rule for every question built on it.</li><li><b>Step 1</b> holds the decisions behind the rules. One answer there settles many rules and questions at once, so do it first.</li></ol><button class="primary" id="guideOk" type="button">Got it</button></div>';
 
   // ── Part 3: the decisions ──────────────────────────────────────────────────────────────────────────────────
   function mdInline(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>'); }
@@ -398,10 +399,17 @@ details p, details div { margin: 6px 0; }
     if (!d) { main.innerHTML = '<div class="banner">That decision did not load.</div>'; return; }
     if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
     var h = '<div class="where"><span>Decision ' + esc(d.id) + '</span><span class="chip">' + (d.part === 'A' ? 'Shared by many setups' : esc(d.group || 'One setup')) + '</span><span>' + (S.queue.indexOf(id) + 1) + ' of ' + S.queue.length + '</span></div>';
-    if (d.ndep) h += '<div class="flag mild"><b>' + (S.decs.indexOf(d) < 9 ? 'Start here. ' : '') + 'Your answer settles ' + d.ndep + ' question' + (d.ndep === 1 ? '' : 's') + '</b> whose right answer rests on this decision. Part 3 lists the decisions that settle the most questions first.</div>';
-    h += '<div class="flag mild"><b>Not your ruling yet.</b> The lessons use <b>Our default</b> as a stand-in until you answer. Agree with it, change it, or ask to talk it over. Your answer goes straight into the rules.</div>';
+    h += '<div class="flag mild">' + (d.ndep ? '<b>' + (S.decs.indexOf(d) < 9 ? 'Start here. ' : '') + 'Your answer settles ' + d.ndep + ' question' + (d.ndep === 1 ? '' : 's') + '.</b> ' : '') + 'Not your ruling yet: the lessons use our default as a stand-in. Agree, change it, or ask to talk it over.</div>';
     var meta = d.blocks.filter(function (b) { return /^\*\*(Setups touched|Questions)/.test(b); }), main3 = d.blocks.filter(function (b) { return !/^\*\*(Setups touched|Questions)/.test(b); });
-    h += '<p class="q">' + esc(d.title) + '</p>' + main3.map(mdBlock).join('');
+    if (d.plain) {
+      var P = d.plain;
+      h += '<p class="q">' + esc(P.ask) + '</p>' +
+        '<div class="lab">The choices</div><ul class="dl">' + P.options.map(function (o) { return '<li>' + esc(o) + '</li>'; }).join('') + '</ul>' +
+        '<div class="lab">What the lessons use now (our default)</div><p class="simpleline">' + esc(P.now) + '</p>' +
+        '<details><summary>The full detail and the evidence</summary><p class="fyi">' + esc(d.title) + '. Codes like 07:3 point to a setup research file and its question; E57 or B26 point to a rule in your rulebook.</p>' + main3.map(mdBlock).join('') + '</details>';
+    } else {
+      h += '<p class="q">' + esc(d.title) + '</p>' + main3.map(mdBlock).join('');
+    }
     if (meta.length) h += '<details><summary>Which setups this touches</summary>' + meta.map(mdBlock).join('') + '</details>';
     if (d.nrules) {
       h += '<details><summary>' + d.nrules + ' rule' + (d.nrules === 1 ? '' : 's') + ' wait on this' + (d.nq ? ', taught by ' + d.nq + ' question' + (d.nq === 1 ? '' : 's') : '') + '</summary>' +
@@ -490,9 +498,9 @@ details p, details div { margin: 6px 0; }
     var main = $('main');
     if (S.pos >= S.queue.length) {
       var fb = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep' && x.kind !== 'ab'; }).length;
-      var heads = { 1: 'Part 1 is finished', 2: 'Part 2 is finished', 3: 'Part 3 is finished', 4: 'The sample review is finished' };
-      var nextStage = S.stage === 1 ? 2 : S.stage === 2 ? 3 : S.stage === 3 ? 4 : 0;
-      main.innerHTML = '<div class="done"><h2>' + heads[S.stage] + '</h2><p>' + nf(fb) + ' pieces of feedback saved so far across questions, rules, decisions and notes.</p><p>Everything is saved on your computer.<br>When you are ready, tell Claude <b>"review done"</b> and I will make the changes.</p><div class="row" style="justify-content:center">' + (nextStage ? '<button class="primary" id="toNext" type="button">Go on to Part ' + nextStage + '</button>' : '') + '<button class="plain" id="toFb" type="button">See my feedback</button><button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
+      var heads = { 1: 'The changed-or-doubted list is finished', 2: 'Every question is done', 3: 'The decisions are done', 4: 'The sample review is finished' };
+      var nextStage = S.stage === 3 ? 4 : S.stage === 1 ? 2 : 0;
+      main.innerHTML = '<div class="done"><h2>' + heads[S.stage] + '</h2><p>' + nf(fb) + ' pieces of feedback saved so far across questions, rules, decisions and notes.</p><p>Everything is saved on your computer.<br>When you are ready, tell Claude <b>"review done"</b> and I will make the changes.</p><div class="row" style="justify-content:center">' + (nextStage ? '<button class="primary" id="toNext" type="button">Go on to ' + STAGE_NAME[nextStage].split(' · ')[1] + '</button>' : '') + '<button class="plain" id="toFb" type="button">See my feedback</button><button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
       var bn = $('toNext'); if (bn) bn.onclick = function () { setStage(nextStage); };
       $('toFb').onclick = openFeedback; $('toMenu').onclick = openMenu;
       return;
@@ -508,17 +516,17 @@ details p, details div { margin: 6px 0; }
   function renderCard(id) {
     var q = S.qById[id], m = S.ofId[id], u = S.data[m.slug] || {}, call = S.calls[id], mine = S.reviews[id] || {};
     var h = '<div class="where"><span>' + esc(m.unit) + ' · ' + esc(m.title) + '</span><span class="chip">' + esc(TYPE[q.format] || q.format || 'Question') + '</span>' + (q.tier ? '<span class="chip">' + esc(q.tier) + ' tier</span>' : '') + '<span>question ' + q._i + ' of ' + q._n + ' in this unit</span><button class="plain sm" id="bUnitNote" type="button">✎ Note on this lesson' + (S.reviews['unit:' + m.unit] ? ' ✓' : '') + '</button></div>';
-    if (!lsGet('libreview3.guide', false) && S.stage === 1) h += GUIDE;
+    if (!lsGet('libreview3.guide', false) && S.stage !== 3) h += GUIDE;
     var suggest = null;
     if (call && call.c === 'look') {
       suggest = call.p;
-      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + (/[.!?]$/.test(call.r) ? '' : '.') + ' Read the new version below. If it is right, press Good as is.</div>';
+      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + (/[.!?]$/.test(call.r) ? '' : '.') + ' The new version is below. If it is right, press Good as is. The old version is folded at the bottom if you want to compare.</div>';
       else h += '<div class="flag"><b>Claude flagged this one.</b> ' + esc(cap(call.r)) + '. Claude suggests: <b>' + esc(VLABEL[call.p]) + '</b>.</div>';
     } else if (call && call.c === 'confirm') {
       h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
     }
     var was = call && call.k === 'changed' ? call.was : null;
-    if (was) h += wasBlock(was) + '<div class="lab now">Now</div>' + abRow(id);
+    if (was) h += '<div class="lab now">The new version</div>';
     if (q.story) h += '<p class="story">' + esc(q.story) + '</p>';
     h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q, was);
     if (q.simple) h += '<p class="simpleline"><b>In one line:</b> ' + esc(q.simple) + '</p>';
@@ -528,6 +536,7 @@ details p, details div { margin: 6px 0; }
       var dl = [['example', 'Example'], ['counter', 'The other side'], ['trap', 'The common trap']].filter(function (x) { return q.deeper[x[0]]; });
       if (dl.length) h += '<details><summary>Go deeper (' + dl.length + ')</summary>' + dl.map(function (x) { return '<p><b>' + x[1] + ':</b> ' + esc(q.deeper[x[0]]) + '</p>'; }).join('') + '</details>';
     }
+    if (was) h += '<details class="cmp"><summary>Compare with what it said before</summary>' + abRow(id) + wasBlock(was) + '</details>';
     h += rulePanel(q, m);
     if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
     if (S.sideNote) {
@@ -604,10 +613,11 @@ details p, details div { margin: 6px 0; }
     var units = S.idx.units.map(function (u) { return '<option value="' + esc(u.slug) + '">' + esc(u.unit) + ' · ' + esc(u.title) + '</option>'; }).join('');
     $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>Menu</h2><button class="menubtn" id="mClose" type="button">Close</button></div>' +
       '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
-      '<button class="big" id="mP1" type="button">Part 1: the ' + look + ' Claude changed or doubts<small>Start here. Each one shows what changed or worried Claude.</small></button>' +
-      '<button class="big" id="mP2" type="button">Part 2: every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
-      '<button class="big" id="mP3" type="button">Part 3: the ' + nd + ' decisions behind the rules<small>One answer here settles many rules and questions at once. Do these before Part 4: the first 9 settle about ' + nf(S.decs.slice(0, 9).reduce(function (a, d) { return a + (d.ndep || 0); }, 0)) + ' questions.</small></button>' +
-      '<button class="big" id="mP4" type="button">Part 4: the sample review<small>10 random upgraded questions per lesson, riskiest first. If all 10 are good, the lesson is approved.</small></button>' +
+      '<button class="big" id="mP3" type="button">Step 1: the decisions (' + nd + ')<small>Start here. One answer settles many rules and questions at once. The first 9 settle about ' + nf(S.decs.slice(0, 9).reduce(function (a, d) { return a + (d.ndep || 0); }, 0)) + ' questions.</small></button>' +
+      '<button class="big" id="mP4" type="button">Step 2: the sample review<small>10 random upgraded questions per lesson, riskiest first. All 10 good approves the lesson; one bad widens it to 25.</small></button>' +
+      '<p class="said" style="margin:14px 0 4px">Optional, only if you want to see more than the sample:</p>' +
+      '<button class="big" id="mP1" type="button">Every question Claude changed or doubted (' + nf(look) + ')<small>The full pass. After the overbuild this is nearly every question.</small></button>' +
+      '<button class="big" id="mP2" type="button">Every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
       '<button class="big" id="mLessons" type="button">Lesson status board<small>Which lessons are approved, being sampled, or sent back.</small></button>' +
       '<label for="mBud"><b>Daily review budget</b> (questions a day)</label><input id="mBud" type="number" min="10" max="2000" value="' + budget() + '" style="width:100%;min-height:52px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px">' +
       '<label for="mUnit"><b>Jump to a lesson</b></label><select id="mUnit"><option value="">Choose a lesson…</option>' + units + '</select>' +
@@ -779,7 +789,8 @@ details p, details div { margin: 6px 0; }
     Object.keys(res[1].records || {}).forEach(function (id) { var r = res[1].records[id]; S.reviews[id] = { v: r.v, note: r.note, tags: r.tags || [], kind: r.kind, unit: r.unit, key: r.key, q: r.q, at: r.at }; });
     S.queueOut.forEach(function (it) { S.reviews[it.id] = { v: it.v, note: it.note, tags: it.tags || [], kind: it.kind, unit: it.unit, key: it.key, q: it.q, at: '' }; });
     var look = buildQueue(1);
-    var stage = look.length && look.some(function (id) { return !decided(id); }) ? 1 : 2;
+    // the recommended path: the decisions first, then the sample review; the full pass stays optional
+    var stage = buildQueue(3).some(function (id) { return !decided(id); }) ? 3 : 4;
     setStage(stage); flush();
   }, function () {
     $('main').innerHTML = '<div class="banner">The review program is not running. Double-click <b>Start Library Review</b>, then reload this page.</div>';
