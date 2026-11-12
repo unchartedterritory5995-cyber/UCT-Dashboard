@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { reduce, initialState, isSealedRow, bucketEnd, inSealedSpan } from './reducer'
 import { createRegistry } from './registry'
-import { createLiveFeed, foldMinute, foldAnchor, CANDLE_ACTIVE_MS } from './liveFeed'
+import { createLiveFeed, foldMinute, foldAnchor, SOURCE_QUIET_MS } from './liveFeed'
 import { forSeeds, simulateIntraday, withDuplicates, shuffled, etUnix, rng } from './__fixtures__/seededSeries'
 import { keyOf } from './types'
 
@@ -106,9 +106,9 @@ describe('liveFeed ordering — push final vs poll vs tick (seeded)', () => {
     candle.tick('SIM', 100.4, clock)
     const a = registry.getSnapshot(key)
     expect(a.developing?.c).toBe(100.4)
-    prices.set('SIM', 100.9)                               // the candle ticked < CANDLE_ACTIVE_MS ago
+    prices.set('SIM', 100.9)                               // the candle ticked < SOURCE_QUIET_MS ago
     expect(registry.getSnapshot(key)).toBe(a)
-    clock += CANDLE_ACTIVE_MS + 1
+    clock += SOURCE_QUIET_MS + 1
     prices.set('SIM', 100.9)                               // trade feed silent → livePrices is the fallback
     expect(registry.getSnapshot(key).developing.c).toBe(100.9)
   })

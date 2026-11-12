@@ -7,15 +7,15 @@
 // whose `t` is OLDER than the developing bar (the reducer replaces that closed row in place
 // by rev, never a sealed one). The pool already drops non-final stragglers per key.
 //
-// ⭐ TICKS ONLY AS A FALLBACK (S6). lib/realtimeCandle (the trade feed) — or, when its newest
-// trade is stale or behind the bucket the chart must advance (tradeFeedOwns), the live-price
-// stream (lib/priceStreamManager, the app's `livePrices`) — becomes `tick-fallback`, and ONLY
+// ⭐ TICKS ONLY AS A FALLBACK (S6). The live-price stream (lib/priceStreamManager, the app's
+// `livePrices`) and lib/realtimeCandle (the Finnhub trade feed) become `tick-fallback`, and ONLY
 // while the push feed is not delivering for this key (`barsStreamManager.getStatus().delivering`,
 // with the pool's own hysteresis). The same flag rides on the dispatch as `ctx.streamLive`, so the reducer
-// enforces it too. Exactly one tick source feeds a key at a time (never two feeds racing
-// the developing bar — audit D2). Sanity is the reducer's (`liveTickBaseline`, keyed to the
-// symbol: a store never sees another symbol's closes). Every tick carries its OWN trade time
-// (liveTickTimeMs / getLastTrade): the reducer buckets it with the one bucket rule (reducer.bucketOf).
+// enforces it too. ONE SOURCE PER BUCKET (arbitrateTick — audit D2): the Massive-stamped live price
+// is primary, the trade feed takes a bucket only while Massive is quiet, and the holder is sticky
+// for the rest of the bucket until it goes quiet itself. Sanity is the reducer's (`liveTickBaseline`,
+// keyed to the symbol: a store never sees another symbol's closes). Every tick carries its OWN trade
+// time (liveTickTime / getLastTrade): the reducer buckets it with the one bucket rule (reducer.bucketOf).
 //
 // ⭐ D/W/M FOLD THE 1m STREAM (Writer E moves here). The store keeps the server's developing
 // period bar as the BASE (authoritative) and folds RTH 1m frames into it: open = the base's,
@@ -45,46 +45,86 @@ export function foldAnchor(arrivedMs) {
   return Math.floor(arrivedMs / 60000) * 60 + 60 + FOLD_SKEW_MARGIN_S
 }
 
-/** The trade feed's newest TRADE must be at most this old (and in the current bucket) for it to
- *  own the key's ticks; else livePrices does (the legacy writers' FALLBACK_REGISTRY_FRESH_MS). */
-export const CANDLE_ACTIVE_MS = 3_000
+/** A live source is QUIET once its newest trade is this far behind (by trade time) — the
+ *  staleness bound of the tick-source arbitration (arbitrateTick). */
+export const SOURCE_QUIET_MS = 3_000
+
+/** The tick sources of the fallback. MASSIVE = a live-price entry stamped with the Massive trade
+ *  time (`trade_ts`: the sub-second consolidated tape — primary); TRADE = the Finnhub trade feed
+ *  (realtimeCandle, its own trade time); UNTIMED = a live-price entry without `trade_ts` (its
+ *  `updated_at` is the server's SEND / receipt time — api/routers/stream.py, realtime_stream.py). */
+export const TICK_SRC = Object.freeze({ MASSIVE: 'massive', TRADE: 'trade', UNTIMED: 'untimed' })
+
+const _ms = (x) => (finite(x) && x > 0 ? (x > 1e11 ? x : x * 1000) : null)
 
 /**
- * ⭐ THE TIME OF A LIVE-PRICE TICK — the one owner. A tick is bucketed by its OWN time: the
- * trade time the live-price entry carries (`trade_ts` ms, else `updated_at` — the Massive trade
- * time api/routers/stream.py stamps; the Finnhub store's own time otherwise), and only an entry
- * with neither falls back to when it arrived. (Bucketing a stale price by arrival put a minute-old
- * print into the new bucket; the legacy writer A has bucketed by `updated_at` all along.)
+ * ⭐ THE TIME OF A LIVE-PRICE TICK — the one owner. `trade_ts` (ms) is the Massive TRADE time and
+ * the only trusted one. Without it, `updated_at` is when the server SENT (or received) the price —
+ * never a trade time — and only an entry with neither falls back to its arrival. `trusted` says
+ * whether the time may decide a bucket boundary (arbitrateTick: an untimed tick never does).
  */
+export function liveTickTime(entry, receiptMs) {
+  const tt = _ms(Number(entry?.trade_ts))
+  if (tt != null) return { ms: tt, trusted: true }
+  return { ms: _ms(Number(entry?.updated_at)) ?? receiptMs, trusted: false }
+}
+
+/** The time of a live-price tick (ms): liveTickTime(entry, receiptMs).ms. */
 export function liveTickTimeMs(entry, receiptMs) {
-  const ms = (x) => (finite(x) && x > 0 ? (x > 1e11 ? x : x * 1000) : null)
-  return ms(Number(entry?.trade_ts)) ?? ms(Number(entry?.updated_at)) ?? receiptMs
+  return liveTickTime(entry, receiptMs).ms
 }
 
 /**
- * ⭐ TICK-SOURCE ARBITRATION — the one rule (the stall of 2026-11-12: the trade feed's candle
- * lagged the wall clock while it kept ticking, its ticks were clamped into its own stale minute
- * and dropped by the reducer, and livePrices stood down because "a tick arrived recently").
- * The trade feed owns the key's ticks only while its newest TRADE (a) is fresh — at most
- * CANDLE_ACTIVE_MS old by its own trade time — and (b) reaches the bucket the chart must advance
- * now: the wall-clock bucket, and the developing bar's bucket when that is later. Otherwise
- * livePrices feeds the key. Freshness is judged by the bucket the data advances, never by
- * arrival. Pure.
- * @param {{tradeMs:number}|null} trade   realtimeCandle.getLastTrade
- * @param {object|null} state              the key's snapshot (tf / grid / developing)
+ * ⭐ TICK-SOURCE ARBITRATION — the ONE rule: one source per bucket, quality-ranked, sticky.
+ * (D2: the trade feed owned for 3 s after each of its prints, so on a liquid name with a trickling
+ * Finnhub feed one bucket alternated between two feeds — close flipped, H/L widened from the worse
+ * feed's prints. 2026-11-12 stall: a trade feed whose prints lagged the wall clock held the key.)
+ *   • MASSIVE is primary: its tick may always claim a bucket nobody holds.
+ *   • TRADE claims a bucket only while MASSIVE is quiet: its trade is ≥ SOURCE_QUIET_MS newer than
+ *     Massive's newest (never Massive's — a lagging trade feed never displaces a live tape).
+ *   • STICKY: once a bucket is held, the other source takes it over only when the holder has gone
+ *     quiet (≥ SOURCE_QUIET_MS behind the challenger's own trade) — so within a bucket the source
+ *     can change only after the holder stopped printing, never back and forth tick by tick.
+ *   • Quiet is judged in TRADE time (both feeds' own clocks), never by arrival or a wall clock — a
+ *     feed that lags is simply older, whatever its ticks' arrival.
+ *   • UNTIMED never decides a boundary: it folds only into the developing bar's own bucket, only
+ *     while both trusted sources are quiet by the wall clock (the only clock it has), and it holds
+ *     nothing (any trusted tick outranks it).
+ *   • Never an older bucket than the developing / newest closed one (the reducer's rule too).
+ * Pure. Returns {accept, arb} — `arb` = {bucket, src} the holder after this tick.
+ * @param {{bucket:number, src:string}|null} arb
+ * @param {{src:string, ms:number}} tick          its own time (UNTIMED: send / arrival time)
+ * @param {{massive?:number|null, trade?:number|null}} last   each trusted source's newest trade (ms)
+ * @param {object} state                          the key's snapshot (tf / grid / developing / bars)
  * @param {number} nowMs
  */
-export function tradeFeedOwns(trade, state, nowMs) {
-  if (!trade || !finite(trade.tradeMs) || !finite(nowMs)) return false
-  if (nowMs - trade.tradeMs >= CANDLE_ACTIVE_MS) return false
-  if (!state) return true
-  const b = (ms) => bucketOf(Math.floor(ms / 1000), state)
-  const tb = b(trade.tradeMs)
-  const need = Math.max(b(nowMs), finite(state.developing?.t) ? state.developing.t : -Infinity)
-  return finite(tb) && tb >= need
+export function arbitrateTick(arb, tick, last, state, nowMs) {
+  const no = { accept: false, arb }
+  if (!tick || !finite(tick.ms) || !state) return no
+  const tb = bucketOf(Math.floor(tick.ms / 1000), state)
+  if (!finite(tb)) return no
+  const devT = finite(state.developing?.t) ? state.developing.t : null
+  const bars = state.bars
+  const lastT = bars?.length ? bars[bars.length - 1].t : null
+  if ((devT != null && tb < devT) || (lastT != null && tb <= lastT)) return no
+  const quiet = (src, atMs) => !finite(last?.[src]) || atMs - last[src] >= SOURCE_QUIET_MS
+  if (tick.src === TICK_SRC.UNTIMED) {
+    if (devT == null || tb !== devT) return no
+    if (!quiet(TICK_SRC.MASSIVE, nowMs) || !quiet(TICK_SRC.TRADE, nowMs)) return no
+    return { accept: true, arb }
+  }
+  if (tick.src !== TICK_SRC.MASSIVE && tick.src !== TICK_SRC.TRADE) return no
+  const claim = { accept: true, arb: { bucket: tb, src: tick.src } }
+  if (arb && arb.bucket === tb) {
+    if (arb.src === tick.src) return { accept: true, arb }
+    return quiet(arb.src, tick.ms) ? claim : no
+  }
+  if (arb && arb.bucket > tb) return no
+  return tick.src === TICK_SRC.MASSIVE || quiet(TICK_SRC.MASSIVE, tick.ms) ? claim : no
 }
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
+const _num = (x) => (x != null && finite(Number(x)) ? Number(x) : null)
 const tMs = (t) => (t > 1e11 ? t : t * 1000)
 
 /** The ET trading date of a ms instant (the day the live day-volume belongs to). */
@@ -248,7 +288,7 @@ export function createLiveFeed({
   function _attach(key, session) {
     const p = parseKey(key)
     const off = []
-    const a = { refs: 0, off, fold: null }
+    const a = { refs: 0, off, fold: null, arb: null, massiveMs: null }
     if (!p || p.window) return a   // a replay slice has no live edge
     const sTf = streamTf(p)
     const sSess = streamSession(p, session)
@@ -287,20 +327,32 @@ export function createLiveFeed({
       }))
     }
 
-    // Tick fallback: ONE source at a time (tradeFeedOwns), each tick at its OWN trade time.
-    const tradeOwns = () => tradeFeedOwns(candle?.getLastTrade?.(p.sym) ?? null, registry.peek(key), now())
+    // Tick fallback: ONE source per bucket (arbitrateTick), each tick at its OWN trade time. The
+    // holder lives here with the key's subscriptions (no invalidation needed: it names a bucket, and
+    // a later bucket or a quiet holder replaces it).
+    const tick = (src, price, ms) => {
+      if (!finite(price) || !finite(ms) || isStreamLive(key, session)) return
+      // the period bar is RTH: an extended-hours print never claims the day (see _dispatchTick)
+      if (isDateTf(p.tf) && !isRthBar(Math.floor(ms / 1000))) return
+      const last = { massive: a.massiveMs, trade: _num(candle?.getLastTrade?.(p.sym)?.tradeMs) }
+      const r = arbitrateTick(a.arb, { src, ms }, last, registry.peek(key) ?? { key, tf: p.tf }, now())
+      a.arb = r.arb
+      if (r.accept) _dispatchTick(key, session, price, ms, a)
+    }
     if (candle?.subscribe) {
       off.push(candle.subscribe(p.sym, () => {
-        if (!tradeOwns()) return
-        const tr = candle.getLastTrade(p.sym)
-        _dispatchTick(key, session, Number(tr.price), tr.tradeMs, a)
+        const tr = candle.getLastTrade?.(p.sym)
+        if (tr) tick(TICK_SRC.TRADE, Number(tr.price), _num(tr.tradeMs))
       }))
     }
     if (prices?.subscribe) {
       off.push(prices.subscribe([p.sym], () => {
-        if (tradeOwns()) return
         const x = prices.getSnapshot?.()?.prices?.[p.sym]
-        _dispatchTick(key, session, Number(x?.price), liveTickTimeMs(x, now()), a)
+        if (!x) return
+        const lt = liveTickTime(x, now())
+        // Massive's newest trade is OBSERVED whether or not this tick is accepted (quiet = by it).
+        if (lt.trusted) a.massiveMs = Math.max(finite(a.massiveMs) ? a.massiveMs : -Infinity, lt.ms)
+        tick(lt.trusted ? TICK_SRC.MASSIVE : TICK_SRC.UNTIMED, Number(x.price), lt.ms)
       }))
     }
     return a
