@@ -343,6 +343,25 @@ describe.each(SHAPES)('Multi Chart family on a $id grid (pl-grid held-out)', (sh
     expect(at('c0').settings).toEqual({ upColor: '#000000' })
   }, 30000)
 
+  // (#1143, AUDIT probe-24 class on a GRID CELL) a POSSESSIVE for the clicked cell excludes it, as "this one" does — negation,
+  // stative and whole-grid exception forms (the Lead's own phrasings): a plan aimed at the clicked cell is asked, never run, and
+  // the clicked cell keeps its fork
+  it.each([
+    ['reset the bottom-right one to my chart but leave mine alone'],
+    ["drop the custom look on the bottom-right cell, don't touch my cell"],
+    ['reset the bottom-right chart to my settings, mine is fine as it is'],
+    ['reset every cell to my chart except mine'],
+    ['every cell apart from my own one flips back to my chart'],
+  ])('POSSESSIVE excludes the clicked cell: "%s" — a plan on it is asked; it keeps its fork', async (t) => {
+    const n = shape.rows * shape.cols
+    H.prefs = { multichart_state: JSON.stringify(gridOf(shape, { cells: POOL.slice(0, n).map((sym, i) => cell(`c${i}`, sym, { settings: { upColor: `#00000${i}` } })) })) }
+    const m = mount()
+    click('c0')
+    await m.say(t, (ctx) => [{ action: 'multiChart.cell', target: must(ctx.charts.find(c => c.selected), 'clicked').ref, args: { op: 'resetToMine' } }])
+    await waitFor(() => expect(asked()).toBe(true), { timeout: 1500 })
+    expect(at('c0').settings).toEqual({ upColor: '#000000' })
+  }, 30000)
+
   it('AMBIGUOUS: "maximize the top chart" fits several cells: asked, nothing changes', async () => {
     H.prefs = { multichart_state: JSON.stringify(gridOf(shape)) }
     const { say } = mount()
