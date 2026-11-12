@@ -21,7 +21,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { translatePine, REFUSALS, selfReferenceSentence, selfReferencingDeclaration, parseWholeExpression, lexPine, PINE_BUILTIN_VARIABLE_NAMES,
-  blockStatements, blockDeclarationReadsOwnHistory, declaredAsVariable } from './pine.js'
+  blockStatements, blockDeclarationReadsOwnHistory, declaredAsVariable, variableBeneath } from './pine.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 
@@ -337,6 +337,46 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
     expect(guards(pineAt(v, lines(v)))).toEqual(want)
+  })
+})
+
+describe('⭐⭐ engine 50 (review PR #1141 finding 1) — a variable stays declared beneath a LATER function of the same name', () => {
+  // The host env is ONE map, so `x(a) => …` defined after `x = close` overwrote the variable's
+  // binding, and a function-local `x` shadowing the global VARIABLE `x` was refused `pine:cycle`
+  // (shadowing a global is a warning in v5, not an error). Each row is the engine-49 path at all four
+  // doors, unchanged (measured on 22836e479c). The last row is the control the review named: the
+  // function defined BEFORE the variable (the variable's binding is then the latest, as always).
+  // The global-level note-3 shape (`x(a) => …` then `x = nz(x[1]) + 1`, no variable before) still
+  // refuses: its function covers no variable (`DOORS_AGREE.fnName`).
+  const NAMESPACE = {
+    varThenFnShadow: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close) + x(1))'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
+    varThenFnShadowBlock: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(f(close) + x(1))'], ['OK', 'OK', 'OK', 'OK']],
+    varThenFnUncalled: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(close)'], ['OK', 'OK', 'runtime:statement', 'OK']],
+    varThenNoArgFnShadowBlockUncalled: [['x = close', 'x() => 2.0', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(close + x())'], ['OK', 'OK', 'runtime:statement', 'OK']],
+    // inside the body of the function NAMED `x`: the global variable beneath it is still declared
+    varThenFnBodyShadow: [['x = close', 'x(a) =>', '    x = nz(x[1]) + a', '    x', 'plot(x(1))'], ['pine:state', 'OK', 'OK', 'OK']],
+    // the same beneath an OVERLOADED function (its second definition is an opaque `isFunction`
+    // binding) and beneath a function header the host cannot read (`markOpaque`, `isFunction`)
+    varThenOverloadShadow: [['x = close', 'x(a) => a * 2', 'x(a, b) => a + b', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close))'], null],
+    varThenBadFnShadow: [['x = close', 'x(1) => 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close))'], null],
+    // control: the function BEFORE the variable
+    fnThenVarShadow: [['x(a) => a * 2', 'x = close', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close) + x(1))'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
+  }
+  const cases = []
+  for (const [shape, [lines, want]] of Object.entries(NAMESPACE)) for (const v of [4, 5, 6]) cases.push([shape, v, lines, want])
+  it.each(cases)('%s, v%i: every door keeps its engine-49 path, none says `pine:cycle`', (shape, v, lines, want) => {
+    const got = guards(pineAt(v, lines))
+    expect(got).not.toContain('pine:cycle')
+    if (want) expect(got).toEqual(want)
+  })
+  it('the variable-only record: a function binding carries the variable it covered, through overloads and copies', () => {
+    const variable = { kind: 'expr' }
+    const fn = { kind: 'fn', hidesVariable: variable }
+    const env = new Map([['x', fn]])
+    expect(variableBeneath(env, 'x')).toBe(variable)
+    expect(declaredAsVariable(new Map(env), 'x')).toBe(true)
+    expect(declaredAsVariable(new Map([['x', { kind: 'opaque', isFunction: true, hidesVariable: variable }]]), 'x')).toBe(true)
+    expect(declaredAsVariable(new Map([['x', { kind: 'fn', hidesVariable: null }]]), 'x')).toBe(false)
   })
 })
 

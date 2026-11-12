@@ -4046,13 +4046,31 @@ export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'clos
  *  keeps variables and functions in separate namespaces (`atr = atr(14)` is legal in v4), so a user
  *  function of the same name written earlier (`x(a) => a * 2`) does not declare the VARIABLE `x`:
  *  in `x = nz(x[1]) + 1` the `x[1]` still reads a variable nothing declared (review ENG49-1122
- *  note 3; the runtime lane's scope never held the function, and already refused). The host env
- *  holds a function under its name (`kind: 'fn'`, or an opaque `isFunction` one that did not
- *  fold), so only a binding that is not a function counts. */
+ *  note 3; the runtime lane's scope never held the function, and already refused).
+ *  ⛔ THE HOST ENV IS ONE MAP FOR BOTH NAMESPACES, so a function defined AFTER a variable of the same
+ *  name (`x = close` / `x(a) => a * 2`) overwrites the variable's binding. The kind of whatever the
+ *  map holds now therefore cannot answer this (review PR #1141 finding 1: a function-local `x` that
+ *  shadows the global VARIABLE `x` was refused). The answer is a variable-only record carried by the
+ *  function binding itself: `hidesVariable`, the variable binding the function's definition covered
+ *  (`variableBeneath`, set at every site that binds a function under a name). It travels with every
+ *  copy of the env (`new Map(env)` copies the reference), so a function body, a block and every later
+ *  statement see it. */
 export function declaredAsVariable(env, name) {
-  if (!env || typeof env.has !== 'function' || !env.has(name)) return false
+  return !!variableBeneath(env, name)
+}
+
+/** A function binding (a folded `fn`, or an opaque one that did not fold). */
+const isFunctionBinding = (b) => !!b && (b.kind === 'fn' || (b.kind === 'opaque' && b.isFunction === true))
+
+/** ⭐ ENGINE 50 — the VARIABLE binding visible under `name` in `env`, or null: the binding itself when
+ *  it is not a function, else the variable the function binding covered (`hidesVariable`). Asked by
+ *  `declaredAsVariable`, and by every site that binds a function under a name, to record what it
+ *  covers. */
+export function variableBeneath(env, name) {
+  if (!env || typeof env.has !== 'function' || !env.has(name)) return null
   const b = env.get(name)
-  return !(b && (b.kind === 'fn' || (b.kind === 'opaque' && b.isFunction === true)))
+  if (!b) return null
+  return isFunctionBinding(b) ? (b.hidesVariable || null) : b
 }
 
 /** ⭐⭐ ENGINE 50 — A BLOCK-VALUED DECLARATION THAT READS ITS OWN HISTORY: `x = if …` /
@@ -25486,6 +25504,8 @@ function translatePineResult(source, opts = {}) {
       kind: 'opaque',
       guard,
       isFunction,
+      // ⭐ ENGINE 50 — a function that did not fold still covers the variable beneath it
+      ...(isFunction ? { hidesVariable: variableBeneath(env, name) } : {}),
       message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
       at: at || null,
     })
@@ -26079,6 +26099,8 @@ function translatePineResult(source, opts = {}) {
             kind: 'opaque',
             guard: 'pine:function-def',
             isFunction: true,
+            // ⭐ ENGINE 50 — the variable this name still holds beneath the function (`variableBeneath`)
+            hidesVariable: variableBeneath(env, nameTok.value),
             message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
               + 'than once (an overload), and this engine would apply one body to every call',
             at: locate(nameTok),
@@ -26098,7 +26120,10 @@ function translatePineResult(source, opts = {}) {
         // looking straight at. Bound, it reaches `MAX_CALL_DEPTH` and refuses at
         // `pine:cycle`, which is the true sentence. The object is filled in after
         // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
-        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
+        // ⭐ ENGINE 50 — `hidesVariable`: a variable of the same name declared before this function
+        // stays declared (separate namespaces), in this body and after it (`variableBeneath`)
+        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]),
+          hidesVariable: variableBeneath(env, nameTok.value) }
         fnEnv.set(nameTok.value, self)
         // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
         // `finalBindings = new Map(env)` is at the top level. `foldStatements`
