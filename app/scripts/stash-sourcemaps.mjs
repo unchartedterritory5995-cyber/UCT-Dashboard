@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+// NO SHEBANG, DELIBERATELY: see build-cot-facts.mjs.
 // app/scripts/stash-sourcemaps.mjs — runs right after `vite build` (package.json "build").
 //
 // vite.config.js builds with `sourcemap: 'hidden'`: every chunk gets a .map file and NO
